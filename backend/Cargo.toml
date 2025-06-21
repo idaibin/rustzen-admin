@@ -13,3 +13,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # 用于 CORS 和日志中间件
 tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# 数据库相关依赖 
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "chrono", "uuid"] }
+dotenvy = "0.15"
+thiserror = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.17", features = ["v4", "serde"] }

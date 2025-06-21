@@ -20,4 +20,7 @@
 
 # Cursor / AI
 # .cursor/
-*.ai.md
+*.ai.md# Environment variables
+.env
+.env.local
+.env.production
