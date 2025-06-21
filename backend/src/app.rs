@@ -1,6 +1,27 @@
 use crate::features;
-use axum::Router;
+use axum::{Router, response::Json, routing::get};
+use serde_json::json;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
+
+/// 健康检查端点
+async fn health_check() -> Json<serde_json::Value> {
+    Json(json!({
+        "status": "ok",
+        "message": "Rustzen Admin Backend is running",
+        "version": "0.1.0"
+    }))
+}
+
+/// 根路径处理
+async fn root() -> Json<serde_json::Value> {
+    Json(json!({
+        "message": "Welcome to Rustzen Admin API",
+        "endpoints": {
+            "health": "/health",
+            "api": "/api"
+        }
+    }))
+}
 
 /// 构建 Axum 应用
 pub fn create_app() -> Router {
@@ -17,6 +38,8 @@ pub fn create_app() -> Router {
 
     // 3. 创建应用根路由，并应用中间件
     Router::new()
+        .route("/", get(root))
+        .route("/health", get(health_check))
         .nest("/api", api_router)
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::very_permissive())

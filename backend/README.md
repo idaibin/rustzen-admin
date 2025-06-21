@@ -80,10 +80,12 @@
 启动服务后，可以访问以下端点测试数据库连接：
 
 ```bash
-curl http://localhost:3001/api/sys/user/
+curl http://localhost:3001/api/sys/user
 ```
 
 该端点会测试数据库连接并返回模拟用户数据。
+
+**注意**: API 路径不使用尾部斜杠（`/api/sys/user` 而不是 `/api/sys/user/`）。
 
 ## 开发流程
 

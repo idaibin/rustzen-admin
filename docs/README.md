@@ -1,12 +1,8 @@
-当然可以，以下是 rustzen-admin 的 中文 README.md 版本，适合国内开源平台（如 Gitee、知乎、掘金）发布或供 AI 工具识别中文开发文档：
-
-⸻
-
 # 🧩 rustzen-admin
 
 > 一个现代化的全栈管理系统模板，基于 **Rust (Axum)** 和 **React (Vite + Ant Design)** 构建。为性能、简洁和可扩展性而设计。
 
-[English](./README.md)
+[English](../README.md)
 
 ---
 
@@ -109,6 +105,26 @@ rustzen-admin/
     ```
 
     应用将在 `http://localhost:5173` 上可用。
+
+---
+
+## 🧪 API 测试
+
+我们推荐使用 **VSCode REST Client** 进行 API 测试：
+
+1. **安装插件**：在 VSCode 扩展中搜索 "REST Client"
+2. **打开测试文件**：`docs/api.http`
+3. **发送请求**：点击 HTTP 请求上方的 "Send Request"
+4. **查看响应**：结果会在新标签页中显示
+
+**主要优势**：
+
+- ✅ 与 VSCode 集成
+- ✅ 通过 Git 版本控制
+- ✅ 适合个人开发
+- ✅ 无需额外软件
+
+查看完整指南：[`docs/rest-client-guide.md`](docs/rest-client-guide.md)
 
 ---
 
