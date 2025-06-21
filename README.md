@@ -2,7 +2,7 @@
 
 > A modern, full-stack admin system template built with **Rust (Axum)** and **React (Vite + Ant Design)**. Designed for performance, simplicity, and extensibility.
 
-[简体中文](./README-zh-CN.md)
+[简体中文](./docs/README.md)
 
 ---
 
@@ -105,6 +105,26 @@ rustzen-admin/
     ```
 
     The application will be available at `http://localhost:5173`.
+
+---
+
+## 🧪 API Testing
+
+We recommend using **VSCode REST Client** for API testing:
+
+1. **Install the plugin**: Search for "REST Client" in VSCode extensions
+2. **Open test file**: `docs/api.http`
+3. **Send requests**: Click "Send Request" above any HTTP request
+4. **View responses**: Results appear in a new tab
+
+**Key benefits**:
+
+- ✅ Integrated with VSCode
+- ✅ Version controlled with Git
+- ✅ Perfect for individual development
+- ✅ No additional software needed
+
+See the complete guide: [`docs/rest-client-guide.md`](docs/rest-client-guide.md)
 
 ---
 

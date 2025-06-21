@@ -1,90 +1,183 @@
-# 📡 API Documentation
+# Rustzen Admin API 文档
 
-This document outlines the API conventions for the `rustzen-admin` project, including endpoint structure, response formats, and authentication methods.
+## 🌐 基础信息
 
----
+### Base URLs
 
-## Base URL
+- **开发环境**: `http://localhost:3001`
+- **生产环境**: `https://your-domain.com`
 
-All API endpoints are prefixed with `/api`. During development, the frontend vite server will proxy requests from `/api` to the backend server (e.g., `http://localhost:8000`).
+### API 前缀
 
-- **Production Base URL**: `https://yourdomain.com/api`
-- **Development Base URL**: `http://localhost:5173/api` (proxied)
+所有业务接口都使用 `/api` 作为前缀。
 
----
+## 🔐 认证方式
 
-## 🔑 Authentication
+使用 JWT (JSON Web Token) 进行身份认证：
 
-Most endpoints require authentication via a JSON Web Token (JWT). The token must be included in the `Authorization` header of your request:
-
-```
-Authorization: Bearer <your_jwt_token>
+```http
+Authorization: Bearer <your-jwt-token>
 ```
 
-Requests without a valid token to protected endpoints will receive a `401 Unauthorized` response.
+## 📋 标准响应格式
 
-Refer to the [**Authentication Guide**](./auth.md) for details on how to obtain a token.
-
----
-
-## 📦 Standard Response Structure
-
-All API responses follow a standardized JSON structure to ensure consistency and predictable handling on the frontend.
+所有接口都使用统一的响应格式：
 
 ```typescript
 interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
+  code: number; // 状态码：200 成功，其他为错误码
+  message: string; // 响应消息
+  data?: T; // 响应数据（可选）
 }
 ```
 
-### Fields
-
-| Field     | Type     | Description                                                                                                          |
-| :-------- | :------- | :------------------------------------------------------------------------------------------------------------------- |
-| `code`    | `number` | **Status Code**. `0` indicates success. Any other value indicates an error.                                          |
-| `message` | `string` | **Response Message**. A human-readable message, typically "success" for successful requests or an error description. |
-| `data`    | `T`      | **Response Payload**. The actual data returned by the endpoint. Can be an object, an array, or `null`.               |
-
-### Example
-
-#### Success Response (`code: 0`)
+### 成功响应示例
 
 ```json
 {
-  "code": 0,
+  "code": 200,
   "message": "success",
   "data": {
-    "userId": 1,
-    "username": "admin"
+    "id": 1,
+    "userName": "admin"
   }
 }
 ```
 
-#### Error Response (`code: 40001`)
+### 错误响应示例
 
 ```json
 {
-  "code": 40001,
-  "message": "Invalid username or password",
+  "code": 500,
+  "message": "数据库连接失败",
   "data": null
 }
 ```
 
----
+## 🛠️ 系统管理接口
 
-## Endpoints
+### 用户管理
 
-_This section should be populated with details for each API endpoint as they are developed._
+#### 获取用户列表
 
-### User Management (`/api/sys/user`)
+```http
+GET /api/sys/user
+```
 
-- **GET `/api/sys/user`**: Get a paginated list of users.
-- **POST `/api/sys/user`**: Create a new user.
-- **PUT `/api/sys/user/:id`**: Update an existing user.
-- **DELETE `/api/sys/user/:id`**: Delete a user.
+**响应示例**:
 
----
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "userName": "Admin",
+      "roleIds": [1]
+    }
+  ]
+}
+```
 
-_This document is a living document and should be updated as the API evolves._
+### 角色管理
+
+#### 获取角色列表
+
+```http
+GET /api/sys/role
+```
+
+### 菜单管理
+
+#### 获取菜单列表
+
+```http
+GET /api/sys/menu
+```
+
+### 字典管理
+
+#### 获取字典列表
+
+```http
+GET /api/sys/dict
+```
+
+### 日志管理
+
+#### 获取日志列表
+
+```http
+GET /api/sys/log
+```
+
+## 🔧 工具接口
+
+### 健康检查
+
+```http
+GET /health
+```
+
+**响应示例**:
+
+```json
+{
+  "status": "ok",
+  "message": "Rustzen Admin Backend is running",
+  "version": "0.1.0"
+}
+```
+
+### 根路径信息
+
+```http
+GET /
+```
+
+**响应示例**:
+
+```json
+{
+  "message": "Welcome to Rustzen Admin API",
+  "endpoints": {
+    "health": "/health",
+    "api": "/api"
+  }
+}
+```
+
+## 📝 路径约定
+
+- 所有 API 路径**不使用**尾部斜杠（如 `/api/sys/user` 而不是 `/api/sys/user/`）
+- 使用小写字母和连字符分隔单词
+- 资源名称使用复数形式（如 `users` 而不是 `user`，但当前为了保持一致性暂时使用单数）
+
+## 🧪 接口测试
+
+推荐使用 VSCode REST Client 插件进行接口测试：
+
+1. 安装插件：`REST Client by Huachao Mao`
+2. 打开项目中的 `docs/api.http` 文件
+3. 点击请求上方的 "Send Request" 按钮即可测试
+
+## 🚀 快速开始
+
+1. 启动后端服务：
+
+   ```bash
+   cd backend
+   cargo run
+   ```
+
+2. 测试健康检查：
+
+   ```bash
+   curl http://localhost:3001/health
+   ```
+
+3. 测试用户接口：
+   ```bash
+   curl http://localhost:3001/api/sys/user
+   ```

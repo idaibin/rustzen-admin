@@ -1,10 +1,9 @@
 {
   "recommendations": [
-    "esbenp.prettier-vscode",
-    "dbaeumer.vscode-eslint",
+    "humao.rest-client",
     "rust-lang.rust-analyzer",
-    "ms-azuretools.vscode-docker",
-    "zhuangtongfa.material-theme",
-    "bierner.markdown-preview-github-styles"
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-next"
   ]
 }
