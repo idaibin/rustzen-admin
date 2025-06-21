@@ -1,0 +1,152 @@
+---
+description: 
+globs: frontend/src/*
+alwaysApply: false
+---
+# 🎨 rustzen-admin 前端开发规范（Frontend Development Rules）
+
+本规范适用于 `rustzen-admin` 项目的前端模块，基于 Vite + React + Zustand + SWR + TailwindCSS + Ant Design ProComponents 构建，旨在统一团队开发风格、提升可维护性与 AI 工具（如 Cursor）辅助效果。
+执行任何命令的时候，请先确保在 frontend 文件夹中，如果不在，请使用 `cd frontend`。
+
+## 📦 1. 项目结构说明
+
+```
+frontend/
+├── src/
+│   ├── pages/            # 页面模块（按路由分）
+│   ├── components/       # 通用组件（全局可复用）
+│   ├── layouts/          # 页面布局（Blank, Basic）
+│   ├── services/         # 接口请求（统一封装）
+│   ├── hooks/            # 自定义 Hook（包含业务逻辑与请求）
+│   ├── stores/           # Zustand 状态管理
+│   ├── themes/           # Tailwind/Antd 主题配置
+│   ├── utils/            # 工具函数
+│   └── main.ts           # 项目入口
+├── types/                # 全局 TS 类型声明（每模块 declare）
+├── public/               # 静态资源
+├── vite.config.ts         # 构建配置
+└── index.html
+```
+> 使用 pnpm 包管理器
+
+---
+
+## 🧩 2. 命名与风格规范
+
+| 类型     | 命名风格       | 示例                              |
+| ------ | ---------- | ------------------------------- |
+| 组件名    | PascalCase | `UserTable.tsx`, `UserForm.tsx` |
+| 状态名    | camelCase  | `useUserStore`, `tokenStore`    |
+| Hook 名 | camelCase  | `useUserList`, `useLoginForm`   |
+| 类型名    | PascalCase | `User.Item`, `User.Request`     |
+| 路由路径   | kebab-case | `/user/list`, `/role/edit`      |
+
+---
+
+## 🛠 3. 数据请求与状态
+
+* 使用 [SWR](mdc:https:/swr.vercel.app) 进行请求（缓存、自动刷新）
+* 接口统一封装在 `services/` 下，每个模块一个文件
+* 业务逻辑放在 `hooks/` 中，组合请求、状态等逻辑
+* 全局状态使用 Zustand，推荐解耦 UI 与业务状态
+
+---
+
+## 🔤 4. 类型定义约定（统一集中管理）
+
+* 所有页面/请求/响应使用的类型都定义在全局 `types/` 目录
+* 每个模块一个 `declare module` 文件：如 `types/user.d.ts`
+
+```ts
+// types/user.d.ts
+declare module 'User' {
+  interface Item {
+    id: number;
+    userName: string;
+    roleIds: number[];
+  }
+
+  interface Request {
+    userName: string;
+    password: string;
+  }
+
+  interface Response {
+    id: number;
+    userName: string;
+  }
+}
+```
+
+* 页面组件使用时可引用：
+
+```ts
+const { data } = useSWR<User.Response[]>('/api/users');
+```
+
+---
+
+## 🎨 5. 样式规范
+
+* 优先使用 TailwindCSS 控制布局、颜色、间距
+* 当 Tailwind 不满足需求时，使用 `@emotion/react` 写 scoped 样式
+
+```tsx
+import { css } from '@emotion/react';
+
+const panel = css`background: #fff;`;
+```
+
+* 禁止使用全局 CSS/Less（避免冲突）
+
+---
+
+## 🌗 6. 暗色模式支持
+
+* 启用 Tailwind 的 `dark` class 模式
+* 使用 `dark:` 前缀设置暗色主题
+* 可通过 context 或 localStorage 存储当前主题状态
+
+```html
+<body class="dark">
+```
+
+---
+
+## 📋 7. 页面模块结构建议
+
+```
+/pages/system/user/
+├── index.tsx         # 列表页
+├── form.tsx          # 新增/编辑弹窗表单
+├── detail.tsx        # 详情页（可选）
+├── service.ts        # 当前模块 API 请求
+├── hook.ts           # 当前模块业务逻辑 Hook
+```
+
+---
+
+## 🌐 8. 国际化与权限（预留）
+
+* 国际化支持使用 `i18n/zh.ts`、`i18n/en.ts`，统一语言 key 管理
+* 权限控制可通过接口返回用户权限，再通过 hook 控制 UI 显示
+
+---
+
+## ✅ 9. AI 工具友好建议（Cursor）
+
+* 所有组件职责清晰，类型齐全（接口请求、表单字段）
+* 页面模块目录结构一致、hook 命名规范
+* 接口与类型分离（services + types）
+* 使用统一类型结构 `ApiResponse<T>` 进行返回包装
+
+```ts
+export interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+```
+
+---
+

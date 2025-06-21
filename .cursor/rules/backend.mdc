@@ -1,0 +1,144 @@
+---
+description: 
+globs: backend/*
+alwaysApply: false
+---
+🧱 rustzen-admin 后端开发规范（Backend Development Rules）
+
+本规范适用于 rustzen-admin 项目的后端模块，使用 Rust + Axum + SQLx 构建，旨在提升代码一致性、可维护性、可测试性与协作效率，适配 AI 编程工具如 Cursor 等辅助开发工具。
+执行任何命令的时候，请先确保在 backend 文件夹中，如果不在，请使用 `cd backend`。
+
+⸻
+
+📦 1. 项目结构约定（模块化分层）
+
+src/
+├── main.rs // 启动入口
+├── app.rs // Axum App 构建逻辑
+├── core/ // 核心功能模块（中间件、配置、日志等）
+│ ├── config.rs
+│ ├── db.rs
+│ ├── errors.rs
+│ └── middleware/
+├── features/ // 业务模块（按功能拆分）
+│ ├── user/
+│ │ ├── model.rs
+│ │ ├── repo.rs
+│ │ ├── service.rs
+│ │ ├── routes.rs
+│ │ └── mod.rs
+│ └── ...
+
+⸻
+
+🧩 2. 模块职责说明
+
+每个业务模块（如 user）由以下文件组成：
+
+文件 作用描述
+model.rs 定义数据库结构、请求体、响应体模型结构（含 camelCase 映射）
+repo.rs 负责数据库操作（SQL 查询、插入、删除等）
+service.rs 负责组合业务逻辑，如校验、组合 repo、规则判断等
+routes.rs 定义 API 路由和 handler，调用 service 方法
+mod.rs 模块统一导出接口
+
+⸻
+
+🎯 3. 命名与风格
+
+模型命名规范
+• Rust 内部使用 snake_case
+• 对外 API 返回使用 camelCase，通过 #[serde(rename_all = "camelCase")] 实现
+
+#[derive(Serialize, Deserialize)] #[serde(rename_all = "camelCase")]
+pub struct UserResponse {
+pub user_name: String,
+pub email: String,
+}
+
+命名规则
+
+类型 命名风格 示例
+文件名 snake_case user.rs, user_model.rs
+Struct PascalCase UserResponse
+函数 snake_case get_user_list()
+表名 snake_case sys_user, sys_role
+
+⸻
+
+🛠 4. 数据访问与 Repository 模式
+• 所有 SQL 查询封装在 repo.rs 中
+• 推荐使用 sqlx::query_as! 保证类型安全
+• 函数入参为 &PgPool, 出参为 Result<T, AppError>
+
+pub async fn find_by_username(pool: &PgPool, username: &str) -> Result<Option<UserModel>, AppError> {
+sqlx::query_as!(UserModel, "SELECT \* FROM sys_user WHERE username = $1", username)
+.fetch_optional(pool)
+.await
+.map_err(AppError::from)
+}
+
+⸻
+
+🔄 5. API 响应结构
+
+所有接口统一使用以下 JSON 格式返回：
+
+{
+"code": 0,
+"message": "success",
+"data": { ... }
+}
+
+    •	使用类型别名封装返回值：type ApiResult<T> = Result<ApiResponse<T>, AppError>
+    •	推荐提供快捷函数 success()
+
+⸻
+
+🔐 6. 鉴权与中间件
+
+统一放置在 core/middleware/：
+• auth.rs：JWT 解码，注入用户信息
+• rbac.rs：权限判断中间件
+• tracing.rs：日志中间件
+
+使用 Extension<UserClaims> 注入当前用户身份信息
+
+⸻
+
+📋 7. 配置与环境变量
+
+使用 dotenvy + std::env 管理 .env 配置
+• 所有配置集中在 core/config.rs
+• 支持 dev, prod, test 环境变量切换
+
+DATABASE_URL=postgres://...
+JWT_SECRET=xxx
+SERVER_PORT=8080
+
+⸻
+
+🧪 8. 测试规范
+• 所有测试放在模块内 mod tests {} 或 mod_test.rs
+• 使用 #[tokio::test] 异步测试
+• 单元测试 mock 数据，集成测试使用测试数据库
+
+⸻
+
+✅ 9. 代码质量建议
+• 启用 clippy + rustfmt
+• 所有业务函数返回 Result<T, AppError>
+• 尽量避免 unwrap, expect
+• 使用 pub use 在 mod.rs 聚合模块对外接口
+
+⸻
+
+🧠 AI 工具友好建议
+• 每个模块职责单一、文件独立，利于 AI 语义索引
+• 路由 → 调用 service → 组合 repo → 返回 model
+• API handler 层不出现业务逻辑（仅提取参数 + 调用）
+• 数据结构具备 serde tag（rename_all = "camelCase"）方便类型推导
+
+⸻
+
+本规范适用于 Cursor rules/backend.md，可根据项目演进扩展模块。

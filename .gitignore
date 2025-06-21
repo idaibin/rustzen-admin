@@ -1,0 +1,23 @@
+# Rust
+/backend/target
+**/*.rs.bk
+.env.local
+
+# Frontend
+/frontend/node_modules
+/frontend/dist
+
+# Desktop (Tauri)
+/desktop/src-tauri/target
+/src-tauri/target
+
+# Editor
+# .vscode
+.idea
+*.sw?
+*.log
+*.tmp
+
+# Cursor / AI
+# .cursor/
+*.ai.md

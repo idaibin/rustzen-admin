@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "rust-lang.rust-analyzer",
+    "ms-azuretools.vscode-docker",
+    "zhuangtongfa.material-theme",
+    "bierner.markdown-preview-github-styles"
+  ]
+}
