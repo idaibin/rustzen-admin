@@ -3,7 +3,7 @@ use axum::Router;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 /// 构建 Axum 应用
-pub async fn create_app() -> Router {
+pub fn create_app() -> Router {
     // 1. 创建 /sys 路由，并挂载所有业务模块
     let sys_router = Router::new()
         .nest("/user", features::user::router())

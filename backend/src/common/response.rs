@@ -22,6 +22,11 @@ where
     pub fn empty() -> Json<ApiResponse<()>> {
         Json(ApiResponse { code: 200, message: "success".to_string(), data: None })
     }
+
+    /// 创建错误响应
+    pub fn fail(code: u16, message: String) -> Json<Self> {
+        Json(Self { code, message, data: None })
+    }
 }
 
 /// 失败响应的快速实现
