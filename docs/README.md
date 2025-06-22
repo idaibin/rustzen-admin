@@ -68,7 +68,7 @@ rustzen-admin/
 ### 环境要求
 
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Node.js](https://nodejs.org/) (v18+) 及 `pnpm`
+- [Node.js](https://nodejs.org/) (v24+) 及 `pnpm`
 - [Just](https://github.com/casey/just) 命令运行器
 - [Docker](https://www.docker.com/get-started) (用于数据库)
 

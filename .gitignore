@@ -1,7 +1,7 @@
 # Rust
 /backend/target
 **/*.rs.bk
-.env.local
+.env
 
 # Frontend
 /frontend/node_modules
@@ -21,6 +21,3 @@
 # Cursor / AI
 # .cursor/
 *.ai.md# Environment variables
-.env
-.env.local
-.env.production
