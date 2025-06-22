@@ -9,7 +9,6 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Language](https://img.shields.io/badge/lang-Rust%20%7C%20TypeScript-orange.svg)
 ![Status](https://img.shields.io/badge/status-开发中-yellow.svg)
-[![CI](https://github.com/daibin/rustzen-admin/actions/workflows/ci.yml/badge.svg)](https://github.com/daibin/rustzen-admin/actions)
 
 ---
 
