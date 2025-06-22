@@ -77,7 +77,7 @@ rustzen-admin/
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/daibin/rustzen-admin.git
+    git clone https://github.com/idaibin/rustzen-admin.git
     cd rustzen-admin
     ```
 
@@ -139,4 +139,4 @@ This project is licensed under the MIT License. See the [LICENSE.md](./LICENSE.m
 
 ---
 
-Made with ❤️ and 🦀 by **daibin**.
+Made with ❤️ and 🦀 by **idaibin**.

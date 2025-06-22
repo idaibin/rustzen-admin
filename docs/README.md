@@ -77,7 +77,7 @@ rustzen-admin/
 1.  **克隆仓库:**
 
     ```bash
-    git clone https://github.com/daibin/rustzen-admin.git
+    git clone https://github.com/idaibin/rustzen-admin.git
     cd rustzen-admin
     ```
 
@@ -138,8 +138,6 @@ rustzen-admin/
 本项目采用 MIT 协议。详情请见 [LICENSE.md](./LICENSE.md) 文件。
 
 ---
-
-由 **daibin** 使用 ❤️ 和 🦀 制作。
 
 ⸻
 
