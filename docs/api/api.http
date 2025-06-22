@@ -3,55 +3,51 @@
 # 安装插件：REST Client by Huachao Mao
 
 ### 环境变量配置
-@baseUrl = http://localhost:3001
+@baseUrl = http://localhost:8000
 @apiUrl = {{baseUrl}}/api
 
 ### ===== 基础接口测试 =====
 
 ### 1. 健康检查
-GET {{baseUrl}}/health
-Accept: application/json
-
-### 2. 根路径
 GET {{baseUrl}}/
 Accept: application/json
 
 ### ===== 系统管理接口 =====
 
-### 3. 用户管理 - 获取用户列表
-GET {{apiUrl}}/sys/user
+### 2. 用户管理 - 获取用户列表
+GET {{apiUrl}}/system/users
 Accept: application/json
 
-### 4. 角色管理 - 获取角色列表
-GET {{apiUrl}}/sys/role
+### 3. 角色管理 - 获取角色列表
+GET {{apiUrl}}/system/roles
 Accept: application/json
 
-### 5. 菜单管理 - 获取菜单列表
-GET {{apiUrl}}/sys/menu
+### 4. 菜单管理 - 获取菜单列表
+  GET {{apiUrl}}/system/menus
 Accept: application/json
 
-### 6. 字典管理 - 获取字典列表
-GET {{apiUrl}}/sys/dict
+### 5. 字典管理 - 获取字典列表
+GET {{apiUrl}}/system/dict
 Accept: application/json
 
-### 7. 日志管理 - 获取日志列表
-GET {{apiUrl}}/sys/log
+### 6. 日志管理 - 获取日志列表
+GET {{apiUrl}}/system/log
 Accept: application/json
 
 ### ===== 带参数的请求示例 =====
 
-### 8. 用户列表（带分页参数）
-GET {{apiUrl}}/sys/user/?current=1&pageSize=20
+### 7. 用户列表（带分页参数）
+GET {{apiUrl}}/system/users/?current=1&pageSize=20
 Accept: application/json
 
-### 9. 用户详情（路径参数示例）
-# GET {{apiUrl}}/sys/user/1
+### 8. 用户详情（路径参数示例）
+# GET {{apiUrl}}/system/user/1
 # Accept: application/json
 
 ### ===== POST 请求示例（未来扩展） =====
 
-### 10. 创建用户（示例）
-# POST {{apiUrl}}/sys/user/
+### 9. 创建用户（示例）
+# POST {{apiUrl}}/system/user/
 # Content-Type: application/json
 # 
 # {
@@ -62,24 +58,24 @@ Accept: application/json
 
 ### ===== 错误测试 =====
 
-### 11. 测试不存在的路径
-GET {{apiUrl}}/sys/nonexistent/
+### 10. 测试不存在的路径
+GET {{apiUrl}}/system/nonexistent/
 Accept: application/json
 
-### 12. 测试错误的 API 路径
+### 11. 测试错误的 API 路径
 GET {{baseUrl}}/wrong-api/test
 Accept: application/json
 
 ### ===== 性能测试 =====
 
-### 13. 批量请求测试（连续发送）
-GET {{apiUrl}}/sys/user/
+### 12. 批量请求测试（连续发送）
+GET {{apiUrl}}/system/user/
 Accept: application/json
 
 ###
-GET {{apiUrl}}/sys/role/
+GET {{apiUrl}}/system/role/
 Accept: application/json
 
 ###
-GET {{apiUrl}}/sys/menu/
+GET {{apiUrl}}/system/menu/
 Accept: application/json 
