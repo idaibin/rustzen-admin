@@ -30,7 +30,7 @@ async fn main() {
     // 获取服务器配置
     let host = env::var("APP_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = env::var("APP_PORT")
-        .unwrap_or_else(|_| "3000".to_string())
+        .unwrap_or_else(|_| "8000".to_string())
         .parse::<u16>()
         .expect("APP_PORT must be a valid port number");
 

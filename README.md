@@ -68,7 +68,7 @@ rustzen-admin/
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Node.js](https://nodejs.org/) (v18+) with `pnpm`
+- [Node.js](https://nodejs.org/) (v24+) with `pnpm`
 - [Just](https://github.com/casey/just) command runner
 - [Docker](https://www.docker.com/get-started) (for the database)
 
