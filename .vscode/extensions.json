@@ -3,7 +3,6 @@
     "humao.rest-client",
     "rust-lang.rust-analyzer",
     "bradlc.vscode-tailwindcss",
-    "esbenp.prettier-vscode",
-    "ms-vscode.vscode-typescript-next"
+    "esbenp.prettier-vscode"
   ]
 }
