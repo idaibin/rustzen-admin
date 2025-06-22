@@ -5,7 +5,7 @@ description: "A starter template for admin systems built with Rust (Axum) and Re
 tags: rust, react, webdev, opensource
 ---
 
-# Introducing rustzen-admin: A Full-Stack Admin Template
+## Introducing
 
 Building admin panels often involves setting up the same foundational patterns: authentication, user management, CRUD operations, and API documentation. After working on several such projects, I decided to create **rustzen-admin** - a starter template that combines Rust backend with React frontend.
 

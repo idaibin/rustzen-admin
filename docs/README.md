@@ -1,4 +1,6 @@
-# 🧩 rustzen-admin
+# 📚 rustzen-admin 中文文档中心
+
+---
 
 > 一个现代化的全栈管理系统模板，基于 **Rust (Axum)** 和 **React (Vite + Ant Design)** 构建。为性能、简洁和可扩展性而设计。
 

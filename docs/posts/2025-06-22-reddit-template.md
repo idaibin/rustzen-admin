@@ -1,10 +1,10 @@
-# 🧩 rustzen-admin: A Modern Full-Stack Admin Template with Rust + React
+# rustzen-admin: A Modern Full-Stack Admin Template with Rust + React
 
-Hey r/rust! 👋
+Hey r/rust!
 
 I've been working on **rustzen-admin**, a full-stack admin system template that combines Rust (Axum) with React frontend. I wanted to share it with the community and get some feedback on the architecture patterns I'm using.
 
-## 🚀 What is it?
+## What is it?
 
 rustzen-admin is a starter template for building admin panels and dashboards. It's designed for developers who want:
 
@@ -13,15 +13,15 @@ rustzen-admin is a starter template for building admin panels and dashboards. It
 - **Clean project structure** to build upon
 - **Type-safe full-stack development** with mock data-driven frontend development
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Rust Backend
 
-- **[Axum](https://github.com/tokio-rs/axum)** - Web framework
-- **[SQLx](https://github.com/launchbadge/sqlx)** - Async PostgreSQL with compile-time checked queries
-- **[Tokio](https://tokio.rs/)** - Async runtime
-- **[Serde](https://serde.rs/)** - Serialization
-- **[Tower-HTTP](https://github.com/tower-rs/tower-http)** - Middleware for CORS, tracing, etc.
+- **Axum** - Web framework
+- **SQLx** - Async PostgreSQL with compile-time checked queries
+- **Tokio** - Async runtime
+- **Serde** - Serialization
+- **Tower-HTTP** - Middleware for CORS, tracing, etc.
 
 ### Frontend Stack
 
@@ -32,22 +32,22 @@ rustzen-admin is a starter template for building admin panels and dashboards. It
 - **Ant Design Pro** - Enterprise-class UI components
 - **SWR** - Data fetching with caching
 
-## 🎯 Current Features
+## Current Features
 
-✅ **Basic Structure** - Modular backend architecture  
-✅ **Database Integration** - PostgreSQL with SQLx  
-✅ **Development Setup** - Docker environment with hot reload  
-✅ **API Framework** - REST endpoints with proper error handling  
-✅ **Frontend Scaffold** - React app with routing and UI components  
-✅ **Mock Data Endpoints** - Frontend can develop independently with realistic data  
-✅ **Type Safety** - Strict alignment between frontend and backend types  
-✅ **Documentation** - API docs and development guides
+✓ **Basic Structure** - Modular backend architecture  
+✓ **Database Integration** - PostgreSQL with SQLx  
+✓ **Development Setup** - Docker environment with hot reload  
+✓ **API Framework** - REST endpoints with proper error handling  
+✓ **Frontend Scaffold** - React app with routing and UI components  
+✓ **Mock Data Endpoints** - Frontend can develop independently with realistic data  
+✓ **Type Safety** - Strict alignment between frontend and backend types  
+✓ **Documentation** - API docs and development guides
 
-## 🏗️ Architecture Pattern
+## Architecture Pattern
 
 The Rust backend follows a modular pattern:
 
-```rust
+```
 // Each feature module has:
 features/
 ├── user/
@@ -60,9 +60,9 @@ features/
 
 This keeps things organized and makes testing easier. The current version includes mock data endpoints to enable rapid frontend development while the backend architecture is being finalized.
 
-## 🔧 Getting Started
+## Getting Started
 
-```bash
+```
 git clone https://github.com/idaibin/rustzen-admin.git
 cd rustzen-admin
 cp backend/.env.example backend/.env
@@ -73,7 +73,7 @@ cd frontend && pnpm install && cd ..
 just dev  # Starts everything with hot-reload
 ```
 
-## 💭 Why I Built This
+## Why I Built This
 
 I found myself setting up similar patterns for different projects:
 
@@ -84,7 +84,7 @@ I found myself setting up similar patterns for different projects:
 - **Type-safe frontend-backend integration** with mock data for parallel development
 - **Modern development practices** that work well with AI tools
 
-## 🤔 Questions for the Community
+## Questions for the Community
 
 1. **Architecture feedback**: Does the modular structure make sense? Any suggestions for improvement?
 
@@ -96,13 +96,13 @@ I found myself setting up similar patterns for different projects:
 
 5. **Type safety**: How do you maintain type consistency between Rust backend and TypeScript frontend in your projects?
 
-## 🔗 Links
+## Links
 
 - **GitHub**: https://github.com/idaibin/rustzen-admin
 - **Docs**: Setup guides and API documentation included
-- **中文文档**: Chinese documentation available for international developers
+- **Chinese docs**: Available for international developers
 
-## 🙏 Feedback Welcome!
+## Feedback Welcome!
 
 This is a learning project for me, so I'd appreciate any feedback:
 
@@ -114,7 +114,7 @@ This is a learning project for me, so I'd appreciate any feedback:
 
 **Want to contribute?** We welcome issues and pull requests! The roadmap is community-driven.
 
-Thanks for reading! 🦀
+Thanks for reading!
 
 ---
 
