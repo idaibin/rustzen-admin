@@ -2,7 +2,7 @@
 
 > A modern, full-stack admin system template built with **Rust (Axum)** and **React (Vite + Ant Design)**. Designed for performance, simplicity, and extensibility.
 
-[简体中文](./docs/README.md)
+[简体中文](./README_zh-CN.md)
 
 ---
 
@@ -112,7 +112,7 @@ rustzen-admin/
 We recommend using **VSCode REST Client** for API testing:
 
 1. **Install the plugin**: Search for "REST Client" in VSCode extensions
-2. **Open test file**: `docs/api.http`
+2. **Open test file**: `docs/api/api.http`
 3. **Send requests**: Click "Send Request" above any HTTP request
 4. **View responses**: Results appear in a new tab
 
@@ -123,19 +123,131 @@ We recommend using **VSCode REST Client** for API testing:
 - ✅ Perfect for individual development
 - ✅ No additional software needed
 
-See the complete guide: [`docs/rest-client-guide.md`](docs/rest-client-guide.md)
+See the complete guide: [`docs/api/rest-client.md`](docs/api/rest-client.md)
+
+---
+
+## 📚 Feature Implementation Status
+
+### 🔐 Authentication System ✅ **Implemented**
+
+| Feature             | Status      | Description                                                   |
+| ------------------- | ----------- | ------------------------------------------------------------- |
+| User Login          | ✅ Complete | JWT token authentication with encrypted password verification |
+| User Registration   | ✅ Complete | Username/email conflict detection                             |
+| Get User Info       | ✅ Complete | Includes role information and menu permissions                |
+| JWT Auth Middleware | ✅ Complete | Automatic token verification and user status checking         |
+| Password Hashing    | ✅ Complete | bcrypt secure password storage                                |
+
+### 🧑‍💼 System Management ✅ **Core Features Implemented**
+
+| Module              | Status      | Description                                         |
+| ------------------- | ----------- | --------------------------------------------------- |
+| **User Management** | ✅ Complete | CRUD operations, role assignment, status management |
+| **Role Management** | ✅ Complete | Role CRUD, menu permission assignment               |
+| **Menu Management** | ✅ Complete | Tree-structured menus, permission control           |
+| **Data Dictionary** | ✅ Complete | Dictionary item management, options API             |
+| **Operation Logs**  | ✅ Complete | System log recording and querying                   |
+
+### 🔗 Options API ✅ **Implemented**
+
+| Feature                   | Status      | Description                                       |
+| ------------------------- | ----------- | ------------------------------------------------- |
+| Unified Options Interface | ✅ Complete | `/api/system/{resource}/options`                  |
+| Permission Control        | ✅ Complete | Atomic permission design (`system:roles:options`) |
+| Search & Filtering        | ✅ Complete | Support for `q`, `limit`, `status` parameters     |
+| Response Format           | ✅ Complete | Standard `{ label, value }` format                |
+
+### 🏗️ Architecture Features ✅ **Implemented**
+
+| Feature                    | Status      | Description                                          |
+| -------------------------- | ----------- | ---------------------------------------------------- |
+| **Modular Architecture**   | ✅ Complete | Repository-Service-Routes three-tier architecture    |
+| **Unified Error Handling** | ✅ Complete | `ServiceError` enum with business error code mapping |
+| **API Response Format**    | ✅ Complete | Unified `ApiResponse<T>` wrapper                     |
+| **Database Migration**     | ✅ Complete | Complete database schema and relationships           |
+| **Internationalization**   | ✅ Complete | Full English comments and error messages             |
+| **Logging System**         | ✅ Complete | Tracing framework with structured logging            |
+| **CORS Configuration**     | ✅ Complete | Cross-origin support, development-friendly           |
+
+---
+
+## 🔄 Planned Features
+
+| Module                 | Status      | Description                                       |
+| ---------------------- | ----------- | ------------------------------------------------- |
+| 📁 **File Upload**     | 🔄 Planned  | Support for local/S3 upload                       |
+| ⚙️ **System Settings** | 🔄 Planned  | General configuration management, theme switching |
+| 📡 **WebSocket Push**  | ⏳ Optional | Real-time notifications and messaging             |
+| 🖥️ **Tauri Client**    | ⏳ Optional | Desktop admin interface                           |
+| 📊 **Dashboard**       | 🔄 Planned  | Data statistics and visualization charts          |
+| 🌍 **Multi-language**  | 🔄 Planned  | i18n internationalization framework               |
+| 🎨 **Theme System**    | 🔄 Planned  | Dark mode, custom themes                          |
+
+---
+
+## 🧱 Technical Architecture
+
+```text
+            +--------------------+       +------------------+
+   Client → | React Admin UI     | →     | Rust API (Axum) |
+            +--------------------+       +------------------+
+                      ↓                           ↓
+            +--------------------+       +------------------+
+            | Ant Design Pro     |       | SQLx + PostgreSQL|
+            | TailwindCSS        |       | JWT + bcrypt     |
+            | SWR + TypeScript   |       | tracing + tokio  |
+            +--------------------+       +------------------+
+```
+
+**Key Advantages**:
+
+- 🦀 **Rust Backend**: Memory safety, high performance, type safety
+- ⚛️ **React Frontend**: Modern component library, responsive design
+- 🗄️ **PostgreSQL**: ACID transactions, strong consistency
+- 🔐 **RBAC Permissions**: Role-based access control
+- 📖 **Complete Documentation**: API docs, architecture explanation
+
+---
+
+## 📖 Project Documentation
+
+- [🏗️ Architecture Design](./docs/architecture.md) - System modules and technical architecture
+- [📋 API Documentation](./docs/api/) - Complete interface documentation
+- [⚙️ Options API](./docs/api/options-api.md) - Dropdown options interface specification
+- [🛠️ Development Guide](./docs/development/) - Contributing guide and development standards
+
+---
+
+## 🎯 Project Goals
+
+This project aims to become a **modern admin template** in the Rust ecosystem, providing:
+
+1. **Ready to Use**: Complete RBAC permission system and basic features
+2. **Production Ready**: Enterprise-grade code quality and security standards
+3. **Easy to Extend**: Clear modular architecture for easy feature extension
+4. **Best Practices**: Showcase best practices for Rust + React full-stack development
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [**Contributing Guide**](./docs/CONTRIBUTING.md) to get started.
+Contributions are welcome! Please read our [**Contributing Guide**](./docs/development/CONTRIBUTING.md) to get started.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License. See the [LICENSE.md](./LICENSE.md) file for details.
+
+---
+
+🙏 **Acknowledgments**
+• [Axum](https://github.com/tokio-rs/axum) - Modern Rust web framework
+• [SQLx](https://github.com/launchbadge/sqlx) - Async SQL toolkit
+• [Ant Design Pro](https://procomponents.ant.design/) - Enterprise-class frontend components
+• [Tauri](https://tauri.app/) - Cross-platform desktop application framework
+• All Rust and React open-source projects and developers in the community 🙌
 
 ---
 
