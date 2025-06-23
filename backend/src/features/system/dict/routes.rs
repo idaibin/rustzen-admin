@@ -1,42 +1,32 @@
 use super::model::DictItem;
-use crate::common::api::ApiResponse;
-use axum::{Json, Router, routing::get};
+use super::service::DictService;
+use crate::common::api::{ApiResponse, AppResult, DictOptionsQuery};
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    routing::get,
+};
 use sqlx::PgPool;
 
+/// Defines the routes for dictionary items.
 pub fn dict_routes() -> Router<PgPool> {
-    Router::new().route("/", get(get_dict_list))
+    Router::new().route("/", get(get_dict_list)).route("/options", get(get_dict_options))
 }
 
-async fn get_dict_list() -> Json<ApiResponse<Vec<DictItem>>> {
-    let mock_dicts = vec![
-        DictItem {
-            id: 1,
-            dict_type: "user_status".to_string(),
-            label: "Active".to_string(),
-            value: "1".to_string(),
-            is_default: true,
-        },
-        DictItem {
-            id: 2,
-            dict_type: "user_status".to_string(),
-            label: "Inactive".to_string(),
-            value: "0".to_string(),
-            is_default: false,
-        },
-        DictItem {
-            id: 3,
-            dict_type: "gender".to_string(),
-            label: "Male".to_string(),
-            value: "M".to_string(),
-            is_default: false,
-        },
-        DictItem {
-            id: 4,
-            dict_type: "gender".to_string(),
-            label: "Female".to_string(),
-            value: "F".to_string(),
-            is_default: false,
-        },
-    ];
-    ApiResponse::success(mock_dicts)
+/// Handles the request to get a list of dictionary items.
+async fn get_dict_list(State(pool): State<PgPool>) -> AppResult<Json<ApiResponse<Vec<DictItem>>>> {
+    let dict_list = DictService::get_dict_list(&pool).await?;
+    Ok(ApiResponse::success(dict_list))
+}
+
+/// Handles the request to get dictionary options for dropdowns
+///
+/// Extracts query parameters and delegates to the service layer for processing.
+async fn get_dict_options(
+    State(pool): State<PgPool>,
+    Query(query): Query<DictOptionsQuery>,
+) -> AppResult<Json<ApiResponse<Vec<crate::common::api::OptionItem<String>>>>> {
+    let options =
+        DictService::get_dict_options(&pool, query.dict_type, query.q, query.limit).await?;
+    Ok(ApiResponse::success(options))
 }

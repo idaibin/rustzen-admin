@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// 数据库菜单模型
+/// Database menu model
 #[derive(Debug, Clone, FromRow)]
 pub struct MenuEntity {
     pub id: i64,
@@ -19,8 +19,8 @@ pub struct MenuEntity {
     pub updated_at: NaiveDateTime,
 }
 
-/// API 响应菜单模型
-#[derive(Debug, Clone, Serialize)]
+/// API response menu model
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuResponse {
     pub id: i64,
@@ -36,7 +36,7 @@ pub struct MenuResponse {
     pub children: Vec<MenuResponse>,
 }
 
-/// 创建菜单请求
+/// Create menu request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMenuRequest {
@@ -49,7 +49,7 @@ pub struct CreateMenuRequest {
     pub status: Option<i16>,
 }
 
-/// 更新菜单请求
+/// Update menu request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMenuRequest {
@@ -62,7 +62,7 @@ pub struct UpdateMenuRequest {
     pub status: Option<i16>,
 }
 
-/// 菜单查询参数
+/// Menu query parameters
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuQueryParams {
@@ -70,7 +70,7 @@ pub struct MenuQueryParams {
     pub status: Option<i16>,
 }
 
-/// 菜单列表响应
+/// Menu list response
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuListResponse {
