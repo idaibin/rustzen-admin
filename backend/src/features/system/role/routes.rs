@@ -2,7 +2,7 @@ use super::model::{
     CreateRoleRequest, RoleListResponse, RoleQueryParams, RoleResponse, UpdateRoleRequest,
 };
 use super::service::RoleService;
-use crate::common::api::ApiResponse;
+use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -10,11 +10,12 @@ use axum::{
 };
 use sqlx::PgPool;
 
-/// 角色路由
+/// Defines the routes for role management
 pub fn role_routes() -> Router<PgPool> {
     Router::new()
         .route("/", get(get_role_list))
         .route("/", post(create_role))
+        .route("/options", get(get_role_options))
         .route("/{id}", get(get_role_by_id))
         .route("/{id}", put(update_role))
         .route("/{id}", delete(delete_role))
@@ -22,99 +23,78 @@ pub fn role_routes() -> Router<PgPool> {
         .route("/{id}/menus", put(set_role_menus))
 }
 
-/// 获取角色列表
+/// Handles the request to get a paginated list of roles
 async fn get_role_list(
     State(pool): State<PgPool>,
     Query(params): Query<RoleQueryParams>,
-) -> Json<ApiResponse<RoleListResponse>> {
-    match RoleService::get_role_list(&pool, params).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("获取角色列表失败: {}", e);
-            ApiResponse::fail(500, "获取角色列表失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<RoleListResponse>>> {
+    let response_data = RoleService::get_role_list(&pool, params).await?;
+    Ok(ApiResponse::success(response_data))
 }
 
-/// 根据 ID 获取角色
+/// Handles the request to get a single role by its ID
 async fn get_role_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> Json<ApiResponse<RoleResponse>> {
-    match RoleService::get_role_by_id(&pool, id).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("获取角色失败: {}", e);
-            ApiResponse::fail(500, "获取角色失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+    let role = RoleService::get_role_by_id(&pool, id).await?;
+    Ok(ApiResponse::success(role))
 }
 
-/// 创建角色
+/// Handles the request to create a new role
 async fn create_role(
     State(pool): State<PgPool>,
     Json(request): Json<CreateRoleRequest>,
-) -> Json<ApiResponse<RoleResponse>> {
-    match RoleService::create_role(&pool, request).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("创建角色失败: {}", e);
-            ApiResponse::fail(500, "创建角色失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+    let new_role = RoleService::create_role(&pool, request).await?;
+    Ok(ApiResponse::success(new_role))
 }
 
-/// 更新角色
+/// Handles the request to update an existing role
 async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateRoleRequest>,
-) -> Json<ApiResponse<RoleResponse>> {
-    match RoleService::update_role(&pool, id, request).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("更新角色失败: {}", e);
-            ApiResponse::fail(500, "更新角色失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+    let updated_role = RoleService::update_role(&pool, id, request).await?;
+    Ok(ApiResponse::success(updated_role))
 }
 
-/// 删除角色
-async fn delete_role(State(pool): State<PgPool>, Path(id): Path<i64>) -> Json<ApiResponse<()>> {
-    match RoleService::delete_role(&pool, id).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("删除角色失败: {}", e);
-            ApiResponse::fail(500, "删除角色失败".to_string())
-        }
-    }
+/// Handles the request to delete a role
+async fn delete_role(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> AppResult<Json<ApiResponse<()>>> {
+    RoleService::delete_role(&pool, id).await?;
+    Ok(ApiResponse::success(()))
 }
 
-/// 获取角色菜单权限
+/// Handles the request to get role menu permissions
 async fn get_role_menus(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> Json<ApiResponse<Vec<i64>>> {
-    match RoleService::get_role_menus(&pool, id).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("获取角色菜单权限失败: {}", e);
-            ApiResponse::fail(500, "获取角色菜单权限失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<Vec<i64>>>> {
+    let menu_ids = RoleService::get_role_menus(&pool, id).await?;
+    Ok(ApiResponse::success(menu_ids))
 }
 
-/// 设置角色菜单权限
+/// Handles the request to set role menu permissions
 async fn set_role_menus(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(menu_ids): Json<Vec<i64>>,
-) -> Json<ApiResponse<()>> {
-    match RoleService::set_role_menus(&pool, id, menu_ids).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("设置角色菜单权限失败: {}", e);
-            ApiResponse::fail(500, "设置角色菜单权限失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<()>>> {
+    RoleService::set_role_menus(&pool, id, menu_ids).await?;
+    Ok(ApiResponse::success(()))
+}
+
+/// Handles the request to get role options for dropdowns
+///
+/// Extracts query parameters and delegates to the service layer for processing.
+async fn get_role_options(
+    State(pool): State<PgPool>,
+    query: Query<OptionsQuery>,
+) -> AppResult<Json<ApiResponse<Vec<crate::common::api::OptionItem<i64>>>>> {
+    let options = RoleService::get_role_options(&pool, query).await?;
+    Ok(ApiResponse::success(options))
 }

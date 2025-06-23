@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// 用户实体
+/// Represents a user entity in the database.
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct UserEntity {
     pub id: i64,
@@ -17,8 +17,8 @@ pub struct UserEntity {
     pub updated_at: NaiveDateTime,
 }
 
-/// 用户响应
-#[derive(Debug, Serialize)]
+/// Represents a user in API responses.
+#[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserResponse {
     pub id: i64,
@@ -30,10 +30,11 @@ pub struct UserResponse {
     pub last_login_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// List of roles assigned to the user.
     pub roles: Vec<RoleInfo>,
 }
 
-/// 创建用户请求
+/// Represents the request body for creating a new user.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserRequest {
@@ -41,42 +42,54 @@ pub struct CreateUserRequest {
     pub email: String,
     pub password: String,
     pub real_name: Option<String>,
+    /// User status (e.g., 1 for active, 0 for inactive). Defaults to 1.
     pub status: Option<i16>,
+    /// A list of role IDs to assign to the user.
     pub role_ids: Vec<i64>,
 }
 
-/// 更新用户请求
+/// Represents the request body for updating an existing user.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub real_name: Option<String>,
+    /// User status (e.g., 1 for active, 0 for inactive).
     pub status: Option<i16>,
+    /// A list of role IDs to assign to the user. If provided, replaces all existing roles.
     pub role_ids: Option<Vec<i64>>,
 }
 
-/// 用户查询参数
+/// Represents the query parameters for listing users.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserQueryParams {
+    /// The page number to retrieve. Defaults to 1.
     pub current: Option<i64>,
+    /// The number of items per page. Defaults to 10.
     pub page_size: Option<i64>,
+    /// Filter by username (case-insensitive search).
     pub username: Option<String>,
+    /// Filter by user status.
     pub status: Option<i16>,
 }
 
-/// 用户列表响应
-#[derive(Debug, Serialize)]
+/// Represents the response body for a list of users.
+#[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UserListResponse {
+    /// The list of users for the current page.
     pub list: Vec<UserResponse>,
+    /// The total number of users matching the query.
     pub total: i64,
+    /// The current page number.
     pub page: i64,
+    /// The number of items per page.
     pub page_size: i64,
 }
 
-/// 角色信息
-#[derive(Debug, Serialize, FromRow)]
+/// Represents basic information about a role, used within the `UserResponse`.
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleInfo {
     pub id: i64,

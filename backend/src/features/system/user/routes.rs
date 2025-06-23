@@ -11,82 +11,72 @@ use super::model::{
     CreateUserRequest, UpdateUserRequest, UserListResponse, UserQueryParams, UserResponse,
 };
 use super::service::UserService;
-use crate::common::api::ApiResponse;
+use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
-/// 用户路由
+/// Defines the routes for user management.
 pub fn user_routes() -> Router<PgPool> {
     Router::new()
-        .route("/", get(get_users))
+        .route("/", get(get_user_list))
         .route("/", post(create_user))
-        .route("/{id}", get(get_user))
+        .route("/options", get(get_user_options))
+        .route("/{id}", get(get_user_by_id))
         .route("/{id}", put(update_user))
         .route("/{id}", delete(delete_user))
 }
 
-/// 获取用户列表
-async fn get_users(
+/// Handles the request to get a paginated list of users.
+async fn get_user_list(
     State(pool): State<PgPool>,
     Query(params): Query<UserQueryParams>,
-) -> Json<ApiResponse<UserListResponse>> {
-    match UserService::get_user_list(&pool, params).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("获取用户列表失败: {}", e);
-            ApiResponse::fail(500, "获取用户列表失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<UserListResponse>>> {
+    let user_list = UserService::get_user_list(&pool, params).await?;
+    Ok(ApiResponse::success(user_list))
 }
 
-/// 根据 ID 获取用户
-async fn get_user(
+/// Handles the request to get a single user by their ID.
+async fn get_user_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> Json<ApiResponse<UserResponse>> {
-    match UserService::get_user_by_id(&pool, id).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("获取用户失败: {}", e);
-            ApiResponse::fail(500, "获取用户失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<UserResponse>>> {
+    let user = UserService::get_user_by_id(&pool, id).await?;
+    Ok(ApiResponse::success(user))
 }
 
-/// 创建用户
+/// Handles the request to create a new user.
 async fn create_user(
     State(pool): State<PgPool>,
     Json(request): Json<CreateUserRequest>,
-) -> Json<ApiResponse<UserResponse>> {
-    match UserService::create_user(&pool, request).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("创建用户失败: {}", e);
-            ApiResponse::fail(500, "创建用户失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<UserResponse>>> {
+    let new_user = UserService::create_user(&pool, request).await?;
+    Ok(ApiResponse::success(new_user))
 }
 
-/// 更新用户
+/// Handles the request to update an existing user.
 async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateUserRequest>,
-) -> Json<ApiResponse<UserResponse>> {
-    match UserService::update_user(&pool, id, request).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("更新用户失败: {}", e);
-            ApiResponse::fail(500, "更新用户失败".to_string())
-        }
-    }
+) -> AppResult<Json<ApiResponse<UserResponse>>> {
+    let updated_user = UserService::update_user(&pool, id, request).await?;
+    Ok(ApiResponse::success(updated_user))
 }
 
-/// 删除用户
-async fn delete_user(State(pool): State<PgPool>, Path(id): Path<i64>) -> Json<ApiResponse<()>> {
-    match UserService::delete_user(&pool, id).await {
-        Ok(response) => response,
-        Err(e) => {
-            tracing::error!("删除用户失败: {}", e);
-            ApiResponse::fail(500, "删除用户失败".to_string())
-        }
-    }
+/// Handles the request to delete a user.
+async fn delete_user(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> AppResult<Json<ApiResponse<()>>> {
+    UserService::delete_user(&pool, id).await?;
+    Ok(ApiResponse::success(()))
+}
+
+/// Handles the request to get user options for dropdowns
+///
+/// Extracts query parameters and delegates to the service layer for processing.
+async fn get_user_options(
+    State(pool): State<PgPool>,
+    query: Query<OptionsQuery>,
+) -> AppResult<Json<ApiResponse<Vec<crate::common::api::OptionItem<i64>>>>> {
+    let options = UserService::get_user_options(&pool, query).await?;
+    Ok(ApiResponse::success(options))
 }

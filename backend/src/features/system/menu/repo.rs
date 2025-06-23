@@ -4,15 +4,15 @@ use super::model::MenuEntity;
 use chrono::Utc;
 use sqlx::PgPool;
 
-/// 菜单数据访问层
+/// Menu data access layer
 pub struct MenuRepository;
 
 impl MenuRepository {
-    /// 根据 ID 获取菜单
+    /// Retrieves a menu by its ID
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, sqlx::Error> {
         let menu = sqlx::query_as::<_, MenuEntity>(
-            "SELECT id, parent_id, title, path, component, icon, sort_order, status, 
-             created_at, updated_at, deleted_at 
+            "SELECT id, parent_id, title, path, component, icon, sort_order, status,
+             created_at, updated_at, deleted_at
              FROM menus WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(id)
@@ -22,12 +22,12 @@ impl MenuRepository {
         Ok(menu)
     }
 
-    /// 获取所有菜单（用于构建树形结构）
+    /// Retrieves all menus (for building tree structure)
     pub async fn find_all(pool: &PgPool) -> Result<Vec<MenuEntity>, sqlx::Error> {
         let menus = sqlx::query_as::<_, MenuEntity>(
-            "SELECT id, parent_id, title, path, component, icon, sort_order, status, 
-             created_at, updated_at, deleted_at 
-             FROM menus WHERE deleted_at IS NULL 
+            "SELECT id, parent_id, title, path, component, icon, sort_order, status,
+             created_at, updated_at, deleted_at
+             FROM menus WHERE deleted_at IS NULL
              ORDER BY sort_order ASC, id ASC",
         )
         .fetch_all(pool)
@@ -36,28 +36,28 @@ impl MenuRepository {
         Ok(menus)
     }
 
-    /// 根据条件查询菜单
+    /// Queries menus based on conditions
     pub async fn find_with_conditions(
         pool: &PgPool,
         title_filter: Option<&str>,
         status_filter: Option<i16>,
     ) -> Result<Vec<MenuEntity>, sqlx::Error> {
         let menus = if title_filter.is_none() && status_filter.is_none() {
-            // 没有过滤条件
+            // No filtering conditions
             sqlx::query_as::<_, MenuEntity>(
-                "SELECT id, parent_id, title, path, component, icon, sort_order, status, 
-                 created_at, updated_at, deleted_at 
-                 FROM menus WHERE deleted_at IS NULL 
+                "SELECT id, parent_id, title, path, component, icon, sort_order, status,
+                 created_at, updated_at, deleted_at
+                 FROM menus WHERE deleted_at IS NULL
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
             .await?
         } else {
-            // 有过滤条件，先简单实现
+            // With filtering conditions, implement a simple version
             sqlx::query_as::<_, MenuEntity>(
-                "SELECT id, parent_id, title, path, component, icon, sort_order, status, 
-                 created_at, updated_at, deleted_at 
-                 FROM menus WHERE deleted_at IS NULL 
+                "SELECT id, parent_id, title, path, component, icon, sort_order, status,
+                 created_at, updated_at, deleted_at
+                 FROM menus WHERE deleted_at IS NULL
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
@@ -67,7 +67,7 @@ impl MenuRepository {
         Ok(menus)
     }
 
-    /// 获取菜单总数
+    /// Gets the total count of menus
     pub async fn count_menus(
         pool: &PgPool,
         _title_filter: Option<&str>,
@@ -80,7 +80,7 @@ impl MenuRepository {
         Ok(count.0)
     }
 
-    /// 创建菜单
+    /// Creates a new menu
     pub async fn create(
         pool: &PgPool,
         parent_id: Option<i64>,
@@ -94,7 +94,7 @@ impl MenuRepository {
         let menu = sqlx::query_as::<_, MenuEntity>(
             "INSERT INTO menus (parent_id, title, path, component, icon, sort_order, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-             RETURNING id, parent_id, title, path, component, icon, sort_order, status, 
+             RETURNING id, parent_id, title, path, component, icon, sort_order, status,
              created_at, updated_at, deleted_at"
         )
         .bind(parent_id)
@@ -111,7 +111,7 @@ impl MenuRepository {
         Ok(menu)
     }
 
-    /// 更新菜单
+    /// Updates an existing menu
     pub async fn update(
         pool: &PgPool,
         id: i64,
@@ -123,7 +123,7 @@ impl MenuRepository {
         sort_order: Option<i32>,
         status: Option<i16>,
     ) -> Result<Option<MenuEntity>, sqlx::Error> {
-        // 简化实现，先查询现有菜单
+        // Simplified implementation: first query existing menu
         let existing = Self::find_by_id(pool, id).await?;
         if let Some(existing_menu) = existing {
             let updated_parent_id = parent_id.or(existing_menu.parent_id);
@@ -135,11 +135,11 @@ impl MenuRepository {
             let updated_status = status.unwrap_or(existing_menu.status);
 
             let menu = sqlx::query_as::<_, MenuEntity>(
-                "UPDATE menus 
-                 SET parent_id = $2, title = $3, path = $4, component = $5, icon = $6, 
+                "UPDATE menus
+                 SET parent_id = $2, title = $3, path = $4, component = $5, icon = $6,
                      sort_order = $7, status = $8, updated_at = $9
                  WHERE id = $1 AND deleted_at IS NULL
-                 RETURNING id, parent_id, title, path, component, icon, sort_order, status, 
+                 RETURNING id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at, deleted_at",
             )
             .bind(id)
@@ -160,7 +160,7 @@ impl MenuRepository {
         }
     }
 
-    /// 软删除菜单
+    /// Soft deletes a menu
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, sqlx::Error> {
         let result = sqlx::query(
             "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
@@ -173,7 +173,7 @@ impl MenuRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// 根据角色ID获取菜单
+    /// Retrieves menus by role IDs
     pub async fn find_by_role_ids(
         pool: &PgPool,
         role_ids: &[i64],
@@ -182,14 +182,14 @@ impl MenuRepository {
             return Ok(vec![]);
         }
 
-        // 构建 IN 查询的占位符
+        // Build IN query placeholders
         let placeholders: Vec<String> =
             (1..=role_ids.len()).map(|i| format!("${}", i + 1)).collect();
         let placeholders_str = placeholders.join(", ");
 
         let query = format!(
-            "SELECT DISTINCT m.id, m.parent_id, m.title, m.path, m.component, m.icon, 
-             m.sort_order, m.status, m.created_at, m.updated_at, m.deleted_at 
+            "SELECT DISTINCT m.id, m.parent_id, m.title, m.path, m.component, m.icon,
+             m.sort_order, m.status, m.created_at, m.updated_at, m.deleted_at
              FROM menus m
              INNER JOIN role_menus rm ON m.id = rm.menu_id
              WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.status = 1
@@ -199,12 +199,59 @@ impl MenuRepository {
 
         let mut query_builder = sqlx::query_as::<_, MenuEntity>(&query);
 
-        // 绑定参数
+        // Bind parameters
         for role_id in role_ids {
             query_builder = query_builder.bind(role_id);
         }
 
         let menus = query_builder.fetch_all(pool).await?;
+        Ok(menus)
+    }
+
+    /// Finds a single menu by its title.
+    pub async fn find_by_title(
+        title: &str,
+        pool: &PgPool,
+    ) -> Result<Option<MenuEntity>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM menus WHERE title = $1 AND deleted_at IS NULL")
+            .bind(title)
+            .fetch_optional(pool)
+            .await
+    }
+
+    /// Retrieves menu list for Options API
+    pub async fn find_options(
+        pool: &PgPool,
+        status: Option<&str>,
+        search_query: Option<&str>,
+        limit: Option<i64>,
+    ) -> Result<Vec<(i64, String)>, sqlx::Error> {
+        let mut query = String::from("SELECT id, title FROM menus WHERE deleted_at IS NULL");
+
+        // Process status
+        if let Some(status) = status {
+            if status == "enabled" {
+                query.push_str(" AND status = 1");
+            } else if status == "disabled" {
+                query.push_str(" AND status = 0"); // Assuming 0 is disabled
+            }
+        }
+        // status == "all" does not add status condition
+
+        // Process fuzzy search
+        if let Some(keyword) = search_query {
+            query.push_str(&format!(" AND title ILIKE '%{}%'", keyword.replace("'", "''")));
+        }
+
+        query.push_str(" ORDER BY sort_order ASC, title ASC");
+
+        // Process limit
+        if let Some(l) = limit {
+            query.push_str(&format!(" LIMIT {}", l));
+        }
+
+        let menus = sqlx::query_as(&query).fetch_all(pool).await?;
+
         Ok(menus)
     }
 }
