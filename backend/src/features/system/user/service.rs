@@ -1,100 +1,64 @@
 // backend/src/features/user/service.rs
 
-// 在这里实现用户相关的业务逻辑。
-// 例如:
-// - 校验用户创建请求的参数。
-// - 组合 repo 层的方法来完成一个完整的业务操作。
-// - 处理权限、发送通知等。
+// Business logic for user management.
+//
+// This service layer handles the core business operations for users,
+// such as validation, combining repository methods, and ensuring
+// data consistency. It is designed to be independent of the web framework,
+// returning pure data models or `ServiceError` variants.
 
-use super::model::{
-    CreateUserRequest, UpdateUserRequest, UserEntity, UserListResponse, UserQueryParams,
-    UserResponse,
+use super::{
+    model::{
+        CreateUserRequest, UpdateUserRequest, UserListResponse, UserQueryParams, UserResponse,
+    },
+    repo::UserRepository,
 };
-use super::repo::UserRepository;
-use crate::common::api::ApiResponse;
-use sha2::{Digest, Sha256};
+use crate::{
+    common::api::{OptionItem, OptionsQuery, ServiceError},
+    core::password::PasswordUtils,
+};
+use axum::extract::Query;
 use sqlx::PgPool;
 
-/// 用户服务层
+/// Service for user-related operations.
 pub struct UserService;
 
 impl UserService {
-    /// 获取用户列表
-    pub async fn get_user_list(
-        pool: &PgPool,
-        params: UserQueryParams,
-    ) -> Result<axum::Json<ApiResponse<UserListResponse>>, Box<dyn std::error::Error + Send + Sync>>
-    {
-        let page = params.current.unwrap_or(1).max(1);
-        let page_size = params.page_size.unwrap_or(10).min(100).max(1);
-        let offset = (page - 1) * page_size;
-        // 获取用户列表
-        let users = UserRepository::find_with_pagination(
-            pool,
-            offset,
-            page_size,
-            params.username.as_deref(),
-            params.status,
-        )
-        .await?;
+    // --- Public API Methods ---
 
-        // 获取总数
-        let total =
-            UserRepository::count_users(pool, params.username.as_deref(), params.status).await?;
-
-        // 转换为响应格式并填充角色信息
-        let mut user_responses = Vec::new();
-        for user in users {
-            let roles = UserRepository::get_user_roles(pool, user.id).await?;
-            let mut user_response = UserResponse::from(user);
-            user_response.roles = roles;
-            user_responses.push(user_response);
-        }
-
-        let response = UserListResponse { list: user_responses, total, page, page_size };
-
-        Ok(ApiResponse::success(response))
-    }
-
-    /// 根据 ID 获取用户
-    pub async fn get_user_by_id(
-        pool: &PgPool,
-        id: i64,
-    ) -> Result<axum::Json<ApiResponse<UserResponse>>, Box<dyn std::error::Error + Send + Sync>>
-    {
-        let user = UserRepository::find_by_id(pool, id).await?;
-
-        match user {
-            Some(user) => {
-                let roles = UserRepository::get_user_roles(pool, user.id).await?;
-                let mut user_response = UserResponse::from(user);
-                user_response.roles = roles;
-                Ok(ApiResponse::success(user_response))
-            }
-            None => Ok(ApiResponse::fail(404, "用户不存在".to_string())),
-        }
-    }
-
-    /// 创建用户
+    /// Creates a new user.
     pub async fn create_user(
         pool: &PgPool,
         request: CreateUserRequest,
-    ) -> Result<axum::Json<ApiResponse<UserResponse>>, Box<dyn std::error::Error + Send + Sync>>
-    {
-        // 验证用户名是否已存在
-        if let Some(_) = UserRepository::find_by_username(pool, &request.username).await? {
-            return Ok(ApiResponse::fail(2001, "用户名已存在".to_string()));
+    ) -> Result<UserResponse, ServiceError> {
+        tracing::info!("Creating new user with username: {}", request.username);
+
+        if UserRepository::find_by_username(pool, &request.username)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check username conflict: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
+            .is_some()
+        {
+            tracing::warn!("Username already exists: {}", request.username);
+            return Err(ServiceError::UsernameConflict);
         }
 
-        // 验证邮箱是否已存在
-        if let Some(_) = UserRepository::find_by_email(pool, &request.email).await? {
-            return Ok(ApiResponse::fail(2002, "邮箱已存在".to_string()));
+        if UserRepository::find_by_email(pool, &request.email)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check email conflict: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
+            .is_some()
+        {
+            tracing::warn!("Email already exists: {}", request.email);
+            return Err(ServiceError::EmailConflict);
         }
 
-        // 哈希密码
-        let password_hash = Self::hash_password(&request.password);
+        let password_hash = PasswordUtils::hash_password(&request.password)?;
 
-        // 创建用户
         let user = UserRepository::create(
             pool,
             &request.username,
@@ -103,44 +67,57 @@ impl UserService {
             request.real_name.as_deref(),
             request.status.unwrap_or(1),
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to create user in database: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        // 设置用户角色
         if !request.role_ids.is_empty() {
-            UserRepository::set_user_roles(pool, user.id, &request.role_ids).await?;
+            UserRepository::set_user_roles(pool, user.id, &request.role_ids).await.map_err(
+                |e| {
+                    tracing::error!("Failed to set user roles: {:?}", e);
+                    ServiceError::DatabaseQueryFailed
+                },
+            )?;
         }
 
-        // 获取角色信息
-        let roles = UserRepository::get_user_roles(pool, user.id).await?;
+        let roles = UserRepository::get_user_roles(pool, user.id).await.map_err(|e| {
+            tracing::error!("Failed to retrieve user roles: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         let mut user_response = UserResponse::from(user);
         user_response.roles = roles;
 
-        Ok(ApiResponse::success(user_response))
+        tracing::info!("Successfully created user with id: {}", user_response.id);
+        Ok(user_response)
     }
 
-    /// 更新用户
+    /// Updates an existing user.
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
         request: UpdateUserRequest,
-    ) -> Result<axum::Json<ApiResponse<UserResponse>>, Box<dyn std::error::Error + Send + Sync>>
-    {
-        // 检查用户是否存在
-        let existing_user = UserRepository::find_by_id(pool, id).await?;
-        if existing_user.is_none() {
-            return Ok(ApiResponse::fail(404, "用户不存在".to_string()));
-        }
+    ) -> Result<UserResponse, ServiceError> {
+        tracing::info!("Updating user with id: {}", id);
 
-        // 如果更新邮箱，检查邮箱是否已被其他用户使用
-        if let Some(ref email) = request.email {
-            if let Some(existing_email_user) = UserRepository::find_by_email(pool, email).await? {
-                if existing_email_user.id != id {
-                    return Ok(ApiResponse::fail(2002, "邮箱已存在".to_string()));
+        let user = UserRepository::find_by_id(pool, id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?
+            .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
+
+        if let Some(email) = &request.email {
+            if !email.eq_ignore_ascii_case(&user.email) {
+                if UserRepository::find_by_email(pool, email)
+                    .await
+                    .map_err(|_| ServiceError::DatabaseQueryFailed)?
+                    .is_some()
+                {
+                    return Err(ServiceError::EmailConflict);
                 }
             }
         }
 
-        // 更新用户基本信息
         let updated_user = UserRepository::update(
             pool,
             id,
@@ -148,96 +125,127 @@ impl UserService {
             request.real_name.as_deref(),
             request.status,
         )
-        .await?;
+        .await
+        .map_err(|_| ServiceError::DatabaseQueryFailed)?
+        .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
-        match updated_user {
-            Some(user) => {
-                // 更新角色
-                if let Some(role_ids) = request.role_ids {
-                    UserRepository::set_user_roles(pool, user.id, &role_ids).await?;
-                }
-
-                // 获取角色信息
-                let roles = UserRepository::get_user_roles(pool, user.id).await?;
-                let mut user_response = UserResponse::from(user);
-                user_response.roles = roles;
-
-                Ok(ApiResponse::success(user_response))
-            }
-            None => Ok(ApiResponse::fail(404, "用户不存在".to_string())),
+        if let Some(role_ids) = request.role_ids {
+            UserRepository::set_user_roles(pool, updated_user.id, &role_ids)
+                .await
+                .map_err(|_| ServiceError::DatabaseQueryFailed)?;
         }
+
+        let roles = UserRepository::get_user_roles(pool, updated_user.id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        let mut user_response = UserResponse::from(updated_user);
+        user_response.roles = roles;
+        Ok(user_response)
     }
 
-    /// 删除用户
-    pub async fn delete_user(
-        pool: &PgPool,
-        id: i64,
-    ) -> Result<axum::Json<ApiResponse<()>>, Box<dyn std::error::Error + Send + Sync>> {
-        let success = UserRepository::soft_delete(pool, id).await?;
-
-        if success {
-            Ok(ApiResponse::success(()))
-        } else {
-            Ok(ApiResponse::fail(404, "用户不存在".to_string()))
+    /// Deletes a user by their ID.
+    pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+        let deleted = UserRepository::soft_delete(pool, id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        if !deleted {
+            return Err(ServiceError::NotFound("User not found".to_string()));
         }
+        Ok(())
     }
 
-    /// 验证用户登录
-    pub async fn verify_login(
+    /// Retrieves a paginated list of users.
+    pub async fn get_user_list(
         pool: &PgPool,
-        username: &str,
-        password: &str,
-    ) -> Result<Option<UserEntity>, Box<dyn std::error::Error + Send + Sync>> {
-        let user = UserRepository::find_by_username(pool, username).await?;
+        params: UserQueryParams,
+    ) -> Result<UserListResponse, ServiceError> {
+        let page = params.current.unwrap_or(1);
+        let page_size = params.page_size.unwrap_or(10);
+        let offset = (page - 1) * page_size;
 
-        match user {
-            Some(user) => {
-                if Self::verify_password(password, &user.password_hash) {
-                    // 更新最后登录时间
-                    UserRepository::update_last_login(pool, user.id).await?;
-                    Ok(Some(user))
-                } else {
-                    Ok(None)
-                }
-            }
-            None => Ok(None),
-        }
-    }
+        let total = UserRepository::count_users(pool, params.username.as_deref(), params.status)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
 
-    /// 获取用户的菜单权限
-    pub async fn get_user_menus(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<
-        Vec<crate::features::system::menu::model::MenuResponse>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
-        // 获取用户角色
-        let roles = UserRepository::get_user_roles(pool, user_id).await?;
-        let role_ids: Vec<i64> = roles.iter().map(|r| r.id).collect();
-
-        if role_ids.is_empty() {
-            return Ok(vec![]);
+        if total == 0 {
+            return Ok(UserListResponse::default());
         }
 
-        // 获取角色对应的菜单
-        let menus = crate::features::system::menu::service::MenuService::get_menus_by_role_ids(
-            pool, &role_ids,
+        let user_entities = UserRepository::find_with_pagination(
+            pool,
+            offset,
+            page_size,
+            params.username.as_deref(),
+            params.status,
         )
-        .await?;
-        Ok(menus)
+        .await
+        .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+
+        let mut list = Vec::with_capacity(user_entities.len());
+        for user in user_entities {
+            let roles = UserRepository::get_user_roles(pool, user.id)
+                .await
+                .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+            let mut user_response = UserResponse::from(user);
+            user_response.roles = roles;
+            list.push(user_response);
+        }
+
+        Ok(UserListResponse { list, total, page, page_size })
     }
 
-    /// 哈希密码
-    fn hash_password(password: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        format!("{:x}", hasher.finalize())
+    /// Retrieves a single user by their ID.
+    pub async fn get_user_by_id(pool: &PgPool, id: i64) -> Result<UserResponse, ServiceError> {
+        let user = UserRepository::find_by_id(pool, id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?
+            .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
+
+        let roles = UserRepository::get_user_roles(pool, user.id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+
+        let mut user_response = UserResponse::from(user);
+        user_response.roles = roles;
+        Ok(user_response)
     }
 
-    /// 验证密码
-    fn verify_password(password: &str, hash: &str) -> bool {
-        let password_hash = Self::hash_password(password);
-        password_hash == hash
+    /// Retrieves user options for dropdown selections
+    ///
+    /// Returns simplified user data optimized for frontend dropdown components.
+    /// Supports filtering by status, search term, and result limiting.
+    ///
+    /// # Arguments
+    /// * `pool` - Database connection pool
+    /// * `query` - Query parameters (status, q, limit)
+    ///
+    /// # Returns
+    /// * `Result<Vec<OptionItem<i64>>, ServiceError>` - List of option items or service error
+    pub async fn get_user_options(
+        pool: &PgPool,
+        query: Query<OptionsQuery>,
+    ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
+        tracing::info!(
+            "Retrieving user options with query: status={:?}, search={:?}, limit={:?}",
+            query.status,
+            query.q,
+            query.limit
+        );
+
+        let status = query.status.as_deref().unwrap_or("enabled");
+        let users = UserRepository::find_options(pool, status, query.q.as_deref(), query.limit)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to retrieve user options from database: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        let options: Vec<OptionItem<i64>> = users
+            .into_iter()
+            .map(|(id, display_name)| OptionItem { label: display_name, value: id })
+            .collect();
+
+        tracing::info!("Successfully retrieved {} user options", options.len());
+        Ok(options)
     }
 }

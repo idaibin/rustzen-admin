@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// 数据库角色模型
+/// Database role model
 #[derive(Debug, Clone, FromRow)]
 pub struct RoleEntity {
     pub id: i64,
@@ -14,7 +14,7 @@ pub struct RoleEntity {
     pub updated_at: NaiveDateTime,
 }
 
-/// API 响应角色模型
+/// API response role model
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleResponse {
@@ -26,7 +26,7 @@ pub struct RoleResponse {
     pub menu_ids: Vec<i64>,
 }
 
-/// 创建角色请求
+/// Create role request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRoleRequest {
@@ -35,7 +35,7 @@ pub struct CreateRoleRequest {
     pub menu_ids: Vec<i64>,
 }
 
-/// 更新角色请求
+/// Update role request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRoleRequest {
@@ -44,7 +44,7 @@ pub struct UpdateRoleRequest {
     pub menu_ids: Option<Vec<i64>>,
 }
 
-/// 角色查询参数
+/// Role query parameters
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleQueryParams {
@@ -54,7 +54,7 @@ pub struct RoleQueryParams {
     pub status: Option<i16>,
 }
 
-/// 角色列表响应
+/// Role list response
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleListResponse {
@@ -64,7 +64,7 @@ pub struct RoleListResponse {
     pub page_size: i64,
 }
 
-/// 简化的角色信息（用于其他模块引用）
+/// Simplified role information (for reference by other modules)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Role {
