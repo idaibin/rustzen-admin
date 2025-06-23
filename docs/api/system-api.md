@@ -105,7 +105,7 @@
 
 ### 获取用户列表
 
-- **接口**: `GET /api/sys/users`
+- **接口**: `GET /api/system/users`
 - **描述**: 分页获取用户列表
 - **权限**: 需要有用户管理菜单权限
 
@@ -113,9 +113,9 @@
 
 ```
 page=1              // 页码，默认1
-pageSize=10         // 每页大小，默认10
-username=admin      // 用户名筛选
-status=1           // 状态筛选 1:正常 2:禁用
+page_size=20        // 每页大小，默认20
+q=admin             // 搜索关键词（用户名、邮箱）
+status=1            // 状态筛选 1:正常 0:禁用
 ```
 
 #### 响应示例
@@ -123,37 +123,69 @@ status=1           // 状态筛选 1:正常 2:禁用
 ```json
 {
   "code": 200,
-  "message": "获取成功",
+  "message": "success",
   "data": {
-    "list": [
+    "items": [
       {
         "id": 1,
         "username": "admin",
         "email": "admin@example.com",
         "realName": "管理员",
-        "avatarUrl": "https://example.com/avatar.jpg",
+        "avatarUrl": null,
         "status": 1,
-        "lastLoginAt": "2024-01-01T12:00:00Z",
         "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T12:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
         "roles": [
           {
             "id": 1,
-            "roleName": "管理员"
+            "name": "超级管理员",
+            "code": "super_admin"
           }
         ]
       }
     ],
     "total": 1,
     "page": 1,
-    "pageSize": 10
+    "pageSize": 20
+  }
+}
+```
+
+### 获取用户详情
+
+- **接口**: `GET /api/system/users/{id}`
+- **描述**: 获取用户详细信息
+- **权限**: 需要有用户管理菜单权限
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "realName": "管理员",
+    "avatarUrl": null,
+    "status": 1,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z",
+    "roles": [
+      {
+        "id": 1,
+        "name": "超级管理员",
+        "code": "super_admin"
+      }
+    ]
   }
 }
 ```
 
 ### 创建用户
 
-- **接口**: `POST /api/sys/users`
+- **接口**: `POST /api/system/users`
 - **描述**: 创建新用户
 - **权限**: 需要有用户管理菜单权限
 
@@ -163,10 +195,10 @@ status=1           // 状态筛选 1:正常 2:禁用
 {
   "username": "newuser",
   "email": "newuser@example.com",
-  "realName": "新用户",
   "password": "password123",
+  "realName": "新用户",
   "status": 1,
-  "roleIds": [2]
+  "roleIds": [1, 2]
 }
 ```
 
@@ -186,7 +218,8 @@ status=1           // 状态筛选 1:正常 2:禁用
     "roles": [
       {
         "id": 2,
-        "roleName": "编辑员"
+        "name": "编辑员",
+        "code": "editor"
       }
     ]
   }
@@ -195,7 +228,7 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ### 更新用户
 
-- **接口**: `PUT /api/sys/users/{id}`
+- **接口**: `PUT /api/system/users/{id}`
 - **描述**: 更新用户信息
 - **权限**: 需要有用户管理菜单权限
 
@@ -203,18 +236,76 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ```json
 {
+  "username": "updateduser",
   "email": "updated@example.com",
-  "realName": "更新用户",
+  "realName": "更新的用户",
   "status": 1,
   "roleIds": [1, 2]
 }
 ```
 
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "用户更新成功",
+  "data": {
+    "id": 2,
+    "username": "updateduser",
+    "email": "updated@example.com",
+    "realName": "更新的用户",
+    "status": 1,
+    "updatedAt": "2024-01-01T12:00:00Z",
+    "roles": [
+      {
+        "id": 1,
+        "name": "超级管理员",
+        "code": "super_admin"
+      },
+      {
+        "id": 2,
+        "name": "编辑员",
+        "code": "editor"
+      }
+    ]
+  }
+}
+```
+
 ### 删除用户
 
-- **接口**: `DELETE /api/sys/users/{id}`
+- **接口**: `DELETE /api/system/users/{id}`
 - **描述**: 软删除用户
 - **权限**: 需要有用户管理菜单权限
+
+### 获取用户选项
+
+- **接口**: `GET /api/system/users/options`
+- **描述**: 获取用户选项列表
+- **权限**: 需要有用户管理菜单权限
+
+#### 查询参数
+
+```
+q=admin             // 搜索关键词
+limit=50            // 返回数量限制，默认为50
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "value": 1,
+      "label": "管理员(admin)"
+    }
+  ]
+}
+```
 
 ---
 
@@ -222,39 +313,53 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ### 获取角色列表
 
-- **接口**: `GET /api/sys/roles`
+- **接口**: `GET /api/system/roles`
 - **描述**: 获取所有角色
 - **权限**: 需要有角色管理菜单权限
+
+#### 查询参数
+
+```
+page=1              // 页码，默认为1
+page_size=20        // 每页大小，默认为20
+q=admin             // 搜索关键词（角色名称、编码）
+status=1            // 状态筛选 1:正常 0:禁用
+```
 
 #### 响应示例
 
 ```json
 {
   "code": 200,
-  "message": "获取成功",
+  "message": "success",
   "data": {
-    "list": [
+    "items": [
       {
         "id": 1,
-        "roleName": "管理员",
-        "description": "系统管理员",
+        "name": "超级管理员",
+        "code": "super_admin",
+        "description": "系统超级管理员",
         "status": 1,
-        "userCount": 2,
-        "menuCount": 10,
         "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T12:00:00Z"
+        "updatedAt": "2024-01-01T00:00:00Z"
       }
     ],
     "total": 1,
     "page": 1,
-    "pageSize": 10
+    "pageSize": 20
   }
 }
 ```
 
+### 获取角色详情
+
+- **接口**: `GET /api/system/roles/{id}`
+- **描述**: 获取角色详细信息
+- **权限**: 需要有角色管理菜单权限
+
 ### 创建角色
 
-- **接口**: `POST /api/sys/roles`
+- **接口**: `POST /api/system/roles`
 - **描述**: 创建新角色
 - **权限**: 需要有角色管理菜单权限
 
@@ -262,10 +367,10 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ```json
 {
-  "roleName": "编辑员",
-  "description": "内容编辑员",
-  "status": 1,
-  "menuIds": [1, 2, 3]
+  "name": "测试角色",
+  "code": "test_role",
+  "description": "这是一个测试角色",
+  "status": 1
 }
 ```
 
@@ -277,79 +382,130 @@ status=1           // 状态筛选 1:正常 2:禁用
   "message": "角色创建成功",
   "data": {
     "id": 2,
-    "roleName": "编辑员",
-    "description": "内容编辑员",
+    "name": "测试角色",
+    "code": "test_role",
+    "description": "这是一个测试角色",
     "status": 1,
     "createdAt": "2024-01-01T12:00:00Z"
   }
 }
 ```
 
-### 分配角色菜单
+### 更新角色
 
-- **接口**: `POST /api/sys/roles/{id}/menus`
-- **描述**: 为角色分配菜单权限
+- **接口**: `PUT /api/system/roles/{id}`
+- **描述**: 更新角色信息
 - **权限**: 需要有角色管理菜单权限
 
-#### 请求参数
+### 删除角色
 
-```json
-{
-  "menuIds": [1, 2, 3, 4]
-}
-```
+- **接口**: `DELETE /api/system/roles/{id}`
+- **描述**: 软删除角色
+- **权限**: 需要有角色管理菜单权限
 
----
+### 获取角色菜单权限
 
-## 📋 菜单管理
-
-### 获取菜单树
-
-- **接口**: `GET /api/sys/menus`
-- **描述**: 获取菜单树形结构
-- **权限**: 需要有菜单管理菜单权限
+- **接口**: `GET /api/system/roles/{id}/menus`
+- **描述**: 获取角色菜单权限
+- **权限**: 需要有角色管理菜单权限
 
 #### 响应示例
 
 ```json
 {
   "code": 200,
-  "message": "获取成功",
-  "data": [
-    {
-      "id": 1,
-      "parentId": 0,
-      "title": "系统管理",
-      "path": "/system",
-      "component": "Layout",
-      "icon": "setting",
-      "sortOrder": 1,
-      "status": 1,
-      "createdAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T12:00:00Z",
-      "children": [
-        {
-          "id": 2,
-          "parentId": 1,
-          "title": "用户管理",
-          "path": "/system/users",
-          "component": "UserList",
-          "icon": "user",
-          "sortOrder": 1,
-          "status": 1,
-          "createdAt": "2024-01-01T00:00:00Z",
-          "updatedAt": "2024-01-01T12:00:00Z",
-          "children": []
-        }
-      ]
-    }
-  ]
+  "message": "success",
+  "data": [1, 2, 3, 4, 5]
 }
 ```
 
+### 设置角色菜单权限
+
+- **接口**: `PUT /api/system/roles/{id}/menus`
+- **描述**: 设置角色菜单权限
+- **权限**: 需要有角色管理菜单权限
+
+#### 请求参数
+
+```json
+[1, 2, 3, 4, 5]
+```
+
+### 获取角色选项
+
+- **接口**: `GET /api/system/roles/options`
+- **描述**: 获取角色选项列表
+- **权限**: 需要有角色管理菜单权限
+
+---
+
+## 📋 菜单管理
+
+### 获取菜单列表
+
+- **接口**: `GET /api/system/menus`
+- **描述**: 获取菜单列表
+- **权限**: 需要有菜单管理菜单权限
+
+#### 查询参数
+
+```
+q=System          // 搜索关键词
+status=1          // 菜单状态
+menu_type=1       // 菜单类型（1=目录，2=菜单，3=按钮）
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "title": "系统管理",
+        "name": "System",
+        "path": "/system",
+        "component": "Layout",
+        "icon": "system",
+        "parentId": null,
+        "sortOrder": 1,
+        "menuType": 1,
+        "status": 1,
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "children": [
+          {
+            "id": 2,
+            "title": "用户管理",
+            "name": "User",
+            "path": "/system/user",
+            "component": "system/user/index",
+            "icon": "user",
+            "parentId": 1,
+            "sortOrder": 1,
+            "menuType": 2,
+            "status": 1,
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 获取菜单详情
+
+- **接口**: `GET /api/system/menus/{id}`
+- **描述**: 获取菜单详细信息
+- **权限**: 需要有菜单管理菜单权限
+
 ### 创建菜单
 
-- **接口**: `POST /api/sys/menus`
+- **接口**: `POST /api/system/menus`
 - **描述**: 创建新菜单
 - **权限**: 需要有菜单管理菜单权限
 
@@ -357,12 +513,14 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ```json
 {
-  "parentId": 1,
-  "title": "角色管理",
-  "path": "/system/roles",
-  "component": "RoleList",
-  "icon": "team",
-  "sortOrder": 2,
+  "title": "新菜单",
+  "name": "NewMenu",
+  "path": "/new-menu",
+  "component": "NewMenuComponent",
+  "icon": "menu-icon",
+  "parentId": null,
+  "sortOrder": 1,
+  "menuType": 2,
   "status": 1
 }
 ```
@@ -375,15 +533,107 @@ status=1           // 状态筛选 1:正常 2:禁用
   "message": "菜单创建成功",
   "data": {
     "id": 3,
-    "parentId": 1,
-    "title": "角色管理",
-    "path": "/system/roles",
-    "component": "RoleList",
-    "icon": "team",
-    "sortOrder": 2,
+    "title": "新菜单",
+    "name": "NewMenu",
+    "path": "/new-menu",
+    "component": "NewMenuComponent",
+    "icon": "menu-icon",
+    "parentId": null,
+    "sortOrder": 1,
+    "menuType": 2,
     "status": 1,
     "createdAt": "2024-01-01T12:00:00Z"
   }
+}
+```
+
+### 更新菜单
+
+- **接口**: `PUT /api/system/menus/{id}`
+- **描述**: 更新菜单信息
+- **权限**: 需要有菜单管理菜单权限
+
+### 删除菜单
+
+- **接口**: `DELETE /api/system/menus/{id}`
+- **描述**: 软删除菜单
+- **权限**: 需要有菜单管理菜单权限
+
+### 获取菜单选项
+
+- **接口**: `GET /api/system/menus/options`
+- **描述**: 获取菜单选项列表
+- **权限**: 需要有菜单管理菜单权限
+
+---
+
+## 📋 字典管理
+
+### 获取字典列表
+
+- **接口**: `GET /api/system/dict`
+- **描述**: 获取字典列表
+- **权限**: 需要有字典管理菜单权限
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "dictType": "user_status",
+      "dictLabel": "启用",
+      "dictValue": "1",
+      "sortOrder": 1,
+      "status": 1,
+      "remark": "用户状态-启用"
+    },
+    {
+      "id": 2,
+      "dictType": "user_status",
+      "dictLabel": "禁用",
+      "dictValue": "0",
+      "sortOrder": 2,
+      "status": 1,
+      "remark": "用户状态-禁用"
+    }
+  ]
+}
+```
+
+### 获取字典选项
+
+- **接口**: `GET /api/system/dict/options`
+- **描述**: 获取字典选项列表
+- **权限**: 需要有字典管理菜单权限
+
+#### 查询参数
+
+```
+dict_type=user_status  // 字典类型
+q=启用                 // 搜索关键词
+limit=50               // 返回数量限制
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "value": "1",
+      "label": "启用"
+    },
+    {
+      "value": "0",
+      "label": "禁用"
+    }
+  ]
 }
 ```
 
@@ -393,7 +643,7 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ### 获取日志列表
 
-- **接口**: `GET /api/sys/logs`
+- **接口**: `GET /api/system/log`
 - **描述**: 分页获取操作日志
 - **权限**: 需要有日志管理菜单权限
 
@@ -401,11 +651,9 @@ status=1           // 状态筛选 1:正常 2:禁用
 
 ```
 page=1              // 页码
-pageSize=10         // 每页大小
-username=admin      // 用户名筛选
-action=LOGIN        // 操作类型筛选
-startTime=2024-01-01  // 开始时间
-endTime=2024-12-31    // 结束时间
+page_size=20        // 每页大小
+q=登录成功          // 搜索关键词（日志消息）
+level=INFO          // 日志级别
 ```
 
 #### 响应示例
@@ -413,22 +661,61 @@ endTime=2024-12-31    // 结束时间
 ```json
 {
   "code": 200,
-  "message": "获取成功",
+  "message": "success",
   "data": {
-    "list": [
+    "items": [
       {
         "id": 1,
+        "level": "INFO",
+        "message": "用户登录成功",
         "userId": 1,
-        "username": "admin",
-        "action": "USER_LOGIN",
-        "description": "用户登录",
         "ipAddress": "192.168.1.100",
-        "createdAt": "2024-01-01T12:00:00Z"
+        "createdAt": "2024-01-01T00:00:00Z"
       }
     ],
     "total": 1,
     "page": 1,
-    "pageSize": 10
+    "pageSize": 20
+  }
+}
+```
+
+### 获取日志详情
+
+- **接口**: `GET /api/system/log/{id}`
+- **描述**: 获取日志详细信息
+- **权限**: 需要有日志管理菜单权限
+
+### 创建日志记录
+
+- **接口**: `POST /api/system/log`
+- **描述**: 创建新日志记录
+- **权限**: 需要有日志管理菜单权限
+
+#### 请求参数
+
+```json
+{
+  "level": "INFO",
+  "message": "这是一条测试日志",
+  "userId": 1,
+  "ipAddress": "192.168.1.100"
+}
+```
+
+#### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "日志记录创建成功",
+  "data": {
+    "id": 1,
+    "level": "INFO",
+    "message": "这是一条测试日志",
+    "userId": 1,
+    "ipAddress": "192.168.1.100",
+    "createdAt": "2024-01-01T12:00:00Z"
   }
 }
 ```
@@ -494,12 +781,12 @@ async fn check_menu_permission(user_id: i64, menu_path: &str) -> bool {
   "code": 200,
   "message": "获取成功",
   "data": {
-    "list": [
+    "items": [
       /* 数据列表 */
     ],
     "total": 100,
     "page": 1,
-    "pageSize": 10
+    "pageSize": 20
   },
   "timestamp": 1672531200
 }
