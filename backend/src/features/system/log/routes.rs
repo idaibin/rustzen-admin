@@ -49,7 +49,7 @@ pub struct PaginatedLogsResponse {
 
 /// Defines the routes for log management
 pub fn log_routes() -> Router<PgPool> {
-    Router::new().route("/", get(get_log_list).post(create_log)).route("/:id", get(get_log_by_id))
+    Router::new().route("/", get(get_log_list).post(create_log)).route("/{id}", get(get_log_by_id))
 }
 
 /// Handles the request to get a paginated list of logs
