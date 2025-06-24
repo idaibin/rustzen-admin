@@ -4,7 +4,8 @@ use super::model::{
     CreateMenuRequest, MenuListResponse, MenuQueryParams, MenuResponse, UpdateMenuRequest,
 };
 use super::repo::MenuRepository;
-use crate::common::api::{OptionItem, OptionsQuery, ServiceError};
+use crate::common::api::{OptionItem, OptionsQuery};
+use crate::common::error::ServiceError;
 use axum::extract::Query;
 use sqlx::PgPool;
 use std::collections::HashMap;

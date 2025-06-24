@@ -14,8 +14,8 @@ use super::{
     repo::UserRepository,
 };
 use crate::{
-    common::api::{OptionItem, OptionsQuery, ServiceError},
-    core::password::PasswordUtils,
+    common::api::{OptionItem, OptionsQuery},
+    common::error::ServiceError,
 };
 use axum::extract::Query;
 use sqlx::PgPool;
@@ -26,13 +26,19 @@ pub struct UserService;
 impl UserService {
     // --- Public API Methods ---
 
-    /// Creates a new user.
+    /// Creates a new user with unified logic for all scenarios.
+    ///
+    /// This method handles:
+    /// - User registration (basic info, no roles)
+    /// - Admin user creation (complete info, with roles)
+    /// - Custom user creation (with specific parameters)
     pub async fn create_user(
         pool: &PgPool,
-        request: CreateUserRequest,
+        request: &CreateUserRequest,
     ) -> Result<UserResponse, ServiceError> {
         tracing::info!("Creating new user with username: {}", request.username);
 
+        // 验证用户名是否已存在
         if UserRepository::find_by_username(pool, &request.username)
             .await
             .map_err(|e| {
@@ -45,6 +51,7 @@ impl UserService {
             return Err(ServiceError::UsernameConflict);
         }
 
+        // 验证邮箱是否已存在
         if UserRepository::find_by_email(pool, &request.email)
             .await
             .map_err(|e| {
@@ -57,31 +64,29 @@ impl UserService {
             return Err(ServiceError::EmailConflict);
         }
 
-        let password_hash = PasswordUtils::hash_password(&request.password)?;
+        // 调用统一的仓库方法
+        let user = UserRepository::create_user(pool, request).await.map_err(|e| {
+            tracing::error!("Failed to create user: {:?}", e);
 
-        let user = UserRepository::create(
-            pool,
-            &request.username,
-            &request.email,
-            &password_hash,
-            request.real_name.as_deref(),
-            request.status.unwrap_or(1),
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create user in database: {:?}", e);
+            // 检查是否是角色相关的错误
+            match &e {
+                sqlx::Error::Database(db_err) => {
+                    if let Some(code) = db_err.code() {
+                        if code == "23503" && db_err.message().contains("role") {
+                            return ServiceError::InvalidRoleId;
+                        }
+                    }
+                }
+                sqlx::Error::RowNotFound => {
+                    return ServiceError::InvalidRoleId;
+                }
+                _ => {}
+            }
+
             ServiceError::DatabaseQueryFailed
         })?;
 
-        if !request.role_ids.is_empty() {
-            UserRepository::set_user_roles(pool, user.id, &request.role_ids).await.map_err(
-                |e| {
-                    tracing::error!("Failed to set user roles: {:?}", e);
-                    ServiceError::DatabaseQueryFailed
-                },
-            )?;
-        }
-
+        // 获取用户的角色信息
         let roles = UserRepository::get_user_roles(pool, user.id).await.map_err(|e| {
             tracing::error!("Failed to retrieve user roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
@@ -163,9 +168,10 @@ impl UserService {
         let page_size = params.page_size.unwrap_or(10);
         let offset = (page - 1) * page_size;
 
-        let total = UserRepository::count_users(pool, params.username.as_deref(), params.status)
-            .await
-            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        let total =
+            UserRepository::count_users(pool, params.username.as_deref(), params.status.as_deref())
+                .await
+                .map_err(|_| ServiceError::DatabaseQueryFailed)?;
 
         if total == 0 {
             return Ok(UserListResponse::default());
@@ -176,7 +182,7 @@ impl UserService {
             offset,
             page_size,
             params.username.as_deref(),
-            params.status,
+            params.status.as_deref(),
         )
         .await
         .map_err(|_| ServiceError::DatabaseQueryFailed)?;
@@ -232,7 +238,19 @@ impl UserService {
             query.limit
         );
 
-        let status = query.status.as_deref().unwrap_or("enabled");
+        // 解析状态参数：只支持数字或 "all"
+        let status = query.status.as_deref().and_then(|s| {
+            match s {
+                "1" => Some(1),
+                "2" => Some(2),
+                "all" => None,
+                _ => {
+                    tracing::warn!("Invalid status value: '{}'. Valid values: '1', '2', 'all'", s);
+                    Some(1) // 默认为正常状态
+                }
+            }
+        });
+
         let users = UserRepository::find_options(pool, status, query.q.as_deref(), query.limit)
             .await
             .map_err(|e| {
