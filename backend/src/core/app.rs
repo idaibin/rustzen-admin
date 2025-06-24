@@ -58,7 +58,7 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     let protected_api = Router::new()
         .nest("/auth", protected_auth_routes())
         .nest("/system", system_routes())
-        .route_layer(middleware::from_fn(auth_middleware));
+        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
 
     // Combine all routes into the final application
     let app = Router::new()

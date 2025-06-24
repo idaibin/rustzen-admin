@@ -1,7 +1,7 @@
 // Business logic for system logs.
 
 use super::repo::LogRepository;
-use crate::common::api::ServiceError;
+use crate::common::error::ServiceError;
 use serde_json::Value;
 use sqlx::PgPool;
 

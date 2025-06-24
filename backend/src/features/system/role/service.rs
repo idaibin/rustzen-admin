@@ -4,7 +4,8 @@ use super::model::{
     CreateRoleRequest, RoleListResponse, RoleQueryParams, RoleResponse, UpdateRoleRequest,
 };
 use super::repo::RoleRepository;
-use crate::common::api::{OptionItem, OptionsQuery, ServiceError};
+use crate::common::api::{OptionItem, OptionsQuery};
+use crate::common::error::ServiceError;
 use axum::extract::Query;
 use sqlx::PgPool;
 
