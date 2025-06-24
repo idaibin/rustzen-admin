@@ -5,6 +5,9 @@
 ### 环境变量配置
 @baseUrl = http://localhost:8000
 @apiUrl = {{baseUrl}}/api
+# 登录后的token，需要从登录接口获取并手动更新
+# @token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NTA3MDA4MDMsImlhdCI6MTc1MDY5NzIwM30.CpwD9SdXh-mLUyDlYq3R6ebz-eKbdHXo-1PySjosDMI
+@token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NTA3Nzk2MjYsImlhdCI6MTc1MDc3NjAyNn0.DZP8zAknUALHscQ3DQrXBTsZFOEdG31a_MhLpX6txVo
 
 ### ===== 基础接口测试 =====
 
@@ -12,70 +15,577 @@
 GET {{baseUrl}}/
 Accept: application/json
 
-### ===== 系统管理接口 =====
+### ===== 测试数据准备 =====
 
-### 2. 用户管理 - 获取用户列表
+### 2. 创建测试角色1
+POST {{apiUrl}}/system/roles
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "普通用户",
+  "code": "normal_user",
+  "description": "普通用户角色",
+  "status": 1
+}
+
+### 3. 创建测试角色2
+POST {{apiUrl}}/system/roles
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "管理员",
+  "code": "admin",
+  "description": "管理员角色",
+  "status": 1
+}
+
+### ===== 认证相关接口 (公开) =====
+
+### 4. 用户注册
+POST {{apiUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "test",
+  "email": "test@demo.com",
+  "password": "123456"
+}
+
+### 5. 用户登录
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "test",
+  "password": "123456"
+}
+
+### ===== 认证相关接口 (需要token) =====
+
+### 6. 获取当前用户信息
+GET {{apiUrl}}/auth/me
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== 系统管理接口 (需要token) =====
+
+### 7. 用户管理 - 获取用户列表
+GET {{apiUrl}}/system/users
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 8. 用户管理 - 获取用户列表（带分页和状态过滤）
+# current: 页码, pageSize: 每页数量, username: 用户名搜索, status: 状态过滤
+GET {{apiUrl}}/system/users?current=1&pageSize=20&username=test&status=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 9. 用户管理 - 获取用户列表（查询禁用用户）
+GET {{apiUrl}}/system/users?current=1&pageSize=10&status=2
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 10. 用户管理 - 获取用户列表（查询所有状态用户）
+GET {{apiUrl}}/system/users?current=1&pageSize=10&status=all
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 11. 用户管理 - 获取用户详情
+GET {{apiUrl}}/system/users/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 12. 用户管理 - 创建用户（正常状态）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "newuser",
+  "email": "newuser@example.com",
+  "password": "password123",
+  "realName": "新用户",
+  "status": 1,
+  "roleIds": [1]
+}
+
+### 13. 用户管理 - 创建用户（禁用状态）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "disableduser",
+  "email": "disabled@example.com",
+  "password": "password123",
+  "realName": "禁用用户",
+  "status": 2,
+  "roleIds": []
+}
+
+### 14. 用户管理 - 创建用户（指定角色）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "adminuser",
+  "email": "admin@example.com",
+  "password": "password123",
+  "realName": "管理员用户",
+  "status": 1,
+  "roleIds": [1, 2]
+}
+
+### 14a. 用户管理 - 创建用户（不指定角色）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "noroleuser",
+  "email": "norole@example.com",
+  "password": "password123",
+  "realName": "无角色用户",
+  "status": 1,
+  "roleIds": []
+}
+
+### 14b. 用户管理 - 创建用户（最少参数）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "simpleuser",
+  "email": "simple@example.com",
+  "password": "password123"
+}
+
+### 14c. 用户管理 - 创建用户（无效角色ID测试）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "invalidrole",
+  "email": "invalid@example.com",
+  "password": "password123",
+  "realName": "无效角色测试",
+  "roleIds": [999, 888]
+}
+
+### 15. 用户管理 - 更新用户状态为禁用
+PUT {{apiUrl}}/system/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "updated@example.com",
+  "realName": "更新的用户",
+  "status": 2,
+  "roleIds": [1, 2]
+}
+
+### 16. 用户管理 - 更新用户状态为正常
+PUT {{apiUrl}}/system/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "updated@example.com",
+  "realName": "更新的用户",
+  "status": 1,
+  "roleIds": [1, 2]
+}
+
+### 17. 用户管理 - 删除用户
+DELETE {{apiUrl}}/system/users/1
+Authorization: Bearer {{token}}
+
+### 18. 用户管理 - 获取用户选项（下拉框，所有用户）
+GET {{apiUrl}}/system/users/options
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 19. 用户管理 - 获取用户选项（仅正常状态用户）
+GET {{apiUrl}}/system/users/options?status=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 20. 用户管理 - 获取用户选项（仅禁用状态用户）
+GET {{apiUrl}}/system/users/options?status=2
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 21. 用户管理 - 获取用户选项（搜索功能）
+GET {{apiUrl}}/system/users/options?q=admin&limit=5
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 22. 用户管理 - 获取用户状态选项（新增接口）
+GET {{apiUrl}}/system/users/status-options
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== 角色管理接口 =====
+
+### 23. 角色管理 - 获取角色列表
+GET {{apiUrl}}/system/roles
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 24. 角色管理 - 获取角色详情
+GET {{apiUrl}}/system/roles/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 25. 角色管理 - 创建角色
+POST {{apiUrl}}/system/roles
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "测试角色",
+  "code": "test_role",
+  "description": "这是一个测试角色",
+  "status": 1
+}
+
+### 26. 角色管理 - 更新角色
+PUT {{apiUrl}}/system/roles/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "更新的角色",
+  "code": "updated_role",
+  "description": "这是一个更新的角色",
+  "status": 1
+}
+
+### 27. 角色管理 - 删除角色
+DELETE {{apiUrl}}/system/roles/1
+Authorization: Bearer {{token}}
+
+### 28. 角色管理 - 获取角色菜单权限
+GET {{apiUrl}}/system/roles/1/menus
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 29. 角色管理 - 设置角色菜单权限
+PUT {{apiUrl}}/system/roles/1/menus
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+[1, 2, 3, 4, 5]
+
+### 30. 角色管理 - 获取角色选项（下拉框）
+GET {{apiUrl}}/system/roles/options
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== 菜单管理接口 =====
+
+### 31. 菜单管理 - 获取菜单列表
+GET {{apiUrl}}/system/menus
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 32. 菜单管理 - 获取菜单详情
+GET {{apiUrl}}/system/menus/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 33. 菜单管理 - 创建菜单
+POST {{apiUrl}}/system/menus
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "新菜单",
+  "name": "NewMenu",
+  "path": "/new-menu",
+  "component": "NewMenuComponent",
+  "icon": "menu-icon",
+  "parentId": null,
+  "sortOrder": 1,
+  "menuType": 1,
+  "status": 1
+}
+
+### 34. 菜单管理 - 更新菜单
+PUT {{apiUrl}}/system/menus/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "更新的菜单",
+  "name": "UpdatedMenu",
+  "path": "/updated-menu",
+  "component": "UpdatedMenuComponent",
+  "icon": "updated-icon",
+  "parentId": null,
+  "sortOrder": 1,
+  "menuType": 1,
+  "status": 1
+}
+
+### 35. 菜单管理 - 删除菜单
+DELETE {{apiUrl}}/system/menus/1
+Authorization: Bearer {{token}}
+
+### 36. 菜单管理 - 获取菜单选项（下拉框）
+GET {{apiUrl}}/system/menus/options
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== 字典管理接口 =====
+
+### 37. 字典管理 - 获取字典列表
+GET {{apiUrl}}/system/dict
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 38. 字典管理 - 获取字典选项（下拉框）
+GET {{apiUrl}}/system/dict/options?dictType=user_status
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== 日志管理接口 =====
+
+### 39. 日志管理 - 获取日志列表
+GET {{apiUrl}}/system/log
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 40. 日志管理 - 获取日志列表（带分页和搜索）
+GET {{apiUrl}}/system/log?current=1&pageSize=20&q=error
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 41. 日志管理 - 获取日志详情
+GET {{apiUrl}}/system/log/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 42. 日志管理 - 创建日志记录
+POST {{apiUrl}}/system/log
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "level": "INFO",
+  "message": "这是一条测试日志",
+  "userId": 1,
+  "ipAddress": "192.168.1.100"
+}
+
+### ===== 错误测试和边界条件 =====
+
+### 43. 测试无效用户状态值
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "invalidstatus",
+  "email": "invalid@example.com",
+  "password": "password123",
+  "realName": "无效状态用户",
+  "status": 999,
+  "roleIds": []
+}
+
+### 44. 测试无效角色ID（事务回滚测试）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "invalidrole",
+  "email": "invalidrole@example.com",
+  "password": "password123",
+  "realName": "无效角色用户",
+  "status": 1,
+  "roleIds": [999, 1000]
+}
+
+### 45. 测试部分无效角色ID（事务回滚测试）
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "partialinvalid",
+  "email": "partialinvalid@example.com",
+  "password": "password123",
+  "realName": "部分无效角色用户",
+  "status": 1,
+  "roleIds": [1, 999]
+}
+
+### 46. 测试创建用户后检查是否存在（验证事务回滚）
+GET {{apiUrl}}/system/users?username=invalidrole
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 47. 测试未授权访问（无token）
 GET {{apiUrl}}/system/users
 Accept: application/json
 
-### 3. 角色管理 - 获取角色列表
+### 48. 测试无效token
+GET {{apiUrl}}/system/users
+Accept: application/json
+Authorization: Bearer invalid_token_here
+
+### 49. 测试禁用用户登录
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "disableduser",
+  "password": "password123"
+}
+
+### 50. 测试不存在的路径
+GET {{apiUrl}}/system/nonexistent
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### 51. 测试错误的请求方法
+DELETE {{apiUrl}}/auth/login
+Authorization: Bearer {{token}}
+
+### ===== 完整的工作流示例 =====
+
+### 示例1: 用户状态管理完整流程
+# 1. 获取用户状态选项
+GET {{apiUrl}}/system/users/status-options
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+# 2. 创建正常状态用户
+POST {{apiUrl}}/system/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "workflow_user",
+  "email": "workflow@example.com",
+  "password": "workflow123",
+  "realName": "工作流用户",
+  "status": 1,
+  "roleIds": [1]
+}
+
+###
+# 3. 查询正常状态用户列表
+GET {{apiUrl}}/system/users?status=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+# 4. 禁用用户
+PUT {{apiUrl}}/system/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": 2
+}
+
+###
+# 5. 查询禁用状态用户列表
+GET {{apiUrl}}/system/users?status=2
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+# 6. 重新启用用户
+PUT {{apiUrl}}/system/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": 1
+}
+
+### 示例2: 系统管理完整流程
+# 1. 获取当前用户信息
+GET {{apiUrl}}/auth/me
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+# 2. 查看系统用户列表
+GET {{apiUrl}}/system/users
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+# 3. 查看系统角色列表
 GET {{apiUrl}}/system/roles
 Accept: application/json
+Authorization: Bearer {{token}}
 
-### 4. 菜单管理 - 获取菜单列表
-  GET {{apiUrl}}/system/menus
+###
+# 4. 查看系统菜单
+GET {{apiUrl}}/system/menus
 Accept: application/json
+Authorization: Bearer {{token}}
 
-### 5. 字典管理 - 获取字典列表
-GET {{apiUrl}}/system/dict
-Accept: application/json
-
-### 6. 日志管理 - 获取日志列表
+###
+# 5. 查看系统日志
 GET {{apiUrl}}/system/log
 Accept: application/json
+Authorization: Bearer {{token}}
 
-### ===== 带参数的请求示例 =====
+### ===== 性能和批量测试 =====
 
-### 7. 用户列表（带分页参数）
-GET {{apiUrl}}/system/users/?current=1&pageSize=20
+### 批量请求测试（连续发送）
+GET {{apiUrl}}/system/users
 Accept: application/json
+Authorization: Bearer {{token}}
 
-### 8. 用户详情（路径参数示例）
-# GET {{apiUrl}}/system/user/1
-# Accept: application/json
+###
+GET {{apiUrl}}/system/roles
+Accept: application/json
+Authorization: Bearer {{token}}
 
-### ===== POST 请求示例（未来扩展） =====
+###
+GET {{apiUrl}}/system/menus
+Accept: application/json
+Authorization: Bearer {{token}}
 
-### 9. 创建用户（示例）
-# POST {{apiUrl}}/system/user/
-# Content-Type: application/json
-# 
+###
+GET {{apiUrl}}/system/log
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### ===== API 响应格式说明 =====
+
+### 用户状态枚举说明:
+# 1: 正常状态 (Normal)
+# 2: 禁用状态 (Disabled)
+#
+# 用户状态选项API返回格式:
 # {
-#   "username": "testuser",
-#   "email": "test@example.com",
-#   "password": "password123"
+#   "code": 0,
+#   "message": "Success",
+#   "data": [
+#     { "label": "正常", "value": 1 },
+#     { "label": "禁用", "value": 2 }
+#   ]
 # }
-
-### ===== 错误测试 =====
-
-### 10. 测试不存在的路径
-GET {{apiUrl}}/system/nonexistent/
-Accept: application/json
-
-### 11. 测试错误的 API 路径
-GET {{baseUrl}}/wrong-api/test
-Accept: application/json
-
-### ===== 性能测试 =====
-
-### 12. 批量请求测试（连续发送）
-GET {{apiUrl}}/system/user/
-Accept: application/json
-
-###
-GET {{apiUrl}}/system/role/
-Accept: application/json
-
-###
-GET {{apiUrl}}/system/menu/
-Accept: application/json 
+#
+# 查询参数说明:
+# - status: 支持 "1"(正常), "2"(禁用), "all"(所有状态)
+# - current: 页码，从1开始
+# - pageSize: 每页数量
+# - username: 用户名模糊搜索
+# - q: 搜索关键词
+# - limit: 结果数量限制

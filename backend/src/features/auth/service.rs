@@ -2,14 +2,18 @@ use super::model::{
     LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfo, UserInfoResponse,
 };
 use crate::{
-    common::api::ServiceError,
+    common::error::ServiceError,
     core::{
         jwt::{self, Claims},
         password::PasswordUtils,
     },
     features::system::{
         menu::{model::MenuResponse, service::MenuService},
-        user::{model::UserEntity, repo::UserRepository},
+        user::{
+            model::{CreateUserRequest, UserEntity, UserStatus},
+            repo::UserRepository,
+            service::UserService,
+        },
     },
 };
 use sqlx::PgPool;
@@ -36,59 +40,33 @@ impl AuthService {
     ) -> Result<RegisterResponse, ServiceError> {
         tracing::info!("Attempting to register new user.");
 
-        // Check for conflicts
-        if UserRepository::find_by_username(pool, &request.username)
-            .await
-            .map_err(|e| {
-                tracing::error!("DB error checking username: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_some()
-        {
-            tracing::warn!("Registration failed: username already exists.");
-            return Err(ServiceError::UsernameConflict);
-        }
+        // 组装统一的用户创建请求（注册场景，添加默认值）
+        let create_request = CreateUserRequest {
+            username: request.username.clone(),
+            email: request.email.clone(),
+            password: PasswordUtils::hash_password(&request.password)?,
+            real_name: None,  // 注册时默认为None
+            status: None,     // 注册时默认为正常状态
+            role_ids: vec![], // 注册时默认无角色
+        };
 
-        if UserRepository::find_by_email(pool, &request.email)
-            .await
-            .map_err(|e| {
-                tracing::error!("DB error checking email: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_some()
-        {
-            tracing::warn!("Registration failed: email already exists.");
-            return Err(ServiceError::EmailConflict);
-        }
-
-        // Create the new user
-        tracing::debug!("Hashing password for new user.");
-        let password_hash = PasswordUtils::hash_password(&request.password)?;
-
-        let new_user = UserRepository::create(
-            pool,
-            &request.username,
-            &request.email,
-            &password_hash,
-            None, // real_name
-            1,    // status
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("DB error creating user: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-        tracing::info!(user_id = new_user.id, "Successfully created new user.");
+        // 使用统一的用户创建服务
+        let user_response = UserService::create_user(pool, &create_request).await?;
 
         // Generate a JWT for the new user.
-        tracing::debug!(user_id = new_user.id, "Generating JWT for new user.");
-        let token = jwt::generate_token(new_user.id, &new_user.username).map_err(|e| {
-            tracing::error!("Failed to generate token for new user {}: {:?}", new_user.id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        tracing::debug!(user_id = user_response.id, "Generating JWT for new user.");
+        let token =
+            jwt::generate_token(user_response.id, &user_response.username).map_err(|e| {
+                tracing::error!(
+                    "Failed to generate token for new user {}: {:?}",
+                    user_response.id,
+                    e
+                );
+                ServiceError::DatabaseQueryFailed
+            })?;
 
         let response = RegisterResponse {
-            user: UserInfo { id: new_user.id, username: new_user.username },
+            user: UserInfo { id: user_response.id, username: user_response.username },
             token,
         };
 
@@ -178,8 +156,14 @@ impl AuthService {
             .map_err(|_| ServiceError::DatabaseQueryFailed)?
             .ok_or(ServiceError::InvalidCredentials)?;
 
-        if user.status == 0 {
-            return Err(ServiceError::InvalidOperation("User is disabled".to_string()));
+        // 检查用户状态
+        if let Some(status) = UserStatus::from_i16(user.status) {
+            if !status.is_active() {
+                return Err(ServiceError::UserIsDisabled);
+            }
+        } else {
+            // 无效状态也拒绝登录
+            return Err(ServiceError::UserIsDisabled);
         }
 
         if PasswordUtils::verify_password(password, &user.password_hash) {

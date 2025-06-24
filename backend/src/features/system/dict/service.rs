@@ -2,7 +2,8 @@
 
 use super::model::DictItem;
 use super::repo::DictRepository;
-use crate::common::api::{OptionItem, ServiceError};
+use crate::common::api::OptionItem;
+use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
 /// A service for dictionary-related operations.
