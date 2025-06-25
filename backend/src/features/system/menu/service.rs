@@ -1,4 +1,4 @@
-// Menu-related business logic (validation, combining repo methods, etc.) goes here.
+// Menu business logic
 
 use super::model::{
     CreateMenuRequest, MenuListResponse, MenuQueryParams, MenuResponse, UpdateMenuRequest,
@@ -10,15 +10,11 @@ use axum::extract::Query;
 use sqlx::PgPool;
 use std::collections::HashMap;
 
-/// A service for menu-related operations.
+/// Menu service for business operations
 pub struct MenuService;
 
 impl MenuService {
-    /// Retrieves a list of menus, optionally filtered, as a tree structure.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::DatabaseQueryFailed` if any database operation fails.
+    /// Get menu list as tree structure with optional filtering
     pub async fn get_menu_list(
         pool: &PgPool,
         params: MenuQueryParams,
@@ -47,12 +43,7 @@ impl MenuService {
         Ok(response)
     }
 
-    /// Retrieves a single menu by its ID.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::NotFound` if the menu does not exist.
-    /// Returns `ServiceError::DatabaseQueryFailed` if the database operation fails.
+    /// Get single menu by ID
     pub async fn get_menu_by_id(pool: &PgPool, id: i64) -> Result<MenuResponse, ServiceError> {
         tracing::info!("Fetching menu by ID: {}", id);
 
@@ -67,19 +58,14 @@ impl MenuService {
         }
     }
 
-    /// Creates a new menu.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::NotFound` if the specified `parent_id` does not exist.
-    /// Returns `ServiceError::MenuTitleConflict` if the title is already in use.
-    /// Returns `ServiceError::DatabaseQueryFailed` if the database operation fails.
+    /// Create new menu with validation
     pub async fn create_menu(
         pool: &PgPool,
         request: CreateMenuRequest,
     ) -> Result<MenuResponse, ServiceError> {
         tracing::info!("Attempting to create menu with title: {}", request.title);
 
+        // Check parent exists
         if let Some(parent_id) = request.parent_id {
             if MenuRepository::find_by_id(pool, parent_id)
                 .await
@@ -93,7 +79,7 @@ impl MenuService {
             }
         }
 
-        // Check for title conflict
+        // Check title conflict
         if MenuRepository::find_by_title(&request.title, pool)
             .await
             .map_err(|e| {
@@ -126,13 +112,7 @@ impl MenuService {
         Ok(menu_response)
     }
 
-    /// Updates an existing menu.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::NotFound` if the menu or the new parent menu does not exist.
-    /// Returns `ServiceError::InvalidOperation` if attempting to set a menu as its own parent.
-    /// Returns `ServiceError::DatabaseQueryFailed` if any database operation fails.
+    /// Update existing menu with validation
     pub async fn update_menu(
         pool: &PgPool,
         id: i64,
@@ -140,6 +120,7 @@ impl MenuService {
     ) -> Result<MenuResponse, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
 
+        // Check menu exists
         if MenuRepository::find_by_id(pool, id)
             .await
             .map_err(|e| {
@@ -151,14 +132,15 @@ impl MenuService {
             return Err(ServiceError::NotFound("Menu".to_string()));
         }
 
+        // Validate parent_id if provided
         if let Some(parent_id) = request.parent_id {
-            // Cannot be its own parent.
+            // Cannot be its own parent
             if parent_id == id {
                 return Err(ServiceError::InvalidOperation(
                     "Cannot set a menu as its own parent.".to_string(),
                 ));
             }
-            // If parent_id is not root (0), it must exist.
+            // Parent must exist (unless root)
             if parent_id != 0
                 && MenuRepository::find_by_id(pool, parent_id)
                     .await
@@ -199,13 +181,7 @@ impl MenuService {
         }
     }
 
-    /// Deletes a menu by its ID.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::InvalidOperation` if the menu has children.
-    /// Returns `ServiceError::NotFound` if the menu does not exist.
-    /// Returns `ServiceError::DatabaseQueryFailed` if any database operation fails.
+    /// Delete menu with child validation
     pub async fn delete_menu(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Attempting to delete menu: {}", id);
         let all_menus = MenuRepository::find_all(pool).await.map_err(|e| {
@@ -233,11 +209,7 @@ impl MenuService {
         }
     }
 
-    /// Retrieves all menus assigned to a given list of role IDs.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError::DatabaseQueryFailed` if the database operation fails.
+    /// Get menus by role IDs
     pub async fn get_menus_by_role_ids(
         pool: &PgPool,
         role_ids: &[i64],
@@ -256,7 +228,7 @@ impl MenuService {
         Ok(menu_responses)
     }
 
-    /// Builds a tree structure from a flat list of menus.
+    /// Build hierarchical tree from flat menu list
     pub fn build_menu_tree(menus: Vec<MenuResponse>) -> Vec<MenuResponse> {
         let mut menu_map: HashMap<i64, MenuResponse> =
             menus.into_iter().map(|m| (m.id, m)).collect();
@@ -276,7 +248,6 @@ impl MenuService {
             if let Some(menu) = menu_map.remove(&id) {
                 if let Some(parent_id) = menu.parent_id {
                     if let Some(parent) = menu_map.get_mut(&parent_id) {
-                        // To avoid cloning children again, we ensure children are built once.
                         if parent.children.is_empty() {
                             parent.children = Vec::new();
                         }
@@ -289,7 +260,7 @@ impl MenuService {
         let mut result: Vec<MenuResponse> =
             root_menus.into_iter().filter_map(|id| menu_map.remove(&id)).collect();
 
-        // Sort all levels
+        // Sort all levels recursively
         fn sort_recursive(menus: &mut Vec<MenuResponse>) {
             menus.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
             for menu in menus {
@@ -303,23 +274,13 @@ impl MenuService {
         result
     }
 
-    /// Retrieves menu options for dropdown selections
-    ///
-    /// Returns simplified menu data optimized for frontend dropdown components.
-    /// Supports filtering by status, search term, and result limiting.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `query` - Query parameters (status, q, limit)
-    ///
-    /// # Returns
-    /// * `Result<Vec<OptionItem<i64>>, ServiceError>` - List of option items or service error
+    /// Get menu options for dropdowns
     pub async fn get_menu_options(
         pool: &PgPool,
         query: Query<OptionsQuery>,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!(
-            "Fetching menu options with query: status={:?}, q={:?}, limit={:?}",
+            "Fetching menu options: status={:?}, q={:?}, limit={:?}",
             query.status,
             query.q,
             query.limit
@@ -341,7 +302,7 @@ impl MenuService {
         Ok(options)
     }
 
-    /// A private helper to recursively find and build children for the menu tree.
+    /// Recursively find and build children for menu tree
     fn find_children(
         menu_map: &HashMap<i64, MenuResponse>,
         parent_id: Option<i64>,

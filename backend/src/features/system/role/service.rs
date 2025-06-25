@@ -1,4 +1,4 @@
-// Role-related business logic (validation, combining repo methods, etc.) goes here.
+// Role business logic
 
 use super::model::{
     CreateRoleRequest, RoleListResponse, RoleQueryParams, RoleResponse, UpdateRoleRequest,
@@ -9,18 +9,11 @@ use crate::common::error::ServiceError;
 use axum::extract::Query;
 use sqlx::PgPool;
 
-/// A service for role-related operations.
+/// Role service for business operations
 pub struct RoleService;
 
 impl RoleService {
-    /// Retrieves a paginated list of roles
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `params` - Query parameters for filtering and pagination
-    ///
-    /// # Returns
-    /// * `Result<RoleListResponse, ServiceError>` - Paginated role list or service error
+    /// Get paginated role list with filtering
     pub async fn get_role_list(
         pool: &PgPool,
         params: RoleQueryParams,
@@ -30,7 +23,7 @@ impl RoleService {
         let offset = (page - 1) * page_size;
 
         tracing::info!(
-            "Retrieving role list with page: {}, page_size: {}, role_name: {:?}, status: {:?}",
+            "Retrieving role list: page={}, size={}, name={:?}, status={:?}",
             page,
             page_size,
             params.role_name,
@@ -68,20 +61,13 @@ impl RoleService {
             role_responses.push(role_response);
         }
 
-        tracing::info!("Successfully retrieved {} roles (total: {})", role_responses.len(), total);
+        tracing::info!("Retrieved {} roles (total: {})", role_responses.len(), total);
         Ok(RoleListResponse { list: role_responses, total, page, page_size })
     }
 
-    /// Retrieves a single role by its ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Role ID
-    ///
-    /// # Returns
-    /// * `Result<RoleResponse, ServiceError>` - Role response or service error
+    /// Get single role by ID with menu permissions
     pub async fn get_role_by_id(pool: &PgPool, id: i64) -> Result<RoleResponse, ServiceError> {
-        tracing::info!("Retrieving role with id: {}", id);
+        tracing::info!("Retrieving role: {}", id);
 
         let role = RoleRepository::find_by_id(pool, id).await.map_err(|e| {
             tracing::error!("Failed to retrieve role {} from database: {:?}", id, e);
@@ -101,33 +87,24 @@ impl RoleService {
                     })?;
                 let mut role_response = RoleResponse::from(role);
                 role_response.menu_ids = menu_ids;
-                tracing::info!("Successfully retrieved role with id: {}", id);
+                tracing::info!("Retrieved role: {}", id);
                 Ok(role_response)
             }
             None => {
-                tracing::warn!("Role with id {} not found", id);
+                tracing::warn!("Role not found: {}", id);
                 Err(ServiceError::NotFound("Role".to_string()))
             }
         }
     }
 
-    /// Creates a new role
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `request` - Role creation request data
-    ///
-    /// # Returns
-    /// * `Result<RoleResponse, ServiceError>` - Created role response or service error
-    ///
-    /// # Errors
-    /// Returns `ServiceError::RoleNameConflict` if the role name already exists.
+    /// Create new role with validation
     pub async fn create_role(
         pool: &PgPool,
         request: CreateRoleRequest,
     ) -> Result<RoleResponse, ServiceError> {
-        tracing::info!("Creating new role with name: {}", request.role_name);
+        tracing::info!("Creating role: {}", request.role_name);
 
+        // Check name conflict
         if RoleRepository::find_by_role_name(pool, &request.role_name)
             .await
             .map_err(|e| {
@@ -136,7 +113,7 @@ impl RoleService {
             })?
             .is_some()
         {
-            tracing::warn!("Role name already exists: {}", request.role_name);
+            tracing::warn!("Role name exists: {}", request.role_name);
             return Err(ServiceError::RoleNameConflict);
         }
 
@@ -147,6 +124,7 @@ impl RoleService {
                 ServiceError::DatabaseQueryFailed
             })?;
 
+        // Set menu permissions if provided
         if !request.menu_ids.is_empty() {
             RoleRepository::set_role_menus(pool, role.id, &request.menu_ids).await.map_err(
                 |e| {
@@ -163,29 +141,19 @@ impl RoleService {
         let mut role_response = RoleResponse::from(role);
         role_response.menu_ids = menu_ids;
 
-        tracing::info!("Successfully created role with id: {}", role_response.id);
+        tracing::info!("Created role: {}", role_response.id);
         Ok(role_response)
     }
 
-    /// Updates an existing role
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Role ID to update
-    /// * `request` - Role update request data
-    ///
-    /// # Returns
-    /// * `Result<RoleResponse, ServiceError>` - Updated role response or service error
-    ///
-    /// # Errors
-    /// Returns `ServiceError::NotFound` if the role does not exist.
-    /// Returns `ServiceError::RoleNameConflict` if the new role name is taken by another role.
+    /// Update existing role with validation
     pub async fn update_role(
         pool: &PgPool,
         id: i64,
         request: UpdateRoleRequest,
     ) -> Result<RoleResponse, ServiceError> {
-        tracing::info!("Updating role with id: {}", id);
+        tracing::info!("Updating role: {}", id);
+
+        // Check role exists
         if RoleRepository::find_by_id(pool, id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?
@@ -194,6 +162,7 @@ impl RoleService {
             return Err(ServiceError::NotFound("Role".to_string()));
         }
 
+        // Check name conflict if changing name
         if let Some(ref role_name) = request.role_name {
             if let Some(existing_role) = RoleRepository::find_by_role_name(pool, role_name)
                 .await
@@ -212,6 +181,7 @@ impl RoleService {
 
         match updated_role {
             Some(role) => {
+                // Update menu permissions if provided
                 if let Some(menu_ids) = request.menu_ids {
                     RoleRepository::set_role_menus(pool, role.id, &menu_ids)
                         .await
@@ -230,11 +200,9 @@ impl RoleService {
         }
     }
 
-    /// Deletes a role by its ID.
-    /// # Errors
-    ///
-    /// Returns `ServiceError::InvalidOperation` if the role is still assigned to users.
+    /// Delete role with user assignment validation
     pub async fn delete_role(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+        // Check if role is still assigned to users
         let user_count: (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM user_roles WHERE role_id = $1")
                 .bind(id)
@@ -255,21 +223,13 @@ impl RoleService {
         if success { Ok(()) } else { Err(ServiceError::NotFound("Role".to_string())) }
     }
 
-    /// Sets menu permissions for a role
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `role_id` - Role ID to set menus for
-    /// * `menu_ids` - List of menu IDs to assign to the role
-    ///
-    /// # Returns
-    /// * `Result<(), ServiceError>` - Success or service error
+    /// Set menu permissions for a role
     pub async fn set_role_menus(
         pool: &PgPool,
         role_id: i64,
         menu_ids: Vec<i64>,
     ) -> Result<(), ServiceError> {
-        tracing::info!("Setting menus for role id: {}, menu_ids: {:?}", role_id, menu_ids);
+        tracing::info!("Setting menus for role {}: {:?}", role_id, menu_ids);
 
         if RoleRepository::find_by_id(pool, role_id)
             .await
@@ -279,7 +239,7 @@ impl RoleService {
             })?
             .is_none()
         {
-            tracing::warn!("Role with id {} not found", role_id);
+            tracing::warn!("Role not found: {}", role_id);
             return Err(ServiceError::NotFound("Role".to_string()));
         }
 
@@ -288,20 +248,13 @@ impl RoleService {
             ServiceError::DatabaseQueryFailed
         })?;
 
-        tracing::info!("Successfully set {} menus for role id: {}", menu_ids.len(), role_id);
+        tracing::info!("Set {} menus for role: {}", menu_ids.len(), role_id);
         Ok(())
     }
 
-    /// Retrieves menu permissions for a role
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `role_id` - Role ID to get menus for
-    ///
-    /// # Returns
-    /// * `Result<Vec<i64>, ServiceError>` - List of menu IDs or service error
+    /// Get menu permissions for a role
     pub async fn get_role_menus(pool: &PgPool, role_id: i64) -> Result<Vec<i64>, ServiceError> {
-        tracing::info!("Retrieving menus for role id: {}", role_id);
+        tracing::info!("Retrieving menus for role: {}", role_id);
 
         if RoleRepository::find_by_id(pool, role_id)
             .await
@@ -311,7 +264,7 @@ impl RoleService {
             })?
             .is_none()
         {
-            tracing::warn!("Role with id {} not found", role_id);
+            tracing::warn!("Role not found: {}", role_id);
             return Err(ServiceError::NotFound("Role".to_string()));
         }
 
@@ -320,27 +273,17 @@ impl RoleService {
             ServiceError::DatabaseQueryFailed
         })?;
 
-        tracing::info!("Successfully retrieved {} menus for role id: {}", menu_ids.len(), role_id);
+        tracing::info!("Retrieved {} menus for role: {}", menu_ids.len(), role_id);
         Ok(menu_ids)
     }
 
-    /// Retrieves role options for dropdown selections
-    ///
-    /// Returns simplified role data optimized for frontend dropdown components.
-    /// Supports filtering by status, search term, and result limiting.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `query` - Query parameters (status, q, limit)
-    ///
-    /// # Returns
-    /// * `Result<Vec<OptionItem<i64>>, ServiceError>` - List of option items or service error
+    /// Get role options for dropdowns
     pub async fn get_role_options(
         pool: &PgPool,
         query: Query<OptionsQuery>,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!(
-            "Retrieving role options with query: status={:?}, search={:?}, limit={:?}",
+            "Retrieving role options: status={:?}, search={:?}, limit={:?}",
             query.status,
             query.q,
             query.limit
@@ -360,7 +303,7 @@ impl RoleService {
             .map(|(id, role_name)| OptionItem { label: role_name, value: id })
             .collect();
 
-        tracing::info!("Successfully retrieved {} role options", options.len());
+        tracing::info!("Retrieved {} role options", options.len());
         Ok(options)
     }
 }

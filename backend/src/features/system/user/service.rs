@@ -20,25 +20,19 @@ use crate::{
 use axum::extract::Query;
 use sqlx::PgPool;
 
-/// Service for user-related operations.
+/// User service for business operations
 pub struct UserService;
 
 impl UserService {
-    // --- Public API Methods ---
-
-    /// Creates a new user with unified logic for all scenarios.
-    ///
-    /// This method handles:
-    /// - User registration (basic info, no roles)
-    /// - Admin user creation (complete info, with roles)
-    /// - Custom user creation (with specific parameters)
+    /// Create new user with unified logic for all scenarios
+    /// Handles: registration, admin creation, custom creation
     pub async fn create_user(
         pool: &PgPool,
         request: &CreateUserRequest,
     ) -> Result<UserResponse, ServiceError> {
-        tracing::info!("Creating new user with username: {}", request.username);
+        tracing::info!("Creating user: {}", request.username);
 
-        // 验证用户名是否已存在
+        // Check username conflict
         if UserRepository::find_by_username(pool, &request.username)
             .await
             .map_err(|e| {
@@ -47,11 +41,11 @@ impl UserService {
             })?
             .is_some()
         {
-            tracing::warn!("Username already exists: {}", request.username);
+            tracing::warn!("Username exists: {}", request.username);
             return Err(ServiceError::UsernameConflict);
         }
 
-        // 验证邮箱是否已存在
+        // Check email conflict
         if UserRepository::find_by_email(pool, &request.email)
             .await
             .map_err(|e| {
@@ -60,15 +54,15 @@ impl UserService {
             })?
             .is_some()
         {
-            tracing::warn!("Email already exists: {}", request.email);
+            tracing::warn!("Email exists: {}", request.email);
             return Err(ServiceError::EmailConflict);
         }
 
-        // 调用统一的仓库方法
+        // Create user using unified repository method
         let user = UserRepository::create_user(pool, request).await.map_err(|e| {
             tracing::error!("Failed to create user: {:?}", e);
 
-            // 检查是否是角色相关的错误
+            // Check for role-related errors
             match &e {
                 sqlx::Error::Database(db_err) => {
                     if let Some(code) = db_err.code() {
@@ -86,31 +80,32 @@ impl UserService {
             ServiceError::DatabaseQueryFailed
         })?;
 
-        // 获取用户的角色信息
-        let roles = UserRepository::get_user_roles(pool, user.id).await.map_err(|e| {
+        // Get user roles
+        let roles = UserRepository::get_user_role_infos(pool, user.id).await.map_err(|e| {
             tracing::error!("Failed to retrieve user roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
         let mut user_response = UserResponse::from(user);
         user_response.roles = roles;
 
-        tracing::info!("Successfully created user with id: {}", user_response.id);
+        tracing::info!("Created user: {}", user_response.id);
         Ok(user_response)
     }
 
-    /// Updates an existing user.
+    /// Update existing user
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
         request: UpdateUserRequest,
     ) -> Result<UserResponse, ServiceError> {
-        tracing::info!("Updating user with id: {}", id);
+        tracing::info!("Updating user: {}", id);
 
         let user = UserRepository::find_by_id(pool, id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?
             .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
+        // Check email conflict if changing email
         if let Some(email) = &request.email {
             if !email.eq_ignore_ascii_case(&user.email) {
                 if UserRepository::find_by_email(pool, email)
@@ -134,13 +129,14 @@ impl UserService {
         .map_err(|_| ServiceError::DatabaseQueryFailed)?
         .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
+        // Update roles if provided
         if let Some(role_ids) = request.role_ids {
             UserRepository::set_user_roles(pool, updated_user.id, &role_ids)
                 .await
                 .map_err(|_| ServiceError::DatabaseQueryFailed)?;
         }
 
-        let roles = UserRepository::get_user_roles(pool, updated_user.id)
+        let roles = UserRepository::get_user_role_infos(pool, updated_user.id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?;
         let mut user_response = UserResponse::from(updated_user);
@@ -148,7 +144,7 @@ impl UserService {
         Ok(user_response)
     }
 
-    /// Deletes a user by their ID.
+    /// Delete user by ID
     pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         let deleted = UserRepository::soft_delete(pool, id)
             .await
@@ -159,7 +155,7 @@ impl UserService {
         Ok(())
     }
 
-    /// Retrieves a paginated list of users.
+    /// Get paginated user list with filtering
     pub async fn get_user_list(
         pool: &PgPool,
         params: UserQueryParams,
@@ -189,7 +185,7 @@ impl UserService {
 
         let mut list = Vec::with_capacity(user_entities.len());
         for user in user_entities {
-            let roles = UserRepository::get_user_roles(pool, user.id)
+            let roles = UserRepository::get_user_role_infos(pool, user.id)
                 .await
                 .map_err(|_| ServiceError::DatabaseQueryFailed)?;
             let mut user_response = UserResponse::from(user);
@@ -200,14 +196,14 @@ impl UserService {
         Ok(UserListResponse { list, total, page, page_size })
     }
 
-    /// Retrieves a single user by their ID.
+    /// Get single user by ID
     pub async fn get_user_by_id(pool: &PgPool, id: i64) -> Result<UserResponse, ServiceError> {
         let user = UserRepository::find_by_id(pool, id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?
             .ok_or_else(|| ServiceError::NotFound("User not found".to_string()))?;
 
-        let roles = UserRepository::get_user_roles(pool, user.id)
+        let roles = UserRepository::get_user_role_infos(pool, user.id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?;
 
@@ -216,37 +212,27 @@ impl UserService {
         Ok(user_response)
     }
 
-    /// Retrieves user options for dropdown selections
-    ///
-    /// Returns simplified user data optimized for frontend dropdown components.
-    /// Supports filtering by status, search term, and result limiting.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `query` - Query parameters (status, q, limit)
-    ///
-    /// # Returns
-    /// * `Result<Vec<OptionItem<i64>>, ServiceError>` - List of option items or service error
+    /// Get user options for dropdowns
     pub async fn get_user_options(
         pool: &PgPool,
         query: Query<OptionsQuery>,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!(
-            "Retrieving user options with query: status={:?}, search={:?}, limit={:?}",
+            "Retrieving user options: status={:?}, search={:?}, limit={:?}",
             query.status,
             query.q,
             query.limit
         );
 
-        // 解析状态参数：只支持数字或 "all"
+        // Parse status: support numbers or "all"
         let status = query.status.as_deref().and_then(|s| {
             match s {
                 "1" => Some(1),
                 "2" => Some(2),
                 "all" => None,
                 _ => {
-                    tracing::warn!("Invalid status value: '{}'. Valid values: '1', '2', 'all'", s);
-                    Some(1) // 默认为正常状态
+                    tracing::warn!("Invalid status '{}'. Valid: '1', '2', 'all'", s);
+                    Some(1) // Default to active
                 }
             }
         });
@@ -263,7 +249,7 @@ impl UserService {
             .map(|(id, display_name)| OptionItem { label: display_name, value: id })
             .collect();
 
-        tracing::info!("Successfully retrieved {} user options", options.len());
+        tracing::info!("Retrieved {} user options", options.len());
         Ok(options)
     }
 }

@@ -1,12 +1,18 @@
 import type { ApiResponse, BaseParams } from "Api";
 
 /**
+ * 获取认证头
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
  * 默认请求头
  */
 const defaultHeaders = {
   "Content-Type": "application/json",
-  // 在这里可以添加认证 Token 等
-  // Authorization: `Bearer ${localStorage.getItem('token')}`,
 };
 
 /**
@@ -23,6 +29,7 @@ async function coreRequest<T>(
     ...options,
     headers: {
       ...defaultHeaders,
+      ...getAuthHeaders(),
       ...options.headers,
     },
   };
