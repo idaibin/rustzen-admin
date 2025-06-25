@@ -11,14 +11,11 @@ use super::model::{CreateUserRequest, RoleInfo, UserEntity};
 use chrono::Utc;
 use sqlx::PgPool;
 
-/// A repository for handling user data in the database.
-///
-/// This module provides CRUD operations for users and abstracts database
-/// interactions away from the service layer.
+/// User repository for database operations
 pub struct UserRepository;
 
 impl UserRepository {
-    /// Finds a single user by their ID.
+    /// Find user by ID
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<UserEntity>, sqlx::Error> {
         let user = sqlx::query_as::<_, UserEntity>(
             "SELECT id, username, email, password_hash, real_name, avatar_url, status,
@@ -32,7 +29,7 @@ impl UserRepository {
         Ok(user)
     }
 
-    /// Finds a single user by their username.
+    /// Find user by username
     pub async fn find_by_username(
         pool: &PgPool,
         username: &str,
@@ -49,7 +46,7 @@ impl UserRepository {
         Ok(user)
     }
 
-    /// Finds a single user by their email address.
+    /// Find user by email
     pub async fn find_by_email(
         pool: &PgPool,
         email: &str,
@@ -66,7 +63,7 @@ impl UserRepository {
         Ok(user)
     }
 
-    /// Finds users with pagination and optional filters.
+    /// Find users with pagination and filters
     pub async fn find_with_pagination(
         pool: &PgPool,
         offset: i64,
@@ -80,17 +77,17 @@ impl UserRepository {
              FROM users WHERE deleted_at IS NULL",
         );
 
-        // 处理状态过滤
+        // Handle status filter
         if let Some(status_str) = status_filter {
             match status_str {
                 "1" => query.push_str(" AND status = 1"),
                 "2" => query.push_str(" AND status = 2"),
-                "all" => {}                             // 不添加状态过滤
-                _ => query.push_str(" AND status = 1"), // 默认只显示正常用户
+                "all" => {}                             // No status filter
+                _ => query.push_str(" AND status = 1"), // Default to active users
             }
         }
 
-        // 处理用户名搜索
+        // Handle username search
         if let Some(keyword) = username_filter {
             if !keyword.trim().is_empty() {
                 query.push_str(&format!(
@@ -112,7 +109,7 @@ impl UserRepository {
         Ok(users)
     }
 
-    /// Counts the total number of users matching the filters.
+    /// Count users matching filters
     pub async fn count_users(
         pool: &PgPool,
         username_filter: Option<&str>,
@@ -120,17 +117,17 @@ impl UserRepository {
     ) -> Result<i64, sqlx::Error> {
         let mut query = String::from("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL");
 
-        // 处理状态过滤
+        // Handle status filter
         if let Some(status_str) = status_filter {
             match status_str {
                 "1" => query.push_str(" AND status = 1"),
                 "2" => query.push_str(" AND status = 2"),
-                "all" => {}                             // 不添加状态过滤
-                _ => query.push_str(" AND status = 1"), // 默认只显示正常用户
+                "all" => {}                             // No status filter
+                _ => query.push_str(" AND status = 1"), // Default to active users
             }
         }
 
-        // 处理用户名搜索
+        // Handle username search
         if let Some(keyword) = username_filter {
             if !keyword.trim().is_empty() {
                 query.push_str(&format!(
@@ -145,15 +142,14 @@ impl UserRepository {
         Ok(count.0)
     }
 
-    /// Creates a new user with optional roles in a single transaction.
-    /// This is the unified method for all user creation scenarios.
+    /// Create new user with optional roles (unified method)
     pub async fn create_user(
         pool: &PgPool,
         request: &CreateUserRequest,
     ) -> Result<UserEntity, sqlx::Error> {
         let mut tx = pool.begin().await?;
 
-        // 1. 创建用户
+        // Create user
         let user = sqlx::query_as::<_, UserEntity>(
             "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $6)
@@ -169,9 +165,9 @@ impl UserRepository {
         .fetch_one(&mut *tx)
         .await?;
 
-        // 2. 设置用户角色（如果有的话）
+        // Set user roles if provided
         if !request.role_ids.is_empty() {
-            // 首先验证所有角色ID都存在
+            // Validate all role IDs exist
             let valid_roles = sqlx::query_as::<_, (i64,)>(
                 "SELECT id FROM roles WHERE id = ANY($1) AND deleted_at IS NULL AND status = 1",
             )
@@ -180,12 +176,12 @@ impl UserRepository {
             .await?;
 
             if valid_roles.len() != request.role_ids.len() {
-                // 有无效的角色ID，回滚事务
+                // Invalid role IDs, rollback transaction
                 tx.rollback().await?;
                 return Err(sqlx::Error::RowNotFound);
             }
 
-            // 插入用户角色关联
+            // Insert user role associations
             let mut query_builder =
                 "INSERT INTO user_roles (user_id, role_id, created_at) VALUES ".to_string();
             let now = Utc::now().naive_utc();
@@ -199,12 +195,12 @@ impl UserRepository {
             sqlx::query(&query_builder).execute(&mut *tx).await?;
         }
 
-        // 3. 提交事务
+        // Commit transaction
         tx.commit().await?;
         Ok(user)
     }
 
-    /// Updates an existing user's details.
+    /// Update existing user
     pub async fn update(
         pool: &PgPool,
         id: i64,
@@ -239,8 +235,7 @@ impl UserRepository {
         }
     }
 
-    /// Soft deletes a user by setting the `deleted_at` timestamp.
-    /// Returns `true` if a row was affected.
+    /// Soft delete user
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, sqlx::Error> {
         let result = sqlx::query(
             "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
@@ -253,7 +248,7 @@ impl UserRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Updates the `last_login_at` timestamp for a user.
+    /// Update last login timestamp
     pub async fn update_last_login(pool: &PgPool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE users SET last_login_at = $1, updated_at = $1 WHERE id = $2")
             .bind(Utc::now().naive_utc())
@@ -264,8 +259,11 @@ impl UserRepository {
         Ok(())
     }
 
-    /// Retrieves all roles assigned to a specific user.
-    pub async fn get_user_roles(pool: &PgPool, user_id: i64) -> Result<Vec<RoleInfo>, sqlx::Error> {
+    /// Get user roles with info
+    pub async fn get_user_role_infos(
+        pool: &PgPool,
+        user_id: i64,
+    ) -> Result<Vec<RoleInfo>, sqlx::Error> {
         let roles = sqlx::query_as::<_, RoleInfo>(
             "SELECT r.id, r.role_name
              FROM roles r
@@ -279,8 +277,7 @@ impl UserRepository {
         Ok(roles)
     }
 
-    /// Sets the roles for a user, replacing any existing roles.
-    /// This is done within a transaction.
+    /// Set user roles (replaces existing)
     pub async fn set_user_roles(
         pool: &PgPool,
         user_id: i64,
@@ -311,10 +308,10 @@ impl UserRepository {
         Ok(())
     }
 
-    /// Retrieves users for dropdown options
+    /// Get users for dropdown options
     pub async fn find_options(
         pool: &PgPool,
-        status: Option<i16>, // 1, 2, 或 None(所有用户)
+        status: Option<i16>, // 1, 2, or None (all users)
         q: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, sqlx::Error> {
@@ -322,12 +319,12 @@ impl UserRepository {
             "SELECT id, COALESCE(real_name, username) as display_name FROM users WHERE deleted_at IS NULL",
         );
 
-        // 处理 status 过滤
+        // Handle status filter
         if let Some(user_status) = status {
             query.push_str(&format!(" AND status = {}", user_status));
         }
 
-        // 处理模糊搜索
+        // Handle search
         if let Some(keyword) = q {
             query.push_str(&format!(
                 " AND (username ILIKE '%{}%' OR real_name ILIKE '%{}%')",
@@ -338,7 +335,7 @@ impl UserRepository {
 
         query.push_str(" ORDER BY display_name ASC");
 
-        // 处理 limit
+        // Handle limit
         if let Some(l) = limit {
             query.push_str(&format!(" LIMIT {}", l));
         }
@@ -346,5 +343,16 @@ impl UserRepository {
         let users = sqlx::query_as(&query).fetch_all(pool).await?;
 
         Ok(users)
+    }
+
+    /// Get user permissions (placeholder - to be implemented)
+    pub async fn get_user_permissions(
+        pool: &PgPool,
+        user_id: i64,
+    ) -> Result<Vec<String>, sqlx::Error> {
+        // Placeholder: return empty until role permissions are implemented
+        // TODO: Implement after adding permissions field to roles table
+        let _ = (pool, user_id); // Avoid compiler warning
+        Ok(vec![])
     }
 }

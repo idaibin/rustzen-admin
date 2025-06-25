@@ -25,6 +25,8 @@ uuid = { version = "1.17", features = ["v4", "serde"] }
 # JWT 认证
 jsonwebtoken = "9.3"
 
+# 异步 trait
+async-trait = "0.1"
 
 # Password Hashing
 argon2 = "0.5"

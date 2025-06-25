@@ -1,8 +1,8 @@
-use super::model::{
-    CreateMenuRequest, MenuListResponse, MenuQueryParams, MenuResponse, UpdateMenuRequest,
-};
+use super::model::{CreateMenuRequest, MenuQueryParams, MenuResponse, UpdateMenuRequest};
 use super::service::MenuService;
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
+use crate::common::router_ext::RouterExt;
+use crate::features::auth::permission::PermissionsCheck;
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -10,27 +10,61 @@ use axum::{
 };
 use sqlx::PgPool;
 
-/// Defines the routes for menu management.
+/// Menu management routes with permission examples
 pub fn menu_routes() -> Router<PgPool> {
     Router::new()
-        .route("/", get(get_menu_list))
-        .route("/", post(create_menu))
-        .route("/options", get(get_menu_options))
-        .route("/{id}", get(get_menu_by_id))
-        .route("/{id}", put(update_menu))
-        .route("/{id}", delete(delete_menu))
+        .route_with_permission(
+            "/",
+            get(get_menu_list),
+            PermissionsCheck::Single("system:menu:list"),
+        )
+        .route_with_permission(
+            "/",
+            post(create_menu),
+            PermissionsCheck::Single("system:menu:create"),
+        )
+        .route_with_permission(
+            "/options",
+            get(get_menu_options),
+            PermissionsCheck::Single("system:menu:options"),
+        )
+        .route_with_permission(
+            "/{id}",
+            get(get_menu_by_id),
+            PermissionsCheck::Single("system:menu:get"),
+        )
+        .route_with_permission(
+            "/{id}",
+            put(update_menu),
+            PermissionsCheck::Single("system:menu:update"),
+        )
+        .route_with_permission(
+            "/{id}",
+            delete(delete_menu),
+            PermissionsCheck::Single("system:menu:delete"),
+        )
 }
 
-/// Handles the request to get a list of menus as a tree.
+/// Get menu list with optional filtering
+/// Query params: title, status
 async fn get_menu_list(
     State(pool): State<PgPool>,
     Query(params): Query<MenuQueryParams>,
-) -> AppResult<Json<ApiResponse<MenuListResponse>>> {
-    let response = MenuService::get_menu_list(&pool, params).await?;
-    Ok(ApiResponse::success(response))
+) -> AppResult<Json<ApiResponse<super::model::MenuListResponse>>> {
+    tracing::info!("Menu list request: {:?}", params);
+
+    let menu_list = MenuService::get_menu_list(&pool, params).await?;
+
+    tracing::info!(
+        "Menu list retrieved: total={}, items={}",
+        menu_list.total,
+        menu_list.list.len()
+    );
+
+    Ok(ApiResponse::success(menu_list))
 }
 
-/// Handles the request to get a single menu by its ID.
+/// Get menu by ID
 async fn get_menu_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
@@ -39,7 +73,8 @@ async fn get_menu_by_id(
     Ok(ApiResponse::success(response))
 }
 
-/// Handles the request to create a new menu.
+/// Create new menu
+/// Body: name, path, parent_id, icon, sort_order, status
 async fn create_menu(
     State(pool): State<PgPool>,
     Json(request): Json<CreateMenuRequest>,
@@ -48,7 +83,8 @@ async fn create_menu(
     Ok(ApiResponse::success(response))
 }
 
-/// Handles the request to update an existing menu.
+/// Update menu
+/// Body: name, path, parent_id, icon, sort_order, status (all optional)
 async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
@@ -58,7 +94,7 @@ async fn update_menu(
     Ok(ApiResponse::success(response))
 }
 
-/// Handles the request to delete a menu.
+/// Delete menu (handles child cleanup)
 async fn delete_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
@@ -67,9 +103,8 @@ async fn delete_menu(
     Ok(ApiResponse::success(()))
 }
 
-/// Handles the request to get menu options for dropdowns
-///
-/// Extracts query parameters and delegates to the service layer for processing.
+/// Get menu options for dropdowns
+/// Query params: q (search), limit, exclude_id
 async fn get_menu_options(
     State(pool): State<PgPool>,
     query: Query<OptionsQuery>,
