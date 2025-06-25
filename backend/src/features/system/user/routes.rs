@@ -12,51 +12,118 @@ use super::model::{
 };
 use super::service::UserService;
 use crate::{
-    common::api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
+    common::{
+        api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
+        router_ext::RouterExt,
+    },
     core::password::PasswordUtils,
+    features::auth::permission::PermissionsCheck,
 };
 
-/// Defines the routes for user management.
+/// User management routes with permission examples:
+/// - Single: PermissionsCheck::Single("system:user:list")
+/// - Any: PermissionsCheck::Any(vec!["system:user:create", "admin:full"])
+/// - All: PermissionsCheck::All(vec!["system:user:get", "system:user:update"])
 pub fn user_routes() -> Router<PgPool> {
     Router::new()
-        .route("/", get(get_user_list))
-        .route("/", post(create_user))
-        .route("/options", get(get_user_options))
+        // List users - single permission
+        .route_with_permission(
+            "/",
+            get(get_user_list),
+            PermissionsCheck::Single("system:user:list"),
+        )
+        // Create user - any permission (OR logic)
+        .route_with_permission(
+            "/",
+            post(create_user),
+            PermissionsCheck::Any(vec!["system:user:create", "admin:full"]),
+        )
+        // User options - single permission
+        .route_with_permission(
+            "/options",
+            get(get_user_options),
+            PermissionsCheck::Single("system:user:options"),
+        )
+        // Status options - no permission required
         .route("/status-options", get(get_user_status_options))
-        .route("/{id}", get(get_user_by_id))
-        .route("/{id}", put(update_user))
-        .route("/{id}", delete(delete_user))
+        // Get user - single permission
+        .route_with_permission(
+            "/{id}",
+            get(get_user_by_id),
+            PermissionsCheck::Single("system:user:get"),
+        )
+        // Update user - all permissions (AND logic)
+        .route_with_permission(
+            "/{id}",
+            put(update_user),
+            PermissionsCheck::All(vec!["system:user:get", "system:user:update"]),
+        )
+        // Delete user - single permission
+        .route_with_permission(
+            "/{id}",
+            delete(delete_user),
+            PermissionsCheck::Single("system:user:delete"),
+        )
 }
 
-/// Handles the request to get a paginated list of users.
+/// Get paginated user list with filtering
+/// Query params: current, page_size, username, status
 async fn get_user_list(
     State(pool): State<PgPool>,
     Query(params): Query<UserQueryParams>,
 ) -> AppResult<Json<ApiResponse<UserListResponse>>> {
+    tracing::info!(
+        "Get user list: page={}, size={}, filter={:?}, status={:?}",
+        params.current.unwrap_or(1),
+        params.page_size.unwrap_or(10),
+        params.username,
+        params.status
+    );
+
     let user_list = UserService::get_user_list(&pool, params).await?;
+
+    tracing::info!(
+        "User list retrieved: total={}, returned={}",
+        user_list.total,
+        user_list.list.len()
+    );
+
     Ok(ApiResponse::success(user_list))
 }
 
-/// Handles the request to get a single user by their ID.
+/// Get user by ID with roles
 async fn get_user_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<ApiResponse<UserResponse>>> {
+    tracing::info!("Get user by ID: {}", id);
+
     let user = UserService::get_user_by_id(&pool, id).await?;
+
+    tracing::info!(
+        "User retrieved: id={}, username={}, roles={}",
+        user.id,
+        user.username,
+        user.roles.len()
+    );
+
     Ok(ApiResponse::success(user))
 }
 
-/// Handles the request to create a new user.
-///
-/// This endpoint supports admin user creation:
-/// - Converts API request to internal CreateUserRequest
-/// - Validates and assigns roles if provided
-/// - For registration scenarios, use auth/register endpoint instead
+/// Create new user (admin endpoint)
+/// Body: username, email, password, real_name, status, role_ids
 async fn create_user(
     State(pool): State<PgPool>,
     Json(request): Json<CreateUserRequest>,
 ) -> AppResult<Json<ApiResponse<UserResponse>>> {
-    // 转换为统一的内部请求结构体
+    tracing::info!(
+        "Create user: username={}, email={}, roles={:?}",
+        request.username,
+        request.email,
+        request.role_ids
+    );
+
+    // Hash password for security
     let create_request = CreateUserRequest {
         username: request.username,
         email: request.email,
@@ -67,46 +134,80 @@ async fn create_user(
     };
 
     let new_user = UserService::create_user(&pool, &create_request).await?;
+
+    tracing::info!(
+        "User created: id={}, username={}, roles={}",
+        new_user.id,
+        new_user.username,
+        new_user.roles.len()
+    );
+
     Ok(ApiResponse::success(new_user))
 }
 
-/// Handles the request to update an existing user.
+/// Update user information
+/// Body: email, real_name, status, role_ids (all optional)
 async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateUserRequest>,
 ) -> AppResult<Json<ApiResponse<UserResponse>>> {
+    tracing::info!(
+        "Update user {}: email={:?}, name={:?}, status={:?}, roles={:?}",
+        id,
+        request.email,
+        request.real_name,
+        request.status,
+        request.role_ids
+    );
+
     let updated_user = UserService::update_user(&pool, id, request).await?;
+
+    tracing::info!(
+        "User updated: id={}, username={}, roles={}",
+        updated_user.id,
+        updated_user.username,
+        updated_user.roles.len()
+    );
+
     Ok(ApiResponse::success(updated_user))
 }
 
-/// Handles the request to delete a user.
+/// Soft delete user
 async fn delete_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<ApiResponse<()>>> {
+    tracing::info!("Delete user: {}", id);
+
     UserService::delete_user(&pool, id).await?;
+
+    tracing::info!("User deleted: {}", id);
+
     Ok(ApiResponse::success(()))
 }
 
-/// Handles the request to get user options for dropdowns
-///
-/// Extracts query parameters and delegates to the service layer for processing.
+/// Get user options for dropdowns
+/// Query params: q (search), limit, status
 async fn get_user_options(
     State(pool): State<PgPool>,
     query: Query<OptionsQuery>,
 ) -> AppResult<Json<ApiResponse<Vec<OptionItem<i64>>>>> {
+    tracing::debug!("User options: q={:?}, limit={:?}", query.q, query.limit);
+
     let options = UserService::get_user_options(&pool, query).await?;
+
+    tracing::debug!("User options returned: {}", options.len());
+
     Ok(ApiResponse::success(options))
 }
 
-/// Handles the request to get user status options for dropdowns
-///
-/// Returns all available user status options without requiring database access.
+/// Get predefined user status options
 async fn get_user_status_options() -> AppResult<Json<ApiResponse<Vec<OptionItem<i16>>>>> {
     let options = vec![
-        OptionItem { label: "正常".to_string(), value: 1 },
-        OptionItem { label: "禁用".to_string(), value: 2 },
+        OptionItem { label: "Normal".to_string(), value: 1 },
+        OptionItem { label: "Disabled".to_string(), value: 2 },
     ];
+
     Ok(ApiResponse::success(options))
 }
