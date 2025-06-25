@@ -1,19 +1,19 @@
-# 📋 更新日志
+# 📋 Changelog
 
-记录 rustzen-admin 项目的重要变更。
+All notable changes to the rustzen-admin project will be documented in this file.
 
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [未发布]
+## [Unreleased]
 
-### 规划中
+### Planned
 
-- [ ] 前端 API 对接完善
-- [ ] 完整功能测试验证
-- [ ] 单元测试覆盖
-- [ ] 性能优化和监控
+- [ ] Complete frontend API integration
+- [ ] Comprehensive functional testing
+- [ ] Unit test coverage
+- [ ] Performance optimization and monitoring
 
-## [0.2.0] - 2025-01-27
+## [0.1.4] - 2025-06-26
 
 ### 🔐 Major Feature: Flexible Permission System
 
@@ -174,234 +174,234 @@ use crate::features::auth::permission::PermissionsCheck;
 
 This release establishes a production-ready, scalable permission system foundation for the rustzen-admin platform.
 
-## [0.1.3] - 2025-01-27
+## [0.1.3] - 2025-06-25
 
-### 🔧 架构重构与安全增强
+### 🔧 Architecture Refactoring & Security Enhancement
 
-基于 0.1.2 版本的持续优化，重点改进错误处理架构、认证安全性和用户创建流程。
+Based on continuous optimization from v0.1.2, focusing on improving error handling architecture, authentication security, and user creation flow.
 
-### 💥 破坏性变更
+### 💥 Breaking Changes
 
-**🏗️ 错误处理重构**
+**🏗️ Error Handling Refactoring**
 
-- 将错误处理从 `common/api.rs` 分离到专用的 `common/error.rs` 模块
-- 重新组织错误类型和转换逻辑，提高代码职责分离
-- 统一错误码规范：系统级(2xxxx)，业务级(1xxxx)
+- Separated error handling from `common/api.rs` to dedicated `common/error.rs` module
+- Reorganized error types and conversion logic for better responsibility separation
+- Unified error code standards: System-level (2xxxx), Business-level (1xxxx)
 
-**🔄 命名规范化**
+**🔄 Naming Standardization**
 
-- 统一用户创建请求结构体命名：`UserCreateRequest` → `CreateUserRequest`
-- 规范化导入语句，移除冗长的完整路径引用
+- Unified user creation request struct naming: `UserCreateRequest` → `CreateUserRequest`
+- Standardized import statements, removed verbose full path references
 
-### ✨ 新增功能
+### ✨ New Features
 
-**🛡️ 认证安全增强**
+**🛡️ Authentication Security Enhancement**
 
-- 认证中间件增加用户存在性和状态验证
-- 防止已删除/禁用用户使用有效 JWT 访问系统
-- 新增 `UserIsDisabled` 错误类型和处理
+- Auth middleware added user existence and status validation
+- Prevent deleted/disabled users from accessing system with valid JWT
+- Added `UserIsDisabled` error type and handling
 
-**🔐 事务处理改进**
+**🔐 Transaction Processing Improvement**
 
-- 实现原子性用户创建：用户信息和角色绑定在同一事务中完成
-- 添加角色 ID 有效性验证，防止无效角色绑定
-- 新增 `InvalidRoleId` 错误类型
-- 确保数据一致性，消除部分成功的问题
+- Implemented atomic user creation: user info and role binding in same transaction
+- Added role ID validity validation to prevent invalid role binding
+- Added `InvalidRoleId` error type
+- Ensured data consistency, eliminated partial success issues
 
-**📊 用户状态简化**
+**📊 User Status Simplification**
 
-- 简化 `UserStatus` 枚举实现，移除过度工程设计
-- 明确状态值含义：1=正常，2=禁用
-- 减少约 80% 的冗余代码
+- Simplified `UserStatus` enum implementation, removed over-engineering
+- Clarified status value meanings: 1=Active, 2=Disabled
+- Reduced approximately 80% redundant code
 
-**🔗 统一创建流程**
+**🔗 Unified Creation Process**
 
-- 统一认证注册和用户管理的创建逻辑
-- service 和 repo 层使用同一个函数处理用户创建
-- 调用方根据场景自行组装参数（注册补充默认值）
+- Unified auth registration and user management creation logic
+- Service and repo layers use same function to handle user creation
+- Callers assemble parameters according to scenarios (registration supplements defaults)
 
-### 📚 文档完善
+### 📚 Documentation Enhancement
 
-**📖 新增文档**
+**📖 New Documentation**
 
-- `docs/api/transaction-improvements.md`: 详细的事务改进说明
-- 完善 API 测试用例和错误边界条件
+- `docs/api/transaction-improvements.md`: Detailed transaction improvement documentation
+- Enhanced API test cases and error boundary conditions
 
-**🔧 API 接口增强**
+**🔧 API Interface Enhancement**
 
-- 用户状态选项接口：`GET /api/system/users/status-options`
-- 增强用户查询：支持状态过滤和用户名搜索
-- 46 个完整的接口测试用例更新
+- User status options interface: `GET /api/system/users/status-options`
+- Enhanced user queries: support status filtering and username search
+- 46 complete interface test case updates
 
-### 🛠️ 技术改进
+### 🛠️ Technical Improvements
 
-**代码质量**
+**Code Quality**
 
-- 模块职责更加清晰，错误处理独立
-- 统一的导入规范，提高代码可维护性
-- 减少代码重复，统一业务逻辑
+- Clearer module responsibilities, independent error handling
+- Unified import standards, improved code maintainability
+- Reduced code duplication, unified business logic
 
-**安全性**
+**Security**
 
-- 多层级的用户状态验证
-- 事务确保数据完整性
-- 细粒度的错误类型和状态码
+- Multi-level user status validation
+- Transactions ensure data integrity
+- Fine-grained error types and status codes
 
-### 📦 变更统计
+### 📦 Change Statistics
 
-- 18 个文件变更
-- 新增 1,424 行代码
-- 删除 494 行代码
-- 净增加 930 行代码
+- 18 file changes
+- Added 1,424 lines of code
+- Deleted 494 lines of code
+- Net addition of 930 lines of code
 
-### 🔄 迁移指南
+### 🔄 Migration Guide
 
-**错误处理导入更新**
+**Error Handling Import Updates**
 
 ```rust
-// 旧的导入方式
+// Old import approach
 use crate::common::api::{ServiceError, AppError};
 
-// 新的导入方式
+// New import approach
 use crate::common::error::{ServiceError, AppError};
 ```
 
-**用户创建请求结构体**
+**User Creation Request Struct**
 
 ```rust
-// 旧名称
+// Old name
 UserCreateRequest
 
-// 新名称
+// New name
 CreateUserRequest
 ```
 
 ## [0.1.0] - 2025-06-22
 
-### 🎯 首个版本发布
+### 🎯 First Release
 
-这是 rustzen-admin 的首个公开版本，提供了完整的全栈开发模板。
+This is the first public release of rustzen-admin, providing a complete full-stack development template.
 
-### ✨ 核心功能
+### ✨ Core Features
 
-**🦀 后端服务**
+**🦀 Backend Services**
 
-- Axum Web 框架 + SQLx 数据库集成
-- PostgreSQL 数据库支持
-- 模块化架构设计（用户、角色、菜单、字典、日志）
-- CORS 和日志中间件
-- 环境变量配置管理
+- Axum Web framework + SQLx database integration
+- PostgreSQL database support
+- Modular architecture design (user, role, menu, dictionary, log)
+- CORS and logging middleware
+- Environment variable configuration management
 
-**⚛️ 前端应用**
+**⚛️ Frontend Application**
 
 - React 19 + TypeScript 5.8
-- Vite 6.3 构建工具
-- Ant Design Pro Components 企业级 UI
-- TailwindCSS 4.1 样式系统
-- SWR 数据获取 + Zustand 状态管理
-- 响应式路由系统
+- Vite 6.3 build tool
+- Ant Design Pro Components enterprise UI
+- TailwindCSS 4.1 styling system
+- SWR data fetching + Zustand state management
+- Responsive routing system
 
-**🛠️ 开发工具**
+**🛠️ Development Tools**
 
-- Docker 容器化开发环境
-- justfile 统一命令管理
-- 热重载开发体验
-- VSCode REST Client API 测试
-- ESLint + Prettier 代码规范
+- Docker containerized development environment
+- justfile unified command management
+- Hot reload development experience
+- VSCode REST Client API testing
+- ESLint + Prettier code standards
 
-### 📚 文档体系
+### 📚 Documentation System
 
-- 完整的项目文档
-- API 接口文档和测试用例
-- 架构设计说明
-- 开发者贡献指南
-- Git 提交规范
+- Complete project documentation
+- API interface documentation and test cases
+- Architecture design documentation
+- Developer contribution guide
+- Git commit standards
 
-### 🔧 配置
+### 🔧 Configuration
 
-- MIT 开源协议
-- Volta Node.js 版本管理
-- TypeScript 严格模式
-- 现代化工具链配置
+- MIT open source license
+- Volta Node.js version management
+- TypeScript strict mode
+- Modern toolchain configuration
 
 ## [0.1.1] - 2025-06-22
 
-### 🔧 后端架构重构与功能完善
+### 🔧 Backend Architecture Refactoring & Feature Enhancement
 
-基于 0.1.0 版本的架构重构，重新组织后端模块结构，并实现了完整的认证和系统管理功能框架。
+Based on architecture refactoring from v0.1.0, reorganized backend module structure and implemented complete authentication and system management feature framework.
 
-### 💥 破坏性变更
+### 💥 Breaking Changes
 
-**🏗️ 后端架构重构**
+**🏗️ Backend Architecture Refactoring**
 
-- 重新组织模块结构：从 `features/*` 改为 `features/system/*` 分层架构
-- 新增 `core` 模块：统一管理应用核心功能
-- 重构 API 响应结构：统一使用 `common/api.rs`
+- Reorganized module structure: from `features/*` to `features/system/*` layered architecture
+- Added `core` module: unified management of application core functions
+- Refactored API response structure: unified use of `common/api.rs`
 
-**🔐 认证系统**
+**🔐 Authentication System**
 
-- 全新的 `auth` 模块实现
-- JWT 令牌认证机制
-- 密码哈希和验证
-- 登录/登出/刷新令牌完整流程
+- Complete new `auth` module implementation
+- JWT token authentication mechanism
+- Password hashing and verification
+- Complete login/logout/refresh token flow
 
-### ✨ 新增功能
+### ✨ New Features
 
-**📊 数据库架构**
+**📊 Database Architecture**
 
-- 完整的数据库迁移系统 (`migrations/`)
-- 系统表结构设计 (`001_system_schema.sql`)
-- 用户、角色、菜单、权限完整关联
+- Complete database migration system (`migrations/`)
+- System table structure design (`001_system_schema.sql`)
+- Complete association of users, roles, menus, and permissions
 
-**🛡️ 系统管理模块**
+**🛡️ System Management Modules**
 
-- **用户管理**: 完整的 CRUD 操作，用户状态管理
-- **角色管理**: 角色权限分配，数据权限控制
-- **菜单管理**: 树形菜单结构，权限关联
-- **字典管理**: 系统配置数据管理
-- **操作日志**: 系统操作审计追踪
+- **User Management**: Complete CRUD operations, user status management
+- **Role Management**: Role permission assignment, data permission control
+- **Menu Management**: Tree menu structure, permission association
+- **Dictionary Management**: System configuration data management
+- **Operation Log**: System operation audit tracking
 
-**🔧 核心功能**
+**🔧 Core Functions**
 
-- JWT 认证中间件
-- 统一错误处理
-- 分页查询支持
-- 数据校验机制
+- JWT authentication middleware
+- Unified error handling
+- Pagination query support
+- Data validation mechanism
 
-### 📚 文档更新
+### 📚 Documentation Updates
 
-- 完善 API 文档 (`docs/api/system-api.md`)
-- 更新接口测试用例 (`api.http`)
-- 架构设计文档更新
+- Enhanced API documentation (`docs/api/system-api.md`)
+- Updated interface test cases (`api.http`)
+- Architecture design documentation updates
 
-### 🛠️ 技术改进
+### 🛠️ Technical Improvements
 
-**依赖更新**
+**Dependency Updates**
 
-- 新增 `jsonwebtoken` 9.3 - JWT 认证
-- 新增 `sha2` 0.10 - 密码哈希
-- 新增 `once_cell` 1.21.3 - 全局配置
+- Added `jsonwebtoken` 9.3 - JWT authentication
+- Added `sha2` 0.10 - Password hashing
+- Added `once_cell` 1.21.3 - Global configuration
 
-**代码质量**
+**Code Quality**
 
-- 模块化设计，职责分离
-- 统一的错误处理机制
-- 完善的类型定义
-- RESTful API 设计规范
+- Modular design, responsibility separation
+- Unified error handling mechanism
+- Complete type definitions
+- RESTful API design standards
 
-### 📦 文件变更统计
+### 📦 File Change Statistics
 
-- 66 个文件变更
-- 新增 3,751 行代码
-- 删除 542 行代码
-- 净增加 3,209 行代码
+- 66 file changes
+- Added 3,751 lines of code
+- Deleted 542 lines of code
+- Net addition of 3,209 lines of code
 
 ---
 
-## 版本说明
+## Version Notes
 
-- **主版本号**: 不兼容的 API 修改
-- **次版本号**: 向下兼容的功能性新增
-- **修订版本号**: 向下兼容的问题修正
+- **Major version**: Incompatible API changes
+- **Minor version**: Backward-compatible functional additions
+- **Patch version**: Backward-compatible bug fixes
 
 ---
