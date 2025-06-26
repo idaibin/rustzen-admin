@@ -134,6 +134,24 @@ impl UserService {
             UserRepository::set_user_roles(pool, updated_user.id, &role_ids)
                 .await
                 .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+
+            // Clear cache when roles change to force permission refresh
+            crate::features::auth::permission::PermissionService::clear_user_cache(updated_user.id);
+            tracing::info!("Updated user {} roles and cleared permission cache", updated_user.id);
+        }
+
+        // Clear cache if user status changed (especially if disabled)
+        if let Some(new_status) = request.status {
+            if new_status != user.status {
+                crate::features::auth::permission::PermissionService::clear_user_cache(
+                    updated_user.id,
+                );
+                tracing::info!(
+                    "Updated user {} status to {} and cleared permission cache",
+                    updated_user.id,
+                    new_status
+                );
+            }
         }
 
         let roles = UserRepository::get_user_role_infos(pool, updated_user.id)
@@ -152,6 +170,11 @@ impl UserService {
         if !deleted {
             return Err(ServiceError::NotFound("User not found".to_string()));
         }
+
+        // Clear user's permission cache when deleting
+        crate::features::auth::permission::PermissionService::clear_user_cache(id);
+        tracing::info!("Deleted user {} and cleared associated cache", id);
+
         Ok(())
     }
 

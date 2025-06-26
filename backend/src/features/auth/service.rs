@@ -4,7 +4,7 @@ use super::model::{
 use crate::{
     common::error::ServiceError,
     core::{
-        jwt::{self, Claims},
+        jwt::{self},
         password::PasswordUtils,
     },
     features::{
@@ -85,25 +85,22 @@ impl AuthService {
             tracing::error!("Failed to generate token for user {}: {:?}", user.id, e);
             ServiceError::DatabaseQueryFailed
         })?;
-        let user_info = Self::get_user_info(
-            pool,
-            Claims { user_id: user.id, username: user.username, exp: 0, iat: 0 },
-        )
-        .await?;
+        let user_info = Self::get_user_info(pool, user.id, &user.username).await?;
 
         Ok(LoginResponse { token, user_info })
     }
 
     /// Get detailed user info with roles and menus
-    #[tracing::instrument(name = "get_user_info", skip(pool, claims), fields(user_id = claims.user_id, username = %claims.username))]
+    #[tracing::instrument(name = "get_user_info", skip(pool), fields(user_id = user_id, username = %username))]
     pub async fn get_user_info(
         pool: &PgPool,
-        claims: Claims,
+        user_id: i64,
+        username: &str,
     ) -> Result<UserInfoResponse, ServiceError> {
         tracing::info!("Fetching user info for authenticated user.");
 
         // Get user basic info
-        let user = Self::get_authenticated_user(pool, claims.user_id).await?;
+        let user = Self::get_authenticated_user(pool, user_id).await?;
 
         // Parallel query for roles, permissions and menus
         let (roles_result, permissions_result, menus_result) = tokio::join!(
