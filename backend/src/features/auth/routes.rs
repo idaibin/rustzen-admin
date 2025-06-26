@@ -1,14 +1,12 @@
 use super::{
+    extractor::CurrentUser,
     model::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfoResponse},
     permission::PermissionService,
     service::AuthService,
 };
-use crate::{
-    common::api::{ApiResponse, AppResult},
-    core::jwt::Claims,
-};
+use crate::common::api::{ApiResponse, AppResult};
 use axum::{
-    Extension, Json, Router,
+    Json, Router,
     extract::State,
     routing::{get, post},
 };
@@ -64,25 +62,30 @@ async fn login_handler(
 }
 
 /// Logout and clear cache
-async fn logout_handler(Extension(claims): Extension<Claims>) -> AppResult<Json<ApiResponse<()>>> {
-    tracing::info!("Logout: {} ({})", claims.username, claims.user_id);
+async fn logout_handler(current_user: CurrentUser) -> AppResult<Json<ApiResponse<()>>> {
+    tracing::info!("Logout: {} ({})", current_user.username, current_user.user_id);
 
     // Clear user permission cache
-    PermissionService::clear_user_cache(claims.user_id);
+    PermissionService::clear_user_cache(current_user.user_id);
 
-    tracing::info!("Logout completed: id={}, username={}", claims.user_id, claims.username);
+    tracing::info!(
+        "Logout completed: id={}, username={}",
+        current_user.user_id,
+        current_user.username
+    );
 
     Ok(ApiResponse::success(()))
 }
 
 /// Get current user info with roles and menus
 async fn get_user_info_handler(
-    Extension(claims): Extension<Claims>,
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<Json<ApiResponse<UserInfoResponse>>> {
-    tracing::debug!("Get user info: {} ({})", claims.username, claims.user_id);
+    tracing::debug!("Get user info: {} ({})", current_user.username, current_user.user_id);
 
-    let user_info = AuthService::get_user_info(&pool, claims).await?;
+    let user_info =
+        AuthService::get_user_info(&pool, current_user.user_id, &current_user.username).await?;
 
     tracing::debug!(
         "User info retrieved: id={}, roles={}, menus={}",
