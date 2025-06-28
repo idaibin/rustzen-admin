@@ -1,8 +1,8 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { requestTable } from "@/services/api";
+import { menuAPI } from "@/services";
 import { Badge } from "antd";
-import type * as Menu from "Menu";
+import type { Menu } from "System";
 
 const MenuPage = () => {
   const columns: ProColumns<Menu.Item>[] = [
@@ -38,9 +38,7 @@ const MenuPage = () => {
   return (
     <ProTable<Menu.Item>
       columns={columns}
-      request={async (params) => {
-        return requestTable<Menu.Item>("/api/sys/menu", params);
-      }}
+      request={menuAPI.getMenuList}
       rowKey="id"
       search={false}
       headerTitle="菜单列表"

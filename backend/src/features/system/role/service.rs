@@ -223,60 +223,6 @@ impl RoleService {
         if success { Ok(()) } else { Err(ServiceError::NotFound("Role".to_string())) }
     }
 
-    /// Set menu permissions for a role
-    pub async fn set_role_menus(
-        pool: &PgPool,
-        role_id: i64,
-        menu_ids: Vec<i64>,
-    ) -> Result<(), ServiceError> {
-        tracing::info!("Setting menus for role {}: {:?}", role_id, menu_ids);
-
-        if RoleRepository::find_by_id(pool, role_id)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to check role existence: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_none()
-        {
-            tracing::warn!("Role not found: {}", role_id);
-            return Err(ServiceError::NotFound("Role".to_string()));
-        }
-
-        RoleRepository::set_role_menus(pool, role_id, &menu_ids).await.map_err(|e| {
-            tracing::error!("Failed to set role menus: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        tracing::info!("Set {} menus for role: {}", menu_ids.len(), role_id);
-        Ok(())
-    }
-
-    /// Get menu permissions for a role
-    pub async fn get_role_menus(pool: &PgPool, role_id: i64) -> Result<Vec<i64>, ServiceError> {
-        tracing::info!("Retrieving menus for role: {}", role_id);
-
-        if RoleRepository::find_by_id(pool, role_id)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to check role existence: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_none()
-        {
-            tracing::warn!("Role not found: {}", role_id);
-            return Err(ServiceError::NotFound("Role".to_string()));
-        }
-
-        let menu_ids = RoleRepository::get_role_menu_ids(pool, role_id).await.map_err(|e| {
-            tracing::error!("Failed to retrieve role menus: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        tracing::info!("Retrieved {} menus for role: {}", menu_ids.len(), role_id);
-        Ok(menu_ids)
-    }
-
     /// Get role options for dropdowns
     pub async fn get_role_options(
         pool: &PgPool,

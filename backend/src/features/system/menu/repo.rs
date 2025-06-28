@@ -12,7 +12,7 @@ impl MenuRepository {
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, sqlx::Error> {
         let menu = sqlx::query_as::<_, MenuEntity>(
             "SELECT id, parent_id, title, path, component, icon, sort_order, status,
-             created_at, updated_at, deleted_at
+             created_at, updated_at,  permission_code
              FROM menus WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(id)
@@ -26,7 +26,7 @@ impl MenuRepository {
     pub async fn find_all(pool: &PgPool) -> Result<Vec<MenuEntity>, sqlx::Error> {
         let menus = sqlx::query_as::<_, MenuEntity>(
             "SELECT id, parent_id, title, path, component, icon, sort_order, status,
-             created_at, updated_at, deleted_at
+             created_at, updated_at, permission_code
              FROM menus WHERE deleted_at IS NULL
              ORDER BY sort_order ASC, id ASC",
         )
@@ -46,7 +46,7 @@ impl MenuRepository {
             // No filtering conditions
             sqlx::query_as::<_, MenuEntity>(
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
-                 created_at, updated_at, deleted_at
+                 created_at, updated_at,  permission_code
                  FROM menus WHERE deleted_at IS NULL
                  ORDER BY sort_order ASC, id ASC",
             )
@@ -56,7 +56,7 @@ impl MenuRepository {
             // With filtering conditions, implement a simple version
             sqlx::query_as::<_, MenuEntity>(
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
-                 created_at, updated_at, deleted_at
+                 created_at, updated_at, permission_code
                  FROM menus WHERE deleted_at IS NULL
                  ORDER BY sort_order ASC, id ASC",
             )
@@ -174,7 +174,7 @@ impl MenuRepository {
     }
 
     /// Retrieves menus by role IDs
-    pub async fn find_by_role_ids(
+    pub async fn find_menus_by_role(
         pool: &PgPool,
         role_ids: &[i64],
     ) -> Result<Vec<MenuEntity>, sqlx::Error> {
@@ -183,17 +183,16 @@ impl MenuRepository {
         }
 
         // Build IN query placeholders
-        let placeholders: Vec<String> =
-            (1..=role_ids.len()).map(|i| format!("${}", i + 1)).collect();
+        let placeholders: Vec<String> = (1..=role_ids.len()).map(|i| format!("${}", i)).collect();
         let placeholders_str = placeholders.join(", ");
 
         let query = format!(
             "SELECT DISTINCT m.id, m.parent_id, m.title, m.path, m.component, m.icon,
-             m.sort_order, m.status, m.created_at, m.updated_at, m.deleted_at
-             FROM menus m
-             INNER JOIN role_menus rm ON m.id = rm.menu_id
-             WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.status = 1
-             ORDER BY m.sort_order ASC, m.id ASC",
+            m.sort_order, m.status, m.permission_code, m.created_at, m.updated_at
+            FROM menus m
+            INNER JOIN role_menus rm ON m.id = rm.menu_id
+            WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.status = 1
+            ORDER BY m.sort_order ASC, m.id ASC",
             placeholders_str
         );
 
@@ -208,6 +207,32 @@ impl MenuRepository {
         Ok(menus)
     }
 
+    pub async fn find_permissions_by_role(
+        pool: &PgPool,
+        role_ids: &[i64],
+    ) -> Result<Vec<String>, sqlx::Error> {
+        if role_ids.is_empty() {
+            return Ok(vec![]);
+        }
+        let placeholders: Vec<String> = (1..=role_ids.len()).map(|i| format!("${}", i)).collect();
+        let placeholders_str = placeholders.join(", ");
+        let query = format!(
+            "SELECT DISTINCT m.permission_code 
+             FROM menus m
+             INNER JOIN role_menus rm ON m.id = rm.menu_id
+             WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.permission_code IS NOT NULL",
+            placeholders_str
+        );
+
+        let mut query_builder = sqlx::query_scalar(&query);
+
+        for role_id in role_ids {
+            query_builder = query_builder.bind(role_id);
+        }
+
+        let permissions = query_builder.fetch_all(pool).await?;
+        Ok(permissions)
+    }
     /// Finds a single menu by its title.
     pub async fn find_by_title(
         title: &str,

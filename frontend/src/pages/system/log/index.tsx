@@ -1,8 +1,8 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { requestTable } from "@/services/api";
 import { Tag } from "antd";
-import type * as Log from "Log";
+import type { Log } from "System";
+import { logAPI } from "@/services";
 
 const LogPage = () => {
   const columns: ProColumns<Log.Item>[] = [
@@ -15,11 +15,11 @@ const LogPage = () => {
       title: "日志级别",
       dataIndex: "level",
       render: (_, record) => {
-        if (record.level === "INFO")
+        if (record.level === "info")
           return <Tag color="processing">{record.level}</Tag>;
-        if (record.level === "WARN")
+        if (record.level === "warn")
           return <Tag color="warning">{record.level}</Tag>;
-        if (record.level === "ERROR")
+        if (record.level === "error")
           return <Tag color="error">{record.level}</Tag>;
         return <Tag>{record.level}</Tag>;
       },
@@ -39,9 +39,7 @@ const LogPage = () => {
   return (
     <ProTable<Log.Item>
       columns={columns}
-      request={async (params) => {
-        return requestTable<Log.Item>("/api/sys/log", params);
-      }}
+      request={logAPI.getLogList}
       rowKey="id"
       search={{
         labelWidth: "auto",
