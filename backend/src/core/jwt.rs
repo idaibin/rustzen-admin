@@ -9,6 +9,7 @@ use tracing;
 ///
 /// This struct holds the essential settings for JWT generation and validation,
 /// including the secret key and token expiration duration.
+#[derive(Debug)]
 pub struct JwtConfig {
     /// The secret key used for signing and verifying tokens.
     pub secret: String,
@@ -38,6 +39,7 @@ pub static JWT_CONFIG: Lazy<JwtConfig> = Lazy::new(|| {
         })
         .unwrap_or(3600); // Default to 1 hour if not set
 
+    tracing::info!("JWT_CONFIG: {:?}", JwtConfig { secret: secret.clone(), expiration });
     JwtConfig { secret, expiration }
 });
 
