@@ -19,6 +19,6 @@ pub fn system_routes() -> Router<PgPool> {
         .nest("/users", user_routes())
         .nest("/menus", menu_routes())
         .nest("/roles", role_routes())
-        .nest("/dict", dict_routes())
-        .nest("/log", log_routes())
+        .nest("/dicts", dict_routes())
+        .nest("/logs", log_routes())
 }
