@@ -127,14 +127,6 @@ rustzen-admin/
 
 查看完整指南：[`docs/api/rest-client.md`](docs/api/rest-client.md)
 
----
-
-## 🤝 参与贡献
-
-欢迎贡献！请阅读我们的 [**贡献指南**](./docs/development/CONTRIBUTING.md) 来开始。
-
----
-
 ## 📄 开源协议
 
 本项目采用 MIT 协议。详情请见 [LICENSE.md](./LICENSE.md) 文件。
