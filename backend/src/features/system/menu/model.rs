@@ -17,6 +17,7 @@ pub struct MenuEntity {
     pub status: i16,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub permission_code: Option<String>,
 }
 
 /// API response menu model
@@ -34,6 +35,7 @@ pub struct MenuResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub children: Vec<MenuResponse>,
+    pub permission_code: Option<String>,
 }
 
 /// Create menu request
@@ -92,6 +94,7 @@ impl From<MenuEntity> for MenuResponse {
             created_at: DateTime::from_naive_utc_and_offset(entity.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(entity.updated_at, Utc),
             children: vec![],
+            permission_code: entity.permission_code,
         }
     }
 }
