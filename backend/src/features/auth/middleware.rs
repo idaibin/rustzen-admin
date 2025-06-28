@@ -36,7 +36,7 @@ pub async fn auth_middleware(
         .and_then(|s| s.strip_prefix("Bearer "))
         .ok_or_else(|| {
             tracing::debug!("Missing/invalid Authorization header for {}", parts.uri.path());
-            AppError::from(ServiceError::InvalidCredentials)
+            AppError::from(ServiceError::InvalidToken)
         })?;
 
     // Verify JWT and extract claims

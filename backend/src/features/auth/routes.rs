@@ -1,6 +1,6 @@
 use super::{
     extractor::CurrentUser,
-    model::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfoResponse},
+    model::{LoginRequest, LoginResponse, RegisterRequest, UserInfo, UserInfoResponse},
     permission::PermissionService,
     service::AuthService,
 };
@@ -27,16 +27,12 @@ pub fn protected_auth_routes() -> Router<PgPool> {
 async fn register_handler(
     State(pool): State<PgPool>,
     Json(request): Json<RegisterRequest>,
-) -> AppResult<Json<ApiResponse<RegisterResponse>>> {
+) -> AppResult<Json<ApiResponse<UserInfo>>> {
     tracing::info!("Registration attempt: {} ({})", request.username, request.email);
 
     let response = AuthService::register(&pool, request).await?;
 
-    tracing::info!(
-        "Registration successful: id={}, username={}",
-        response.user.id,
-        response.user.username
-    );
+    tracing::info!("Registration successful: id={}, username={}", response.id, response.username,);
 
     Ok(ApiResponse::success(response))
 }
@@ -47,16 +43,11 @@ async fn login_handler(
     State(pool): State<PgPool>,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<Json<ApiResponse<LoginResponse>>> {
-    tracing::info!("Login attempt: {}", request.username);
+    tracing::info!("Login attempt: {}", request.username.clone());
 
     let response = AuthService::login(&pool, request).await?;
 
-    tracing::info!(
-        "Login successful: id={}, username={}, roles={}",
-        response.user_info.id,
-        response.user_info.username,
-        response.user_info.roles.len()
-    );
+    tracing::info!("Login successful: username={} id={}", response.username, response.user_id);
 
     Ok(ApiResponse::success(response))
 }
@@ -87,12 +78,7 @@ async fn get_user_info_handler(
     let user_info =
         AuthService::get_user_info(&pool, current_user.user_id, &current_user.username).await?;
 
-    tracing::debug!(
-        "User info retrieved: id={}, roles={}, menus={}",
-        user_info.id,
-        user_info.roles.len(),
-        user_info.menus.len()
-    );
+    tracing::debug!("User info retrieved: id={}, menus={}", user_info.id, user_info.menus.len());
 
     Ok(ApiResponse::success(user_info))
 }

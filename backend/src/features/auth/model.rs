@@ -1,4 +1,7 @@
-use crate::features::system::{menu::model::MenuResponse, user::model::RoleInfo};
+use crate::features::system::{
+    menu::model::MenuResponse,
+    user::model::{RoleInfo, UserEntity},
+};
 use serde::{Deserialize, Serialize};
 
 /// Request payload for user registration.
@@ -41,20 +44,6 @@ pub struct UserInfo {
     pub username: String,
 }
 
-/// Response payload for successful user registration.
-///
-/// This struct is returned when a user successfully creates a new account.
-/// It includes basic user information and an authentication token for
-/// immediate login after registration.
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RegisterResponse {
-    /// Basic information about the newly created user
-    pub user: UserInfo,
-    /// JWT token for immediate authentication after registration
-    pub token: String,
-}
-
 /// Response payload for successful user login.
 ///
 /// This struct is returned when a user successfully authenticates.
@@ -65,8 +54,10 @@ pub struct RegisterResponse {
 pub struct LoginResponse {
     /// JWT token for authenticating subsequent requests
     pub token: String,
-    /// Detailed user information including roles and menu access
-    pub user_info: UserInfoResponse,
+    /// Username of the user
+    pub username: String,
+    /// Unique identifier of the user
+    pub user_id: i64,
 }
 
 /// Comprehensive user information for authenticated sessions.
@@ -85,8 +76,6 @@ pub struct UserInfoResponse {
     pub real_name: Option<String>,
     /// URL to the user's avatar image (optional)
     pub avatar_url: Option<String>,
-    /// List of roles assigned to the user with their details
-    pub roles: Vec<RoleInfo>,
     /// Hierarchical menu structure accessible to the user based on their roles
     pub menus: Vec<MenuResponse>,
 }
