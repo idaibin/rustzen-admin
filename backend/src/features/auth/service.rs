@@ -1,6 +1,4 @@
-use super::model::{
-    LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfo, UserInfoResponse,
-};
+use super::model::{LoginRequest, LoginResponse, RegisterRequest, UserInfoResponse};
 use crate::{
     common::error::ServiceError,
     core::{
@@ -8,9 +6,9 @@ use crate::{
         password::PasswordUtils,
     },
     features::{
-        auth::permission::PermissionService,
+        auth::{model::UserInfo, permission::PermissionService},
         system::{
-            menu::{model::MenuResponse, service::MenuService},
+            menu::service::MenuService,
             user::{
                 model::{CreateUserRequest, UserEntity, UserStatus},
                 repo::UserRepository,
@@ -31,7 +29,7 @@ impl AuthService {
     pub async fn register(
         pool: &PgPool,
         request: RegisterRequest,
-    ) -> Result<RegisterResponse, ServiceError> {
+    ) -> Result<UserInfo, ServiceError> {
         tracing::info!("Attempting to register new user.");
 
         // Create user with default values for registration
@@ -45,26 +43,9 @@ impl AuthService {
         };
 
         // Use unified user creation service
-        let user_response = UserService::create_user(pool, &create_request).await?;
+        let user_info = UserService::create_user(pool, &create_request).await?;
 
-        // Generate JWT for new user
-        tracing::debug!(user_id = user_response.id, "Generating JWT for new user.");
-        let token =
-            jwt::generate_token(user_response.id, &user_response.username).map_err(|e| {
-                tracing::error!(
-                    "Failed to generate token for new user {}: {:?}",
-                    user_response.id,
-                    e
-                );
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        let response = RegisterResponse {
-            user: UserInfo { id: user_response.id, username: user_response.username },
-            token,
-        };
-
-        Ok(response)
+        Ok(UserInfo { id: user_info.id, username: user_info.username })
     }
 
     /// Login with username/password
@@ -73,21 +54,29 @@ impl AuthService {
         pool: &PgPool,
         request: LoginRequest,
     ) -> Result<LoginResponse, ServiceError> {
-        tracing::info!("Attempting to log in user.");
+        // INFO: Business operation start
+        tracing::info!("User login attempt: {}", request.username);
 
         // Verify credentials
         let user = Self::verify_login(pool, &request.username, &request.password).await?;
-        tracing::info!(user_id = user.id, "User authenticated successfully.");
+        // INFO: Important business state change
+        tracing::info!("User authenticated successfully: {}", request.username);
 
         // Generate JWT token
-        tracing::debug!(user_id = user.id, "Generating JWT for logged-in user.");
+        // DEBUG: Technical details
+        tracing::debug!("Generating JWT token for user: {}", user.id);
         let token = jwt::generate_token(user.id, &user.username).map_err(|e| {
             tracing::error!("Failed to generate token for user {}: {:?}", user.id, e);
             ServiceError::DatabaseQueryFailed
         })?;
-        let user_info = Self::get_user_info(pool, user.id, &user.username).await?;
 
-        Ok(LoginResponse { token, user_info })
+        // INFO: Business operation completed
+        tracing::info!("User login completed successfully: {}", request.username);
+
+        // Cache user permissions
+        Self::cache_user_permissions(pool, user.id).await?;
+
+        Ok(LoginResponse { token, username: user.username.clone(), user_id: user.id })
     }
 
     /// Get detailed user info with roles and menus
@@ -97,34 +86,55 @@ impl AuthService {
         user_id: i64,
         username: &str,
     ) -> Result<UserInfoResponse, ServiceError> {
-        tracing::info!("Fetching user info for authenticated user.");
+        // INFO: Business operation start
+        tracing::info!("Fetching user info for user: {}", username);
 
         // Get user basic info
         let user = Self::get_authenticated_user(pool, user_id).await?;
+        // DEBUG: Detailed execution results
+        tracing::debug!("Retrieved user basic info: id={}, status={}", user.id, user.status);
 
-        // Parallel query for roles, permissions and menus
-        let (roles_result, permissions_result, menus_result) = tokio::join!(
-            UserRepository::get_user_role_infos(pool, user.id),
-            UserRepository::get_user_permissions(pool, user.id),
-            Self::get_user_menus(pool, user.id)
-        );
+        // Get user role IDs
+        let role_ids = UserRepository::get_user_role_ids(pool, user.id).await.map_err(|e| {
+            tracing::error!("Failed to get user role IDs for user {}: {:?}", user.id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        let roles = roles_result.map_err(|_| ServiceError::DatabaseQueryFailed)?;
-        let permissions = permissions_result.map_err(|_| ServiceError::DatabaseQueryFailed)?;
-        let menus = menus_result?;
+        // DEBUG: Intermediate calculation results
+        tracing::debug!("User {} has {} roles: {:?}", username, role_ids.len(), role_ids);
+
+        // Get menus based on user roles
+        let menus = if role_ids.is_empty() {
+            // WARN: Business state that needs attention
+            tracing::warn!("User {} has no roles assigned", username);
+            vec![]
+        } else {
+            MenuService::get_menus_by_role_ids(pool, &role_ids).await.map_err(|e| {
+                tracing::error!("Failed to get menus for user {}: {:?}", username, e);
+                ServiceError::DatabaseQueryFailed
+            })?
+        };
+
+        // DEBUG: Intermediate calculation results
+        tracing::debug!("User {} has {} accessible menus", username, menus.len());
 
         // Cache user permissions
-        tracing::debug!(user_id = user.id, "Caching user permissions.");
-        PermissionService::cache_user_permissions(user.id, permissions);
+        Self::cache_user_permissions(pool, user.id).await?;
 
         let user_info = UserInfoResponse {
             id: user.id,
-            username: user.username,
+            username: user.username.clone(),
             real_name: user.real_name,
             avatar_url: user.avatar_url,
-            roles,
             menus,
         };
+
+        // INFO: Business operation completed, including important statistics
+        tracing::info!(
+            "User info retrieved successfully: {} roles, {} menus",
+            role_ids.len(),
+            user_info.menus.len(),
+        );
 
         Ok(user_info)
     }
@@ -160,22 +170,15 @@ impl AuthService {
         }
     }
 
-    /// Get user accessible menus based on roles
-    pub async fn get_user_menus(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Vec<MenuResponse>, ServiceError> {
-        let roles = UserRepository::get_user_role_infos(pool, user_id)
-            .await
-            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+    pub async fn cache_user_permissions(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+        // Extract permissions from menus
+        let permissions = MenuService::get_permissions_by_menu(pool, user_id).await?;
+        // Cache user permissions for performance
+        PermissionService::cache_user_permissions(user_id, permissions.clone());
+        // DEBUG: Cache operation
+        tracing::debug!("Cached permissions: {:?}", permissions);
 
-        if roles.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let role_ids: Vec<i64> = roles.into_iter().map(|r| r.id).collect();
-
-        MenuService::get_menus_by_role_ids(pool, &role_ids).await
+        Ok(())
     }
 
     /// Get authenticated user info
