@@ -1,59 +1,31 @@
 declare module "Api" {
+  // 基础响应类型
   export interface ApiResponse<T> {
     code: number;
     message: string;
     data: T;
-    total?: number;
+    timestamp?: string;
   }
 
+  // 分页响应类型
+  export interface PageResponse<T> {
+    list: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }
+
+  // 基础查询参数
   export interface BaseParams {
     current?: number;
     pageSize?: number;
     keyword?: string;
   }
 
-  // 认证相关接口
-  export interface LoginRequest {
-    username: string;
-    password: string;
-  }
-
-  export interface LoginResponse {
-    token: string;
-  }
-
-  export interface RegisterRequest {
-    username: string;
-    email: string;
-    password: string;
-  }
-
-  export interface RegisterResponse {
-    user: {
-      id: number;
-      username: string;
-    };
-    token: string;
-  }
-
-  export interface UserInfo {
-    id: number;
-    username: string;
-    real_name?: string;
-    avatar_url?: string;
-    roles: Array<{
-      id: number;
-      role_name: string;
-      description?: string;
-    }>;
-    menus: Array<{
-      id: number;
-      name: string;
-      path?: string;
-      icon?: string;
-      sort_order: number;
-      parent_id?: number;
-      children?: Array<any>;
-    }>;
+  // 选项类型
+  export interface OptionItem {
+    label: string;
+    value: string | number;
+    [key: string]: unknown;
   }
 }
