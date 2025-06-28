@@ -1,5 +1,7 @@
 import { ProLayout } from "@ant-design/pro-components";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Dropdown, message } from "antd";
+import type { MenuProps } from "antd";
 import {
   SettingOutlined,
   UserOutlined,
@@ -7,56 +9,114 @@ import {
   MenuOutlined,
   BookOutlined,
   HistoryOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
+import { useAuthStore } from "../stores/useAuthStore";
+import { authAPI } from "@/services";
 
 const BasicLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userInfo, clearAuth } = useAuthStore();
+  // Handle user logout and show message
+  const handleLogout = async () => {
+    await authAPI.logout();
+    clearAuth();
+    message.success("Logout successful");
+  };
+
+  // User dropdown menu items
+  const userMenuItems: MenuProps["items"] = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Profile",
+    },
+    {
+      type: "divider",
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Logout",
+      onClick: handleLogout,
+    },
+  ];
 
   return (
     <div style={{ height: "100vh" }}>
+      {/* Main layout with sidebar and header */}
       <ProLayout
-        title="Rust-Zen-Admin"
+        // siderMenuType="group"
+        // menu={{
+        //   type: "group",
+        // }}
+        // fixSiderbar={true}
+        // splitMenus={true}
+        title="Rustzen Admin"
         logo="/vite.svg"
         location={location}
+        menuItemRender={(item, dom) => <Link to={item.path || "/"}>{dom}</Link>}
+        layout="mix"
+        onMenuHeaderClick={() => {
+          console.log("onMenuHeaderClick");
+          navigate("/");
+        }}
+        avatarProps={{
+          src: userInfo?.avatarUrl,
+          size: "small",
+          title: userInfo?.realName || userInfo?.username,
+          render: (props, dom) => {
+            return (
+              <Dropdown
+                menu={{
+                  items: userMenuItems,
+                }}
+              >
+                {dom}
+              </Dropdown>
+            );
+          },
+        }}
         route={{
           path: "/",
           routes: [
             {
               path: "/system",
-              name: "系统管理",
+              name: "System Management",
               icon: <SettingOutlined />,
               routes: [
                 {
                   path: "/system/user",
-                  name: "用户管理",
+                  name: "User Management",
                   icon: <UserOutlined />,
                 },
                 {
                   path: "/system/role",
-                  name: "角色管理",
+                  name: "Role Management",
                   icon: <TeamOutlined />,
                 },
                 {
                   path: "/system/menu",
-                  name: "菜单管理",
+                  name: "Menu Management",
                   icon: <MenuOutlined />,
                 },
                 {
                   path: "/system/dict",
-                  name: "字典管理",
+                  name: "Dictionary Management",
                   icon: <BookOutlined />,
                 },
                 {
                   path: "/system/log",
-                  name: "日志管理",
+                  name: "Log Management",
                   icon: <HistoryOutlined />,
                 },
               ],
             },
           ],
         }}
-        menuItemRender={(item, dom) => <Link to={item.path || "/"}>{dom}</Link>}
       >
+        {/* Main content area */}
         <main className="p-4">
           <Outlet />
         </main>

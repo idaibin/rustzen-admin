@@ -65,7 +65,7 @@ async fn permission_middleware(
     // Get current user from auth middleware
     let current_user = request.extensions().get::<CurrentUser>().cloned().ok_or_else(|| {
         tracing::error!("CurrentUser not found - auth middleware missing?");
-        AppError::from(ServiceError::InvalidCredentials)
+        AppError::from(ServiceError::InvalidToken)
     })?;
 
     // Get database pool
@@ -92,13 +92,6 @@ async fn permission_middleware(
                         current_user.user_id
                     );
                     AppError::from(ServiceError::DatabaseQueryFailed)
-                }
-                ServiceError::InvalidCredentials => {
-                    tracing::warn!(
-                        "User {} needs re-auth for permission check",
-                        current_user.user_id
-                    );
-                    AppError::from(ServiceError::InvalidCredentials)
                 }
                 _ => {
                     tracing::error!("Unexpected permission check error: {:?}", e);
