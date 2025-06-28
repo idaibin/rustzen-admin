@@ -28,7 +28,10 @@ It's designed for:
 
 - ✅ **Full-Stack Framework**: A complete, integrated solution with a Rust backend and React frontend.
 - ✅ **Modern Tech Stack**: Built with **Axum**, **SQLx**, **Vite**, **TailwindCSS**, and **Ant Design ProComponents**.
-- ✅ **Authentication**: Comes with a ready-to-use JWT-based authentication flow.
+- ✅ **Authentication**: JWT-based authentication flow, global auth state with Zustand, and route protection via AuthGuard.
+- ✅ **RBAC Permission System**: Unified, flexible, and cache-optimized RBAC system with backend-driven permission checks and super admin logic (`zen_admin`).
+- ✅ **Unified TypeScript Types**: All system management and authentication types are centrally managed for type safety and scalability.
+- ✅ **Modular API Services**: All API services are modular, support unified import/export, and are easy to extend.
 - ✅ **Database Ready**: Integrated with PostgreSQL via SQLx, including a command-line migration setup.
 - ✅ **Containerized**: Includes a multi-stage `Dockerfile` and `docker-compose.yml` for easy development and deployment.
 - ✅ **Efficient Tooling**: A `justfile` provides streamlined commands (`dev`, `build`, `clean`) for the entire project.
@@ -42,7 +45,7 @@ It's designed for:
 | :----------- | :------------------------------------------------------------------------------------------------------- |
 | **Backend**  | Rust, [Axum](https://github.com/tokio-rs/axum), [SQLx](https://github.com/launchbadge/sqlx), PostgreSQL  |
 | **Frontend** | React, TypeScript, Vite, TailwindCSS, [Ant Design ProComponents](https://procomponents.ant.design/), SWR |
-| **Auth**     | JWT (JSON Web Tokens)                                                                                    |
+| **Auth**     | JWT (JSON Web Tokens), Zustand, AuthGuard                                                                |
 | **Tooling**  | `just`, `pnpm`, Docker                                                                                   |
 | **Desktop**  | [Tauri](https://tauri.app/) (Optional)                                                                   |
 
@@ -138,16 +141,22 @@ See the complete guide: [`docs/api/rest-client.md`](docs/api/rest-client.md)
 | Get User Info       | ✅ Complete | Includes role information and menu permissions                |
 | JWT Auth Middleware | ✅ Complete | Automatic token verification and user status checking         |
 | Password Hashing    | ✅ Complete | bcrypt secure password storage                                |
+| Global Auth State   | ✅ Complete | Zustand-based store, auto-refresh, and route protection       |
 
-### 🧑‍💼 System Management ✅ **Core Features Implemented**
+### 🧑‍💼 System Management ✅ **Implemented**
 
-| Module              | Status      | Description                                         |
-| ------------------- | ----------- | --------------------------------------------------- |
-| **User Management** | ✅ Complete | CRUD operations, role assignment, status management |
-| **Role Management** | ✅ Complete | Role CRUD, menu permission assignment               |
-| **Menu Management** | ✅ Complete | Tree-structured menus, permission control           |
-| **Data Dictionary** | ✅ Complete | Dictionary item management, options API             |
-| **Operation Logs**  | ✅ Complete | System log recording and querying                   |
+| Module              | Status      | Description                                     |
+| ------------------- | ----------- | ----------------------------------------------- |
+| **User Management** | ✅ Complete | CRUD, role assignment, status, unified type     |
+| **Role Management** | ✅ Complete | CRUD, menu/permission assignment, RBAC refactor |
+| **Menu Management** | ✅ Complete | Tree, permission code, backend-driven control   |
+| **Data Dictionary** | ✅ Complete | CRUD, options API, unified type                 |
+| **Operation Logs**  | ✅ Complete | Logging, querying, unified type                 |
+
+- **RBAC Permission System**: Flexible, cache-optimized, supports `zen_admin` super admin logic (backend only).
+- **Unified TypeScript Types**: All system management types are in `system.d.ts`, authentication in `auth.d.ts`.
+- **Modular API Services**: All API services are modular and support unified import/export.
+- **Frontend Auth State**: Managed by Zustand (`useAuthStore`), with `<AuthGuard>` for route protection and auto-refresh.
 
 ### 🔗 Options API ✅ **Implemented**
 
@@ -172,41 +181,33 @@ See the complete guide: [`docs/api/rest-client.md`](docs/api/rest-client.md)
 
 ---
 
-## 🔄 Planned Features
+## 🧱 Technical Highlights
 
-| Module                 | Status      | Description                                       |
-| ---------------------- | ----------- | ------------------------------------------------- |
-| 📁 **File Upload**     | 🔄 Planned  | Support for local/S3 upload                       |
-| ⚙️ **System Settings** | 🔄 Planned  | General configuration management, theme switching |
-| 📡 **WebSocket Push**  | ⏳ Optional | Real-time notifications and messaging             |
-| 🖥️ **Tauri Client**    | ⏳ Optional | Desktop admin interface                           |
-| 📊 **Dashboard**       | 🔄 Planned  | Data statistics and visualization charts          |
-| 🌍 **Multi-language**  | 🔄 Planned  | i18n internationalization framework               |
-| 🎨 **Theme System**    | 🔄 Planned  | Dark mode, custom themes                          |
+- **RBAC Permission System**: Backend-driven, supports single, any, and all permission checks, with in-memory cache and super admin logic.
+- **Unified TypeScript Types**: All types for system management and authentication are centrally managed for type safety and scalability.
+- **Modular API Services**: All API services are modular, support unified import/export, and are easy to extend. See [`frontend/src/services/README.md`](frontend/src/services/README.md).
+- **Frontend Auth State**: Managed by Zustand (`useAuthStore`), with `<AuthGuard>` for route protection and auto-refresh.
+- **Clean Code & Documentation**: All comments, logs, and error messages are in English. Code is organized for clarity and maintainability.
 
 ---
 
-## 🧱 Technical Architecture
+## 🛠️ API & TypeScript Usage
 
-```text
-            +--------------------+       +------------------+
-   Client → | React Admin UI     | →     | Rust API (Axum) |
-            +--------------------+       +------------------+
-                      ↓                           ↓
-            +--------------------+       +------------------+
-            | Ant Design Pro     |       | SQLx + PostgreSQL|
-            | TailwindCSS        |       | JWT + bcrypt     |
-            | SWR + TypeScript   |       | tracing + tokio  |
-            +--------------------+       +------------------+
-```
+- **Unified Type Import**:
+  ```typescript
+  import type { System } from "System";
+  import type { LoginRequest, UserInfoResponse } from "Auth";
+  ```
+- **API Service Import**:
+  ```typescript
+  import { userAPI, roleAPI, authAPI } from "@/services";
+  import systemAPI from "@/services/system";
+  ```
+- **Auth State**:
+  - Managed by Zustand (`useAuthStore`)
+  - Route protection via `<AuthGuard>`
 
-**Key Advantages**:
-
-- 🦀 **Rust Backend**: Memory safety, high performance, type safety
-- ⚛️ **React Frontend**: Modern component library, responsive design
-- 🗄️ **PostgreSQL**: ACID transactions, strong consistency
-- 🔐 **RBAC Permissions**: Role-based access control
-- 📖 **Complete Documentation**: API docs, architecture explanation
+See [`frontend/src/services/README.md`](frontend/src/services/README.md) for details.
 
 ---
 
@@ -227,14 +228,6 @@ This project aims to become a **modern admin template** in the Rust ecosystem, p
 2. **Production Ready**: Enterprise-grade code quality and security standards
 3. **Easy to Extend**: Clear modular architecture for easy feature extension
 4. **Best Practices**: Showcase best practices for Rust + React full-stack development
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [**Contributing Guide**](./docs/development/CONTRIBUTING.md) to get started.
-
----
 
 ## 📄 License
 
