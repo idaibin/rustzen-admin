@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 
 /// Permission cache expiration time (1 hour)
 const CACHE_EXPIRE_HOURS: i64 = 1;
+const ZEN_ADMIN_CODE: &str = "zen_admin";
 
 /// Permission check types for flexible access control
 #[derive(Debug, Clone)]
@@ -23,6 +24,10 @@ pub enum PermissionsCheck {
 impl PermissionsCheck {
     /// Core permission validation logic
     pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
+        // If user is ZenAdmin, allow all permissions
+        if user_permissions.contains(ZEN_ADMIN_CODE) {
+            return true;
+        }
         match self {
             PermissionsCheck::Single(code) => user_permissions.contains(*code),
             PermissionsCheck::Any(codes) => {
@@ -57,11 +62,6 @@ impl UserPermissionCache {
     /// Create new permission cache
     pub fn new(permissions: Vec<String>) -> Self {
         Self { permissions: permissions.into_iter().collect(), cached_at: Utc::now() }
-    }
-
-    /// Check permissions using PermissionsCheck enum
-    pub fn check_permissions(&self, check: &PermissionsCheck) -> bool {
-        check.check(&self.permissions)
     }
 
     /// Check if cache has expired
@@ -161,7 +161,7 @@ impl PermissionService {
 
         // No cache - require re-authentication
         tracing::warn!("No permission cache for user {} - requiring re-auth", user_id);
-        Err(ServiceError::InvalidCredentials)
+        Err(ServiceError::InvalidToken)
     }
 
     /// Cache user permissions (called during login)

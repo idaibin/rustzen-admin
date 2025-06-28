@@ -36,7 +36,7 @@ where
                 tracing::error!(
                     "CurrentUser not found - auth middleware missing or user not authenticated"
                 );
-                AppError::from(ServiceError::InvalidCredentials)
+                AppError::from(ServiceError::InvalidToken)
             })
         }
     }
