@@ -1,7 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { requestTable } from "@/services/api";
-import type * as User from "User";
+import type { User } from "System";
+import { userAPI } from "@/services";
 
 const UserPage = () => {
   const columns: ProColumns<User.Item>[] = [
@@ -17,7 +17,7 @@ const UserPage = () => {
     {
       title: "角色ID",
       dataIndex: "roleIds",
-      renderText: (text: number[]) => text.join(", "),
+      // renderText: (text: number[]) => text.join(", "),
     },
     {
       title: "操作",
@@ -29,9 +29,7 @@ const UserPage = () => {
   return (
     <ProTable<User.Item>
       columns={columns}
-      request={async (params) => {
-        return requestTable<User.Item>("/api/sys/user", params);
-      }}
+      request={userAPI.getUserList}
       rowKey="id"
       search={false}
       headerTitle="用户列表"

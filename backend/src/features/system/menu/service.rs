@@ -6,6 +6,7 @@ use super::model::{
 use super::repo::MenuRepository;
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
+use crate::features::system::user::repo::UserRepository;
 use axum::extract::Query;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -219,13 +220,30 @@ impl MenuService {
         }
         tracing::info!("Fetching menus for role IDs: {:?}", role_ids);
 
-        let menus = MenuRepository::find_by_role_ids(pool, role_ids).await.map_err(|e| {
+        let menus = MenuRepository::find_menus_by_role(pool, role_ids).await.map_err(|e| {
             tracing::error!("Failed to fetch menus by role IDs: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
         let menu_responses: Vec<MenuResponse> = menus.into_iter().map(MenuResponse::from).collect();
         Ok(menu_responses)
+    }
+
+    pub async fn get_permissions_by_menu(
+        pool: &PgPool,
+        user_id: i64,
+    ) -> Result<Vec<String>, ServiceError> {
+        let role_ids = UserRepository::get_user_role_ids(pool, user_id)
+            .await
+            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+
+        let permissions =
+            MenuRepository::find_permissions_by_role(pool, &role_ids).await.map_err(|e| {
+                tracing::error!("Failed to fetch permissions by menu IDs: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        Ok(permissions)
     }
 
     /// Build hierarchical tree from flat menu list
@@ -300,24 +318,5 @@ impl MenuService {
 
         tracing::info!("Successfully retrieved {} menu options", options.len());
         Ok(options)
-    }
-
-    /// Recursively find and build children for menu tree
-    fn find_children(
-        menu_map: &HashMap<i64, MenuResponse>,
-        parent_id: Option<i64>,
-    ) -> Vec<MenuResponse> {
-        let mut children: Vec<_> = menu_map
-            .values()
-            .filter(|menu| menu.parent_id == parent_id)
-            .map(|menu| {
-                let mut child = menu.clone();
-                child.children = Self::find_children(menu_map, Some(menu.id));
-                child
-            })
-            .collect();
-
-        children.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
-        children
     }
 }

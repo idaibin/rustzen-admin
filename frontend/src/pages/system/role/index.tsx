@@ -1,7 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { requestTable } from "@/services/api";
-import type * as Role from "Role";
+import { roleAPI } from "@/services";
+import type { Role } from "System";
 
 const RolePage = () => {
   const columns: ProColumns<Role.Item>[] = [
@@ -33,9 +33,7 @@ const RolePage = () => {
   return (
     <ProTable<Role.Item>
       columns={columns}
-      request={async (params) => {
-        return requestTable<Role.Item>("/api/sys/role", params);
-      }}
+      request={roleAPI.getRoleList}
       rowKey="id"
       search={false}
       headerTitle="角色列表"

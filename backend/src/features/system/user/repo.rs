@@ -277,6 +277,16 @@ impl UserRepository {
         Ok(roles)
     }
 
+    pub async fn get_user_role_ids(pool: &PgPool, user_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+        let roles =
+            sqlx::query_as::<_, (i64,)>("SELECT role_id FROM user_roles WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+
+        Ok(roles.iter().map(|r| r.0).collect())
+    }
+
     /// Set user roles (replaces existing)
     pub async fn set_user_roles(
         pool: &PgPool,
