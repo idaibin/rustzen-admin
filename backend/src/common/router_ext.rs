@@ -81,6 +81,11 @@ async fn permission_middleware(
         current_user.username
     );
 
+    if current_user.is_super_admin {
+        tracing::debug!("User {} is super admin, skipping permission check", current_user.user_id);
+        return Ok(next.run(request).await);
+    }
+
     // Check permissions with caching
     let has_permission =
         PermissionService::check_permissions(&pool, current_user.user_id, &permissions_check)

@@ -110,6 +110,7 @@ pub struct LoginCredentialsEntity {
     pub username: String,
     pub password_hash: String,
     pub status: i16,
+    pub is_super_admin: bool,
 }
 
 /// Basic user info for session/profile

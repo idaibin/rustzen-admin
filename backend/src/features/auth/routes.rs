@@ -4,17 +4,21 @@ use super::{
     permission::PermissionService,
     service::AuthService,
 };
-use crate::common::api::{ApiResponse, AppResult};
+use crate::{
+    common::api::{ApiResponse, AppResult},
+    core::password::PasswordUtils,
+};
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Query, State},
     routing::{get, post},
 };
+use serde::Deserialize;
 use sqlx::PgPool;
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
-    Router::new().route("/login", post(login_handler))
+    Router::new().route("/login", post(login_handler)).route("/gen-hash", get(gen_hash))
 }
 
 /// Protected auth routes (JWT required)
@@ -34,6 +38,19 @@ async fn login_handler(
 
     tracing::info!("Login successful");
     Ok(ApiResponse::success(response))
+}
+
+#[derive(Debug, Deserialize)]
+struct HashRequest {
+    password: String,
+}
+
+/// Generate hash with password
+async fn gen_hash(Query(request): Query<HashRequest>) -> AppResult<Json<ApiResponse<String>>> {
+    tracing::info!("Generate hash attempt");
+    let password = PasswordUtils::hash_password(&request.password)?.to_string();
+    tracing::info!("Hash generated: {}", password);
+    Ok(ApiResponse::success(password))
 }
 
 /// Logout and clear cache

@@ -36,10 +36,11 @@ impl AuthService {
         tracing::info!("User verification took: {:?}", start.elapsed());
 
         // 2. generate token and cache permissions
-        let token = jwt::generate_token(user.id, &user.username).map_err(|e| {
-            tracing::error!("Failed to generate token: {:?}", e);
-            ServiceError::TokenCreationFailed
-        })?;
+        let token =
+            jwt::generate_token(user.id, &user.username, user.is_super_admin).map_err(|e| {
+                tracing::error!("Failed to generate token: {:?}", e);
+                ServiceError::TokenCreationFailed
+            })?;
 
         // 3. cache user permissions
         Self::cache_user_permissions(pool, user.id)
@@ -128,6 +129,7 @@ impl AuthService {
 
     /// Cache user permissions
     pub async fn cache_user_permissions(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+        tracing::info!("Caching user permissions for user: {}", user_id);
         let permissions: Vec<String> = AuthRepository::get_user_permissions(pool, user_id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?;

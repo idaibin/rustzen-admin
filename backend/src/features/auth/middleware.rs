@@ -53,7 +53,8 @@ pub async fn auth_middleware(
     );
 
     // Inject user and database pool into request extensions
-    let current_user = CurrentUser::new(claims.user_id, claims.username.clone());
+    let current_user =
+        CurrentUser::new(claims.user_id, claims.username.clone(), claims.is_super_admin);
     parts.extensions.insert(current_user);
     parts.extensions.insert(pool);
 

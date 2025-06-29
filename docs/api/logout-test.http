@@ -13,7 +13,7 @@ Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "rustzen@123"
 }
 
 ### 2. 获取用户信息（需要token）

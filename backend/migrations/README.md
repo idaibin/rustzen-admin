@@ -1,165 +1,205 @@
-# 数据库迁移文件
+# Database Migrations
 
-本目录包含 rustzen-admin 项目的数据库迁移文件。
+This directory contains database migration files for the system.
 
-## 📁 文件结构
+## Migration Files
 
-```
-backend/migrations/
-├── 001_simple_schema.sql  # 极简版表结构
-└── README.md             # 迁移说明文档
-```
+### Core System
 
-## 🚀 使用方法
+- `001_system_schema.sql` - Core database schema (users, roles, menus, associations)
+- `002_system_seed.sql` - Initial system data (default roles, menus, super admin user)
 
-### 1. 使用 SQLx 迁移（推荐）
+### Optional Features
 
-```bash
-# 安装 sqlx-cli
-cargo install sqlx-cli --no-default-features --features rustls,postgres
+- `003_log_system.sql` - Log system implementation with partitioning and management functions
 
-# 创建数据库
-createdb rustzen_admin
+## Usage
 
-# 运行迁移
-sqlx migrate run --database-url "postgresql://username:password@localhost/rustzen_admin"
-```
-
-### 2. 手动执行 SQL 文件
+### First Time Setup
 
 ```bash
-# 执行表结构迁移
-psql -U username -d rustzen_admin -f 001_simple_schema.sql
+# 1. Run core schema migration
+psql -d your_database -f migrations/001_system_schema.sql
+
+# 2. Run data seed
+psql -d your_database -f migrations/002_system_seed.sql
+
+# 3. Run optional features (if needed)
+psql -d your_database -f migrations/003_log_system.sql
 ```
 
-## 📋 数据库设计
-
-### 极简版表结构
-
-本项目采用极简设计，包含以下 6 张核心表：
-
-1. **users** - 用户表
-
-   - 基本用户信息：用户名、邮箱、密码、真实姓名等
-   - 软删除：使用 `deleted_at` 字段
-
-2. **roles** - 角色表
-
-   - 角色信息：角色名称、描述、状态
-   - 软删除：使用 `deleted_at` 字段
-
-3. **user_roles** - 用户角色关联表
-
-   - 多对多关系：用户可以有多个角色
-
-4. **menus** - 菜单表
-
-   - 菜单信息：标题、路径、组件、图标等
-   - 支持树形结构：通过 `parent_id` 构建层级
-   - 软删除：使用 `deleted_at` 字段
-
-5. **role_menus** - 角色菜单关联表
-
-   - **权限控制核心**：角色可以访问哪些菜单
-   - 多对多关系：角色可以访问多个菜单
-
-6. **operation_logs** - 操作日志表
-   - 记录用户操作：操作类型、描述、IP 地址等
-
-### 权限模型
-
-采用最简单的 **基于角色的菜单权限控制**：
-
-```
-用户(Users) ←→ 角色(Roles) ←→ 菜单(Menus)
-```
-
-- **用户** 通过 `user_roles` 关联到 **角色**
-- **角色** 通过 `role_menus` 关联到 **菜单**
-- **权限控制** = 用户能看到哪些菜单
-
-### 软删除策略
-
-- 使用 `deleted_at` 字段实现软删除
-- `deleted_at IS NULL` 表示记录未删除
-- `deleted_at IS NOT NULL` 表示记录已删除
-- 唯一索引加上 `WHERE deleted_at IS NULL` 条件
-
-## 🔧 数据库配置
-
-### 环境变量
+### Development Reset
 
 ```bash
-# PostgreSQL 连接配置
+# Drop and recreate database, then run migrations
+dropdb your_database && createdb your_database
+psql -d your_database -f migrations/001_system_schema.sql
+psql -d your_database -f migrations/002_system_seed.sql
+psql -d your_database -f migrations/003_log_system.sql
+```
+
+## File Organization
+
+- **Core files** (`001_*.sql`): Essential system structure
+- **Seed files** (`002_*.sql`): Initial data for core system
+- **Feature files** (`003_*.sql` and above): Optional feature implementations
+
+### Core System Features
+
+The core system includes:
+
+- User management (users, roles, user_roles)
+- Menu management (menus, role_menus)
+- Permission control system
+- Performance views and triggers
+
+### Optional Features
+
+- **Log System**: Run `003_log_system.sql` if you need comprehensive logging
+- **Future Features**: Additional feature-specific migrations can be added as needed
+
+This separation allows you to:
+
+- Run core system without optional features
+- Maintain different feature sets for different environments
+- Keep migrations focused and manageable
+
+## Database Design
+
+### Core Tables
+
+1. **users** - User accounts
+
+   - Basic user information: username, email, password, real_name
+   - Soft delete: using `deleted_at` field
+
+2. **roles** - User roles
+
+   - Role information: role_name, description, status
+   - Soft delete: using `deleted_at` field
+
+3. **user_roles** - User-role associations
+
+   - Many-to-many relationship: users can have multiple roles
+
+4. **menus** - Menu and permission definitions
+
+   - Menu information: title, path, component, icon
+   - Hierarchical structure: via `parent_id`
+   - Soft delete: using `deleted_at` field
+
+5. **role_menus** - Role-menu associations
+   - **Permission control core**: which menus roles can access
+   - Many-to-many relationship: roles can access multiple menus
+
+### Permission Model
+
+Simple **Role-Based Menu Access Control**:
+
+```
+Users ←→ Roles ←→ Menus
+```
+
+- **Users** are associated with **Roles** via `user_roles`
+- **Roles** are associated with **Menus** via `role_menus`
+- **Permission control** = which menus users can see
+
+### Soft Delete Strategy
+
+- Uses `deleted_at` field for soft deletion
+- `deleted_at IS NULL` means record is not deleted
+- `deleted_at IS NOT NULL` means record is deleted
+- Unique indexes include `WHERE deleted_at IS NULL` condition
+
+## Database Configuration
+
+### Environment Variables
+
+```bash
+# PostgreSQL connection configuration
 DATABASE_URL=postgresql://username:password@localhost:5432/rustzen_admin
 ```
 
-### 连接池配置
+### Connection Pool Configuration
 
 ```toml
 [database]
-max_connections = 10
+max_connections = 20
 min_connections = 5
-connect_timeout = 30
+connect_timeout = 10
+idle_timeout = 300
 ```
 
-## 🚨 注意事项
+## 🚨 Important Notes
 
-### 生产环境部署
+### Production Environment Deployment
 
-1. **备份数据库**：
+1. **Backup Database**:
 
    ```bash
    pg_dump rustzen_admin > backup_$(date +%Y%m%d_%H%M%S).sql
    ```
 
-2. **检查权限**：确保数据库用户有足够权限
+2. **Check Permissions**: Ensure database user has sufficient permissions
 
-3. **测试迁移**：在开发环境先测试
+3. **Test Migrations**: Test in development environment first
 
-### 软删除查询
+### Soft Delete Query
 
-查询时需要过滤已删除的记录：
+Query needs to filter deleted records:
 
 ```sql
--- 查询未删除的用户
+-- Query active users
 SELECT * FROM users WHERE deleted_at IS NULL;
 
--- 查询未删除的角色
+-- Query active roles
 SELECT * FROM roles WHERE deleted_at IS NULL;
 
--- 查询未删除的菜单
+-- Query active menus
 SELECT * FROM menus WHERE deleted_at IS NULL;
 ```
 
-## 🔍 故障排查
+## 🔍 Troubleshooting
 
-### 常见问题
+### Common Issues
 
-1. **权限不足**：检查数据库用户权限
-2. **外键约束失败**：检查关联数据是否存在
-3. **唯一约束冲突**：检查数据重复（注意软删除条件）
+1. **Insufficient Permissions**: Check database user permissions
+2. **Foreign Key Constraint Failure**: Check if associated data exists
+3. **Unique Constraint Conflict**: Check data duplication (note soft delete conditions)
 
-### 调试命令
+### Debug Commands
 
 ```bash
-# 检查迁移状态
+# Check migration status
 sqlx migrate info --database-url $DATABASE_URL
 
-# 查看表结构
+# View table structure
 psql -U username -d rustzen_admin -c "\d users"
+
+# Check partition information (if log system is enabled)
+SELECT * FROM get_log_partition_info();
 ```
 
-## 📈 扩展建议
+## 📈 Extension Suggestions
 
-如果后续需要更复杂的功能，可以考虑：
+If future needs are more complex, consider:
 
-1. **细粒度权限**：添加操作权限表
-2. **数据权限**：添加数据范围控制
-3. **审计日志**：添加 `created_by`、`updated_by` 字段
-4. **多租户**：添加租户隔离
-5. **缓存优化**：添加 Redis 缓存层
+1. **Fine-grained Permissions**: Add operation permission table
+2. **Data Permissions**: Add data range control
+3. **Audit Logs**: Add `created_by`, `updated_by` fields
+4. **Multi-tenant**: Add tenant isolation
+5. **Cache Optimization**: Add Redis cache layer
+
+## Default Super Admin Account
+
+After running the seed file, you can login with:
+
+- **Username**: `superadmin`
+- **Password**: `rustzen@123`
+- **Email**: `superadmin@example.com`
+
+⚠️ **Important**: Change the default password after first login!
 
 ---
 
-**设计原则**：先简单，后复杂。根据实际需求逐步扩展。
+**Design Principle**: Start simple, then complex. Extend based on actual requirements.
