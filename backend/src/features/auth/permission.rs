@@ -1,4 +1,4 @@
-use crate::{common::error::ServiceError, features::system::user::repo::UserRepository};
+use crate::{common::error::ServiceError, features::auth::repo::AuthRepository};
 use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -114,15 +114,6 @@ impl PermissionCacheManager {
             tracing::debug!("Removed permission cache for user {}", user_id);
         }
     }
-
-    /// Clear all cached permissions
-    pub fn clear(&self) {
-        if let Ok(mut cache) = self.cache.write() {
-            let count = cache.len();
-            cache.clear();
-            tracing::info!("Cleared all permission cache ({} entries)", count);
-        }
-    }
 }
 
 /// Global permission cache instance
@@ -215,7 +206,7 @@ impl PermissionService {
         tracing::info!("Loading permissions from DB for user {}", user_id);
 
         let permissions =
-            UserRepository::get_user_permissions(pool, user_id).await.map_err(|e| {
+            AuthRepository::get_user_permissions(pool, user_id).await.map_err(|e| {
                 tracing::error!("Failed to load permissions for user {}: {:?}", user_id, e);
                 ServiceError::DatabaseQueryFailed
             })?;

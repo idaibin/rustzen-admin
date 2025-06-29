@@ -11,13 +11,13 @@ const { Title, Text } = Typography;
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setAuth } = useAuthStore();
+  const { updateToken } = useAuthStore();
 
   const onLogin = async (values: LoginRequest) => {
     setLoading(true);
     try {
       const res = await authAPI.login(values);
-      setAuth(res);
+      updateToken(res.token);
       navigate("/", { replace: true });
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ const LoginPage: React.FC = () => {
               Login
             </Button>
           </Form.Item>
-          <div className="text-center">
+          {/* <div className="text-center">
             <Text type="secondary">
               Don't have an account?{" "}
               <a
@@ -78,7 +78,7 @@ const LoginPage: React.FC = () => {
                 Register here
               </a>
             </Text>
-          </div>
+          </div> */}
         </Form>
       </Card>
     </div>

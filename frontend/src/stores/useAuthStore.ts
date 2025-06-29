@@ -13,7 +13,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       userInfo: null,
       token: null,
       updateUserInfo: (params: UserInfoResponse) => {
@@ -23,12 +23,7 @@ export const useAuthStore = create<AuthState>()(
         set({ token: params });
       },
       setAuth: (params: LoginResponse) => {
-        console.log("setAuth", params);
         set({ userInfo: params.userInfo, token: params.token });
-        setTimeout(() => {
-          console.log("setAuth timeout", get().userInfo);
-          console.log("setAuth timeout", get().token);
-        }, 2000);
       },
       // Clear all auth state
       clearAuth: () => {

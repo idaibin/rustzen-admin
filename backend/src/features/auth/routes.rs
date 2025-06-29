@@ -1,6 +1,6 @@
 use super::{
     extractor::CurrentUser,
-    model::{LoginRequest, LoginResponse, RegisterRequest, UserInfo, UserInfoResponse},
+    model::{LoginRequest, LoginResponse, UserInfoResponse},
     permission::PermissionService,
     service::AuthService,
 };
@@ -14,27 +14,12 @@ use sqlx::PgPool;
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
-    Router::new().route("/register", post(register_handler)).route("/login", post(login_handler))
+    Router::new().route("/login", post(login_handler))
 }
 
 /// Protected auth routes (JWT required)
 pub fn protected_auth_routes() -> Router<PgPool> {
     Router::new().route("/me", get(get_user_info_handler)).route("/logout", get(logout_handler))
-}
-
-/// Register new user account
-/// Body: username, email, password
-async fn register_handler(
-    State(pool): State<PgPool>,
-    Json(request): Json<RegisterRequest>,
-) -> AppResult<Json<ApiResponse<UserInfo>>> {
-    tracing::info!("Registration attempt: {} ({})", request.username, request.email);
-
-    let response = AuthService::register(&pool, request).await?;
-
-    tracing::info!("Registration successful: id={}, username={}", response.id, response.username,);
-
-    Ok(ApiResponse::success(response))
 }
 
 /// Login with username/password
@@ -43,28 +28,22 @@ async fn login_handler(
     State(pool): State<PgPool>,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<Json<ApiResponse<LoginResponse>>> {
-    tracing::info!("Login attempt: {}", request.username.clone());
+    tracing::info!("Login attempt");
 
     let response = AuthService::login(&pool, request).await?;
 
-    tracing::info!("Login successful: username={} id={}", response.username, response.user_id);
-
+    tracing::info!("Login successful");
     Ok(ApiResponse::success(response))
 }
 
 /// Logout and clear cache
 async fn logout_handler(current_user: CurrentUser) -> AppResult<Json<ApiResponse<()>>> {
-    tracing::info!("Logout: {} ({})", current_user.username, current_user.user_id);
+    tracing::info!("Logout");
 
     // Clear user permission cache
     PermissionService::clear_user_cache(current_user.user_id);
 
-    tracing::info!(
-        "Logout completed: id={}, username={}",
-        current_user.user_id,
-        current_user.username
-    );
-
+    tracing::info!("Logout completed");
     Ok(ApiResponse::success(()))
 }
 
@@ -73,12 +52,11 @@ async fn get_user_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<Json<ApiResponse<UserInfoResponse>>> {
-    tracing::debug!("Get user info: {} ({})", current_user.username, current_user.user_id);
+    tracing::debug!("Get user info");
 
     let user_info =
         AuthService::get_user_info(&pool, current_user.user_id, &current_user.username).await?;
 
-    tracing::debug!("User info retrieved: id={}, menus={}", user_info.id, user_info.menus.len());
-
+    tracing::debug!("User info retrieved");
     Ok(ApiResponse::success(user_info))
 }
