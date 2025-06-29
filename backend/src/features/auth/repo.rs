@@ -13,7 +13,7 @@ impl AuthRepository {
         username: &str,
     ) -> Result<Option<LoginCredentialsEntity>, sqlx::Error> {
         let user = sqlx::query_as::<_, LoginCredentialsEntity>(
-            "SELECT id, username, password_hash, status FROM users WHERE username = $1 AND deleted_at IS NULL",
+            "SELECT id, username, password_hash, status, is_super_admin FROM users WHERE username = $1 AND deleted_at IS NULL",
         )
         .bind(username)
         .fetch_optional(pool)
@@ -52,19 +52,20 @@ impl AuthRepository {
         pool: &PgPool,
         user_id: i64,
     ) -> Result<Vec<String>, sqlx::Error> {
-        // Query all permission keys for the user via role-menu-permission relationship
+        // Use the optimized user_permissions view
         let permissions = sqlx::query_scalar::<_, String>(
             r#"
-            SELECT DISTINCT m.permission
-            FROM user_roles ur
-            JOIN role_menus rm ON ur.role_id = rm.role_id
-            JOIN menus m ON rm.menu_id = m.id
-            WHERE ur.user_id = $1 AND m.permission IS NOT NULL AND m.permission != ''
+                SELECT DISTINCT permission_code
+                FROM user_permissions
+                WHERE user_id = $1
+                ORDER BY permission_code
             "#,
         )
         .bind(user_id)
         .fetch_all(pool)
         .await?;
+
+        tracing::info!("User {} permissions: {:?}", user_id, permissions);
         Ok(permissions)
     }
 
