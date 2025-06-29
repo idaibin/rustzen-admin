@@ -3,7 +3,7 @@ import type { RouteObject } from "react-router-dom";
 import BasicLayout from "./layouts/BasicLayout";
 import AuthGuard from "./components/AuthGuard";
 import LoginPage from "./pages/auth/login";
-import RegisterPage from "./pages/auth/register";
+// import RegisterPage from "./pages/auth/register";
 import UserPage from "./pages/system/user";
 import RolePage from "./pages/system/role";
 import MenuPage from "./pages/system/menu";
@@ -21,14 +21,14 @@ const routes: RouteObject[] = [
       return token ? redirect("/") : null;
     },
   },
-  {
-    path: "/register",
-    element: <RegisterPage />,
-    loader: () => {
-      const token = useAuthStore.getState().token;
-      return token ? redirect("/") : null;
-    },
-  },
+  // {
+  //   path: "/register",
+  //   element: <RegisterPage />,
+  //   loader: () => {
+  //     const token = useAuthStore.getState().token;
+  //     return token ? redirect("/") : null;
+  //   },
+  // },
   {
     path: "/",
     element: (

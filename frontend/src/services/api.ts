@@ -13,6 +13,8 @@ const getApiBaseUrl = (): string => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+// Create a new AbortController for this request
+let abortController = new AbortController();
 
 /**
  * Get auth headers from localStorage
@@ -54,12 +56,17 @@ const handleError = async (error: unknown) => {
     try {
       const res = await error.json();
       if (error.status === 401) {
+        abortController.abort();
         useAuthStore.getState().clearAuth();
       }
       message.error(res.message || error.statusText);
     } catch {
       message.error(`[${error.statusText}] ${error.url}`);
     }
+  } else if (error instanceof DOMException && error.name === "AbortError") {
+    console.log("abort controller do nothing");
+    abortController = new AbortController();
+    // abort controller do nothing
   } else {
     message.error(error instanceof Error ? error.message : "Network error");
   }
@@ -76,6 +83,7 @@ async function coreRequest<T>(
   const fullUrl = `${API_BASE_URL}${url}`;
   const config: RequestInit = {
     ...options,
+    signal: abortController.signal,
     headers: {
       ...defaultHeaders,
       ...getAuthHeaders(),

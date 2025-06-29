@@ -9,6 +9,26 @@ use axum::{
 /// A unified error type for the business logic layer.
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
+    /// User is disabled.
+    #[error("User is disabled")]
+    UserIsDisabled,
+
+    /// User is pending.
+    #[error("User is pending")]
+    UserIsPending,
+
+    /// User is locked.
+    #[error("User is locked")]
+    UserIsLocked,
+
+    /// User status is invalid.
+    #[error("User status is invalid")]
+    InvalidUserStatus,
+
+    /// Internal server error.
+    #[error("Internal server error")]
+    InternalServerError,
+
     /// A database query failed.
     #[error("Database query failed")]
     DatabaseQueryFailed,
@@ -25,9 +45,17 @@ pub enum ServiceError {
     #[error("Invalid or expired token")]
     InvalidToken,
 
+    /// Failed to generate token.
+    #[error("Failed to generate token")]
+    TokenCreationFailed,
+
     /// The user does not have permission to perform this action.
     #[error("Permission denied")]
     PermissionDenied,
+
+    /// Failed to cache user permissions.
+    #[error("Failed to cache user permissions")]
+    CacheUserPermissionsFailed,
 
     /// A username that was provided already exists.
     #[error("Username already exists")]
@@ -56,10 +84,6 @@ pub enum ServiceError {
     /// Password hashing failed.
     #[error("Password hashing failed")]
     PasswordHashingFailed,
-
-    /// User is disabled.
-    #[error("User is disabled")]
-    UserIsDisabled,
 }
 
 // --- Axum Error Handling ---
@@ -85,33 +109,48 @@ impl IntoResponse for AppError {
 impl From<ServiceError> for AppError {
     fn from(err: ServiceError) -> Self {
         let (status, code, message) = match err {
-            // System-level Errors (2xxxx)
-            ServiceError::DatabaseQueryFailed => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                20001, // System-Common-01
-                "A database query failed.".to_string(),
-            ),
-
-            // Business-level Errors (1xxxx)
+            // 1xxxx: User/Business Errors
             ServiceError::NotFound(resource) => (
                 StatusCode::NOT_FOUND,
                 10001, // Business-Common-01
                 format!("{} not found.", resource),
+            ),
+            ServiceError::InvalidOperation(reason) => (
+                StatusCode::BAD_REQUEST,
+                10002, // Business-Common-02
+                reason,
+            ),
+            ServiceError::PasswordHashingFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                10003,
+                "Password processing failed. Please try again.".into(),
+            ),
+            ServiceError::UserIsDisabled => {
+                (StatusCode::FORBIDDEN, 10004, "User account is disabled.".into())
+            }
+            ServiceError::UserIsPending => {
+                (StatusCode::BAD_REQUEST, 10005, "User account is pending approval.".into())
+            }
+            ServiceError::UserIsLocked => {
+                (StatusCode::BAD_REQUEST, 10006, "User account is locked.".into())
+            }
+            ServiceError::InvalidUserStatus => {
+                (StatusCode::BAD_REQUEST, 10007, "User status is invalid.".into())
+            }
+            ServiceError::CacheUserPermissionsFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                10008,
+                "Failed to cache user permissions. Please try again.".into(),
             ),
             ServiceError::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,
                 10101, // Business-Auth-01
                 "Invalid username or password.".to_string(),
             ),
-            ServiceError::InvalidToken => (
-                StatusCode::UNAUTHORIZED,
-                10102, // Business-Auth-02
-                "Invalid or expired token.".to_string(),
-            ),
-            ServiceError::PermissionDenied => (
-                StatusCode::FORBIDDEN,
+            ServiceError::TokenCreationFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
                 10103, // Business-Auth-03
-                "Permission denied.".to_string(),
+                "Failed to generate login token. Please try again.".to_string(),
             ),
             ServiceError::UsernameConflict => (
                 StatusCode::CONFLICT,
@@ -138,17 +177,28 @@ impl From<ServiceError> for AppError {
                 10401, // Business-Menu-01
                 "Menu title already exists.".to_string(),
             ),
-            ServiceError::InvalidOperation(reason) => (
-                StatusCode::BAD_REQUEST,
-                10002, // Business-Common-02
-                reason,
+            // 3xxxx: Permission Errors
+            ServiceError::InvalidToken => (
+                StatusCode::UNAUTHORIZED,
+                30000, // System-Auth-01
+                "Invalid or expired token. Please log in again.".to_string(),
             ),
-            ServiceError::PasswordHashingFailed => {
-                (StatusCode::INTERNAL_SERVER_ERROR, 10003, "Password processing failed".into())
-            }
-            ServiceError::UserIsDisabled => {
-                (StatusCode::FORBIDDEN, 10004, "User account is disabled".into())
-            }
+            ServiceError::PermissionDenied => (
+                StatusCode::FORBIDDEN,
+                30001, // System-Auth-02
+                "You do not have permission to perform this action.".to_string(),
+            ),
+            // 2xxxx: System Errors
+            ServiceError::DatabaseQueryFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20001, // System-Common-01
+                "Service is temporarily unavailable. Please try again later.".to_string(),
+            ),
+            ServiceError::InternalServerError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20002, // System-Common-02
+                "Internal server error. Please contact the administrator.".to_string(),
+            ),
         };
         AppError((status, code, message))
     }

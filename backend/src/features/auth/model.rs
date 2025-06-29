@@ -1,23 +1,46 @@
-use crate::features::system::{
-    menu::model::MenuResponse,
-    user::model::{RoleInfo, UserEntity},
-};
 use serde::{Deserialize, Serialize};
 
-/// Request payload for user registration.
-///
-/// This struct represents the data required to create a new user account
-/// through the registration endpoint. All fields are mandatory for account creation.
-#[derive(Deserialize)]
-pub struct RegisterRequest {
-    /// Unique username for the new account (must be unique across the system)
-    pub username: String,
-    /// Email address for the new account (must be unique and valid format)
-    pub email: String,
-    /// Plain text password (will be hashed before storage)
-    pub password: String,
+use crate::common::error::ServiceError;
+
+/// User status enum for authentication and account control.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserStatus {
+    Normal = 1,   // Active
+    Disabled = 2, // Disabled
+    Pending = 3,  // Pending approval
+    Locked = 4,   // Locked
+    Deleted = 5,  // Deleted
 }
 
+impl TryFrom<i16> for UserStatus {
+    type Error = ServiceError;
+
+    /// Convert i16 to UserStatus, returns error if value is invalid.
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(UserStatus::Normal),
+            2 => Ok(UserStatus::Disabled),
+            3 => Ok(UserStatus::Pending),
+            4 => Ok(UserStatus::Locked),
+            5 => Ok(UserStatus::Deleted),
+            _ => Err(ServiceError::InvalidUserStatus),
+        }
+    }
+}
+
+impl UserStatus {
+    /// Checks if the user status allows login.
+    /// Returns Ok(()) if allowed, or an appropriate ServiceError otherwise.
+    pub fn check_status(&self) -> Result<(), ServiceError> {
+        match self {
+            UserStatus::Normal => Ok(()),
+            UserStatus::Disabled => Err(ServiceError::UserIsDisabled),
+            UserStatus::Pending => Err(ServiceError::UserIsPending),
+            UserStatus::Locked => Err(ServiceError::UserIsLocked),
+            UserStatus::Deleted => Err(ServiceError::InvalidUserStatus),
+        }
+    }
+}
 /// Request payload for user authentication.
 ///
 /// This struct contains the credentials required for user login.
@@ -77,5 +100,48 @@ pub struct UserInfoResponse {
     /// URL to the user's avatar image (optional)
     pub avatar_url: Option<String>,
     /// Hierarchical menu structure accessible to the user based on their roles
-    pub menus: Vec<MenuResponse>,
+    pub menus: Vec<AuthMenuInfoEntity>,
+}
+
+/// Minimal user info for authentication (login)
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct LoginCredentialsEntity {
+    pub id: i64,
+    pub username: String,
+    pub password_hash: String,
+    pub status: i16,
+}
+
+/// Basic user info for session/profile
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct AuthUserInfo {
+    pub id: i64,
+    pub username: String,
+    pub real_name: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
+/// Minimal menu information entity for frontend menu tree display.
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+pub struct AuthMenuInfoEntity {
+    /// Unique menu ID
+    pub id: i64,
+    /// Parent menu ID
+    pub parent_id: Option<i64>,
+    /// Menu title
+    pub title: String,
+    /// Route path
+    pub path: String,
+    /// Frontend component name
+    pub component: Option<String>,
+    /// Menu icon
+    pub icon: Option<String>,
+    /// Display order
+    pub order_num: Option<i32>,
+    /// Visibility flag
+    pub visible: Option<bool>,
+    /// Keep-alive flag
+    pub keep_alive: Option<bool>,
+    /// Menu type (e.g., directory, menu, button)
+    pub menu_type: Option<i16>,
 }
