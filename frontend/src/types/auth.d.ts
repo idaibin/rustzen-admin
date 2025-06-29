@@ -10,7 +10,8 @@ declare module "Auth" {
 
   // 登录响应
   export interface LoginResponse {
-    userInfo: UserInfoResponse;
+    id: number;
+    username: string;
     token: string;
   }
 
