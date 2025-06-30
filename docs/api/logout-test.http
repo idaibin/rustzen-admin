@@ -12,7 +12,7 @@ POST {{apiUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin",
+  "username": "superadmin",
   "password": "rustzen@123"
 }
 

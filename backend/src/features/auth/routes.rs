@@ -23,7 +23,7 @@ pub fn public_auth_routes() -> Router<PgPool> {
 
 /// Protected auth routes (JWT required)
 pub fn protected_auth_routes() -> Router<PgPool> {
-    Router::new().route("/me", get(get_user_info_handler)).route("/logout", get(logout_handler))
+    Router::new().route("/me", get(get_me_info_handler)).route("/logout", get(logout_handler))
 }
 
 /// Login with username/password
@@ -65,15 +65,14 @@ async fn logout_handler(current_user: CurrentUser) -> AppResult<Json<ApiResponse
 }
 
 /// Get current user info with roles and menus
-async fn get_user_info_handler(
+async fn get_me_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<Json<ApiResponse<UserInfoResponse>>> {
-    tracing::debug!("Get user info");
+    tracing::debug!("Get me info");
 
-    let user_info =
-        AuthService::get_user_info(&pool, current_user.user_id, &current_user.username).await?;
+    let user_info = AuthService::get_me_info(&pool, current_user.user_id).await?;
 
-    tracing::debug!("User info retrieved");
+    tracing::debug!("Me info retrieved");
     Ok(ApiResponse::success(user_info))
 }

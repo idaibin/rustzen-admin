@@ -2,14 +2,14 @@
 
 # 开发模式：一键同时启动后端 + 前端
 dev:
-  just backend-dev & just frontend-dev
+  just dev-bg & just dev-fe
 
 # 启动 Rust 后端（支持热重载）
-backend-dev:
+dev-bg:
   cd backend && cargo watch -x run
 
 # 启动前端（Vite 开发模式）
-frontend-dev:
+dev-fe:
   cd frontend && pnpm dev
 
 # 构建全部（生产环境）
