@@ -61,7 +61,7 @@ const handleError = async (error: unknown) => {
       }
       message.error(res.message || error.statusText);
     } catch {
-      message.error(`[${error.statusText}] ${error.url}`);
+      message.error(error.statusText);
     }
   } else if (error instanceof DOMException && error.name === "AbortError") {
     console.log("abort controller do nothing");

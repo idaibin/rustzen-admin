@@ -38,7 +38,7 @@ const LoginPage: React.FC = () => {
           onFinish={onLogin}
           autoComplete="off"
           size="large"
-          initialValues={{ username: "zenadmin", password: "ZenAdmin@4321" }}
+          initialValues={{ username: "superadmin", password: "rustzen@123" }}
         >
           <Form.Item
             name="username"
