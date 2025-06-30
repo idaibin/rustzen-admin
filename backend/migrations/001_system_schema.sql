@@ -162,52 +162,9 @@ ALTER TABLE role_menus
 ADD CONSTRAINT fk_role_menus_menu_id FOREIGN KEY (menu_id) REFERENCES menus(id) ON DELETE CASCADE;
 
 -- ============================================================================
--- 8. Performance Views and Triggers
+-- 8. Basic Triggers (User-related views moved to 004_user_info_optimization.sql)
 -- ============================================================================
--- User permissions view: provides all permissions for each user
-CREATE OR REPLACE VIEW user_permissions AS
-SELECT DISTINCT 
-    u.id as user_id,
-    u.username,
-    m.permission_code,
-    m.menu_type,
-    r.role_code
-FROM users u
-JOIN user_roles ur ON u.id = ur.user_id
-JOIN roles r ON ur.role_id = r.id AND r.status = 1 AND r.deleted_at IS NULL
-JOIN role_menus rm ON r.id = rm.role_id  
-JOIN menus m ON rm.menu_id = m.id AND m.status = 1 AND m.deleted_at IS NULL
-WHERE u.deleted_at IS NULL 
-  AND u.status = 1
-  AND m.permission_code IS NOT NULL;
--- User menu tree view: provides hierarchical menu structure for each user
-CREATE OR REPLACE VIEW user_menu_tree AS
-WITH RECURSIVE menu_tree AS (
-    SELECT 
-        m.id, m.parent_id, m.title, m.path, m.component, 
-        m.icon, m.sort_order, m.menu_type, m.permission_code,
-        u.id as user_id, 0 as level,
-        ARRAY[m.sort_order, m.id] as sort_path
-    FROM menus m
-    JOIN role_menus rm ON m.id = rm.menu_id
-    JOIN user_roles ur ON rm.role_id = ur.role_id
-    JOIN users u ON ur.user_id = u.id
-    WHERE m.parent_id = 0 
-      AND m.status = 1 AND m.deleted_at IS NULL
-      AND u.deleted_at IS NULL AND u.status = 1
-    UNION ALL
-    SELECT 
-        m.id, m.parent_id, m.title, m.path, m.component,
-        m.icon, m.sort_order, m.menu_type, m.permission_code,
-        mt.user_id, mt.level + 1,
-        mt.sort_path || ARRAY[m.sort_order, m.id]
-    FROM menus m
-    JOIN menu_tree mt ON m.parent_id = mt.id
-    JOIN role_menus rm ON m.id = rm.menu_id
-    JOIN user_roles ur ON rm.role_id = ur.role_id AND ur.user_id = mt.user_id
-    WHERE m.status = 1 AND m.deleted_at IS NULL
-)
-SELECT * FROM menu_tree ORDER BY user_id, sort_path;
+-- Note: User permissions and menu views are now defined in migration 004 for better optimization
 
 -- Triggers: automatically update updated_at on row update
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -87,7 +87,7 @@ pub struct LoginResponse {
 ///
 /// This struct contains detailed user information that is returned
 /// after successful authentication or when requesting current user details.
-/// It includes profile data, role assignments, and accessible menu structure.
+/// It includes profile data, role assignments, accessible menu structure, and permissions.
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfoResponse {
@@ -101,6 +101,8 @@ pub struct UserInfoResponse {
     pub avatar_url: Option<String>,
     /// Hierarchical menu structure accessible to the user based on their roles
     pub menus: Vec<AuthMenuInfoEntity>,
+    /// List of permission codes the user has access to
+    pub permissions: Vec<String>,
 }
 
 /// Minimal user info for authentication (login)
