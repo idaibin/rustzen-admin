@@ -1,37 +1,71 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
 import { menuAPI } from "@/services";
-import { Badge } from "antd";
 import type { Menu } from "System";
+import { Space } from "antd";
 
 const MenuPage = () => {
   const columns: ProColumns<Menu.Item>[] = [
     {
-      title: "菜单名称",
-      dataIndex: "name",
+      title: "ID",
+      dataIndex: "id",
+      width: 48,
     },
     {
-      title: "路径",
+      title: "Parent ID",
+      dataIndex: "parentId",
+    },
+    {
+      title: "Title",
+      dataIndex: "title",
+    },
+    {
+      title: "Path",
       dataIndex: "path",
     },
     {
-      title: "组件",
+      title: "Component",
       dataIndex: "component",
     },
     {
-      title: "类型",
-      dataIndex: "type",
-      render: (_, record) => {
-        if (record.type === 0) return <Badge status="processing" text="目录" />;
-        if (record.type === 1) return <Badge status="success" text="菜单" />;
-        if (record.type === 2) return <Badge status="warning" text="按钮" />;
-        return "-";
+      title: "Icon",
+      dataIndex: "icon",
+    },
+    {
+      title: "Sort Order",
+      dataIndex: "sortOrder",
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      valueEnum: {
+        1: { text: "Normal", status: "Success" },
+        2: { text: "Disabled", status: "Default" },
       },
     },
     {
-      title: "操作",
+      title: "Permission Code",
+      dataIndex: "permissionCode",
+    },
+    {
+      title: "Created At",
+      dataIndex: "createdAt",
+      valueType: "dateTime",
+    },
+    {
+      title: "Updated At",
+      dataIndex: "updatedAt",
+      valueType: "dateTime",
+    },
+    {
+      title: "Actions",
       key: "action",
-      render: () => [<a>编辑</a>, <a>删除</a>],
+      render: () => (
+        <Space size="middle">
+          <a>Edit</a>
+          <a>Delete</a>
+        </Space>
+      ),
     },
   ];
 
@@ -41,7 +75,7 @@ const MenuPage = () => {
       request={menuAPI.getMenuList}
       rowKey="id"
       search={false}
-      headerTitle="菜单列表"
+      headerTitle="Menu List"
       pagination={false}
       expandable={{
         defaultExpandAllRows: true,

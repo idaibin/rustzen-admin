@@ -47,7 +47,7 @@ impl MenuRepository {
             sqlx::query_as::<_, MenuEntity>(
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at,  permission_code
-                 FROM menus WHERE deleted_at IS NULL
+                 FROM menus WHERE deleted_at IS NULL AND menu_type != 3
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
@@ -57,7 +57,7 @@ impl MenuRepository {
             sqlx::query_as::<_, MenuEntity>(
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at, permission_code
-                 FROM menus WHERE deleted_at IS NULL
+                 FROM menus WHERE deleted_at IS NULL AND menu_type != 3
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
@@ -217,7 +217,7 @@ impl MenuRepository {
         let placeholders: Vec<String> = (1..=role_ids.len()).map(|i| format!("${}", i)).collect();
         let placeholders_str = placeholders.join(", ");
         let query = format!(
-            "SELECT DISTINCT m.permission_code 
+            "SELECT DISTINCT m.permission_code
              FROM menus m
              INNER JOIN role_menus rm ON m.id = rm.menu_id
              WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.permission_code IS NOT NULL",
