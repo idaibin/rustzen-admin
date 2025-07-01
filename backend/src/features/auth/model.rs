@@ -53,20 +53,6 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-/// Basic user information included in authentication responses.
-///
-/// This struct contains minimal user data that is safe to include
-/// in authentication responses. It's used in registration and
-/// login responses where only basic identification is needed.
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct UserInfo {
-    /// Unique identifier of the user
-    pub id: i64,
-    /// Username of the user
-    pub username: String,
-}
-
 /// Response payload for successful user login.
 ///
 /// This struct is returned when a user successfully authenticates.

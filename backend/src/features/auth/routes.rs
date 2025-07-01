@@ -18,7 +18,12 @@ use sqlx::PgPool;
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
-    Router::new().route("/login", post(login_handler)).route("/gen-hash", get(gen_hash))
+    let mut router = Router::new().route("/login", post(login_handler));
+    #[cfg(debug_assertions)]
+    {
+        router = router.route("/gen-hash", get(gen_hash));
+    }
+    router
 }
 
 /// Protected auth routes (JWT required)

@@ -10,44 +10,32 @@ declare module "Auth" {
 
   // 登录响应
   export interface LoginResponse {
-    id: number;
-    username: string;
     token: string;
-  }
-
-  // 注册请求
-  export interface RegisterRequest {
     username: string;
-    email: string;
-    password: string;
-    confirmPassword?: string;
-  }
-
-  // 注册响应
-  export interface RegisterResponse {
-    id: number;
-    username: string;
+    userId: number;
   }
 
   // 用户信息响应
   export interface UserInfoResponse {
-    avatarUrl: string;
     id: number;
-    realName: string;
     username: string;
-    menus: string[];
-    roles: string[];
+    realName?: string;
+    avatarUrl?: string;
+    menus: AuthMenuInfoEntity[];
+    permissions: string[];
   }
 
-  // 菜单信息
-  export interface MenuInfo {
+  // 认证菜单信息
+  export interface AuthMenuInfoEntity {
     id: number;
-    name: string;
-    path?: string;
-    icon?: string;
-    type: number;
-    sortOrder: number;
     parentId?: number;
-    children?: MenuInfo[];
+    title: string;
+    path: string;
+    component?: string;
+    icon?: string;
+    orderNum?: number;
+    visible?: boolean;
+    keepAlive?: boolean;
+    menuType?: number;
   }
 }
