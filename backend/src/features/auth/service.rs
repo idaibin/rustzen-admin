@@ -71,10 +71,17 @@ impl AuthService {
         })?;
 
         // 4. update last login time
-        AuthRepository::update_last_login(pool, user.id).await.map_err(|e| {
-            tracing::error!("Failed to update last login time for user_id={}: {:?}", user.id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let pool_clone = pool.clone();
+        let user_id_clone = user.id;
+        tokio::spawn(async move {
+            if let Err(e) = AuthRepository::update_last_login(&pool_clone, user_id_clone).await {
+                tracing::error!(
+                    "Failed to update last login time for user_id={}: {:?}",
+                    user_id_clone,
+                    e
+                );
+            }
+        });
 
         let total_time = start.elapsed();
         tracing::info!(
@@ -126,7 +133,7 @@ impl AuthService {
             );
             ServiceError::DatabaseQueryFailed
         })?;
-
+        PermissionService::cache_user_permissions(user_id, permissions.clone());
         // Convert to response format
         let user_info = UserInfoResponse {
             id: user.id,

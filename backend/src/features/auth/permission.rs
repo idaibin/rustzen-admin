@@ -1,14 +1,12 @@
-use crate::{common::error::ServiceError, features::auth::repo::AuthRepository};
+use crate::common::error::ServiceError;
 use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 /// Permission cache expiration time (1 hour)
 const CACHE_EXPIRE_HOURS: i64 = 1;
-const ZEN_ADMIN_CODE: &str = "zen_admin";
 
 /// Permission check types for flexible access control
 #[derive(Debug, Clone)]
@@ -24,10 +22,6 @@ pub enum PermissionsCheck {
 impl PermissionsCheck {
     /// Core permission validation logic
     pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
-        // If user is ZenAdmin, allow all permissions
-        if user_permissions.contains(ZEN_ADMIN_CODE) {
-            return true;
-        }
         match self {
             PermissionsCheck::Single(code) => user_permissions.contains(*code),
             PermissionsCheck::Any(codes) => {
@@ -69,13 +63,6 @@ impl UserPermissionCache {
         let now = Utc::now();
         let expire_time = self.cached_at + Duration::hours(CACHE_EXPIRE_HOURS);
         now > expire_time
-    }
-
-    /// Get remaining cache time in seconds
-    pub fn remaining_seconds(&self) -> i64 {
-        let now = Utc::now();
-        let expire_time = self.cached_at + Duration::hours(CACHE_EXPIRE_HOURS);
-        (expire_time - now).num_seconds().max(0)
     }
 }
 
@@ -123,34 +110,28 @@ static PERMISSION_CACHE: Lazy<PermissionCacheManager> = Lazy::new(PermissionCach
 pub struct PermissionService;
 
 impl PermissionService {
-    /// Check user permissions with caching
-    ///
-    /// Strategy:
-    /// 1. Try cache first (auto-refresh if expired)
-    /// 2. Return permission check result
-    /// 3. Require re-auth if no cache exists
+    /// Check user permissions with simple caching
     pub async fn check_permissions(
-        pool: &PgPool,
         user_id: i64,
         permissions_check: &PermissionsCheck,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Checking {} for user {}", permissions_check.description(), user_id);
 
-        // Try to get cached permissions
-        if let Some(cache) = Self::get_cached_permissions(pool, user_id).await? {
+        // Only check cache, do not auto-refresh
+        if let Some(cache) = PERMISSION_CACHE.get(user_id) {
+            // if cache.is_expired() {
+            //     tracing::info!("Cache expired for user {}", user_id);
+            //     return Err(ServiceError::InvalidToken);
+            // }
             let has_permission = permissions_check.check(&cache.permissions);
-
             tracing::debug!(
                 "Permission check {} for user {} ({})",
                 if has_permission { "GRANTED" } else { "DENIED" },
                 user_id,
                 permissions_check.description()
             );
-
             return Ok(has_permission);
         }
-
-        // No cache - require re-authentication
         tracing::warn!("No permission cache for user {} - requiring re-auth", user_id);
         Err(ServiceError::InvalidToken)
     }
@@ -159,7 +140,6 @@ impl PermissionService {
     pub fn cache_user_permissions(user_id: i64, permissions: Vec<String>) {
         let permission_cache = UserPermissionCache::new(permissions);
         PERMISSION_CACHE.set(user_id, permission_cache.clone());
-
         tracing::info!(
             "Cached {} permissions for user {} (expires in {}h)",
             permission_cache.permissions.len(),
@@ -168,58 +148,9 @@ impl PermissionService {
         );
     }
 
-    /// Get cached permissions with auto-refresh on expiration
-    pub async fn get_cached_permissions(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Option<UserPermissionCache>, ServiceError> {
-        if let Some(cache) = PERMISSION_CACHE.get(user_id) {
-            if cache.is_expired() {
-                tracing::info!("Cache expired for user {} - refreshing", user_id);
-                let new_cache = Self::load_user_permissions_from_db(pool, user_id).await?;
-                return Ok(Some(new_cache));
-            }
-
-            tracing::debug!(
-                "Found valid cache for user {} ({} permissions, {}s remaining)",
-                user_id,
-                cache.permissions.len(),
-                cache.remaining_seconds()
-            );
-            return Ok(Some(cache));
-        }
-
-        Ok(None)
-    }
-
     /// Clear user cache (called during logout)
     pub fn clear_user_cache(user_id: i64) {
         PERMISSION_CACHE.remove(user_id);
         tracing::info!("Cleared cache for user {} (logout)", user_id);
-    }
-
-    /// Load permissions from database and update cache
-    async fn load_user_permissions_from_db(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<UserPermissionCache, ServiceError> {
-        tracing::info!("Loading permissions from DB for user {}", user_id);
-
-        let permissions =
-            AuthRepository::get_user_permissions(pool, user_id).await.map_err(|e| {
-                tracing::error!("Failed to load permissions for user {}: {:?}", user_id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        let permission_cache = UserPermissionCache::new(permissions);
-        PERMISSION_CACHE.set(user_id, permission_cache.clone());
-
-        tracing::info!(
-            "Loaded {} permissions for user {} from DB",
-            permission_cache.permissions.len(),
-            user_id
-        );
-
-        Ok(permission_cache)
     }
 }

@@ -68,11 +68,10 @@ async fn permission_middleware(
         AppError::from(ServiceError::InvalidToken)
     })?;
 
-    // Get database pool
-    let pool = request.extensions().get::<PgPool>().cloned().ok_or_else(|| {
-        tracing::error!("PgPool not found - database state not configured");
-        AppError::from(ServiceError::DatabaseQueryFailed)
-    })?;
+    if current_user.is_super_admin {
+        tracing::debug!("User {} is super admin, skipping permission check", current_user.user_id);
+        return Ok(next.run(request).await);
+    }
 
     tracing::debug!(
         "Checking {} for user {} ({})",
@@ -81,14 +80,9 @@ async fn permission_middleware(
         current_user.username
     );
 
-    if current_user.is_super_admin {
-        tracing::debug!("User {} is super admin, skipping permission check", current_user.user_id);
-        return Ok(next.run(request).await);
-    }
-
     // Check permissions with caching
     let has_permission =
-        PermissionService::check_permissions(&pool, current_user.user_id, &permissions_check)
+        PermissionService::check_permissions(current_user.user_id, &permissions_check)
             .await
             .map_err(|e| match e {
                 ServiceError::DatabaseQueryFailed => {
