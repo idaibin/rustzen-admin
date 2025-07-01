@@ -54,7 +54,7 @@ const BasicLayout = () => {
         // fixSiderbar={true}
         // splitMenus={true}
         title="Rustzen Admin"
-        logo="/vite.svg"
+        logo="/rustzen.png"
         location={location}
         menuItemRender={(item, dom) => <Link to={item.path || "/"}>{dom}</Link>}
         layout="mix"

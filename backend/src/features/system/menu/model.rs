@@ -34,7 +34,7 @@ pub struct MenuResponse {
     pub status: i16,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub children: Vec<MenuResponse>,
+    pub children: Option<Vec<MenuResponse>>,
     pub permission_code: Option<String>,
 }
 
@@ -93,7 +93,7 @@ impl From<MenuEntity> for MenuResponse {
             status: entity.status,
             created_at: DateTime::from_naive_utc_and_offset(entity.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(entity.updated_at, Utc),
-            children: vec![],
+            children: None,
             permission_code: entity.permission_code,
         }
     }

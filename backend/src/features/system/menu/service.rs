@@ -255,7 +255,7 @@ impl MenuService {
         let mut child_menus = Vec::new();
 
         for menu in menu_map.values() {
-            if menu.parent_id.is_none() {
+            if menu.parent_id == Some(0) {
                 root_menus.push(menu.id);
             } else {
                 child_menus.push(menu.id);
@@ -266,10 +266,10 @@ impl MenuService {
             if let Some(menu) = menu_map.remove(&id) {
                 if let Some(parent_id) = menu.parent_id {
                     if let Some(parent) = menu_map.get_mut(&parent_id) {
-                        if parent.children.is_empty() {
-                            parent.children = Vec::new();
+                        if parent.children.is_none() {
+                            parent.children = Some(Vec::new());
                         }
-                        parent.children.push(menu);
+                        parent.children.as_mut().unwrap().push(menu);
                     }
                 }
             }
@@ -282,8 +282,12 @@ impl MenuService {
         fn sort_recursive(menus: &mut Vec<MenuResponse>) {
             menus.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
             for menu in menus {
-                if !menu.children.is_empty() {
-                    sort_recursive(&mut menu.children);
+                if let Some(children) = &mut menu.children {
+                    if children.is_empty() {
+                        menu.children = None; // 空数组改为 None
+                    } else {
+                        sort_recursive(children);
+                    }
                 }
             }
         }

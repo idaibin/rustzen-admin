@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
 import type { Dict } from "System";
 import { dictAPI } from "@/services";
-import { Tag } from "antd";
+import { Tag, Space } from "antd";
 
 const DictPage = () => {
   const columns: ProColumns<Dict.Item>[] = [
@@ -12,39 +12,42 @@ const DictPage = () => {
       width: 48,
     },
     {
-      title: "字典类型",
+      title: "Dict Type",
       dataIndex: "dictType",
     },
     {
-      title: "标签",
+      title: "Label",
       dataIndex: "label",
     },
     {
-      title: "值",
+      title: "Value",
       dataIndex: "value",
     },
     {
-      title: "默认",
+      title: "Default",
       dataIndex: "isDefault",
       render: (_, record) =>
-        record.isDefault ? <Tag color="success">是</Tag> : "否",
+        record.isDefault ? <Tag color="success">Yes</Tag> : "No",
     },
     {
-      title: "操作",
+      title: "Actions",
       key: "action",
-      render: () => [<a>编辑</a>, <a>删除</a>],
+      render: () => (
+        <Space size="middle">
+          <a>Edit</a>
+          <a>Delete</a>
+        </Space>
+      ),
     },
   ];
 
   return (
     <ProTable<Dict.Item>
+      search={false}
       columns={columns}
       request={dictAPI.getDictList}
       rowKey="id"
-      search={{
-        labelWidth: "auto",
-      }}
-      headerTitle="字典列表"
+      headerTitle="Dictionary List"
     />
   );
 };

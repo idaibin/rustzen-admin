@@ -2,6 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
 import { roleAPI } from "@/services";
 import type { Role } from "System";
+import { Space } from "antd";
 
 const RolePage = () => {
   const columns: ProColumns<Role.Item>[] = [
@@ -11,22 +12,41 @@ const RolePage = () => {
       width: 48,
     },
     {
-      title: "角色名称",
+      title: "Role Name",
       dataIndex: "roleName",
     },
     {
-      title: "角色编码",
-      dataIndex: "roleCode",
+      title: "Status",
+      dataIndex: "status",
+      valueEnum: {
+        1: { text: "Normal", status: "Success" },
+        2: { text: "Disabled", status: "Default" },
+      },
     },
     {
-      title: "备注",
-      dataIndex: "remark",
-      ellipsis: true,
+      title: "Created At",
+      dataIndex: "createdAt",
+      valueType: "dateTime",
     },
     {
-      title: "操作",
+      title: "Updated At",
+      dataIndex: "updatedAt",
+      valueType: "dateTime",
+    },
+    {
+      title: "Menu IDs",
+      dataIndex: "menuIds",
+      render: (_, record) => record.menuIds?.join(", ") || "-",
+    },
+    {
+      title: "Actions",
       key: "action",
-      render: () => [<a>编辑</a>, <a>删除</a>],
+      render: () => (
+        <Space size="middle">
+          <a>Edit</a>
+          <a>Delete</a>
+        </Space>
+      ),
     },
   ];
 
@@ -36,7 +56,7 @@ const RolePage = () => {
       request={roleAPI.getRoleList}
       rowKey="id"
       search={false}
-      headerTitle="角色列表"
+      headerTitle="Role List"
     />
   );
 };

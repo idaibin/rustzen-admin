@@ -1,6 +1,6 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { Tag } from "antd";
+import { Tag, Space } from "antd";
 import type { Log } from "System";
 import { logAPI } from "@/services";
 
@@ -12,39 +12,44 @@ const LogPage = () => {
       width: 48,
     },
     {
-      title: "日志级别",
+      title: "Level",
       dataIndex: "level",
       render: (_, record) => {
-        if (record.level === "info")
-          return <Tag color="processing">{record.level}</Tag>;
-        if (record.level === "warn")
-          return <Tag color="warning">{record.level}</Tag>;
-        if (record.level === "error")
-          return <Tag color="error">{record.level}</Tag>;
-        return <Tag>{record.level}</Tag>;
+        const level = record.level?.toUpperCase();
+        if (level === "INFO") return <Tag color="processing">{level}</Tag>;
+        if (level === "WARN") return <Tag color="warning">{level}</Tag>;
+        if (level === "ERROR") return <Tag color="error">{level}</Tag>;
+        return <Tag>{level}</Tag>;
       },
     },
     {
-      title: "消息",
+      title: "Message",
       dataIndex: "message",
       ellipsis: true,
     },
     {
-      title: "创建时间",
+      title: "Created At",
       dataIndex: "createdAt",
       valueType: "dateTime",
+    },
+    {
+      title: "Actions",
+      key: "action",
+      render: () => (
+        <Space size="middle">
+          <a>View</a>
+        </Space>
+      ),
     },
   ];
 
   return (
     <ProTable<Log.Item>
+      search={false}
       columns={columns}
       request={logAPI.getLogList}
       rowKey="id"
-      search={{
-        labelWidth: "auto",
-      }}
-      headerTitle="日志列表"
+      headerTitle="Log List"
     />
   );
 };
