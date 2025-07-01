@@ -1,11 +1,5 @@
 import { request } from "../api";
-import type {
-  LoginRequest,
-  LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
-  UserInfoResponse,
-} from "Auth";
+import type { LoginRequest, LoginResponse, UserInfoResponse } from "Auth";
 
 /**
  * 认证相关API服务
@@ -17,14 +11,6 @@ export const authAPI = {
   login: (data: LoginRequest) =>
     request.post<LoginResponse, LoginRequest>("/auth/login", data, {
       successMessage: "Login successful",
-    }),
-
-  /**
-   * 用户注册
-   */
-  register: (data: RegisterRequest) =>
-    request.post<RegisterResponse, RegisterRequest>("/auth/register", data, {
-      successMessage: "Registration successful, please login.",
     }),
 
   /**
