@@ -17,13 +17,13 @@ impl DictService {
     ///
     /// # Returns
     /// * `Result<Vec<DictItem>, ServiceError>` - List of dictionary items or service error
-    pub async fn get_dict_list(pool: &PgPool) -> Result<Vec<DictItem>, ServiceError> {
+    pub async fn get_dict_list(pool: &PgPool) -> Result<(Vec<DictItem>, i64), ServiceError> {
         tracing::info!("Starting to retrieve dictionary list");
 
         match DictRepository::find_all(pool).await {
             Ok(dicts) => {
                 tracing::info!("Successfully retrieved {} dictionary items", dicts.len());
-                Ok(dicts)
+                Ok((dicts.clone(), dicts.len() as i64))
             }
             Err(e) => {
                 tracing::error!("Failed to retrieve dictionary list: {}", e);

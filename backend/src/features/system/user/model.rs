@@ -30,7 +30,18 @@ pub struct UserResponse {
     pub last_login_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// List of roles assigned to the user.
+}
+
+/// Represents a user with roles in API responses.
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UserDetailResponse {
+    pub id: i64,
+    pub username: String,
+    pub email: String,
+    pub real_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub status: i16,
     pub roles: Vec<RoleInfo>,
 }
 
@@ -111,7 +122,20 @@ impl From<UserEntity> for UserResponse {
                 .map(|dt| DateTime::from_naive_utc_and_offset(dt, Utc)),
             created_at: DateTime::from_naive_utc_and_offset(user.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(user.updated_at, Utc),
-            roles: vec![], // 将在 service 层填充
+        }
+    }
+}
+
+impl From<UserEntity> for UserDetailResponse {
+    fn from(user: UserEntity) -> Self {
+        Self {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            real_name: user.real_name,
+            avatar_url: user.avatar_url,
+            status: user.status,
+            roles: vec![],
         }
     }
 }

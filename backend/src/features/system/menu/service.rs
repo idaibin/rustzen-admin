@@ -1,8 +1,6 @@
 // Menu business logic
 
-use super::model::{
-    CreateMenuRequest, MenuListResponse, MenuQueryParams, MenuResponse, UpdateMenuRequest,
-};
+use super::model::{CreateMenuRequest, MenuQueryParams, MenuResponse, UpdateMenuRequest};
 use super::repo::MenuRepository;
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
@@ -19,7 +17,7 @@ impl MenuService {
     pub async fn get_menu_list(
         pool: &PgPool,
         params: MenuQueryParams,
-    ) -> Result<MenuListResponse, ServiceError> {
+    ) -> Result<(Vec<MenuResponse>, i64), ServiceError> {
         tracing::info!("Fetching menu list with params: {:?}", params);
 
         let menus =
@@ -39,9 +37,8 @@ impl MenuService {
 
         let menu_responses: Vec<MenuResponse> = menus.into_iter().map(MenuResponse::from).collect();
         let menu_tree = Self::build_menu_tree(menu_responses);
-        let response = MenuListResponse { list: menu_tree, total };
 
-        Ok(response)
+        Ok((menu_tree, total))
     }
 
     /// Get single menu by ID

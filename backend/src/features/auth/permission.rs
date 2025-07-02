@@ -22,6 +22,9 @@ pub enum PermissionsCheck {
 impl PermissionsCheck {
     /// Core permission validation logic
     pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
+        if user_permissions.contains("*") {
+            return true;
+        }
         match self {
             PermissionsCheck::Single(code) => user_permissions.contains(*code),
             PermissionsCheck::Any(codes) => {

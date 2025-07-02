@@ -52,8 +52,6 @@ pub struct Claims {
     pub user_id: i64,
     /// The username associated with the token.
     pub username: String,
-    /// Is super admin
-    pub is_super_admin: bool,
     /// Expiration time (as a Unix timestamp).
     pub exp: usize,
     /// Issued at time (as a Unix timestamp).
@@ -70,16 +68,12 @@ pub struct Claims {
 /// # Errors
 ///
 /// Returns a `jsonwebtoken::errors::Error` if token generation fails.
-pub fn generate_token(
-    user_id: i64,
-    username: &str,
-    is_super_admin: bool,
-) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn generate_token(user_id: i64, username: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
     let exp = (now + Duration::seconds(JWT_CONFIG.expiration)).timestamp() as usize;
     let iat = now.timestamp() as usize;
 
-    let claims = Claims { user_id, username: username.to_string(), is_super_admin, exp, iat };
+    let claims = Claims { user_id, username: username.to_string(), exp, iat };
 
     tracing::debug!("Generating token for user '{}' (ID: {})", username, user_id);
 

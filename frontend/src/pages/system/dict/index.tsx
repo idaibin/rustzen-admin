@@ -32,6 +32,7 @@ const DictPage = () => {
     {
       title: "Actions",
       key: "action",
+      width: 110,
       render: () => (
         <Space size="middle">
           <a>Edit</a>

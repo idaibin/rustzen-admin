@@ -47,21 +47,20 @@ impl AuthService {
         );
 
         // 2. generate token
-        let token =
-            jwt::generate_token(user.id, &user.username, user.is_super_admin).map_err(|e| {
-                tracing::error!(
-                    "Failed to generate token for user_id={}, username={}: {:?}",
-                    user.id,
-                    user.username,
-                    e
-                );
-                ServiceError::TokenCreationFailed
-            })?;
+        let token = jwt::generate_token(user.id, &user.username).map_err(|e| {
+            tracing::error!(
+                "Failed to generate token for user_id={}, username={}: {:?}",
+                user.id,
+                user.username,
+                e
+            );
+            ServiceError::TokenCreationFailed
+        })?;
 
         tracing::debug!("JWT token generated successfully for user_id={}", user.id);
 
         // 3. cache user permissions
-        Self::cache_user_permissions(pool, user.id).await.map_err(|e| {
+        Self::cache_user_permissions(pool, user.id, user.is_super_admin).await.map_err(|e| {
             tracing::error!(
                 "Failed to cache permissions during login for user_id={}: {:?}",
                 user.id,
@@ -95,8 +94,8 @@ impl AuthService {
     }
 
     /// Get detailed user info with roles, menus, and permissions
-    #[tracing::instrument(name = "get_me_info", skip(pool))]
-    pub async fn get_me_info(
+    #[tracing::instrument(name = "get_login_info", skip(pool))]
+    pub async fn get_login_info(
         pool: &PgPool,
         user_id: i64,
     ) -> Result<UserInfoResponse, ServiceError> {
@@ -133,7 +132,7 @@ impl AuthService {
             );
             ServiceError::DatabaseQueryFailed
         })?;
-        PermissionService::cache_user_permissions(user_id, permissions.clone());
+
         // Convert to response format
         let user_info = UserInfoResponse {
             id: user.id,
@@ -227,9 +226,18 @@ impl AuthService {
     }
 
     /// Cache user permissions
-    pub async fn cache_user_permissions(pool: &PgPool, user_id: i64) -> Result<(), ServiceError> {
+    pub async fn cache_user_permissions(
+        pool: &PgPool,
+        user_id: i64,
+        is_super_admin: bool,
+    ) -> Result<(), ServiceError> {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
+        if is_super_admin {
+            PermissionService::cache_user_permissions(user_id, vec!["*".to_string()]);
+            tracing::info!("Successfully cached * permissions for user_id={}", user_id);
+            return Ok(());
+        }
         let permissions: Vec<String> =
             AuthRepository::get_user_permissions(pool, user_id).await.map_err(|e| {
                 tracing::error!(

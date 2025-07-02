@@ -177,17 +177,6 @@ impl From<ServiceError> for AppError {
                 10401, // Business-Menu-01
                 "Menu title already exists.".to_string(),
             ),
-            // 3xxxx: Permission Errors
-            ServiceError::InvalidToken => (
-                StatusCode::UNAUTHORIZED,
-                30000, // System-Auth-01
-                "Invalid or expired token. Please log in again.".to_string(),
-            ),
-            ServiceError::PermissionDenied => (
-                StatusCode::FORBIDDEN,
-                30001, // System-Auth-02
-                "You do not have permission to perform this action.".to_string(),
-            ),
             // 2xxxx: System Errors
             ServiceError::DatabaseQueryFailed => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -198,6 +187,17 @@ impl From<ServiceError> for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20002, // System-Common-02
                 "Internal server error. Please contact the administrator.".to_string(),
+            ),
+            // 3xxxx: Permission Errors
+            ServiceError::InvalidToken => (
+                StatusCode::UNAUTHORIZED,
+                30000, // System-Auth-01
+                "Invalid or expired token. Please log in again.".to_string(),
+            ),
+            ServiceError::PermissionDenied => (
+                StatusCode::FORBIDDEN,
+                30001, // System-Auth-02
+                "You do not have permission to perform this action.".to_string(),
             ),
         };
         AppError((status, code, message))

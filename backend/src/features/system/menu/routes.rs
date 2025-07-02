@@ -50,18 +50,14 @@ pub fn menu_routes() -> Router<PgPool> {
 async fn get_menu_list(
     State(pool): State<PgPool>,
     Query(params): Query<MenuQueryParams>,
-) -> AppResult<Json<ApiResponse<super::model::MenuListResponse>>> {
+) -> AppResult<Json<ApiResponse<Vec<MenuResponse>>>> {
     tracing::info!("Menu list request: {:?}", params);
 
-    let menu_list = MenuService::get_menu_list(&pool, params).await?;
+    let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
 
-    tracing::info!(
-        "Menu list retrieved: total={}, items={}",
-        menu_list.total,
-        menu_list.list.len()
-    );
+    tracing::info!("Menu list retrieved: total={}, items={}", total, menu_list.len());
 
-    Ok(ApiResponse::success(menu_list))
+    Ok(ApiResponse::page(menu_list, total))
 }
 
 /// Get menu by ID

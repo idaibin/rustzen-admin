@@ -7,13 +7,7 @@ import { Space } from "antd";
 const MenuPage = () => {
   const columns: ProColumns<Menu.Item>[] = [
     {
-      title: "ID",
-      dataIndex: "id",
-      width: 48,
-    },
-    {
-      title: "Parent ID",
-      dataIndex: "parentId",
+      width: 32,
     },
     {
       title: "Title",
@@ -32,25 +26,12 @@ const MenuPage = () => {
       dataIndex: "icon",
     },
     {
-      title: "Sort Order",
-      dataIndex: "sortOrder",
-    },
-    {
       title: "Status",
       dataIndex: "status",
       valueEnum: {
         1: { text: "Normal", status: "Success" },
         2: { text: "Disabled", status: "Default" },
       },
-    },
-    {
-      title: "Permission Code",
-      dataIndex: "permissionCode",
-    },
-    {
-      title: "Created At",
-      dataIndex: "createdAt",
-      valueType: "dateTime",
     },
     {
       title: "Updated At",
@@ -60,6 +41,7 @@ const MenuPage = () => {
     {
       title: "Actions",
       key: "action",
+      width: 110,
       render: () => (
         <Space size="middle">
           <a>Edit</a>

@@ -9,14 +9,12 @@ pub struct CurrentUser {
     pub user_id: i64,
     /// Username
     pub username: String,
-    /// Is super admin
-    pub is_super_admin: bool,
 }
 
 impl CurrentUser {
     /// Create new CurrentUser instance
-    pub fn new(user_id: i64, username: String, is_super_admin: bool) -> Self {
-        Self { user_id, username, is_super_admin }
+    pub fn new(user_id: i64, username: String) -> Self {
+        Self { user_id, username }
     }
 }
 
