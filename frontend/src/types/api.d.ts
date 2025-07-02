@@ -4,15 +4,14 @@ declare module "Api" {
     code: number;
     message: string;
     data: T;
-    timestamp?: string;
+    total?: number;
   }
 
   // 分页响应类型
   export interface PageResponse<T> {
-    list: T[];
+    data: T[];
     total: number;
-    page: number;
-    pageSize: number;
+    success: boolean;
   }
 
   // 基础查询参数

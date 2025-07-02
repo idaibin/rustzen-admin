@@ -1,6 +1,4 @@
-use super::model::{
-    CreateRoleRequest, RoleListResponse, RoleQueryParams, RoleResponse, UpdateRoleRequest,
-};
+use super::model::{CreateRoleRequest, RoleQueryParams, RoleResponse, UpdateRoleRequest};
 use super::service::RoleService;
 use crate::common::{
     api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
@@ -56,7 +54,7 @@ pub fn role_routes() -> Router<PgPool> {
 async fn get_role_list(
     State(pool): State<PgPool>,
     Query(params): Query<RoleQueryParams>,
-) -> AppResult<Json<ApiResponse<RoleListResponse>>> {
+) -> AppResult<Json<ApiResponse<Vec<RoleResponse>>>> {
     tracing::info!(
         "Role list request: page={}, size={}, name={:?}, status={:?}",
         params.current.unwrap_or(1),
@@ -65,15 +63,11 @@ async fn get_role_list(
         params.status
     );
 
-    let role_list = RoleService::get_role_list(&pool, params).await?;
+    let (role_list, total) = RoleService::get_role_list(&pool, params).await?;
 
-    tracing::info!(
-        "Role list retrieved: total={}, returned={}",
-        role_list.total,
-        role_list.list.len()
-    );
+    tracing::info!("Role list retrieved: total={}, returned={}", total, role_list.len());
 
-    Ok(ApiResponse::success(role_list))
+    Ok(ApiResponse::page(role_list, total))
 }
 
 /// Get role by ID with permissions

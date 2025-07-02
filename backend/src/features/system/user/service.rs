@@ -9,7 +9,7 @@
 
 use super::{
     model::{
-        CreateUserRequest, UpdateUserRequest, UserListResponse, UserQueryParams, UserResponse,
+        CreateUserRequest, UpdateUserRequest, UserDetailResponse, UserQueryParams, UserResponse,
     },
     repo::UserRepository,
 };
@@ -29,7 +29,7 @@ impl UserService {
     pub async fn create_user(
         pool: &PgPool,
         request: &CreateUserRequest,
-    ) -> Result<UserResponse, ServiceError> {
+    ) -> Result<bool, ServiceError> {
         tracing::info!("Creating user: {}", request.username);
 
         // Check username conflict
@@ -85,11 +85,11 @@ impl UserService {
             tracing::error!("Failed to retrieve user roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
-        let mut user_response = UserResponse::from(user);
+        let mut user_response = UserDetailResponse::from(user);
         user_response.roles = roles;
 
         tracing::info!("Created user: {}", user_response.id);
-        Ok(user_response)
+        Ok(true)
     }
 
     /// Update existing user
@@ -97,7 +97,7 @@ impl UserService {
         pool: &PgPool,
         id: i64,
         request: UpdateUserRequest,
-    ) -> Result<UserResponse, ServiceError> {
+    ) -> Result<bool, ServiceError> {
         tracing::info!("Updating user: {}", id);
 
         let user = UserRepository::find_by_id(pool, id)
@@ -153,13 +153,9 @@ impl UserService {
                 );
             }
         }
+        // TODO:if change role, no need to update permission cache
 
-        let roles = UserRepository::get_user_role_infos(pool, updated_user.id)
-            .await
-            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
-        let mut user_response = UserResponse::from(updated_user);
-        user_response.roles = roles;
-        Ok(user_response)
+        Ok(true)
     }
 
     /// Delete user by ID
@@ -182,7 +178,7 @@ impl UserService {
     pub async fn get_user_list(
         pool: &PgPool,
         params: UserQueryParams,
-    ) -> Result<UserListResponse, ServiceError> {
+    ) -> Result<(Vec<UserResponse>, i64), ServiceError> {
         let page = params.current.unwrap_or(1);
         let page_size = params.page_size.unwrap_or(10);
         let offset = (page - 1) * page_size;
@@ -193,7 +189,7 @@ impl UserService {
                 .map_err(|_| ServiceError::DatabaseQueryFailed)?;
 
         if total == 0 {
-            return Ok(UserListResponse::default());
+            return Ok((vec![], 0));
         }
 
         let user_entities = UserRepository::find_with_pagination(
@@ -205,22 +201,26 @@ impl UserService {
         )
         .await
         .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        let list = user_entities.into_iter().map(UserResponse::from).collect(); // 转换为 UserResponse 类型
 
-        let mut list = Vec::with_capacity(user_entities.len());
-        for user in user_entities {
-            let roles = UserRepository::get_user_role_infos(pool, user.id)
-                .await
-                .map_err(|_| ServiceError::DatabaseQueryFailed)?;
-            let mut user_response = UserResponse::from(user);
-            user_response.roles = roles;
-            list.push(user_response);
-        }
+        // let mut list = Vec::with_capacity(user_entities.len());
+        // for user in user_entities {
+        //     let roles = UserRepository::get_user_role_infos(pool, user.id)
+        //         .await
+        //         .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        //     let mut user_response = UserResponse::from(user);
+        //     user_response.roles = roles;
+        //     list.push(user_response);
+        // }
 
-        Ok(UserListResponse { list, total, page, page_size })
+        Ok((list, total))
     }
 
     /// Get single user by ID
-    pub async fn get_user_by_id(pool: &PgPool, id: i64) -> Result<UserResponse, ServiceError> {
+    pub async fn get_user_by_id(
+        pool: &PgPool,
+        id: i64,
+    ) -> Result<UserDetailResponse, ServiceError> {
         let user = UserRepository::find_by_id(pool, id)
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?
@@ -230,7 +230,7 @@ impl UserService {
             .await
             .map_err(|_| ServiceError::DatabaseQueryFailed)?;
 
-        let mut user_response = UserResponse::from(user);
+        let mut user_response = UserDetailResponse::from(user);
         user_response.roles = roles;
         Ok(user_response)
     }

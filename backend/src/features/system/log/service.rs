@@ -1,8 +1,10 @@
 // Business logic for system logs.
 
-use super::repo::LogRepository;
+use super::{
+    model::{LogQueryParams, LogResponse},
+    repo::LogRepository,
+};
 use crate::common::error::ServiceError;
-use serde_json::Value;
 use sqlx::PgPool;
 
 /// A service for log-related operations
@@ -16,53 +18,43 @@ impl LogService {
     ///
     /// # Arguments
     /// * `pool` - Database connection pool
-    /// * `search_query` - Optional search term for filtering log messages
-    /// * `page` - Page number (1-based)
-    /// * `page_size` - Number of records per page
+    /// * `params` - Log query parameters
     ///
     /// # Returns
-    /// * `Result<(Vec<Value>, i64), ServiceError>` - Tuple of (logs, total_count) or service error
+    /// * `Result<Json<ApiResponse<Vec<LogResponse>>>, ServiceError>` - Paginated log list or service error
     pub async fn get_log_list(
         pool: &PgPool,
-        search_query: Option<String>,
-        page: Option<i64>,
-        page_size: Option<i64>,
-    ) -> Result<(Vec<Value>, i64), ServiceError> {
-        let page = page.unwrap_or(1).max(1);
-        let page_size = page_size.unwrap_or(20).clamp(1, 100);
-        let offset = (page - 1) * page_size;
+        params: LogQueryParams,
+    ) -> Result<(Vec<LogResponse>, i64), ServiceError> {
+        let current = params.current.unwrap_or(1);
+        let page_size = params.page_size.unwrap_or(10);
+        let offset = (current - 1) * page_size;
 
-        tracing::info!(
-            "Retrieving log list with search: {:?}, page: {}, page_size: {}",
-            search_query,
-            page,
-            page_size
-        );
+        // Get total count
+        let total =
+            LogRepository::count_logs(pool, params.search.as_deref()).await.map_err(|e| {
+                tracing::error!("Failed to count logs: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
 
-        // Get total count for pagination
-        let total_count = match LogRepository::count_all(pool, search_query.as_deref()).await {
-            Ok(count) => count,
-            Err(e) => {
-                tracing::error!("Failed to count logs: {}", e);
-                return Err(ServiceError::DatabaseQueryFailed);
-            }
-        };
-
-        // Get log list
-        match LogRepository::find_all(pool, search_query.as_deref(), page_size, offset).await {
-            Ok(logs) => {
-                tracing::info!(
-                    "Successfully retrieved {} logs (total: {})",
-                    logs.len(),
-                    total_count
-                );
-                Ok((logs, total_count))
-            }
-            Err(e) => {
-                tracing::error!("Failed to retrieve log list: {}", e);
-                Err(ServiceError::DatabaseQueryFailed)
-            }
+        if total == 0 {
+            return Ok((Vec::new(), total));
         }
+
+        // Get log data
+        let log_entities =
+            LogRepository::find_all(pool, params.search.as_deref(), page_size, offset)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Failed to retrieve logs: {:?}", e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
+
+        // Convert to response format
+        let log_responses: Vec<LogResponse> =
+            log_entities.into_iter().map(LogResponse::from).collect();
+
+        Ok((log_responses, total))
     }
 
     /// Retrieves a specific log entry by ID
@@ -73,13 +65,13 @@ impl LogService {
     ///
     /// # Returns
     /// * `Result<Value, ServiceError>` - Log entry or service error
-    pub async fn get_log_by_id(pool: &PgPool, id: i32) -> Result<Value, ServiceError> {
+    pub async fn get_log_by_id(pool: &PgPool, id: i32) -> Result<LogResponse, ServiceError> {
         tracing::info!("Retrieving log entry with id: {}", id);
 
         match LogRepository::find_by_id(pool, id).await {
             Ok(Some(log)) => {
                 tracing::info!("Successfully retrieved log entry with id: {}", id);
-                Ok(log)
+                Ok(LogResponse::from(log))
             }
             Ok(None) => {
                 tracing::warn!("Log entry with id {} not found", id);
@@ -109,7 +101,7 @@ impl LogService {
         message: String,
         user_id: Option<i32>,
         ip_address: Option<String>,
-    ) -> Result<Value, ServiceError> {
+    ) -> Result<LogResponse, ServiceError> {
         // Validate log level
         if !["DEBUG", "INFO", "WARN", "ERROR"].contains(&level.as_str()) {
             tracing::warn!("Invalid log level provided: {}", level);
@@ -120,10 +112,8 @@ impl LogService {
 
         match LogRepository::create(pool, &level, &message, user_id, ip_address.as_deref()).await {
             Ok(log) => {
-                if let Some(id) = log.get("id") {
-                    tracing::info!("Successfully created log entry with id: {}", id);
-                }
-                Ok(log)
+                tracing::info!("Successfully created log entry with id: {}", log.id);
+                Ok(LogResponse::from(log))
             }
             Err(e) => {
                 tracing::error!("Failed to create log entry: {}", e);
@@ -149,7 +139,7 @@ impl LogService {
         message: String,
         user_id: Option<i32>,
         ip_address: Option<String>,
-    ) -> Result<Value, ServiceError> {
+    ) -> Result<LogResponse, ServiceError> {
         Self::create_log(pool, "INFO".to_string(), message, user_id, ip_address).await
     }
 
@@ -170,7 +160,7 @@ impl LogService {
         message: String,
         user_id: Option<i32>,
         ip_address: Option<String>,
-    ) -> Result<Value, ServiceError> {
+    ) -> Result<LogResponse, ServiceError> {
         Self::create_log(pool, "WARN".to_string(), message, user_id, ip_address).await
     }
 
@@ -191,7 +181,34 @@ impl LogService {
         message: String,
         user_id: Option<i32>,
         ip_address: Option<String>,
-    ) -> Result<Value, ServiceError> {
+    ) -> Result<LogResponse, ServiceError> {
         Self::create_log(pool, "ERROR".to_string(), message, user_id, ip_address).await
+    }
+
+    /// Get logs by user ID
+    pub async fn get_user_logs(
+        pool: &PgPool,
+        user_id: i64,
+        current: Option<i64>,
+        page_size: Option<i64>,
+    ) -> Result<(Vec<LogResponse>, i64), ServiceError> {
+        let current = current.unwrap_or(1);
+        let page_size = page_size.unwrap_or(10);
+        let offset = (current - 1) * page_size;
+
+        let log_entities = LogRepository::find_by_user_id(pool, user_id, page_size, offset)
+            .await
+            .map_err(|e| {
+            tracing::error!("Failed to retrieve user logs: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        let log_responses: Vec<LogResponse> =
+            log_entities.into_iter().map(LogResponse::from).collect();
+        let total = LogRepository::count_logs(pool, None).await.map_err(|e| {
+            tracing::error!("Failed to count user logs: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok((log_responses, total))
     }
 }

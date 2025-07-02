@@ -193,20 +193,29 @@ export const swrFetcher = get;
 /**
  * ProTable request adapter
  */
-export const proTableRequest = async <T>(url: string, params?: unknown) => {
+export const proTableRequest = async <T>(
+  url: string,
+  params?: unknown
+): Promise<PageResponse<T>> => {
   try {
-    const res = await get<PageResponse<T>>(url, params as BaseParams);
+    const query = params
+      ? `?${new URLSearchParams(
+          params as unknown as Record<string, string>
+        ).toString()}`
+      : "";
+    const res = await coreRequest<T[]>(`${url}${query}`, {
+      method: "GET",
+    });
     return {
-      data: res.list || [],
+      data: res.data || [],
       total: res.total || 0,
       success: true,
     };
   } catch {
     return {
       data: [],
-      success: false,
       total: 0,
-      message: "Request failed",
+      success: false,
     };
   }
 };

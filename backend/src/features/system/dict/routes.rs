@@ -50,11 +50,11 @@ pub fn dict_routes() -> Router<PgPool> {
 async fn get_dict_list(State(pool): State<PgPool>) -> AppResult<Json<ApiResponse<Vec<DictItem>>>> {
     tracing::info!("Dictionary list request received");
 
-    let dict_list = DictService::get_dict_list(&pool).await?;
+    let (dict_list, total) = DictService::get_dict_list(&pool).await?;
 
     tracing::info!("Dictionary list retrieved successfully: count={}", dict_list.len());
 
-    Ok(ApiResponse::success(dict_list))
+    Ok(ApiResponse::page(dict_list, total))
 }
 
 /// Retrieves dictionary options for dropdown/select components.
