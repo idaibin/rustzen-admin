@@ -8,7 +8,7 @@ use axum::{
 use sqlx::PgPool;
 
 use super::model::{
-    CreateUserRequest, UpdateUserRequest, UserListResponse, UserQueryParams, UserResponse,
+    CreateUserRequest, UpdateUserRequest, UserDetailResponse, UserQueryParams, UserResponse,
 };
 use super::service::UserService;
 use crate::{
@@ -30,19 +30,19 @@ pub fn user_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_user_list),
-            PermissionsCheck::Single("system:user:list"),
+            PermissionsCheck::Any(vec!["system:user:list", "system:user:*", "system:*"]),
         )
         // Create user - any permission (OR logic)
         .route_with_permission(
             "/",
             post(create_user),
-            PermissionsCheck::Any(vec!["system:user:create", "admin:full"]),
+            PermissionsCheck::Any(vec!["system:user:create", "system:user:*", "system:*"]),
         )
         // User options - single permission
         .route_with_permission(
             "/options",
             get(get_user_options),
-            PermissionsCheck::Single("system:user:options"),
+            PermissionsCheck::Any(vec!["system:user:options", "system:user:*", "system:*"]),
         )
         // Status options - no permission required
         .route("/status-options", get(get_user_status_options))
@@ -50,19 +50,19 @@ pub fn user_routes() -> Router<PgPool> {
         .route_with_permission(
             "/{id}",
             get(get_user_by_id),
-            PermissionsCheck::Single("system:user:get"),
+            PermissionsCheck::Any(vec!["system:user:get", "system:user:*", "system:*"]),
         )
         // Update user - all permissions (AND logic)
         .route_with_permission(
             "/{id}",
             put(update_user),
-            PermissionsCheck::All(vec!["system:user:get", "system:user:update"]),
+            PermissionsCheck::All(vec!["system:user:update", "system:user:*", "system:*"]),
         )
         // Delete user - single permission
         .route_with_permission(
             "/{id}",
             delete(delete_user),
-            PermissionsCheck::Single("system:user:delete"),
+            PermissionsCheck::Any(vec!["system:user:delete", "system:user:*", "system:*"]),
         )
 }
 
@@ -71,7 +71,7 @@ pub fn user_routes() -> Router<PgPool> {
 async fn get_user_list(
     State(pool): State<PgPool>,
     Query(params): Query<UserQueryParams>,
-) -> AppResult<Json<ApiResponse<UserListResponse>>> {
+) -> AppResult<Json<ApiResponse<Vec<UserResponse>>>> {
     tracing::info!(
         "Get user list: page={}, size={}, filter={:?}, status={:?}",
         params.current.unwrap_or(1),
@@ -80,22 +80,18 @@ async fn get_user_list(
         params.status
     );
 
-    let user_list = UserService::get_user_list(&pool, params).await?;
+    let (user_list, total) = UserService::get_user_list(&pool, params).await?;
 
-    tracing::info!(
-        "User list retrieved: total={}, returned={}",
-        user_list.total,
-        user_list.list.len()
-    );
+    tracing::info!("User list retrieved: total={}, returned={}", total, user_list.len());
 
-    Ok(ApiResponse::success(user_list))
+    Ok(ApiResponse::page(user_list, total))
 }
 
 /// Get user by ID with roles
 async fn get_user_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<UserResponse>>> {
+) -> AppResult<Json<ApiResponse<UserDetailResponse>>> {
     tracing::info!("Get user by ID: {}", id);
 
     let user = UserService::get_user_by_id(&pool, id).await?;
@@ -115,7 +111,7 @@ async fn get_user_by_id(
 async fn create_user(
     State(pool): State<PgPool>,
     Json(request): Json<CreateUserRequest>,
-) -> AppResult<Json<ApiResponse<UserResponse>>> {
+) -> AppResult<Json<ApiResponse<()>>> {
     tracing::info!(
         "Create user: username={}, email={}, roles={:?}",
         request.username,
@@ -133,16 +129,9 @@ async fn create_user(
         role_ids: request.role_ids,
     };
 
-    let new_user = UserService::create_user(&pool, &create_request).await?;
+    UserService::create_user(&pool, &create_request).await?;
 
-    tracing::info!(
-        "User created: id={}, username={}, roles={}",
-        new_user.id,
-        new_user.username,
-        new_user.roles.len()
-    );
-
-    Ok(ApiResponse::success(new_user))
+    Ok(ApiResponse::success(()))
 }
 
 /// Update user information
@@ -151,7 +140,7 @@ async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateUserRequest>,
-) -> AppResult<Json<ApiResponse<UserResponse>>> {
+) -> AppResult<Json<ApiResponse<()>>> {
     tracing::info!(
         "Update user {}: email={:?}, name={:?}, status={:?}, roles={:?}",
         id,
@@ -161,16 +150,9 @@ async fn update_user(
         request.role_ids
     );
 
-    let updated_user = UserService::update_user(&pool, id, request).await?;
+    UserService::update_user(&pool, id, request).await?;
 
-    tracing::info!(
-        "User updated: id={}, username={}, roles={}",
-        updated_user.id,
-        updated_user.username,
-        updated_user.roles.len()
-    );
-
-    Ok(ApiResponse::success(updated_user))
+    Ok(ApiResponse::success(()))
 }
 
 /// Soft delete user

@@ -68,11 +68,6 @@ async fn permission_middleware(
         AppError::from(ServiceError::InvalidToken)
     })?;
 
-    if current_user.is_super_admin {
-        tracing::debug!("User {} is super admin, skipping permission check", current_user.user_id);
-        return Ok(next.run(request).await);
-    }
-
     tracing::debug!(
         "Checking {} for user {} ({})",
         permissions_check.description(),

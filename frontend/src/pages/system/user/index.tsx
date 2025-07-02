@@ -49,24 +49,14 @@ const UserPage = () => {
       valueType: "dateTime",
     },
     {
-      title: "Created At",
-      dataIndex: "createdAt",
-      valueType: "dateTime",
-    },
-    {
       title: "Updated At",
       dataIndex: "updatedAt",
       valueType: "dateTime",
     },
     {
-      title: "Roles",
-      dataIndex: "roles",
-      render: (_, record) =>
-        record.roles?.map((role) => role.roleName).join(", ") || "-",
-    },
-    {
       title: "Actions",
       key: "action",
+      width: 110,
       render: () => (
         <Space size="middle">
           <a>Edit</a>

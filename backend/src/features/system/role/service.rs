@@ -1,8 +1,6 @@
 // Role business logic
 
-use super::model::{
-    CreateRoleRequest, RoleListResponse, RoleQueryParams, RoleResponse, UpdateRoleRequest,
-};
+use super::model::{CreateRoleRequest, RoleQueryParams, RoleResponse, UpdateRoleRequest};
 use super::repo::RoleRepository;
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
@@ -17,7 +15,7 @@ impl RoleService {
     pub async fn get_role_list(
         pool: &PgPool,
         params: RoleQueryParams,
-    ) -> Result<RoleListResponse, ServiceError> {
+    ) -> Result<(Vec<RoleResponse>, i64), ServiceError> {
         let page = params.current.unwrap_or(1).max(1);
         let page_size = params.page_size.unwrap_or(10).min(100).max(1);
         let offset = (page - 1) * page_size;
@@ -62,7 +60,7 @@ impl RoleService {
         }
 
         tracing::info!("Retrieved {} roles (total: {})", role_responses.len(), total);
-        Ok(RoleListResponse { list: role_responses, total, page, page_size })
+        Ok((role_responses, total))
     }
 
     /// Get single role by ID with menu permissions
