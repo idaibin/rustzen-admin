@@ -6,13 +6,13 @@ use crate::core::app::create_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化日志
+    // init log
     tracing_subscriber::fmt().with_target(false).compact().init();
 
-    // 加载环境变量
+    // load env
     dotenvy::dotenv().ok();
 
-    // 创建服务器
+    // create server
     create_server().await?;
 
     Ok(())
