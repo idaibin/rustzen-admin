@@ -93,7 +93,7 @@ async fn get_addr() -> String {
 async fn root() -> Json<serde_json::Value> {
     Json(json!({
         "message": "Welcome to rustzen-admin API",
-        "version": "0.1.0",
-        "description": "A backend management system built with Rust, Axum, SQLx, and PostgreSQL."
+        "description": "A backend management system built with Rust, Axum, SQLx, and PostgreSQL.",
+        "github": "https://github.com/idaibin/rustzen-admin"
     }))
 }
