@@ -21,6 +21,8 @@ pub fn public_auth_routes() -> Router<PgPool> {
     let mut router = Router::new().route("/login", post(login_handler));
     #[cfg(debug_assertions)]
     {
+        // DEV-NOTE: This is a debug route for generating hash.
+        // It is only available in debug mode.
         router = router.route("/gen-hash", get(gen_hash));
     }
     router

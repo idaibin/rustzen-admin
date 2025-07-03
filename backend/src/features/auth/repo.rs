@@ -1,3 +1,5 @@
+use crate::common::error::ServiceError;
+
 use super::model::{AuthMenuInfoEntity, AuthUserInfo, LoginCredentialsEntity};
 use sqlx::PgPool;
 
@@ -11,7 +13,7 @@ impl AuthRepository {
     pub async fn get_login_credentials(
         pool: &PgPool,
         username: &str,
-    ) -> Result<Option<LoginCredentialsEntity>, sqlx::Error> {
+    ) -> Result<Option<LoginCredentialsEntity>, ServiceError> {
         sqlx::query_as::<_, LoginCredentialsEntity>(
             "SELECT id, username, password_hash, status, is_super_admin FROM users WHERE username = $1 AND deleted_at IS NULL",
         )
@@ -20,7 +22,7 @@ impl AuthRepository {
         .await
         .map_err(|e| {
             tracing::error!("Database error in get_login_credentials, username={}: {:?}", username, e);
-            e
+            ServiceError::DatabaseQueryFailed
         })
     }
 
@@ -29,7 +31,7 @@ impl AuthRepository {
     pub async fn get_user_by_id(
         pool: &PgPool,
         id: i64,
-    ) -> Result<Option<AuthUserInfo>, sqlx::Error> {
+    ) -> Result<Option<AuthUserInfo>, ServiceError> {
         sqlx::query_as::<_, AuthUserInfo>(
             "SELECT id, username, real_name, avatar_url FROM get_user_basic_info($1)",
         )
@@ -38,12 +40,12 @@ impl AuthRepository {
         .await
         .map_err(|e| {
             tracing::error!("Database error in get_user_by_id, user_id={}: {:?}", id, e);
-            e
+            ServiceError::DatabaseQueryFailed
         })
     }
 
     /// Update last login timestamp
-    pub async fn update_last_login(pool: &PgPool, id: i64) -> Result<(), sqlx::Error> {
+    pub async fn update_last_login(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         sqlx::query("UPDATE users SET last_login_at = $1, updated_at = $1 WHERE id = $2")
             .bind(Utc::now().naive_utc())
             .bind(id)
@@ -51,17 +53,18 @@ impl AuthRepository {
             .await
             .map_err(|e| {
                 tracing::error!("Database error in update_last_login, user_id={}: {:?}", id, e);
-                e
+                ServiceError::DatabaseQueryFailed
             })?;
         Ok(())
     }
 
-    /// Get all permission keys for a user by user ID.
+    /// Get all permission keys for a
+    /// user by user ID.
     /// Returns a list of permission strings (e.g., "system:user:list").
     pub async fn get_user_permissions(
         pool: &PgPool,
         user_id: i64,
-    ) -> Result<Vec<String>, sqlx::Error> {
+    ) -> Result<Vec<String>, ServiceError> {
         sqlx::query_scalar::<_, String>(
             r#"
                 SELECT DISTINCT permission_code
@@ -75,7 +78,7 @@ impl AuthRepository {
         .await
         .map_err(|e| {
             tracing::error!("Database error in get_user_permissions, user_id={}: {:?}", user_id, e);
-            e
+            ServiceError::DatabaseQueryFailed
         })
     }
 
@@ -85,7 +88,7 @@ impl AuthRepository {
     pub async fn get_user_menus(
         pool: &PgPool,
         user_id: i64,
-    ) -> Result<Vec<AuthMenuInfoEntity>, sqlx::Error> {
+    ) -> Result<Vec<AuthMenuInfoEntity>, ServiceError> {
         sqlx::query_as::<_, AuthMenuInfoEntity>(
             "SELECT id, parent_id, title, path, component, icon, order_num, visible, keep_alive, menu_type FROM get_user_menu_data($1)"
         )
@@ -94,7 +97,7 @@ impl AuthRepository {
         .await
         .map_err(|e| {
             tracing::error!("Database error in get_user_menus, user_id={}: {:?}", user_id, e);
-            e
+            ServiceError::DatabaseQueryFailed
         })
     }
 }

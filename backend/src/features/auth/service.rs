@@ -73,13 +73,7 @@ impl AuthService {
         let pool_clone = pool.clone();
         let user_id_clone = user.id;
         tokio::spawn(async move {
-            if let Err(e) = AuthRepository::update_last_login(&pool_clone, user_id_clone).await {
-                tracing::error!(
-                    "Failed to update last login time for user_id={}: {:?}",
-                    user_id_clone,
-                    e
-                );
-            }
+            let _ = AuthRepository::update_last_login(&pool_clone, user_id_clone).await;
         });
 
         let total_time = start.elapsed();
@@ -103,15 +97,8 @@ impl AuthService {
 
         // Get user basic info
         let user = AuthRepository::get_user_by_id(pool, user_id)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to get user basic info for user_id={}: {:?}", user_id, e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .ok_or_else(|| {
-                tracing::warn!("User not found for user_id={}", user_id);
-                ServiceError::NotFound("User".to_string())
-            })?;
+            .await?
+            .ok_or(ServiceError::NotFound("User".to_string()))?;
 
         tracing::debug!(
             "User basic info retrieved for user_id={}, username={}",
@@ -123,15 +110,7 @@ impl AuthService {
         let (menus, permissions) = try_join!(
             AuthRepository::get_user_menus(pool, user_id),
             AuthRepository::get_user_permissions(pool, user_id)
-        )
-        .map_err(|e| {
-            tracing::error!(
-                "Failed to get user menus/permissions for user_id={}: {:?}",
-                user_id,
-                e
-            );
-            ServiceError::DatabaseQueryFailed
-        })?;
+        )?;
 
         // Convert to response format
         let user_info = UserInfoResponse {
@@ -164,19 +143,8 @@ impl AuthService {
 
         // 1. get login credentials
         let user = AuthRepository::get_login_credentials(pool, username)
-            .await
-            .map_err(|e| {
-                tracing::error!(
-                    "Failed to get login credentials for username={}: {:?}",
-                    username,
-                    e
-                );
-                ServiceError::DatabaseQueryFailed
-            })?
-            .ok_or_else(|| {
-                tracing::warn!("Invalid login attempt: username not found: {}", username);
-                ServiceError::InvalidCredentials
-            })?;
+            .await?
+            .ok_or(ServiceError::InvalidCredentials)?;
 
         tracing::debug!(
             "User found for username={}, user_id={}, status={}",
@@ -186,26 +154,8 @@ impl AuthService {
         );
 
         // 2. check if user is enabled
-        let status = UserStatus::try_from(user.status).map_err(|e| {
-            tracing::error!(
-                "Invalid user status for user_id={}, status={}: {:?}",
-                user.id,
-                user.status,
-                e
-            );
-            e
-        })?;
-
-        status.check_status().map_err(|e| {
-            tracing::warn!(
-                "User status check failed for user_id={}, username={}, status={:?}: {:?}",
-                user.id,
-                username,
-                status,
-                e
-            );
-            e
-        })?;
+        let status = UserStatus::try_from(user.status)?;
+        status.check_status()?;
 
         // 3. verify password
         if !PasswordUtils::verify_password(&password.to_string(), &user.password_hash) {
@@ -238,15 +188,7 @@ impl AuthService {
             tracing::info!("Successfully cached * permissions for user_id={}", user_id);
             return Ok(());
         }
-        let permissions: Vec<String> =
-            AuthRepository::get_user_permissions(pool, user_id).await.map_err(|e| {
-                tracing::error!(
-                    "Failed to get user permissions for caching, user_id={}: {:?}",
-                    user_id,
-                    e
-                );
-                ServiceError::CacheUserPermissionsFailed
-            })?;
+        let permissions: Vec<String> = AuthRepository::get_user_permissions(pool, user_id).await?;
 
         PermissionService::cache_user_permissions(user_id, permissions.clone());
         tracing::info!(
