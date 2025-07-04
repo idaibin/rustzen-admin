@@ -1,13 +1,9 @@
-### 环境变量配置
+### Environment Variables
 @baseUrl = http://localhost:8000
 @apiUrl = {{baseUrl}}/api
-# 登录后的token，需要从登录接口获取并手动更新
-# @token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NTA3MDA4MDMsImlhdCI6MTc1MDY5NzIwM30.CpwD9SdXh-mLUyDlYq3R6ebz-eKbdHXo-1PySjosDMI
-@token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NTA3Nzk2MjYsImlhdCI6MTc1MDc3NjAyNn0.DZP8zAknUALHscQ3DQrXBTsZFOEdG31a_MhLpX6txVo
+@token = <your-jwt-token-here>
 
-### 测试退出登录功能
-
-### 1. 先登录获取token
+### 1. Login to get token
 POST {{apiUrl}}/auth/login
 Content-Type: application/json
 
@@ -16,14 +12,14 @@ Content-Type: application/json
   "password": "rustzen@123"
 }
 
-### 2. 获取用户信息（需要token）
+### 2. Get current user info (requires token)
 GET {{apiUrl}}/auth/me
 Authorization: Bearer {{token}}
 
-### 3. 退出登录（清除token和缓存）
+### 3. Logout (clear token and cache)
 GET {{apiUrl}}/auth/logout
 Authorization: Bearer {{token}}
 
-### 4. 再次尝试获取用户信息（应该失败）
+### 4. Try to get user info again (should fail)
 GET {{apiUrl}}/auth/me
 Authorization: Bearer {{token}}

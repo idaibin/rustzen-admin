@@ -1,147 +1,149 @@
-# 🏗️ rustzen-admin 功能架构文档（Feature Architecture）
+# 🏗️ rustzen-admin Architecture Overview
 
-本项目为 rustzen-admin，采用 Rust（Axum）+ React（Vite）+ Zustand + SWR + TailwindCSS + Ant Design ProComponents 技术栈构建，目标是构建一套完整的、可部署的现代化全栈管理后台系统。支持扩展 Web3、Tauri 客户端模块，兼顾稳定性、性能与扩展性。
-
-> 💡 **开发指南**: 如需了解开发流程、代码规范和技术架构，请参考 [Contributing Guide](./development/CONTRIBUTING.md)
+**rustzen-admin** is a modern, full-stack admin system template built with Rust (Axum) for the backend and React (Vite + Ant Design) for the frontend. The project aims to provide a production-ready, extensible, and maintainable admin platform, supporting modular business logic, RBAC, and rapid feature iteration.
 
 ---
 
-## 📁 系统模块（System）
+## 📁 System Modules (Backend)
 
-| 模块     | 状态      | 子功能                 | 描述                   |
-| -------- | --------- | ---------------------- | ---------------------- |
-| 用户管理 | ✅ 已实现 | 用户增删改查、重置密码 | 系统用户基础信息管理   |
-| 角色管理 | ✅ 已实现 | 角色维护、权限绑定     | RBAC 权限系统核心      |
-| 菜单管理 | ✅ 已实现 | 菜单结构、权限控制     | 路由与前端菜单控制     |
-| 字典管理 | ✅ 已实现 | 枚举配置、字典项维护   | 通用字段配置项         |
-| 日志管理 | ✅ 已实现 | 登录日志、操作日志     | 审计、调试与记录功能   |
-| 部门管理 | 🔄 规划中 | 层级组织结构           | 用户组织归属与权限划分 |
-| 参数设置 | 🔄 规划中 | 系统键值参数配置       | 系统运行控制项         |
-| 文件管理 | ⏳ 可选   | 上传、预览、删除       | 静态资源存储支持       |
+| Module | Status    | Submodules/Features         | Description                       |
+| ------ | --------- | --------------------------- | --------------------------------- |
+| user   | ✅ Stable | CRUD, password reset        | User management, roles assignment |
+| role   | ✅ Stable | CRUD, permission binding    | RBAC core, role management        |
+| menu   | ✅ Stable | CRUD, permission control    | Menu structure, route control     |
+| dict   | ✅ Stable | CRUD, enum config           | System dictionary, config options |
+| log    | ✅ Stable | Login/operation logs        | Audit, debugging, traceability    |
+| auth   | ✅ Stable | JWT, middleware, extractors | Authentication, permission checks |
 
----
-
-## 🔐 权限与身份模块（Auth）
-
-| 功能         | 状态      | 描述                        |
-| ------------ | --------- | --------------------------- |
-| 登录认证     | ✅ 已实现 | 用户登录、JWT Token 发放    |
-| 用户注册     | ✅ 已实现 | 支持用户注册和冲突检测      |
-| 当前用户信息 | ✅ 已实现 | 获取当前用户、权限、菜单    |
-| 权限中间件   | ✅ 已实现 | 后端权限校验 + 前端按钮控制 |
-| Token 刷新   | 🔄 规划中 | 可选功能，自动续签          |
-
----
-
-## 📝 表单与流程模块（拓展）
-
-| 模块     | 状态    | 子功能               | 描述               |
-| -------- | ------- | -------------------- | ------------------ |
-| 动态表单 | ⏳ 可选 | 配置表单字段、布局   | 用于低代码场景     |
-| 审批流程 | ⏳ 可选 | 流程设计器、节点配置 | 审批流/工作流设计  |
-| 通知中心 | ⏳ 可选 | 系统/审批提醒消息    | 消息推送与读取状态 |
-
----
-
-## 🧰 工具类模块（可选）
-
-| 功能     | 状态    | 描述                              |
-| -------- | ------- | --------------------------------- |
-| 缓存管理 | ⏳ 可选 | Redis 缓存操作、清理、状态监控    |
-| 系统监控 | ⏳ 可选 | 资源监控：CPU、内存、数据库连接等 |
-| 定时任务 | ⏳ 可选 | Crontab 执行器与执行记录          |
-| 多语言   | ⏳ 可选 | 多语言配置与切换                  |
-| 暗色模式 | ⏳ 可选 | UI 主题切换，支持 dark class      |
-
----
-
-## 🖥️ 客户端控制模块（Tauri 桌面拓展）
-
-| 类型     | 状态    | 功能                 | 描述                       |
-| -------- | ------- | -------------------- | -------------------------- |
-| 控制端   | ⏳ 可选 | 添加设备、页面、场景 | 控制远端显示端             |
-| 显示端   | ⏳ 可选 | 接收指令、展示页面   | 实时响应控制端信号         |
-| 通信协议 | ⏳ 可选 | HTTP + WebSocket     | 控制端与显示端双向通信桥梁 |
-
----
-
-## 📌 模块结构建议（Modules）
-
-每个功能模块建议具有以下结构：
+**Directory structure example:**
 
 ```
-modules/
-├── user/
-│   ├── model.rs      # 类型结构体定义（序列化）
-│   ├── repo.rs       # 数据库操作逻辑
-│   ├── service.rs    # 业务组合逻辑
-│   ├── routes.rs     # 路由注册与 handler
-│   └── mod.rs        # 模块导出
+backend/src/features/
+├── auth/
+│   ├── extractor.rs
+│   ├── middleware.rs
+│   ├── model.rs
+│   ├── permission.rs
+│   ├── repo.rs
+│   ├── routes.rs
+│   ├── service.rs
+│   └── mod.rs
+├── system/
+│   ├── user/
+│   ├── role/
+│   ├── menu/
+│   ├── dict/
+│   ├── log/
+│   └── mod.rs
+└── mod.rs
 ```
 
-前端对应：
+**Core and Common:**
+
+- `core/`: app entry, db, jwt, password, middleware
+- `common/`: API response, error handling, router extensions
+
+---
+
+## 🖥️ Frontend Modules (React)
+
+| Module | Status    | Path                       | Description                |
+| ------ | --------- | -------------------------- | -------------------------- |
+| user   | ✅ Stable | `src/pages/system/user/`   | User management UI         |
+| role   | ✅ Stable | `src/pages/system/role/`   | Role management UI         |
+| menu   | ✅ Stable | `src/pages/system/menu/`   | Menu management UI         |
+| dict   | ✅ Stable | `src/pages/system/dict/`   | Dictionary management UI   |
+| log    | ✅ Stable | `src/pages/system/log/`    | Operation log UI           |
+| auth   | ✅ Stable | `src/pages/auth/login.tsx` | Login page, authentication |
+| home   | ✅ Stable | `src/pages/home/index.tsx` | Dashboard/homepage         |
+
+**Service Layer:**
+
+- `src/services/system/`: API services for user, role, menu, dict, log
+- `src/services/auth/`: Auth API service
+
+**State & Routing:**
+
+- Zustand for global state (`src/stores/useAuthStore.ts`)
+- React Router for navigation (`src/router.tsx`)
+
+---
+
+## 🔐 Authentication & RBAC
+
+- JWT-based authentication (backend & frontend integration)
+- Middleware for permission checks (backend)
+- RBAC: roles, permissions, menu-based access
+- Super admin logic (`zen_admin`)
+- Unified API response structure
+
+---
+
+## 🧩 Shared Concepts & API
+
+- Unified API response: `{ code, message, data }`
+- TypeScript types for all system modules (`src/types/`)
+- Options API: `/api/system/{resource}/options` for dropdowns
+- Modular, extensible service and route structure
+
+---
+
+## 🛠️ Technical Highlights
+
+- **Backend:** Rust, Axum, SQLx, PostgreSQL, modular service/repo/routes, error handling, middleware, in-memory permission cache
+- **Frontend:** React, Vite, TypeScript, Zustand, Ant Design, TailwindCSS, modular pages/services, unified types, API abstraction
+- **DevOps:** Docker, justfile, REST Client, migration scripts
+
+---
+
+## 🚦 Roadmap & Extension
+
+### Current Features (v0.1.x)
+
+- User, role, menu, dict, log management (CRUD)
+- JWT authentication, RBAC, permission middleware
+- Unified error handling, API response, modular codebase
+- Options API for dropdowns
+- Frontend/Backend type safety
+
+### Planned / In Progress
+
+- Department/organization management
+- System settings (key-value config)
+- File upload & static resource management
+- System monitoring (resource, DB, etc.)
+- WebSocket support for real-time features
+- Tauri desktop client (optional)
+
+### Extension Ideas
+
+- Web3 integration (wallet login, contract interaction)
+- Multi-language support (i18n)
+- Theme/dark mode switching
+- Plugin architecture for dynamic modules
+- Approval workflow, dynamic forms
+
+---
+
+## 📦 Example Module Structure
+
+**Backend:**
+
+```
+user/
+├── model.rs      // Data structures
+├── repo.rs       // Database logic
+├── service.rs    // Business logic
+├── routes.rs     // Route handlers
+└── mod.rs        // Module export
+```
+
+**Frontend:**
 
 ```
 src/pages/system/user/
-├── index.tsx         # 列表页
-├── form.tsx          # 编辑弹窗
-├── service.ts        # 接口定义
-├── hook.ts           # 业务逻辑封装
-└── types.ts          # 类型定义（或全局 declare）
+├── index.tsx     // List page
+// (form, service, hook, types as needed)
 ```
 
-> 🔧 **技术实现细节**: 查看 [Contributing Guide](./development/CONTRIBUTING.md) 了解具体的开发规范和技术架构
-
 ---
-
-## ✅ 当前开发状态 (v0.1.0)
-
-### 🎯 已完成功能
-
-1. ✅ **用户管理** (user) - 完整的 CRUD 操作，角色分配
-2. ✅ **登录/注册模块** (auth) - JWT 认证，密码加密
-3. ✅ **角色权限管理** (role, menu) - RBAC 权限控制
-4. ✅ **字典管理** (dict) - 基础数据字典功能
-5. ✅ **日志系统** (log) - 操作日志记录和查询
-6. ✅ **Options API** - 统一的下拉选项接口
-
-### 🚀 推荐开发优先级（v1.0）
-
-1. 🔄 **部门管理** (department) - 组织架构支持
-2. 🔄 **参数设置** (settings) - 系统配置管理
-3. ⏳ **文件上传** (upload) - 文件存储功能
-4. ⏳ **系统监控** (monitor) - 资源监控面板
-5. ⏳ **客户端控制** (client/tauri) - 桌面应用支持
-
-### 📋 后续迭代规划
-
-- 缓存管理、定时任务
-- 审批流程、动态表单
-- 多语言、主题切换
-- WebSocket 实时通信
-
----
-
-## 🧠 未来扩展建议
-
-### 🌐 Web3 集成
-
-- 钱包登录（MetaMask、WalletConnect）
-- 合约交互和资产管理
-- 区块链数据探索
-
-### 📱 多终端支持
-
-- **Tauri 桌面应用** - 跨平台原生体验
-- **移动端 PWA** - 响应式 Web 应用
-- **Electron 替代方案** - 传统桌面应用
-
-### 🔌 插件化架构
-
-- 模块动态加载
-- 权限自动接入
-- 第三方集成支持
-
----
-
-> 💡 **开发建议**: 本文档为 AI 辅助开发的功能规划索引，建议结合 Cursor、Copilot、CodeWhisperer 等工具进行模块生成和语义补全。详细的开发流程请参考 [Contributing Guide](./development/CONTRIBUTING.md)。

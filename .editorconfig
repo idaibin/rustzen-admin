@@ -7,3 +7,12 @@ indent_style = space
 indent_size = 2
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+[justfile]
+indent_style = space
+indent_size = 4
+format_on_save = false
+
+[*.{rs,toml}]
+indent_style = space
+indent_size = 4
