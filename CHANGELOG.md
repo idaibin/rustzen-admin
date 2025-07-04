@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### 🚀 Features
+
+- **[backend]** Implement Argon2 password hashing and JWT auth middleware
+- **[system]** Enhance system management modules with service layer
+- **[backend]** Fix log routes path parameter syntax and enhance API documentation
+- **[system]** Implement real database queries for log system, and update page response
+- **[frontend]** Update menu module data structure and front-end presentation
+- **[auth]** Optimized permissions middleware and user information structure
+- **[migrations]** Optimize user information queries and rights management
+- **[migrations]** Improved system database architecture and initialization data
+- **[auth]** Enhance user state management and error handling
+- **[system]** Add system module integration and unified exports
+
+### 🐛 Bug Fixes
+
+- **[auth]** Handle unused Result warnings in auth module
+
+### 🚜 Refactor
+
+- **[core]** Improve core structure, shared logic, and main entry
+- **[system]** Clean up outdated documentation and update development standards
+
+### 📚 Documentation
+
+- **[api]** Add Options API specification and enhance documentation
+- **[docs]** Enhance project documentation and development standards
+- **[docs]** Add permission system design documentation
+- **[docs]** Updated README to remove contribution guidelines and optimize system management module description
+
 ### Planned
 
 - [ ] Complete frontend API integration
