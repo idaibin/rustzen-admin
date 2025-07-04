@@ -1,22 +1,20 @@
 # <type>(<scope>): <summary>
-# 空一行后写详细描述（可选）
-# 再空一行写 BREAKING CHANGES（可选）
-
-# 常用 type 类型：
-# feat      新功能
-# fix       修复 Bug
-# docs      文档变更
-# style     样式/格式
-# refactor  重构，无功能变更
-# test      测试
-# chore     杂项，如构建配置
-# build     构建相关
-# ci        CI/CD 改动
-# revert    回滚
-
-# 示例（支持多 scope）：
+# A blank line followed by a detailed description (optional)
+# BREAKING CHANGES on another line (optional)
+# Common type types:
+# feat New feature
+# fix Fix bugs
+# docs Document changes
+# style style/format
+# refactor Refactoring, no feature changes
+# test test
+# chore Miscellaneous items such as build configuration
+# build Build-related
+# ci CI/CD changes
+# revert Rollback
+# Example (supports multiple scopes):
 # feat(api,ui): add user permission editor
-#
-# 增加了用户权限编辑功能，支持权限选择与回显。
+# build
+# Add user permission editor function, support permission selection and rollback.
 #
 # BREAKING CHANGE: user permission structure changed

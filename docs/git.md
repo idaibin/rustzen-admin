@@ -1,12 +1,12 @@
-# ✍️ Git 提交规范 (Git Commit Convention)
+# ✍️ Git Commit Convention
 
-本规范为 `rustzen-admin` 项目的 Git 提交信息约定，旨在提升日志可读性、自动化生成 CHANGELOG，并为 AI 辅助工具提供上下文。
+This document defines the Git commit message convention for the `rustzen-admin` project. The goal is to improve log readability, enable automated CHANGELOG generation, and provide context for AI-assisted tools.
 
-规范基于 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)，并针对本项目进行了模块化定制。
+The convention is based on [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and is customized for this project with modular scopes.
 
 ---
 
-## 格式
+## Format
 
 ```
 <type>(<scope>): <subject>
@@ -14,72 +14,72 @@
 
 ---
 
-## 提交类型 (Type)
+## Commit Types
 
-| 类型 (Type) | 说明 (Description)                                          |
-| :---------- | :---------------------------------------------------------- |
-| `feat`      | 新功能 (Features)                                           |
-| `fix`       | 修复 Bug (Bug Fixes)                                        |
-| `docs`      | 文档更新 (Documentation only)                               |
-| `style`     | 样式调整 (Formatting, spacing, etc.)                        |
-| `refactor`  | 代码重构 (No new features or bug fixes)                     |
-| `test`      | 添加或修改测试 (Adding or modifying tests)                  |
-| `chore`     | 构建、工具或依赖更新 (Build process, tooling, dependencies) |
-| `perf`      | 性能优化 (Performance improvements)                         |
-| `ci`        | CI/CD 配置与脚本                                            |
-| `build`     | 构建系统或外部依赖的变更                                    |
-| `revert`    | 回滚之前的提交                                              |
-
----
-
-## 功能范围 (Scope)
-
-`scope` 用于描述本次提交影响的范围，例如功能模块、分层等。
-
-| Scope   | 对应模块/目录 (Corresponding Module/Directory)     |
-| :------ | :------------------------------------------------- |
-| `api`   | 后端 API 相关                                      |
-| `user`  | 用户管理模块                                       |
-| `role`  | 角色管理模块                                       |
-| `auth`  | 登录鉴权                                           |
-| `ui`    | 前端通用 UI 变更                                   |
-| `types` | 类型定义变更                                       |
-| `deps`  | 依赖更新 (e.g., `deps(frontend)`, `deps(backend)`) |
-| `infra` | 构建、部署、CI/CD 工具 (Infrastructure)            |
-| `docs`  | 文档内容更新                                       |
+| Type       | Description                                 |
+| ---------- | ------------------------------------------- |
+| `feat`     | New features                                |
+| `fix`      | Bug fixes                                   |
+| `docs`     | Documentation only                          |
+| `style`    | Formatting, spacing, etc.                   |
+| `refactor` | Code refactoring (no new features or fixes) |
+| `test`     | Adding or modifying tests                   |
+| `chore`    | Build process, tooling, dependencies        |
+| `perf`     | Performance improvements                    |
+| `ci`       | CI/CD configuration and scripts             |
+| `build`    | Build system or external dependencies       |
+| `revert`   | Revert previous commits                     |
 
 ---
 
-## 提交主题 (Subject)
+## Scope
 
-`subject` 是对提交的简短描述，遵循以下原则：
+`scope` describes the area affected by the commit, such as a feature module or layer.
 
-- **使用祈使句**：例如使用 `add` 而不是 `added` 或 `adds`。
-- **小写开头**：句首单词无需大写。
-- **无结尾句号**：结尾不加 `.`。
-- **简明扼要**：建议不超过 50 个字符。
-
----
-
-## ✅ 提交示例
-
-- **新功能**: `feat(user): add user role assignment logic`
-- **修复 Bug**: `fix(api): correct pagination query in user list`
-- **文档**: `docs(readme): update development startup instructions`
-- **样式**: `style(ui): adjust table spacing and button size`
-- **重构**: `refactor(auth): simplify jwt middleware injection`
-- **依赖**: `chore(deps): bump sqlx to 0.7.1`
+| Scope   | Corresponding Module/Directory                  |
+| ------- | ----------------------------------------------- |
+| `api`   | Backend API                                     |
+| `user`  | User management module                          |
+| `role`  | Role management module                          |
+| `auth`  | Authentication                                  |
+| `ui`    | Frontend UI changes                             |
+| `types` | Type definitions                                |
+| `deps`  | Dependency updates (e.g., `deps(frontend)`)     |
+| `infra` | Build, deployment, CI/CD tools (Infrastructure) |
+| `docs`  | Documentation updates                           |
 
 ---
 
-## 🛡️ 规范守护 (Linting)
+## Subject
 
-为了保证提交规范的严格执行，可以引入以下工具：
+The `subject` is a brief description of the commit. Follow these rules:
 
-| 工具 (Tool)            | 说明 (Description)               | 是否依赖 Node.js |
-| :--------------------- | :------------------------------- | :--------------- |
-| `commitlint` + `husky` | 前端项目中最常见的组合           | ✅ 是            |
-| `lefthook`             | Rust 友好的跨语言 Git Hooks 工具 | ❌ 否            |
-| CI 校验                | 在 GitHub Actions 中增加校验步骤 | ❌ 否            |
+- **Use imperative mood**: e.g., use `add` not `added` or `adds`.
+- **Start with lowercase**: No need to capitalize the first word.
+- **No ending period**: Do not end with a `.`
+- **Be concise**: Recommended under 50 characters.
 
-这些工具可以自动检查每次的 `git commit` 信息是否符合规范，从而在源头保证日志质量。
+---
+
+## ✅ Commit Examples
+
+- **Feature**: `feat(user): add user role assignment logic`
+- **Bug fix**: `fix(api): correct pagination query in user list`
+- **Docs**: `docs(readme): update development startup instructions`
+- **Style**: `style(ui): adjust table spacing and button size`
+- **Refactor**: `refactor(auth): simplify jwt middleware injection`
+- **Dependency**: `chore(deps): bump sqlx to 0.7.1`
+
+---
+
+## 🛡️ Linting & Enforcement
+
+To ensure strict adherence to the commit convention, consider using these tools:
+
+| Tool                   | Description                        | Node.js Required |
+| ---------------------- | ---------------------------------- | :--------------: |
+| `commitlint` + `husky` | Most common combo for frontend     |      ✅ Yes      |
+| `lefthook`             | Rust-friendly cross-language hooks |      ❌ No       |
+| CI check               | Add validation in GitHub Actions   |      ❌ No       |
+
+These tools can automatically check every `git commit` message for compliance, ensuring high-quality logs from the start.

@@ -1,45 +1,60 @@
-# justfile - 项目统一命令入口
+# justfile - Project unified command entry
 
-# 开发模式：一键同时启动后端 + 前端
+# Development mode: start backend + frontend together
 dev:
-  just dev-bg & just dev-fe
+    just backend-dev &
+    just frontend-dev
 
-# 启动 Rust 后端（支持热重载）
-dev-bg:
-  cd backend && cargo watch -x run
+# Start Rust backend (with hot reload)
+backend-dev:
+    cd backend
+    cargo watch -x run
 
-# 启动前端（Vite 开发模式）
-dev-fe:
-  cd frontend && pnpm dev
+# Start frontend (Vite dev mode)
+frontend-dev:
+    cd frontend
+    pnpm dev
 
-# 构建全部（生产环境）
+# Build all (production)
 build:
-  just backend-build && just frontend-build
+    just backend-build
+    just frontend-build
 
-# 构建 Rust 后端 release
+# Build Rust backend release
 backend-build:
-  cd backend && cargo build --release
+    cd backend
+    cargo build --release
 
-# 构建前端生产包
+# Build frontend production bundle
 frontend-build:
-  cd frontend && pnpm build
+    cd frontend
+    pnpm build
 
-# 清理构建输出
+# Clean build outputs
 clean:
-  rm -rf backend/target frontend/dist desktop/src-tauri/target
+    rm -rf backend/target frontend/dist desktop/src-tauri/target
 
-# 构建桌面客户端（可选）
-tauri-build:
-  cd frontend && pnpm tauri build
+# 📋 Changelog Management
+# Preview unreleased changes
+changelog-preview:
+    git-cliff --unreleased
 
-# 启动桌面客户端开发模式（可选）
-tauri-dev:
-  cd frontend && pnpm tauri dev
+# Update CHANGELOG.md Unreleased section
+changelog-update:
+    git-cliff --unreleased --prepend CHANGELOG.md
 
-# Docker 构建镜像（预留）
-docker-build:
-  docker build -t rustzen-admin .
+# Generate complete changelog
+changelog-full:
+    git-cliff --output CHANGELOG.md
 
-# Docker 推送镜像（预留）
-docker-push:
-  docker push your-registry/rustzen-admin
+# Generate changelog for specific version range
+changelog-range FROM TO:
+    git-cliff {{FROM}}..{{TO}}
+
+# Release new version (generate changelog + create tag)
+release VERSION: 
+    git-cliff --tag {{VERSION}} --prepend CHANGELOG.md
+    git add CHANGELOG.md
+    git commit -m "chore(release): bump version to {{VERSION}}"
+    git tag {{VERSION}}
+    @echo "Release {{VERSION}} prepared! Run 'git push origin {{VERSION}}' to publish."
