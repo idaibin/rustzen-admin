@@ -3,15 +3,20 @@ root = true
 [*]
 charset = utf-8
 end_of_line = lf
-indent_style = space
-indent_size = 2
 insert_final_newline = true
 trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.rs]
+indent_style = space
+indent_size = 4
 
 [justfile]
 indent_style = space
 indent_size = 4
-format_on_save = false
+insert_final_newline = true
+end_of_line = lf
 
 [*.{rs,toml}]
 indent_style = space
