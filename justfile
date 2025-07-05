@@ -50,7 +50,6 @@ changelog-range FROM TO:
 
 # Release new version (generate changelog + create tag)
 release VERSION:
-    @@
     echo "Release {{VERSION}} prepared! Run 'git push origin {{VERSION}}' to publish."
     git-cliff --tag {{VERSION}} --prepend CHANGELOG.md
     git add CHANGELOG.md
