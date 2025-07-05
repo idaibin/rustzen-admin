@@ -1,21 +1,36 @@
 {
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
-  "eslint.validate": ["javascript", "typescript", "typescriptreact"],
-  "eslint.enable": true,
-  "[rust]": {
-    "editor.defaultFormatter": "rust-lang.rust-analyzer"
-  },
-  "rust-analyzer.checkOnSave": true,
-  "files.exclude": {
-    "**/node_modules": true,
-    "**/target": true,
-    "**/dist": true
-  },
-  "typescript.tsdk": "frontend/node_modules/typescript/lib",
-  "terminal.integrated.defaultProfile.linux": "zsh",
-  "just.executionMode": "terminal"
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+    "eslint.enable": true,
+    "rust-analyzer.checkOnSave": true,
+    "typescript.tsdk": "frontend/node_modules/typescript/lib",
+    "terminal.integrated.defaultProfile.linux": "zsh",
+    "just.executionMode": "terminal",
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/target": true,
+        "**/dist": true
+    },
+    // 显式声明 justfile 文件类型（避免被当作 YAML 或 Makefile 处理）
+    "files.associations": {
+        "justfile": "just"
+    },
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer"
+    },
+    // 对 justfile 的特殊处理
+    "[justfile]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.formatOnSave": false, // 禁止自动格式化
+        "editor.defaultFormatter": null,
+        "editor.wordWrap": "off"
+    },
+    "[shellscript]": {
+        "editor.formatOnSave": false
+    }
 }
