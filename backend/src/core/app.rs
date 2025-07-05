@@ -1,4 +1,5 @@
 use crate::{
+    common::api::{ApiResponse, AppResult},
     core::db::{create_default_pool, test_connection},
     features::{
         auth::{
@@ -62,7 +63,7 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
 
     // Combine all routes into the final application
     let app = Router::new()
-        .route("/", get(root))
+        .route("/api/summary", get(summary))
         .nest("/api", public_api.merge(protected_api))
         .layer(cors)
         .with_state(pool);
@@ -90,10 +91,10 @@ async fn get_addr() -> String {
 /// Handles requests to the root (`/`) endpoint.
 ///
 /// Provides a simple welcome message and API version information.
-async fn root() -> Json<serde_json::Value> {
-    Json(json!({
+async fn summary() -> AppResult<Json<ApiResponse<serde_json::Value>>> {
+    Ok(ApiResponse::success(json!({
         "message": "Welcome to rustzen-admin API",
         "description": "A backend management system built with Rust, Axum, SQLx, and PostgreSQL.",
         "github": "https://github.com/idaibin/rustzen-admin"
-    }))
+    })))
 }
