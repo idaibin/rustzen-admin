@@ -4,7 +4,6 @@ use super::model::{CreateMenuRequest, MenuQueryParams, MenuResponse, UpdateMenuR
 use super::repo::MenuRepository;
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
-use crate::features::system::user::repo::UserRepository;
 use axum::extract::Query;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -224,23 +223,6 @@ impl MenuService {
 
         let menu_responses: Vec<MenuResponse> = menus.into_iter().map(MenuResponse::from).collect();
         Ok(menu_responses)
-    }
-
-    pub async fn get_permissions_by_menu(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Vec<String>, ServiceError> {
-        let role_ids = UserRepository::get_user_role_ids(pool, user_id)
-            .await
-            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
-
-        let permissions =
-            MenuRepository::find_permissions_by_role(pool, &role_ids).await.map_err(|e| {
-                tracing::error!("Failed to fetch permissions by menu IDs: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        Ok(permissions)
     }
 
     /// Build hierarchical tree from flat menu list
