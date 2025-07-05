@@ -7,18 +7,21 @@ import { RouterProvider } from "react-router-dom";
 import { SWRConfig } from "swr";
 import { swrFetcher } from "./services/api";
 import { router } from "./router";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
+import enUS from "antd/locale/en_US";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App>
-      <SWRConfig
-        value={{
-          fetcher: swrFetcher,
-        }}
-      >
-        <RouterProvider router={router} />
-      </SWRConfig>
-    </App>
-  </React.StrictMode>
+    <React.StrictMode>
+        <ConfigProvider locale={enUS}>
+            <App>
+                <SWRConfig
+                    value={{
+                        fetcher: swrFetcher,
+                    }}
+                >
+                    <RouterProvider router={router} />
+                </SWRConfig>
+            </App>
+        </ConfigProvider>
+    </React.StrictMode>
 );
