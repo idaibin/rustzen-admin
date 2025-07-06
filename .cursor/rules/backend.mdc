@@ -1,117 +1,237 @@
----
-description:
-globs: backend/*
-alwaysApply: false
----
-🧱 rustzen-admin 后端开发规范（Backend Development Rules）
+🧱 Rustzen Admin Backend Development Rules
 
-本规范适用于 rustzen-admin 项目的后端模块，使用 Rust + Axum + SQLx 构建，旨在提升代码一致性、可维护性、可测试性与协作效率，适配 AI 编程工具如 Cursor 等辅助开发工具。
-执行任何命令的时候，请先确保在 backend 文件夹中，如果不在，请使用 `cd backend`。
+This specification applies to the backend modules of the rustzen-admin project, built with Rust + Axum + SQLx, aimed at improving code consistency, maintainability, testability, and collaboration efficiency, adapted for AI programming tools such as Cursor.
+
+When executing any commands, please ensure you are in the backend folder. If not, use `cd backend`.
 
 ⸻
 
-�� 1. 项目结构约定（模块化分层）
+## Project Background & Philosophy
 
-`src/`
-├── `main.rs`              // 启动入口
-├── `common/`              // 通用模块
-│   └── `api.rs`           // 定义了 ApiResponse, AppError, ServiceError 等
-├── `core/`                // 核心功能模块（JWT、密码处理等）
-│   └── `jwt.rs`
-├── `features/`            // 业务模块（按功能拆分）
-│   ├── `auth/`            // 认证模块
-│   └── `system/`          // 系统管理模块
-│       ├── `user/`
-│       ├── `role/`
-│       └── `menu/`
+Rustzen follows an "extremely minimal" architecture philosophy emphasizing simplicity, clarity, and AI-friendliness. The project eliminates unnecessary complexity by using a streamlined three-layer architecture: **Router → Service → Repository**, removing traditional handler, usecase, and domain layers to reduce cognitive load and improve maintainability.
+
+**Core Principles:**
+
+-   **Simplicity First**: Each layer has a single, clear responsibility
+-   **AI-Friendly**: Code structure optimized for AI assistance and code generation
+-   **Performance Conscious**: Intelligent caching and database optimization
+-   **Type Safety**: Strong typing throughout the stack with compile-time guarantees
+
+⸻
+
+📁 1. Project Structure Convention (Modular Layering)
+
+```
+src/
+├── main.rs                  // Application entry point
+├── common/                  // Common modules
+│   ├── api.rs               // Defines ApiResponse, AppResult, OptionItem, etc.
+│   └── error.rs             // Defines ServiceError, AppError, error conversion logic
+├── core/                    // Core functionality modules (JWT, password, etc.)
+│   └── jwt.rs
+├── features/                // Business modules (by feature)
+│   ├── auth/                // Authentication module
+│   └── system/              // System management module
+│       ├── mod.rs           // System module declarations
+│       ├── user/            // User management submodule
+│       │   ├── mod.rs
+│       │   ├── router.rs    // Route handlers (combined with router)
+│       │   ├── service.rs
+│       │   ├── repo.rs
+│       │   ├── entity.rs
+│       │   ├── dto.rs
+│       │   └── vo.rs
+│       ├── role/            // Role management submodule
+│       │   ├── mod.rs
+│       │   ├── router.rs
+│       │   ├── service.rs
+│       │   ├── repo.rs
+│       │   ├── entity.rs
+│       │   ├── dto.rs
+│       │   └── vo.rs
+│       └── menu/            // Menu management submodule
+│           ├── mod.rs
+│           ├── router.rs
+│           ├── service.rs
+│           ├── repo.rs
+│           ├── entity.rs
+│           ├── dto.rs
+│           └── vo.rs
 └── ...
+```
 
-每个业务模块（如 `user`）都遵循相同的内部结构：
-*   `routes.rs`: 定义路由和处理器。
-*   `service.rs`: 实现核心业务逻辑。
-*   `repo.rs`: 负责数据库交互。
-*   `model.rs`: 定义数据模型和API结构体。
-*   `mod.rs`: 声明模块。
+<code_block_to_apply_from>
+migrations/
+├── 107000_view_user_with_roles.sql
+├── 107001_view_user_permissions.sql
+├── 108000_func_user_role.sql
+├── 108001_func_user_menu_data.sql
+├── 109000_seed_user.sql
+└── 109001_seed_menu.sql
 
-⸻
-
-🧩 2. 模块职责说明 (Layered Architecture)
-
-后端采用严格的分层架构，确保职责分离。
-
-| 文件         | 核心职责                                                                                                                              | 示例链接                                                                    |
-| :----------- | :------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------- |
-| **`routes.rs`**  | **路由层**: 接收HTTP请求，解析参数，调用 `Service` 层，并将结果（成功或失败）转换为 `AppResult`。 **禁止包含任何业务逻辑**。         | [user routes](mdc:backend/src/features/system/user/routes.rs)   |
-| **`service.rs`** | **服务层**: 处理核心业务逻辑。它不关心HTTP，只负责执行业务规则，调用 `Repo` 层。函数返回 `Result<T, ServiceError>`。 | [user service](mdc:backend/src/features/system/user/service.rs) |
-| **`repo.rs`**    | **仓库层**: 负责与数据库的所有交互（增删改查）。函数返回 `Result<T, sqlx::Error>`。                                                | [user repository](mdc:backend/src/features/system/user/repo.rs) |
-| **`model.rs`**   | **模型层**: 定义数据库实体 (`Entity`)、API请求 (`Request`) 和响应 (`Response`) 的数据结构。                                          | [user models](mdc:backend/src/features/system/user/model.rs)    |
+````
 
 ⸻
 
-🔧 3. 核心错误处理机制
+🧩 2. Three-Layer Architecture Responsibilities (see [Rustzen Philosophy](mdc:.cursor/rules/rustzen-philosophy.mdc))
 
-这是新架构的核心，确保了业务错误与Web层的解耦。
+| File       | Core Responsibilities                                                                                                  | Example Link                                                    |
+| :--------- | :--------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| router.rs  | Route Layer: HTTP request handling, parameter extraction, calls service, returns AppResult. No business logic allowed. | [user router](mdc:backend/src/features/system/user/router.rs)   |
+| service.rs | Service Layer: Business logic, validation, orchestration, calls repo, returns Result<T, ServiceError>.                 | [user service](mdc:backend/src/features/system/user/service.rs) |
+| repo.rs    | Repository Layer: Direct DB access, first-site error handling, returns Result<T, ServiceError>.                        | [user repo](mdc:backend/src/features/system/user/repo.rs)       |
+| entity.rs  | Entity Layer: Database entity structs.                                                                                 | [user entity](mdc:backend/src/features/system/user/entity.rs)   |
+| dto.rs     | DTO Layer: API request data transfer objects.                                                                          | [user dto](mdc:backend/src/features/system/user/dto.rs)         |
+| vo.rs      | VO Layer: API response view objects.                                                                                   | [user vo](mdc:backend/src/features/system/user/vo.rs)           |
 
-1.  **`ServiceError`** ([common/api.rs](mdc:backend/src/common/api.rs))
-    *   **用途**: 定义所有**业务逻辑**可能出现的失败情况，如 `NotFound`, `Conflict`, `InvalidCredentials`。
-    *   **位置**: 在 `Service` 层创建并返回。一个服务函数的签名必须是 `async fn(...) -> Result<T, ServiceError>`。
+**Example: Route Layer**
 
-2.  **`AppError`** ([common/api.rs](mdc:backend/src/common/api.rs))
-    *   **用途**: `ServiceError` 的一个包装器，它实现了Axum的 `IntoResponse` Trait。
-    *   **功能**: 负责将一个业务 `ServiceError` **映射**成一个具体的HTTP状态码和JSON错误响应体。
+```rust
+pub fn user_routes() -> Router<PgPool> {
+    Router::new()
+        .route_with_permission("/", get(get_user_list), PermissionsCheck::Any(vec!["system:user:list"]))
+        // ...
+}
 
-3.  **处理流程**
-    *   `Repo` 层返回一个 `sqlx::Error`。
-    *   `Service` 层捕获 `sqlx::Error`，并将其 `.map_err()` 转换为一个具体的 `ServiceError`（例如 `ServiceError::DatabaseQueryFailed`）。
-    *   `Route` 处理器调用服务方法，并使用 `?` 操作符。如果服务返回 `Err(ServiceError)`，`?` 会借助 `From<ServiceError> for AppError` 的实现，自动将其转换为 `AppError` 并从处理器返回。
-    *   Axum捕获到 `AppError` 并调用 `into_response()`，将标准化的错误JSON发送给客户端。
+pub async fn get_user_list(
+    State(pool): State<PgPool>,
+    current_user: CurrentUser,
+    Query(query): Query<UserQueryDto>,
+) -> AppResult<Json<ApiResponse<Vec<UserListVo>>>> {
+    let (users, total) = UserService::get_user_list(&pool, query).await?;
+    Ok(ApiResponse::page(users, total))
+}
+```
+
+**Example: Service Layer**
+
+```rust
+pub async fn get_user_list(
+    pool: &PgPool,
+    query: UserQueryDto,
+) -> Result<(Vec<UserListVo>, i64), ServiceError> {
+    let total = UserRepository::count_users(pool, query.username.as_deref(), query.status.as_deref()).await?;
+    let users = UserRepository::find_with_pagination(pool, ...).await?;
+    // ...
+    Ok((list, total))
+}
+```
+
+**Example: Repo Layer**
+
+```rust
+pub async fn find_with_pagination(
+    pool: &PgPool,
+    ...
+) -> Result<Vec<UserWithRolesEntity>, ServiceError> {
+    sqlx::query_as!(...)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("DB error: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })
+}
+```
 
 ⸻
 
-🚀 4. 如何新增一个API端点
+🔧 3. Error Handling Mechanism
 
-请严格遵循以下步骤：
+-   All DB errors are handled at the repo layer and converted to `ServiceError` immediately.
+-   The service layer only deals with `ServiceError` and business logic.
+-   The route layer uses `?` to propagate errors, which are converted to `AppError` for HTTP responses.
+-   `AppError` implements `IntoResponse` and provides a unified JSON error format with code/message/data.
 
-1.  **定义模型 (`model.rs`)**:
-    *   在对应模块的 `model.rs` 中创建请求和响应的结构体。
-    *   为请求结构体派生 `Deserialize`，为响应结构体派生 `Serialize`。
+**Example: ServiceError**
 
-2.  **实现仓库逻辑 (`repo.rs`)**:
-    *   如果需要，添加新的数据库查询函数。函数应返回 `Result<T, sqlx::Error>`。
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum ServiceError {
+    #[error("Database query failed")] DatabaseQueryFailed,
+    #[error("Not found")] NotFound(String),
+    #[error("Username already exists")] UsernameConflict,
+    // ...
+}
+```
 
-3.  **实现业务逻辑 (`service.rs`)**:
-    *   创建新的 `async` 函数，调用仓库函数，并处理任何业务规则。
-    *   函数签名必须是 `async fn(...) -> Result<ResponseType, ServiceError>`。
+**Example: AppError**
 
-4.  **创建路由处理器 (`routes.rs`)**:
-    *   创建一个 `async` 处理器函数，其签名必须是 `async fn(...) -> AppResult<Json<ApiResponse<ResponseType>>>`。
-    *   函数体非常简洁：提取参数 -> 调用服务方法 -> `Ok(ApiResponse::success(response))`。
-    *   使用 `?` 来自动处理错误。
+```rust
+pub struct AppError((StatusCode, i32, String));
 
-5.  **注册路由**:
-    *   在 `routes.rs` 的路由表中添加新路径和处理器。
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, code, message) = self.0;
+        let body = Json(serde_json::json!({
+            "code": code,
+            "message": message,
+            "data": null,
+        }));
+        (status, body).into_response()
+    }
+}
+
+impl From<ServiceError> for AppError {
+    fn from(err: ServiceError) -> Self {
+        // ...
+    }
+}
+```
 
 ⸻
 
-🎯 5. 命名与风格
+🚀 4. How to Add a New API Endpoint
 
-| 类型 | 命名风格 | 示例 |
-| :--- | :--- | :--- |
-| 文件名 | `snake_case` | `user_service.rs` |
-| Struct | `PascalCase` | `UserResponse`, `CreateUserRequest` |
-| Enum | `PascalCase` | `ServiceError` |
-| 函数 | `snake_case` | `get_user_list()` |
-| 数据库表名 | `snake_case` | `sys_user`, `sys_role` |
-
-*   **API序列化**: 对外API响应体和请求体，统一使用 `#[serde(rename_all = "camelCase")]`。
+1. Define request struct in `dto.rs` (derive `Deserialize`)
+2. Define response struct in `vo.rs` (derive `Serialize`)
+3. Define DB entity in `entity.rs`
+4. Add repo function in `repo.rs` (return `Result<T, ServiceError>`, handle errors at source)
+5. Add business logic in `service.rs` (return `Result<T, ServiceError>`, orchestrate repo calls)
+6. Add handler in `router.rs` (return `AppResult<Json<ApiResponse<T>>>`, use `?` for error propagation)
+7. Register route in `router.rs` (use `route_with_permission` for permission control)
 
 ⸻
 
-✅ 6. 代码质量建议
-*   **严禁 `unwrap()` / `expect()`**: 在业务代码中严禁使用它们，所有可能失败的操作都必须通过 `Result` 和 `?` 处理。
-*   **日志**: 在 `Service` 层的关键业务节点使用 `tracing` 添加日志。
-*   **AI 友好**: 保持各层职责单一，使AI工具能更好地理解和修改特定部分的代码。 handler层仅做参数提取和调用，service层专注业务逻辑，repo层专注db交互。
+🎯 5. Naming and Style Conventions
+
+| Type            | Naming Style | Examples                            |
+| :-------------- | :----------- | :---------------------------------- |
+| File names      | `snake_case` | `user_service.rs`                   |
+| Structs         | `PascalCase` | `UserResponse`, `CreateUserRequest` |
+| Enums           | `PascalCase` | `ServiceError`                      |
+| Functions       | `snake_case` | `get_user_list()`                   |
+| Database tables | `snake_case` | `users`, `roles`                    |
+
+-   **API Serialization**: All API request/response structs use `#[serde(rename_all = "camelCase")]`
+
+⸻
+
+✅ 6. Code Quality Guidelines
+
+-   Never use `unwrap()` / `expect()` in business code; always use `Result` and `?`
+-   Use `tracing` for logging in the service layer
+-   Maintain single responsibility per layer for AI-friendliness
+
+⸻
+
+📋 7. Permission Code Conventions
+
+-   Use `PermissionsCheck::Any(vec![...])` for route-level permission checks
+-   Example: `PermissionsCheck::Any(vec!["system:user:list"])`
+-   Support for wildcard permissions (e.g., `system:*`)
+
+⸻
+
+🔗 8. Related Rule References
+
+-   Project Philosophy and Architecture: [Rustzen Philosophy](mdc:.cursor/rules/rustzen-philosophy.mdc)
+-   Database Migration Standards: [Zen Migrations](mdc:.cursor/rules/zen-migrations.mdc)
+-   Frontend Development Standards: [Frontend Rules](mdc:.cursor/rules/frontend.mdc)
+
+This specification applies to Cursor rules/backend.mdc. Please follow these rules for development.
 
 ⸻
 
 本规范适用于 Cursor rules/backend.md，请遵循以上规则进行开发。
+````

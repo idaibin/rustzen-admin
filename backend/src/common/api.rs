@@ -58,4 +58,4 @@ pub struct DictOptionsQuery {
 // --- API Result Type ---
 
 /// A type alias for application-level results in API handlers.
-pub type AppResult<T> = Result<T, AppError>;
+pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;

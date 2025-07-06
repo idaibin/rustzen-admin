@@ -64,7 +64,7 @@ pub async fn get_user_list(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Query(query): Query<UserQueryDto>,
-) -> AppResult<Json<ApiResponse<Vec<UserListVo>>>> {
+) -> AppResult<Vec<UserListVo>> {
     tracing::info!("Getting user list for user: {}", current_user.username);
 
     let (users, total) = UserService::get_user_list(&pool, query).await?;
@@ -78,7 +78,7 @@ pub async fn get_user_by_id(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<UserDetailVo>>> {
+) -> AppResult<UserDetailVo> {
     tracing::info!("Getting user by ID: {} for user: {}", id, current_user.username);
 
     let result = UserService::get_user_by_id(&pool, id).await?;
@@ -92,7 +92,7 @@ pub async fn create_user(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Json(dto): Json<CreateUserDto>,
-) -> AppResult<Json<ApiResponse<UserDetailVo>>> {
+) -> AppResult<UserDetailVo> {
     tracing::info!("Creating user: {} by user: {}", dto.username, current_user.username);
 
     let result = UserService::create_user(&pool, dto).await?;
@@ -107,7 +107,7 @@ pub async fn update_user(
     current_user: CurrentUser,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserDto>,
-) -> AppResult<Json<ApiResponse<UserDetailVo>>> {
+) -> AppResult<UserDetailVo> {
     tracing::info!("Updating user ID: {} by user: {}", id, current_user.username);
 
     let result = UserService::update_user(&pool, id, dto).await?;
@@ -121,7 +121,7 @@ pub async fn delete_user(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<()>>> {
+) -> AppResult<()> {
     tracing::info!("Deleting user ID: {} by user: {}", id, current_user.username);
 
     UserService::delete_user(&pool, id).await?;
@@ -133,7 +133,7 @@ pub async fn delete_user(
 /// Get user status options
 pub async fn get_user_status_options(
     current_user: CurrentUser,
-) -> AppResult<Json<ApiResponse<Vec<UserStatusOptionVo>>>> {
+) -> AppResult<Vec<UserStatusOptionVo>> {
     tracing::info!("Getting user status options for user: {}", current_user.username);
 
     let result = UserService::get_user_status_options();
@@ -147,7 +147,7 @@ pub async fn get_user_options(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Query(query): Query<UserOptionsDto>,
-) -> AppResult<Json<ApiResponse<Vec<UserOptionVo>>>> {
+) -> AppResult<Vec<UserOptionVo>> {
     tracing::info!("Getting user options for user: {}", current_user.username);
 
     let result = UserService::get_user_options(&pool, query).await?;
