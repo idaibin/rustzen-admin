@@ -1,7 +1,8 @@
 // Menu business logic
 
-use super::model::{CreateMenuRequest, MenuQueryParams, MenuResponse, UpdateMenuRequest};
+use super::dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto};
 use super::repo::MenuRepository;
+use super::vo::MenuDetailVo;
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
 use axum::extract::Query;
@@ -15,42 +16,31 @@ impl MenuService {
     /// Get menu list as tree structure with optional filtering
     pub async fn get_menu_list(
         pool: &PgPool,
-        params: MenuQueryParams,
-    ) -> Result<(Vec<MenuResponse>, i64), ServiceError> {
+        params: MenuQueryDto,
+    ) -> Result<(Vec<MenuDetailVo>, i64), ServiceError> {
         tracing::info!("Fetching menu list with params: {:?}", params);
 
         let menus =
             MenuRepository::find_with_conditions(pool, params.title.as_deref(), params.status)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Failed to fetch menus from database: {:?}", e);
-                    ServiceError::DatabaseQueryFailed
-                })?;
+                .await?;
 
-        let total = MenuRepository::count_menus(pool, params.title.as_deref(), params.status)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to count menus from database: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let total =
+            MenuRepository::count_menus(pool, params.title.as_deref(), params.status).await?;
 
-        let menu_responses: Vec<MenuResponse> = menus.into_iter().map(MenuResponse::from).collect();
+        let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
         let menu_tree = Self::build_menu_tree(menu_responses);
 
         Ok((menu_tree, total))
     }
 
     /// Get single menu by ID
-    pub async fn get_menu_by_id(pool: &PgPool, id: i64) -> Result<MenuResponse, ServiceError> {
+    pub async fn get_menu_by_id(pool: &PgPool, id: i64) -> Result<MenuDetailVo, ServiceError> {
         tracing::info!("Fetching menu by ID: {}", id);
 
-        let menu = MenuRepository::find_by_id(pool, id).await.map_err(|e| {
-            tracing::error!("Failed to fetch menu {} from database: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let menu = MenuRepository::find_by_id(pool, id).await?;
 
         match menu {
-            Some(menu) => Ok(MenuResponse::from(menu)),
+            Some(menu) => Ok(MenuDetailVo::from(menu)),
             None => Err(ServiceError::NotFound("Menu".to_string())),
         }
     }
@@ -58,33 +48,19 @@ impl MenuService {
     /// Create new menu with validation
     pub async fn create_menu(
         pool: &PgPool,
-        request: CreateMenuRequest,
-    ) -> Result<MenuResponse, ServiceError> {
+        request: CreateMenuDto,
+    ) -> Result<MenuDetailVo, ServiceError> {
         tracing::info!("Attempting to create menu with title: {}", request.title);
 
         // Check parent exists
         if let Some(parent_id) = request.parent_id {
-            if MenuRepository::find_by_id(pool, parent_id)
-                .await
-                .map_err(|e| {
-                    tracing::error!("DB error checking parent menu {}: {:?}", parent_id, e);
-                    ServiceError::DatabaseQueryFailed
-                })?
-                .is_none()
-            {
+            if MenuRepository::find_by_id(pool, parent_id).await?.is_none() {
                 return Err(ServiceError::NotFound("Parent menu".to_string()));
             }
         }
 
         // Check title conflict
-        if MenuRepository::find_by_title(&request.title, pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("DB error checking for title conflict: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_some()
-        {
+        if MenuRepository::find_by_title(&request.title, pool).await?.is_some() {
             return Err(ServiceError::MenuTitleConflict);
         }
 
@@ -98,13 +74,9 @@ impl MenuService {
             request.sort_order.unwrap_or(0),
             request.status.unwrap_or(1),
         )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create menu in database: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        .await?;
 
-        let menu_response = MenuResponse::from(menu);
+        let menu_response = MenuDetailVo::from(menu);
         tracing::info!("Successfully created menu: {}", menu_response.id);
         Ok(menu_response)
     }
@@ -113,19 +85,12 @@ impl MenuService {
     pub async fn update_menu(
         pool: &PgPool,
         id: i64,
-        request: UpdateMenuRequest,
-    ) -> Result<MenuResponse, ServiceError> {
+        request: UpdateMenuDto,
+    ) -> Result<MenuDetailVo, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
 
         // Check menu exists
-        if MenuRepository::find_by_id(pool, id)
-            .await
-            .map_err(|e| {
-                tracing::error!("DB error checking existence of menu {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?
-            .is_none()
-        {
+        if MenuRepository::find_by_id(pool, id).await?.is_none() {
             return Err(ServiceError::NotFound("Menu".to_string()));
         }
 
@@ -138,15 +103,7 @@ impl MenuService {
                 ));
             }
             // Parent must exist (unless root)
-            if parent_id != 0
-                && MenuRepository::find_by_id(pool, parent_id)
-                    .await
-                    .map_err(|e| {
-                        tracing::error!("DB error checking parent menu {}: {:?}", parent_id, e);
-                        ServiceError::DatabaseQueryFailed
-                    })?
-                    .is_none()
-            {
+            if parent_id != 0 && MenuRepository::find_by_id(pool, parent_id).await?.is_none() {
                 return Err(ServiceError::NotFound("Parent menu".to_string()));
             }
         }
@@ -162,15 +119,11 @@ impl MenuService {
             request.sort_order,
             request.status,
         )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to update menu {} in database: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        .await?;
 
         match updated_menu {
             Some(menu) => {
-                let menu_response = MenuResponse::from(menu);
+                let menu_response = MenuDetailVo::from(menu);
                 tracing::info!("Successfully updated menu: {}", id);
                 Ok(menu_response)
             }
@@ -181,10 +134,7 @@ impl MenuService {
     /// Delete menu with child validation
     pub async fn delete_menu(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Attempting to delete menu: {}", id);
-        let all_menus = MenuRepository::find_all(pool).await.map_err(|e| {
-            tracing::error!("Failed to fetch all menus for delete check: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let all_menus = MenuRepository::find_all(pool).await?;
         let has_children = all_menus.iter().any(|menu| menu.parent_id == Some(id));
 
         if has_children {
@@ -193,10 +143,7 @@ impl MenuService {
             ));
         }
 
-        let success = MenuRepository::soft_delete(pool, id).await.map_err(|e| {
-            tracing::error!("Failed to delete menu {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let success = MenuRepository::soft_delete(pool, id).await?;
 
         if success {
             tracing::info!("Successfully deleted menu: {}", id);
@@ -210,24 +157,21 @@ impl MenuService {
     pub async fn get_menus_by_role_ids(
         pool: &PgPool,
         role_ids: &[i64],
-    ) -> Result<Vec<MenuResponse>, ServiceError> {
+    ) -> Result<Vec<MenuDetailVo>, ServiceError> {
         if role_ids.is_empty() {
             return Ok(vec![]);
         }
         tracing::info!("Fetching menus for role IDs: {:?}", role_ids);
 
-        let menus = MenuRepository::find_menus_by_role(pool, role_ids).await.map_err(|e| {
-            tracing::error!("Failed to fetch menus by role IDs: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let menus = MenuRepository::find_menus_by_role(pool, role_ids).await?;
 
-        let menu_responses: Vec<MenuResponse> = menus.into_iter().map(MenuResponse::from).collect();
+        let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
         Ok(menu_responses)
     }
 
     /// Build hierarchical tree from flat menu list
-    pub fn build_menu_tree(menus: Vec<MenuResponse>) -> Vec<MenuResponse> {
-        let mut menu_map: HashMap<i64, MenuResponse> =
+    pub fn build_menu_tree(menus: Vec<MenuDetailVo>) -> Vec<MenuDetailVo> {
+        let mut menu_map: HashMap<i64, MenuDetailVo> =
             menus.into_iter().map(|m| (m.id, m)).collect();
 
         let mut root_menus = Vec::new();
@@ -254,11 +198,11 @@ impl MenuService {
             }
         }
 
-        let mut result: Vec<MenuResponse> =
+        let mut result: Vec<MenuDetailVo> =
             root_menus.into_iter().filter_map(|id| menu_map.remove(&id)).collect();
 
         // Sort all levels recursively
-        fn sort_recursive(menus: &mut Vec<MenuResponse>) {
+        fn sort_recursive(menus: &mut Vec<MenuDetailVo>) {
             menus.sort_by(|a, b| a.sort_order.cmp(&b.sort_order));
             for menu in menus {
                 if let Some(children) = &mut menu.children {
@@ -290,11 +234,7 @@ impl MenuService {
         let status = query.status.as_deref().unwrap_or("enabled");
         let menus =
             MenuRepository::find_options(pool, Some(status), query.q.as_deref(), query.limit)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Failed to fetch menu options from database: {:?}", e);
-                    ServiceError::DatabaseQueryFailed
-                })?;
+                .await?;
 
         let options: Vec<OptionItem<i64>> =
             menus.into_iter().map(|(id, title)| OptionItem { label: title, value: id }).collect();

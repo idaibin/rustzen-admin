@@ -1,6 +1,7 @@
 // Database operations related to the `sys_menu` table go here.
 
-use super::model::MenuEntity;
+use super::entity::MenuEntity;
+use crate::common::error::ServiceError;
 use chrono::Utc;
 use sqlx::PgPool;
 
@@ -9,7 +10,7 @@ pub struct MenuRepository;
 
 impl MenuRepository {
     /// Retrieves a menu by its ID
-    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, sqlx::Error> {
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, ServiceError> {
         let menu = sqlx::query_as::<_, MenuEntity>(
             "SELECT id, parent_id, title, path, component, icon, sort_order, status,
              created_at, updated_at,  permission_code
@@ -17,13 +18,17 @@ impl MenuRepository {
         )
         .bind(id)
         .fetch_optional(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding menu by ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(menu)
     }
 
     /// Retrieves all menus (for building tree structure)
-    pub async fn find_all(pool: &PgPool) -> Result<Vec<MenuEntity>, sqlx::Error> {
+    pub async fn find_all(pool: &PgPool) -> Result<Vec<MenuEntity>, ServiceError> {
         let menus = sqlx::query_as::<_, MenuEntity>(
             "SELECT id, parent_id, title, path, component, icon, sort_order, status,
              created_at, updated_at, permission_code
@@ -31,7 +36,11 @@ impl MenuRepository {
              ORDER BY sort_order ASC, id ASC",
         )
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding all menus: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(menus)
     }
@@ -41,7 +50,7 @@ impl MenuRepository {
         pool: &PgPool,
         title_filter: Option<&str>,
         status_filter: Option<i16>,
-    ) -> Result<Vec<MenuEntity>, sqlx::Error> {
+    ) -> Result<Vec<MenuEntity>, ServiceError> {
         let menus = if title_filter.is_none() && status_filter.is_none() {
             // No filtering conditions
             sqlx::query_as::<_, MenuEntity>(
@@ -51,7 +60,11 @@ impl MenuRepository {
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
-            .await?
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error finding menus with conditions: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
         } else {
             // With filtering conditions, implement a simple version
             sqlx::query_as::<_, MenuEntity>(
@@ -61,7 +74,11 @@ impl MenuRepository {
                  ORDER BY sort_order ASC, id ASC",
             )
             .fetch_all(pool)
-            .await?
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error finding menus with conditions: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
         };
 
         Ok(menus)
@@ -72,10 +89,14 @@ impl MenuRepository {
         pool: &PgPool,
         _title_filter: Option<&str>,
         _status_filter: Option<i16>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, ServiceError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM menus WHERE deleted_at IS NULL")
             .fetch_one(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error counting menus: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
 
         Ok(count.0)
     }
@@ -90,7 +111,7 @@ impl MenuRepository {
         icon: Option<&str>,
         sort_order: i32,
         status: i16,
-    ) -> Result<MenuEntity, sqlx::Error> {
+    ) -> Result<MenuEntity, ServiceError> {
         let menu = sqlx::query_as::<_, MenuEntity>(
             "INSERT INTO menus (parent_id, title, path, component, icon, sort_order, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
@@ -106,7 +127,11 @@ impl MenuRepository {
         .bind(status)
         .bind(Utc::now().naive_utc())
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error creating menu: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(menu)
     }
@@ -122,7 +147,7 @@ impl MenuRepository {
         icon: Option<&str>,
         sort_order: Option<i32>,
         status: Option<i16>,
-    ) -> Result<Option<MenuEntity>, sqlx::Error> {
+    ) -> Result<Option<MenuEntity>, ServiceError> {
         // Simplified implementation: first query existing menu
         let existing = Self::find_by_id(pool, id).await?;
         if let Some(existing_menu) = existing {
@@ -152,7 +177,11 @@ impl MenuRepository {
             .bind(updated_status)
             .bind(Utc::now().naive_utc())
             .fetch_optional(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error updating menu: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
 
             Ok(menu)
         } else {
@@ -161,14 +190,18 @@ impl MenuRepository {
     }
 
     /// Soft deletes a menu
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, sqlx::Error> {
+    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
             "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL"
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
         .execute(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting menu {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -177,7 +210,7 @@ impl MenuRepository {
     pub async fn find_menus_by_role(
         pool: &PgPool,
         role_ids: &[i64],
-    ) -> Result<Vec<MenuEntity>, sqlx::Error> {
+    ) -> Result<Vec<MenuEntity>, ServiceError> {
         if role_ids.is_empty() {
             return Ok(vec![]);
         }
@@ -203,14 +236,17 @@ impl MenuRepository {
             query_builder = query_builder.bind(role_id);
         }
 
-        let menus = query_builder.fetch_all(pool).await?;
+        let menus = query_builder.fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error finding menus by role: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         Ok(menus)
     }
 
     pub async fn find_permissions_by_role(
         pool: &PgPool,
         role_ids: &[i64],
-    ) -> Result<Vec<String>, sqlx::Error> {
+    ) -> Result<Vec<String>, ServiceError> {
         if role_ids.is_empty() {
             return Ok(vec![]);
         }
@@ -230,18 +266,29 @@ impl MenuRepository {
             query_builder = query_builder.bind(role_id);
         }
 
-        let permissions = query_builder.fetch_all(pool).await?;
+        let permissions = query_builder.fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error finding permissions by role: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         Ok(permissions)
     }
     /// Finds a single menu by its title.
     pub async fn find_by_title(
         title: &str,
         pool: &PgPool,
-    ) -> Result<Option<MenuEntity>, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM menus WHERE title = $1 AND deleted_at IS NULL")
-            .bind(title)
-            .fetch_optional(pool)
-            .await
+    ) -> Result<Option<MenuEntity>, ServiceError> {
+        let menu = sqlx::query_as::<_, MenuEntity>(
+            "SELECT * FROM menus WHERE title = $1 AND deleted_at IS NULL",
+        )
+        .bind(title)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding menu by title: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(menu)
     }
 
     /// Retrieves menu list for Options API
@@ -250,7 +297,7 @@ impl MenuRepository {
         status: Option<&str>,
         search_query: Option<&str>,
         limit: Option<i64>,
-    ) -> Result<Vec<(i64, String)>, sqlx::Error> {
+    ) -> Result<Vec<(i64, String)>, ServiceError> {
         let mut query = String::from("SELECT id, title FROM menus WHERE deleted_at IS NULL");
 
         // Process status
@@ -275,7 +322,10 @@ impl MenuRepository {
             query.push_str(&format!(" LIMIT {}", l));
         }
 
-        let menus = sqlx::query_as(&query).fetch_all(pool).await?;
+        let menus = sqlx::query_as(&query).fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error finding menu options: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(menus)
     }

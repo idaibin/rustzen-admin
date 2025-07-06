@@ -1,6 +1,7 @@
 // Database operations related to the `sys_role` table go here.
 
-use super::model::RoleEntity;
+use super::entity::RoleEntity;
+use crate::common::error::ServiceError;
 use chrono::Utc;
 use sqlx::PgPool;
 
@@ -9,15 +10,19 @@ pub struct RoleRepository;
 
 impl RoleRepository {
     /// Retrieves a role by its ID
-    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<RoleEntity>, sqlx::Error> {
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<RoleEntity>, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
             "SELECT id, role_name, status,
-             created_at, updated_at, deleted_at
+             created_at, updated_at, deleted_at, is_system
              FROM roles WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(id)
         .fetch_optional(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding role by ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(role)
     }
@@ -26,7 +31,7 @@ impl RoleRepository {
     pub async fn find_by_role_name(
         pool: &PgPool,
         role_name: &str,
-    ) -> Result<Option<RoleEntity>, sqlx::Error> {
+    ) -> Result<Option<RoleEntity>, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
             "SELECT id, role_name, status,
              created_at, updated_at, deleted_at
@@ -34,7 +39,11 @@ impl RoleRepository {
         )
         .bind(role_name)
         .fetch_optional(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding role by name {}: {:?}", role_name, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(role)
     }
@@ -46,31 +55,39 @@ impl RoleRepository {
         limit: i64,
         role_name_filter: Option<&str>,
         status_filter: Option<i16>,
-    ) -> Result<Vec<RoleEntity>, sqlx::Error> {
+    ) -> Result<Vec<RoleEntity>, ServiceError> {
         let roles = if role_name_filter.is_none() && status_filter.is_none() {
             // No filtering conditions
             sqlx::query_as::<_, RoleEntity>(
                 "SELECT id, role_name, status,
-                 created_at, updated_at, deleted_at
+                 created_at, updated_at, deleted_at, is_system
                  FROM roles WHERE deleted_at IS NULL
                  ORDER BY id DESC LIMIT $1 OFFSET $2",
             )
             .bind(limit)
             .bind(offset)
             .fetch_all(pool)
-            .await?
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error finding roles with pagination: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
         } else {
             // With filtering conditions, implement as needed
             sqlx::query_as::<_, RoleEntity>(
                 "SELECT id, role_name, status,
-                 created_at, updated_at, deleted_at
+                 created_at, updated_at, deleted_at, is_system
                  FROM roles WHERE deleted_at IS NULL
                  ORDER BY id DESC LIMIT $1 OFFSET $2",
             )
             .bind(limit)
             .bind(offset)
             .fetch_all(pool)
-            .await?
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error finding roles with pagination: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?
         };
 
         Ok(roles)
@@ -81,10 +98,14 @@ impl RoleRepository {
         pool: &PgPool,
         _role_name_filter: Option<&str>,
         _status_filter: Option<i16>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, ServiceError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM roles WHERE deleted_at IS NULL")
             .fetch_one(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error counting roles: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
         Ok(count.0)
     }
 
@@ -93,7 +114,7 @@ impl RoleRepository {
         pool: &PgPool,
         role_name: &str,
         status: i16,
-    ) -> Result<RoleEntity, sqlx::Error> {
+    ) -> Result<RoleEntity, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
             "INSERT INTO roles (role_name, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4)
@@ -105,7 +126,11 @@ impl RoleRepository {
         .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error creating role: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(role)
     }
@@ -116,7 +141,7 @@ impl RoleRepository {
         id: i64,
         role_name: Option<&str>,
         status: Option<i16>,
-    ) -> Result<Option<RoleEntity>, sqlx::Error> {
+    ) -> Result<Option<RoleEntity>, ServiceError> {
         // Simplified implementation: first query existing role
         let existing = Self::find_by_id(pool, id).await?;
         if let Some(existing_role) = existing {
@@ -135,7 +160,11 @@ impl RoleRepository {
             .bind(updated_status)
             .bind(Utc::now().naive_utc())
             .fetch_optional(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error updating role: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
 
             Ok(role)
         } else {
@@ -144,24 +173,32 @@ impl RoleRepository {
     }
 
     /// Soft deletes a role
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, sqlx::Error> {
+    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         let result =
             sqlx::query("UPDATE roles SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL")
                 .bind(Utc::now().naive_utc())
                 .bind(id)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error soft deleting role {}: {:?}", id, e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
 
         Ok(result.rows_affected() > 0)
     }
 
     /// Retrieves the menu ID list for a role
-    pub async fn get_role_menu_ids(pool: &PgPool, role_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+    pub async fn get_role_menu_ids(pool: &PgPool, role_id: i64) -> Result<Vec<i64>, ServiceError> {
         let menu_ids: Vec<(i64,)> =
             sqlx::query_as("SELECT menu_id FROM role_menus WHERE role_id = $1")
                 .bind(role_id)
                 .fetch_all(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error getting role menu IDs: {:?}", e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
 
         Ok(menu_ids.into_iter().map(|(id,)| id).collect())
     }
@@ -171,13 +208,20 @@ impl RoleRepository {
         pool: &PgPool,
         role_id: i64,
         menu_ids: &[i64],
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), ServiceError> {
         // Delete existing menu associations
-        let mut tx = pool.begin().await?;
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for role menus: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         sqlx::query("DELETE FROM role_menus WHERE role_id = $1")
             .bind(role_id)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error deleting existing role menus: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
 
         // Add new menu associations
         for menu_id in menu_ids {
@@ -188,11 +232,18 @@ impl RoleRepository {
             .bind(role_id)
             .bind(menu_id)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error inserting new role menu: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
         }
 
         // Commit transaction
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Database error committing transaction for role menus: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
         Ok(())
     }
 
@@ -202,7 +253,7 @@ impl RoleRepository {
         status: Option<&str>,
         search_query: Option<&str>,
         limit: Option<i64>,
-    ) -> Result<Vec<(i64, String)>, sqlx::Error> {
+    ) -> Result<Vec<(i64, String)>, ServiceError> {
         let mut query = String::from("SELECT id, role_name FROM roles WHERE deleted_at IS NULL");
 
         // Process status
@@ -227,7 +278,37 @@ impl RoleRepository {
             query.push_str(&format!(" LIMIT {}", l));
         }
 
-        let results: Vec<(i64, String)> = sqlx::query_as(&query).fetch_all(pool).await?;
+        let results: Vec<(i64, String)> =
+            sqlx::query_as(&query).fetch_all(pool).await.map_err(|e| {
+                tracing::error!("Database error finding role options: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
         Ok(results)
+    }
+
+    pub async fn is_system_role(pool: &PgPool, role_id: i64) -> Result<bool, ServiceError> {
+        let result = sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM roles WHERE id = $1 AND is_system = true)",
+            role_id,
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking if role is system: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(result.unwrap_or(false))
+    }
+
+    pub async fn get_role_user_count(pool: &PgPool, role_id: i64) -> Result<i64, ServiceError> {
+        let result =
+            sqlx::query_scalar!("SELECT COUNT(*) FROM user_roles WHERE role_id = $1", role_id,)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error getting role user count: {:?}", e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
+        Ok(result.unwrap_or(0))
     }
 }
