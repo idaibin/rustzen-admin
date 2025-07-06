@@ -1,5 +1,6 @@
-use super::model::{CreateRoleRequest, RoleQueryParams, RoleResponse, UpdateRoleRequest};
+use super::dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto};
 use super::service::RoleService;
+use super::vo::RoleDetailVo;
 use crate::common::{
     api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
     router_ext::RouterExt,
@@ -53,8 +54,8 @@ pub fn role_routes() -> Router<PgPool> {
 /// Query params: current, page_size, name, status
 async fn get_role_list(
     State(pool): State<PgPool>,
-    Query(params): Query<RoleQueryParams>,
-) -> AppResult<Json<ApiResponse<Vec<RoleResponse>>>> {
+    Query(params): Query<RoleQueryDto>,
+) -> AppResult<Json<ApiResponse<Vec<RoleDetailVo>>>> {
     tracing::info!(
         "Role list request: page={}, size={}, name={:?}, status={:?}",
         params.current.unwrap_or(1),
@@ -74,7 +75,7 @@ async fn get_role_list(
 async fn get_role_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
     tracing::info!("Get role by ID: {}", id);
 
     let role = RoleService::get_role_by_id(&pool, id).await?;
@@ -93,8 +94,8 @@ async fn get_role_by_id(
 /// Body: name, description, status, permissions
 async fn create_role(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateRoleRequest>,
-) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+    Json(request): Json<CreateRoleDto>,
+) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
     tracing::info!("Create role: name={}, menus={}", request.role_name, request.menu_ids.len());
 
     let new_role = RoleService::create_role(&pool, request).await?;
@@ -114,8 +115,8 @@ async fn create_role(
 async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateRoleRequest>,
-) -> AppResult<Json<ApiResponse<RoleResponse>>> {
+    Json(request): Json<UpdateRoleDto>,
+) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
     tracing::info!(
         "Update role {}: name={:?}, menus={}",
         id,

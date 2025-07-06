@@ -1,4 +1,5 @@
 use super::model::LogEntity;
+use crate::common::error::ServiceError;
 use serde_json::Value;
 use sqlx::PgPool;
 
@@ -24,7 +25,7 @@ impl LogRepository {
         search_query: Option<&str>,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<LogEntity>, sqlx::Error> {
+    ) -> Result<Vec<LogEntity>, ServiceError> {
         tracing::debug!(
             "Querying logs with search: {:?}, limit: {}, offset: {}",
             search_query,
@@ -48,7 +49,11 @@ impl LogRepository {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding logs: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         tracing::debug!("Retrieved {} log entries", logs.len());
         Ok(logs)
@@ -62,7 +67,10 @@ impl LogRepository {
     ///
     /// # Returns
     /// * `Result<i64, sqlx::Error>` - Total count of matching logs
-    pub async fn count_logs(pool: &PgPool, search_query: Option<&str>) -> Result<i64, sqlx::Error> {
+    pub async fn count_logs(
+        pool: &PgPool,
+        search_query: Option<&str>,
+    ) -> Result<i64, ServiceError> {
         let count = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*)
              FROM operation_logs
@@ -73,7 +81,11 @@ impl LogRepository {
         )
         .bind(search_query.map(|s| format!("%{}%", s)))
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error counting logs: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(count)
     }
@@ -86,7 +98,7 @@ impl LogRepository {
     ///
     /// # Returns
     /// * `Result<Option<LogEntity>, sqlx::Error>` - Log entry if found, None otherwise
-    pub async fn find_by_id(_pool: &PgPool, id: i32) -> Result<Option<LogEntity>, sqlx::Error> {
+    pub async fn find_by_id(_pool: &PgPool, id: i32) -> Result<Option<LogEntity>, ServiceError> {
         tracing::debug!("Querying log entry with id: {}", id);
 
         // Note: Currently returns mock data
@@ -129,7 +141,7 @@ impl LogRepository {
         message: &str,
         user_id: Option<i32>,
         ip_address: Option<&str>,
-    ) -> Result<LogEntity, sqlx::Error> {
+    ) -> Result<LogEntity, ServiceError> {
         tracing::debug!("Creating new log entry with level: {}", level);
 
         // Note: Currently returns mock data
@@ -160,7 +172,7 @@ impl LogRepository {
         user_id: i64,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<LogEntity>, sqlx::Error> {
+    ) -> Result<Vec<LogEntity>, ServiceError> {
         let logs = sqlx::query_as::<_, LogEntity>(
             "SELECT id, user_id, username, action, description, ip_address,
                     user_agent, request_id, resource_type, resource_id,
@@ -174,7 +186,11 @@ impl LogRepository {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding logs by user ID: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(logs)
     }
@@ -185,7 +201,7 @@ impl LogRepository {
         action: &str,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<LogEntity>, sqlx::Error> {
+    ) -> Result<Vec<LogEntity>, ServiceError> {
         let logs = sqlx::query_as::<_, LogEntity>(
             "SELECT id, user_id, username, action, description, ip_address,
                     user_agent, request_id, resource_type, resource_id,
@@ -199,7 +215,11 @@ impl LogRepository {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding logs by action: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(logs)
     }
@@ -211,7 +231,7 @@ impl LogRepository {
         end_date: &str,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<LogEntity>, sqlx::Error> {
+    ) -> Result<Vec<LogEntity>, ServiceError> {
         let logs = sqlx::query_as::<_, LogEntity>(
             "SELECT id, user_id, username, action, description, ip_address,
                     user_agent, request_id, resource_type, resource_id,
@@ -226,7 +246,11 @@ impl LogRepository {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding logs by date range: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(logs)
     }
