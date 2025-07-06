@@ -4,5 +4,5 @@ pub mod middleware;
 pub mod model;
 pub mod permission;
 pub mod repo;
-pub mod routes;
+pub mod router;
 pub mod service;

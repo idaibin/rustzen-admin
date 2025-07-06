@@ -1,19 +1,62 @@
-use super::{
-    dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
-    service::UserService,
-    vo::{UserDetailVo, UserOptionVo, UserStatusOptionVo},
-};
+use crate::common::api::{ApiResponse, AppResult};
+use crate::common::router_ext::RouterExt;
 use crate::features::auth::extractor::CurrentUser;
-use crate::{
-    common::api::{ApiResponse, AppResult},
-    features::system::user::vo::UserListVo,
+use crate::features::auth::permission::PermissionsCheck;
+use crate::features::system::user::dto::{
+    CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto,
 };
+use crate::features::system::user::service::UserService;
+use crate::features::system::user::vo::{
+    UserDetailVo, UserListVo, UserOptionVo, UserStatusOptionVo,
+};
+use axum::Json;
+use axum::extract::{Path, Query, State};
 use axum::{
-    extract::{Path, Query, State},
-    response::Json,
+    Router,
+    routing::{delete, get, post, put},
 };
 use sqlx::PgPool;
 use tracing::instrument;
+
+/// User management routes
+pub fn user_routes() -> Router<sqlx::PgPool> {
+    Router::new()
+        .route_with_permission(
+            "/",
+            get(get_user_list),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+        )
+        .route_with_permission(
+            "/",
+            post(create_user),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:create"]),
+        )
+        .route_with_permission(
+            "/{id}",
+            get(get_user_by_id),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:detail"]),
+        )
+        .route_with_permission(
+            "/{id}",
+            put(update_user),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:update"]),
+        )
+        .route_with_permission(
+            "/{id}",
+            delete(delete_user),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:delete"]),
+        )
+        .route_with_permission(
+            "/options",
+            get(get_user_options),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+        )
+        .route_with_permission(
+            "/status-options",
+            get(get_user_status_options),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:list"]),
+        )
+}
 
 /// Get user list
 #[instrument(skip(pool, query, current_user))]
@@ -112,45 +155,3 @@ pub async fn get_user_options(
     tracing::info!("Successfully retrieved {} user options", result.len());
     Ok(ApiResponse::success(result))
 }
-
-// /// Enable user
-// pub async fn enable_user(
-//     State(pool): State<PgPool>,
-//     current_user: CurrentUser,
-//     Path(id): Path<i64>,
-// ) -> AppResult<Json<ApiResponse<()>>> {
-//     tracing::info!("Enabling user ID: {} by user: {}", id, current_user.username);
-
-//     UserService::enable_user(&pool, id).await?;
-
-//     tracing::info!("Successfully enabled user ID: {}", id);
-//     Ok(ApiResponse::success(()))
-// }
-
-// /// Disable user
-// pub async fn disable_user(
-//     State(pool): State<PgPool>,
-//     current_user: CurrentUser,
-//     Path(id): Path<i64>,
-// ) -> AppResult<Json<ApiResponse<()>>> {
-//     tracing::info!("Disabling user ID: {} by user: {}", id, current_user.username);
-
-//     UserService::disable_user(&pool, id).await?;
-
-//     tracing::info!("Successfully disabled user ID: {}", id);
-//     Ok(ApiResponse::success(()))
-// }
-
-// /// Reset user password
-// pub async fn reset_user_password(
-//     State(pool): State<PgPool>,
-//     current_user: CurrentUser,
-//     Path(id): Path<i64>,
-// ) -> AppResult<Json<ApiResponse<()>>> {
-//     tracing::info!("Resetting password for user ID: {} by user: {}", id, current_user.username);
-
-//     UserService::reset_user_password(&pool, id).await?;
-
-//     tracing::info!("Successfully reset password for user ID: {}", id);
-//     Ok(ApiResponse::success(()))
-// }
