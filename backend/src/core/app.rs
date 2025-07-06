@@ -91,7 +91,7 @@ async fn get_addr() -> String {
 /// Handles requests to the root (`/`) endpoint.
 ///
 /// Provides a simple welcome message and API version information.
-async fn summary() -> AppResult<Json<ApiResponse<serde_json::Value>>> {
+async fn summary() -> AppResult<serde_json::Value> {
     Ok(ApiResponse::success(json!({
         "message": "Welcome to rustzen-admin API",
         "description": "A backend management system built with Rust, Axum, SQLx, and PostgreSQL.",

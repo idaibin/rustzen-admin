@@ -38,7 +38,7 @@ pub fn protected_auth_routes() -> Router<PgPool> {
 async fn login_handler(
     State(pool): State<PgPool>,
     Json(request): Json<LoginRequest>,
-) -> AppResult<Json<ApiResponse<LoginResponse>>> {
+) -> AppResult<LoginResponse> {
     tracing::info!("Login attempt");
 
     let response = AuthService::login(&pool, request).await?;
@@ -53,7 +53,7 @@ struct HashRequest {
 }
 
 /// Generate hash with password
-async fn gen_hash(Query(request): Query<HashRequest>) -> AppResult<Json<ApiResponse<String>>> {
+async fn gen_hash(Query(request): Query<HashRequest>) -> AppResult<String> {
     tracing::info!("Generate hash attempt");
     let password = PasswordUtils::hash_password(&request.password)?.to_string();
     tracing::info!("Hash generated: {}", password);
@@ -61,7 +61,7 @@ async fn gen_hash(Query(request): Query<HashRequest>) -> AppResult<Json<ApiRespo
 }
 
 /// Logout and clear cache
-async fn logout_handler(current_user: CurrentUser) -> AppResult<Json<ApiResponse<()>>> {
+async fn logout_handler(current_user: CurrentUser) -> AppResult<()> {
     tracing::info!("Logout");
 
     // Clear user permission cache
@@ -75,7 +75,7 @@ async fn logout_handler(current_user: CurrentUser) -> AppResult<Json<ApiResponse
 async fn get_login_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
-) -> AppResult<Json<ApiResponse<UserInfoResponse>>> {
+) -> AppResult<UserInfoResponse> {
     tracing::debug!("Get me info");
 
     let user_info = AuthService::get_login_info(&pool, current_user.user_id).await?;

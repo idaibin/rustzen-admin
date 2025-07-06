@@ -55,7 +55,7 @@ pub fn role_routes() -> Router<PgPool> {
 async fn get_role_list(
     State(pool): State<PgPool>,
     Query(params): Query<RoleQueryDto>,
-) -> AppResult<Json<ApiResponse<Vec<RoleDetailVo>>>> {
+) -> AppResult<Vec<RoleDetailVo>> {
     tracing::info!(
         "Role list request: page={}, size={}, name={:?}, status={:?}",
         params.current.unwrap_or(1),
@@ -75,7 +75,7 @@ async fn get_role_list(
 async fn get_role_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
+) -> AppResult<RoleDetailVo> {
     tracing::info!("Get role by ID: {}", id);
 
     let role = RoleService::get_role_by_id(&pool, id).await?;
@@ -95,7 +95,7 @@ async fn get_role_by_id(
 async fn create_role(
     State(pool): State<PgPool>,
     Json(request): Json<CreateRoleDto>,
-) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
+) -> AppResult<RoleDetailVo> {
     tracing::info!("Create role: name={}, menus={}", request.role_name, request.menu_ids.len());
 
     let new_role = RoleService::create_role(&pool, request).await?;
@@ -116,7 +116,7 @@ async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateRoleDto>,
-) -> AppResult<Json<ApiResponse<RoleDetailVo>>> {
+) -> AppResult<RoleDetailVo> {
     tracing::info!(
         "Update role {}: name={:?}, menus={}",
         id,
@@ -137,10 +137,7 @@ async fn update_role(
 }
 
 /// Delete role with dependency validation
-async fn delete_role(
-    State(pool): State<PgPool>,
-    Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<()>>> {
+async fn delete_role(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
     tracing::info!("Delete role: {}", id);
 
     RoleService::delete_role(&pool, id).await?;
@@ -155,7 +152,7 @@ async fn delete_role(
 async fn get_role_options(
     State(pool): State<PgPool>,
     Query(query): Query<OptionsQuery>,
-) -> AppResult<Json<ApiResponse<Vec<OptionItem<i64>>>>> {
+) -> AppResult<Vec<OptionItem<i64>>> {
     tracing::debug!("Role options: q={:?}, limit={:?}", query.q, query.limit);
 
     let options = RoleService::get_role_options(&pool, Query(query)).await?;

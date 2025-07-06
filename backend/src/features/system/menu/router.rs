@@ -51,7 +51,7 @@ pub fn menu_routes() -> Router<PgPool> {
 async fn get_menu_list(
     State(pool): State<PgPool>,
     Query(params): Query<MenuQueryDto>,
-) -> AppResult<Json<ApiResponse<Vec<MenuDetailVo>>>> {
+) -> AppResult<Vec<MenuDetailVo>> {
     tracing::info!("Menu list request: {:?}", params);
 
     let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
@@ -65,7 +65,7 @@ async fn get_menu_list(
 async fn get_menu_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
+) -> AppResult<MenuDetailVo> {
     let response = MenuService::get_menu_by_id(&pool, id).await?;
     Ok(ApiResponse::success(response))
 }
@@ -75,7 +75,7 @@ async fn get_menu_by_id(
 async fn create_menu(
     State(pool): State<PgPool>,
     Json(request): Json<CreateMenuDto>,
-) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
+) -> AppResult<MenuDetailVo> {
     let response = MenuService::create_menu(&pool, request).await?;
     Ok(ApiResponse::success(response))
 }
@@ -86,16 +86,13 @@ async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuDto>,
-) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
+) -> AppResult<MenuDetailVo> {
     let response = MenuService::update_menu(&pool, id, request).await?;
     Ok(ApiResponse::success(response))
 }
 
 /// Delete menu (handles child cleanup)
-async fn delete_menu(
-    State(pool): State<PgPool>,
-    Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<()>>> {
+async fn delete_menu(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
     MenuService::delete_menu(&pool, id).await?;
     Ok(ApiResponse::success(()))
 }
@@ -105,7 +102,7 @@ async fn delete_menu(
 async fn get_menu_options(
     State(pool): State<PgPool>,
     query: Query<OptionsQuery>,
-) -> AppResult<Json<ApiResponse<Vec<crate::common::api::OptionItem<i64>>>>> {
+) -> AppResult<Vec<crate::common::api::OptionItem<i64>>> {
     let options = MenuService::get_menu_options(&pool, query).await?;
     Ok(ApiResponse::success(options))
 }

@@ -18,16 +18,13 @@ pub fn log_routes() -> Router<PgPool> {
 pub async fn get_log_list(
     Query(params): Query<LogQueryParams>,
     State(pool): State<PgPool>,
-) -> AppResult<Json<ApiResponse<Vec<LogResponse>>>> {
+) -> AppResult<Vec<LogResponse>> {
     let (logs, total) = LogService::get_log_list(&pool, params).await?;
     Ok(ApiResponse::page(logs, total))
 }
 
 /// Handles the request to get a specific log entry by ID
-async fn get_log_by_id(
-    State(pool): State<PgPool>,
-    Path(id): Path<i32>,
-) -> AppResult<Json<ApiResponse<LogResponse>>> {
+async fn get_log_by_id(State(pool): State<PgPool>, Path(id): Path<i32>) -> AppResult<LogResponse> {
     let log = LogService::get_log_by_id(&pool, id).await?;
     Ok(ApiResponse::success(log))
 }
@@ -36,7 +33,7 @@ async fn get_log_by_id(
 async fn create_log(
     State(pool): State<PgPool>,
     Json(request): Json<CreateLogRequest>,
-) -> AppResult<Json<ApiResponse<LogResponse>>> {
+) -> AppResult<LogResponse> {
     let log = LogService::create_log(
         &pool,
         request.level,

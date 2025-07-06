@@ -96,7 +96,7 @@ pub fn dict_routes() -> Router<PgPool> {
 async fn get_dict_list(
     State(pool): State<PgPool>,
     Query(params): Query<DictQueryDto>,
-) -> AppResult<Json<ApiResponse<Vec<DictDetailVo>>>> {
+) -> AppResult<Vec<DictDetailVo>> {
     tracing::info!("Dictionary list request received with params: {:?}", params);
 
     let query_params = if params.dict_type.is_some() || params.q.is_some() || params.limit.is_some()
@@ -123,7 +123,7 @@ async fn get_dict_list(
 async fn get_dict_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<DictDetailVo>>> {
+) -> AppResult<DictDetailVo> {
     tracing::info!("Get dictionary item by ID: {}", id);
 
     let dict = DictService::get_dict_by_id(&pool, id).await?;
@@ -146,7 +146,7 @@ async fn get_dict_by_id(
 async fn create_dict(
     State(pool): State<PgPool>,
     Json(request): Json<CreateDictDto>,
-) -> AppResult<Json<ApiResponse<DictDetailVo>>> {
+) -> AppResult<DictDetailVo> {
     tracing::info!("Create dictionary item: type={}, label={}", request.dict_type, request.label);
 
     let new_dict = DictService::create_dict(&pool, request).await?;
@@ -173,7 +173,7 @@ async fn update_dict(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateDictDto>,
-) -> AppResult<Json<ApiResponse<DictDetailVo>>> {
+) -> AppResult<DictDetailVo> {
     tracing::info!("Update dictionary item {}: {:?}", id, request);
 
     let updated_dict = DictService::update_dict(&pool, id, request).await?;
@@ -194,10 +194,7 @@ async fn update_dict(
 ///
 /// # Response
 /// - Success confirmation
-async fn delete_dict(
-    State(pool): State<PgPool>,
-    Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<()>>> {
+async fn delete_dict(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
     tracing::info!("Delete dictionary item: {}", id);
 
     DictService::delete_dict(&pool, id).await?;
@@ -226,7 +223,7 @@ async fn update_dict_status(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateStatusRequest>,
-) -> AppResult<Json<ApiResponse<()>>> {
+) -> AppResult<()> {
     tracing::info!("Update dictionary item {} status to: {}", id, request.status);
 
     DictService::update_dict_status(&pool, id, request.status).await?;
@@ -251,7 +248,7 @@ async fn update_dict_status(
 async fn get_dict_options(
     State(pool): State<PgPool>,
     Query(query): Query<DictOptionsQuery>,
-) -> AppResult<Json<ApiResponse<Vec<crate::common::api::OptionItem<String>>>>> {
+) -> AppResult<Vec<crate::common::api::OptionItem<String>>> {
     tracing::debug!(
         "Dictionary options request: dict_type={:?}, q={:?}, limit={:?}",
         query.dict_type,
@@ -271,7 +268,7 @@ async fn get_dict_options(
 ///
 /// # Response
 /// - Array of unique dictionary type strings
-async fn get_dict_types(State(pool): State<PgPool>) -> AppResult<Json<ApiResponse<Vec<String>>>> {
+async fn get_dict_types(State(pool): State<PgPool>) -> AppResult<Vec<String>> {
     tracing::info!("Dictionary types request received");
 
     let types = DictService::get_dict_types(&pool).await?;
@@ -291,7 +288,7 @@ async fn get_dict_types(State(pool): State<PgPool>) -> AppResult<Json<ApiRespons
 async fn get_dict_by_type(
     State(pool): State<PgPool>,
     Path(dict_type): Path<String>,
-) -> AppResult<Json<ApiResponse<Vec<DictDetailVo>>>> {
+) -> AppResult<Vec<DictDetailVo>> {
     tracing::info!("Dictionary items by type request: {}", dict_type);
 
     let dicts = DictService::get_dict_by_type(&pool, &dict_type).await?;
