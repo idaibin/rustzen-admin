@@ -1,5 +1,6 @@
-use super::model::{CreateMenuRequest, MenuQueryParams, MenuResponse, UpdateMenuRequest};
+use super::dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto};
 use super::service::MenuService;
+use super::vo::MenuDetailVo;
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 use crate::common::router_ext::RouterExt;
 use crate::features::auth::permission::PermissionsCheck;
@@ -49,8 +50,8 @@ pub fn menu_routes() -> Router<PgPool> {
 /// Query params: title, status
 async fn get_menu_list(
     State(pool): State<PgPool>,
-    Query(params): Query<MenuQueryParams>,
-) -> AppResult<Json<ApiResponse<Vec<MenuResponse>>>> {
+    Query(params): Query<MenuQueryDto>,
+) -> AppResult<Json<ApiResponse<Vec<MenuDetailVo>>>> {
     tracing::info!("Menu list request: {:?}", params);
 
     let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
@@ -64,7 +65,7 @@ async fn get_menu_list(
 async fn get_menu_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-) -> AppResult<Json<ApiResponse<MenuResponse>>> {
+) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
     let response = MenuService::get_menu_by_id(&pool, id).await?;
     Ok(ApiResponse::success(response))
 }
@@ -73,8 +74,8 @@ async fn get_menu_by_id(
 /// Body: name, path, parent_id, icon, sort_order, status
 async fn create_menu(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateMenuRequest>,
-) -> AppResult<Json<ApiResponse<MenuResponse>>> {
+    Json(request): Json<CreateMenuDto>,
+) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
     let response = MenuService::create_menu(&pool, request).await?;
     Ok(ApiResponse::success(response))
 }
@@ -84,8 +85,8 @@ async fn create_menu(
 async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateMenuRequest>,
-) -> AppResult<Json<ApiResponse<MenuResponse>>> {
+    Json(request): Json<UpdateMenuDto>,
+) -> AppResult<Json<ApiResponse<MenuDetailVo>>> {
     let response = MenuService::update_menu(&pool, id, request).await?;
     Ok(ApiResponse::success(response))
 }
