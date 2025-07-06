@@ -1,0 +1,129 @@
+# Zen Migration System Rules
+
+## 🔢 Zen Numbering Convention
+
+The project uses a strict Zen numbering system for database migrations with the following series:
+
+-   **100000-106999**: Core table creation and schema setup
+-   **107000-107999**: Database views (`view_*`)
+-   **108000-108999**: Database functions (`func_*`)
+-   **109000-109999**: Data seeding (`seed_*`)
+
+### Current Migration Numbers
+
+#### Views (107000 series)
+
+-   107000: `view_user_with_roles.sql`
+-   107001: `view_user_permissions.sql`
+-   107002: `view_user_menu_info.sql`
+-   107003: `view_user_info_summary.sql`
+-   107004: `view_user_info_stats.sql`
+-   107005: `view_recent_operations.sql`
+-   107006: `view_user_activity_summary.sql`
+
+#### Functions (108000 series)
+
+-   108000: `func_user_role.sql`
+-   108001: `func_user_menu_data.sql`
+-   108002: `func_user_basic_info.sql`
+-   108003: `func_user_permissions.sql`
+-   108004: `func_user_has_permission.sql`
+-   108005: `func_login_credentials.sql`
+-   108006: `func_log_operation.sql`
+-   108007: `func_log_operations_bulk.sql`
+-   108008: `func_create_log_partition.sql`
+-   108009: `func_manage_log_partitions.sql`
+-   108010: `func_get_log_partition_info.sql`
+-   108011: `func_analyze_user_query_performance.sql`
+
+#### Seeds (109000 series)
+
+-   109000: `seed_user.sql`
+-   109001: `seed_menu.sql`
+-   109002: `seed_role.sql`
+-   109003: `seed_dict.sql`
+-   109004: `seed_log.sql`
+
+## 📋 Migration File Rules
+
+### 1. Single Responsibility
+
+-   Each migration file contains **exactly one entity** (view, function, or seed)
+-   No compound operations in a single file
+
+### 2. Strict Incremental Numbering
+
+-   Numbers must be strictly incremental within each series
+-   No gaps or reserved blocks
+-   Next available numbers:
+    -   Views: 107007
+    -   Functions: 108012
+    -   Seeds: 109005
+
+### 3. File Naming Convention
+
+```
+{number}_{type}_{descriptive_name}.sql
+```
+
+Examples:
+
+-   `107007_view_user_activity_log.sql`
+-   `108012_func_validate_user_permissions.sql`
+-   `109005_seed_system_config.sql`
+
+### 4. Module Order Within Categories
+
+When adding migrations for a new module, follow this order:
+
+1. **Create** - table/schema creation (100000 series)
+2. **View** - database views (107000 series)
+3. **Func** - stored functions (108000 series)
+4. **Seed** - initial data (109000 series)
+
+## 🚀 Creating New Migrations
+
+### Before Creating
+
+1. Check the highest number in the target series
+2. Use the next incremental number
+3. Follow the naming convention
+
+### File Content Structure
+
+```sql
+-- Migration: {number}_{type}_{name}
+-- Description: Brief description of what this migration does
+-- Created: {date}
+
+-- Your SQL code here
+```
+
+## 🔄 Scalability Considerations
+
+When migration files exceed 100+ in a series, consider:
+
+-   Module prefixes: `user_107007_view_activity.sql`
+-   Subdirectories: `user/107007_view_activity.sql`
+-   But maintain Zen numbering within each approach
+
+## ⚠️ Important Rules
+
+1. **Never reuse numbers** - even if a migration is deleted
+2. **Never modify existing migrations** - create new ones for changes
+3. **Test migrations** - ensure they can be applied and rolled back
+4. **Document complex migrations** - add comments for non-obvious operations
+5. **Keep migrations atomic** - each file should be a complete, independent operation
+
+## 🎯 Benefits of Zen System
+
+-   **Clear categorization** by number series
+-   **Conflict avoidance** in team development
+-   **Easy identification** of migration types
+-   **Natural ordering** for database evolution
+-   **AI-friendly** structure for automated tools
+    description:
+    globs:
+    alwaysApply: false
+
+---
