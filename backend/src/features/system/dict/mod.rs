@@ -1,4 +1,4 @@
 pub mod model;
 pub mod repo;
-pub mod routes;
+pub mod router;
 pub mod service;

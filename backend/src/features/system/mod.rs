@@ -7,11 +7,11 @@ pub mod menu;
 pub mod role;
 pub mod user;
 
-use dict::routes::dict_routes;
-use log::routes::log_routes;
-use menu::routes::menu_routes;
-use role::routes::role_routes;
-use user::routes::user_routes;
+use dict::router::dict_routes;
+use log::router::log_routes;
+use menu::router::menu_routes;
+use role::router::role_routes;
+use user::router::user_routes;
 
 /// 系统路由
 pub fn system_routes() -> Router<PgPool> {

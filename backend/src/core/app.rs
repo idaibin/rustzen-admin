@@ -4,7 +4,7 @@ use crate::{
     features::{
         auth::{
             middleware::auth_middleware,
-            routes::{protected_auth_routes, public_auth_routes},
+            router::{protected_auth_routes, public_auth_routes},
         },
         system::system_routes,
     },
