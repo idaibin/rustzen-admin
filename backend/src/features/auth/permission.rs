@@ -122,10 +122,11 @@ impl PermissionService {
 
         // Only check cache, do not auto-refresh
         if let Some(cache) = PERMISSION_CACHE.get(user_id) {
-            // if cache.is_expired() {
-            //     tracing::info!("Cache expired for user {}", user_id);
-            //     return Err(ServiceError::InvalidToken);
-            // }
+            if cache.is_expired() {
+                tracing::info!("Cache expired for user {}", user_id);
+                PERMISSION_CACHE.remove(user_id);
+                return Err(ServiceError::InvalidToken);
+            }
             let has_permission = permissions_check.check(&cache.permissions);
             tracing::debug!(
                 "Permission check {} for user {} ({})",

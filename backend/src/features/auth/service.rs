@@ -115,12 +115,15 @@ impl AuthService {
         // Convert to response format
         let user_info = UserInfoResponse {
             id: user.id,
+            menus,
             username: user.username.clone(),
             real_name: user.real_name,
             avatar_url: user.avatar_url,
-            menus,
-            permissions,
+            permissions: permissions.clone(),
         };
+
+        // Refresh user permissions cache
+        Self::refresh_user_permissions_cache(user_id, user.is_super_admin, permissions).await?;
 
         tracing::info!(
             "User info retrieved successfully for user_id={}, username={}: {} menus, {} permissions",
@@ -198,6 +201,30 @@ impl AuthService {
             permissions
         );
 
+        Ok(())
+    }
+
+    /// Refresh user permissions cache
+    pub async fn refresh_user_permissions_cache(
+        user_id: i64,
+        is_super_admin: bool,
+        permissions: Vec<String>,
+    ) -> Result<(), ServiceError> {
+        tracing::debug!("Refreshing permissions cache for user_id: {}", user_id);
+
+        if is_super_admin {
+            PermissionService::cache_user_permissions(user_id, vec!["*".to_string()]);
+            tracing::info!("Successfully refreshed * permissions cache for user_id={}", user_id);
+            return Ok(());
+        }
+
+        PermissionService::cache_user_permissions(user_id, permissions.clone());
+        tracing::info!(
+            "Successfully refreshed {} permissions cache for user_id={}: {:?}",
+            permissions.len(),
+            user_id,
+            permissions
+        );
         Ok(())
     }
 }

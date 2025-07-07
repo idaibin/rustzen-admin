@@ -33,7 +33,7 @@ impl AuthRepository {
         id: i64,
     ) -> Result<Option<AuthUserInfo>, ServiceError> {
         sqlx::query_as::<_, AuthUserInfo>(
-            "SELECT id, username, real_name, avatar_url FROM get_user_basic_info($1)",
+            "SELECT id, username, real_name, avatar_url, is_super_admin FROM get_user_basic_info($1)",
         )
         .bind(id)
         .fetch_optional(pool)

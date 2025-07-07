@@ -108,6 +108,7 @@ pub struct AuthUserInfo {
     pub username: String,
     pub real_name: Option<String>,
     pub avatar_url: Option<String>,
+    pub is_super_admin: bool,
 }
 
 /// Minimal menu information entity for frontend menu tree display.

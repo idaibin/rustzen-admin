@@ -1,6 +1,5 @@
 use super::model::LogEntity;
 use crate::common::error::ServiceError;
-use serde_json::Value;
 use sqlx::PgPool;
 
 /// Log data access layer
