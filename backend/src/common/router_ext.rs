@@ -77,21 +77,7 @@ async fn permission_middleware(
 
     // Check permissions with caching
     let has_permission =
-        PermissionService::check_permissions(current_user.user_id, &permissions_check)
-            .await
-            .map_err(|e| match e {
-                ServiceError::DatabaseQueryFailed => {
-                    tracing::error!(
-                        "Database error checking permission for user {}",
-                        current_user.user_id
-                    );
-                    AppError::from(ServiceError::DatabaseQueryFailed)
-                }
-                _ => {
-                    tracing::error!("Unexpected permission check error: {:?}", e);
-                    AppError::from(e)
-                }
-            })?;
+        PermissionService::check_permissions(current_user.user_id, &permissions_check).await?;
 
     // Deny if no permission
     if !has_permission {
