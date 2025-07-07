@@ -12,7 +12,7 @@ impl RoleRepository {
     /// Retrieves a role by its ID
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<RoleEntity>, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
-            "SELECT id, role_name, status,
+            "SELECT id, role_name, role_code, description, status,
              created_at, updated_at, deleted_at, is_system
              FROM roles WHERE id = $1 AND deleted_at IS NULL",
         )
@@ -33,8 +33,8 @@ impl RoleRepository {
         role_name: &str,
     ) -> Result<Option<RoleEntity>, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
-            "SELECT id, role_name, status,
-             created_at, updated_at, deleted_at
+            "SELECT id, role_name, role_code, description, status,
+             created_at, updated_at, deleted_at, is_system
              FROM roles WHERE role_name = $1 AND deleted_at IS NULL",
         )
         .bind(role_name)
@@ -59,7 +59,7 @@ impl RoleRepository {
         let roles = if role_name_filter.is_none() && status_filter.is_none() {
             // No filtering conditions
             sqlx::query_as::<_, RoleEntity>(
-                "SELECT id, role_name, status,
+                "SELECT id, role_name, role_code, description, status,
                  created_at, updated_at, deleted_at, is_system
                  FROM roles WHERE deleted_at IS NULL
                  ORDER BY id DESC LIMIT $1 OFFSET $2",
@@ -75,7 +75,7 @@ impl RoleRepository {
         } else {
             // With filtering conditions, implement as needed
             sqlx::query_as::<_, RoleEntity>(
-                "SELECT id, role_name, status,
+                "SELECT id, role_name, role_code, description, status,
                  created_at, updated_at, deleted_at, is_system
                  FROM roles WHERE deleted_at IS NULL
                  ORDER BY id DESC LIMIT $1 OFFSET $2",
@@ -113,15 +113,19 @@ impl RoleRepository {
     pub async fn create(
         pool: &PgPool,
         role_name: &str,
+        role_code: &str,
+        description: Option<&str>,
         status: i16,
     ) -> Result<RoleEntity, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
-            "INSERT INTO roles (role_name, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4)
-             RETURNING id, role_name, status,
-             created_at, updated_at, deleted_at",
+            "INSERT INTO roles (role_name, role_code, description, status, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, role_name, role_code, description, status,
+             created_at, updated_at, deleted_at, is_system",
         )
         .bind(role_name)
+        .bind(role_code)
+        .bind(description)
         .bind(status)
         .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
@@ -140,23 +144,30 @@ impl RoleRepository {
         pool: &PgPool,
         id: i64,
         role_name: Option<&str>,
+        role_code: Option<&str>,
+        description: Option<&str>,
         status: Option<i16>,
     ) -> Result<Option<RoleEntity>, ServiceError> {
         // Simplified implementation: first query existing role
         let existing = Self::find_by_id(pool, id).await?;
         if let Some(existing_role) = existing {
             let updated_role_name = role_name.unwrap_or(&existing_role.role_name);
+            let updated_role_code = role_code.unwrap_or(&existing_role.role_code);
+            let updated_description =
+                description.unwrap_or_else(|| existing_role.description.as_deref().unwrap_or(""));
             let updated_status = status.unwrap_or(existing_role.status);
 
             let role = sqlx::query_as::<_, RoleEntity>(
                 "UPDATE roles
-                 SET role_name = $2, status = $3, updated_at = $4
+                 SET role_name = $2, role_code = $3, description = $4, status = $5, updated_at = $6
                  WHERE id = $1 AND deleted_at IS NULL
-                 RETURNING id, role_name, status,
-                 created_at, updated_at, deleted_at",
+                 RETURNING id, role_name, role_code, description, status,
+                 created_at, updated_at, deleted_at, is_system",
             )
             .bind(id)
             .bind(updated_role_name)
+            .bind(updated_role_code)
+            .bind(updated_description)
             .bind(updated_status)
             .bind(Utc::now().naive_utc())
             .fetch_optional(pool)

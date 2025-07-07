@@ -5,6 +5,8 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct CreateRoleDto {
     pub role_name: String,
+    pub role_code: String,
+    pub description: Option<String>,
     pub status: Option<i16>,
     pub menu_ids: Vec<i64>,
 }
@@ -14,6 +16,8 @@ pub struct CreateRoleDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRoleDto {
     pub role_name: Option<String>,
+    pub role_code: Option<String>,
+    pub description: Option<String>,
     pub status: Option<i16>,
     pub menu_ids: Option<Vec<i64>>,
 }

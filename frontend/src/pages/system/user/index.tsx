@@ -106,7 +106,7 @@ const columns: ProColumns<User.Item>[] = [
                         action?.reload();
                     }}
                 >
-                    <a>Delete</a>
+                    <a className="text-red-500">Delete</a>
                 </Popconfirm>
             </Space>
         ),

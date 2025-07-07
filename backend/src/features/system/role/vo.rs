@@ -9,6 +9,8 @@ use super::entity::RoleEntity;
 pub struct RoleDetailVo {
     pub id: i64,
     pub role_name: String,
+    pub role_code: String,
+    pub description: Option<String>,
     pub status: i16,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -21,6 +23,8 @@ pub struct RoleDetailVo {
 pub struct RoleVo {
     pub id: i64,
     pub role_name: String,
+    pub role_code: String,
+    pub description: Option<String>,
 }
 
 impl From<RoleEntity> for RoleDetailVo {
@@ -28,6 +32,8 @@ impl From<RoleEntity> for RoleDetailVo {
         Self {
             id: entity.id,
             role_name: entity.role_name,
+            role_code: entity.role_code,
+            description: entity.description,
             status: entity.status,
             created_at: DateTime::from_naive_utc_and_offset(entity.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(entity.updated_at, Utc),
@@ -38,6 +44,11 @@ impl From<RoleEntity> for RoleDetailVo {
 
 impl From<RoleEntity> for RoleVo {
     fn from(entity: RoleEntity) -> Self {
-        Self { id: entity.id, role_name: entity.role_name }
+        Self {
+            id: entity.id,
+            role_name: entity.role_name,
+            role_code: entity.role_code,
+            description: entity.description,
+        }
     }
 }
