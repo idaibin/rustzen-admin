@@ -87,9 +87,14 @@ impl RoleService {
             return Err(ServiceError::RoleNameConflict);
         }
 
-        let role = RoleRepository::create(pool, &request.role_name, request.status.unwrap_or(1))
-            .await
-            .map_err(|_| ServiceError::DatabaseQueryFailed)?;
+        let role = RoleRepository::create(
+            pool,
+            &request.role_name,
+            &request.role_code,
+            request.description.as_deref(),
+            request.status.unwrap_or(1),
+        )
+        .await?;
 
         // Set menu permissions if provided
         if !request.menu_ids.is_empty() {
@@ -126,8 +131,15 @@ impl RoleService {
             }
         }
 
-        let updated_role =
-            RoleRepository::update(pool, id, request.role_name.as_deref(), request.status).await?;
+        let updated_role = RoleRepository::update(
+            pool,
+            id,
+            request.role_name.as_deref(),
+            request.role_code.as_deref(),
+            request.description.as_deref(),
+            request.status,
+        )
+        .await?;
 
         match updated_role {
             Some(role) => {

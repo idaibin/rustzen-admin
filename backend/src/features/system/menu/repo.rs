@@ -165,7 +165,7 @@ impl MenuRepository {
                      sort_order = $7, status = $8, updated_at = $9
                  WHERE id = $1 AND deleted_at IS NULL
                  RETURNING id, parent_id, title, path, component, icon, sort_order, status,
-                 created_at, updated_at, deleted_at",
+                 created_at, updated_at, permission_code",
             )
             .bind(id)
             .bind(updated_parent_id)
