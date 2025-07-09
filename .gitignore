@@ -1,15 +1,12 @@
 # Rust
-/backend/target
+/target
 **/*.rs.bk
 .env
 
 # Frontend
-/frontend/node_modules
-/frontend/dist
+/web/node_modules
+/web/dist
 
-# Desktop (Tauri)
-/desktop/src-tauri/target
-/src-tauri/target
 
 # Editor
 # .vscode

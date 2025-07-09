@@ -8,16 +8,7 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-[*.rs]
-indent_style = space
-indent_size = 4
 
-[justfile]
-indent_style = space
-indent_size = 4
-insert_final_newline = true
-end_of_line = lf
-
-[*.{rs,toml}]
+[*.{rs,toml,justfile}]
 indent_style = space
 indent_size = 4
