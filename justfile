@@ -1,35 +1,34 @@
 # justfile - Project unified command entry
 
-# Development mode: start backend + frontend together
+# Development mode: start backend + web together
 dev:
     just backend-dev &
-    just frontend-dev
+    just web-dev
 
 # Start Rust backend (with hot reload)
 backend-dev:
-    cd backend && cargo watch -x run
+    cargo watch -x run
 
-
-# Start frontend (Vite dev mode)
-frontend-dev:
-    cd frontend && pnpm dev
+# Start web (Vite dev mode)
+web-dev:
+    cd web && pnpm dev
 
 # Build all (production)
 build:
     just backend-build
-    just frontend-build
+    just web-build
 
 # Build Rust backend release
 backend-build:
     cd backend && cargo build --release
 
-# Build frontend production bundle
-frontend-build:
-    cd frontend && pnpm build
+# Build web production bundle
+web-build:
+    cd web && pnpm build
 
 # Clean build outputs
 clean:
-    rm -rf backend/target frontend/dist desktop/src-tauri/target
+    rm -rf /target web/dist
 
 # 📋 Changelog Management
 # Preview unreleased changes
