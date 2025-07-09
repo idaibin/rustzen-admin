@@ -15,13 +15,6 @@ pub struct LogService;
 
 impl LogService {
     /// Retrieves a paginated list of system logs
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `params` - Log query parameters
-    ///
-    /// # Returns
-    /// * `Result<Json<ApiResponse<Vec<LogResponse>>>, ServiceError>` - Paginated log list or service error
     pub async fn get_log_list(
         pool: &PgPool,
         params: LogQueryParams,
@@ -48,134 +41,97 @@ impl LogService {
         Ok((log_responses, total))
     }
 
-    /// Retrieves a specific log entry by ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Log entry ID
-    ///
-    /// # Returns
-    /// * `Result<Value, ServiceError>` - Log entry or service error
-    pub async fn get_log_by_id(pool: &PgPool, id: i32) -> Result<LogResponse, ServiceError> {
-        tracing::info!("Retrieving log entry with id: {}", id);
-
-        let log = LogRepository::find_by_id(pool, id).await?;
-        match log {
-            Some(log) => Ok(LogResponse::from(log)),
-            None => Err(ServiceError::NotFound("Log".to_string())),
-        }
-    }
-
-    /// Creates a new system log entry
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `level` - Log level (INFO, WARN, ERROR, DEBUG)
-    /// * `message` - Log message content
-    /// * `user_id` - Optional user ID associated with the log
-    /// * `ip_address` - Optional IP address
-    ///
-    /// # Returns
-    /// * `Result<Value, ServiceError>` - Created log entry or service error
-    pub async fn create_log(
+    /// Logs an HTTP request (for middleware use only)
+    /// This should be called by the logging middleware, not by business logic.
+    pub async fn log_http_request(
         pool: &PgPool,
-        level: String,
-        message: String,
-        user_id: Option<i32>,
-        ip_address: Option<String>,
-    ) -> Result<LogResponse, ServiceError> {
-        // Validate log level
-        if !["DEBUG", "INFO", "WARN", "ERROR"].contains(&level.as_str()) {
-            tracing::warn!("Invalid log level provided: {}", level);
-            return Err(ServiceError::InvalidOperation("Invalid log level".to_string()));
+        method: &str,
+        uri: &str,
+        user_id: Option<i64>,
+        username: Option<&str>,
+        ip_address: &str,
+        user_agent: &str,
+        status_code: u16,
+        duration_ms: i32,
+    ) -> Result<(), ServiceError> {
+        let action = format!("HTTP_{}", method);
+        let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
+        let description = format!("{} {} - {}", method, uri, status_code);
+
+        // Only log write operations or errors
+        let is_write = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
+        let is_error = status_code >= 400;
+
+        if !is_write && !is_error {
+            return Ok(()); // Skip logging for non-write/read-successful requests
         }
 
-        tracing::info!("Creating new log entry with level: {}", level);
+        tracing::info!("Logging HTTP request: {} {} - {}", method, uri, status_code);
 
-        let log =
-            LogRepository::create(pool, &level, &message, user_id, ip_address.as_deref()).await?;
-        Ok(LogResponse::from(log))
+        // Use the detailed method for HTTP requests
+        let _ = LogRepository::create_with_details(
+            pool,
+            user_id.unwrap_or(0), // Use 0 for anonymous users
+            username.unwrap_or("anonymous"),
+            &action,
+            &description,
+            Some(ip_address),
+            Some(user_agent),
+            None,         // request_id
+            Some("HTTP"), // resource_type
+            None,         // resource_id
+            status,
+            Some(duration_ms),
+        )
+        .await?;
+
+        Ok(())
     }
 
-    /// Creates an informational log entry
-    ///
-    /// Convenience method for creating INFO level logs.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `message` - Log message content
-    /// * `user_id` - Optional user ID associated with the log
-    /// * `ip_address` - Optional IP address
-    ///
-    /// # Returns
-    /// * `Result<Value, ServiceError>` - Created log entry or service error
-    pub async fn log_info(
-        pool: &PgPool,
-        message: String,
-        user_id: Option<i32>,
-        ip_address: Option<String>,
-    ) -> Result<LogResponse, ServiceError> {
-        Self::create_log(pool, "INFO".to_string(), message, user_id, ip_address).await
-    }
-
-    /// Creates a warning log entry
-    ///
-    /// Convenience method for creating WARN level logs.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `message` - Log message content
-    /// * `user_id` - Optional user ID associated with the log
-    /// * `ip_address` - Optional IP address
-    ///
-    /// # Returns
-    /// * `Result<Value, ServiceError>` - Created log entry or service error
-    pub async fn log_warn(
-        pool: &PgPool,
-        message: String,
-        user_id: Option<i32>,
-        ip_address: Option<String>,
-    ) -> Result<LogResponse, ServiceError> {
-        Self::create_log(pool, "WARN".to_string(), message, user_id, ip_address).await
-    }
-
-    /// Creates an error log entry
-    ///
-    /// Convenience method for creating ERROR level logs.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `message` - Log message content
-    /// * `user_id` - Optional user ID associated with the log
-    /// * `ip_address` - Optional IP address
-    ///
-    /// # Returns
-    /// * `Result<Value, ServiceError>` - Created log entry or service error
-    pub async fn log_error(
-        pool: &PgPool,
-        message: String,
-        user_id: Option<i32>,
-        ip_address: Option<String>,
-    ) -> Result<LogResponse, ServiceError> {
-        Self::create_log(pool, "ERROR".to_string(), message, user_id, ip_address).await
-    }
-
-    /// Get logs by user ID
-    pub async fn get_user_logs(
+    /// Logs a business operation (for explicit CRUD, not for HTTP middleware)
+    pub async fn log_business_operation(
         pool: &PgPool,
         user_id: i64,
-        current: Option<i64>,
-        page_size: Option<i64>,
-    ) -> Result<(Vec<LogResponse>, i64), ServiceError> {
-        let current = current.unwrap_or(1);
-        let page_size = page_size.unwrap_or(10);
-        let offset = (current - 1) * page_size;
+        username: &str,
+        operation: &str, // CREATE, UPDATE, DELETE, etc.
+        resource_type: &str,
+        resource_id: Option<i64>,
+        ip_address: &str,
+        user_agent: &str,
+        success: bool,
+        details: Option<&str>,
+    ) -> Result<(), ServiceError> {
+        let action = format!("{}_{}", resource_type.to_uppercase(), operation);
+        let status = if success { "SUCCESS" } else { "FAILED" };
 
-        let log_entities = LogRepository::find_by_user_id(pool, user_id, page_size, offset).await?;
+        let description: String = if let Some(details) = details {
+            details.to_string()
+        } else {
+            format!(
+                "User {} {} {} {}",
+                username,
+                operation.to_lowercase(),
+                resource_type,
+                resource_id.map(|id| format!("(ID: {})", id)).unwrap_or_default()
+            )
+        };
 
-        let log_responses: Vec<LogResponse> =
-            log_entities.into_iter().map(LogResponse::from).collect();
-        let total = LogRepository::count_logs(pool, None).await?;
-        Ok((log_responses, total))
+        let _ = LogRepository::create_with_details(
+            pool,
+            user_id,
+            username,
+            &action,
+            description.as_str(),
+            Some(ip_address),
+            Some(user_agent),
+            None, // request_id
+            Some(resource_type),
+            resource_id,
+            status,
+            None, // duration_ms
+        )
+        .await?;
+
+        Ok(())
     }
 }

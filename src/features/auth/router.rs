@@ -7,14 +7,17 @@ use super::{
 use crate::{
     common::api::{ApiResponse, AppResult},
     core::password::PasswordUtils,
+    features::system::log::service::LogService,
 };
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{ConnectInfo, Query, State},
+    http::HeaderMap,
     routing::{get, post},
 };
 use serde::Deserialize;
 use sqlx::PgPool;
+use std::net::SocketAddr;
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
@@ -37,11 +40,30 @@ pub fn protected_auth_routes() -> Router<PgPool> {
 /// Body: username, password
 async fn login_handler(
     State(pool): State<PgPool>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResponse> {
-    tracing::info!("Login attempt");
+    tracing::info!("Login attempt from {}", addr.ip());
 
     let response = AuthService::login(&pool, request).await?;
+
+    let ip_address = addr.ip().to_string();
+    let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown");
+
+    let _ = LogService::log_business_operation(
+        &pool,
+        response.user_id,
+        &response.username,
+        "LOGIN",
+        "AUTH",
+        None,
+        &ip_address,
+        user_agent,
+        true,
+        Some("User login successful"),
+    )
+    .await;
 
     tracing::info!("Login successful");
     Ok(ApiResponse::success(response))

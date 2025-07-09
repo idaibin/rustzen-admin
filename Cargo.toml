@@ -3,6 +3,9 @@ name = "backend"
 version = "0.2.0"
 edition = "2024"
 
+[build]
+target = "x86_64-unknown-linux-musl"
+
 [dependencies]
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
@@ -16,7 +19,7 @@ once_cell = "1.21"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # 数据库相关依赖
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "chrono", "uuid","ipnetwork"] }
 dotenvy = "0.15"
 thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
