@@ -1,149 +1,94 @@
 # 🏗️ rustzen-admin Architecture Overview
 
-**rustzen-admin** is a modern, full-stack admin system template built with Rust (Axum) for the backend and React (Vite + Ant Design) for the frontend. The project aims to provide a production-ready, extensible, and maintainable admin platform, supporting modular business logic, RBAC, and rapid feature iteration.
+**rustzen-admin** is a modern, full-stack admin system template built with Rust (Axum) for the backend and React (Vite + Ant Design) for the frontend. The backend is modular, extensible, and production-ready, supporting RBAC and rapid feature iteration.
 
 ---
 
-## 📁 System Modules (Backend)
-
-| Module | Status    | Submodules/Features         | Description                       |
-| ------ | --------- | --------------------------- | --------------------------------- |
-| user   | ✅ Stable | CRUD, password reset        | User management, roles assignment |
-| role   | ✅ Stable | CRUD, permission binding    | RBAC core, role management        |
-| menu   | ✅ Stable | CRUD, permission control    | Menu structure, route control     |
-| dict   | ✅ Stable | CRUD, enum config           | System dictionary, config options |
-| log    | ✅ Stable | Login/operation logs        | Audit, debugging, traceability    |
-| auth   | ✅ Stable | JWT, middleware, extractors | Authentication, permission checks |
-
-**Directory structure example:**
+## 📁 Backend Module Structure (Rust)
 
 ```
-backend/src/features/
-├── auth/
-│   ├── extractor.rs
-│   ├── middleware.rs
-│   ├── model.rs
-│   ├── permission.rs
-│   ├── repo.rs
-│   ├── routes.rs
-│   ├── service.rs
+src/
+├── main.rs              # Application entry point
+├── common/              # Shared utilities and abstractions
+│   ├── api.rs           # Unified API response structures
+│   ├── error.rs         # Error handling and service errors
+│   ├── router_ext.rs    # Router extensions for permission middleware
 │   └── mod.rs
-├── system/
-│   ├── user/
-│   ├── role/
-│   ├── menu/
-│   ├── dict/
-│   ├── log/
+├── core/                # Core application components
+│   ├── app.rs           # Server setup and route configuration
+│   ├── db.rs            # Database connection and pool management
+│   ├── jwt.rs           # JWT token generation and validation
+│   ├── password.rs      # Password hashing and verification
 │   └── mod.rs
-└── mod.rs
+└── features/            # Business logic modules
+    ├── auth/            # Authentication and authorization
+    └── system/          # System management features
 ```
 
-**Core and Common:**
+---
 
-- `core/`: app entry, db, jwt, password, middleware
-- `common/`: API response, error handling, router extensions
+### **common/**
+
+-   **api.rs**: Unified API response format
+-   **error.rs**: Error types and handling
+-   **router_ext.rs**: Router extensions for permission-based routing
+
+### **core/**
+
+-   **app.rs**: Application/server setup
+-   **db.rs**: Database connection pool
+-   **jwt.rs**: JWT token utilities
+-   **password.rs**: Password hashing/verification
+
+### **features/auth/**
+
+-   **middleware.rs**: JWT authentication middleware
+-   **service.rs**: Authentication business logic
+-   **model.rs**: Auth-related data models
+-   **repo.rs**: User and permission database operations
+-   **permission.rs**: RBAC permission system and cache
+-   **router.rs**: Auth endpoints (login, logout, user info)
+-   **extractor.rs**: Request extractors for current user
+
+### **features/system/**
+
+-   **user/**: User management (CRUD, role assignment)
+-   **role/**: Role management (CRUD, permission binding)
+-   **menu/**: Menu management (CRUD, permission control)
+-   **dict/**: Data dictionary (CRUD, enum config)
+-   **log/**: Operation log (recording, querying)
+
+Each submodule (user, role, menu, dict, log) typically contains:
+
+-   **entity.rs**: Data structures
+-   **dto.rs**: Data transfer objects
+-   **vo.rs**: View objects
+-   **repo.rs**: Database operations
+-   **service.rs**: Business logic
+-   **router.rs**: API endpoints
 
 ---
 
-## 🖥️ Frontend Modules (React)
+## 🧩 Architecture Patterns
 
-| Module | Status    | Path                       | Description                |
-| ------ | --------- | -------------------------- | -------------------------- |
-| user   | ✅ Stable | `src/pages/system/user/`   | User management UI         |
-| role   | ✅ Stable | `src/pages/system/role/`   | Role management UI         |
-| menu   | ✅ Stable | `src/pages/system/menu/`   | Menu management UI         |
-| dict   | ✅ Stable | `src/pages/system/dict/`   | Dictionary management UI   |
-| log    | ✅ Stable | `src/pages/system/log/`    | Operation log UI           |
-| auth   | ✅ Stable | `src/pages/auth/login.tsx` | Login page, authentication |
-| home   | ✅ Stable | `src/pages/home/index.tsx` | Dashboard/homepage         |
-
-**Service Layer:**
-
-- `src/services/system/`: API services for user, role, menu, dict, log
-- `src/services/auth/`: Auth API service
-
-**State & Routing:**
-
-- Zustand for global state (`src/stores/useAuthStore.ts`)
-- React Router for navigation (`src/router.tsx`)
+-   **Repository-Service-Router Pattern**: Each module is organized into repository (data access), service (business logic), and router (API layer).
+-   **Permission-Based Routing**: Flexible permission checks (single, any, all) via router extensions and middleware.
+-   **Unified Error Handling**: Consistent error types and API responses.
 
 ---
 
-## 🔐 Authentication & RBAC
+## 🔐 RBAC Overview
 
-- JWT-based authentication (backend & frontend integration)
-- Middleware for permission checks (backend)
-- RBAC: roles, permissions, menu-based access
-- Super admin logic (`zen_admin`)
-- Unified API response structure
-
----
-
-## 🧩 Shared Concepts & API
-
-- Unified API response: `{ code, message, data }`
-- TypeScript types for all system modules (`src/types/`)
-- Options API: `/api/system/{resource}/options` for dropdowns
-- Modular, extensible service and route structure
+-   **Users** → **Roles** → **Menus/Permissions**
+-   **Permission cache** for performance
+-   **Menu-based permissions** for unified access control
 
 ---
 
 ## 🛠️ Technical Highlights
 
-- **Backend:** Rust, Axum, SQLx, PostgreSQL, modular service/repo/routes, error handling, middleware, in-memory permission cache
-- **Frontend:** React, Vite, TypeScript, Zustand, Ant Design, TailwindCSS, modular pages/services, unified types, API abstraction
-- **DevOps:** Docker, justfile, REST Client, migration scripts
-
----
-
-## 🚦 Roadmap & Extension
-
-### Current Features (v0.1.x)
-
-- User, role, menu, dict, log management (CRUD)
-- JWT authentication, RBAC, permission middleware
-- Unified error handling, API response, modular codebase
-- Options API for dropdowns
-- Frontend/Backend type safety
-
-### Planned / In Progress
-
-- Department/organization management
-- System settings (key-value config)
-- File upload & static resource management
-- System monitoring (resource, DB, etc.)
-- WebSocket support for real-time features
-- Tauri desktop client (optional)
-
-### Extension Ideas
-
-- Web3 integration (wallet login, contract interaction)
-- Multi-language support (i18n)
-- Theme/dark mode switching
-- Plugin architecture for dynamic modules
-- Approval workflow, dynamic forms
-
----
-
-## 📦 Example Module Structure
-
-**Backend:**
-
-```
-user/
-├── model.rs      // Data structures
-├── repo.rs       // Database logic
-├── service.rs    // Business logic
-├── routes.rs     // Route handlers
-└── mod.rs        // Module export
-```
-
-**Frontend:**
-
-```
-src/pages/system/user/
-├── index.tsx     // List page
-// (form, service, hook, types as needed)
-```
+-   **Rust, Axum, SQLx, PostgreSQL**
+-   **JWT authentication, RBAC, modular codebase**
+-   **Unified API response, error handling, and permission middleware**
 
 ---

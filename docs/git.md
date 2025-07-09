@@ -54,32 +54,20 @@ The convention is based on [Conventional Commits](https://www.conventionalcommit
 
 The `subject` is a brief description of the commit. Follow these rules:
 
-- **Use imperative mood**: e.g., use `add` not `added` or `adds`.
-- **Start with lowercase**: No need to capitalize the first word.
-- **No ending period**: Do not end with a `.`
-- **Be concise**: Recommended under 50 characters.
+-   **Use imperative mood**: e.g., use `add` not `added` or `adds`.
+-   **Start with lowercase**: No need to capitalize the first word.
+-   **No ending period**: Do not end with a `.`
+-   **Be concise**: Recommended under 50 characters.
 
 ---
 
 ## ✅ Commit Examples
 
-- **Feature**: `feat(user): add user role assignment logic`
-- **Bug fix**: `fix(api): correct pagination query in user list`
-- **Docs**: `docs(readme): update development startup instructions`
-- **Style**: `style(ui): adjust table spacing and button size`
-- **Refactor**: `refactor(auth): simplify jwt middleware injection`
-- **Dependency**: `chore(deps): bump sqlx to 0.7.1`
+-   **Feature**: `feat(user): add user role assignment logic`
+-   **Bug fix**: `fix(api): correct pagination query in user list`
+-   **Docs**: `docs(readme): update development startup instructions`
+-   **Style**: `style(ui): adjust table spacing and button size`
+-   **Refactor**: `refactor(auth): simplify jwt middleware injection`
+-   **Dependency**: `chore(deps): bump sqlx to 0.7.1`
 
 ---
-
-## 🛡️ Linting & Enforcement
-
-To ensure strict adherence to the commit convention, consider using these tools:
-
-| Tool                   | Description                        | Node.js Required |
-| ---------------------- | ---------------------------------- | :--------------: |
-| `commitlint` + `husky` | Most common combo for frontend     |      ✅ Yes      |
-| `lefthook`             | Rust-friendly cross-language hooks |      ❌ No       |
-| CI check               | Add validation in GitHub Actions   |      ❌ No       |
-
-These tools can automatically check every `git commit` message for compliance, ensuring high-quality logs from the start.
