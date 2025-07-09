@@ -200,54 +200,29 @@ declare module "System" {
 
     // ==================== 日志管理 ====================
     export namespace Log {
-        // 日志级别枚举
-        export enum Level {
-            DEBUG = "debug",
-            INFO = "info",
-            WARN = "warn",
-            ERROR = "error",
-        }
-
-        // 日志类型枚举
-        export enum Type {
-            Login = "login",
-            Logout = "logout",
-            Create = "create",
-            Update = "update",
-            Delete = "delete",
-            Query = "query",
-            Export = "export",
-            Import = "import",
-        }
-
-        // 日志基本信息
         export interface Item {
             id: number;
-            level: Level;
-            type: Type;
-            module: string;
-            action: string;
-            message: string;
-            requestUrl?: string;
-            requestMethod?: string;
-            requestParams?: string;
-            responseCode?: number;
-            responseTime?: number;
-            userAgent?: string;
-            clientIp?: string;
             userId?: number;
             username?: string;
+            action: string;
+            description?: string;
+            ipAddress?: string;
+            userAgent?: string;
+            requestId?: string;
+            resourceType?: string;
+            resourceId?: number;
+            status: string;
+            durationMs?: number;
             createdAt: string;
         }
 
-        // 查询参数
         export interface QueryParams {
             current?: number;
             pageSize?: number;
-            level?: string;
-            type?: string;
-            module?: string;
+            search?: string;
             username?: string;
+            action?: string;
+            status?: string;
             startTime?: string;
             endTime?: string;
         }

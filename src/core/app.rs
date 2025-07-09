@@ -1,13 +1,13 @@
+use std::net::SocketAddr;
+
 use crate::{
     common::api::{ApiResponse, AppResult},
     core::db::{create_default_pool, test_connection},
     features::{
-        auth::{
-            middleware::auth_middleware,
-            router::{protected_auth_routes, public_auth_routes},
-        },
+        auth::router::{protected_auth_routes, public_auth_routes},
         system::system_routes,
     },
+    middleware::{auth::auth_middleware, log::log_middleware},
 };
 use axum::{
     Router,
@@ -16,7 +16,6 @@ use axum::{
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
     middleware,
-    response::Json,
     routing::get,
 };
 use serde_json::json;
@@ -54,19 +53,23 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
 
     // Define public and protected routes
     tracing::info!("Setting up API routes...");
-    let public_api = Router::new().nest("/auth", public_auth_routes());
-
+    // 定义受保护的路由（先执行认证，再执行日志记录）
     let protected_api = Router::new()
         .nest("/auth", protected_auth_routes())
         .nest("/system", system_routes())
-        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
+        .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware)) // 后执行
+        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware)); // 先执行
 
-    // Combine all routes into the final application
+    // 对于公开路由，只应用日志中间件
+    let public_api = Router::new().nest("/auth", public_auth_routes());
+
+    // 组合所有路由
     let app = Router::new()
         .route("/api/summary", get(summary))
         .nest("/api", public_api.merge(protected_api))
         .layer(cors)
-        .with_state(pool);
+        .with_state(pool)
+        .into_make_service_with_connect_info::<SocketAddr>();
 
     // Start the server
     let addr = get_addr().await;

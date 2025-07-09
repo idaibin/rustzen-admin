@@ -1,6 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::net::IpAddr;
 
 /// Query parameters for log list API
 #[derive(Debug, Deserialize)]
@@ -21,7 +22,7 @@ pub struct LogEntity {
     pub username: Option<String>,
     pub action: String,
     pub description: Option<String>,
-    pub ip_address: Option<String>,
+    pub ip_address: Option<IpAddr>,
     pub user_agent: Option<String>,
     pub request_id: Option<String>,
     pub resource_type: Option<String>,
@@ -50,32 +51,6 @@ pub struct LogResponse {
     pub created_at: DateTime<Utc>,
 }
 
-/// Request body for creating new log entries
-#[derive(Debug, Deserialize)]
-pub struct CreateLogRequest {
-    /// Log level (INFO, WARN, ERROR, DEBUG)
-    pub level: String,
-    /// Log message content
-    pub message: String,
-    /// Optional user ID associated with the log
-    pub user_id: Option<i32>,
-    /// Optional IP address
-    pub ip_address: Option<String>,
-}
-
-/// Response for paginated log list
-#[derive(Debug, Serialize)]
-pub struct PaginatedLogsResponse {
-    /// List of log entries
-    pub items: Vec<LogResponse>,
-    /// Total number of matching records
-    pub total: i64,
-    /// Current page number
-    pub page: i64,
-    /// Number of records per page
-    pub page_size: i64,
-}
-
 /// Log query parameters
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,7 +73,7 @@ impl From<LogEntity> for LogResponse {
             username: entity.username,
             action: entity.action,
             description: entity.description,
-            ip_address: entity.ip_address,
+            ip_address: entity.ip_address.map(|ip| ip.to_string()),
             user_agent: entity.user_agent,
             request_id: entity.request_id,
             resource_type: entity.resource_type,
