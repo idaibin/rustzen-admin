@@ -1,6 +1,7 @@
 mod common;
 mod core;
 mod features;
+mod middleware;
 
 use crate::core::app::create_server;
 

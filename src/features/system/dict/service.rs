@@ -175,7 +175,7 @@ impl DictService {
         let new_type = request.dict_type.as_deref().unwrap_or(&existing_dict.dict_type);
         let new_key = request.label.as_deref().unwrap_or(&existing_dict.label);
 
-        if (request.dict_type.is_some() || request.label.is_some()) {
+        if request.dict_type.is_some() || request.label.is_some() {
             if let Ok(Some(existing_with_key)) =
                 DictRepository::find_by_type_and_key(pool, new_type, new_key).await
             {

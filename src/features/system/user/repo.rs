@@ -247,45 +247,25 @@ impl UserRepository {
         status: Option<i16>,
         password_hash: Option<String>,
     ) -> Result<Option<UserEntity>, ServiceError> {
-        let mut updates = vec![];
-
-        if let Some(email) = email {
-            updates.push(("email", email));
-        }
-        if let Some(real_name) = real_name {
-            updates.push(("real_name", real_name));
-        }
-        if let Some(status) = status {
-            updates.push(("status", status.to_string()));
-        }
-        if let Some(password_hash) = password_hash {
-            updates.push(("password_hash", password_hash));
-        }
-
-        let set_clause = updates
-            .iter()
-            .enumerate()
-            .map(|(i, (field, _))| format!("{} = ${}", field, i + 1))
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        let query = format!(
-            "UPDATE users SET {} WHERE id = ${} AND deleted_at IS NULL
+        let result = sqlx::query_as::<_, UserEntity>(
+            "UPDATE users
+             SET email = COALESCE($1, email),
+                 real_name = COALESCE($2, real_name),
+                 status = COALESCE($3, status),
+                 password_hash = COALESCE($4, password_hash),
+                 updated_at = NOW()
+             WHERE id = $5 AND deleted_at IS NULL
              RETURNING id, username, email, password_hash, real_name, avatar_url, status,
              last_login_at, created_at, updated_at",
-            set_clause,
-            updates.len() + 1
-        );
-
-        let mut query_builder = sqlx::query_as::<_, UserEntity>(&query);
-
-        // Bind all parameters
-        for (_, value) in updates {
-            query_builder = query_builder.bind(value);
-        }
-        query_builder = query_builder.bind(id);
-
-        let result = query_builder.fetch_optional(pool).await.map_err(|e| {
+        )
+        .bind(email)
+        .bind(real_name)
+        .bind(status) // Now correctly binds i16 instead of String
+        .bind(password_hash)
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
             tracing::error!("Database error updating user ID {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })?;
@@ -307,23 +287,6 @@ impl UserRepository {
                 })?;
 
         Ok(result.rows_affected() > 0)
-    }
-
-    /// Update user's last login time
-    pub async fn update_last_login(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
-        sqlx::query(
-            "UPDATE users SET last_login_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL",
-        )
-        .bind(Utc::now().naive_utc())
-        .bind(id)
-        .execute(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error updating last login for user ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(())
     }
 
     /// Set user roles (replace all existing roles)
@@ -457,24 +420,6 @@ impl UserRepository {
             })?;
 
         Ok(result)
-    }
-
-    /// Get user permissions (for authorization)
-    pub async fn get_user_permissions(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Vec<String>, ServiceError> {
-        let sql = "SELECT permission_code FROM user_permissions WHERE user_id = $1";
-        let perms: Vec<String> =
-            sqlx::query_scalar(sql).bind(user_id).fetch_all(pool).await.map_err(|e| {
-                tracing::error!(
-                    "Database error getting permissions for user ID {}: {:?}",
-                    user_id,
-                    e
-                );
-                ServiceError::DatabaseQueryFailed
-            })?;
-        Ok(perms)
     }
 
     pub async fn find_user_detail(

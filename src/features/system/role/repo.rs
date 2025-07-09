@@ -297,20 +297,6 @@ impl RoleRepository {
         Ok(results)
     }
 
-    pub async fn is_system_role(pool: &PgPool, role_id: i64) -> Result<bool, ServiceError> {
-        let result = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM roles WHERE id = $1 AND is_system = true)",
-            role_id,
-        )
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error checking if role is system: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-        Ok(result.unwrap_or(false))
-    }
-
     pub async fn get_role_user_count(pool: &PgPool, role_id: i64) -> Result<i64, ServiceError> {
         let result =
             sqlx::query_scalar!("SELECT COUNT(*) FROM user_roles WHERE role_id = $1", role_id,)
