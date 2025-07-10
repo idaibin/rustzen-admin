@@ -299,13 +299,14 @@ impl RoleRepository {
 
     pub async fn get_role_user_count(pool: &PgPool, role_id: i64) -> Result<i64, ServiceError> {
         let result =
-            sqlx::query_scalar!("SELECT COUNT(*) FROM user_roles WHERE role_id = $1", role_id,)
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_roles WHERE role_id = $1")
+                .bind(role_id)
                 .fetch_one(pool)
                 .await
                 .map_err(|e| {
                     tracing::error!("Database error getting role user count: {:?}", e);
                     ServiceError::DatabaseQueryFailed
                 })?;
-        Ok(result.unwrap_or(0))
+        Ok(result)
     }
 }
