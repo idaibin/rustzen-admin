@@ -26,8 +26,8 @@ pub enum ServiceError {
     InvalidUserStatus,
 
     /// Internal server error.
-    #[error("Internal server error")]
-    InternalServerError,
+    // #[error("Internal server error")]
+    // InternalServerError,
 
     /// A database query failed.
     #[error("Database query failed")]
@@ -52,10 +52,6 @@ pub enum ServiceError {
     /// The user does not have permission to perform this action.
     #[error("Permission denied")]
     PermissionDenied,
-
-    /// Failed to cache user permissions.
-    #[error("Failed to cache user permissions")]
-    CacheUserPermissionsFailed,
 
     /// A username that was provided already exists.
     #[error("Username already exists")]
@@ -137,11 +133,6 @@ impl From<ServiceError> for AppError {
             ServiceError::InvalidUserStatus => {
                 (StatusCode::BAD_REQUEST, 10007, "User status is invalid.".into())
             }
-            ServiceError::CacheUserPermissionsFailed => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                10008,
-                "Failed to cache user permissions. Please try again.".into(),
-            ),
             ServiceError::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,
                 10101, // Business-Auth-01
@@ -183,11 +174,11 @@ impl From<ServiceError> for AppError {
                 20001, // System-Common-01
                 "Service is temporarily unavailable. Please try again later.".to_string(),
             ),
-            ServiceError::InternalServerError => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                20002, // System-Common-02
-                "Internal server error. Please contact the administrator.".to_string(),
-            ),
+            // ServiceError::InternalServerError => (
+            //     StatusCode::INTERNAL_SERVER_ERROR,
+            //     20002, // System-Common-02
+            //     "Internal server error. Please contact the administrator.".to_string(),
+            // ),
             // 3xxxx: Permission Errors
             ServiceError::InvalidToken => (
                 StatusCode::UNAUTHORIZED,

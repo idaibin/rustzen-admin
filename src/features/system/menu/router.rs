@@ -17,32 +17,32 @@ pub fn menu_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_menu_list),
-            PermissionsCheck::Single("system:menu:list"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:list"]),
         )
         .route_with_permission(
             "/",
             post(create_menu),
-            PermissionsCheck::Single("system:menu:create"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:create"]),
         )
         .route_with_permission(
             "/options",
             get(get_menu_options),
-            PermissionsCheck::Single("system:menu:options"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:options"]),
         )
         .route_with_permission(
             "/{id}",
             get(get_menu_by_id),
-            PermissionsCheck::Single("system:menu:get"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:get"]),
         )
         .route_with_permission(
             "/{id}",
             put(update_menu),
-            PermissionsCheck::Single("system:menu:update"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_menu),
-            PermissionsCheck::Single("system:menu:delete"),
+            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:delete"]),
         )
 }
 

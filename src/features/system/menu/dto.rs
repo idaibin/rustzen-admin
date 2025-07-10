@@ -30,6 +30,10 @@ pub struct UpdateMenuDto {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuQueryDto {
+    /// The page number to retrieve. Defaults to 1.
+    pub current: Option<i64>,
+    /// The number of items per page. Defaults to 10.
+    pub page_size: Option<i64>,
     /// Filter by menu title (case-insensitive search).
     pub title: Option<String>,
     /// Filter by menu status.

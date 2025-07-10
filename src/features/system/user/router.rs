@@ -44,7 +44,7 @@ pub fn user_routes() -> Router<sqlx::PgPool> {
         .route_with_permission(
             "/{id}",
             delete(delete_user),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:delete"]),
+            PermissionsCheck::All(vec!["system:*", "system:user:*", "system:user:delete"]),
         )
         .route_with_permission(
             "/options",

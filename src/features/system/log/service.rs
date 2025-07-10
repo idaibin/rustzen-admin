@@ -1,30 +1,27 @@
 // Business logic for system logs.
 
 use super::{
-    model::{LogQueryParams, LogResponse},
+    model::{LogListVo, LogQueryDto},
     repo::LogRepository,
 };
 use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
 /// A service for log-related operations
-///
-/// Provides business logic for system log management including
-/// querying, pagination, filtering, and log creation.
 pub struct LogService;
 
 impl LogService {
     /// Retrieves a paginated list of system logs
     pub async fn get_log_list(
         pool: &PgPool,
-        params: LogQueryParams,
-    ) -> Result<(Vec<LogResponse>, i64), ServiceError> {
-        let current = params.current.unwrap_or(1);
-        let page_size = params.page_size.unwrap_or(10);
-        let offset = (current - 1) * page_size;
+        query: LogQueryDto,
+    ) -> Result<(Vec<LogListVo>, i64), ServiceError> {
+        let current = query.current.unwrap_or(1);
+        let limit = query.page_size.unwrap_or(10);
+        let offset = (current - 1) * limit;
 
         // Get total count
-        let total = LogRepository::count_logs(pool, params.search.as_deref()).await?;
+        let total = LogRepository::count_logs(pool, query.search.as_deref()).await?;
 
         if total == 0 {
             return Ok((Vec::new(), total));
@@ -32,11 +29,10 @@ impl LogService {
 
         // Get log data
         let log_entities =
-            LogRepository::find_all(pool, params.search.as_deref(), page_size, offset).await?;
+            LogRepository::find_all(pool, query.search.as_deref(), limit, offset).await?;
 
         // Convert to response format
-        let log_responses: Vec<LogResponse> =
-            log_entities.into_iter().map(LogResponse::from).collect();
+        let log_responses: Vec<LogListVo> = log_entities.into_iter().map(LogListVo::from).collect();
 
         Ok((log_responses, total))
     }

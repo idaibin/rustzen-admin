@@ -5,9 +5,12 @@ use super::{
     service::AuthService,
 };
 use crate::{
-    common::api::{ApiResponse, AppResult},
+    common::{
+        api::{ApiResponse, AppResult},
+        router_ext::RouterExt,
+    },
     core::password::PasswordUtils,
-    features::system::log::service::LogService,
+    features::{auth::permission::PermissionsCheck, system::log::service::LogService},
 };
 use axum::{
     Json, Router,
@@ -21,14 +24,11 @@ use std::net::SocketAddr;
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
-    let mut router = Router::new().route("/login", post(login_handler));
-    #[cfg(debug_assertions)]
-    {
-        // DEV-NOTE: This is a debug route for generating hash.
-        // It is only available in debug mode.
-        router = router.route("/gen-hash", get(gen_hash));
-    }
-    router
+    Router::new().route("/login", post(login_handler)).route_with_permission(
+        "/gen-hash",
+        get(gen_hash),
+        PermissionsCheck::Single("*"),
+    )
 }
 
 /// Protected auth routes (JWT required)
@@ -51,7 +51,7 @@ async fn login_handler(
     let ip_address = addr.ip().to_string();
     let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown");
 
-    let _ = LogService::log_business_operation(
+    if let Err(e) = LogService::log_business_operation(
         &pool,
         response.user_id,
         &response.username,
@@ -63,7 +63,11 @@ async fn login_handler(
         true,
         Some("User login successful"),
     )
-    .await;
+    .await
+    {
+        tracing::error!("Failed to log login operation: {:?}", e);
+        // 可以考虑是否需要返回错误或发送告警
+    }
 
     tracing::info!("Login successful");
     Ok(ApiResponse::success(response))
@@ -71,15 +75,15 @@ async fn login_handler(
 
 #[derive(Debug, Deserialize)]
 struct HashRequest {
-    password: String,
+    text: String,
 }
 
 /// Generate hash with password
 async fn gen_hash(Query(request): Query<HashRequest>) -> AppResult<String> {
     tracing::info!("Generate hash attempt");
-    let password = PasswordUtils::hash_password(&request.password)?.to_string();
-    tracing::info!("Hash generated: {}", password);
-    Ok(ApiResponse::success(password))
+    let hash = PasswordUtils::hash_password(&request.text)?.to_string();
+    tracing::info!("Hash generated: {}", hash);
+    Ok(ApiResponse::success(hash))
 }
 
 /// Logout and clear cache

@@ -32,10 +32,10 @@ pub struct UpdateDictDto {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DictQueryDto {
+    /// The page number to retrieve. Defaults to 1.
+    pub current: Option<i64>,
+    /// The number of items per page. Defaults to 10.
+    pub page_size: Option<i64>,
     /// Filter by dictionary type.
     pub dict_type: Option<String>,
-    /// Search term for filtering labels.
-    pub q: Option<String>,
-    /// Maximum number of results to return.
-    pub limit: Option<i64>,
 }

@@ -46,8 +46,10 @@ impl MenuRepository {
     }
 
     /// Queries menus based on conditions
-    pub async fn find_with_conditions(
+    pub async fn find_with_pagination(
         pool: &PgPool,
+        offset: i64,
+        limit: i64,
         title_filter: Option<&str>,
         status_filter: Option<i16>,
     ) -> Result<Vec<MenuEntity>, ServiceError> {
@@ -57,8 +59,11 @@ impl MenuRepository {
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at,  permission_code
                  FROM menus WHERE deleted_at IS NULL AND menu_type != 3
-                 ORDER BY sort_order ASC, id ASC",
+                 ORDER BY sort_order ASC, id ASC
+                 LIMIT $1 OFFSET $2",
             )
+            .bind(offset)
+            .bind(limit)
             .fetch_all(pool)
             .await
             .map_err(|e| {
@@ -71,7 +76,8 @@ impl MenuRepository {
                 "SELECT id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at, permission_code
                  FROM menus WHERE deleted_at IS NULL AND menu_type != 3
-                 ORDER BY sort_order ASC, id ASC",
+                 ORDER BY sort_order ASC, id ASC
+                 LIMIT $1 OFFSET $2",
             )
             .fetch_all(pool)
             .await
@@ -87,10 +93,12 @@ impl MenuRepository {
     /// Gets the total count of menus
     pub async fn count_menus(
         pool: &PgPool,
-        _title_filter: Option<&str>,
-        _status_filter: Option<i16>,
+        title_filter: Option<&str>,
+        status_filter: Option<i16>,
     ) -> Result<i64, ServiceError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM menus WHERE deleted_at IS NULL")
+            .bind(title_filter)
+            .bind(status_filter)
             .fetch_one(pool)
             .await
             .map_err(|e| {
@@ -206,72 +214,6 @@ impl MenuRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Retrieves menus by role IDs
-    pub async fn find_menus_by_role(
-        pool: &PgPool,
-        role_ids: &[i64],
-    ) -> Result<Vec<MenuEntity>, ServiceError> {
-        if role_ids.is_empty() {
-            return Ok(vec![]);
-        }
-
-        // Build IN query placeholders
-        let placeholders: Vec<String> = (1..=role_ids.len()).map(|i| format!("${}", i)).collect();
-        let placeholders_str = placeholders.join(", ");
-
-        let query = format!(
-            "SELECT DISTINCT m.id, m.parent_id, m.title, m.path, m.component, m.icon,
-            m.sort_order, m.status, m.permission_code, m.created_at, m.updated_at
-            FROM menus m
-            INNER JOIN role_menus rm ON m.id = rm.menu_id
-            WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.status = 1
-            ORDER BY m.sort_order ASC, m.id ASC",
-            placeholders_str
-        );
-
-        let mut query_builder = sqlx::query_as::<_, MenuEntity>(&query);
-
-        // Bind parameters
-        for role_id in role_ids {
-            query_builder = query_builder.bind(role_id);
-        }
-
-        let menus = query_builder.fetch_all(pool).await.map_err(|e| {
-            tracing::error!("Database error finding menus by role: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-        Ok(menus)
-    }
-
-    pub async fn find_permissions_by_role(
-        pool: &PgPool,
-        role_ids: &[i64],
-    ) -> Result<Vec<String>, ServiceError> {
-        if role_ids.is_empty() {
-            return Ok(vec![]);
-        }
-        let placeholders: Vec<String> = (1..=role_ids.len()).map(|i| format!("${}", i)).collect();
-        let placeholders_str = placeholders.join(", ");
-        let query = format!(
-            "SELECT DISTINCT m.permission_code
-             FROM menus m
-             INNER JOIN role_menus rm ON m.id = rm.menu_id
-             WHERE rm.role_id IN ({}) AND m.deleted_at IS NULL AND m.permission_code IS NOT NULL",
-            placeholders_str
-        );
-
-        let mut query_builder = sqlx::query_scalar(&query);
-
-        for role_id in role_ids {
-            query_builder = query_builder.bind(role_id);
-        }
-
-        let permissions = query_builder.fetch_all(pool).await.map_err(|e| {
-            tracing::error!("Database error finding permissions by role: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-        Ok(permissions)
-    }
     /// Finds a single menu by its title.
     pub async fn find_by_title(
         title: &str,
