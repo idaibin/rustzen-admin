@@ -27,10 +27,10 @@ impl UserService {
         query: UserQueryDto,
     ) -> Result<(Vec<UserListVo>, i64), ServiceError> {
         let page = query.current.unwrap_or(1);
-        let page_size = query.page_size.unwrap_or(10);
-        let offset = (page - 1) * page_size;
+        let limit = query.page_size.unwrap_or(10);
+        let offset = (page - 1) * limit;
 
-        tracing::debug!("Getting user list: page={}, size={}", page, page_size);
+        tracing::debug!("Getting user list: page={}, size={}", page, limit);
 
         let total =
             UserRepository::count_users(pool, query.username.as_deref(), query.status.as_deref())
@@ -38,7 +38,7 @@ impl UserService {
         let users = UserRepository::find_with_pagination(
             pool,
             offset,
-            page_size,
+            limit,
             query.username.as_deref(),
             query.status.as_deref(),
         )

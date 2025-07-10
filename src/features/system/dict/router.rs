@@ -14,99 +14,63 @@ use axum::{
 use sqlx::PgPool;
 
 /// Defines the routes for dictionary item management operations.
-///
-/// This router provides full CRUD access to system dictionary data which is typically used for:
-/// - Dropdown/select options in forms
-/// - Standardized values across the application
-/// - Configuration data that rarely changes
-///
-/// All routes require appropriate permissions to access dictionary data.
-///
-/// # Routes
-/// - `GET /` - List all dictionary items (requires: system:dict:list)
-/// - `GET /{id}` - Get dictionary item by ID (requires: system:dict:get)
-/// - `POST /` - Create new dictionary item (requires: system:dict:create)
-/// - `PUT /{id}` - Update dictionary item (requires: system:dict:update)
-/// - `DELETE /{id}` - Delete dictionary item (requires: system:dict:delete)
-/// - `PATCH /{id}/status` - Update dictionary item status (requires: system:dict:update)
-/// - `GET /options` - Get dictionary options for dropdowns (requires: system:dict:options)
-/// - `GET /types` - Get all dictionary types (requires: system:dict:list)
-/// - `GET /type/{type}` - Get dictionary items by type (requires: system:dict:list)
 pub fn dict_routes() -> Router<PgPool> {
     Router::new()
         .route_with_permission(
             "/",
             get(get_dict_list),
-            PermissionsCheck::Single("system:dict:list"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/",
             post(create_dict),
-            PermissionsCheck::Single("system:dict:create"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:create"]),
         )
         .route_with_permission(
             "/options",
             get(get_dict_options),
-            PermissionsCheck::Single("system:dict:options"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:options"]),
         )
         .route_with_permission(
             "/types",
             get(get_dict_types),
-            PermissionsCheck::Single("system:dict:list"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/type/{type}",
             get(get_dict_by_type),
-            PermissionsCheck::Single("system:dict:list"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/{id}",
             get(get_dict_by_id),
-            PermissionsCheck::Single("system:dict:get"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:get"]),
         )
         .route_with_permission(
             "/{id}",
             put(update_dict),
-            PermissionsCheck::Single("system:dict:update"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_dict),
-            PermissionsCheck::Single("system:dict:delete"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:delete"]),
         )
         .route_with_permission(
             "/{id}/status",
             patch(update_dict_status),
-            PermissionsCheck::Single("system:dict:update"),
+            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:update"]),
         )
 }
 
 /// Retrieves a complete list of dictionary items with optional filtering.
-///
-/// This endpoint returns dictionary items in the system, with support for filtering
-/// by type and search terms.
-///
-/// # Query Parameters
-/// - `dict_type`: Filter by dictionary type (optional)
-/// - `q`: Search term to filter by label or value (optional)
-/// - `limit`: Maximum number of results (optional)
-///
-/// # Response
-/// - Array of dictionary items with their keys, values, and metadata
 async fn get_dict_list(
     State(pool): State<PgPool>,
-    Query(params): Query<DictQueryDto>,
+    Query(query): Query<DictQueryDto>,
 ) -> AppResult<Vec<DictDetailVo>> {
-    tracing::info!("Dictionary list request received with params: {:?}", params);
+    tracing::info!("Dictionary list request received with params: {:?}", query);
 
-    let query_params = if params.dict_type.is_some() || params.q.is_some() || params.limit.is_some()
-    {
-        Some(params)
-    } else {
-        None
-    };
-
-    let (dict_list, total) = DictService::get_dict_list(&pool, query_params).await?;
+    let (dict_list, total) = DictService::get_dict_list(&pool, query).await?;
 
     tracing::info!("Dictionary list retrieved successfully: count={}", dict_list.len());
 
@@ -114,12 +78,6 @@ async fn get_dict_list(
 }
 
 /// Retrieves a single dictionary item by ID.
-///
-/// # Path Parameters
-/// - `id`: Dictionary item ID
-///
-/// # Response
-/// - Dictionary item details
 async fn get_dict_by_id(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
@@ -134,15 +92,6 @@ async fn get_dict_by_id(
 }
 
 /// Creates a new dictionary item.
-///
-/// # Request Body
-/// - `dict_type`: Dictionary type/category
-/// - `label`: Display label
-/// - `value`: Actual value
-/// - `is_default`: Whether this is the default item for the type (optional)
-///
-/// # Response
-/// - Created dictionary item details
 async fn create_dict(
     State(pool): State<PgPool>,
     Json(request): Json<CreateDictDto>,
@@ -157,18 +106,6 @@ async fn create_dict(
 }
 
 /// Updates an existing dictionary item.
-///
-/// # Path Parameters
-/// - `id`: Dictionary item ID to update
-///
-/// # Request Body
-/// - `dict_type`: New dictionary type/category (optional)
-/// - `label`: New display label (optional)
-/// - `value`: New actual value (optional)
-/// - `is_default`: New default flag (optional)
-///
-/// # Response
-/// - Updated dictionary item details
 async fn update_dict(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
@@ -188,12 +125,6 @@ async fn update_dict(
 }
 
 /// Deletes a dictionary item by ID.
-///
-/// # Path Parameters
-/// - `id`: Dictionary item ID to delete
-///
-/// # Response
-/// - Success confirmation
 async fn delete_dict(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
     tracing::info!("Delete dictionary item: {}", id);
 
@@ -205,15 +136,6 @@ async fn delete_dict(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResu
 }
 
 /// Updates the status of a dictionary item.
-///
-/// # Path Parameters
-/// - `id`: Dictionary item ID
-///
-/// # Request Body
-/// - `status`: New status (1=active, 2=inactive)
-///
-/// # Response
-/// - Success confirmation
 #[derive(serde::Deserialize)]
 struct UpdateStatusRequest {
     status: i16,
@@ -234,17 +156,6 @@ async fn update_dict_status(
 }
 
 /// Retrieves dictionary options for dropdown/select components.
-///
-/// This endpoint provides filtered dictionary data specifically formatted
-/// for use in UI components like dropdowns, select boxes, and option lists.
-///
-/// # Query Parameters
-/// - `dict_type`: Type/category of dictionary items to retrieve (optional)
-/// - `q`: Search term to filter dictionary items by label or value (optional)
-/// - `limit`: Maximum number of options to return (optional)
-///
-/// # Response
-/// - Array of option objects with `label` and `value` fields suitable for UI components
 async fn get_dict_options(
     State(pool): State<PgPool>,
     Query(query): Query<DictOptionsQuery>,
@@ -265,9 +176,6 @@ async fn get_dict_options(
 }
 
 /// Retrieves all available dictionary types.
-///
-/// # Response
-/// - Array of unique dictionary type strings
 async fn get_dict_types(State(pool): State<PgPool>) -> AppResult<Vec<String>> {
     tracing::info!("Dictionary types request received");
 
@@ -279,12 +187,6 @@ async fn get_dict_types(State(pool): State<PgPool>) -> AppResult<Vec<String>> {
 }
 
 /// Retrieves dictionary items by type.
-///
-/// # Path Parameters
-/// - `type`: Dictionary type to filter by
-///
-/// # Response
-/// - Array of dictionary items for the specified type
 async fn get_dict_by_type(
     State(pool): State<PgPool>,
     Path(dict_type): Path<String>,

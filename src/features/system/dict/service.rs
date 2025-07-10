@@ -12,61 +12,30 @@ pub struct DictService;
 
 impl DictService {
     /// Retrieves a list of dictionary items with optional filtering
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `params` - Query parameters for filtering
-    ///
-    /// # Returns
-    /// * `Result<(Vec<DictDetailVo>, i64), ServiceError>` - List of dictionary items and total count
     pub async fn get_dict_list(
         pool: &PgPool,
-        params: Option<DictQueryDto>,
+        query: DictQueryDto,
     ) -> Result<(Vec<DictDetailVo>, i64), ServiceError> {
-        tracing::info!("Starting to retrieve dictionary list with params: {:?}", params);
+        tracing::info!("Starting to retrieve dictionary list with query: {:?}", query);
 
-        let dict_type = params.as_ref().and_then(|p| p.dict_type.as_deref());
+        let page = query.current.unwrap_or(1);
+        let limit = query.page_size.unwrap_or(10);
+        let offset = (page - 1) * limit;
+
+        let dict_type = query.dict_type.as_deref();
 
         // Get filtered items or all items
-        let dicts = if let Some(dtype) = dict_type {
-            DictRepository::find_by_type(pool, dtype).await?
-        } else {
-            DictRepository::find_all(pool).await?
-        };
+        let dicts = DictRepository::find_with_pagination(pool, offset, limit, dict_type).await?;
 
-        // Apply search filter if provided
-        let filtered_dicts = if let Some(params) = params {
-            if let Some(search) = params.q {
-                dicts
-                    .into_iter()
-                    .filter(|dict| {
-                        dict.label.to_lowercase().contains(&search.to_lowercase())
-                            || dict.value.to_lowercase().contains(&search.to_lowercase())
-                    })
-                    .collect()
-            } else {
-                dicts
-            }
-        } else {
-            dicts
-        };
+        let total = DictRepository::count_dicts(pool, dict_type).await?;
 
-        let total = filtered_dicts.len() as i64;
-        let dict_vos: Vec<DictDetailVo> =
-            filtered_dicts.into_iter().map(DictDetailVo::from).collect();
+        let dict_vos: Vec<DictDetailVo> = dicts.into_iter().map(DictDetailVo::from).collect();
 
         tracing::info!("Successfully retrieved {} dictionary items", dict_vos.len());
         Ok((dict_vos, total))
     }
 
     /// Retrieves a single dictionary item by ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID
-    ///
-    /// # Returns
-    /// * `Result<DictDetailVo, ServiceError>` - Dictionary item or service error
     pub async fn get_dict_by_id(pool: &PgPool, id: i64) -> Result<DictDetailVo, ServiceError> {
         tracing::info!("Retrieving dictionary item by ID: {}", id);
 
@@ -88,13 +57,6 @@ impl DictService {
     }
 
     /// Creates a new dictionary item with validation
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `request` - Create dictionary request data
-    ///
-    /// # Returns
-    /// * `Result<DictDetailVo, ServiceError>` - Created dictionary item or service error
     pub async fn create_dict(
         pool: &PgPool,
         request: CreateDictDto,
@@ -150,14 +112,6 @@ impl DictService {
     }
 
     /// Updates an existing dictionary item with validation
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID to update
-    /// * `request` - Update dictionary request data
-    ///
-    /// # Returns
-    /// * `Result<DictDetailVo, ServiceError>` - Updated dictionary item or service error
     pub async fn update_dict(
         pool: &PgPool,
         id: i64,
@@ -229,13 +183,6 @@ impl DictService {
     }
 
     /// Deletes a dictionary item by ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID to delete
-    ///
-    /// # Returns
-    /// * `Result<(), ServiceError>` - Success or service error
     pub async fn delete_dict(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Deleting dictionary item: {}", id);
 
@@ -259,18 +206,6 @@ impl DictService {
     }
 
     /// Retrieves dictionary options for dropdown selections
-    ///
-    /// Returns simplified dictionary data optimized for frontend dropdown components.
-    /// Supports filtering by type, search term, and result limiting.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Optional dictionary type filter
-    /// * `search_query` - Optional search term for filtering labels
-    /// * `limit` - Maximum number of results to return (default: 50)
-    ///
-    /// # Returns
-    /// * `Result<Vec<OptionItem<String>>, ServiceError>` - List of option items or service error
     pub async fn get_dict_options(
         pool: &PgPool,
         dict_type: Option<String>,
@@ -305,12 +240,6 @@ impl DictService {
     }
 
     /// Retrieves all dictionary types
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    ///
-    /// # Returns
-    /// * `Result<Vec<String>, ServiceError>` - List of dictionary types or service error
     pub async fn get_dict_types(pool: &PgPool) -> Result<Vec<String>, ServiceError> {
         tracing::info!("Retrieving all dictionary types");
 
@@ -321,13 +250,6 @@ impl DictService {
     }
 
     /// Retrieves dictionary items by type
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Dictionary type to filter by
-    ///
-    /// # Returns
-    /// * `Result<Vec<DictDetailVo>, ServiceError>` - List of dictionary items or service error
     pub async fn get_dict_by_type(
         pool: &PgPool,
         dict_type: &str,
@@ -346,14 +268,6 @@ impl DictService {
     }
 
     /// Updates the status of a dictionary item
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID
-    /// * `status` - New status (1=active, 2=inactive)
-    ///
-    /// # Returns
-    /// * `Result<(), ServiceError>` - Success or service error
     pub async fn update_dict_status(
         pool: &PgPool,
         id: i64,

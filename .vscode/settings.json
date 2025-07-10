@@ -10,11 +10,7 @@
     "typescript.tsdk": "frontend/node_modules/typescript/lib",
     "terminal.integrated.defaultProfile.linux": "zsh",
     "just.executionMode": "terminal",
-    "files.exclude": {
-        "**/node_modules": true,
-        "**/target": true,
-        "**/dist": true
-    },
+    "files.exclude": {},
     // 显式声明 justfile 文件类型（避免被当作 YAML 或 Makefile 处理）
     "files.associations": {
         "justfile": "just"

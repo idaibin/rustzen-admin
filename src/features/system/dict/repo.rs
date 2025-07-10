@@ -3,21 +3,16 @@ use crate::common::error::ServiceError;
 use chrono::Utc;
 use sqlx::PgPool;
 
-/// Dictionary data access layer
-///
-/// Provides database operations for dictionary items including
-/// CRUD operations and options retrieval for dropdowns.
 pub struct DictRepository;
 
 impl DictRepository {
-    /// Retrieves all dictionary items
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    ///
-    /// # Returns
-    /// * `Result<Vec<DictEntity>, sqlx::Error>` - List of dictionary items or database error
-    pub async fn find_all(pool: &PgPool) -> Result<Vec<DictEntity>, ServiceError> {
+    /// Retrieves dictionary items with pagination
+    pub async fn find_with_pagination(
+        pool: &PgPool,
+        offset: i64,
+        limit: i64,
+        _dict_type: Option<&str>,
+    ) -> Result<Vec<DictEntity>, ServiceError> {
         tracing::debug!("Querying all dictionary items from database");
 
         let dicts = sqlx::query_as::<_, DictEntity>(
@@ -25,8 +20,11 @@ impl DictRepository {
                     CASE WHEN sort_order = 0 THEN true ELSE false END as is_default
              FROM dicts
              WHERE deleted_at IS NULL AND status = 1
-             ORDER BY type ASC, sort_order ASC, id ASC",
+             ORDER BY type ASC, sort_order ASC, id ASC
+             LIMIT $1 OFFSET $2",
         )
+        .bind(offset)
+        .bind(limit)
         .fetch_all(pool)
         .await
         .map_err(|e| {
@@ -39,18 +37,19 @@ impl DictRepository {
     }
 
     /// Retrieves dictionary options for dropdown selections
-    ///
-    /// Returns simplified dictionary items containing only label and value
-    /// for use in frontend dropdown components.
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Optional dictionary type filter
-    /// * `search_query` - Optional search term for filtering labels
-    /// * `limit` - Maximum number of results to return
-    ///
-    /// # Returns
-    /// * `Result<Vec<(String, String)>, ServiceError>` - List of (label, value) tuples
+    pub async fn count_dicts(pool: &PgPool, dict_type: Option<&str>) -> Result<i64, ServiceError> {
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM dicts WHERE deleted_at IS NULL AND status = 1")
+                .bind(dict_type)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error counting dictionary items: {:?}", e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
+        Ok(count.0)
+    }
+
     pub async fn find_options(
         pool: &PgPool,
         dict_type: Option<&str>,
@@ -93,13 +92,6 @@ impl DictRepository {
     }
 
     /// Retrieves a dictionary item by ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID
-    ///
-    /// # Returns
-    /// * `Result<Option<DictEntity>, sqlx::Error>` - Dictionary item if found, None otherwise
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<DictEntity>, ServiceError> {
         tracing::debug!("Querying dictionary item with id: {}", id);
 
@@ -121,14 +113,6 @@ impl DictRepository {
     }
 
     /// Retrieves a dictionary item by type and key
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Dictionary type
-    /// * `key` - Dictionary key
-    ///
-    /// # Returns
-    /// * `Result<Option<DictEntity>, sqlx::Error>` - Dictionary item if found, None otherwise
     pub async fn find_by_type_and_key(
         pool: &PgPool,
         dict_type: &str,
@@ -160,13 +144,6 @@ impl DictRepository {
     }
 
     /// Retrieves dictionary items by type
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Dictionary type
-    ///
-    /// # Returns
-    /// * `Result<Vec<DictEntity>, sqlx::Error>` - List of dictionary items for the type
     pub async fn find_by_type(
         pool: &PgPool,
         dict_type: &str,
@@ -196,16 +173,6 @@ impl DictRepository {
     }
 
     /// Creates a new dictionary item
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Dictionary type
-    /// * `key` - Dictionary key (label)
-    /// * `value` - Dictionary value
-    /// * `is_default` - Whether this is the default item for the type
-    ///
-    /// # Returns
-    /// * `Result<DictEntity, sqlx::Error>` - Created dictionary item with assigned ID
     pub async fn create(
         pool: &PgPool,
         dict_type: &str,
@@ -243,17 +210,6 @@ impl DictRepository {
     }
 
     /// Updates an existing dictionary item
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID to update
-    /// * `dict_type` - Optional new dictionary type
-    /// * `key` - Optional new dictionary key (label)
-    /// * `value` - Optional new dictionary value
-    /// * `is_default` - Optional new default flag
-    ///
-    /// # Returns
-    /// * `Result<Option<DictEntity>, sqlx::Error>` - Updated dictionary item if found, None otherwise
     pub async fn update(
         pool: &PgPool,
         id: i64,
@@ -340,13 +296,6 @@ impl DictRepository {
     }
 
     /// Soft deletes a dictionary item by ID
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID to delete
-    ///
-    /// # Returns
-    /// * `Result<bool, sqlx::Error>` - true if deleted, false if not found
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         tracing::debug!("Soft deleting dictionary item with id: {}", id);
 
@@ -374,66 +323,7 @@ impl DictRepository {
         Ok(deleted)
     }
 
-    /// Hard deletes a dictionary item by ID (permanent deletion)
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID to delete
-    ///
-    /// # Returns
-    /// * `Result<bool, sqlx::Error>` - true if deleted, false if not found
-    pub async fn delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
-        tracing::debug!("Hard deleting dictionary item with id: {}", id);
-
-        let result =
-            sqlx::query("DELETE FROM dicts WHERE id = $1").bind(id).execute(pool).await.map_err(
-                |e| {
-                    tracing::error!("Database error hard deleting dictionary item {}: {:?}", id, e);
-                    ServiceError::DatabaseQueryFailed
-                },
-            )?;
-
-        let deleted = result.rows_affected() > 0;
-        if deleted {
-            tracing::info!("Hard deleted dictionary item with id: {}", id);
-        } else {
-            tracing::warn!("Dictionary item with id {} not found for deletion", id);
-        }
-
-        Ok(deleted)
-    }
-
-    /// Gets the count of dictionary items with optional filtering
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `dict_type` - Optional dictionary type filter
-    ///
-    /// # Returns
-    /// * `Result<i64, sqlx::Error>` - Count of dictionary items
-    pub async fn count(pool: &PgPool, dict_type: Option<&str>) -> Result<i64, ServiceError> {
-        let mut query =
-            String::from("SELECT COUNT(*) FROM dicts WHERE deleted_at IS NULL AND status = 1");
-
-        if let Some(dtype) = dict_type {
-            query.push_str(&format!(" AND type = '{}'", dtype.replace("'", "''")));
-        }
-
-        let count: (i64,) = sqlx::query_as(&query).fetch_one(pool).await.map_err(|e| {
-            tracing::error!("Database error counting dictionary items: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(count.0)
-    }
-
     /// Retrieves all dictionary types
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    ///
-    /// # Returns
-    /// * `Result<Vec<String>, sqlx::Error>` - List of unique dictionary types
     pub async fn find_all_types(pool: &PgPool) -> Result<Vec<String>, ServiceError> {
         tracing::debug!("Querying all dictionary types");
 
@@ -456,14 +346,6 @@ impl DictRepository {
     }
 
     /// Updates the status of a dictionary item
-    ///
-    /// # Arguments
-    /// * `pool` - Database connection pool
-    /// * `id` - Dictionary item ID
-    /// * `status` - New status (1=active, 2=inactive)
-    ///
-    /// # Returns
-    /// * `Result<bool, sqlx::Error>` - true if updated, false if not found
     pub async fn update_status(pool: &PgPool, id: i64, status: i16) -> Result<bool, ServiceError> {
         tracing::debug!("Updating dictionary item {} status to: {}", id, status);
 

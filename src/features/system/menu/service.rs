@@ -16,16 +16,23 @@ impl MenuService {
     /// Get menu list as tree structure with optional filtering
     pub async fn get_menu_list(
         pool: &PgPool,
-        params: MenuQueryDto,
+        query: MenuQueryDto,
     ) -> Result<(Vec<MenuDetailVo>, i64), ServiceError> {
-        tracing::info!("Fetching menu list with params: {:?}", params);
+        tracing::info!("Fetching menu list with query: {:?}", query);
+        let page = query.current.unwrap_or(1);
+        let limit = query.page_size.unwrap_or(10);
+        let offset = (page - 1) * limit;
 
-        let menus =
-            MenuRepository::find_with_conditions(pool, params.title.as_deref(), params.status)
-                .await?;
+        let menus = MenuRepository::find_with_pagination(
+            pool,
+            offset,
+            limit,
+            query.title.as_deref(),
+            query.status,
+        )
+        .await?;
 
-        let total =
-            MenuRepository::count_menus(pool, params.title.as_deref(), params.status).await?;
+        let total = MenuRepository::count_menus(pool, query.title.as_deref(), query.status).await?;
 
         let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
         let menu_tree = Self::build_menu_tree(menu_responses);
@@ -151,22 +158,6 @@ impl MenuService {
         } else {
             Err(ServiceError::NotFound("Menu".to_string()))
         }
-    }
-
-    /// Get menus by role IDs
-    pub async fn get_menus_by_role_ids(
-        pool: &PgPool,
-        role_ids: &[i64],
-    ) -> Result<Vec<MenuDetailVo>, ServiceError> {
-        if role_ids.is_empty() {
-            return Ok(vec![]);
-        }
-        tracing::info!("Fetching menus for role IDs: {:?}", role_ids);
-
-        let menus = MenuRepository::find_menus_by_role(pool, role_ids).await?;
-
-        let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
-        Ok(menu_responses)
     }
 
     /// Build hierarchical tree from flat menu list
