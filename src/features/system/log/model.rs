@@ -3,17 +3,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::net::IpAddr;
 
-/// Query parameters for log list API
-#[derive(Debug, Deserialize)]
-pub struct LogListQuery {
-    /// Search term for filtering log messages
-    pub q: Option<String>,
-    /// Page number (1-based)
-    pub page: Option<i64>,
-    /// Number of records per page
-    pub page_size: Option<i64>,
-}
-
 /// Log entity from database
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct LogEntity {
@@ -35,7 +24,7 @@ pub struct LogEntity {
 /// Log response for API
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LogResponse {
+pub struct LogListVo {
     pub id: i64,
     pub user_id: Option<i64>,
     pub username: Option<String>,
@@ -54,18 +43,13 @@ pub struct LogResponse {
 /// Log query parameters
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LogQueryParams {
+pub struct LogQueryDto {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
     pub search: Option<String>,
-    pub username: Option<String>,
-    pub action: Option<String>,
-    pub status: Option<String>,
-    pub start_time: Option<String>,
-    pub end_time: Option<String>,
 }
 
-impl From<LogEntity> for LogResponse {
+impl From<LogEntity> for LogListVo {
     fn from(entity: LogEntity) -> Self {
         Self {
             id: entity.id,

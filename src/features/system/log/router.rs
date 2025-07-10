@@ -12,7 +12,7 @@ use axum::{
 };
 use sqlx::PgPool;
 
-use super::model::{LogQueryParams, LogResponse};
+use super::model::{LogListVo, LogQueryDto};
 use super::service::LogService;
 
 /// Defines the routes for log management
@@ -26,9 +26,9 @@ pub fn log_routes() -> Router<PgPool> {
 
 /// Handles the request to get a paginated list of logs
 pub async fn get_log_list(
-    Query(params): Query<LogQueryParams>,
     State(pool): State<PgPool>,
-) -> AppResult<Vec<LogResponse>> {
-    let (logs, total) = LogService::get_log_list(&pool, params).await?;
+    Query(query): Query<LogQueryDto>,
+) -> AppResult<Vec<LogListVo>> {
+    let (logs, total) = LogService::get_log_list(&pool, query).await?;
     Ok(ApiResponse::page(logs, total))
 }

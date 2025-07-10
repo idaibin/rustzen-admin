@@ -15,31 +15,31 @@ impl RoleService {
     /// Get paginated role list with filtering
     pub async fn get_role_list(
         pool: &PgPool,
-        params: RoleQueryDto,
+        query: RoleQueryDto,
     ) -> Result<(Vec<RoleDetailVo>, i64), ServiceError> {
-        let page = params.current.unwrap_or(1).max(1);
-        let page_size = params.page_size.unwrap_or(10).min(100).max(1);
-        let offset = (page - 1) * page_size;
+        let page = query.current.unwrap_or(1).max(1);
+        let limit = query.page_size.unwrap_or(10).min(100).max(1);
+        let offset = (page - 1) * limit;
 
         tracing::info!(
             "Retrieving role list: page={}, size={}, name={:?}, status={:?}",
             page,
-            page_size,
-            params.role_name,
-            params.status
+            limit,
+            query.role_name,
+            query.status
         );
 
         let roles = RoleRepository::find_with_pagination(
             pool,
             offset,
-            page_size,
-            params.role_name.as_deref(),
-            params.status,
+            limit,
+            query.role_name.as_deref(),
+            query.status,
         )
         .await?;
 
         let total =
-            RoleRepository::count_roles(pool, params.role_name.as_deref(), params.status).await?;
+            RoleRepository::count_roles(pool, query.role_name.as_deref(), query.status).await?;
 
         let mut role_responses = Vec::new();
         for role in roles {
