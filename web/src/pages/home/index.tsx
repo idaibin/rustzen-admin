@@ -3,7 +3,7 @@ import useSWR from "swr";
 // 根目录的占位符页面
 const HomePage = () => {
     // 使用 SWR 请求后端用户列表接口
-    const { data, error, isLoading } = useSWR("/summary");
+    const { data, error, isLoading } = useSWR("/api/summary");
 
     if (error) return <div>Failed to load</div>;
     if (isLoading) return <div>Loading...</div>;
