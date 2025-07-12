@@ -6,29 +6,34 @@ import type { Menu } from "System";
  * 菜单管理API服务
  */
 export const menuAPI = {
-  // 完整请求方法
-  getMenuList: (params?: Menu.QueryParams) =>
-    proTableRequest<Menu.Item>("/system/menus", params),
+    // 完整请求方法
+    getMenuList: (params?: Menu.QueryParams) =>
+        proTableRequest<Menu.Item>("/api/system/menus", params),
 
-  getMenuById: (id: number) => request.get<Menu.Item>(`/system/menus/${id}`),
+    getMenuById: (id: number) =>
+        request.get<Menu.Item>(`/api/system/menus/${id}`),
 
-  createMenu: (data: Menu.CreateRequest) =>
-    request.post<Menu.Item, Menu.CreateRequest>("/system/menus", data),
+    createMenu: (data: Menu.CreateRequest) =>
+        request.post<Menu.Item, Menu.CreateRequest>("/api/system/menus", data),
 
-  updateMenu: (id: number, data: Menu.UpdateRequest) =>
-    request.put<Menu.Item, Menu.UpdateRequest>(`/system/menus/${id}`, data),
+    updateMenu: (id: number, data: Menu.UpdateRequest) =>
+        request.put<Menu.Item, Menu.UpdateRequest>(
+            `/api/system/menus/${id}`,
+            data
+        ),
 
-  deleteMenu: (id: number) => request.del<void>(`/system/menus/${id}`),
+    deleteMenu: (id: number) => request.del<void>(`/api/system/menus/${id}`),
 
-  getMenuTree: () => request.get<Menu.Item[]>("/system/menus/tree"),
+    getMenuTree: () => request.get<Menu.Item[]>("/api/system/menus/tree"),
 
-  getMenuOptions: () => request.get<OptionItem[]>("/system/menus/options"),
+    getMenuOptions: () =>
+        request.get<OptionItem[]>("/api/system/menus/options"),
 
-  // URL生成器（SWR使用）
-  urls: {
-    getMenuById: (id: number) => `/system/menus/${id}`,
-    getMenuList: () => "/system/menus",
-    getMenuTree: () => "/system/menus/tree",
-    getMenuOptions: () => "/system/menus/options",
-  },
+    // URL生成器（SWR使用）
+    urls: {
+        getMenuById: (id: number) => `/system/menus/${id}`,
+        getMenuList: () => "/api/system/menus",
+        getMenuTree: () => "/api/system/menus/tree",
+        getMenuOptions: () => "/api/system/menus/options",
+    },
 };
