@@ -19,32 +19,32 @@ pub fn role_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_role_list),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:list"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:list"]),
         )
         .route_with_permission(
             "/",
             post(create_role),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:create"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:create"]),
         )
         .route_with_permission(
             "/options",
             get(get_role_options),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:options"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:options"]),
         )
         .route_with_permission(
             "/{id}",
             get(get_role_by_id),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:get"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:get"]),
         )
         .route_with_permission(
             "/{id}",
             put(update_role),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:update"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_role),
-            PermissionsCheck::All(vec!["system:*", "system:role:*", "system:role:delete"]),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:delete"]),
         )
     // .route_with_permission("/{id}/menus", get(get_role_menus), "system:role:menus:get")
     // .route_with_permission("/{id}/menus", put(set_role_menus), "system:role:menus:set")

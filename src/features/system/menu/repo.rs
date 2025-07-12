@@ -50,55 +50,30 @@ impl MenuRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        title_filter: Option<&str>,
-        status_filter: Option<i16>,
     ) -> Result<Vec<MenuEntity>, ServiceError> {
-        let menus = if title_filter.is_none() && status_filter.is_none() {
-            // No filtering conditions
-            sqlx::query_as::<_, MenuEntity>(
-                "SELECT id, parent_id, title, path, component, icon, sort_order, status,
+        // No filtering conditions
+        let menus = sqlx::query_as::<_, MenuEntity>(
+            "SELECT id, parent_id, title, path, component, icon, sort_order, status,
                  created_at, updated_at,  permission_code
                  FROM menus WHERE deleted_at IS NULL AND menu_type != 3
                  ORDER BY sort_order ASC, id ASC
                  LIMIT $1 OFFSET $2",
-            )
-            .bind(offset)
-            .bind(limit)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error finding menus with conditions: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-        } else {
-            // With filtering conditions, implement a simple version
-            sqlx::query_as::<_, MenuEntity>(
-                "SELECT id, parent_id, title, path, component, icon, sort_order, status,
-                 created_at, updated_at, permission_code
-                 FROM menus WHERE deleted_at IS NULL AND menu_type != 3
-                 ORDER BY sort_order ASC, id ASC
-                 LIMIT $1 OFFSET $2",
-            )
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error finding menus with conditions: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-        };
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding menus with conditions: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(menus)
     }
 
     /// Gets the total count of menus
-    pub async fn count_menus(
-        pool: &PgPool,
-        title_filter: Option<&str>,
-        status_filter: Option<i16>,
-    ) -> Result<i64, ServiceError> {
+    pub async fn count_menus(pool: &PgPool) -> Result<i64, ServiceError> {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM menus WHERE deleted_at IS NULL")
-            .bind(title_filter)
-            .bind(status_filter)
             .fetch_one(pool)
             .await
             .map_err(|e| {

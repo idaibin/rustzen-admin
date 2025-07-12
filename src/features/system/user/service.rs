@@ -44,10 +44,7 @@ impl UserService {
         )
         .await?;
 
-        let list = users
-            .into_iter()
-            .map(|u| Self::to_user_list_vo(UserWithRolesEntity::from(u)))
-            .collect();
+        let list = users.into_iter().map(|u| Self::to_user_list_vo(u)).collect();
 
         Ok((list, total))
     }
@@ -179,38 +176,6 @@ impl UserService {
         Ok(user_options)
     }
 
-    // /// Enable user
-    // pub async fn enable_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
-    //     tracing::debug!("Enabling user ID: {}", id);
-
-    //     UserRepository::update_user(pool, id, None, None, Some(1), None).await?;
-
-    //     Ok(())
-    // }
-
-    // /// Disable user
-    // pub async fn disable_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
-    //     tracing::debug!("Disabling user ID: {}", id);
-
-    //     UserRepository::update_user(pool, id, None, None, Some(2), None).await?;
-
-    //     Ok(())
-    // }
-
-    // /// Reset user password
-    // pub async fn reset_user_password(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
-    //     tracing::debug!("Resetting password for user ID: {}", id);
-
-    //     // Default password is "123456"
-    //     let _default_password = "123456";
-    //     let _password_hash = PasswordUtils::hash_password(_default_password)?;
-
-    //     // Update password using the update method
-    //     UserRepository::update_user(pool, id, None, None, None, Some(_password_hash)).await?;
-
-    //     Ok(())
-    // }
-
     /// Convert UserWithRoles to UserListVo
     fn to_user_list_vo(user: UserWithRolesEntity) -> UserListVo {
         UserListVo {
@@ -221,11 +186,7 @@ impl UserService {
             avatar_url: user.avatar_url,
             status: user.status,
             last_login_at: user.last_login_at,
-            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|role| RoleVo { id: role.id, role_name: role.role_name })
-                .collect(),
+            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles).unwrap_or_default(),
             created_at: user.created_at,
             updated_at: user.updated_at,
         }
@@ -240,11 +201,7 @@ impl UserService {
             real_name: user.real_name,
             avatar_url: user.avatar_url,
             status: user.status,
-            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|role| RoleVo { id: role.id, role_name: role.role_name })
-                .collect(),
+            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles).unwrap_or_default(),
             created_at: user.created_at,
             updated_at: user.updated_at,
         }

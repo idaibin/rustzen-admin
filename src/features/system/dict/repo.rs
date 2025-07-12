@@ -23,8 +23,8 @@ impl DictRepository {
              ORDER BY type ASC, sort_order ASC, id ASC
              LIMIT $1 OFFSET $2",
         )
-        .bind(offset)
         .bind(limit)
+        .bind(offset)
         .fetch_all(pool)
         .await
         .map_err(|e| {
@@ -40,7 +40,7 @@ impl DictRepository {
     pub async fn count_dicts(pool: &PgPool, dict_type: Option<&str>) -> Result<i64, ServiceError> {
         let count: (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM dicts WHERE deleted_at IS NULL AND status = 1")
-                .bind(dict_type)
+                .bind(dict_type.as_deref())
                 .fetch_one(pool)
                 .await
                 .map_err(|e| {
