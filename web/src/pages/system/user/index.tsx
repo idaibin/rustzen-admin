@@ -69,6 +69,12 @@ const columns: ProColumns<User.Item>[] = [
         },
     },
     {
+        title: "Roles",
+        dataIndex: "roles",
+        render: (_: React.ReactNode, record: User.Item) =>
+            record.roles.map((role) => role.name).join(", "),
+    },
+    {
         title: "Last Login",
         dataIndex: "lastLoginAt",
         valueType: "dateTime",
@@ -87,28 +93,33 @@ const columns: ProColumns<User.Item>[] = [
             entity: User.Item,
             _index,
             action?: ActionType
-        ) => (
-            <Space size="middle">
-                <UserModalForm
-                    mode={"edit"}
-                    initialValues={entity}
-                    onSuccess={() => {
-                        action?.reload();
-                    }}
-                >
-                    <a>Edit</a>
-                </UserModalForm>
-                <Popconfirm
-                    title="Are you sure you want to delete this user?"
-                    placement="leftBottom"
-                    onConfirm={async () => {
-                        await userAPI.deleteUser(entity.id);
-                        action?.reload();
-                    }}
-                >
-                    <a className="text-red-500">Delete</a>
-                </Popconfirm>
-            </Space>
-        ),
+        ) => {
+            if (entity.id === 1) {
+                return null;
+            }
+            return (
+                <Space size="middle">
+                    <UserModalForm
+                        mode={"edit"}
+                        initialValues={entity}
+                        onSuccess={() => {
+                            action?.reload();
+                        }}
+                    >
+                        <a>Edit</a>
+                    </UserModalForm>
+                    <Popconfirm
+                        title="Are you sure you want to delete this user?"
+                        placement="leftBottom"
+                        onConfirm={async () => {
+                            await userAPI.deleteUser(entity.id);
+                            action?.reload();
+                        }}
+                    >
+                        <a className="text-red-500">Delete</a>
+                    </Popconfirm>
+                </Space>
+            );
+        },
     },
 ];
