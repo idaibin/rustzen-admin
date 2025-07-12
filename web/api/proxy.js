@@ -5,9 +5,7 @@ export default function handler(req, res) {
     const proxy = createProxyMiddleware({
         target: process.env.API_TARGET, // 设置环境变量：真实后端地址
         changeOrigin: true,
-        pathRewrite: {
-            "^/api": "", // 去掉前缀
-        },
+        pathRewrite: {},
     });
     return proxy(req, res);
 }
