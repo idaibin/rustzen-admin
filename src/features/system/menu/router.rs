@@ -17,32 +17,32 @@ pub fn menu_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_menu_list),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:list"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:list"]),
         )
         .route_with_permission(
             "/",
             post(create_menu),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:create"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:create"]),
         )
         .route_with_permission(
             "/options",
             get(get_menu_options),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:options"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:options"]),
         )
         .route_with_permission(
             "/{id}",
             get(get_menu_by_id),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:get"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:get"]),
         )
         .route_with_permission(
             "/{id}",
             put(update_menu),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:update"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_menu),
-            PermissionsCheck::All(vec!["system:*", "system:menu:*", "system:menu:delete"]),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:delete"]),
         )
 }
 
