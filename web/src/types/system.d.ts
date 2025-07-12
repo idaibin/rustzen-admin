@@ -12,7 +12,8 @@ declare module "System" {
         // 角色信息
         export interface RoleInfo {
             id: number;
-            roleName: string;
+            name: string;
+            code: string;
         }
 
         // 用户基本信息
