@@ -2,17 +2,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import type { ApiResponse, BaseParams, PageResponse } from "Api";
 import { message } from "antd";
 
-/**
- * Get API base URL depending on environment
- */
-const getApiBaseUrl = (): string => {
-    if (import.meta.env.DEV) {
-        return "/api";
-    }
-    return import.meta.env.VITE_API_BASE_URL || "/api";
-};
-
-const API_BASE_URL = getApiBaseUrl();
 const requestPool = new Set<AbortController>();
 
 /**
@@ -83,7 +72,6 @@ async function coreRequest<T>(
     url: string,
     options: RequestOptions = {}
 ): Promise<ApiResponse<T>> {
-    const fullUrl = `${API_BASE_URL}${url}`;
     const controller = new AbortController();
     requestPool.add(controller);
 
@@ -97,7 +85,7 @@ async function coreRequest<T>(
         },
     };
     try {
-        const response = await fetch(fullUrl, config);
+        const response = await fetch(url, config);
         if (!response.ok) {
             throw response;
             // handleNetworkAndHttpError(null, response);
@@ -233,11 +221,4 @@ export const request = {
     post,
     put,
     del,
-};
-
-/**
- * Get full API URL (for debugging or special use)
- */
-export const getFullApiUrl = (path: string): string => {
-    return `${API_BASE_URL}${path}`;
 };
