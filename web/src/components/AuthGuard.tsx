@@ -6,29 +6,33 @@ import useSWR from "swr";
 import type { UserInfoResponse } from "Auth";
 
 interface AuthGuardProps {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const location = useLocation();
-  const { token, updateUserInfo } = useAuthStore();
-  const { data: userInfo } = useSWR<UserInfoResponse>(
-    authAPI.urls.getUserInfo()
-  );
+    const location = useLocation();
+    const { token, updateUserInfo, checkPermision } = useAuthStore();
+    const { data: userInfo } = useSWR<UserInfoResponse>(
+        authAPI.urls.getUserInfo()
+    );
 
-  useEffect(() => {
-    if (userInfo !== undefined) {
-      updateUserInfo(userInfo);
+    useEffect(() => {
+        if (userInfo !== undefined) {
+            updateUserInfo(userInfo);
+        }
+    }, [userInfo, updateUserInfo]);
+
+    // Redirect to login if no token
+    if (!token) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
-  }, [userInfo, updateUserInfo]);
 
-  // Redirect to login if no token
-  if (!token) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+    const code = location.pathname.replace(/\//g, ":").slice(1);
+    const isPermision = checkPermision(code, true);
+    console.log("isPermision", location.pathname, code, isPermision);
 
-  // Render children if authenticated
-  return <>{children}</>;
+    // Render children if authenticated
+    return <>{children}</>;
 };
 
 export default AuthGuard;

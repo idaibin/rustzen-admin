@@ -93,26 +93,11 @@ export default function LogPage() {
 
     return (
         <ProTable<Log.Item>
-            columns={columns}
-            request={logAPI.getLogList}
             rowKey="id"
             headerTitle="操作日志"
-            search={{
-                labelWidth: "auto",
-                optionRender: (searchConfig, formProps, dom) => [
-                    ...dom.reverse(),
-                ],
-            }}
-            options={{
-                setting: {
-                    listsHeight: 400,
-                },
-            }}
-            pagination={{
-                defaultPageSize: 20,
-                showSizeChanger: true,
-                pageSizeOptions: ["10", "20", "50", "100"],
-            }}
+            columns={columns}
+            request={logAPI.getLogList}
+            search={false}
         />
     );
 }
