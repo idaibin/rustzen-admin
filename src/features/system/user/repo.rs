@@ -22,8 +22,7 @@ impl UserRepository {
     /// Find user by ID
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<UserEntity>, ServiceError> {
         let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status,
-             last_login_at, created_at, updated_at
+            "SELECT id, username, email, password_hash, real_name, avatar_url, status
              FROM users
              WHERE id = $1 AND deleted_at IS NULL",
         )
@@ -44,8 +43,7 @@ impl UserRepository {
         username: &str,
     ) -> Result<Option<UserEntity>, ServiceError> {
         let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status,
-             last_login_at, created_at, updated_at
+            "SELECT id, username, email, password_hash, real_name, avatar_url, status
              FROM users
              WHERE username = $1 AND deleted_at IS NULL",
         )
@@ -66,8 +64,7 @@ impl UserRepository {
         email: &str,
     ) -> Result<Option<UserEntity>, ServiceError> {
         let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status,
-             last_login_at, created_at, updated_at
+            "SELECT id, username, email, password_hash, real_name, avatar_url, status
              FROM users
              WHERE email = $1 AND deleted_at IS NULL",
         )
@@ -166,8 +163,7 @@ impl UserRepository {
         let user = match sqlx::query_as::<_, UserEntity>(
             "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $6)
-             RETURNING id, username, email, password_hash, real_name, avatar_url, status,
-             last_login_at, created_at, updated_at"
+             RETURNING id, username, email, password_hash, real_name, avatar_url, status"
         )
         .bind(&dto.username)
         .bind(&dto.email)
@@ -246,31 +242,29 @@ impl UserRepository {
         real_name: Option<String>,
         status: Option<i16>,
         password_hash: Option<String>,
-    ) -> Result<Option<UserEntity>, ServiceError> {
-        let result = sqlx::query_as::<_, UserEntity>(
+    ) -> Result<bool, ServiceError> {
+        let result = sqlx::query(
             "UPDATE users
              SET email = COALESCE($1, email),
                  real_name = COALESCE($2, real_name),
                  status = COALESCE($3, status),
                  password_hash = COALESCE($4, password_hash),
                  updated_at = NOW()
-             WHERE id = $5 AND deleted_at IS NULL
-             RETURNING id, username, email, password_hash, real_name, avatar_url, status,
-             last_login_at, created_at, updated_at",
+             WHERE id = $5 AND deleted_at IS NULL",
         )
         .bind(email)
         .bind(real_name)
-        .bind(status) // Now correctly binds i16 instead of String
+        .bind(status)
         .bind(password_hash)
         .bind(id)
-        .fetch_optional(pool)
+        .execute(pool)
         .await
         .map_err(|e| {
             tracing::error!("Database error updating user ID {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Ok(result)
+        Ok(result.rows_affected() > 0)
     }
 
     /// Soft delete user

@@ -19,47 +19,47 @@ pub fn dict_routes() -> Router<PgPool> {
         .route_with_permission(
             "/",
             get(get_dict_list),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/",
             post(create_dict),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:create"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:create"]),
         )
         .route_with_permission(
             "/options",
             get(get_dict_options),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:options"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:options"]),
         )
         .route_with_permission(
             "/types",
             get(get_dict_types),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/type/{type}",
             get(get_dict_by_type),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:list"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:list"]),
         )
         .route_with_permission(
             "/{id}",
             get(get_dict_by_id),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:get"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:get"]),
         )
         .route_with_permission(
             "/{id}",
             put(update_dict),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:update"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_dict),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:delete"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:delete"]),
         )
         .route_with_permission(
             "/{id}/status",
             patch(update_dict_status),
-            PermissionsCheck::All(vec!["system:*", "system:dict:*", "system:dict:update"]),
+            PermissionsCheck::Any(vec!["system:*", "system:dict:*", "system:dict:update"]),
         )
 }
 
