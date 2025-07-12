@@ -25,6 +25,10 @@ pub enum ServiceError {
     #[error("User status is invalid")]
     InvalidUserStatus,
 
+    /// User is admin.
+    #[error("User is admin")]
+    UserIsAdmin,
+
     /// Internal server error.
     // #[error("Internal server error")]
     // InternalServerError,
@@ -132,6 +136,9 @@ impl From<ServiceError> for AppError {
             }
             ServiceError::InvalidUserStatus => {
                 (StatusCode::BAD_REQUEST, 10007, "User status is invalid.".into())
+            }
+            ServiceError::UserIsAdmin => {
+                (StatusCode::BAD_REQUEST, 10008, "Cannot update admin user.".into())
             }
             ServiceError::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,

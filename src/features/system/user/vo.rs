@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 /// Role information
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RoleVo {
     pub id: i64,
-    pub role_name: String,
+    pub name: String,
+    pub code: String,
 }
 
 /// User list item

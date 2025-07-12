@@ -1,4 +1,5 @@
 use crate::common::api::{ApiResponse, AppResult};
+use crate::common::error::ServiceError;
 use crate::common::router_ext::RouterExt;
 use crate::features::auth::extractor::CurrentUser;
 use crate::features::auth::permission::PermissionsCheck;
@@ -109,6 +110,10 @@ pub async fn update_user(
     Json(dto): Json<UpdateUserDto>,
 ) -> AppResult<UserDetailVo> {
     tracing::info!("Updating user ID: {} by user: {}", id, current_user.username);
+
+    if id == 1 {
+        return Err(ServiceError::UserIsAdmin.into());
+    }
 
     let result = UserService::update_user(&pool, id, dto).await?;
 

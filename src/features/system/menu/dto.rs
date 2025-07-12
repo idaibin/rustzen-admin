@@ -34,8 +34,4 @@ pub struct MenuQueryDto {
     pub current: Option<i64>,
     /// The number of items per page. Defaults to 10.
     pub page_size: Option<i64>,
-    /// Filter by menu title (case-insensitive search).
-    pub title: Option<String>,
-    /// Filter by menu status.
-    pub status: Option<i16>,
 }

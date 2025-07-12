@@ -23,16 +23,8 @@ impl MenuService {
         let limit = query.page_size.unwrap_or(10);
         let offset = (page - 1) * limit;
 
-        let menus = MenuRepository::find_with_pagination(
-            pool,
-            offset,
-            limit,
-            query.title.as_deref(),
-            query.status,
-        )
-        .await?;
-
-        let total = MenuRepository::count_menus(pool, query.title.as_deref(), query.status).await?;
+        let menus = MenuRepository::find_with_pagination(pool, offset, limit).await?;
+        let total = MenuRepository::count_menus(pool).await?;
 
         let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
         let menu_tree = Self::build_menu_tree(menu_responses);
