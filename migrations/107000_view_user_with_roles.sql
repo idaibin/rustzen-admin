@@ -24,8 +24,8 @@ SELECT
         JSON_AGG(
             JSON_BUILD_OBJECT(
                 'id', r.id,
-                'role_name', r.role_name,
-                'role_code', r.role_code
+                'name', r.role_name,
+                'code', r.role_code
             ) ORDER BY r.id
         ) FILTER (WHERE r.id IS NOT NULL),
         '[]'::json
