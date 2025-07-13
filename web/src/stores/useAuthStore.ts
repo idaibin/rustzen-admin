@@ -28,7 +28,6 @@ export const useAuthStore = create<AuthState>()(
             },
             // Clear all auth state
             clearAuth: () => {
-                console.log("clearAuth");
                 set({
                     userInfo: null,
                     token: null,

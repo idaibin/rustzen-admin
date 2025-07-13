@@ -13,9 +13,10 @@ export default function DictPage() {
         <ProTable<Dict.Item>
             rowKey="id"
             search={false}
+            scroll={{ y: "calc(100vh - 287px)" }}
+            headerTitle="Dictionary Management"
             columns={columns}
             request={dictAPI.getDictList}
-            headerTitle="Dictionary Management"
             actionRef={actionRef}
             toolBarRender={() => [
                 <DictModalForm

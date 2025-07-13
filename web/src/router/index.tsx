@@ -1,0 +1,80 @@
+import { createBrowserRouter, redirect } from "react-router-dom";
+import type { RouteObject } from "react-router-dom";
+import BasicLayout from "../layouts/BasicLayout";
+import AuthGuard from "../components/AuthGuard";
+import LoginPage from "../pages/auth/login";
+import HomePage from "../pages/home";
+import { useAuthStore } from "../stores/useAuthStore";
+import { systemRoutes } from "./system";
+
+export type AppRouter = RouteObject & {
+    name?: string;
+    icon?: React.ReactNode;
+    children?: AppRouter[];
+};
+
+const pageRoutes: AppRouter[] = [systemRoutes];
+
+export const router = createBrowserRouter([
+    {
+        path: "/",
+        element: (
+            <AuthGuard>
+                <BasicLayout />
+            </AuthGuard>
+        ),
+        children: [
+            {
+                index: true,
+                element: <HomePage />,
+            },
+            ...pageRoutes,
+        ],
+    },
+    {
+        path: "/login",
+        element: <LoginPage />,
+        loader: () => {
+            const token = useAuthStore.getState().token;
+            return token ? redirect("/") : null;
+        },
+    },
+    {
+        path: "*",
+        loader: () => {
+            const token = useAuthStore.getState().token;
+            return token ? redirect("/") : redirect("/login");
+        },
+    },
+    // {
+    //   path: "/register",
+    //   element: <RegisterPage />,
+    //   loader: () => {
+    //     const token = useAuthStore.getState().token;
+    //     return token ? redirect("/") : null;
+    //   },
+    // },
+]);
+
+export const getMenuData = (): AppRouter[] => {
+    const { checkPermision } = useAuthStore.getState();
+
+    const getMenuList = (menuList: AppRouter[]): AppRouter[] => {
+        return menuList
+            .filter((item) => {
+                if (!item.path) return false;
+                const code = item.path.replace(/\//g, ":").slice(1);
+                return checkPermision(code, true);
+            })
+            .map(
+                (item) =>
+                    ({
+                        ...item,
+                        children: item.children
+                            ? getMenuList(item.children)
+                            : undefined,
+                    } as AppRouter)
+            );
+    };
+    return getMenuList(pageRoutes);
+};
