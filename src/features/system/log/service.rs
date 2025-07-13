@@ -96,6 +96,7 @@ impl LogService {
         user_agent: &str,
         success: bool,
         details: Option<&str>,
+        duration_ms: Option<i32>,
     ) -> Result<(), ServiceError> {
         let action = format!("{}_{}", resource_type.to_uppercase(), operation);
         let status = if success { "SUCCESS" } else { "FAILED" };
@@ -124,7 +125,7 @@ impl LogService {
             Some(resource_type),
             resource_id,
             status,
-            None, // duration_ms
+            duration_ms,
         )
         .await?;
 
