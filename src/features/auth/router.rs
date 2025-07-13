@@ -20,7 +20,7 @@ use axum::{
 };
 use serde::Deserialize;
 use sqlx::PgPool;
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Instant};
 
 /// Public auth routes (no token required)
 pub fn public_auth_routes() -> Router<PgPool> {
@@ -44,6 +44,7 @@ async fn login_handler(
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResponse> {
+    let start_time = Instant::now();
     tracing::info!("Login attempt from {}", addr.ip());
 
     let response = AuthService::login(&pool, request).await?;
@@ -62,11 +63,11 @@ async fn login_handler(
         user_agent,
         true,
         Some("User login successful"),
+        Some(start_time.elapsed().as_millis() as i32),
     )
     .await
     {
         tracing::error!("Failed to log login operation: {:?}", e);
-        // 可以考虑是否需要返回错误或发送告警
     }
 
     tracing::info!("Login successful");
