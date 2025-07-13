@@ -30,8 +30,8 @@ impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
             url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
-            max_connections: 20,
-            min_connections: 5,
+            max_connections: 5,
+            min_connections: 1,
             connect_timeout: Duration::from_secs(10),
             idle_timeout: Duration::from_secs(300),
         }
