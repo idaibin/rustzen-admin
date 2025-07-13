@@ -11,11 +11,12 @@ export default function RolePage() {
 
     return (
         <ProTable<Role.Item>
-            columns={columns}
-            request={roleAPI.getRoleList}
             rowKey="id"
             search={false}
+            scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Role Management"
+            columns={columns}
+            request={roleAPI.getRoleList}
             actionRef={actionRef}
             toolBarRender={() => [
                 <RoleModalForm

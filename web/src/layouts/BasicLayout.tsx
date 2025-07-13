@@ -44,6 +44,10 @@ const BasicLayout = () => {
             menuItemRender={(item, dom) => (
                 <Link to={item.path || "/"}>{dom}</Link>
             )}
+            route={{
+                path: "/",
+                children: getMenuData(),
+            }}
             avatarProps={{
                 src: userInfo?.avatarUrl,
                 size: "small",
@@ -60,51 +64,8 @@ const BasicLayout = () => {
                     );
                 },
             }}
-            route={{
-                path: "/",
-                children: getMenuData(),
-            }}
-            // route={{
-            //     path: "/",
-            //     children: [
-            //         {
-            //             path: "/system",
-            //             name: "System",
-            //             icon: <SettingOutlined />,
-            //             children: [
-            //                 {
-            //                     path: "/system/user",
-            //                     name: "User",
-            //                     icon: <UserOutlined />,
-            //                 },
-            //                 {
-            //                     path: "/system/role",
-            //                     name: "Role",
-            //                     icon: <TeamOutlined />,
-            //                 },
-            //                 {
-            //                     path: "/system/menu",
-            //                     name: "Menu",
-            //                     icon: <MenuOutlined />,
-            //                 },
-            //                 {
-            //                     path: "/system/dict",
-            //                     name: "Dictionary",
-            //                     icon: <BookOutlined />,
-            //                 },
-            //                 {
-            //                     path: "/system/log",
-            //                     name: "Log",
-            //                     icon: <HistoryOutlined />,
-            //                 },
-            //             ],
-            //         },
-            //     ],
-            // }}
         >
-            <main className="p-4">
-                <Outlet />
-            </main>
+            <Outlet />
         </ProLayout>
     );
 };
