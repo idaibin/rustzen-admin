@@ -29,10 +29,12 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
     const code = location.pathname.replace(/\//g, ":").slice(1);
     const isPermision = checkPermision(code, true);
-    console.log("isPermision", location.pathname, code, isPermision);
+    if (location.pathname !== "/" && !isPermision) {
+        return <Navigate to="/403" replace />;
+    }
 
     // Render children if authenticated
-    return <>{children}</>;
+    return children;
 };
 
 export default AuthGuard;

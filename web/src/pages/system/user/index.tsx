@@ -10,11 +10,12 @@ export default function UserPage() {
     const actionRef = useRef<ActionType>(null);
     return (
         <ProTable<User.Item>
-            columns={columns}
-            request={userAPI.getUserList}
             rowKey="id"
             search={false}
+            scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="User List"
+            columns={columns}
+            request={userAPI.getUserList}
             actionRef={actionRef}
             toolBarRender={() => [
                 <UserModalForm

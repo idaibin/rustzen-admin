@@ -14,11 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <ConfigProvider locale={enUS}>
             <App>
-                <SWRConfig
-                    value={{
-                        fetcher: swrFetcher,
-                    }}
-                >
+                <SWRConfig value={{ fetcher: swrFetcher }}>
                     <RouterProvider router={router} />
                 </SWRConfig>
             </App>

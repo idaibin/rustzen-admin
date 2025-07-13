@@ -11,11 +11,12 @@ export default function MenuPage() {
 
     return (
         <ProTable<Menu.Item>
-            columns={columns}
-            request={menuAPI.getMenuList}
             rowKey="id"
             search={false}
+            scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Menu Management"
+            columns={columns}
+            request={menuAPI.getMenuList}
             actionRef={actionRef}
             toolBarRender={() => [
                 <MenuModalForm
