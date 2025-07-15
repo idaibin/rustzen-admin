@@ -1,12 +1,3 @@
-// backend/src/features/system/user/service.rs
-
-// Business logic for user management.
-//
-// This service layer handles the core business operations for users,
-// such as validation, combining repository methods, and ensuring
-// data consistency. It is designed to be independent of the web framework,
-// returning pure data models or `ServiceError` variants.
-
 use super::{
     dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
     entity::UserWithRolesEntity,
@@ -32,17 +23,8 @@ impl UserService {
 
         tracing::debug!("Getting user list: page={}, size={}", page, limit);
 
-        let total =
-            UserRepository::count_users(pool, query.username.as_deref(), query.status.as_deref())
-                .await?;
-        let users = UserRepository::find_with_pagination(
-            pool,
-            offset,
-            limit,
-            query.username.as_deref(),
-            query.status.as_deref(),
-        )
-        .await?;
+        let (users, total) =
+            UserRepository::find_with_pagination(pool, offset, limit, &query).await?;
 
         let list = users.into_iter().map(|u| Self::to_user_list_vo(u)).collect();
 
@@ -53,26 +35,23 @@ impl UserService {
     pub async fn get_user_by_id(pool: &PgPool, id: i64) -> Result<UserDetailVo, ServiceError> {
         tracing::debug!("Getting user by ID: {}", id);
 
-        let user_with_roles = UserRepository::find_user_detail(pool, id)
+        let user_with_roles = UserRepository::find_by_id(pool, id)
             .await?
             .ok_or(ServiceError::NotFound("User".to_string()))?;
         Ok(Self::to_user_detail_vo(user_with_roles))
     }
 
     /// Create user
-    pub async fn create_user(
-        pool: &PgPool,
-        dto: CreateUserDto,
-    ) -> Result<UserDetailVo, ServiceError> {
+    pub async fn create_user(pool: &PgPool, dto: CreateUserDto) -> Result<bool, ServiceError> {
         tracing::debug!("Creating user: {}", dto.username);
 
         // Check if username already exists
-        if UserRepository::find_by_username(pool, &dto.username).await?.is_some() {
+        if UserRepository::username_exists(pool, &dto.username).await? {
             return Err(ServiceError::UsernameConflict);
         }
 
         // Check if email already exists
-        if UserRepository::find_by_email(pool, &dto.email).await?.is_some() {
+        if UserRepository::email_exists(pool, &dto.email).await? {
             return Err(ServiceError::EmailConflict);
         }
 
@@ -89,10 +68,9 @@ impl UserService {
             role_ids: dto.role_ids,
         };
 
-        let user = UserRepository::create_user(pool, &create_dto).await?;
+        UserRepository::create_user(pool, &create_dto).await?;
 
-        // Return created user
-        Self::get_user_by_id(pool, user.id).await
+        Ok(true)
     }
 
     /// Update user
@@ -100,7 +78,7 @@ impl UserService {
         pool: &PgPool,
         id: i64,
         dto: UpdateUserDto,
-    ) -> Result<UserDetailVo, ServiceError> {
+    ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
 
         // Check if user exists
@@ -111,7 +89,7 @@ impl UserService {
         // Check email uniqueness if email is being updated
         if let Some(ref email) = dto.email {
             if email != &existing_user.email {
-                if UserRepository::find_by_email(pool, email).await?.is_some() {
+                if UserRepository::email_exists(pool, email).await? {
                     return Err(ServiceError::EmailConflict);
                 }
             }
@@ -132,8 +110,7 @@ impl UserService {
             UserRepository::set_user_roles(pool, id, &role_ids).await?;
         }
 
-        // Return updated user
-        Self::get_user_by_id(pool, id).await
+        Ok(true)
     }
 
     /// Delete user
