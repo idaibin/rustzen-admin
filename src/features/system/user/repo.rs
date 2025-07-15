@@ -11,19 +11,131 @@ use super::{
     dto::CreateUserDto,
     entity::{UserEntity, UserWithRolesEntity},
 };
-use crate::common::error::ServiceError;
+use crate::{common::error::ServiceError, features::system::user::dto::UserQueryDto};
 use chrono::Utc;
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 
 /// User repository for database operations
 pub struct UserRepository;
 
 impl UserRepository {
-    /// Find user by ID
-    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<UserEntity>, ServiceError> {
-        let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status
+    fn format_query(query: &UserQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+        if let Some(username) = &query.username {
+            if !username.trim().is_empty() {
+                query_builder.push(" AND username LIKE ").push_bind(format!("%{}%", username));
+            }
+        }
+        if let Some(real_name) = &query.real_name {
+            if !real_name.trim().is_empty() {
+                query_builder.push(" AND real_name LIKE ").push_bind(format!("%{}%", real_name));
+            }
+        }
+        if let Some(email) = &query.email {
+            if !email.trim().is_empty() {
+                query_builder.push(" AND email LIKE ").push_bind(format!("%{}%", email));
+            }
+        }
+        if let Some(status) = &query.status {
+            if let Ok(status_num) = status.parse::<i16>() {
+                query_builder.push(" AND status = ").push_bind(status_num);
+            }
+        }
+    }
+
+    /// Count users matching filters
+    async fn count_users(pool: &PgPool, query: &UserQueryDto) -> Result<i64, ServiceError> {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT COUNT(*) FROM user_with_roles WHERE 1=1");
+
+        Self::format_query(&query, &mut query_builder);
+
+        let count: (i64,) = query_builder.build_query_as().fetch_one(pool).await.map_err(|e| {
+            tracing::error!("Database error counting users: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        tracing::info!("user count: {:?}", count);
+
+        Ok(count.0)
+    }
+
+    /// Find users with pagination and filters
+    pub async fn find_with_pagination(
+        pool: &PgPool,
+        offset: i64,
+        limit: i64,
+        query: &UserQueryDto,
+    ) -> Result<(Vec<UserWithRolesEntity>, i64), ServiceError> {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT * FROM user_with_roles WHERE 1=1");
+
+        Self::format_query(&query, &mut query_builder);
+
+        query_builder.push(" ORDER BY created_at DESC");
+        query_builder.push(" LIMIT ").push_bind(limit);
+        query_builder.push(" OFFSET ").push_bind(offset);
+
+        let total = Self::count_users(pool, query).await?;
+        let users = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error in user_with_roles pagination: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok((users, total))
+    }
+
+    /// Find users for dropdown options
+    pub async fn find_options(
+        pool: &PgPool,
+        status: Option<i16>, // 1, 2, or None (all users)
+        q: Option<&str>,
+        limit: Option<i64>,
+    ) -> Result<Vec<(i64, String)>, ServiceError> {
+        let mut query = String::from(
+            "SELECT id, COALESCE(real_name, username) as display_name
              FROM users
+             WHERE deleted_at IS NULL",
+        );
+
+        // Handle status filter
+        if let Some(status_val) = status {
+            query.push_str(&format!(" AND status = {}", status_val));
+        }
+
+        // Handle search query
+        if let Some(search_term) = q {
+            if !search_term.trim().is_empty() {
+                query.push_str(&format!(
+                    " AND (username ILIKE '%{}%' OR real_name ILIKE '%{}%')",
+                    search_term.replace("'", "''"),
+                    search_term.replace("'", "''")
+                ));
+            }
+        }
+
+        query.push_str(" ORDER BY display_name");
+
+        // Handle limit
+        if let Some(limit_val) = limit {
+            query.push_str(&format!(" LIMIT {}", limit_val));
+        }
+
+        let result =
+            sqlx::query_as::<_, (i64, String)>(&query).fetch_all(pool).await.map_err(|e| {
+                tracing::error!("Database error finding user options: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        Ok(result)
+    }
+
+    /// Find user by ID
+    pub async fn find_by_id(
+        pool: &PgPool,
+        id: i64,
+    ) -> Result<Option<UserWithRolesEntity>, ServiceError> {
+        let result = sqlx::query_as::<_, UserWithRolesEntity>(
+            "SELECT *
+             FROM user_with_roles
              WHERE id = $1 AND deleted_at IS NULL",
         )
         .bind(id)
@@ -35,118 +147,6 @@ impl UserRepository {
         })?;
 
         Ok(result)
-    }
-
-    /// Find user by username
-    pub async fn find_by_username(
-        pool: &PgPool,
-        username: &str,
-    ) -> Result<Option<UserEntity>, ServiceError> {
-        let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status
-             FROM users
-             WHERE username = $1 AND deleted_at IS NULL",
-        )
-        .bind(username)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error finding user by username '{}': {:?}", username, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(result)
-    }
-
-    /// Find user by email
-    pub async fn find_by_email(
-        pool: &PgPool,
-        email: &str,
-    ) -> Result<Option<UserEntity>, ServiceError> {
-        let result = sqlx::query_as::<_, UserEntity>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, status
-             FROM users
-             WHERE email = $1 AND deleted_at IS NULL",
-        )
-        .bind(email)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error finding user by email '{}': {:?}", email, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(result)
-    }
-
-    /// Find users with pagination and filters
-    pub async fn find_with_pagination(
-        pool: &PgPool,
-        offset: i64,
-        limit: i64,
-        username_filter: Option<&str>,
-        status_filter: Option<&str>,
-    ) -> Result<Vec<UserWithRolesEntity>, ServiceError> {
-        let sql = r#"
-            SELECT *
-            FROM user_with_roles
-            WHERE
-                ($1::text IS NULL OR username ILIKE '%' || $1 || '%' OR real_name ILIKE '%' || $1 || '%')
-                AND ($2::text IS NULL OR status::text = $2)
-            ORDER BY created_at DESC
-            LIMIT $3 OFFSET $4
-        "#;
-
-        let users: Vec<UserWithRolesEntity> = sqlx::query_as(sql)
-            .bind(username_filter)
-            .bind(status_filter)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error in user_with_roles pagination: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        Ok(users)
-    }
-
-    /// Count users matching filters
-    pub async fn count_users(
-        pool: &PgPool,
-        username_filter: Option<&str>,
-        status_filter: Option<&str>,
-    ) -> Result<i64, ServiceError> {
-        let mut query = String::from("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL");
-
-        // Handle status filter
-        if let Some(status_str) = status_filter {
-            match status_str {
-                "1" => query.push_str(" AND status = 1"),
-                "2" => query.push_str(" AND status = 2"),
-                "all" => {}                             // No status filter
-                _ => query.push_str(" AND status = 1"), // Default to active users
-            }
-        }
-
-        // Handle username search
-        if let Some(keyword) = username_filter {
-            if !keyword.trim().is_empty() {
-                query.push_str(&format!(
-                    " AND (username ILIKE '%{}%' OR real_name ILIKE '%{}%')",
-                    keyword.replace("'", "''"),
-                    keyword.replace("'", "''")
-                ));
-            }
-        }
-
-        let count: (i64,) = sqlx::query_as(&query).fetch_one(pool).await.map_err(|e| {
-            tracing::error!("Database error counting users: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(count.0)
     }
 
     /// Create new user with optional roles (unified method)
@@ -371,64 +371,35 @@ impl UserRepository {
         Ok(())
     }
 
-    /// Find users for dropdown options
-    pub async fn find_options(
-        pool: &PgPool,
-        status: Option<i16>, // 1, 2, or None (all users)
-        q: Option<&str>,
-        limit: Option<i64>,
-    ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let mut query = String::from(
-            "SELECT id, COALESCE(real_name, username) as display_name
-             FROM users
-             WHERE deleted_at IS NULL",
-        );
+    /// Check if email exists
+    pub async fn email_exists(pool: &PgPool, email: &str) -> Result<bool, ServiceError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND deleted_at IS NULL)",
+        )
+        .bind(email)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking email existence '{}': {:?}", email, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        // Handle status filter
-        if let Some(status_val) = status {
-            query.push_str(&format!(" AND status = {}", status_val));
-        }
-
-        // Handle search query
-        if let Some(search_term) = q {
-            if !search_term.trim().is_empty() {
-                query.push_str(&format!(
-                    " AND (username ILIKE '%{}%' OR real_name ILIKE '%{}%')",
-                    search_term.replace("'", "''"),
-                    search_term.replace("'", "''")
-                ));
-            }
-        }
-
-        query.push_str(" ORDER BY display_name");
-
-        // Handle limit
-        if let Some(limit_val) = limit {
-            query.push_str(&format!(" LIMIT {}", limit_val));
-        }
-
-        let result =
-            sqlx::query_as::<_, (i64, String)>(&query).fetch_all(pool).await.map_err(|e| {
-                tracing::error!("Database error finding user options: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        Ok(result)
+        Ok(exists)
     }
 
-    pub async fn find_user_detail(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Option<UserWithRolesEntity>, ServiceError> {
-        let sql = "SELECT * FROM user_with_roles WHERE id = $1";
-        let user = sqlx::query_as::<_, UserWithRolesEntity>(sql)
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error getting user detail for ID {}: {:?}", user_id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-        Ok(user)
+    /// Check if username exists
+    pub async fn username_exists(pool: &PgPool, username: &str) -> Result<bool, ServiceError> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 AND deleted_at IS NULL)",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error checking username existence '{}': {:?}", username, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(exists)
     }
 }
