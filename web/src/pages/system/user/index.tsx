@@ -11,8 +11,7 @@ export default function UserPage() {
     return (
         <ProTable<User.Item>
             rowKey="id"
-            search={false}
-            scroll={{ y: "calc(100vh - 287px)" }}
+            scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="User List"
             columns={columns}
             request={userAPI.getUserList}
@@ -36,6 +35,7 @@ const columns: ProColumns<User.Item>[] = [
         title: "ID",
         dataIndex: "id",
         width: 48,
+        search: false,
     },
     {
         title: "Username",
@@ -52,6 +52,7 @@ const columns: ProColumns<User.Item>[] = [
     {
         title: "Avatar",
         dataIndex: "avatarUrl",
+        search: false,
         render: (_: React.ReactNode, record: User.Item) =>
             record.avatarUrl && record.avatarUrl.length > 0 ? (
                 <img
@@ -72,6 +73,7 @@ const columns: ProColumns<User.Item>[] = [
     {
         title: "Roles",
         dataIndex: "roles",
+        search: false,
         render: (_: React.ReactNode, record: User.Item) =>
             record.roles.map((role) => role.name).join(", "),
     },
@@ -79,16 +81,19 @@ const columns: ProColumns<User.Item>[] = [
         title: "Last Login",
         dataIndex: "lastLoginAt",
         valueType: "dateTime",
+        search: false,
     },
     {
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",
+        search: false,
     },
     {
         title: "Actions",
         key: "action",
         width: 110,
+        search: false,
         render: (
             _dom: React.ReactNode,
             entity: User.Item,
