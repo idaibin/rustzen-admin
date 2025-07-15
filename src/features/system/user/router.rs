@@ -82,10 +82,10 @@ pub async fn get_user_by_id(
 ) -> AppResult<UserDetailVo> {
     tracing::info!("Getting user by ID: {} for user: {}", id, current_user.username);
 
-    let result = UserService::get_user_by_id(&pool, id).await?;
+    let user = UserService::get_user_by_id(&pool, id).await?;
 
-    tracing::info!("Successfully retrieved user: {}", result.username);
-    Ok(ApiResponse::success(result))
+    tracing::info!("Successfully retrieved user: {}", user.username);
+    Ok(ApiResponse::success(user))
 }
 
 /// Create user
@@ -93,12 +93,12 @@ pub async fn create_user(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Json(dto): Json<CreateUserDto>,
-) -> AppResult<UserDetailVo> {
+) -> AppResult<bool> {
     tracing::info!("Creating user: {} by user: {}", dto.username, current_user.username);
 
     let result = UserService::create_user(&pool, dto).await?;
 
-    tracing::info!("Successfully created user: {}", result.username);
+    tracing::info!("Successfully created user");
     Ok(ApiResponse::success(result))
 }
 
@@ -108,7 +108,7 @@ pub async fn update_user(
     current_user: CurrentUser,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserDto>,
-) -> AppResult<UserDetailVo> {
+) -> AppResult<bool> {
     tracing::info!("Updating user ID: {} by user: {}", id, current_user.username);
 
     if id == 1 {
@@ -117,7 +117,7 @@ pub async fn update_user(
 
     let result = UserService::update_user(&pool, id, dto).await?;
 
-    tracing::info!("Successfully updated user: {}", result.username);
+    tracing::info!("Successfully updated user");
     Ok(ApiResponse::success(result))
 }
 

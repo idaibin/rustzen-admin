@@ -40,6 +40,10 @@ pub struct UserQueryDto {
     pub username: Option<String>,
     /// Filter by user status. Accepts: "normal"/"1", "disabled"/"2", or "all".
     pub status: Option<String>,
+    /// Filter by real name (case-insensitive search).
+    pub real_name: Option<String>,
+    /// Filter by email (case-insensitive search).
+    pub email: Option<String>,
 }
 
 /// User options query parameters
