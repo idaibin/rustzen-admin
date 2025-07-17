@@ -12,12 +12,12 @@ export default function RolePage() {
     return (
         <ProTable<Role.Item>
             rowKey="id"
-            search={false}
-            scroll={{ y: "calc(100vh - 287px)" }}
+            scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="Role Management"
             columns={columns}
             request={roleAPI.getRoleList}
             actionRef={actionRef}
+            search={{ span: 6 }}
             toolBarRender={() => [
                 <RoleModalForm
                     mode={"create"}
@@ -36,6 +36,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "ID",
         dataIndex: "id",
         width: 48,
+        search: false,
     },
     {
         title: "Role Name",
@@ -56,6 +57,7 @@ const columns: ProColumns<Role.Item>[] = [
     {
         title: "Status",
         dataIndex: "status",
+        valueType: "select",
         valueEnum: {
             1: { text: "Normal", status: "Success" },
             2: { text: "Disabled", status: "Default" },
@@ -64,6 +66,7 @@ const columns: ProColumns<Role.Item>[] = [
     {
         title: "Permissions",
         dataIndex: "menuIds",
+        hideInSearch: true,
         render: (_, record) => {
             if (!record.menuIds || record.menuIds.length === 0) {
                 return <span style={{ color: "#999" }}>No permissions</span>;
@@ -91,7 +94,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "Actions",
         key: "action",
         width: 110,
-        fixed: "right",
+        hideInSearch: true,
         render: (
             _dom: React.ReactNode,
             entity: Role.Item,

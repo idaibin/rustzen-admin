@@ -22,17 +22,17 @@ impl UserRepository {
     fn format_query(query: &UserQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(username) = &query.username {
             if !username.trim().is_empty() {
-                query_builder.push(" AND username LIKE ").push_bind(format!("%{}%", username));
+                query_builder.push(" AND username ILIKE ").push_bind(format!("%{}%", username));
             }
         }
         if let Some(real_name) = &query.real_name {
             if !real_name.trim().is_empty() {
-                query_builder.push(" AND real_name LIKE ").push_bind(format!("%{}%", real_name));
+                query_builder.push(" AND real_name ILIKE ").push_bind(format!("%{}%", real_name));
             }
         }
         if let Some(email) = &query.email {
             if !email.trim().is_empty() {
-                query_builder.push(" AND email LIKE ").push_bind(format!("%{}%", email));
+                query_builder.push(" AND email ILIKE ").push_bind(format!("%{}%", email));
             }
         }
         if let Some(status) = &query.status {
@@ -63,7 +63,7 @@ impl UserRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        query: &UserQueryDto,
+        query: UserQueryDto,
     ) -> Result<(Vec<UserWithRolesEntity>, i64), ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT * FROM user_with_roles WHERE 1=1");
@@ -74,7 +74,7 @@ impl UserRepository {
         query_builder.push(" LIMIT ").push_bind(limit);
         query_builder.push(" OFFSET ").push_bind(offset);
 
-        let total = Self::count_users(pool, query).await?;
+        let total = Self::count_users(pool, &query).await?;
         let users = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
             tracing::error!("Database error in user_with_roles pagination: {:?}", e);
             ServiceError::DatabaseQueryFailed

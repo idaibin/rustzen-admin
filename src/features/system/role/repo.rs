@@ -1,14 +1,72 @@
 // Database operations related to the `sys_role` table go here.
 
-use super::entity::RoleEntity;
+use super::dto::RoleQueryDto;
+use super::entity::{RoleEntity, RoleWithMenuEntity};
 use crate::common::error::ServiceError;
 use chrono::Utc;
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 
 /// Role data access layer
 pub struct RoleRepository;
 
 impl RoleRepository {
+    fn format_query(query: &RoleQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+        if let Some(role_name) = &query.role_name {
+            if !role_name.trim().is_empty() {
+                query_builder.push(" AND role_name ILIKE  ").push_bind(format!("%{}%", role_name));
+            }
+        }
+        if let Some(role_code) = &query.role_code {
+            if !role_code.trim().is_empty() {
+                query_builder.push(" AND role_code ILIKE  ").push_bind(format!("%{}%", role_code));
+            }
+        }
+        if let Some(status) = &query.status {
+            if let Ok(status_num) = status.parse::<i16>() {
+                query_builder.push(" AND status = ").push_bind(status_num);
+            }
+        }
+    }
+
+    /// Count users matching filters
+    async fn count_roles(pool: &PgPool, query: &RoleQueryDto) -> Result<i64, ServiceError> {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT COUNT(*) FROM role_with_menus WHERE 1=1");
+
+        Self::format_query(&query, &mut query_builder);
+
+        let count: (i64,) = query_builder.build_query_as().fetch_one(pool).await.map_err(|e| {
+            tracing::error!("Database error counting users: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(count.0)
+    }
+
+    /// Queries roles with pagination
+    pub async fn find_with_pagination(
+        pool: &PgPool,
+        offset: i64,
+        limit: i64,
+        query: RoleQueryDto,
+    ) -> Result<(Vec<RoleWithMenuEntity>, i64), ServiceError> {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT * FROM role_with_menus WHERE 1=1");
+
+        Self::format_query(&query, &mut query_builder);
+
+        query_builder.push(" ORDER BY created_at DESC");
+        query_builder.push(" LIMIT ").push_bind(limit);
+        query_builder.push(" OFFSET ").push_bind(offset);
+
+        let total = Self::count_roles(pool, &query).await?;
+        let users = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error in user_with_roles pagination: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok((users, total))
+    }
+
     /// Retrieves a role by its ID
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<RoleEntity>, ServiceError> {
         let role = sqlx::query_as::<_, RoleEntity>(
@@ -46,67 +104,6 @@ impl RoleRepository {
         })?;
 
         Ok(role)
-    }
-
-    /// Queries roles with pagination
-    pub async fn find_with_pagination(
-        pool: &PgPool,
-        offset: i64,
-        limit: i64,
-        role_name_filter: Option<&str>,
-        status_filter: Option<i16>,
-    ) -> Result<Vec<RoleEntity>, ServiceError> {
-        let roles = if role_name_filter.is_none() && status_filter.is_none() {
-            // No filtering conditions
-            sqlx::query_as::<_, RoleEntity>(
-                "SELECT id, role_name, role_code, description, status,
-                 created_at, updated_at, deleted_at, is_system
-                 FROM roles WHERE deleted_at IS NULL
-                 ORDER BY id DESC LIMIT $1 OFFSET $2",
-            )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error finding roles with pagination: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-        } else {
-            // With filtering conditions, implement as needed
-            sqlx::query_as::<_, RoleEntity>(
-                "SELECT id, role_name, role_code, description, status,
-                 created_at, updated_at, deleted_at, is_system
-                 FROM roles WHERE deleted_at IS NULL
-                 ORDER BY id DESC LIMIT $1 OFFSET $2",
-            )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error finding roles with pagination: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?
-        };
-
-        Ok(roles)
-    }
-
-    /// Gets the total count of roles
-    pub async fn count_roles(
-        pool: &PgPool,
-        _role_name_filter: Option<&str>,
-        _status_filter: Option<i16>,
-    ) -> Result<i64, ServiceError> {
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM roles WHERE deleted_at IS NULL")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error counting roles: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-        Ok(count.0)
     }
 
     /// Creates a new role

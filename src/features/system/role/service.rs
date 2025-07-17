@@ -1,8 +1,9 @@
 // Role business logic
 
 use super::dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto};
+use super::entity::RoleWithMenuEntity;
 use super::repo::RoleRepository;
-use super::vo::RoleDetailVo;
+use super::vo::{MenuItemVo, RoleDetailVo};
 use crate::common::api::{OptionItem, OptionsQuery};
 use crate::common::error::ServiceError;
 use axum::extract::Query;
@@ -21,36 +22,21 @@ impl RoleService {
         let limit = query.page_size.unwrap_or(10).min(100).max(1);
         let offset = (page - 1) * limit;
 
-        tracing::info!(
-            "Retrieving role list: page={}, size={}, name={:?}, status={:?}",
-            page,
-            limit,
-            query.role_name,
-            query.status
-        );
+        tracing::info!("Retrieving role list: page={}, size={}", page, limit,);
 
-        let roles = RoleRepository::find_with_pagination(
-            pool,
-            offset,
-            limit,
-            query.role_name.as_deref(),
-            query.status,
-        )
-        .await?;
+        let (roles, total) =
+            RoleRepository::find_with_pagination(pool, offset, limit, query).await?;
 
-        let total =
-            RoleRepository::count_roles(pool, query.role_name.as_deref(), query.status).await?;
+        // let mut role_responses = Vec::new();
+        // for role in roles {
+        //     let menu_ids = RoleRepository::get_role_menu_ids(pool, role.id).await?;
+        //     let mut role_response = RoleDetailVo::from(role);
+        //     role_response.menu_ids = menu_ids;
+        //     role_responses.push(role_response);
+        // }
+        let list = roles.into_iter().map(|u| Self::to_role_list_vo(u)).collect();
 
-        let mut role_responses = Vec::new();
-        for role in roles {
-            let menu_ids = RoleRepository::get_role_menu_ids(pool, role.id).await?;
-            let mut role_response = RoleDetailVo::from(role);
-            role_response.menu_ids = menu_ids;
-            role_responses.push(role_response);
-        }
-
-        tracing::info!("Retrieved {} roles (total: {})", role_responses.len(), total);
-        Ok((role_responses, total))
+        Ok((list, total))
     }
 
     /// Get single role by ID with menu permissions
@@ -224,5 +210,21 @@ impl RoleService {
 
         tracing::info!("Retrieved {} role options", options.len());
         Ok(options)
+    }
+
+    /// Convert UserWithRoles to UserListVo
+    fn to_role_list_vo(user: RoleWithMenuEntity) -> RoleDetailVo {
+        RoleDetailVo {
+            id: user.id,
+            role_name: user.role_name,
+            role_code: user.role_code,
+            description: user.description,
+            status: user.status,
+            menu_ids: serde_json::from_value::<Vec<MenuItemVo>>(user.menus)
+                .map(|vec| vec.into_iter().map(|v| v.id).collect())
+                .unwrap_or_default(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
     }
 }
