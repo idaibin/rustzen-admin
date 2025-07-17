@@ -51,20 +51,13 @@ pub fn role_routes() -> Router<PgPool> {
 }
 
 /// Get paginated role list with filtering
-/// Query params: current, page_size, name, status
 async fn get_role_list(
     State(pool): State<PgPool>,
-    Query(params): Query<RoleQueryDto>,
+    Query(query): Query<RoleQueryDto>,
 ) -> AppResult<Vec<RoleDetailVo>> {
-    tracing::info!(
-        "Role list request: page={}, size={}, name={:?}, status={:?}",
-        params.current.unwrap_or(1),
-        params.page_size.unwrap_or(10),
-        params.role_name,
-        params.status
-    );
+    tracing::info!("Role list request: query={:?}", query);
 
-    let (role_list, total) = RoleService::get_role_list(&pool, params).await?;
+    let (role_list, total) = RoleService::get_role_list(&pool, query).await?;
 
     tracing::info!("Role list retrieved: total={}, returned={}", total, role_list.len());
 

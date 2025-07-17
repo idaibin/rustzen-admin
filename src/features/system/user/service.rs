@@ -24,7 +24,7 @@ impl UserService {
         tracing::debug!("Getting user list: page={}, size={}", page, limit);
 
         let (users, total) =
-            UserRepository::find_with_pagination(pool, offset, limit, &query).await?;
+            UserRepository::find_with_pagination(pool, offset, limit, query).await?;
 
         let list = users.into_iter().map(|u| Self::to_user_list_vo(u)).collect();
 
