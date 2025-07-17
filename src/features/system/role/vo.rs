@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
-use serde::Serialize;
+use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 
 use super::entity::RoleEntity;
 
@@ -12,8 +12,8 @@ pub struct RoleDetailVo {
     pub role_code: String,
     pub description: Option<String>,
     pub status: i16,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub menu_ids: Vec<i64>,
 }
 
@@ -27,6 +27,13 @@ pub struct RoleVo {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MenuItemVo {
+    pub id: i64,
+    pub name: String,
+    pub code: String,
+}
+
 impl From<RoleEntity> for RoleDetailVo {
     fn from(entity: RoleEntity) -> Self {
         Self {
@@ -35,8 +42,8 @@ impl From<RoleEntity> for RoleDetailVo {
             role_code: entity.role_code,
             description: entity.description,
             status: entity.status,
-            created_at: DateTime::from_naive_utc_and_offset(entity.created_at, Utc),
-            updated_at: DateTime::from_naive_utc_and_offset(entity.updated_at, Utc),
+            created_at: entity.created_at,
+            updated_at: entity.updated_at,
             menu_ids: vec![], // Will be populated in service layer
         }
     }

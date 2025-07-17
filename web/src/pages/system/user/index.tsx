@@ -16,6 +16,7 @@ export default function UserPage() {
             columns={columns}
             request={userAPI.getUserList}
             actionRef={actionRef}
+            search={{ span: 6 }}
             toolBarRender={() => [
                 <UserModalForm
                     mode={"create"}
