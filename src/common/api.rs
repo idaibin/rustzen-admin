@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 // --- API Response Structures ---
 /// A unified structure for successful API responses.
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ApiResponse<T> {
     /// Business status code. 0 for success.
     pub code: i32,
@@ -32,6 +31,10 @@ impl<T: Serialize> ApiResponse<Vec<T>> {
     }
 }
 
+// --- API Result Type ---
+/// A type alias for application-level results in API handlers.
+pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;
+
 /// A generic structure for dropdown options.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OptionItem<T> {
@@ -54,8 +57,3 @@ pub struct DictOptionsQuery {
     pub q: Option<String>,
     pub limit: Option<i64>,
 }
-
-// --- API Result Type ---
-
-/// A type alias for application-level results in API handlers.
-pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;

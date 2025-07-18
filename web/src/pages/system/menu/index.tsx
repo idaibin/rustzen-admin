@@ -72,12 +72,6 @@ const columns: ProColumns<Menu.Item>[] = [
         },
     },
     {
-        title: "Created At",
-        dataIndex: "createdAt",
-        valueType: "dateTime",
-        hideInSearch: true,
-    },
-    {
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",

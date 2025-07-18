@@ -49,6 +49,11 @@ impl RoleRepository {
         limit: i64,
         query: RoleQueryDto,
     ) -> Result<(Vec<RoleWithMenuEntity>, i64), ServiceError> {
+        let total = Self::count_roles(pool, &query).await?;
+        if total == 0 {
+            return Ok((Vec::new(), total));
+        }
+
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT * FROM role_with_menus WHERE 1=1");
 
@@ -58,13 +63,12 @@ impl RoleRepository {
         query_builder.push(" LIMIT ").push_bind(limit);
         query_builder.push(" OFFSET ").push_bind(offset);
 
-        let total = Self::count_roles(pool, &query).await?;
-        let users = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
+        let roles = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
             tracing::error!("Database error in user_with_roles pagination: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Ok((users, total))
+        Ok((roles, total))
     }
 
     /// Retrieves a role by its ID
