@@ -21,7 +21,7 @@ impl LogService {
         let offset = (current - 1) * limit;
 
         // Get total count
-        let total = LogRepository::count_logs(pool, query.search.as_deref()).await?;
+        let total = LogRepository::count_logs(pool, query.keyword.as_deref()).await?;
 
         if total == 0 {
             return Ok((Vec::new(), total));
@@ -29,7 +29,7 @@ impl LogService {
 
         // Get log data
         let log_entities =
-            LogRepository::find_all(pool, query.search.as_deref(), limit, offset).await?;
+            LogRepository::find_all(pool, limit, offset, query.keyword.as_deref()).await?;
 
         // Convert to response format
         let log_responses: Vec<LogListVo> = log_entities.into_iter().map(LogListVo::from).collect();
