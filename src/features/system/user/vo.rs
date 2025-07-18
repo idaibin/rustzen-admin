@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::common::api::OptionItem;
+
 /// Role information
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoleVo {
@@ -40,16 +42,8 @@ pub struct UserDetailVo {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Option item
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OptionVo<T> {
-    pub label: String,
-    pub value: T,
-}
-
 /// User status option
-pub type UserStatusOptionVo = OptionVo<i16>;
+pub type UserStatusOptionVo = OptionItem<i16>;
 
 /// User option
-pub type UserOptionVo = OptionVo<i64>;
+pub type UserOptionVo = OptionItem<i64>;

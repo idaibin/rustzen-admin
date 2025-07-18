@@ -65,6 +65,11 @@ impl UserRepository {
         limit: i64,
         query: UserQueryDto,
     ) -> Result<(Vec<UserWithRolesEntity>, i64), ServiceError> {
+        let total = Self::count_users(pool, &query).await?;
+        if total == 0 {
+            return Ok((Vec::new(), total));
+        }
+
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT * FROM user_with_roles WHERE 1=1");
 
@@ -74,7 +79,6 @@ impl UserRepository {
         query_builder.push(" LIMIT ").push_bind(limit);
         query_builder.push(" OFFSET ").push_bind(offset);
 
-        let total = Self::count_users(pool, &query).await?;
         let users = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
             tracing::error!("Database error in user_with_roles pagination: {:?}", e);
             ServiceError::DatabaseQueryFailed

@@ -9,13 +9,13 @@ impl LogRepository {
     /// Retrieves all system logs with optional filtering
     pub async fn find_all(
         pool: &PgPool,
-        search_query: Option<&str>,
         limit: i64,
         offset: i64,
+        keyword: Option<&str>,
     ) -> Result<Vec<LogEntity>, ServiceError> {
         tracing::debug!(
             "Querying logs with search: {:?}, limit: {}, offset: {}",
-            search_query,
+            keyword,
             limit,
             offset
         );
@@ -32,7 +32,7 @@ impl LogRepository {
              ORDER BY created_at DESC
              LIMIT $2 OFFSET $3",
         )
-        .bind(search_query.map(|s| format!("%{}%", s)))
+        .bind(keyword.map(|s| format!("%{}%", s)))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)

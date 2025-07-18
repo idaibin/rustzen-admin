@@ -46,7 +46,7 @@ pub struct LogListVo {
 pub struct LogQueryDto {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
-    pub search: Option<String>,
+    pub keyword: Option<String>,
 }
 
 impl From<LogEntity> for LogListVo {
