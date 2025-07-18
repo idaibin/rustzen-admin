@@ -79,12 +79,6 @@ const columns: ProColumns<Role.Item>[] = [
         },
     },
     {
-        title: "Created At",
-        dataIndex: "createdAt",
-        valueType: "dateTime",
-        hideInSearch: true,
-    },
-    {
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",
