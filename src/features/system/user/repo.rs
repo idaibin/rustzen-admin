@@ -65,6 +65,7 @@ impl UserRepository {
         limit: i64,
         query: UserQueryDto,
     ) -> Result<(Vec<UserWithRolesEntity>, i64), ServiceError> {
+        tracing::debug!("Finding users with pagination and filters: {:?}", query);
         let total = Self::count_users(pool, &query).await?;
         if total == 0 {
             return Ok((Vec::new(), total));
