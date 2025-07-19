@@ -15,7 +15,7 @@ RETURNS TABLE (
     real_name VARCHAR(50),
     avatar_url VARCHAR(255),
     status SMALLINT,
-    is_super_admin BOOLEAN
+    is_system BOOLEAN
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -26,7 +26,7 @@ BEGIN
         u.real_name,
         u.avatar_url,
         u.status,
-        u.is_super_admin
+        u.is_system
     FROM users u
     WHERE u.id = p_user_id
       AND u.deleted_at IS NULL
