@@ -69,14 +69,6 @@ pub enum ServiceError {
     #[error("One or more role IDs are invalid")]
     InvalidRoleId,
 
-    /// A role name that was provided already exists.
-    #[error("Role name already exists")]
-    RoleNameConflict,
-
-    /// A menu title that was provided already exists.
-    #[error("Menu title already exists")]
-    MenuTitleConflict,
-
     /// An operation was attempted that is invalid given the current state.
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
@@ -164,16 +156,6 @@ impl From<ServiceError> for AppError {
                 StatusCode::BAD_REQUEST,
                 10203, // Business-User-03
                 "One or more role IDs are invalid.".to_string(),
-            ),
-            ServiceError::RoleNameConflict => (
-                StatusCode::CONFLICT,
-                10301, // Business-Role-01
-                "Role name already exists.".to_string(),
-            ),
-            ServiceError::MenuTitleConflict => (
-                StatusCode::CONFLICT,
-                10401, // Business-Menu-01
-                "Menu title already exists.".to_string(),
             ),
             // 2xxxx: System Errors
             ServiceError::DatabaseQueryFailed => (
