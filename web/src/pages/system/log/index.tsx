@@ -64,11 +64,6 @@ const columns: ProColumns<Log.Item>[] = [
             const color = status === "SUCCESS" ? "success" : "error";
             return <Tag color={color}>{status}</Tag>;
         },
-        valueEnum: {
-            SUCCESS: { text: "Success", status: "Success" },
-            ERROR: { text: "Error", status: "Error" },
-            FAILED: { text: "Failed", status: "Error" },
-        },
     },
     {
         title: "IP Address",
