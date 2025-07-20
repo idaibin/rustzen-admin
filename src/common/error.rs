@@ -65,10 +65,6 @@ pub enum ServiceError {
     #[error("Email already exists")]
     EmailConflict,
 
-    /// One or more role IDs do not exist or are inactive.
-    #[error("One or more role IDs are invalid")]
-    InvalidRoleId,
-
     /// An operation was attempted that is invalid given the current state.
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
@@ -151,11 +147,6 @@ impl From<ServiceError> for AppError {
                 StatusCode::CONFLICT,
                 10202, // Business-User-02
                 "Email already exists.".to_string(),
-            ),
-            ServiceError::InvalidRoleId => (
-                StatusCode::BAD_REQUEST,
-                10203, // Business-User-03
-                "One or more role IDs are invalid.".to_string(),
             ),
             // 2xxxx: System Errors
             ServiceError::DatabaseQueryFailed => (
