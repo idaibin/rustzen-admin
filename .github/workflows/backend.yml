@@ -1,4 +1,4 @@
-name: Rust
+name: Backend Build
 
 on:
     workflow_dispatch:
