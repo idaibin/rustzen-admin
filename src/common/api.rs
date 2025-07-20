@@ -45,7 +45,6 @@ pub struct OptionItem<T> {
 /// Query parameters for options endpoints
 #[derive(Debug, Deserialize)]
 pub struct OptionsQuery {
-    pub status: Option<String>,
     pub q: Option<String>,
     pub limit: Option<i64>,
 }
