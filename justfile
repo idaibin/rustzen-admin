@@ -7,7 +7,7 @@ dev:
 
 # Start Rust backend (with hot reload)
 dev-backend:
-    cargo watch -x run
+    cargo watch -x run -w src
 
 # Start web (Vite dev mode)
 dev-web:
