@@ -58,10 +58,9 @@ const columns: ProColumns<Dict.Item>[] = [
         ellipsis: true,
     },
     {
-        title: "Default",
-        dataIndex: "isDefault",
-        render: (_, record) =>
-            record.isDefault ? <Tag color="success">Yes</Tag> : <Tag>No</Tag>,
+        title: "Description",
+        dataIndex: "description",
+        ellipsis: true,
     },
     {
         title: "Actions",

@@ -13,11 +13,14 @@ export const menuAPI = {
     getMenuById: (id: number) =>
         request.get<Menu.Item>(`/api/system/menus/${id}`),
 
-    createMenu: (data: Menu.CreateRequest) =>
-        request.post<Menu.Item, Menu.CreateRequest>("/api/system/menus", data),
+    createMenu: (data: Menu.CreateAndUpdateRequest) =>
+        request.post<Menu.Item, Menu.CreateAndUpdateRequest>(
+            "/api/system/menus",
+            data
+        ),
 
-    updateMenu: (id: number, data: Menu.UpdateRequest) =>
-        request.put<Menu.Item, Menu.UpdateRequest>(
+    updateMenu: (id: number, data: Menu.CreateAndUpdateRequest) =>
+        request.put<Menu.Item, Menu.CreateAndUpdateRequest>(
             `/api/system/menus/${id}`,
             data
         ),

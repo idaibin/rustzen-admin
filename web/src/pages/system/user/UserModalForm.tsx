@@ -23,7 +23,6 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
     onSuccess,
 }) => {
     const [form] = Form.useForm();
-    const isRequired = mode === "create";
 
     return (
         <ModalForm<User.CreateRequest | User.UpdateRequest>
@@ -36,9 +35,12 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
             modalProps={{ destroyOnClose: true, maskClosable: false }}
             onOpenChange={(open) => {
                 if (open) {
+                    const roleIds = initialValues?.roles?.map(
+                        (role) => role.value
+                    );
                     form.setFieldsValue({
                         ...initialValues,
-                        roleIds: initialValues?.roles?.map((role) => role.id),
+                        roleIds,
                     });
                 }
             }}
@@ -65,7 +67,7 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 label="Username"
                 placeholder="Enter username"
                 rules={[
-                    { required: isRequired, message: "Please enter username" },
+                    { required: true, message: "Please enter username" },
                     { min: 3, message: "At least 3 characters" },
                 ]}
                 disabled={mode === "edit"}
@@ -75,7 +77,7 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 label="Email"
                 placeholder="Enter email"
                 rules={[
-                    { required: isRequired, message: "Please enter email" },
+                    { required: true, message: "Please enter email" },
                     { type: "email", message: "Invalid email format" },
                 ]}
             />
@@ -83,24 +85,29 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 name="realName"
                 label="Real Name"
                 placeholder="Enter real name"
+                rules={[{ required: true, message: "Please enter real name" }]}
             />
-            <ProFormText.Password
-                name="password"
-                label="Password"
-                placeholder="Enter password"
-                rules={[
-                    { required: isRequired, message: "Please enter password" },
-                    { min: 6, message: "At least 6 characters" },
-                ]}
-            />
+            {mode === "create" && (
+                <ProFormText.Password
+                    name="password"
+                    label="Password"
+                    placeholder="Enter password"
+                    rules={[
+                        {
+                            required: true,
+                            message: "Please enter password",
+                        },
+                        { min: 6, message: "At least 6 characters" },
+                    ]}
+                />
+            )}
+
             <ProFormSelect
                 name="status"
                 label="Status"
                 placeholder="Select status"
                 request={userAPI.getUserStatusOptions}
-                rules={[
-                    { required: isRequired, message: "Please select status" },
-                ]}
+                rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormSelect
                 name="roleIds"
@@ -110,7 +117,7 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 mode="multiple"
                 rules={[
                     {
-                        required: isRequired,
+                        required: true,
                         message: "Please select at least one role",
                     },
                 ]}

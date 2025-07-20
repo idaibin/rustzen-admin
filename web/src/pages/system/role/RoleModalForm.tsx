@@ -2,6 +2,7 @@ import React, { type JSX } from "react";
 import {
     ModalForm,
     ProFormText,
+    ProFormTextArea,
     ProFormSelect,
 } from "@ant-design/pro-components";
 import type { Role } from "System";
@@ -42,9 +43,12 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
             }}
             onOpenChange={(open) => {
                 if (open) {
+                    const menuIds = initialValues?.menus?.map(
+                        (menu) => menu.value
+                    );
                     form.setFieldsValue({
                         ...initialValues,
-                        menuIds: initialValues?.menuIds || [],
+                        menuIds,
                     });
                 } else {
                     form.resetFields();
@@ -64,7 +68,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
             }}
         >
             <ProFormText
-                name="roleName"
+                name="name"
                 label="Role Name"
                 placeholder="Enter role name"
                 rules={[
@@ -82,7 +86,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                 ]}
             />
             <ProFormText
-                name="roleCode"
+                name="code"
                 label="Role Code"
                 placeholder="Enter role code"
                 rules={[
@@ -99,15 +103,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                     },
                 ]}
             />
-            <ProFormText
-                name="description"
-                label="Description"
-                placeholder="Enter role description"
-                fieldProps={{
-                    maxLength: 200,
-                    showCount: true,
-                }}
-            />
+
             <ProFormSelect
                 name="status"
                 label="Status"
@@ -132,6 +128,15 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                         message: "Please select at least one permission",
                     },
                 ]}
+            />
+            <ProFormTextArea
+                name="description"
+                label="Description"
+                placeholder="Enter role description"
+                fieldProps={{
+                    maxLength: 200,
+                    showCount: true,
+                }}
             />
         </ModalForm>
     );
