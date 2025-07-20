@@ -2,9 +2,10 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Menu } from "System";
 import { menuAPI } from "@/services";
-import { Space, Button, Popconfirm } from "antd";
+import { Space, Button, Popconfirm, Tag } from "antd";
 import React, { useRef } from "react";
 import MenuModalForm from "./MenuModalForm";
+import { AuthWrap } from "@/components/auth";
 
 export default function MenuPage() {
     const actionRef = useRef<ActionType>(null);
@@ -18,25 +19,34 @@ export default function MenuPage() {
             columns={columns}
             request={menuAPI.getMenuList}
             actionRef={actionRef}
+            pagination={false}
             toolBarRender={() => [
-                <MenuModalForm
-                    mode={"create"}
-                    onSuccess={() => {
-                        actionRef.current?.reload();
-                    }}
-                >
-                    <Button type="primary">Create Menu</Button>
-                </MenuModalForm>,
+                <AuthWrap code="system:menu:create">
+                    <MenuModalForm
+                        mode={"create"}
+                        onSuccess={() => {
+                            actionRef.current?.reload();
+                        }}
+                    >
+                        <Button type="primary">Create Menu</Button>
+                    </MenuModalForm>
+                </AuthWrap>,
             ]}
         />
     );
 }
 
+const menuTypeEnum: Record<number, { text: string; color: string }> = {
+    1: { text: "Directory", color: "cyan" },
+    2: { text: "Menu", color: "purple" },
+    3: { text: "Button", color: "warning" },
+};
+
 const columns: ProColumns<Menu.Item>[] = [
     {
-        title: "ID",
-        dataIndex: "id",
-        width: 48,
+        title: "",
+        dataIndex: "",
+        width: 60,
     },
     {
         title: "Name",
@@ -51,31 +61,30 @@ const columns: ProColumns<Menu.Item>[] = [
     {
         title: "Menu Type",
         dataIndex: "menuType",
+        width: 120,
         ellipsis: true,
+        render: (_, record) => {
+            const item = menuTypeEnum[record.menuType];
+            return <Tag color={item.color}>{item.text}</Tag>;
+        },
     },
     {
         title: "Sort Order",
         dataIndex: "sortOrder",
+        width: 120,
         ellipsis: true,
     },
-    // {
-    //     title: "Status",
-    //     dataIndex: "status",
-    //     valueEnum: {
-    //         1: { text: "Show", status: "Success" },
-    //         2: { text: "Hidden", status: "Default" },
-    //     },
-    // },
     {
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",
+        width: 160,
         hideInSearch: true,
     },
     {
         title: "Actions",
         key: "action",
-        width: 110,
+        width: 120,
         fixed: "right",
         render: (
             _dom: React.ReactNode,
@@ -84,29 +93,33 @@ const columns: ProColumns<Menu.Item>[] = [
             action?: ActionType
         ) => (
             <Space size="middle">
-                <MenuModalForm
-                    mode={"edit"}
-                    initialValues={entity}
-                    onSuccess={() => {
-                        action?.reload();
-                    }}
-                >
-                    <a>Edit</a>
-                </MenuModalForm>
-                <Popconfirm
-                    title="Are you sure you want to delete this menu?"
-                    placement="leftBottom"
-                    onConfirm={async () => {
-                        try {
-                            await menuAPI.deleteMenu(entity.id);
+                <AuthWrap code="system:menu:edit">
+                    <MenuModalForm
+                        mode={"edit"}
+                        initialValues={entity}
+                        onSuccess={() => {
                             action?.reload();
-                        } catch (error) {
-                            console.error("Delete menu failed:", error);
-                        }
-                    }}
-                >
-                    <a className="text-red-500">Delete</a>
-                </Popconfirm>
+                        }}
+                    >
+                        <a>Edit</a>
+                    </MenuModalForm>
+                </AuthWrap>
+                <AuthWrap code="system:menu:delete" hidden={entity.isSystem}>
+                    <Popconfirm
+                        title="Are you sure you want to delete this menu?"
+                        placement="leftBottom"
+                        onConfirm={async () => {
+                            try {
+                                await menuAPI.deleteMenu(entity.id);
+                                action?.reload();
+                            } catch (error) {
+                                console.error("Delete menu failed:", error);
+                            }
+                        }}
+                    >
+                        <a style={{ color: "#ff4d4f" }}>Delete</a>
+                    </Popconfirm>
+                </AuthWrap>
             </Space>
         ),
     },

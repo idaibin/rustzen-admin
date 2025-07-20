@@ -5,6 +5,7 @@ import { userAPI } from "@/services";
 import { Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import UserModalForm from "./UserModalForm";
+import { AuthWrap } from "@/components/auth";
 
 export default function UserPage() {
     const actionRef = useRef<ActionType>(null);
@@ -18,14 +19,16 @@ export default function UserPage() {
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
-                <UserModalForm
-                    mode={"create"}
-                    onSuccess={() => {
-                        actionRef.current?.reload();
-                    }}
-                >
-                    <Button type="primary">Create User</Button>
-                </UserModalForm>,
+                <AuthWrap code="system:user:create">
+                    <UserModalForm
+                        mode={"create"}
+                        onSuccess={() => {
+                            actionRef.current?.reload();
+                        }}
+                    >
+                        <Button type="primary">Create User</Button>
+                    </UserModalForm>
+                </AuthWrap>,
             ]}
         />
     );
@@ -93,25 +96,29 @@ const columns: ProColumns<User.Item>[] = [
             }
             return (
                 <Space size="middle">
-                    <UserModalForm
-                        mode={"edit"}
-                        initialValues={entity}
-                        onSuccess={() => {
-                            action?.reload();
-                        }}
-                    >
-                        <a>Edit</a>
-                    </UserModalForm>
-                    <Popconfirm
-                        title="Are you sure you want to delete this user?"
-                        placement="leftBottom"
-                        onConfirm={async () => {
-                            await userAPI.deleteUser(entity.id);
-                            action?.reload();
-                        }}
-                    >
-                        <a className="text-red-500">Delete</a>
-                    </Popconfirm>
+                    <AuthWrap code="system:user:edit">
+                        <UserModalForm
+                            mode={"edit"}
+                            initialValues={entity}
+                            onSuccess={() => {
+                                action?.reload();
+                            }}
+                        >
+                            <a>Edit</a>
+                        </UserModalForm>
+                    </AuthWrap>
+                    <AuthWrap code="system:user:delete">
+                        <Popconfirm
+                            title="Are you sure you want to delete this user?"
+                            placement="leftBottom"
+                            onConfirm={async () => {
+                                await userAPI.deleteUser(entity.id);
+                                action?.reload();
+                            }}
+                        >
+                            <a style={{ color: "#ff4d4f" }}>Delete</a>
+                        </Popconfirm>
+                    </AuthWrap>
                 </Space>
             );
         },
