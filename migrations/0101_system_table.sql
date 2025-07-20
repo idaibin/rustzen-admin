@@ -10,7 +10,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL, -- Hashed password
     real_name VARCHAR(50), -- Real name
     avatar_url VARCHAR(255), -- Avatar image URL
-    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2, 3)), -- 1: active, 2: disabled, 3: pending
+    status SMALLINT DEFAULT 1 CHECK (status IN (1, 2, 3, 4)), -- 1: active, 2: disabled, 3: pending, 4: locked
     is_system BOOLEAN DEFAULT FALSE, -- System built-in user flag
     last_login_at TIMESTAMP, -- Last login timestamp
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp

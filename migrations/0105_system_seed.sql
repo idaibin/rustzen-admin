@@ -31,6 +31,7 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, is_system)
 VALUES
+    (0, 'System Super Admin', '*', 1, 1, 2, TRUE),
     (0, 'System Management', 'system:*', 1, 1, 1, TRUE),
     (1, 'User Management', 'system:user:*', 1, 1, 1, TRUE),
     (1, 'User List', 'system:user:list', 2, 1, 1, TRUE),
@@ -63,6 +64,16 @@ ON CONFLICT (code) DO NOTHING;
 
 
 -- ============================================================================
+-- Module: Seed initial role_menus data.
+-- ============================================================================
+
+INSERT INTO role_menus (role_id, menu_id, created_at)
+SELECT r.id, m.id, NOW()
+FROM roles r, menus m
+WHERE r.code = 'SYSTEM_ADMIN' AND m.code = '*'
+ON CONFLICT (role_id, menu_id) DO NOTHING;
+
+-- ============================================================================
 -- Module: Seed initial dictionary data (example types and entries).
 -- ============================================================================
 
@@ -71,6 +82,7 @@ VALUES
     ('user_status', 'Active', '1', 1, 1),
     ('user_status', 'Disabled', '2', 1, 2),
     ('user_status', 'Pending', '3', 1, 3),
+    ('user_status', 'Locked', '4', 1, 4),
     ('role_type', 'System Role', '1', 1, 1),
     ('role_type', 'Custom Role', '2', 1, 2)
 ON CONFLICT DO NOTHING;
