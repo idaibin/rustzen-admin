@@ -1,5 +1,5 @@
 use super::{
-    model::{LoginCredentialsEntity, LoginRequest, LoginResponse, UserInfoResponse},
+    model::{LoginCredentialsEntity, LoginRequest, LoginResponse, UserInfoVo},
     permission::PermissionService,
     repo::AuthRepository,
 };
@@ -12,7 +12,6 @@ use crate::{
     features::auth::model::UserStatus,
 };
 use sqlx::PgPool;
-use tokio::try_join;
 use tracing;
 
 /// Authentication service for login/register operations
@@ -20,7 +19,6 @@ pub struct AuthService;
 
 impl AuthService {
     /// Login with username/password
-    #[tracing::instrument(name = "auth_login", skip(pool, request))]
     pub async fn login(
         pool: &PgPool,
         request: LoginRequest,
@@ -47,20 +45,15 @@ impl AuthService {
         );
 
         // 2. generate token
-        let token = jwt::generate_token(user.id, &user.username).map_err(|e| {
-            tracing::error!(
-                "Failed to generate token for user_id={}, username={}: {:?}",
-                user.id,
-                user.username,
-                e
-            );
+        let token = jwt::generate_token(user.id, &request.username).map_err(|e| {
+            tracing::error!("Failed to generate token for user_id={}: {:?}", user.id, e);
             ServiceError::TokenCreationFailed
         })?;
 
         tracing::debug!("JWT token generated successfully for user_id={}", user.id);
 
         // 3. cache user permissions
-        Self::cache_user_permissions(pool, user.id, user.is_super_admin).await.map_err(|e| {
+        Self::cache_user_permissions(pool, user.id, user.is_system).await.map_err(|e| {
             tracing::error!(
                 "Failed to cache permissions during login for user_id={}: {:?}",
                 user.id,
@@ -79,20 +72,16 @@ impl AuthService {
         let total_time = start.elapsed();
         tracing::info!(
             "Login successful for username={}, user_id={}, total_time={:?}",
-            user.username,
+            &request.username,
             user.id,
             total_time
         );
 
-        Ok(LoginResponse { token, username: user.username.clone(), user_id: user.id })
+        Ok(LoginResponse { token, username: request.username, user_id: user.id })
     }
 
     /// Get detailed user info with roles, menus, and permissions
-    #[tracing::instrument(name = "get_login_info", skip(pool))]
-    pub async fn get_login_info(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<UserInfoResponse, ServiceError> {
+    pub async fn get_login_info(pool: &PgPool, user_id: i64) -> Result<UserInfoVo, ServiceError> {
         tracing::info!(user_id, "Starting to fetch comprehensive user info");
 
         // Get user basic info
@@ -107,33 +96,30 @@ impl AuthService {
         );
 
         // Get menus and permissions in parallel
-        let (menus, permissions) = try_join!(
-            AuthRepository::get_user_menus(pool, user_id),
-            AuthRepository::get_user_permissions(pool, user_id)
-        )?;
-
-        // Convert to response format
-        let user_info = UserInfoResponse {
-            id: user.id,
-            menus,
-            username: user.username.clone(),
-            real_name: user.real_name,
-            avatar_url: user.avatar_url,
-            permissions: permissions.clone(),
+        let permissions = if user.is_system {
+            vec!["*".to_string()]
+        } else {
+            AuthRepository::get_user_permissions(pool, user_id).await?
         };
 
         // Refresh user permissions cache
-        Self::refresh_user_permissions_cache(user_id, user.is_super_admin, permissions).await?;
+        Self::refresh_user_permissions_cache(user_id, user.is_system, &permissions).await?;
 
         tracing::info!(
-            "User info retrieved successfully for user_id={}, username={}: {} menus, {} permissions",
+            "User info retrieved successfully for user_id={}, username={}",
             user_id,
-            user_info.username,
-            user_info.menus.len(),
-            user_info.permissions.len()
+            user.username
         );
 
-        Ok(user_info)
+        Ok(UserInfoVo {
+            id: user.id,
+            username: user.username.clone(),
+            real_name: user.real_name,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            is_system: user.is_system,
+            permissions,
+        })
     }
 
     /// Verify login credentials
@@ -182,18 +168,18 @@ impl AuthService {
     pub async fn cache_user_permissions(
         pool: &PgPool,
         user_id: i64,
-        is_super_admin: bool,
+        is_system: bool,
     ) -> Result<(), ServiceError> {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
-        if is_super_admin {
-            PermissionService::cache_user_permissions(user_id, vec!["*".to_string()]);
+        if is_system {
+            PermissionService::cache_user_permissions(user_id, &["*".to_string()]);
             tracing::info!("Successfully cached * permissions for user_id={}", user_id);
             return Ok(());
         }
         let permissions: Vec<String> = AuthRepository::get_user_permissions(pool, user_id).await?;
 
-        PermissionService::cache_user_permissions(user_id, permissions.clone());
+        PermissionService::cache_user_permissions(user_id, &permissions);
         tracing::info!(
             "Successfully cached {} permissions for user_id={}: {:?}",
             permissions.len(),
@@ -207,18 +193,18 @@ impl AuthService {
     /// Refresh user permissions cache
     pub async fn refresh_user_permissions_cache(
         user_id: i64,
-        is_super_admin: bool,
-        permissions: Vec<String>,
+        is_system: bool,
+        permissions: &[String],
     ) -> Result<(), ServiceError> {
         tracing::debug!("Refreshing permissions cache for user_id: {}", user_id);
 
-        if is_super_admin {
-            PermissionService::cache_user_permissions(user_id, vec!["*".to_string()]);
+        if is_system {
+            PermissionService::cache_user_permissions(user_id, &["*".to_string()]);
             tracing::info!("Successfully refreshed * permissions cache for user_id={}", user_id);
             return Ok(());
         }
 
-        PermissionService::cache_user_permissions(user_id, permissions.clone());
+        PermissionService::cache_user_permissions(user_id, permissions);
         tracing::info!(
             "Successfully refreshed {} permissions cache for user_id={}: {:?}",
             permissions.len(),
