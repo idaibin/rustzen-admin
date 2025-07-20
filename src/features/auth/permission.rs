@@ -141,8 +141,8 @@ impl PermissionService {
     }
 
     /// Cache user permissions (called during login)
-    pub fn cache_user_permissions(user_id: i64, permissions: Vec<String>) {
-        let permission_cache = UserPermissionCache::new(permissions);
+    pub fn cache_user_permissions(user_id: i64, permissions: &[String]) {
+        let permission_cache = UserPermissionCache::new(permissions.to_vec());
         PERMISSION_CACHE.set(user_id, permission_cache.clone());
         tracing::info!(
             "Cached {} permissions for user {} (expires in {}h)",

@@ -1,6 +1,6 @@
 use crate::common::error::ServiceError;
 
-use super::model::{AuthMenuInfoEntity, AuthUserInfo, LoginCredentialsEntity};
+use super::model::{AuthUserEntity, LoginCredentialsEntity};
 use sqlx::PgPool;
 
 use chrono::Utc;
@@ -14,34 +14,34 @@ impl AuthRepository {
         pool: &PgPool,
         username: &str,
     ) -> Result<Option<LoginCredentialsEntity>, ServiceError> {
-        sqlx::query_as::<_, LoginCredentialsEntity>(
-            "SELECT id, username, password_hash, status, is_super_admin FROM users WHERE username = $1 AND deleted_at IS NULL",
-        )
-        .bind(username)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error in get_login_credentials, username={}: {:?}", username, e);
-            ServiceError::DatabaseQueryFailed
-        })
+        sqlx::query_as::<_, LoginCredentialsEntity>("SELECT * FROM get_login_credentials($1)")
+            .bind(username)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    "Database error in get_login_credentials, username={}: {:?}",
+                    username,
+                    e
+                );
+                ServiceError::DatabaseQueryFailed
+            })
     }
 
-    /// Find user by ID for authentication (returns AuthUserInfo)
+    /// Find user by ID for authentication (returns AuthUserEntity)
     /// Optimized version using the helper function from 004_user_info_optimization.sql
     pub async fn get_user_by_id(
         pool: &PgPool,
         id: i64,
-    ) -> Result<Option<AuthUserInfo>, ServiceError> {
-        sqlx::query_as::<_, AuthUserInfo>(
-            "SELECT id, username, real_name, avatar_url, is_super_admin FROM get_user_basic_info($1)",
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error in get_user_by_id, user_id={}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })
+    ) -> Result<Option<AuthUserEntity>, ServiceError> {
+        sqlx::query_as::<_, AuthUserEntity>("SELECT * FROM get_user_basic_info($1)")
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error in get_user_by_id, user_id={}: {:?}", id, e);
+                ServiceError::DatabaseQueryFailed
+            })
     }
 
     /// Update last login timestamp
@@ -65,39 +65,17 @@ impl AuthRepository {
         pool: &PgPool,
         user_id: i64,
     ) -> Result<Vec<String>, ServiceError> {
-        sqlx::query_scalar::<_, String>(
-            r#"
-                SELECT DISTINCT permission_code
-                FROM user_permissions
-                WHERE user_id = $1
-                ORDER BY permission_code
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error in get_user_permissions, user_id={}: {:?}", user_id, e);
-            ServiceError::DatabaseQueryFailed
-        })
-    }
-
-    /// Get all minimal menu info for a user by user ID.
-    /// Returns a list of AuthMenuInfoEntity for frontend menu tree display.
-    /// Optimized version using the helper function from 004_user_info_optimization.sql
-    pub async fn get_user_menus(
-        pool: &PgPool,
-        user_id: i64,
-    ) -> Result<Vec<AuthMenuInfoEntity>, ServiceError> {
-        sqlx::query_as::<_, AuthMenuInfoEntity>(
-            "SELECT id, parent_id, title, path, component, icon, order_num, visible, keep_alive, menu_type FROM get_user_menu_data($1)"
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error in get_user_menus, user_id={}: {:?}", user_id, e);
-            ServiceError::DatabaseQueryFailed
-        })
+        sqlx::query_scalar("SELECT get_user_permissions($1)")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    "Database error in get_user_permissions, user_id={}: {:?}",
+                    user_id,
+                    e
+                );
+                ServiceError::DatabaseQueryFailed
+            })
     }
 }
