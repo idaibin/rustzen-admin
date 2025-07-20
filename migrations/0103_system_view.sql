@@ -12,9 +12,9 @@ SELECT
     u.avatar_url,
     u.status,
     u.is_system,
-    u.last_login_at::timestamptz AS last_login_at,  -- 这里加类型转换
-    u.created_at::timestamptz AS created_at,
-    u.updated_at::timestamptz AS updated_at,
+    u.last_login_at ,
+    u.created_at,
+    u.updated_at,
     COALESCE(
         JSON_AGG(
             JSON_BUILD_OBJECT(
@@ -50,7 +50,7 @@ FROM users u
 JOIN user_roles ur ON u.id = ur.user_id
 JOIN roles r ON ur.role_id = r.id AND r.status = 1 AND r.deleted_at IS NULL
 JOIN role_menus rm ON r.id = rm.role_id
-JOIN menus m ON rm.menu_id = m.id AND m.status = 1 AND m.deleted_at IS NULL
+JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL
 WHERE u.deleted_at IS NULL
   AND u.status = 1
   AND m.code IS NOT NULL;
