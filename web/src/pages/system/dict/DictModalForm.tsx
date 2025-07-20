@@ -34,7 +34,7 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 maskClosable: false,
                 okText: mode === "create" ? "Create" : "Save",
                 cancelText: "Cancel",

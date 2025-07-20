@@ -10,7 +10,6 @@ export default function LoginPage() {
     const navigate = useNavigate();
     const [isPending, startTransition] = useTransition();
     const { updateToken } = useAuthStore();
-
     const onLogin = async (values: LoginRequest) => {
         startTransition(async () => {
             try {
