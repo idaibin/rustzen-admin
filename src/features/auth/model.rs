@@ -9,7 +9,6 @@ pub enum UserStatus {
     Disabled = 2, // Disabled
     Pending = 3,  // Pending approval
     Locked = 4,   // Locked
-    Deleted = 5,  // Deleted
 }
 
 impl TryFrom<i16> for UserStatus {
@@ -22,7 +21,6 @@ impl TryFrom<i16> for UserStatus {
             2 => Ok(UserStatus::Disabled),
             3 => Ok(UserStatus::Pending),
             4 => Ok(UserStatus::Locked),
-            5 => Ok(UserStatus::Deleted),
             _ => Err(ServiceError::InvalidUserStatus),
         }
     }
@@ -37,14 +35,10 @@ impl UserStatus {
             UserStatus::Disabled => Err(ServiceError::UserIsDisabled),
             UserStatus::Pending => Err(ServiceError::UserIsPending),
             UserStatus::Locked => Err(ServiceError::UserIsLocked),
-            UserStatus::Deleted => Err(ServiceError::InvalidUserStatus),
         }
     }
 }
 /// Request payload for user authentication.
-///
-/// This struct contains the credentials required for user login.
-/// Both fields are mandatory for authentication.
 #[derive(Deserialize)]
 pub struct LoginRequest {
     /// Username or email for authentication
@@ -54,10 +48,6 @@ pub struct LoginRequest {
 }
 
 /// Response payload for successful user login.
-///
-/// This struct is returned when a user successfully authenticates.
-/// It includes both an authentication token and comprehensive user
-/// information needed for the application session.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
@@ -69,69 +59,42 @@ pub struct LoginResponse {
     pub user_id: i64,
 }
 
+/// Minimal user info for authentication (login)
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct LoginCredentialsEntity {
+    pub id: i64,
+    pub password_hash: String,
+    pub status: i16,
+    pub is_system: bool,
+}
+
+/// Basic user info for session/profile
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct AuthUserEntity {
+    pub id: i64,
+    pub username: String,
+    pub real_name: Option<String>,
+    pub email: Option<String>,
+    pub avatar_url: Option<String>,
+    pub is_system: bool,
+}
+
 /// Comprehensive user information for authenticated sessions.
-///
-/// This struct contains detailed user information that is returned
-/// after successful authentication or when requesting current user details.
-/// It includes profile data, role assignments, accessible menu structure, and permissions.
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct UserInfoResponse {
+pub struct UserInfoVo {
     /// Unique identifier of the user
     pub id: i64,
     /// Username of the user
     pub username: String,
     /// Full/display name of the user (optional)
     pub real_name: Option<String>,
-    /// URL to the user's avatar image (optional)
+    /// Email of the user
+    pub email: Option<String>,
+    /// Avatar URL of the user
     pub avatar_url: Option<String>,
-    /// Hierarchical menu structure accessible to the user based on their roles
-    pub menus: Vec<AuthMenuInfoEntity>,
+    /// Whether the user is a system user
+    pub is_system: bool,
     /// List of permission codes the user has access to
     pub permissions: Vec<String>,
-}
-
-/// Minimal user info for authentication (login)
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct LoginCredentialsEntity {
-    pub id: i64,
-    pub username: String,
-    pub password_hash: String,
-    pub status: i16,
-    pub is_super_admin: bool,
-}
-
-/// Basic user info for session/profile
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct AuthUserInfo {
-    pub id: i64,
-    pub username: String,
-    pub real_name: Option<String>,
-    pub avatar_url: Option<String>,
-    pub is_super_admin: bool,
-}
-
-/// Minimal menu information entity for frontend menu tree display.
-#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
-pub struct AuthMenuInfoEntity {
-    /// Unique menu ID
-    pub id: i64,
-    /// Parent menu ID
-    pub parent_id: Option<i64>,
-    /// Menu title
-    pub title: String,
-    /// Route path
-    pub path: String,
-    /// Frontend component name
-    pub component: Option<String>,
-    /// Menu icon
-    pub icon: Option<String>,
-    /// Display order
-    pub order_num: Option<i32>,
-    /// Visibility flag
-    pub visible: Option<bool>,
-    /// Keep-alive flag
-    pub keep_alive: Option<bool>,
-    /// Menu type (e.g., directory, menu, button)
-    pub menu_type: Option<i16>,
 }
