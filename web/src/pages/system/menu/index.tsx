@@ -39,38 +39,33 @@ const columns: ProColumns<Menu.Item>[] = [
         width: 48,
     },
     {
-        title: "Title",
-        dataIndex: "title",
+        title: "Name",
+        dataIndex: "name",
         ellipsis: true,
     },
     {
-        title: "Path",
-        dataIndex: "path",
+        title: "Code",
+        dataIndex: "code",
         ellipsis: true,
     },
     {
-        title: "Component",
-        dataIndex: "component",
-        ellipsis: true,
-    },
-    {
-        title: "Icon",
-        dataIndex: "icon",
+        title: "Menu Type",
+        dataIndex: "menuType",
         ellipsis: true,
     },
     {
         title: "Sort Order",
         dataIndex: "sortOrder",
-        width: 100,
+        ellipsis: true,
     },
-    {
-        title: "Status",
-        dataIndex: "status",
-        valueEnum: {
-            1: { text: "Normal", status: "Success" },
-            2: { text: "Disabled", status: "Default" },
-        },
-    },
+    // {
+    //     title: "Status",
+    //     dataIndex: "status",
+    //     valueEnum: {
+    //         1: { text: "Show", status: "Success" },
+    //         2: { text: "Hidden", status: "Default" },
+    //     },
+    // },
     {
         title: "Updated At",
         dataIndex: "updatedAt",

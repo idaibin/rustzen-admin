@@ -2,7 +2,7 @@ import React, { type JSX } from "react";
 import {
     ModalForm,
     ProFormText,
-    ProFormSwitch,
+    ProFormTextArea,
 } from "@ant-design/pro-components";
 import type { Dict } from "System";
 import { dictAPI } from "@/services/system/dict";
@@ -91,10 +91,10 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
                     { required: isRequired, message: "Please enter value" },
                 ]}
             />
-            <ProFormSwitch
-                name="isDefault"
-                label="Is Default"
-                placeholder="Set as default option"
+            <ProFormTextArea
+                name="description"
+                label="Description"
+                placeholder="Enter description"
             />
         </ModalForm>
     );

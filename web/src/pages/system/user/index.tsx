@@ -51,19 +51,6 @@ const columns: ProColumns<User.Item>[] = [
         dataIndex: "realName",
     },
     {
-        title: "Avatar",
-        dataIndex: "avatarUrl",
-        search: false,
-        render: (_: React.ReactNode, record: User.Item) =>
-            record.avatarUrl && record.avatarUrl.length > 0 ? (
-                <img
-                    src={record.avatarUrl}
-                    alt="avatar"
-                    style={{ width: 32, height: 32, borderRadius: "50%" }}
-                />
-            ) : null,
-    },
-    {
         title: "Status",
         dataIndex: "status",
         valueEnum: {
@@ -76,7 +63,7 @@ const columns: ProColumns<User.Item>[] = [
         dataIndex: "roles",
         search: false,
         render: (_: React.ReactNode, record: User.Item) =>
-            record.roles.map((role) => role.name).join(", "),
+            record.roles.map((role) => role.label).join(", "),
     },
     {
         title: "Last Login",

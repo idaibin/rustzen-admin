@@ -27,7 +27,7 @@ declare module "System" {
             lastLoginAt?: string;
             createdAt: string;
             updatedAt: string;
-            roles: RoleInfo[];
+            roles: Api.OptionItem<number>[];
         }
 
         // 查询参数
@@ -68,39 +68,39 @@ declare module "System" {
         // 角色基本信息 - 更新为与后端一致
         export interface Item {
             id: number;
-            roleName: string;
-            roleCode: string;
+            name: string;
+            code: string;
             description?: string;
             status: Status;
             sortOrder?: number;
             createdAt: string;
             updatedAt: string;
-            menuIds: number[];
+            menus: Api.OptionItem<number>[];
         }
 
         // 查询参数
         export interface QueryParams {
             current?: number;
             pageSize?: number;
-            roleName?: string;
-            roleCode?: string;
+            name?: string;
+            code?: string;
             status?: string; // "1" | "2" | "all"
         }
 
         // 创建角色请求 - 更新为与后端一致
         export interface CreateRequest {
-            roleName: string;
-            roleCode: string;
+            name: string;
+            code: string;
             description?: string;
             status?: number;
             sortOrder?: number;
-            menuIds: number[];
+            menuIds: Api.Api.OptionItem<number>[];
         }
 
         // 更新角色请求 - 更新为与后端一致
         export interface UpdateRequest {
-            roleName?: string;
-            roleCode?: string;
+            name?: string;
+            code?: string;
             description?: string;
             status?: number;
             sortOrder?: number;
@@ -119,46 +119,32 @@ declare module "System" {
         // 菜单基本信息 - 简化版本
         export interface Item {
             id: number;
-            parentId?: number;
-            title: string;
-            path?: string;
-            component?: string;
-            icon?: string;
+            parentId: number;
+            name: string;
+            code: string;
+            menuType: number;
             sortOrder: number;
             status: Status;
             createdAt: string;
             updatedAt: string;
-            permissionCode?: string;
         }
 
         // 查询参数
         export interface QueryParams {
             current?: number;
             pageSize?: number;
-            title?: string;
-            status?: string; // "1" | "2" | "all"
+            name?: string;
+            code?: string;
         }
 
         // 创建菜单请求
-        export interface CreateRequest {
-            parentId?: number;
-            title: string;
-            path?: string;
-            component?: string;
-            icon?: string;
-            sortOrder?: number;
-            status?: number;
-        }
-
-        // 更新菜单请求
-        export interface UpdateRequest {
-            parentId?: number;
-            title?: string;
-            path?: string;
-            component?: string;
-            icon?: string;
-            sortOrder?: number;
-            status?: number;
+        export interface CreateAndUpdateRequest {
+            parentId: number;
+            name: string;
+            code: string;
+            menuType: number;
+            sortOrder: number;
+            status: Status;
         }
     }
 
@@ -203,17 +189,15 @@ declare module "System" {
     export namespace Log {
         export interface Item {
             id: number;
-            userId?: number;
-            username?: string;
+            userId: number;
+            username: string;
             action: string;
             description?: string;
-            ipAddress?: string;
-            userAgent?: string;
-            requestId?: string;
-            resourceType?: string;
-            resourceId?: number;
+            data?: string;
             status: string;
-            durationMs?: number;
+            durationMs: number;
+            ipAddress: string;
+            userAgent: string;
             createdAt: string;
         }
 
@@ -223,9 +207,8 @@ declare module "System" {
             search?: string;
             username?: string;
             action?: string;
-            status?: string;
-            startTime?: string;
-            endTime?: string;
+            description?: string;
+            ipAddress?: string;
         }
     }
 }
