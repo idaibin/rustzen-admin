@@ -40,12 +40,14 @@ const columns: ProColumns<Role.Item>[] = [
     },
     {
         title: "Role Name",
-        dataIndex: "roleName",
+        dataIndex: "name",
+        width: 200,
         ellipsis: true,
     },
     {
         title: "Role Code",
-        dataIndex: "roleCode",
+        dataIndex: "code",
+        width: 200,
         ellipsis: true,
     },
     {
@@ -58,6 +60,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "Status",
         dataIndex: "status",
         valueType: "select",
+        width: 120,
         valueEnum: {
             1: { text: "Normal", status: "Success" },
             2: { text: "Disabled", status: "Default" },
@@ -65,15 +68,16 @@ const columns: ProColumns<Role.Item>[] = [
     },
     {
         title: "Permissions",
-        dataIndex: "menuIds",
+        dataIndex: "menus",
+        width: 160,
         hideInSearch: true,
         render: (_, record) => {
-            if (!record.menuIds || record.menuIds.length === 0) {
+            if (!record.menus || record.menus.length === 0) {
                 return <span style={{ color: "#999" }}>No permissions</span>;
             }
             return (
-                <span title={record.menuIds.join(", ")}>
-                    {record.menuIds.length} permission(s)
+                <span title={record.menus.map((menu) => menu.label).join(", ")}>
+                    {record.menus.length} permission(s)
                 </span>
             );
         },
@@ -82,6 +86,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",
+        width: 160,
         hideInSearch: true,
     },
     {
