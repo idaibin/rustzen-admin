@@ -26,7 +26,7 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
     const isRequired = mode === "create";
 
     return (
-        <ModalForm<Menu.CreateRequest | Menu.UpdateRequest>
+        <ModalForm<Menu.CreateAndUpdateRequest>
             form={form}
             width={600}
             layout="horizontal"
@@ -49,11 +49,13 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await menuAPI.createMenu(values as Menu.CreateRequest);
+                    await menuAPI.createMenu(
+                        values as Menu.CreateAndUpdateRequest
+                    );
                 } else if (mode === "edit" && initialValues?.id) {
                     await menuAPI.updateMenu(
                         initialValues.id,
-                        values as Menu.UpdateRequest
+                        values as Menu.CreateAndUpdateRequest
                     );
                 }
                 onSuccess?.();
