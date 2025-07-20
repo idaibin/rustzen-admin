@@ -3,35 +3,23 @@ use serde::Deserialize;
 /// Create menu request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateMenuDto {
-    pub parent_id: Option<i64>,
-    pub title: String,
-    pub path: Option<String>,
-    pub component: Option<String>,
-    pub icon: Option<String>,
-    pub sort_order: Option<i32>,
-    pub status: Option<i16>,
-}
-
-/// Update menu request parameters
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateMenuDto {
-    pub parent_id: Option<i64>,
-    pub title: Option<String>,
-    pub path: Option<String>,
-    pub component: Option<String>,
-    pub icon: Option<String>,
-    pub sort_order: Option<i32>,
-    pub status: Option<i16>,
+pub struct CreateAndUpdateMenuDto {
+    pub parent_id: i64,
+    pub name: String,
+    pub code: String,
+    pub menu_type: i16,
+    pub sort_order: i16,
+    pub status: i16,
 }
 
 /// Menu query parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuQueryDto {
-    /// The page number to retrieve. Defaults to 1.
-    pub current: Option<i64>,
-    /// The number of items per page. Defaults to 10.
-    pub page_size: Option<i64>,
+    /// The name of the menu.
+    pub name: Option<String>,
+    /// The code of the menu.
+    pub code: Option<String>,
+    /// The status of the menu.
+    pub status: Option<String>,
 }

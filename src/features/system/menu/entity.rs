@@ -5,14 +5,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct MenuEntity {
     pub id: i64,
-    pub parent_id: Option<i64>,
-    pub title: String,
-    pub path: Option<String>,
-    pub component: Option<String>,
-    pub icon: Option<String>,
-    pub sort_order: i32,
+    pub parent_id: i64,
+    pub name: String,
+    pub code: String,
+    pub menu_type: i16,
     pub status: i16,
+    pub is_system: bool,
+    pub sort_order: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub permission_code: Option<String>,
 }

@@ -1,4 +1,4 @@
-use super::dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto};
+use super::dto::{CreateAndUpdateMenuDto, MenuQueryDto};
 use super::service::MenuService;
 use super::vo::MenuDetailVo;
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
@@ -74,10 +74,10 @@ async fn get_menu_by_id(
 /// Body: name, path, parent_id, icon, sort_order, status
 async fn create_menu(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateMenuDto>,
-) -> AppResult<MenuDetailVo> {
-    let response = MenuService::create_menu(&pool, request).await?;
-    Ok(ApiResponse::success(response))
+    Json(request): Json<CreateAndUpdateMenuDto>,
+) -> AppResult<i64> {
+    let menu_id = MenuService::create_menu(&pool, request).await?;
+    Ok(ApiResponse::success(menu_id))
 }
 
 /// Update menu
@@ -85,10 +85,10 @@ async fn create_menu(
 async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateMenuDto>,
-) -> AppResult<MenuDetailVo> {
-    let response = MenuService::update_menu(&pool, id, request).await?;
-    Ok(ApiResponse::success(response))
+    Json(request): Json<CreateAndUpdateMenuDto>,
+) -> AppResult<i64> {
+    let menu_id = MenuService::update_menu(&pool, id, request).await?;
+    Ok(ApiResponse::success(menu_id))
 }
 
 /// Delete menu (handles child cleanup)
@@ -98,10 +98,9 @@ async fn delete_menu(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResu
 }
 
 /// Get menu options for dropdowns
-/// Query params: q (search), limit, exclude_id
 async fn get_menu_options(
     State(pool): State<PgPool>,
-    query: Query<OptionsQuery>,
+    Query(query): Query<OptionsQuery>,
 ) -> AppResult<Vec<crate::common::api::OptionItem<i64>>> {
     let options = MenuService::get_menu_options(&pool, query).await?;
     Ok(ApiResponse::success(options))
