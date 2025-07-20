@@ -20,21 +20,10 @@ impl LogService {
         let limit = query.page_size.unwrap_or(10);
         let offset = (current - 1) * limit;
 
-        // Get total count
-        let total = LogRepository::count_logs(pool, query.keyword.as_deref()).await?;
+        let (logs, total) = LogRepository::find_with_pagination(pool, offset, limit, query).await?;
+        let list: Vec<LogListVo> = logs.into_iter().map(LogListVo::from).collect();
 
-        if total == 0 {
-            return Ok((Vec::new(), total));
-        }
-
-        // Get log data
-        let log_entities =
-            LogRepository::find_all(pool, limit, offset, query.keyword.as_deref()).await?;
-
-        // Convert to response format
-        let log_responses: Vec<LogListVo> = log_entities.into_iter().map(LogListVo::from).collect();
-
-        Ok((log_responses, total))
+        Ok((list, total))
     }
 
     /// Logs an HTTP request (for middleware use only)
@@ -56,9 +45,8 @@ impl LogService {
 
         // Only log write operations or errors
         let is_write = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
-        let is_error = status_code >= 400;
 
-        if !is_write && !is_error {
+        if !is_write {
             return Ok(()); // Skip logging for non-write/read-successful requests
         }
 
@@ -69,15 +57,13 @@ impl LogService {
             pool,
             user_id.unwrap_or(0), // Use 0 for anonymous users
             username.unwrap_or("anonymous"),
-            &action,
-            &description,
+            Some(&action),
+            Some(&description),
+            None,
+            Some(status),
+            Some(duration_ms),
             Some(ip_address),
             Some(user_agent),
-            None,         // request_id
-            Some("HTTP"), // resource_type
-            None,         // resource_id
-            status,
-            Some(duration_ms),
         )
         .await?;
 
@@ -89,43 +75,25 @@ impl LogService {
         pool: &PgPool,
         user_id: i64,
         username: &str,
-        operation: &str, // CREATE, UPDATE, DELETE, etc.
-        resource_type: &str,
-        resource_id: Option<i64>,
+        action: &str,
+        description: &str,
+        data: serde_json::Value,
+        status: &str,
+        duration_ms: i32,
         ip_address: &str,
         user_agent: &str,
-        success: bool,
-        details: Option<&str>,
-        duration_ms: Option<i32>,
     ) -> Result<(), ServiceError> {
-        let action = format!("{}_{}", resource_type.to_uppercase(), operation);
-        let status = if success { "SUCCESS" } else { "FAILED" };
-
-        let description: String = if let Some(details) = details {
-            details.to_string()
-        } else {
-            format!(
-                "User {} {} {} {}",
-                username,
-                operation.to_lowercase(),
-                resource_type,
-                resource_id.map(|id| format!("(ID: {})", id)).unwrap_or_default()
-            )
-        };
-
         let _ = LogRepository::create_with_details(
             pool,
             user_id,
             username,
-            &action,
-            description.as_str(),
+            Some(action),
+            Some(description),
+            Some(data),
+            Some(status),
+            Some(duration_ms),
             Some(ip_address),
             Some(user_agent),
-            None, // request_id
-            Some(resource_type),
-            resource_id,
-            status,
-            duration_ms,
         )
         .await?;
 

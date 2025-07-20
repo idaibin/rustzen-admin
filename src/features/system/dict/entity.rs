@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 /// Dictionary item entity
@@ -10,6 +11,12 @@ pub struct DictEntity {
     pub label: String,
     /// The actual value of the item (e.g., "1").
     pub value: String,
-    /// Whether this is the default item of its type.
-    pub is_default: bool,
+    /// The status of the item.
+    pub status: i16,
+    /// The description of the item.
+    pub description: Option<String>,
+    /// The sort order of the item.
+    pub sort_order: i32,
+    /// The last update time.
+    pub updated_at: NaiveDateTime,
 }

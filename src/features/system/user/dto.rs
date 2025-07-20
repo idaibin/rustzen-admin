@@ -19,13 +19,12 @@ pub struct CreateUserDto {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserDto {
-    pub email: Option<String>,
-    pub real_name: Option<String>,
+    pub email: String,
+    pub real_name: String,
     /// User status: 1 (normal) or 2 (disabled).
-    pub status: Option<i16>,
+    pub status: i16,
     /// A list of role IDs to assign to the user. If provided, replaces all existing roles.
-    pub role_ids: Option<Vec<i64>>,
-    pub password: Option<String>,
+    pub role_ids: Vec<i64>,
 }
 
 /// User query parameters

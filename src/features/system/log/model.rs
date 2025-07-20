@@ -1,5 +1,6 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::FromRow;
 use std::net::IpAddr;
 
@@ -7,17 +8,15 @@ use std::net::IpAddr;
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct LogEntity {
     pub id: i64,
-    pub user_id: Option<i64>,
-    pub username: Option<String>,
+    pub user_id: i64,
+    pub username: String,
     pub action: String,
     pub description: Option<String>,
-    pub ip_address: Option<IpAddr>,
-    pub user_agent: Option<String>,
-    pub request_id: Option<String>,
-    pub resource_type: Option<String>,
-    pub resource_id: Option<i64>,
+    pub data: Option<Value>,
     pub status: String,
-    pub duration_ms: Option<i32>,
+    pub duration_ms: i32,
+    pub ip_address: IpAddr,
+    pub user_agent: String,
     pub created_at: NaiveDateTime,
 }
 
@@ -26,18 +25,16 @@ pub struct LogEntity {
 #[serde(rename_all = "camelCase")]
 pub struct LogListVo {
     pub id: i64,
-    pub user_id: Option<i64>,
-    pub username: Option<String>,
+    pub user_id: i64,
+    pub username: String,
     pub action: String,
     pub description: Option<String>,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-    pub request_id: Option<String>,
-    pub resource_type: Option<String>,
-    pub resource_id: Option<i64>,
+    pub data: Option<Value>,
     pub status: String,
-    pub duration_ms: Option<i32>,
-    pub created_at: DateTime<Utc>,
+    pub duration_ms: i32,
+    pub ip_address: String,
+    pub user_agent: String,
+    pub created_at: NaiveDateTime,
 }
 
 /// Log query parameters
@@ -46,7 +43,10 @@ pub struct LogListVo {
 pub struct LogQueryDto {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
-    pub keyword: Option<String>,
+    pub username: Option<String>,
+    pub action: Option<String>,
+    pub description: Option<String>,
+    pub ip_address: Option<String>,
 }
 
 impl From<LogEntity> for LogListVo {
@@ -57,14 +57,12 @@ impl From<LogEntity> for LogListVo {
             username: entity.username,
             action: entity.action,
             description: entity.description,
-            ip_address: entity.ip_address.map(|ip| ip.to_string()),
+            data: entity.data,
+            ip_address: entity.ip_address.to_string(),
             user_agent: entity.user_agent,
-            request_id: entity.request_id,
-            resource_type: entity.resource_type,
-            resource_id: entity.resource_id,
             status: entity.status,
             duration_ms: entity.duration_ms,
-            created_at: DateTime::from_naive_utc_and_offset(entity.created_at, Utc),
+            created_at: entity.created_at,
         }
     }
 }

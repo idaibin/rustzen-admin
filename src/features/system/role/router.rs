@@ -1,4 +1,4 @@
-use super::dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto};
+use super::dto::{CreateAndUpdateRoleDto, RoleQueryDto};
 use super::service::RoleService;
 use super::vo::RoleDetailVo;
 use crate::common::{
@@ -27,16 +27,6 @@ pub fn role_routes() -> Router<PgPool> {
             PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:create"]),
         )
         .route_with_permission(
-            "/options",
-            get(get_role_options),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:options"]),
-        )
-        .route_with_permission(
-            "/{id}",
-            get(get_role_by_id),
-            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:get"]),
-        )
-        .route_with_permission(
             "/{id}",
             put(update_role),
             PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:update"]),
@@ -46,8 +36,11 @@ pub fn role_routes() -> Router<PgPool> {
             delete(delete_role),
             PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:delete"]),
         )
-    // .route_with_permission("/{id}/menus", get(get_role_menus), "system:role:menus:get")
-    // .route_with_permission("/{id}/menus", put(set_role_menus), "system:role:menus:set")
+        .route_with_permission(
+            "/options",
+            get(get_role_options),
+            PermissionsCheck::Any(vec!["system:*", "system:role:*", "system:role:options"]),
+        )
 }
 
 /// Get paginated role list with filtering
@@ -64,69 +57,33 @@ async fn get_role_list(
     Ok(ApiResponse::page(role_list, total))
 }
 
-/// Get role by ID with permissions
-async fn get_role_by_id(
-    State(pool): State<PgPool>,
-    Path(id): Path<i64>,
-) -> AppResult<RoleDetailVo> {
-    tracing::info!("Get role by ID: {}", id);
-
-    let role = RoleService::get_role_by_id(&pool, id).await?;
-
-    tracing::info!(
-        "Role retrieved: id={}, name={}, menus={}",
-        role.id,
-        role.role_name,
-        role.menu_ids.len()
-    );
-
-    Ok(ApiResponse::success(role))
-}
-
 /// Create new role
-/// Body: name, description, status, permissions
 async fn create_role(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateRoleDto>,
-) -> AppResult<RoleDetailVo> {
-    tracing::info!("Create role: name={}, menus={}", request.role_name, request.menu_ids.len());
+    Json(request): Json<CreateAndUpdateRoleDto>,
+) -> AppResult<()> {
+    tracing::info!("Create role: name={}, menus={}", request.name, request.menu_ids.len());
 
-    let new_role = RoleService::create_role(&pool, request).await?;
+    RoleService::create_role(&pool, request).await?;
 
-    tracing::info!(
-        "Role created: id={}, name={}, menus={}",
-        new_role.id,
-        new_role.role_name,
-        new_role.menu_ids.len()
-    );
+    tracing::info!("Role created");
 
-    Ok(ApiResponse::success(new_role))
+    Ok(ApiResponse::success(()))
 }
 
 /// Update role information
-/// Body: name, description, status, permissions (all optional)
 async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateRoleDto>,
-) -> AppResult<RoleDetailVo> {
-    tracing::info!(
-        "Update role {}: name={:?}, menus={}",
-        id,
-        request.role_name,
-        request.menu_ids.as_ref().map_or(0, |m| m.len())
-    );
+    Json(request): Json<CreateAndUpdateRoleDto>,
+) -> AppResult<()> {
+    tracing::info!("Update role {}: name={:?}, menus={:?}", id, request.name, request.menu_ids);
 
-    let updated_role = RoleService::update_role(&pool, id, request).await?;
+    RoleService::update_role(&pool, id, request).await?;
 
-    tracing::info!(
-        "Role updated: id={}, name={}, menus={}",
-        updated_role.id,
-        updated_role.role_name,
-        updated_role.menu_ids.len()
-    );
+    tracing::info!("Role updated: id={}", id);
 
-    Ok(ApiResponse::success(updated_role))
+    Ok(ApiResponse::success(()))
 }
 
 /// Delete role with dependency validation
@@ -141,14 +98,13 @@ async fn delete_role(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResu
 }
 
 /// Get role options for dropdowns
-/// Query params: q (search), limit, status, exclude_id
 async fn get_role_options(
     State(pool): State<PgPool>,
     Query(query): Query<OptionsQuery>,
 ) -> AppResult<Vec<OptionItem<i64>>> {
     tracing::debug!("Role options: q={:?}, limit={:?}", query.q, query.limit);
 
-    let options = RoleService::get_role_options(&pool, Query(query)).await?;
+    let options = RoleService::get_role_options(&pool, query).await?;
 
     tracing::debug!("Role options returned: {}", options.len());
 
