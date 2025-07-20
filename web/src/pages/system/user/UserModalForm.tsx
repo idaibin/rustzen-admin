@@ -32,7 +32,7 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
             title={mode === "create" ? "Create User" : "Edit User"}
             trigger={children}
             labelCol={{ span: 5 }}
-            modalProps={{ destroyOnClose: true, maskClosable: false }}
+            modalProps={{ destroyOnHidden: true, maskClosable: false }}
             onOpenChange={(open) => {
                 if (open) {
                     const roleIds = initialValues?.roles?.map(

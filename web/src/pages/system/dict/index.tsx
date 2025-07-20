@@ -5,6 +5,7 @@ import { dictAPI } from "@/services";
 import { Tag, Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import DictModalForm from "./DictModalForm";
+import { AuthWrap } from "@/components/auth";
 
 export default function DictPage() {
     const actionRef = useRef<ActionType>(null);
@@ -19,14 +20,16 @@ export default function DictPage() {
             request={dictAPI.getDictList}
             actionRef={actionRef}
             toolBarRender={() => [
-                <DictModalForm
-                    mode={"create"}
-                    onSuccess={() => {
-                        actionRef.current?.reload();
-                    }}
-                >
-                    <Button type="primary">Create Dictionary</Button>
-                </DictModalForm>,
+                <AuthWrap code="system:dict:create">
+                    <DictModalForm
+                        mode={"create"}
+                        onSuccess={() => {
+                            actionRef.current?.reload();
+                        }}
+                    >
+                        <Button type="primary">Create Dictionary</Button>
+                    </DictModalForm>
+                </AuthWrap>,
             ]}
         />
     );
@@ -74,29 +77,36 @@ const columns: ProColumns<Dict.Item>[] = [
             action?: ActionType
         ) => (
             <Space size="middle">
-                <DictModalForm
-                    mode={"edit"}
-                    initialValues={entity}
-                    onSuccess={() => {
-                        action?.reload();
-                    }}
-                >
-                    <a>Edit</a>
-                </DictModalForm>
-                <Popconfirm
-                    title="Are you sure you want to delete this dictionary?"
-                    placement="leftBottom"
-                    onConfirm={async () => {
-                        try {
-                            await dictAPI.deleteDict(entity.id);
+                <AuthWrap code="system:dict:edit">
+                    <DictModalForm
+                        mode={"edit"}
+                        initialValues={entity}
+                        onSuccess={() => {
                             action?.reload();
-                        } catch (error) {
-                            console.error("Delete dictionary failed:", error);
-                        }
-                    }}
-                >
-                    <a style={{ color: "#ff4d4f" }}>Delete</a>
-                </Popconfirm>
+                        }}
+                    >
+                        <a>Edit</a>
+                    </DictModalForm>
+                </AuthWrap>
+                <AuthWrap code="system:dict:delete">
+                    <Popconfirm
+                        title="Are you sure you want to delete this dictionary?"
+                        placement="leftBottom"
+                        onConfirm={async () => {
+                            try {
+                                await dictAPI.deleteDict(entity.id);
+                                action?.reload();
+                            } catch (error) {
+                                console.error(
+                                    "Delete dictionary failed:",
+                                    error
+                                );
+                            }
+                        }}
+                    >
+                        <a style={{ color: "#ff4d4f" }}>Delete</a>
+                    </Popconfirm>
+                </AuthWrap>
             </Space>
         ),
     },

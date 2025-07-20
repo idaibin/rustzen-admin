@@ -36,7 +36,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 maskClosable: false,
                 okText: mode === "create" ? "Create" : "Save",
                 cancelText: "Cancel",
@@ -77,11 +77,6 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                         min: 2,
                         max: 50,
                         message: "Role name must be 2-50 characters",
-                    },
-                    {
-                        pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/,
-                        message:
-                            "Role name can only contain letters, numbers, underscores and Chinese characters",
                     },
                 ]}
             />

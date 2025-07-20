@@ -5,6 +5,7 @@ import { roleAPI } from "@/services";
 import { Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import RoleModalForm from "./RoleModalForm";
+import { AuthWrap } from "@/components/auth";
 
 export default function RolePage() {
     const actionRef = useRef<ActionType>(null);
@@ -19,14 +20,16 @@ export default function RolePage() {
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
-                <RoleModalForm
-                    mode={"create"}
-                    onSuccess={() => {
-                        actionRef.current?.reload();
-                    }}
-                >
-                    <Button type="primary">Create Role</Button>
-                </RoleModalForm>,
+                <AuthWrap code="system:role:create">
+                    <RoleModalForm
+                        mode={"create"}
+                        onSuccess={() => {
+                            actionRef.current?.reload();
+                        }}
+                    >
+                        <Button type="primary">Create Role</Button>
+                    </RoleModalForm>
+                </AuthWrap>,
             ]}
         />
     );
@@ -99,33 +102,42 @@ const columns: ProColumns<Role.Item>[] = [
             entity: Role.Item,
             _index,
             action?: ActionType
-        ) => (
-            <Space size="middle">
-                <RoleModalForm
-                    mode={"edit"}
-                    initialValues={entity}
-                    onSuccess={() => {
-                        action?.reload();
-                    }}
-                >
-                    <a>Edit</a>
-                </RoleModalForm>
-                <Popconfirm
-                    title="Are you sure you want to delete this role?"
-                    description="This action cannot be undone."
-                    placement="leftBottom"
-                    onConfirm={async () => {
-                        try {
-                            await roleAPI.deleteRole(entity.id);
-                            action?.reload();
-                        } catch (error) {
-                            console.error("Delete role failed:", error);
-                        }
-                    }}
-                >
-                    <a className="text-red-500">Delete</a>
-                </Popconfirm>
-            </Space>
-        ),
+        ) => {
+            if (entity.id === 1) {
+                return null;
+            }
+            return (
+                <Space size="middle">
+                    <AuthWrap code="system:role:edit">
+                        <RoleModalForm
+                            mode={"edit"}
+                            initialValues={entity}
+                            onSuccess={() => {
+                                action?.reload();
+                            }}
+                        >
+                            <a>Edit</a>
+                        </RoleModalForm>
+                    </AuthWrap>
+                    <AuthWrap code="system:role:delete">
+                        <Popconfirm
+                            title="Are you sure you want to delete this role?"
+                            description="This action cannot be undone."
+                            placement="leftBottom"
+                            onConfirm={async () => {
+                                try {
+                                    await roleAPI.deleteRole(entity.id);
+                                    action?.reload();
+                                } catch (error) {
+                                    console.error("Delete role failed:", error);
+                                }
+                            }}
+                        >
+                            <a style={{ color: "#ff4d4f" }}>Delete</a>
+                        </Popconfirm>
+                    </AuthWrap>
+                </Space>
+            );
+        },
     },
 ];
