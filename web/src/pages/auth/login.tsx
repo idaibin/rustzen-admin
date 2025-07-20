@@ -13,9 +13,13 @@ export default function LoginPage() {
 
     const onLogin = async (values: LoginRequest) => {
         startTransition(async () => {
-            const res = await authAPI.login(values);
-            updateToken(res.token);
-            navigate("/", { replace: true });
+            try {
+                const res = await authAPI.login(values);
+                updateToken(res.token);
+                navigate("/", { replace: true });
+            } catch (error) {
+                console.error("Login failed", error);
+            }
         });
     };
 
