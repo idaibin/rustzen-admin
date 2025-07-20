@@ -7,9 +7,7 @@ use crate::features::system::user::dto::{
     CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto,
 };
 use crate::features::system::user::service::UserService;
-use crate::features::system::user::vo::{
-    UserDetailVo, UserListVo, UserOptionVo, UserStatusOptionVo,
-};
+use crate::features::system::user::vo::{UserListVo, UserOptionVo};
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::{
@@ -34,18 +32,13 @@ pub fn user_routes() -> Router<sqlx::PgPool> {
         )
         .route_with_permission(
             "/{id}",
-            get(get_user_by_id),
-            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:detail"]),
-        )
-        .route_with_permission(
-            "/{id}",
             put(update_user),
             PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:update"]),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_user),
-            PermissionsCheck::All(vec!["system:*", "system:user:*", "system:user:delete"]),
+            PermissionsCheck::Any(vec!["system:*", "system:user:*", "system:user:delete"]),
         )
         .route_with_permission(
             "/options",
@@ -74,32 +67,18 @@ pub async fn get_user_list(
     Ok(ApiResponse::page(users, total))
 }
 
-/// Get user by ID
-pub async fn get_user_by_id(
-    State(pool): State<PgPool>,
-    current_user: CurrentUser,
-    Path(id): Path<i64>,
-) -> AppResult<UserDetailVo> {
-    tracing::info!("Getting user by ID: {} for user: {}", id, current_user.username);
-
-    let user = UserService::get_user_by_id(&pool, id).await?;
-
-    tracing::info!("Successfully retrieved user: {}", user.username);
-    Ok(ApiResponse::success(user))
-}
-
 /// Create user
 pub async fn create_user(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Json(dto): Json<CreateUserDto>,
-) -> AppResult<bool> {
+) -> AppResult<i64> {
     tracing::info!("Creating user: {} by user: {}", dto.username, current_user.username);
 
-    let result = UserService::create_user(&pool, dto).await?;
+    let user_id = UserService::create_user(&pool, dto).await?;
 
     tracing::info!("Successfully created user");
-    Ok(ApiResponse::success(result))
+    Ok(ApiResponse::success(user_id))
 }
 
 /// Update user
@@ -108,17 +87,17 @@ pub async fn update_user(
     current_user: CurrentUser,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserDto>,
-) -> AppResult<bool> {
+) -> AppResult<i64> {
     tracing::info!("Updating user ID: {} by user: {}", id, current_user.username);
 
     if id == 1 {
         return Err(ServiceError::UserIsAdmin.into());
     }
 
-    let result = UserService::update_user(&pool, id, dto).await?;
+    let user_id = UserService::update_user(&pool, id, dto).await?;
 
     tracing::info!("Successfully updated user");
-    Ok(ApiResponse::success(result))
+    Ok(ApiResponse::success(user_id))
 }
 
 /// Delete user
@@ -136,9 +115,7 @@ pub async fn delete_user(
 }
 
 /// Get user status options
-pub async fn get_user_status_options(
-    current_user: CurrentUser,
-) -> AppResult<Vec<UserStatusOptionVo>> {
+pub async fn get_user_status_options(current_user: CurrentUser) -> AppResult<Vec<UserOptionVo>> {
     tracing::info!("Getting user status options for user: {}", current_user.username);
 
     let result = UserService::get_user_status_options();

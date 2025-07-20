@@ -1,8 +1,7 @@
 use super::{
     dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
-    entity::UserWithRolesEntity,
     repo::UserRepository,
-    vo::{RoleVo, UserDetailVo, UserListVo, UserOptionVo, UserStatusOptionVo},
+    vo::{UserListVo, UserOptionVo},
 };
 use crate::common::error::ServiceError;
 use crate::core::password::PasswordUtils;
@@ -26,23 +25,14 @@ impl UserService {
         let (users, total) =
             UserRepository::find_with_pagination(pool, offset, limit, query).await?;
 
-        let list = users.into_iter().map(|u| Self::to_user_list_vo(u)).collect();
+        tracing::info!("Users: {:?}", users);
+        let list = users.into_iter().map(UserListVo::from).collect();
 
         Ok((list, total))
     }
 
-    /// Get user by ID
-    pub async fn get_user_by_id(pool: &PgPool, id: i64) -> Result<UserDetailVo, ServiceError> {
-        tracing::debug!("Getting user by ID: {}", id);
-
-        let user_with_roles = UserRepository::find_by_id(pool, id)
-            .await?
-            .ok_or(ServiceError::NotFound("User".to_string()))?;
-        Ok(Self::to_user_detail_vo(user_with_roles))
-    }
-
     /// Create user
-    pub async fn create_user(pool: &PgPool, dto: CreateUserDto) -> Result<bool, ServiceError> {
+    pub async fn create_user(pool: &PgPool, dto: CreateUserDto) -> Result<i64, ServiceError> {
         tracing::debug!("Creating user: {}", dto.username);
 
         // Check if username already exists
@@ -68,49 +58,31 @@ impl UserService {
             role_ids: dto.role_ids,
         };
 
-        UserRepository::create_user(pool, &create_dto).await?;
+        let user_id = UserRepository::create_user(pool, &create_dto).await?;
 
-        Ok(true)
+        Ok(user_id)
     }
 
     /// Update user
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
-        dto: UpdateUserDto,
-    ) -> Result<bool, ServiceError> {
+        request: UpdateUserDto,
+    ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
 
-        // Check if user exists
-        let existing_user = UserRepository::find_by_id(pool, id)
-            .await?
-            .ok_or(ServiceError::NotFound("User".to_string()))?;
-
-        // Check email uniqueness if email is being updated
-        if let Some(ref email) = dto.email {
-            if email != &existing_user.email {
-                if UserRepository::email_exists(pool, email).await? {
-                    return Err(ServiceError::EmailConflict);
-                }
-            }
-        }
-
-        let password_hash = if let Some(password) = dto.password {
-            Some(PasswordUtils::hash_password(&password)?)
-        } else {
-            None
-        };
-
         // Update user
-        UserRepository::update_user(pool, id, dto.email, dto.real_name, dto.status, password_hash)
-            .await?;
+        let user_id = UserRepository::update_user(
+            pool,
+            id,
+            &request.email,
+            &request.real_name,
+            request.status,
+            &request.role_ids,
+        )
+        .await?;
 
-        // Update roles if provided
-        if let Some(role_ids) = dto.role_ids {
-            UserRepository::set_user_roles(pool, id, &role_ids).await?;
-        }
-
-        Ok(true)
+        Ok(user_id)
     }
 
     /// Delete user
@@ -129,10 +101,10 @@ impl UserService {
     }
 
     /// Get user status options
-    pub fn get_user_status_options() -> Vec<UserStatusOptionVo> {
+    pub fn get_user_status_options() -> Vec<UserOptionVo> {
         vec![
-            UserStatusOptionVo { label: "Normal".to_string(), value: 1 },
-            UserStatusOptionVo { label: "Disabled".to_string(), value: 2 },
+            UserOptionVo { label: "Normal".to_string(), value: 1 },
+            UserOptionVo { label: "Disabled".to_string(), value: 2 },
         ]
     }
 
@@ -151,36 +123,5 @@ impl UserService {
             options.into_iter().map(|(value, label)| UserOptionVo { label, value }).collect();
 
         Ok(user_options)
-    }
-
-    /// Convert UserWithRoles to UserListVo
-    fn to_user_list_vo(user: UserWithRolesEntity) -> UserListVo {
-        UserListVo {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            real_name: user.real_name,
-            avatar_url: user.avatar_url,
-            status: user.status,
-            last_login_at: user.last_login_at,
-            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles).unwrap_or_default(),
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        }
-    }
-
-    /// Convert UserWithRoles to UserDetailVo
-    fn to_user_detail_vo(user: UserWithRolesEntity) -> UserDetailVo {
-        UserDetailVo {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            real_name: user.real_name,
-            avatar_url: user.avatar_url,
-            status: user.status,
-            roles: serde_json::from_value::<Vec<RoleVo>>(user.roles).unwrap_or_default(),
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        }
     }
 }

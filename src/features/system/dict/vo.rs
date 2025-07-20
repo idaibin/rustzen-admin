@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::Serialize;
 
 use super::entity::DictEntity;
@@ -13,24 +14,14 @@ pub struct DictDetailVo {
     pub label: String,
     /// The actual value of the item (e.g., "1").
     pub value: String,
-    /// Whether this is the default item of its type.
-    pub is_default: bool,
-}
-
-/// Dictionary list response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DictListVo {
-    pub list: Vec<DictDetailVo>,
-    pub total: i64,
-}
-
-/// Dictionary option for dropdowns
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DictOptionVo {
-    pub label: String,
-    pub value: String,
+    /// The status of the item.
+    pub status: i16,
+    /// The description of the item.
+    pub description: String,
+    /// The sort order of the item.
+    pub sort_order: i32,
+    /// The last update time.
+    pub updated_at: NaiveDateTime,
 }
 
 impl From<DictEntity> for DictDetailVo {
@@ -40,13 +31,10 @@ impl From<DictEntity> for DictDetailVo {
             dict_type: entity.dict_type,
             label: entity.label,
             value: entity.value,
-            is_default: entity.is_default,
+            status: entity.status,
+            description: entity.description.unwrap_or("".to_string()),
+            sort_order: entity.sort_order,
+            updated_at: entity.updated_at,
         }
-    }
-}
-
-impl From<DictEntity> for DictOptionVo {
-    fn from(entity: DictEntity) -> Self {
-        Self { label: entity.label, value: entity.value }
     }
 }

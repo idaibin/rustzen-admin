@@ -7,10 +7,7 @@
 // permissions, or combining multiple operations, should be handled in the
 // service layer.
 
-use super::{
-    dto::CreateUserDto,
-    entity::{UserEntity, UserWithRolesEntity},
-};
+use super::{dto::CreateUserDto, entity::UserWithRolesEntity};
 use crate::{common::error::ServiceError, features::system::user::dto::UserQueryDto};
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
@@ -138,37 +135,31 @@ impl UserRepository {
         pool: &PgPool,
         id: i64,
     ) -> Result<Option<UserWithRolesEntity>, ServiceError> {
-        let result = sqlx::query_as::<_, UserWithRolesEntity>(
-            "SELECT *
-             FROM user_with_roles
-             WHERE id = $1 AND deleted_at IS NULL",
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error finding user by ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        let result =
+            sqlx::query_as::<_, UserWithRolesEntity>("SELECT * FROM user_with_roles WHERE id = $1")
+                .bind(id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error finding user by ID {}: {:?}", id, e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
 
         Ok(result)
     }
 
     /// Create new user with optional roles (unified method)
-    pub async fn create_user(
-        pool: &PgPool,
-        dto: &CreateUserDto,
-    ) -> Result<UserEntity, ServiceError> {
+    pub async fn create_user(pool: &PgPool, dto: &CreateUserDto) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting transaction for user creation: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
         // Create user
-        let user = match sqlx::query_as::<_, UserEntity>(
-            "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $6)
-             RETURNING id, username, email, password_hash, real_name, avatar_url, status"
+        let user_id = sqlx::query_scalar::<_, i64>(
+            "INSERT INTO users (username, email, password_hash, real_name, status, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id",
         )
         .bind(&dto.username)
         .bind(&dto.email)
@@ -178,98 +169,62 @@ impl UserRepository {
         .bind(Utc::now().naive_utc())
         .fetch_one(&mut *tx)
         .await
-        {
-            Ok(user) => user,
-            Err(e) => {
-                tracing::error!("Database error creating user '{}': {:?}", dto.username, e);
-                let _ = tx.rollback().await;
-                return Err(ServiceError::DatabaseQueryFailed);
-            }
-        };
+        .map_err(|e| {
+            tracing::error!("Database error creating user '{}': {:?}", dto.username, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
-        // Set user roles if provided
-        if !dto.role_ids.is_empty() {
-            // Validate all role IDs exist
-            let valid_roles = match sqlx::query_as::<_, (i64,)>(
-                "SELECT id FROM roles WHERE id = ANY($1) AND deleted_at IS NULL AND status = 1",
-            )
-            .bind(&dto.role_ids)
-            .fetch_all(&mut *tx)
-            .await
-            {
-                Ok(roles) => roles,
-                Err(e) => {
-                    tracing::error!("Database error validating role IDs: {:?}", e);
-                    let _ = tx.rollback().await;
-                    return Err(ServiceError::DatabaseQueryFailed);
-                }
-            };
+        Self::insert_user_roles(&mut tx, user_id, &dto.role_ids).await?;
 
-            if valid_roles.len() != dto.role_ids.len() {
-                // Invalid role IDs, rollback transaction
-                tracing::error!("Invalid role IDs provided for user creation: {:?}", dto.role_ids);
-                let _ = tx.rollback().await;
-                return Err(ServiceError::InvalidRoleId);
-            }
-
-            // Insert user role associations
-            let mut query_builder =
-                "INSERT INTO user_roles (user_id, role_id, created_at) VALUES ".to_string();
-            let now = Utc::now().naive_utc();
-            for (i, role_id) in dto.role_ids.iter().enumerate() {
-                if i > 0 {
-                    query_builder.push_str(", ");
-                }
-                query_builder.push_str(&format!("({}, {}, '{}')", user.id, role_id, now));
-            }
-
-            if let Err(e) = sqlx::query(&query_builder).execute(&mut *tx).await {
-                tracing::error!("Database error inserting user roles: {:?}", e);
-                let _ = tx.rollback().await;
-                return Err(ServiceError::DatabaseQueryFailed);
-            }
-        }
-
-        // Commit transaction
         tx.commit().await.map_err(|e| {
             tracing::error!("Database error committing user creation transaction: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Ok(user)
+        Ok(user_id)
     }
 
     /// Update existing user
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
-        email: Option<String>,
-        real_name: Option<String>,
-        status: Option<i16>,
-        password_hash: Option<String>,
-    ) -> Result<bool, ServiceError> {
-        let result = sqlx::query(
+        email: &str,
+        real_name: &str,
+        status: i16,
+        role_ids: &[i64],
+    ) -> Result<i64, ServiceError> {
+        let mut tx = pool.begin().await.map_err(|e| {
+            tracing::error!("Database error starting transaction for user update: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        let user_id = sqlx::query_scalar::<_, i64>(
             "UPDATE users
-             SET email = COALESCE($1, email),
-                 real_name = COALESCE($2, real_name),
-                 status = COALESCE($3, status),
-                 password_hash = COALESCE($4, password_hash),
-                 updated_at = NOW()
-             WHERE id = $5 AND deleted_at IS NULL",
+             SET email = $1, real_name = $2, status = $3
+             WHERE id = $4 AND deleted_at IS NULL
+             RETURNING id",
         )
         .bind(email)
         .bind(real_name)
         .bind(status)
-        .bind(password_hash)
         .bind(id)
-        .execute(pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|e| {
             tracing::error!("Database error updating user ID {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Ok(result.rows_affected() > 0)
+        if let Some(id) = user_id {
+            Self::insert_user_roles(&mut tx, id, role_ids).await?;
+            tx.commit().await.map_err(|e| {
+                tracing::error!("Database error committing user update transaction: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+            Ok(id)
+        } else {
+            Err(ServiceError::NotFound(format!("User id: {}", id)))
+        }
     }
 
     /// Soft delete user
@@ -289,90 +244,36 @@ impl UserRepository {
     }
 
     /// Set user roles (replace all existing roles)
-    pub async fn set_user_roles(
-        pool: &PgPool,
+    pub async fn insert_user_roles(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         user_id: i64,
         role_ids: &[i64],
     ) -> Result<(), ServiceError> {
-        let mut tx = pool.begin().await.map_err(|e| {
-            tracing::error!("Database error starting transaction for setting user roles: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        // Delete existing user roles
-        if let Err(e) = sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
+        sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
             .bind(user_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await
-        {
-            tracing::error!(
-                "Database error deleting existing user roles for user ID {}: {:?}",
-                user_id,
-                e
-            );
-            let _ = tx.rollback().await;
-            return Err(ServiceError::DatabaseQueryFailed);
+            .map_err(|e| {
+                tracing::error!("Database error deleting existing user_roles: {:?}", e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        if role_ids.is_empty() {
+            return Ok(());
         }
-
-        // Insert new user roles if any
-        if !role_ids.is_empty() {
-            // Validate all role IDs exist
-            let valid_roles = match sqlx::query_as::<_, (i64,)>(
-                "SELECT id FROM roles WHERE id = ANY($1) AND deleted_at IS NULL AND status = 1",
-            )
-            .bind(role_ids)
-            .fetch_all(&mut *tx)
-            .await
-            {
-                Ok(roles) => roles,
-                Err(e) => {
-                    tracing::error!(
-                        "Database error validating role IDs for user {}: {:?}",
-                        user_id,
-                        e
-                    );
-                    let _ = tx.rollback().await;
-                    return Err(ServiceError::DatabaseQueryFailed);
-                }
-            };
-
-            if valid_roles.len() != role_ids.len() {
-                tracing::error!("Invalid role IDs provided for user {}: {:?}", user_id, role_ids);
-                let _ = tx.rollback().await;
-                return Err(ServiceError::InvalidRoleId);
+        let now = Utc::now().naive_utc();
+        let mut query_builder =
+            String::from("INSERT INTO user_roles (user_id, role_id, created_at) VALUES ");
+        for (i, role_id) in role_ids.iter().enumerate() {
+            if i > 0 {
+                query_builder.push_str(", ");
             }
-
-            // Insert user role associations
-            let mut query_builder =
-                "INSERT INTO user_roles (user_id, role_id, created_at) VALUES ".to_string();
-            let now = Utc::now().naive_utc();
-            for (i, role_id) in role_ids.iter().enumerate() {
-                if i > 0 {
-                    query_builder.push_str(", ");
-                }
-                query_builder.push_str(&format!("({}, {}, '{}')", user_id, role_id, now));
-            }
-
-            if let Err(e) = sqlx::query(&query_builder).execute(&mut *tx).await {
-                tracing::error!(
-                    "Database error inserting user roles for user {}: {:?}",
-                    user_id,
-                    e
-                );
-                let _ = tx.rollback().await;
-                return Err(ServiceError::DatabaseQueryFailed);
-            }
+            query_builder.push_str(&format!("({}, {}, '{}')", user_id, role_id, now));
         }
-
-        tx.commit().await.map_err(|e| {
-            tracing::error!(
-                "Database error committing user roles transaction for user {}: {:?}",
-                user_id,
-                e
-            );
+        sqlx::query(&query_builder).execute(&mut **tx).await.map_err(|e| {
+            tracing::error!("Database error inserting user_roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
-
         Ok(())
     }
 
