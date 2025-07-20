@@ -6,9 +6,15 @@ import type { Menu } from "System";
  * 菜单管理API服务
  */
 export const menuAPI = {
-    // 完整请求方法
-    getMenuList: (params?: Menu.QueryParams) =>
-        proTableRequest<Menu.Item>("/api/system/menus", params),
+    getMenuList: (params?: Menu.QueryParams) => {
+        return proTableRequest<Menu.Item>("/api/system/menus", params).then(
+            (res) => {
+                res.data = buildMenuTree(res.data);
+                console.log("res.data", res.data);
+                return res;
+            }
+        );
+    },
 
     getMenuById: (id: number) =>
         request.get<Menu.Item>(`/api/system/menus/${id}`),
@@ -40,3 +46,15 @@ export const menuAPI = {
         getMenuOptions: () => "/api/system/menus/options",
     },
 };
+
+function buildMenuTree(list: Menu.Item[], parentId = 0): Menu.Item[] {
+    return list
+        .filter((item) => item.parentId === parentId)
+        .map((item) => {
+            const child = buildMenuTree(list, item.id);
+            return {
+                ...item,
+                children: child.length > 0 ? child : null,
+            };
+        });
+}

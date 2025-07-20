@@ -125,6 +125,7 @@ declare module "System" {
             menuType: number;
             sortOrder: number;
             status: Status;
+            isSystem: boolean;
             createdAt: string;
             updatedAt: string;
         }
