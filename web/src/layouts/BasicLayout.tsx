@@ -54,11 +54,7 @@ const BasicLayout = () => {
                 title: userInfo?.realName || userInfo?.username,
                 render: (_props, dom) => {
                     return (
-                        <Dropdown
-                            menu={{
-                                items: userMenuItems,
-                            }}
-                        >
+                        <Dropdown menu={{ items: userMenuItems }}>
                             {dom}
                         </Dropdown>
                     );

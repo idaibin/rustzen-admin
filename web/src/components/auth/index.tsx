@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     const location = useLocation();
-    const { token, updateUserInfo, checkPermision } = useAuthStore();
+    const { token, updateUserInfo, checkMenuPermissions } = useAuthStore();
     const { data: userInfo } = useSWR<UserInfoResponse>(
         authAPI.urls.getUserInfo()
     );
@@ -26,15 +26,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     if (!token) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
-
-    const code = location.pathname.replace(/\//g, ":").slice(1);
-    const isPermision = checkPermision(code, true);
-    if (location.pathname !== "/" && !isPermision) {
-        return <Navigate to="/403" replace />;
+    if (location.pathname === "/") {
+        return children;
     }
 
-    // Render children if authenticated
-    return children;
+    const isPermission = checkMenuPermissions(location.pathname);
+
+    return isPermission ? children : <Navigate to="/403" replace />;
 };
 
 interface AuthWrapProps {
@@ -48,9 +46,9 @@ export const AuthWrap: React.FC<AuthWrapProps> = ({
     children,
     hidden = false,
 }) => {
-    const { checkPermision } = useAuthStore();
-    const isPermision = checkPermision(code, false);
-    if (isPermision && !hidden) {
+    const { checkPermissions } = useAuthStore();
+    const isPermission = checkPermissions(code);
+    if (isPermission && !hidden) {
         return children;
     }
     return null;
