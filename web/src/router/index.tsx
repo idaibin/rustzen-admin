@@ -57,24 +57,30 @@ export const router = createBrowserRouter([
 ]);
 
 export const getMenuData = (): AppRouter[] => {
-    const { checkPermision } = useAuthStore.getState();
+    const { checkMenuPermissions } = useAuthStore.getState();
 
     const getMenuList = (menuList: AppRouter[]): AppRouter[] => {
         return menuList
             .filter((item) => {
                 if (!item.path) return false;
-                const code = item.path.replace(/\//g, ":").slice(1);
-                return checkPermision(code, true);
+                if (item.children) return true;
+                return checkMenuPermissions(item.path);
             })
-            .map(
-                (item) =>
-                    ({
-                        ...item,
-                        children: item.children
-                            ? getMenuList(item.children)
-                            : undefined,
-                    } as AppRouter)
-            );
+            .map((item) => {
+                return {
+                    ...item,
+                    children: item.children
+                        ? getMenuList(item.children)
+                        : undefined,
+                } as AppRouter;
+            })
+            .filter((item) => {
+                // if none children, to hide the item
+                if (item.children?.length === 0) {
+                    return false;
+                }
+                return true;
+            });
     };
     return getMenuList(pageRoutes);
 };

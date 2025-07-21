@@ -9,7 +9,8 @@ interface AuthState {
     updateToken: (params: string) => void;
     setAuth: (params: LoginResponse) => void;
     clearAuth: () => void;
-    checkPermision: (code: string, isPage?: boolean) => boolean;
+    checkPermissions: (code: string) => boolean;
+    checkMenuPermissions: (path: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,7 +34,7 @@ export const useAuthStore = create<AuthState>()(
                     token: null,
                 });
             },
-            checkPermision: (code: string, isPage) => {
+            checkPermissions: (code: string) => {
                 const permissions = get().userInfo?.permissions || [];
                 if (permissions.length === 0) {
                     return false;
@@ -44,7 +45,7 @@ export const useAuthStore = create<AuthState>()(
                 if (permissions.includes(code)) {
                     return true;
                 }
-                // 逐级判断 system:user:list -> system:user:*, system:*
+                // system:user:* -> system:*
                 const codeArr = code.split(":");
                 for (let i = codeArr.length - 1; i > 0; i--) {
                     const prefix = codeArr.slice(0, i).join(":") + ":*";
@@ -52,16 +53,11 @@ export const useAuthStore = create<AuthState>()(
                         return true;
                     }
                 }
-
-                if (isPage) {
-                    const hasPage = permissions.some(
-                        (p) => p.endsWith(":list") && p.startsWith(code)
-                    );
-                    if (hasPage) {
-                        return true;
-                    }
-                }
                 return false;
+            },
+            checkMenuPermissions: (path: string) => {
+                const code = formatPathCode(path);
+                return get().checkPermissions(code);
             },
         }),
         {
@@ -69,3 +65,20 @@ export const useAuthStore = create<AuthState>()(
         }
     )
 );
+
+const formatPathCode = (pathname: string) => {
+    const code = pathname.replace(/\//g, ":").slice(1);
+    // create page
+    if (code.endsWith(":create")) {
+        return code;
+    }
+    // edit page, detail page
+    if (code.endsWith(":edit") || code.endsWith(":detail")) {
+        return code
+            .split(":")
+            .filter((s) => !/^\d+$/.test(s))
+            .join(":");
+    }
+    // list page
+    return `${code}:list`;
+};
