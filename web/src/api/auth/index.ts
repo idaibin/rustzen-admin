@@ -1,4 +1,4 @@
-import { request } from "../api";
+import { apiRequest } from "../request";
 import type { LoginRequest, LoginResponse, UserInfoResponse } from "Auth";
 
 /**
@@ -9,19 +9,21 @@ export const authAPI = {
      * 用户登录
      */
     login: (data: LoginRequest) =>
-        request.post<LoginResponse, LoginRequest>("/api/auth/login", data, {
-            successMessage: "Login successful",
+        apiRequest<LoginResponse, LoginRequest>({
+            url: "/api/auth/login",
+            method: "POST",
+            params: data,
         }),
 
     /**
      * 用户登出
      */
-    logout: () => request.get("/api/auth/logout"),
+    logout: () => apiRequest<void>({ url: "/api/auth/logout" }),
 
     /**
      * 获取当前用户信息
      */
-    getUserInfo: () => request.get<UserInfoResponse>("/api/auth/me"),
+    getUserInfo: () => apiRequest<UserInfoResponse>({ url: "/api/auth/me" }),
 
     /**
      * 检查用户是否已登录
@@ -47,13 +49,6 @@ export const authAPI = {
             localStorage.removeItem("userInfo");
             return null;
         }
-    },
-
-    // URL生成器（SWR使用）
-    urls: {
-        login: () => "/api/auth/login",
-        logout: () => "/api/auth/logout",
-        getUserInfo: () => "/api/auth/me",
     },
 
     // Token管理
