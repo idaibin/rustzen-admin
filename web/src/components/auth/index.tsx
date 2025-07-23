@@ -1,9 +1,8 @@
 import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { authAPI } from "@/services";
+import { authAPI } from "@/api";
 import useSWR from "swr";
-import type { UserInfoResponse } from "Auth";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -12,9 +11,7 @@ interface AuthGuardProps {
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     const location = useLocation();
     const { token, updateUserInfo, checkMenuPermissions } = useAuthStore();
-    const { data: userInfo } = useSWR<UserInfoResponse>(
-        authAPI.urls.getUserInfo()
-    );
+    const { data: userInfo } = useSWR("getUserInfo", authAPI.getUserInfo);
 
     useEffect(() => {
         if (userInfo !== undefined) {

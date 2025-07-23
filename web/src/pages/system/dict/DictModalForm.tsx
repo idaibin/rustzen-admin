@@ -5,7 +5,7 @@ import {
     ProFormTextArea,
 } from "@ant-design/pro-components";
 import type { Dict } from "System";
-import { dictAPI } from "@/services/system/dict";
+import { dictAPI } from "@/api/system/dict";
 import { Form } from "antd";
 
 interface DictModalFormProps {
@@ -48,9 +48,9 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await dictAPI.createDict(values as Dict.CreateRequest);
+                    await dictAPI.create(values as Dict.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await dictAPI.updateDict(
+                    await dictAPI.update(
                         initialValues.id,
                         values as Dict.UpdateRequest
                     );

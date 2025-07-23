@@ -5,8 +5,8 @@ import {
     ProFormSelect,
 } from "@ant-design/pro-components";
 import type { User } from "System";
-import { userAPI } from "@/services/system/user";
-import { roleAPI } from "@/services";
+import { userAPI } from "@/api/system/user";
+import { roleAPI } from "@/api";
 import { Form } from "antd";
 
 interface UserModalFormProps {
@@ -51,9 +51,9 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await userAPI.createUser(values as User.CreateRequest);
+                    await userAPI.create(values as User.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await userAPI.updateUser(
+                    await userAPI.update(
                         initialValues.id,
                         values as User.UpdateRequest
                     );
@@ -106,14 +106,14 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 name="status"
                 label="Status"
                 placeholder="Select status"
-                request={userAPI.getUserStatusOptions}
+                request={userAPI.getStatusOptions}
                 rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormSelect
                 name="roleIds"
                 label="Roles"
                 placeholder="Select roles"
-                request={roleAPI.getRoleOptions}
+                request={roleAPI.getOptions}
                 mode="multiple"
                 rules={[
                     {

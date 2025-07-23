@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
 import { Tag } from "antd";
 import type { Log } from "System";
-import { logAPI } from "@/services";
+import { logAPI } from "@/api";
 
 export default function LogPage() {
     return (
@@ -11,7 +11,7 @@ export default function LogPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle={"Operation Log"}
             columns={columns}
-            request={logAPI.getLogList}
+            request={logAPI.getTableData}
         />
     );
 }
