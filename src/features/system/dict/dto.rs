@@ -11,7 +11,7 @@ pub struct CreateAndUpdateDictDto {
     /// The actual value of the item (e.g., "1").
     pub value: String,
     /// The status of the item.
-    pub status: i16,
+    pub status: Option<i16>,
     /// The description of the item.
     pub description: Option<String>,
     /// The sort order of the item.

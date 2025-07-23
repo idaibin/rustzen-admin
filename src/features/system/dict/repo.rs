@@ -153,7 +153,7 @@ impl DictRepository {
         dict_type: &str,
         label: &str,
         value: &str,
-        status: i16,
+        status: Option<i16>,
         description: Option<&str>,
         sort_order: Option<i32>,
     ) -> Result<i64, ServiceError> {
@@ -167,9 +167,9 @@ impl DictRepository {
         .bind(dict_type)
         .bind(label)
         .bind(value)
-        .bind(status)
+        .bind(status.unwrap_or(1))
         .bind(description)
-        .bind(sort_order)
+        .bind(sort_order.unwrap_or(1))
         .bind(Utc::now().naive_utc())
         .fetch_one(pool)
         .await
@@ -193,7 +193,7 @@ impl DictRepository {
         dict_type: &str,
         label: &str,
         value: &str,
-        status: i16,
+        status: Option<i16>,
         description: Option<&str>,
         sort_order: Option<i32>,
     ) -> Result<i64, ServiceError> {
@@ -208,9 +208,9 @@ impl DictRepository {
             .bind(dict_type)
             .bind(label)
             .bind(value)
-            .bind(status)
+            .bind(status.unwrap_or(1))
             .bind(description)
-            .bind(sort_order)
+            .bind(sort_order.unwrap_or(1))
             .bind(Utc::now().naive_utc())
             .bind(id)
             .fetch_optional(pool)
