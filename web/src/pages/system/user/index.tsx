@@ -1,7 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { User } from "System";
-import { userAPI } from "@/services";
+import { userAPI } from "@/api";
 import { Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import UserModalForm from "./UserModalForm";
@@ -15,7 +15,7 @@ export default function UserPage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="User List"
             columns={columns}
-            request={userAPI.getUserList}
+            request={userAPI.getTableData}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -112,7 +112,7 @@ const columns: ProColumns<User.Item>[] = [
                             title="Are you sure you want to delete this user?"
                             placement="leftBottom"
                             onConfirm={async () => {
-                                await userAPI.deleteUser(entity.id);
+                                await userAPI.delete(entity.id);
                                 action?.reload();
                             }}
                         >
