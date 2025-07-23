@@ -1,5 +1,5 @@
 // 统一导出所有API服务
-export { request, proTableRequest, swrFetcher } from "./api";
+export { proTableRequest, swrFetcher } from "./request";
 
 // 认证模块
 export { authAPI } from "./auth";
