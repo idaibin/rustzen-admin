@@ -4,7 +4,7 @@ import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/useAuthStore";
 import type { LoginRequest } from "Auth";
-import { authAPI } from "@/services";
+import { authAPI } from "@/api";
 
 export default function LoginPage() {
     const navigate = useNavigate();

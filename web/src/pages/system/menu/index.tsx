@@ -1,7 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Menu } from "System";
-import { menuAPI } from "@/services";
+import { menuAPI } from "@/api";
 import { Space, Button, Popconfirm, Tag } from "antd";
 import React, { useRef } from "react";
 import MenuModalForm from "./MenuModalForm";
@@ -17,7 +17,7 @@ export default function MenuPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Menu Management"
             columns={columns}
-            request={menuAPI.getMenuList}
+            request={menuAPI.getTableData}
             actionRef={actionRef}
             pagination={false}
             toolBarRender={() => [
@@ -110,7 +110,7 @@ const columns: ProColumns<Menu.Item>[] = [
                         placement="leftBottom"
                         onConfirm={async () => {
                             try {
-                                await menuAPI.deleteMenu(entity.id);
+                                await menuAPI.delete(entity.id);
                                 action?.reload();
                             } catch (error) {
                                 console.error("Delete menu failed:", error);
