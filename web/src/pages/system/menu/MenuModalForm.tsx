@@ -6,7 +6,7 @@ import {
     ProFormDigit,
 } from "@ant-design/pro-components";
 import type { Menu } from "System";
-import { menuAPI } from "@/services/system/menu";
+import { menuAPI } from "@/api/system/menu";
 import { Form } from "antd";
 
 interface MenuModalFormProps {
@@ -49,11 +49,9 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await menuAPI.createMenu(
-                        values as Menu.CreateAndUpdateRequest
-                    );
+                    await menuAPI.create(values as Menu.CreateAndUpdateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await menuAPI.updateMenu(
+                    await menuAPI.update(
                         initialValues.id,
                         values as Menu.CreateAndUpdateRequest
                     );
@@ -66,7 +64,7 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
                 name="parentId"
                 label="Parent Menu"
                 placeholder="Select parent menu (optional)"
-                request={menuAPI.getMenuOptions}
+                request={menuAPI.getOptions}
                 allowClear
             />
             <ProFormText

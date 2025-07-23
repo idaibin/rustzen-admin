@@ -6,8 +6,8 @@ import {
     ProFormSelect,
 } from "@ant-design/pro-components";
 import type { Role } from "System";
-import { roleAPI } from "@/services/system/role";
-import { menuAPI } from "@/services/system/menu";
+import { roleAPI } from "@/api/system/role";
+import { menuAPI } from "@/api/system/menu";
 import { Form } from "antd";
 
 interface RoleModalFormProps {
@@ -56,9 +56,9 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await roleAPI.createRole(values as Role.CreateRequest);
+                    await roleAPI.create(values as Role.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await roleAPI.updateRole(
+                    await roleAPI.update(
                         initialValues.id,
                         values as Role.UpdateRequest
                     );
@@ -115,7 +115,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                 name="menuIds"
                 label="Permissions"
                 placeholder="Select permissions"
-                request={menuAPI.getMenuOptions}
+                request={menuAPI.getOptions}
                 mode="multiple"
                 rules={[
                     {

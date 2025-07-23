@@ -1,7 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Role } from "System";
-import { roleAPI } from "@/services";
+import { roleAPI } from "@/api";
 import { Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import RoleModalForm from "./RoleModalForm";
@@ -16,7 +16,7 @@ export default function RolePage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="Role Management"
             columns={columns}
-            request={roleAPI.getRoleList}
+            request={roleAPI.getTableData}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -126,7 +126,7 @@ const columns: ProColumns<Role.Item>[] = [
                             placement="leftBottom"
                             onConfirm={async () => {
                                 try {
-                                    await roleAPI.deleteRole(entity.id);
+                                    await roleAPI.delete(entity.id);
                                     action?.reload();
                                 } catch (error) {
                                     console.error("Delete role failed:", error);
