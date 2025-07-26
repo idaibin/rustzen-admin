@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use crate::{
     common::api::{ApiResponse, AppResult},
     core::db::{create_default_pool, test_connection},
@@ -9,6 +7,7 @@ use crate::{
     },
     middleware::{auth::auth_middleware, log::log_middleware},
 };
+
 use axum::{
     Router,
     http::{
@@ -19,6 +18,7 @@ use axum::{
     routing::get,
 };
 use serde_json::json;
+use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tracing;
 

@@ -3,7 +3,19 @@ use serde::Deserialize;
 /// Create and update role request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateAndUpdateRoleDto {
+pub struct CreateRoleDto {
+    pub name: String,
+    pub code: String,
+    pub status: i16,
+    pub menu_ids: Vec<i64>,
+    pub description: Option<String>,
+}
+
+/// Update role request parameters
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateRoleDto {
     pub name: String,
     pub code: String,
     pub status: i16,

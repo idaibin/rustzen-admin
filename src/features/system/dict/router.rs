@@ -1,11 +1,16 @@
-use super::dto::{CreateAndUpdateDictDto, DictQueryDto, UpdateDictStatusDto};
-use super::service::DictService;
-use super::vo::DictDetailVo;
-use crate::common::{
-    api::{ApiResponse, AppResult, DictOptionsQuery, OptionItem},
-    router_ext::RouterExt,
+use super::{
+    dto::{CreateDictDto, DictQueryDto, UpdateDictDto, UpdateDictStatusDto},
+    service::DictService,
+    vo::DictItemVo,
 };
-use crate::features::auth::permission::PermissionsCheck;
+use crate::{
+    common::{
+        api::{ApiResponse, AppResult, DictOptionsQuery, OptionItem},
+        router_ext::RouterExt,
+    },
+    core::permission::PermissionsCheck,
+};
+
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -57,7 +62,7 @@ pub fn dict_routes() -> Router<PgPool> {
 async fn get_dict_list(
     State(pool): State<PgPool>,
     Query(query): Query<DictQueryDto>,
-) -> AppResult<Vec<DictDetailVo>> {
+) -> AppResult<Vec<DictItemVo>> {
     tracing::info!("Dictionary list request received with params: {:?}", query);
 
     let (dict_list, total) = DictService::get_dict_list(&pool, query).await?;
@@ -70,7 +75,7 @@ async fn get_dict_list(
 /// Creates a new dictionary item.
 async fn create_dict(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateAndUpdateDictDto>,
+    Json(request): Json<CreateDictDto>,
 ) -> AppResult<i64> {
     tracing::info!("Create dictionary item: type={}, label={}", request.dict_type, request.label);
 
@@ -85,7 +90,7 @@ async fn create_dict(
 async fn update_dict(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<CreateAndUpdateDictDto>,
+    Json(request): Json<UpdateDictDto>,
 ) -> AppResult<i64> {
     tracing::info!("Update dictionary item {}: {:?}", id, request);
 
@@ -145,7 +150,7 @@ async fn get_dict_options(
 async fn get_dict_by_type(
     State(pool): State<PgPool>,
     Path(dict_type): Path<String>,
-) -> AppResult<Vec<DictDetailVo>> {
+) -> AppResult<Vec<DictItemVo>> {
     tracing::info!("Dictionary items by type request: {}", dict_type);
 
     let dicts = DictService::get_dict_by_type(&pool, &dict_type).await?;

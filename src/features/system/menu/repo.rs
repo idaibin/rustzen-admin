@@ -1,8 +1,6 @@
-// Database operations related to the `sys_menu` table go here.
-
-use super::dto::MenuQueryDto;
-use super::entity::MenuEntity;
+use super::{dto::MenuQueryDto, entity::MenuEntity};
 use crate::common::error::ServiceError;
+
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
@@ -50,24 +48,6 @@ impl MenuRepository {
         })?;
 
         Ok(menus)
-    }
-
-    /// Retrieves a menu by its ID
-    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<MenuEntity>, ServiceError> {
-        let menu = sqlx::query_as::<_, MenuEntity>(
-            "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order,
-             created_at, updated_at
-             FROM menus WHERE id = $1 AND status = 1 AND deleted_at IS NULL",
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error finding menu by ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(menu)
     }
 
     /// Creates a new menu

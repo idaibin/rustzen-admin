@@ -1,13 +1,12 @@
-// Business logic for dictionary items.
+use super::{
+    dto::{CreateDictDto, DictQueryDto, UpdateDictDto},
+    repo::DictRepository,
+    vo::DictItemVo,
+};
+use crate::common::{api::OptionItem, error::ServiceError, pagination::Pagination};
 
-use super::dto::{CreateAndUpdateDictDto, DictQueryDto};
-use super::repo::DictRepository;
-use super::vo::DictDetailVo;
-use crate::common::api::OptionItem;
-use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
-/// A service for dictionary-related operations.
 pub struct DictService;
 
 impl DictService {
@@ -15,28 +14,23 @@ impl DictService {
     pub async fn get_dict_list(
         pool: &PgPool,
         query: DictQueryDto,
-    ) -> Result<(Vec<DictDetailVo>, i64), ServiceError> {
+    ) -> Result<(Vec<DictItemVo>, i64), ServiceError> {
         tracing::info!("Starting to retrieve dictionary list with query: {:?}", query);
 
-        let page = query.current.unwrap_or(1);
-        let limit = query.page_size.unwrap_or(10);
-        let offset = (page - 1) * limit;
+        let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
 
         // Get filtered items or all items
         let (dicts, total) =
             DictRepository::find_with_pagination(pool, offset, limit, query).await?;
 
-        let dict_vos: Vec<DictDetailVo> = dicts.into_iter().map(DictDetailVo::from).collect();
+        let dict_vos: Vec<DictItemVo> = dicts.into_iter().map(DictItemVo::from).collect();
 
         tracing::info!("Successfully retrieved {} dictionary items", dict_vos.len());
         Ok((dict_vos, total))
     }
 
     /// Creates a new dictionary item with validation
-    pub async fn create_dict(
-        pool: &PgPool,
-        request: CreateAndUpdateDictDto,
-    ) -> Result<i64, ServiceError> {
+    pub async fn create_dict(pool: &PgPool, request: CreateDictDto) -> Result<i64, ServiceError> {
         tracing::info!(
             "Creating dictionary item: type={}, key={}",
             request.dict_type,
@@ -65,7 +59,7 @@ impl DictService {
     pub async fn update_dict(
         pool: &PgPool,
         id: i64,
-        request: CreateAndUpdateDictDto,
+        request: UpdateDictDto,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Updating dictionary item: {}", id);
 
@@ -141,12 +135,12 @@ impl DictService {
     pub async fn get_dict_by_type(
         pool: &PgPool,
         dict_type: &str,
-    ) -> Result<Vec<DictDetailVo>, ServiceError> {
+    ) -> Result<Vec<DictItemVo>, ServiceError> {
         tracing::info!("Retrieving dictionary items by type: {}", dict_type);
 
         let dicts = DictRepository::find_by_type(pool, dict_type).await?;
 
-        let dict_vos: Vec<DictDetailVo> = dicts.into_iter().map(DictDetailVo::from).collect();
+        let dict_vos: Vec<DictItemVo> = dicts.into_iter().map(DictItemVo::from).collect();
         tracing::info!(
             "Successfully retrieved {} dictionary items for type {}",
             dict_vos.len(),

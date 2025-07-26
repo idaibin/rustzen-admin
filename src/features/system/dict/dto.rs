@@ -3,7 +3,7 @@ use serde::Deserialize;
 /// Create dictionary item request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateAndUpdateDictDto {
+pub struct CreateDictDto {
     /// The type of the dictionary, used to group related items (e.g., "user_status").
     pub dict_type: String,
     /// The display text for the item (e.g., "Active").
@@ -18,6 +18,17 @@ pub struct CreateAndUpdateDictDto {
     pub sort_order: Option<i32>,
 }
 
+/// Update dictionary item request parameters
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateDictDto {
+    pub dict_type: String,
+    pub label: String,
+    pub value: String,
+    pub status: Option<i16>,
+    pub description: Option<String>,
+    pub sort_order: Option<i32>,
+}
 /// Dictionary query parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

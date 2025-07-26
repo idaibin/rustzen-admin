@@ -1,7 +1,6 @@
-//! The `auth` feature module for handling user authentication.
-pub mod extractor;
-pub mod model;
-pub mod permission;
+pub mod dto;
+pub mod entity;
 pub mod repo;
 pub mod router;
 pub mod service;
+pub mod vo;
