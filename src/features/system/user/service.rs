@@ -1,10 +1,13 @@
 use super::{
     dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
     repo::UserRepository,
-    vo::{UserListVo, UserOptionVo},
+    vo::{UserItemVo, UserOptionVo},
 };
-use crate::common::error::ServiceError;
-use crate::core::password::PasswordUtils;
+use crate::{
+    common::{error::ServiceError, pagination::Pagination},
+    core::password::PasswordUtils,
+};
+
 use sqlx::PgPool;
 
 /// User service for business operations
@@ -15,18 +18,16 @@ impl UserService {
     pub async fn get_user_list(
         pool: &PgPool,
         query: UserQueryDto,
-    ) -> Result<(Vec<UserListVo>, i64), ServiceError> {
-        let page = query.current.unwrap_or(1);
-        let limit = query.page_size.unwrap_or(10);
-        let offset = (page - 1) * limit;
+    ) -> Result<(Vec<UserItemVo>, i64), ServiceError> {
+        tracing::info!("Fetching user list with query: {:?}", query);
 
-        tracing::debug!("Getting user list: page={}, size={}", page, limit);
+        let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
 
         let (users, total) =
             UserRepository::find_with_pagination(pool, offset, limit, query).await?;
 
         tracing::info!("Users: {:?}", users);
-        let list = users.into_iter().map(UserListVo::from).collect();
+        let list = users.into_iter().map(UserItemVo::from).collect();
 
         Ok((list, total))
     }

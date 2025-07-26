@@ -1,9 +1,16 @@
-use super::dto::{CreateAndUpdateMenuDto, MenuQueryDto};
-use super::service::MenuService;
-use super::vo::MenuDetailVo;
-use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
-use crate::common::router_ext::RouterExt;
-use crate::features::auth::permission::PermissionsCheck;
+use super::{
+    dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto},
+    service::MenuService,
+    vo::MenuItemVo,
+};
+use crate::{
+    common::{
+        api::{ApiResponse, AppResult, OptionsQuery},
+        router_ext::RouterExt,
+    },
+    core::permission::PermissionsCheck,
+};
+
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -25,16 +32,6 @@ pub fn menu_routes() -> Router<PgPool> {
             PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:create"]),
         )
         .route_with_permission(
-            "/options",
-            get(get_menu_options),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:options"]),
-        )
-        .route_with_permission(
-            "/{id}",
-            get(get_menu_by_id),
-            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:get"]),
-        )
-        .route_with_permission(
             "/{id}",
             put(update_menu),
             PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:update"]),
@@ -44,14 +41,20 @@ pub fn menu_routes() -> Router<PgPool> {
             delete(delete_menu),
             PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:delete"]),
         )
+        .route_with_permission(
+            "/options",
+            get(get_menu_options),
+            PermissionsCheck::Any(vec!["system:*", "system:menu:*", "system:menu:options"]),
+        )
 }
 
 /// Get menu list with optional filtering
 /// Query params: title, status
+/// Need show all menu, not pagination
 async fn get_menu_list(
     State(pool): State<PgPool>,
     Query(params): Query<MenuQueryDto>,
-) -> AppResult<Vec<MenuDetailVo>> {
+) -> AppResult<Vec<MenuItemVo>> {
     tracing::info!("Menu list request: {:?}", params);
 
     let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
@@ -61,20 +64,11 @@ async fn get_menu_list(
     Ok(ApiResponse::page(menu_list, total))
 }
 
-/// Get menu by ID
-async fn get_menu_by_id(
-    State(pool): State<PgPool>,
-    Path(id): Path<i64>,
-) -> AppResult<MenuDetailVo> {
-    let response = MenuService::get_menu_by_id(&pool, id).await?;
-    Ok(ApiResponse::success(response))
-}
-
 /// Create new menu
 /// Body: name, path, parent_id, icon, sort_order, status
 async fn create_menu(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateAndUpdateMenuDto>,
+    Json(request): Json<CreateMenuDto>,
 ) -> AppResult<i64> {
     let menu_id = MenuService::create_menu(&pool, request).await?;
     Ok(ApiResponse::success(menu_id))
@@ -85,7 +79,7 @@ async fn create_menu(
 async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<CreateAndUpdateMenuDto>,
+    Json(request): Json<UpdateMenuDto>,
 ) -> AppResult<i64> {
     let menu_id = MenuService::update_menu(&pool, id, request).await?;
     Ok(ApiResponse::success(menu_id))

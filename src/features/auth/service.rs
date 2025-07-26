@@ -1,16 +1,18 @@
 use super::{
-    model::{LoginCredentialsEntity, LoginRequest, LoginResponse, UserInfoVo},
-    permission::PermissionService,
+    dto::LoginRequest,
+    entity::{LoginCredentialsEntity, UserStatus},
     repo::AuthRepository,
+    vo::{LoginVo, UserInfoVo},
 };
 use crate::{
     common::error::ServiceError,
     core::{
         jwt::{self},
         password::PasswordUtils,
+        permission::PermissionService,
     },
-    features::auth::model::UserStatus,
 };
+
 use sqlx::PgPool;
 use tracing;
 
@@ -19,10 +21,7 @@ pub struct AuthService;
 
 impl AuthService {
     /// Login with username/password
-    pub async fn login(
-        pool: &PgPool,
-        request: LoginRequest,
-    ) -> Result<LoginResponse, ServiceError> {
+    pub async fn login(pool: &PgPool, request: LoginRequest) -> Result<LoginVo, ServiceError> {
         let start = std::time::Instant::now();
         tracing::info!("Login attempt received for username: {}", request.username);
 
@@ -77,7 +76,7 @@ impl AuthService {
             total_time
         );
 
-        Ok(LoginResponse { token, username: request.username, user_id: user.id })
+        Ok(LoginVo { token, username: request.username, user_id: user.id })
     }
 
     /// Get detailed user info with roles, menus, and permissions

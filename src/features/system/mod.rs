@@ -1,11 +1,11 @@
-use axum::Router;
-use sqlx::PgPool;
-
 pub mod dict;
 pub mod log;
 pub mod menu;
 pub mod role;
 pub mod user;
+
+use axum::Router;
+use sqlx::PgPool;
 
 use dict::router::dict_routes;
 use log::router::log_routes;

@@ -1,14 +1,13 @@
+use super::entity::UserWithRolesEntity;
+use crate::common::api::OptionItem;
+
 use chrono::NaiveDateTime;
 use serde::Serialize;
 
-use crate::common::api::OptionItem;
-
-use super::entity::UserWithRolesEntity;
-
-/// User list item
+/// User item for list display
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserListVo {
+pub struct UserItemVo {
     pub id: i64,
     pub username: String,
     pub email: String,
@@ -24,7 +23,7 @@ pub struct UserListVo {
 /// User option
 pub type UserOptionVo = OptionItem<i64>;
 
-impl From<UserWithRolesEntity> for UserListVo {
+impl From<UserWithRolesEntity> for UserItemVo {
     fn from(user: UserWithRolesEntity) -> Self {
         Self {
             id: user.id,
