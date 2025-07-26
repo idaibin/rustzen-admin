@@ -1,13 +1,13 @@
-use axum::{Router, extract::Request, middleware::Next, response::Response, routing::MethodRouter};
-use sqlx::PgPool;
-
 use crate::{
     common::error::{AppError, ServiceError},
-    features::auth::{
+    core::{
         extractor::CurrentUser,
         permission::{PermissionService, PermissionsCheck},
     },
 };
+
+use axum::{Router, extract::Request, middleware::Next, response::Response, routing::MethodRouter};
+use sqlx::PgPool;
 
 /// Router extension for permission-based routing
 pub trait RouterExt<S> {

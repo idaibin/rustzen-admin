@@ -1,14 +1,16 @@
-// Role business logic
+use super::{
+    dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto},
+    repo::RoleRepository,
+    vo::RoleItemVo,
+};
+use crate::common::{
+    api::{OptionItem, OptionsQuery},
+    error::ServiceError,
+    pagination::Pagination,
+};
 
-use super::dto::{CreateAndUpdateRoleDto, RoleQueryDto};
-use super::entity::RoleWithMenuEntity;
-use super::repo::RoleRepository;
-use super::vo::RoleDetailVo;
-use crate::common::api::{OptionItem, OptionsQuery};
-use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
-/// Role service for business operations
 pub struct RoleService;
 
 impl RoleService {
@@ -16,26 +18,21 @@ impl RoleService {
     pub async fn get_role_list(
         pool: &PgPool,
         query: RoleQueryDto,
-    ) -> Result<(Vec<RoleDetailVo>, i64), ServiceError> {
-        let page = query.current.unwrap_or(1).max(1);
-        let limit = query.page_size.unwrap_or(10).min(100).max(1);
-        let offset = (page - 1) * limit;
+    ) -> Result<(Vec<RoleItemVo>, i64), ServiceError> {
+        tracing::info!("Fetching role list with query: {:?}", query);
 
-        tracing::info!("Retrieving role list: page={}, size={}", page, limit,);
+        let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
 
         let (roles, total) =
             RoleRepository::find_with_pagination(pool, offset, limit, query).await?;
 
-        let list = roles.into_iter().map(|u| Self::to_role_list_vo(u)).collect();
+        let list = roles.into_iter().map(RoleItemVo::from).collect();
 
         Ok((list, total))
     }
 
     /// Create new role with validation
-    pub async fn create_role(
-        pool: &PgPool,
-        request: CreateAndUpdateRoleDto,
-    ) -> Result<(), ServiceError> {
+    pub async fn create_role(pool: &PgPool, request: CreateRoleDto) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
 
         let id: i64 = RoleRepository::create(
@@ -56,7 +53,7 @@ impl RoleService {
     pub async fn update_role(
         pool: &PgPool,
         id: i64,
-        request: CreateAndUpdateRoleDto,
+        request: UpdateRoleDto,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
 
@@ -115,19 +112,5 @@ impl RoleService {
 
         tracing::info!("Retrieved {} role options", options.len());
         Ok(options)
-    }
-
-    /// Convert RoleWithMenuEntity to RoleDetailVo
-    fn to_role_list_vo(role: RoleWithMenuEntity) -> RoleDetailVo {
-        RoleDetailVo {
-            id: role.id,
-            name: role.name,
-            code: role.code,
-            description: role.description,
-            status: role.status,
-            menus: serde_json::from_value::<Vec<OptionItem<i64>>>(role.menus).unwrap_or_default(),
-            created_at: role.created_at,
-            updated_at: role.updated_at,
-        }
     }
 }

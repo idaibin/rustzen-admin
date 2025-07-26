@@ -1,10 +1,6 @@
-// Business logic for system logs.
+use super::{dto::LogQueryDto, repo::LogRepository, vo::LogItemVo};
+use crate::common::{error::ServiceError, pagination::Pagination};
 
-use super::{
-    model::{LogListVo, LogQueryDto},
-    repo::LogRepository,
-};
-use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
 /// A service for log-related operations
@@ -15,13 +11,11 @@ impl LogService {
     pub async fn get_log_list(
         pool: &PgPool,
         query: LogQueryDto,
-    ) -> Result<(Vec<LogListVo>, i64), ServiceError> {
-        let current = query.current.unwrap_or(1);
-        let limit = query.page_size.unwrap_or(10);
-        let offset = (current - 1) * limit;
+    ) -> Result<(Vec<LogItemVo>, i64), ServiceError> {
+        let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
 
         let (logs, total) = LogRepository::find_with_pagination(pool, offset, limit, query).await?;
-        let list: Vec<LogListVo> = logs.into_iter().map(LogListVo::from).collect();
+        let list: Vec<LogItemVo> = logs.into_iter().map(LogItemVo::from).collect();
 
         Ok((list, total))
     }

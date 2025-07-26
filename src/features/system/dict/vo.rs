@@ -1,12 +1,12 @@
+use super::entity::DictEntity;
+
 use chrono::NaiveDateTime;
 use serde::Serialize;
 
-use super::entity::DictEntity;
-
-/// Dictionary item detail information
+/// Dictionary item for list display
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DictDetailVo {
+pub struct DictItemVo {
     pub id: i64,
     /// The type of the dictionary, used to group related items (e.g., "user_status").
     pub dict_type: String,
@@ -24,7 +24,7 @@ pub struct DictDetailVo {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<DictEntity> for DictDetailVo {
+impl From<DictEntity> for DictItemVo {
     fn from(entity: DictEntity) -> Self {
         Self {
             id: entity.id,

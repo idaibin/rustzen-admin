@@ -1,5 +1,6 @@
 use super::{dto::DictQueryDto, entity::DictEntity};
 use crate::common::error::ServiceError;
+
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
@@ -206,7 +207,7 @@ impl DictRepository {
              RETURNING id",
         )
             .bind(dict_type)
-            .bind(label)
+                .bind(label)
             .bind(value)
             .bind(status.unwrap_or(1))
             .bind(description)

@@ -1,8 +1,9 @@
 use crate::{
     common::error::{AppError, ServiceError},
+    core::extractor::CurrentUser,
     core::jwt,
-    features::auth::extractor::CurrentUser,
 };
+
 use axum::{
     extract::{Request, State},
     http::header,

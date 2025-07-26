@@ -1,13 +1,15 @@
-// Menu business logic
+use super::{
+    dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto},
+    repo::MenuRepository,
+    vo::MenuItemVo,
+};
+use crate::common::{
+    api::{OptionItem, OptionsQuery},
+    error::ServiceError,
+};
 
-use super::dto::{CreateAndUpdateMenuDto, MenuQueryDto};
-use super::repo::MenuRepository;
-use super::vo::MenuDetailVo;
-use crate::common::api::{OptionItem, OptionsQuery};
-use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
-/// Menu service for business operations
 pub struct MenuService;
 
 impl MenuService {
@@ -15,33 +17,19 @@ impl MenuService {
     pub async fn get_menu_list(
         pool: &PgPool,
         query: MenuQueryDto,
-    ) -> Result<(Vec<MenuDetailVo>, i64), ServiceError> {
+    ) -> Result<(Vec<MenuItemVo>, i64), ServiceError> {
         tracing::info!("Fetching menu list with query: {:?}", query);
+
         let menus = MenuRepository::find_all(pool, query).await?;
 
-        let menu_responses: Vec<MenuDetailVo> = menus.into_iter().map(MenuDetailVo::from).collect();
+        let menu_responses: Vec<MenuItemVo> = menus.into_iter().map(MenuItemVo::from).collect();
         let count = menu_responses.len() as i64;
 
         Ok((menu_responses, count))
     }
 
-    /// Get single menu by ID
-    pub async fn get_menu_by_id(pool: &PgPool, id: i64) -> Result<MenuDetailVo, ServiceError> {
-        tracing::info!("Fetching menu by ID: {}", id);
-
-        let menu = MenuRepository::find_by_id(pool, id).await?;
-
-        match menu {
-            Some(menu) => Ok(MenuDetailVo::from(menu)),
-            None => Err(ServiceError::NotFound("Menu".to_string())),
-        }
-    }
-
     /// Create new menu with validation
-    pub async fn create_menu(
-        pool: &PgPool,
-        request: CreateAndUpdateMenuDto,
-    ) -> Result<i64, ServiceError> {
+    pub async fn create_menu(pool: &PgPool, request: CreateMenuDto) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to create menu with name: {}", request.name);
 
         let menu_id = MenuRepository::create(
@@ -63,7 +51,7 @@ impl MenuService {
     pub async fn update_menu(
         pool: &PgPool,
         id: i64,
-        request: CreateAndUpdateMenuDto,
+        request: UpdateMenuDto,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
 

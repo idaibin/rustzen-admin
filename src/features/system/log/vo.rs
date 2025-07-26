@@ -1,29 +1,13 @@
 use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
-use sqlx::FromRow;
-use std::net::IpAddr;
 
-/// Log entity from database
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
-pub struct LogEntity {
-    pub id: i64,
-    pub user_id: i64,
-    pub username: String,
-    pub action: String,
-    pub description: Option<String>,
-    pub data: Option<Value>,
-    pub status: String,
-    pub duration_ms: i32,
-    pub ip_address: IpAddr,
-    pub user_agent: String,
-    pub created_at: NaiveDateTime,
-}
+use super::entity::LogEntity;
 
-/// Log response for API
+/// Log item for list display
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LogListVo {
+pub struct LogItemVo {
     pub id: i64,
     pub user_id: i64,
     pub username: String,
@@ -37,19 +21,7 @@ pub struct LogListVo {
     pub created_at: NaiveDateTime,
 }
 
-/// Log query parameters
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogQueryDto {
-    pub current: Option<i64>,
-    pub page_size: Option<i64>,
-    pub username: Option<String>,
-    pub action: Option<String>,
-    pub description: Option<String>,
-    pub ip_address: Option<String>,
-}
-
-impl From<LogEntity> for LogListVo {
+impl From<LogEntity> for LogItemVo {
     fn from(entity: LogEntity) -> Self {
         Self {
             id: entity.id,
