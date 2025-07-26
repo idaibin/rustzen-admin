@@ -1,12 +1,9 @@
-// Database operations related to the `sys_role` table go here.
-
-use super::dto::RoleQueryDto;
-use super::entity::RoleWithMenuEntity;
+use super::{dto::RoleQueryDto, entity::RoleWithMenuEntity};
 use crate::common::error::ServiceError;
+
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
-/// Role data access layer
 pub struct RoleRepository;
 
 impl RoleRepository {

@@ -1,12 +1,12 @@
+use super::entity::MenuEntity;
+
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-use super::entity::MenuEntity;
-
-/// Menu detail information
+/// Menu item for tree list display
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MenuDetailVo {
+pub struct MenuItemVo {
     pub id: i64,
     pub parent_id: i64,
     pub name: String,
@@ -17,10 +17,10 @@ pub struct MenuDetailVo {
     pub sort_order: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub children: Option<Vec<MenuDetailVo>>,
+    pub children: Option<Vec<MenuItemVo>>,
 }
 
-impl From<MenuEntity> for MenuDetailVo {
+impl From<MenuEntity> for MenuItemVo {
     fn from(entity: MenuEntity) -> Self {
         Self {
             id: entity.id,

@@ -1,11 +1,16 @@
-use super::dto::{CreateAndUpdateRoleDto, RoleQueryDto};
-use super::service::RoleService;
-use super::vo::RoleDetailVo;
-use crate::common::{
-    api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
-    router_ext::RouterExt,
+use super::{
+    dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto},
+    service::RoleService,
+    vo::RoleItemVo,
 };
-use crate::features::auth::permission::PermissionsCheck;
+use crate::{
+    common::{
+        api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
+        router_ext::RouterExt,
+    },
+    core::permission::PermissionsCheck,
+};
+
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -47,7 +52,7 @@ pub fn role_routes() -> Router<PgPool> {
 async fn get_role_list(
     State(pool): State<PgPool>,
     Query(query): Query<RoleQueryDto>,
-) -> AppResult<Vec<RoleDetailVo>> {
+) -> AppResult<Vec<RoleItemVo>> {
     tracing::info!("Role list request: query={:?}", query);
 
     let (role_list, total) = RoleService::get_role_list(&pool, query).await?;
@@ -60,7 +65,7 @@ async fn get_role_list(
 /// Create new role
 async fn create_role(
     State(pool): State<PgPool>,
-    Json(request): Json<CreateAndUpdateRoleDto>,
+    Json(request): Json<CreateRoleDto>,
 ) -> AppResult<()> {
     tracing::info!("Create role: name={}, menus={}", request.name, request.menu_ids.len());
 
@@ -75,7 +80,7 @@ async fn create_role(
 async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<CreateAndUpdateRoleDto>,
+    Json(request): Json<UpdateRoleDto>,
 ) -> AppResult<()> {
     tracing::info!("Update role {}: name={:?}, menus={:?}", id, request.name, request.menu_ids);
 

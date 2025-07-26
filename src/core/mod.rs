@@ -5,5 +5,7 @@
 
 pub mod app;
 pub mod db;
+pub mod extractor;
 pub mod jwt;
 pub mod password;
+pub mod permission;

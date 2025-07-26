@@ -1,237 +1,65 @@
-🧱 Rustzen Admin Backend Development Rules
+---
+globs: src/**/*.rs,Cargo.toml,Cargo.lock,justfile
+description: Backend Rust development guidelines and conventions
+---
 
-This specification applies to the backend modules of the rustzen-admin project, built with Rust + Axum + SQLx, aimed at improving code consistency, maintainability, testability, and collaboration efficiency, adapted for AI programming tools such as Cursor.
+# Backend Development Rules
 
-When executing any commands, please ensure you are in the backend folder. If not, use `cd backend`.
+## Project Structure
 
-⸻
+-   Main entry point: [src/main.rs](mdc:src/main.rs)
+-   Core modules in [src/core/](mdc:src/core/) (app, db, jwt, password)
+-   Features organized in [src/features/](mdc:src/features/) with auth and system modules
+-   Common utilities in [src/common/](mdc:src/common/)
+-   Middleware in [src/middleware/](mdc:src/middleware/)
 
-## Project Background & Philosophy
+## Dependency Management
 
-Rustzen follows an "extremely minimal" architecture philosophy emphasizing simplicity, clarity, and AI-friendliness. The project eliminates unnecessary complexity by using a streamlined three-layer architecture: **Router → Service → Repository**, removing traditional handler, usecase, and domain layers to reduce cognitive load and improve maintainability.
+-   **NEVER** directly modify [Cargo.toml](mdc:Cargo.toml)
+-   Always use `cargo add <dependency>` for new dependencies
+-   Obtain user confirmation before adding new dependencies
+-   Keep [Cargo.lock](mdc:Cargo.lock) in version control
 
-**Core Principles:**
+## Error Handling
 
--   **Simplicity First**: Each layer has a single, clear responsibility
--   **AI-Friendly**: Code structure optimized for AI assistance and code generation
--   **Performance Conscious**: Intelligent caching and database optimization
--   **Type Safety**: Strong typing throughout the stack with compile-time guarantees
+-   All exceptions in querying data should be handled internally at the first exception site
+-   Use proper error types and implement comprehensive error handling
+-   Follow the error handling patterns in [src/common/error.rs](mdc:src/common/error.rs)
 
-⸻
+## API Conventions
 
-📁 1. Project Structure Convention (Modular Layering)
+-   All API responses MUST use camelCase for return value fields
+-   Follow REST conventions for endpoint naming
+-   Use proper HTTP status codes
+-   Implement consistent response structures
 
-```
-src/
-├── main.rs                  // Application entry point
-├── common/                  // Common modules
-│   ├── api.rs               // Defines ApiResponse, AppResult, OptionItem, etc.
-│   └── error.rs             // Defines ServiceError, AppError, error conversion logic
-├── core/                    // Core functionality modules (JWT, password, etc.)
-│   └── jwt.rs
-├── features/                // Business modules (by feature)
-│   ├── auth/                // Authentication module
-│   └── system/              // System management module
-│       ├── mod.rs           // System module declarations
-│       ├── user/            // User management submodule
-│       │   ├── mod.rs
-│       │   ├── router.rs    // Route handlers (combined with router)
-│       │   ├── service.rs
-│       │   ├── repo.rs
-│       │   ├── entity.rs
-│       │   ├── dto.rs
-│       │   └── vo.rs
-│       ├── role/            // Role management submodule
-│       │   ├── mod.rs
-│       │   ├── router.rs
-│       │   ├── service.rs
-│       │   ├── repo.rs
-│       │   ├── entity.rs
-│       │   ├── dto.rs
-│       │   └── vo.rs
-│       └── menu/            // Menu management submodule
-│           ├── mod.rs
-│           ├── router.rs
-│           ├── service.rs
-│           ├── repo.rs
-│           ├── entity.rs
-│           ├── dto.rs
-│           └── vo.rs
-└── ...
-```
+## Code Organization
 
-<code_block_to_apply_from>
-migrations/
-├── 107000_view_user_with_roles.sql
-├── 107001_view_user_permissions.sql
-├── 108000_func_user_role.sql
-├── 108001_func_user_menu_data.sql
-├── 109000_seed_user.sql
-└── 109001_seed_menu.sql
+-   Each feature should have its own module with:
+    -   `mod.rs` - Module declaration
+    -   `entity.rs` - Database entities
+    -   `dto.rs` - Data transfer objects
+    -   `vo.rs` - Value objects
+    -   `repo.rs` - Repository layer
+    -   `service.rs` - Business logic
+    -   `router.rs` - HTTP routing
+-   Follow the pattern established in [src/features/system/user/](mdc:src/features/system/user/)
 
-````
+## Database Integration
 
-⸻
+-   Use the database connection pool from [src/core/db.rs](mdc:src/core/db.rs)
+-   Follow repository pattern for data access
+-   Use proper transaction handling where needed
 
-🧩 2. Three-Layer Architecture Responsibilities (see [Rustzen Philosophy](mdc:.cursor/rules/rustzen-philosophy.mdc))
+## Authentication & Authorization
 
-| File       | Core Responsibilities                                                                                                  | Example Link                                                    |
-| :--------- | :--------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
-| router.rs  | Route Layer: HTTP request handling, parameter extraction, calls service, returns AppResult. No business logic allowed. | [user router](mdc:backend/src/features/system/user/router.rs)   |
-| service.rs | Service Layer: Business logic, validation, orchestration, calls repo, returns Result<T, ServiceError>.                 | [user service](mdc:backend/src/features/system/user/service.rs) |
-| repo.rs    | Repository Layer: Direct DB access, first-site error handling, returns Result<T, ServiceError>.                        | [user repo](mdc:backend/src/features/system/user/repo.rs)       |
-| entity.rs  | Entity Layer: Database entity structs.                                                                                 | [user entity](mdc:backend/src/features/system/user/entity.rs)   |
-| dto.rs     | DTO Layer: API request data transfer objects.                                                                          | [user dto](mdc:backend/src/features/system/user/dto.rs)         |
-| vo.rs      | VO Layer: API response view objects.                                                                                   | [user vo](mdc:backend/src/features/system/user/vo.rs)           |
+-   JWT handling in [src/core/jwt.rs](mdc:src/core/jwt.rs)
+-   Password hashing in [src/core/password.rs](mdc:src/core/password.rs)
+-   Auth middleware in [src/middleware/auth.rs](mdc:src/middleware/auth.rs)
+-   Permission checking in [src/features/auth/permission.rs](mdc:src/features/auth/permission.rs)
 
-**Example: Route Layer**
+## Logging
 
-```rust
-pub fn user_routes() -> Router<PgPool> {
-    Router::new()
-        .route_with_permission("/", get(get_user_list), PermissionsCheck::Any(vec!["system:user:list"]))
-        // ...
-}
-
-pub async fn get_user_list(
-    State(pool): State<PgPool>,
-    current_user: CurrentUser,
-    Query(query): Query<UserQueryDto>,
-) -> AppResult<Json<ApiResponse<Vec<UserListVo>>>> {
-    let (users, total) = UserService::get_user_list(&pool, query).await?;
-    Ok(ApiResponse::page(users, total))
-}
-```
-
-**Example: Service Layer**
-
-```rust
-pub async fn get_user_list(
-    pool: &PgPool,
-    query: UserQueryDto,
-) -> Result<(Vec<UserListVo>, i64), ServiceError> {
-    let total = UserRepository::count_users(pool, query.username.as_deref(), query.status.as_deref()).await?;
-    let users = UserRepository::find_with_pagination(pool, ...).await?;
-    // ...
-    Ok((list, total))
-}
-```
-
-**Example: Repo Layer**
-
-```rust
-pub async fn find_with_pagination(
-    pool: &PgPool,
-    ...
-) -> Result<Vec<UserWithRolesEntity>, ServiceError> {
-    sqlx::query_as!(...)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("DB error: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })
-}
-```
-
-⸻
-
-🔧 3. Error Handling Mechanism
-
--   All DB errors are handled at the repo layer and converted to `ServiceError` immediately.
--   The service layer only deals with `ServiceError` and business logic.
--   The route layer uses `?` to propagate errors, which are converted to `AppError` for HTTP responses.
--   `AppError` implements `IntoResponse` and provides a unified JSON error format with code/message/data.
-
-**Example: ServiceError**
-
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum ServiceError {
-    #[error("Database query failed")] DatabaseQueryFailed,
-    #[error("Not found")] NotFound(String),
-    #[error("Username already exists")] UsernameConflict,
-    // ...
-}
-```
-
-**Example: AppError**
-
-```rust
-pub struct AppError((StatusCode, i32, String));
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, code, message) = self.0;
-        let body = Json(serde_json::json!({
-            "code": code,
-            "message": message,
-            "data": null,
-        }));
-        (status, body).into_response()
-    }
-}
-
-impl From<ServiceError> for AppError {
-    fn from(err: ServiceError) -> Self {
-        // ...
-    }
-}
-```
-
-⸻
-
-🚀 4. How to Add a New API Endpoint
-
-1. Define request struct in `dto.rs` (derive `Deserialize`)
-2. Define response struct in `vo.rs` (derive `Serialize`)
-3. Define DB entity in `entity.rs`
-4. Add repo function in `repo.rs` (return `Result<T, ServiceError>`, handle errors at source)
-5. Add business logic in `service.rs` (return `Result<T, ServiceError>`, orchestrate repo calls)
-6. Add handler in `router.rs` (return `AppResult<Json<ApiResponse<T>>>`, use `?` for error propagation)
-7. Register route in `router.rs` (use `route_with_permission` for permission control)
-
-⸻
-
-🎯 5. Naming and Style Conventions
-
-| Type            | Naming Style | Examples                            |
-| :-------------- | :----------- | :---------------------------------- |
-| File names      | `snake_case` | `user_service.rs`                   |
-| Structs         | `PascalCase` | `UserResponse`, `CreateUserRequest` |
-| Enums           | `PascalCase` | `ServiceError`                      |
-| Functions       | `snake_case` | `get_user_list()`                   |
-| Database tables | `snake_case` | `users`, `roles`                    |
-
--   **API Serialization**: All API request/response structs use `#[serde(rename_all = "camelCase")]`
-
-⸻
-
-✅ 6. Code Quality Guidelines
-
--   Never use `unwrap()` / `expect()` in business code; always use `Result` and `?`
--   Use `tracing` for logging in the service layer
--   Maintain single responsibility per layer for AI-friendliness
-
-⸻
-
-📋 7. Permission Code Conventions
-
--   Use `PermissionsCheck::Any(vec![...])` for route-level permission checks
--   Example: `PermissionsCheck::Any(vec!["system:user:list"])`
--   Support for wildcard permissions (e.g., `system:*`)
-
-⸻
-
-🔗 8. Related Rule References
-
--   Project Philosophy and Architecture: [Rustzen Philosophy](mdc:.cursor/rules/rustzen-philosophy.mdc)
--   Database Migration Standards: [Zen Migrations](mdc:.cursor/rules/zen-migrations.mdc)
--   Frontend Development Standards: [Frontend Rules](mdc:.cursor/rules/frontend.mdc)
-
-This specification applies to Cursor rules/backend.mdc. Please follow these rules for development.
-
-⸻
-
-本规范适用于 Cursor rules/backend.md，请遵循以上规则进行开发。
-````
+-   Use structured logging throughout the application
+-   Log middleware in [src/middleware/log.rs](mdc:src/middleware/log.rs)
+-   Follow consistent logging patterns for debugging and monitoring

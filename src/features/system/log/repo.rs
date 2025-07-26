@@ -1,5 +1,6 @@
-use super::model::{LogEntity, LogQueryDto};
+use super::{dto::LogQueryDto, entity::LogEntity};
 use crate::common::error::ServiceError;
+
 use sqlx::{PgPool, QueryBuilder};
 
 /// Log data access layer

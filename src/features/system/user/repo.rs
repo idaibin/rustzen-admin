@@ -1,14 +1,6 @@
-// backend/src/features/system/user/repo.rs
-
-// This module implements all database operations related to the `users` table.
-//
-// Functions in this module are designed to be simple, direct database
-// interactions. All logic, such as mapping to response models, checking
-// permissions, or combining multiple operations, should be handled in the
-// service layer.
-
 use super::{dto::CreateUserDto, entity::UserWithRolesEntity};
 use crate::{common::error::ServiceError, features::system::user::dto::UserQueryDto};
+
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 

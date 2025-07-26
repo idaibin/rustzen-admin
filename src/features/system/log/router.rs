@@ -1,19 +1,18 @@
+use super::{dto::LogQueryDto, service::LogService, vo::LogItemVo};
 use crate::{
     common::{
         api::{ApiResponse, AppResult},
         router_ext::RouterExt,
     },
-    features::auth::permission::PermissionsCheck,
+    core::permission::PermissionsCheck,
 };
+
 use axum::{
     Router,
     extract::{Query, State},
     routing::get,
 };
 use sqlx::PgPool;
-
-use super::model::{LogListVo, LogQueryDto};
-use super::service::LogService;
 
 /// Defines the routes for log management
 pub fn log_routes() -> Router<PgPool> {
@@ -28,7 +27,7 @@ pub fn log_routes() -> Router<PgPool> {
 pub async fn get_log_list(
     State(pool): State<PgPool>,
     Query(query): Query<LogQueryDto>,
-) -> AppResult<Vec<LogListVo>> {
+) -> AppResult<Vec<LogItemVo>> {
     let (logs, total) = LogService::get_log_list(&pool, query).await?;
     Ok(ApiResponse::page(logs, total))
 }

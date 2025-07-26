@@ -1,5 +1,5 @@
-use crate::features::auth::extractor::CurrentUser;
-use crate::features::system::log::service::LogService;
+use crate::{core::extractor::CurrentUser, features::system::log::service::LogService};
+
 use axum::{
     extract::{Request, State},
     http::StatusCode,

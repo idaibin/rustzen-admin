@@ -1,17 +1,20 @@
-use crate::common::api::{ApiResponse, AppResult};
-use crate::common::error::ServiceError;
-use crate::common::router_ext::RouterExt;
-use crate::features::auth::extractor::CurrentUser;
-use crate::features::auth::permission::PermissionsCheck;
-use crate::features::system::user::dto::{
-    CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto,
+use super::{
+    dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
+    service::UserService,
+    vo::{UserItemVo, UserOptionVo},
 };
-use crate::features::system::user::service::UserService;
-use crate::features::system::user::vo::{UserListVo, UserOptionVo};
-use axum::Json;
-use axum::extract::{Path, Query, State};
+use crate::{
+    common::{
+        api::{ApiResponse, AppResult},
+        error::ServiceError,
+        router_ext::RouterExt,
+    },
+    core::{extractor::CurrentUser, permission::PermissionsCheck},
+};
+
 use axum::{
-    Router,
+    Json, Router,
+    extract::{Path, Query, State},
     routing::{delete, get, post, put},
 };
 use sqlx::PgPool;
@@ -58,7 +61,7 @@ pub async fn get_user_list(
     State(pool): State<PgPool>,
     current_user: CurrentUser,
     Query(query): Query<UserQueryDto>,
-) -> AppResult<Vec<UserListVo>> {
+) -> AppResult<Vec<UserItemVo>> {
     tracing::info!("Getting user list for user: {}", current_user.username);
 
     let (users, total) = UserService::get_user_list(&pool, query).await?;

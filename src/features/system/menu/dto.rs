@@ -3,7 +3,20 @@ use serde::Deserialize;
 /// Create menu request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateAndUpdateMenuDto {
+pub struct CreateMenuDto {
+    pub parent_id: i64,
+    pub name: String,
+    pub code: String,
+    pub menu_type: i16,
+    pub sort_order: i16,
+    pub status: i16,
+}
+
+/// Update menu request parameters
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMenuDto {
     pub parent_id: i64,
     pub name: String,
     pub code: String,

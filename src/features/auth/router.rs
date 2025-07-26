@@ -1,13 +1,15 @@
 use super::{
-    extractor::CurrentUser,
-    model::{LoginRequest, LoginResponse, UserInfoVo},
-    permission::PermissionService,
+    dto::LoginRequest,
     service::AuthService,
+    vo::{LoginVo, UserInfoVo},
 };
 use crate::{
     common::api::{ApiResponse, AppResult},
+    core::extractor::CurrentUser,
+    core::permission::PermissionService,
     features::system::log::service::LogService,
 };
+
 use axum::{
     Json, Router,
     extract::{ConnectInfo, State},
@@ -34,7 +36,7 @@ async fn login_handler(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
-) -> AppResult<LoginResponse> {
+) -> AppResult<LoginVo> {
     let start_time = Instant::now();
     tracing::info!("Login attempt from {}", addr.ip());
 
@@ -44,7 +46,6 @@ async fn login_handler(
 
     match AuthService::login(&pool, request).await {
         Ok(response) => {
-            // 登录成功日志
             if let Err(e) = LogService::log_business_operation(
                 &pool,
                 response.user_id,
@@ -65,8 +66,7 @@ async fn login_handler(
             Ok(ApiResponse::success(response))
         }
         Err(err) => {
-            // 登录失败日志
-            let user_id = 0_i64; // 或 -1，或 None，看你的日志表设计
+            let user_id = 0_i64;
             if let Err(e) = LogService::log_business_operation(
                 &pool,
                 user_id,
@@ -84,7 +84,6 @@ async fn login_handler(
                 tracing::error!("Failed to log failed login operation: {:?}", e);
             }
             tracing::error!("Login failed for user: {}", username);
-            // 关键：抛出原始错误
             Err(err.into())
         }
     }
