@@ -2,10 +2,12 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { User } from "System";
 import { userAPI } from "@/api";
-import { Space, Button, Popconfirm } from "antd";
+import { Space, Button, Dropdown } from "antd";
 import React, { useRef } from "react";
 import UserModalForm from "./UserModalForm";
-import { AuthWrap } from "@/components/auth";
+import { AuthConfirm, AuthWrap } from "@/components/auth";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { MoreButton } from "@/components/button";
 
 export default function UserPage() {
     const actionRef = useRef<ActionType>(null);
@@ -91,9 +93,11 @@ const columns: ProColumns<User.Item>[] = [
             _index,
             action?: ActionType
         ) => {
-            if (entity.id === 1) {
+            const cur = useAuthStore.getState().userInfo;
+            if (entity.id === cur?.id || entity.id === 1) {
                 return null;
             }
+            const status = entity.status === 1 ? "Disable" : "Enable";
             return (
                 <Space size="middle">
                     <AuthWrap code="system:user:edit">
@@ -107,18 +111,45 @@ const columns: ProColumns<User.Item>[] = [
                             <a>Edit</a>
                         </UserModalForm>
                     </AuthWrap>
-                    <AuthWrap code="system:user:delete">
-                        <Popconfirm
+                    <MoreButton>
+                        <AuthConfirm
+                            key="status"
+                            code="system:user:status"
+                            title={`Are you sure you want to ${status} this user?`}
+                            children={status}
+                            onConfirm={async () => {
+                                await userAPI.updateStatus(
+                                    entity.id,
+                                    entity.status === 1 ? 2 : 1
+                                );
+                                action?.reload();
+                            }}
+                        />
+                        <AuthConfirm
+                            key="password"
+                            code="system:user:password"
+                            title="Are you sure you want to reset the password of this user?"
+                            children="Reset Password"
+                            onConfirm={async () => {
+                                await userAPI.resetPassword(
+                                    entity.id,
+                                    `${entity.username}@123456`
+                                );
+                                action?.reload();
+                            }}
+                        />
+                        <AuthConfirm
+                            key="delete"
+                            code="system:user:delete"
                             title="Are you sure you want to delete this user?"
-                            placement="leftBottom"
+                            className="text-red-500"
+                            children={"Delete User"}
                             onConfirm={async () => {
                                 await userAPI.delete(entity.id);
                                 action?.reload();
                             }}
-                        >
-                            <a style={{ color: "#ff4d4f" }}>Delete</a>
-                        </Popconfirm>
-                    </AuthWrap>
+                        />
+                    </MoreButton>
                 </Space>
             );
         },

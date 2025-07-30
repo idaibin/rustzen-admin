@@ -1,3 +1,4 @@
+import { messageApi } from "@/main";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { ApiResponse, BaseParams, PageResponse } from "Api";
 import { message } from "antd";
@@ -55,15 +56,17 @@ const handleError = async (error: unknown) => {
                     }
                 });
             }
-            message.error(res.message || error.statusText);
+            messageApi.error(res.message || error.statusText);
         } catch {
-            message.error(error.statusText);
+            messageApi.error(error.statusText);
         }
     } else if (error instanceof DOMException && error.name === "AbortError") {
         console.log("abort controller do nothing");
         // abort controller do nothing
     } else {
-        message.error(error instanceof Error ? error.message : "Network error");
+        messageApi.error(
+            error instanceof Error ? error.message : "Network error"
+        );
     }
     throw error;
 };

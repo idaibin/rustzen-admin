@@ -29,6 +29,20 @@ export const userAPI = {
     delete: (id: number) =>
         apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
 
+    updateStatus: (id: number, status: number) =>
+        apiRequest<void>({
+            url: `/api/system/users/${id}/status`,
+            method: "PUT",
+            params: { status },
+        }),
+
+    resetPassword: (id: number, password: string) =>
+        apiRequest<void>({
+            url: `/api/system/users/${id}/reset-password`,
+            method: "PUT",
+            params: { password },
+        }),
+
     getStatusOptions: () =>
         apiRequest<OptionItem[]>({ url: "/api/system/users/status-options" }),
 };

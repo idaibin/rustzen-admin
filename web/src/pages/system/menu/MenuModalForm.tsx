@@ -23,7 +23,6 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
     onSuccess,
 }) => {
     const [form] = Form.useForm();
-    const isRequired = mode === "create";
 
     return (
         <ModalForm<Menu.CreateAndUpdateRequest>
@@ -65,40 +64,37 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
                 label="Parent Menu"
                 placeholder="Select parent menu (optional)"
                 request={menuAPI.getOptions}
-                allowClear
-            />
-            <ProFormText
-                name="title"
-                label="Menu Title"
-                placeholder="Enter menu title"
+                fieldProps={{
+                    // showSearch: true,
+                    optionFilterProp: "label",
+                }}
                 rules={[
-                    {
-                        required: isRequired,
-                        message: "Please enter menu title",
-                    },
+                    { required: true, message: "Please select parent menu" },
                 ]}
             />
             <ProFormText
-                name="path"
-                label="Menu Path"
-                placeholder="Enter menu path (e.g., /system/menu)"
+                name="name"
+                label="Menu Name"
+                placeholder="Enter menu name"
+                rules={[{ required: true, message: "Please enter menu name" }]}
             />
             <ProFormText
-                name="component"
-                label="Component"
-                placeholder="Enter component path (e.g., @/pages/system/menu)"
+                name="code"
+                label="Permission Code"
+                placeholder="Enter permission code (e.g., system:menu:list)"
+                rules={[
+                    { required: true, message: "Please enter permission code" },
+                ]}
             />
-            <ProFormText
-                name="icon"
-                label="Icon"
-                placeholder="Enter icon name (e.g., MenuOutlined)"
-            />
-            <ProFormDigit
-                name="sortOrder"
-                label="Sort Order"
-                placeholder="Enter sort order"
-                min={0}
-                fieldProps={{ precision: 0 }}
+            <ProFormSelect
+                label="Type"
+                name="menuType"
+                options={[
+                    { label: "Directory", value: 1 },
+                    { label: "Menu", value: 2 },
+                    { label: "Button", value: 3 },
+                ]}
+                rules={[{ required: true, message: "Please select menu type" }]}
             />
             <ProFormSelect
                 name="status"
@@ -108,9 +104,14 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
                     { label: "Normal", value: 1 },
                     { label: "Disabled", value: 2 },
                 ]}
-                rules={[
-                    { required: isRequired, message: "Please select status" },
-                ]}
+                rules={[{ required: true, message: "Please select status" }]}
+            />
+            <ProFormDigit
+                name="sortOrder"
+                label="Sort Order"
+                placeholder="Enter sort order"
+                min={0}
+                fieldProps={{ precision: 0 }}
             />
         </ModalForm>
     );

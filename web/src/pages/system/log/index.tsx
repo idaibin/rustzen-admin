@@ -8,7 +8,7 @@ export default function LogPage() {
     return (
         <ProTable<Log.Item>
             rowKey="id"
-            scroll={{ y: "calc(100vh - 287px)" }}
+            scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle={"Operation Log"}
             columns={columns}
             request={logAPI.getTableData}

@@ -5,7 +5,7 @@ import { dictAPI } from "@/api";
 import { Tag, Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import DictModalForm from "./DictModalForm";
-import { AuthWrap } from "@/components/auth";
+import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export default function DictPage() {
     const actionRef = useRef<ActionType>(null);
@@ -88,25 +88,17 @@ const columns: ProColumns<Dict.Item>[] = [
                         <a>Edit</a>
                     </DictModalForm>
                 </AuthWrap>
-                <AuthWrap code="system:dict:delete">
-                    <Popconfirm
-                        title="Are you sure you want to delete this dictionary?"
-                        placement="leftBottom"
-                        onConfirm={async () => {
-                            try {
-                                await dictAPI.delete(entity.id);
-                                action?.reload();
-                            } catch (error) {
-                                console.error(
-                                    "Delete dictionary failed:",
-                                    error
-                                );
-                            }
-                        }}
-                    >
-                        <a style={{ color: "#ff4d4f" }}>Delete</a>
-                    </Popconfirm>
-                </AuthWrap>
+                <AuthPopconfirm
+                    code="system:dict:delete"
+                    title="Are you sure you want to delete this dictionary?"
+                    description="This action cannot be undone."
+                    onConfirm={async () => {
+                        await dictAPI.delete(entity.id);
+                        action?.reload();
+                    }}
+                >
+                    <span className="text-red-500 cursor-pointer">Delete</span>
+                </AuthPopconfirm>
             </Space>
         ),
     },
