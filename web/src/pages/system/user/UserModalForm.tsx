@@ -101,7 +101,6 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                     ]}
                 />
             )}
-
             <ProFormSelect
                 name="status"
                 label="Status"

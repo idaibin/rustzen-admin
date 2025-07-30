@@ -1,5 +1,8 @@
 use super::{
-    dto::{CreateUserDto, UpdateUserDto, UserOptionsDto, UserQueryDto},
+    dto::{
+        CreateUserDto, UpdateUserDto, UpdateUserPasswordDto, UpdateUserStatusDto, UserOptionsDto,
+        UserQueryDto,
+    },
     repo::UserRepository,
     vo::{UserItemVo, UserOptionVo},
 };
@@ -78,7 +81,6 @@ impl UserService {
             id,
             &request.email,
             &request.real_name,
-            request.status,
             &request.role_ids,
         )
         .await?;
@@ -124,5 +126,31 @@ impl UserService {
             options.into_iter().map(|(value, label)| UserOptionVo { label, value }).collect();
 
         Ok(user_options)
+    }
+
+    pub async fn update_user_password(
+        pool: &PgPool,
+        id: i64,
+        dto: UpdateUserPasswordDto,
+    ) -> Result<bool, ServiceError> {
+        tracing::debug!("Updating user password for user ID: {}", id);
+
+        let password_hash = PasswordUtils::hash_password(&dto.password)?;
+
+        let result = UserRepository::update_user_password(pool, id, &password_hash).await?;
+
+        Ok(result)
+    }
+
+    pub async fn update_user_status(
+        pool: &PgPool,
+        id: i64,
+        dto: UpdateUserStatusDto,
+    ) -> Result<bool, ServiceError> {
+        tracing::debug!("Updating user status for user ID: {}", id);
+
+        let result = UserRepository::update_user_status(pool, id, dto.status).await?;
+
+        Ok(result)
     }
 }

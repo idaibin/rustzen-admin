@@ -97,8 +97,7 @@ impl MenuRepository {
                 "UPDATE menus
                  SET parent_id = $2, name = $3, code = $4, menu_type = $5, sort_order = $6, status = $7, updated_at = $8
                  WHERE id = $1 AND deleted_at IS NULL
-                 RETURNING id, parent_id, name, code, menu_type, sort_order, status,
-                 created_at, updated_at",
+                 RETURNING id",
             )
             .bind(id)
             .bind(parent_id)

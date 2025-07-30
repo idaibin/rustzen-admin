@@ -21,8 +21,6 @@ pub struct CreateUserDto {
 pub struct UpdateUserDto {
     pub email: String,
     pub real_name: String,
-    /// User status: 1 (normal) or 2 (disabled).
-    pub status: i16,
     /// A list of role IDs to assign to the user. If provided, replaces all existing roles.
     pub role_ids: Vec<i64>,
 }
@@ -55,4 +53,14 @@ pub struct UserOptionsDto {
     pub limit: Option<i64>,
     /// Filter by user status
     pub status: Option<i16>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUserPasswordDto {
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUserStatusDto {
+    pub status: i16,
 }
