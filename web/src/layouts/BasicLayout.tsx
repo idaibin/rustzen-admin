@@ -1,6 +1,6 @@
 import { ProLayout } from "@ant-design/pro-components";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Dropdown, message } from "antd";
+import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { UserOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useAuthStore } from "../stores/useAuthStore";

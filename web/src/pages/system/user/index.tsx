@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { User } from "System";
 import { userAPI } from "@/api";
-import { Space, Button, Dropdown } from "antd";
+import { Space, Button } from "antd";
 import React, { useRef } from "react";
 import UserModalForm from "./UserModalForm";
 import { AuthConfirm, AuthWrap } from "@/components/auth";

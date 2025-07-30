@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Dict } from "System";
 import { dictAPI } from "@/api";
-import { Tag, Space, Button, Popconfirm } from "antd";
+import { Tag, Space, Button } from "antd";
 import React, { useRef } from "react";
 import DictModalForm from "./DictModalForm";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";

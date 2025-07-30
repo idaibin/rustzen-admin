@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Menu } from "System";
 import { menuAPI } from "@/api";
-import { Space, Button, Popconfirm, Tag } from "antd";
+import { Space, Button, Tag } from "antd";
 import React, { useRef } from "react";
 import MenuModalForm from "./MenuModalForm";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";

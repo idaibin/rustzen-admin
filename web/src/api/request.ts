@@ -1,7 +1,6 @@
 import { messageApi } from "@/main";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { ApiResponse, BaseParams, PageResponse } from "Api";
-import { message } from "antd";
 
 const requestPool = new Set<AbortController>();
 
