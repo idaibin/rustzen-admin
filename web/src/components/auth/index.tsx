@@ -3,10 +3,16 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authAPI } from "@/api";
 import useSWR from "swr";
+import { Popconfirm } from "antd";
+import { modalApi } from "@/main";
 
 interface AuthGuardProps {
     children: React.ReactNode;
 }
+
+export const checkAuth = (code: string) => {
+    return useAuthStore.getState().checkPermissions(code);
+};
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     const location = useLocation();
@@ -43,10 +49,63 @@ export const AuthWrap: React.FC<AuthWrapProps> = ({
     children,
     hidden = false,
 }) => {
-    const { checkPermissions } = useAuthStore();
-    const isPermission = checkPermissions(code);
+    const isPermission = checkAuth(code);
     if (isPermission && !hidden) {
         return children;
     }
     return null;
+};
+
+interface AuthPopconfirmProps extends AuthWrapProps {
+    title: React.ReactNode;
+    description?: React.ReactNode;
+    onConfirm: () => Promise<void>;
+    onCancel?: () => Promise<void>;
+}
+
+export const AuthPopconfirm: React.FC<AuthPopconfirmProps> = ({
+    code,
+    children,
+    hidden = false,
+    title,
+    description,
+    onConfirm,
+    onCancel,
+}) => {
+    return (
+        <AuthWrap code={code} hidden={hidden}>
+            <Popconfirm
+                placement="leftBottom"
+                title={title}
+                description={description}
+                onConfirm={onConfirm}
+                onCancel={onCancel}
+            >
+                {children}
+            </Popconfirm>
+        </AuthWrap>
+    );
+};
+
+interface AuthConfirmProps extends AuthPopconfirmProps {
+    className?: string;
+}
+
+export const AuthConfirm: React.FC<AuthConfirmProps> = (props) => {
+    const handleConfirm = () => {
+        modalApi.confirm({
+            title: props.title,
+            content: props.description,
+            onOk: props.onConfirm,
+            onCancel: props.onCancel,
+        });
+    };
+
+    return (
+        <AuthWrap code={props.code} hidden={props.hidden}>
+            <span onClick={handleConfirm} className={props.className}>
+                {props.children}
+            </span>
+        </AuthWrap>
+    );
 };

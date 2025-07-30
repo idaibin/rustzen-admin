@@ -36,7 +36,9 @@ export const menuAPI = {
         apiRequest<void>({ url: `/api/system/menus/${id}`, method: "DELETE" }),
 
     getOptions: () =>
-        apiRequest<OptionItem[]>({ url: "/api/system/menus/options" }),
+        apiRequest<OptionItem[]>({ url: "/api/system/menus/options" }).then(
+            (res) => [{ label: "Root", value: 0 }, ...res]
+        ),
 };
 
 function buildMenuTree(list: Menu.Item[], parentId = 0): Menu.Item[] {

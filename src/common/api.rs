@@ -1,4 +1,5 @@
 use crate::common::error::AppError;
+// use axum::response::IntoResponse;
 
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,15 @@ impl<T: Serialize> ApiResponse<Vec<T>> {
 // --- API Result Type ---
 /// A type alias for application-level results in API handlers.
 pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;
+
+// impl<T: Serialize> IntoResponse for AppResult<T> {
+//     fn into_response(self) -> axum::response::Response {
+//         match self {
+//             Ok(json_response) => json_response.into_response(),
+//             Err(error) => error.into_response(),
+//         }
+//     }
+// }
 
 /// A generic structure for dropdown options.
 #[derive(Debug, Serialize, Deserialize)]

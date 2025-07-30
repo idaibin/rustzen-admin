@@ -36,8 +36,8 @@ export default function LoginPage() {
                     autoComplete="off"
                     size="large"
                     initialValues={{
-                        username: "superadmin",
-                        password: "rustzen@123",
+                        username: "admin",
+                        password: "rustzen@2025",
                     }}
                 >
                     <Form.Item

@@ -182,7 +182,6 @@ impl UserRepository {
         id: i64,
         email: &str,
         real_name: &str,
-        status: i16,
         role_ids: &[i64],
     ) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
@@ -192,13 +191,12 @@ impl UserRepository {
 
         let user_id = sqlx::query_scalar::<_, i64>(
             "UPDATE users
-             SET email = $1, real_name = $2, status = $3
-             WHERE id = $4 AND deleted_at IS NULL
+             SET email = $1, real_name = $2
+             WHERE id = $3 AND deleted_at IS NULL
              RETURNING id",
         )
         .bind(email)
         .bind(real_name)
-        .bind(status)
         .bind(id)
         .fetch_optional(&mut *tx)
         .await
@@ -299,5 +297,41 @@ impl UserRepository {
         })?;
 
         Ok(exists)
+    }
+
+    pub async fn update_user_password(
+        pool: &PgPool,
+        id: i64,
+        password_hash: &str,
+    ) -> Result<bool, ServiceError> {
+        let result = sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
+            .bind(password_hash)
+            .bind(id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn update_user_status(
+        pool: &PgPool,
+        id: i64,
+        status: i16,
+    ) -> Result<bool, ServiceError> {
+        let result = sqlx::query("UPDATE users SET status = $1 WHERE id = $2")
+            .bind(status)
+            .bind(id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error updating user status for ID {}: {:?}", id, e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+
+        Ok(result.rows_affected() > 0)
     }
 }

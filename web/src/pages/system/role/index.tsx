@@ -5,7 +5,7 @@ import { roleAPI } from "@/api";
 import { Space, Button, Popconfirm } from "antd";
 import React, { useRef } from "react";
 import RoleModalForm from "./RoleModalForm";
-import { AuthWrap } from "@/components/auth";
+import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export default function RolePage() {
     const actionRef = useRef<ActionType>(null);
@@ -103,12 +103,10 @@ const columns: ProColumns<Role.Item>[] = [
             _index,
             action?: ActionType
         ) => {
-            if (entity.id === 1) {
-                return null;
-            }
+            const isSystemRole = entity.id === 1;
             return (
                 <Space size="middle">
-                    <AuthWrap code="system:role:edit">
+                    <AuthWrap code="system:role:edit" hidden={isSystemRole}>
                         <RoleModalForm
                             mode={"edit"}
                             initialValues={entity}
@@ -119,23 +117,20 @@ const columns: ProColumns<Role.Item>[] = [
                             <a>Edit</a>
                         </RoleModalForm>
                     </AuthWrap>
-                    <AuthWrap code="system:role:delete">
-                        <Popconfirm
-                            title="Are you sure you want to delete this role?"
-                            description="This action cannot be undone."
-                            placement="leftBottom"
-                            onConfirm={async () => {
-                                try {
-                                    await roleAPI.delete(entity.id);
-                                    action?.reload();
-                                } catch (error) {
-                                    console.error("Delete role failed:", error);
-                                }
-                            }}
-                        >
-                            <a style={{ color: "#ff4d4f" }}>Delete</a>
-                        </Popconfirm>
-                    </AuthWrap>
+                    <AuthPopconfirm
+                        hidden={isSystemRole}
+                        code="system:role:delete"
+                        title="Are you sure you want to delete this role?"
+                        description="This action cannot be undone."
+                        onConfirm={async () => {
+                            await roleAPI.delete(entity.id);
+                            action?.reload();
+                        }}
+                    >
+                        <span className="text-red-500 cursor-pointer">
+                            Delete
+                        </span>
+                    </AuthPopconfirm>
                 </Space>
             );
         },

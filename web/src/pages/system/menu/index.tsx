@@ -5,7 +5,7 @@ import { menuAPI } from "@/api";
 import { Space, Button, Popconfirm, Tag } from "antd";
 import React, { useRef } from "react";
 import MenuModalForm from "./MenuModalForm";
-import { AuthWrap } from "@/components/auth";
+import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export default function MenuPage() {
     const actionRef = useRef<ActionType>(null);
@@ -104,22 +104,18 @@ const columns: ProColumns<Menu.Item>[] = [
                         <a>Edit</a>
                     </MenuModalForm>
                 </AuthWrap>
-                <AuthWrap code="system:menu:delete" hidden={entity.isSystem}>
-                    <Popconfirm
-                        title="Are you sure you want to delete this menu?"
-                        placement="leftBottom"
-                        onConfirm={async () => {
-                            try {
-                                await menuAPI.delete(entity.id);
-                                action?.reload();
-                            } catch (error) {
-                                console.error("Delete menu failed:", error);
-                            }
-                        }}
-                    >
-                        <a style={{ color: "#ff4d4f" }}>Delete</a>
-                    </Popconfirm>
-                </AuthWrap>
+                <AuthPopconfirm
+                    code="system:menu:delete"
+                    title="Are you sure you want to delete this menu?"
+                    description="This action cannot be undone."
+                    hidden={entity.isSystem}
+                    onConfirm={async () => {
+                        await menuAPI.delete(entity.id);
+                        action?.reload();
+                    }}
+                >
+                    <span className="text-red-500 cursor-pointer">Delete</span>
+                </AuthPopconfirm>
             </Space>
         ),
     },

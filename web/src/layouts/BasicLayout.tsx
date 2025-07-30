@@ -6,6 +6,7 @@ import { UserOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useAuthStore } from "../stores/useAuthStore";
 import { authAPI } from "@/api";
 import { getMenuData } from "@/router";
+import { messageApi } from "@/main";
 
 // User dropdown menu items
 const userMenuItems: MenuProps["items"] = [
@@ -24,7 +25,7 @@ const userMenuItems: MenuProps["items"] = [
         onClick: async () => {
             await authAPI.logout();
             useAuthStore.getState().clearAuth();
-            message.success("Logout successful");
+            messageApi.success("Logout successful");
         },
     },
 ];
