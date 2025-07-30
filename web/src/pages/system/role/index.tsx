@@ -2,7 +2,7 @@ import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
 import type { Role } from "System";
 import { roleAPI } from "@/api";
-import { Space, Button, Popconfirm } from "antd";
+import { Space, Button } from "antd";
 import React, { useRef } from "react";
 import RoleModalForm from "./RoleModalForm";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
