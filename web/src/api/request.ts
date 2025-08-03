@@ -1,6 +1,6 @@
-import { messageApi } from "@/main";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { ApiResponse, BaseParams, PageResponse } from "Api";
+import { messageApi } from "@/main";
 
 const requestPool = new Set<AbortController>();
 
@@ -19,11 +19,15 @@ const defaultHeaders = {
     "Content-Type": "application/json",
 };
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions<P = BaseParams> extends RequestInit {
     /**
      * Request url
      */
     url: string;
+    /**
+     * Request params
+     */
+    params?: P;
     /**
      * Custom success message
      */
@@ -44,39 +48,41 @@ interface RequestOptions extends RequestInit {
  * Handle all errors
  */
 const handleError = async (error: unknown) => {
-    if (error instanceof Response) {
-        try {
-            const res = await error.json();
-            if (error.status === 401) {
-                useAuthStore.getState().clearAuth();
-                requestPool.forEach((controller) => {
-                    if (!controller.signal.aborted) {
-                        controller.abort();
-                    }
-                });
+    const response = error as Response;
+    const statusCode = response.status;
+    if (error instanceof DOMException && error.name === "AbortError") {
+        console.warn("Request aborted");
+    } else if (statusCode === 401) {
+        useAuthStore.getState().clearAuth();
+        requestPool.forEach((controller) => {
+            if (!controller.signal.aborted) {
+                controller.abort();
             }
-            messageApi.error(res.message || error.statusText);
-        } catch {
-            messageApi.error(error.statusText);
-        }
-    } else if (error instanceof DOMException && error.name === "AbortError") {
-        console.log("abort controller do nothing");
-        // abort controller do nothing
-    } else {
+        });
         messageApi.error(
-            error instanceof Error ? error.message : "Network error"
+            "Invalid session or session expired, please login again."
         );
+    } else if (statusCode >= 500) {
+        messageApi.error(`Server error: ${response.statusText}`);
+        return Promise.reject(new Error(response.statusText));
+    } else {
+        messageApi.error(`Request failed: ${error}`);
+        return Promise.reject(error);
     }
-    throw error;
+
+    // throw error;
+    return Promise.reject(error);
 };
 
 /**
  * Core request function with unified error and success handling
  */
-const coreRequest = async <T>({
+const coreRequest = async <T, P>({
     url,
+    silent,
+    params,
     ...options
-}: RequestOptions): Promise<ApiResponse<T>> => {
+}: RequestOptions<P>): Promise<ApiResponse<T>> => {
     const controller = new AbortController();
     requestPool.add(controller);
 
@@ -89,17 +95,21 @@ const coreRequest = async <T>({
             ...getAuthHeaders(),
         },
     };
+
+    if (["PUT", "POST"].includes(options.method || "GET")) {
+        config.body = options.body || JSON.stringify(params);
+    } else {
+        url += buildQueryString(params);
+    }
     try {
         const response = await fetch(url, config);
         if (!response.ok) {
-            throw response;
+            return handleError(response);
         }
         const result = await response.json();
-        if (result.code !== 0) {
-            if (options.silent) {
-                return Promise.reject(result);
-            }
-            throw result;
+        if (result.code !== 0 && !silent) {
+            messageApi.error(result.message);
+            return Promise.reject(result);
         }
         return result;
     } catch (error) {
@@ -109,71 +119,44 @@ const coreRequest = async <T>({
     }
 };
 
-type BaseRequestProps<T> = {
-    url: string;
-    method?: "GET" | "POST" | "PUT" | "DELETE";
-    params?: T;
-    mode?: "normal" | "proTable";
-};
-type RequestProps<T> = Omit<BaseRequestProps<T>, "mode">;
-
 /**
- * base request adapter
+ * Safe params conversion
  */
-const baseRequest = async <T, P = BaseParams>({
-    url,
-    method = "GET",
-    params,
-    mode = "normal",
-}: BaseRequestProps<P>): Promise<any> => {
-    let query = "";
-    let body = undefined;
-
-    if (["PUT", "POST"].includes(method)) {
-        body = JSON.stringify(params);
-    } else if (params) {
-        query = `?${new URLSearchParams(
-            params as Record<string, any>
-        ).toString()}`;
-    }
-
-    const res = await coreRequest<T | T[]>({
-        url: `${url}${query}`,
-        body,
-        method,
+const buildQueryString = <P>(params?: P): string => {
+    if (!params) return "";
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+            searchParams.append(key, String(value));
+        }
     });
-
-    if (mode === "proTable") {
-        // 适配 ProTable 结构
-        return {
-            data: (res.data as T[]) || [],
-            total: res.total || 0,
-            success: true,
-        };
-    }
-    // 普通结构
-    return res.data;
+    const query = searchParams.toString();
+    return query ? `?${query}` : "";
 };
 
 /**
- * SWR fetcher for GET requests
+ * SWR fetcher
  */
 export const swrFetcher = <T, P = BaseParams>(url: string, params?: P) => {
-    return baseRequest<T, P>({ url, params });
+    return coreRequest<T, P>({ url, params }).then((res) => res.data);
 };
 
 /**
  * API request adapter
  */
-export const apiRequest = <T, P = BaseParams>(props: RequestProps<P>) => {
-    return baseRequest<T, P>(props);
+export const apiRequest = <T, P = BaseParams>(props: RequestOptions<P>) => {
+    return coreRequest<T, P>(props).then((res) => res.data);
 };
 
 /**
  * ProTable request adapter
  */
-export const proTableRequest = async <T, P>(props: RequestProps<P>) => {
-    return baseRequest<T, P>({ ...props, mode: "proTable" }) as Promise<
-        PageResponse<T>
-    >;
+export const proTableRequest = <T, P = BaseParams>(
+    props: RequestOptions<P>
+): Promise<PageResponse<T>> => {
+    return coreRequest<T, P>(props).then((res) => ({
+        data: res.data as T[],
+        total: res.total || 0,
+        success: true,
+    }));
 };

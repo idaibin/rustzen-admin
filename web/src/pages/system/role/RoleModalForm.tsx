@@ -7,8 +7,10 @@ import {
 } from "@ant-design/pro-components";
 import type { Role } from "System";
 import { roleAPI } from "@/api/system/role";
-import { menuAPI } from "@/api/system/menu";
 import { Form } from "antd";
+import useSWR from "swr";
+import { MENU_OPTIONS_URL } from "@/api/constant";
+import { ENABLE_OPTIONS } from "@/api/options";
 
 interface RoleModalFormProps {
     initialValues?: Partial<Role.Item>;
@@ -17,14 +19,14 @@ interface RoleModalFormProps {
     onSuccess?: () => void;
 }
 
-const RoleModalForm: React.FC<RoleModalFormProps> = ({
+export const RoleModalForm: React.FC<RoleModalFormProps> = ({
     children,
     initialValues,
     mode = "create",
     onSuccess,
 }) => {
     const [form] = Form.useForm();
-    const isRequired = mode === "create";
+    const { data: menuOptions = [] } = useSWR(MENU_OPTIONS_URL);
 
     return (
         <ModalForm<Role.CreateRequest | Role.UpdateRequest>
@@ -72,7 +74,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                 label="Role Name"
                 placeholder="Enter role name"
                 rules={[
-                    { required: isRequired, message: "Please enter role name" },
+                    { required: true, message: "Please enter role name" },
                     {
                         min: 2,
                         max: 50,
@@ -85,7 +87,7 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                 label="Role Code"
                 placeholder="Enter role code"
                 rules={[
-                    { required: isRequired, message: "Please enter role code" },
+                    { required: true, message: "Please enter role code" },
                     {
                         min: 2,
                         max: 50,
@@ -103,23 +105,18 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
                 name="status"
                 label="Status"
                 placeholder="Select status"
-                options={[
-                    { label: "Normal", value: 1 },
-                    { label: "Disabled", value: 2 },
-                ]}
-                rules={[
-                    { required: isRequired, message: "Please select status" },
-                ]}
+                options={ENABLE_OPTIONS}
+                rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormSelect
                 name="menuIds"
                 label="Permissions"
                 placeholder="Select permissions"
-                request={menuAPI.getOptions}
+                options={[{ label: "Root", value: 0 }, ...menuOptions]}
                 mode="multiple"
                 rules={[
                     {
-                        required: isRequired,
+                        required: true,
                         message: "Please select at least one permission",
                     },
                 ]}
@@ -136,5 +133,3 @@ const RoleModalForm: React.FC<RoleModalFormProps> = ({
         </ModalForm>
     );
 };
-
-export default RoleModalForm;

@@ -4,7 +4,7 @@ import type { Role } from "System";
 import { roleAPI } from "@/api";
 import { Space, Button } from "antd";
 import React, { useRef } from "react";
-import RoleModalForm from "./RoleModalForm";
+import { RoleModalForm } from "./RoleModalForm";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export default function RolePage() {
@@ -65,7 +65,7 @@ const columns: ProColumns<Role.Item>[] = [
         valueType: "select",
         width: 120,
         valueEnum: {
-            1: { text: "Normal", status: "Success" },
+            1: { text: "Enabled", status: "Success" },
             2: { text: "Disabled", status: "Default" },
         },
     },
