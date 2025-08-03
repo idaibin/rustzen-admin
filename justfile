@@ -1,5 +1,10 @@
 # justfile - Project unified command entry
 
+# check
+check:
+    cargo check &
+    cd web && pnpm lint
+
 # Development mode: start backend + web together
 dev:
     just dev-backend &

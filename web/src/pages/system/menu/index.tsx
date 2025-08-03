@@ -4,7 +4,7 @@ import type { Menu } from "System";
 import { menuAPI } from "@/api";
 import { Space, Button, Tag } from "antd";
 import React, { useRef } from "react";
-import MenuModalForm from "./MenuModalForm";
+import { MenuModalForm } from "./MenuModalForm";
 import { AuthPopconfirm, AuthWrap } from "@/components/auth";
 
 export default function MenuPage() {

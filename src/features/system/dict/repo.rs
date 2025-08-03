@@ -1,5 +1,5 @@
 use super::{dto::DictQueryDto, entity::DictEntity};
-use crate::common::error::ServiceError;
+use crate::common::{api::OptionItem, error::ServiceError};
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
@@ -123,15 +123,13 @@ impl DictRepository {
     pub async fn find_by_type(
         pool: &PgPool,
         dict_type: &str,
-    ) -> Result<Vec<DictEntity>, ServiceError> {
+    ) -> Result<Vec<OptionItem<String>>, ServiceError> {
         tracing::debug!("Querying dictionary items with type: {}", dict_type);
 
-        let dicts = sqlx::query_as::<_, DictEntity>(
-            "SELECT id, type as dict_type, key as label, value,
-                    CASE WHEN sort_order = 0 THEN true ELSE false END as is_default
-             FROM dicts
-             WHERE type = $1 AND deleted_at IS NULL AND status = 1
-             ORDER BY sort_order ASC, key ASC",
+        let dicts = sqlx::query_as::<_, OptionItem<String>>(
+            "SELECT label, value FROM dicts
+             WHERE dict_type = $1 AND deleted_at IS NULL AND status = 1
+             ORDER BY sort_order ASC, label ASC",
         )
         .bind(dict_type)
         .fetch_all(pool)

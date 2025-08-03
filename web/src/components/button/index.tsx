@@ -1,5 +1,5 @@
 import { Dropdown, type DropdownProps } from "antd";
-import { checkAuth } from "../auth";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface MoreButtonProps {
     children: React.ReactElement[];
@@ -15,7 +15,7 @@ export const MoreButton = ({ children, ...props }: MoreButtonProps) => {
                 return false;
             }
             if (item.code) {
-                return checkAuth(item.code);
+                return useAuthStore.getState().checkPermissions(item.code);
             }
             return true;
         })

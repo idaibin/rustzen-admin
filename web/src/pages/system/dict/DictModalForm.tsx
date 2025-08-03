@@ -15,14 +15,13 @@ interface DictModalFormProps {
     onSuccess?: () => void;
 }
 
-const DictModalForm: React.FC<DictModalFormProps> = ({
+export const DictModalForm: React.FC<DictModalFormProps> = ({
     children,
     initialValues,
     mode = "create",
     onSuccess,
 }) => {
     const [form] = Form.useForm();
-    const isRequired = mode === "create";
 
     return (
         <ModalForm<Dict.CreateRequest | Dict.UpdateRequest>
@@ -65,7 +64,7 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
                 placeholder="Enter dictionary type (e.g., user_status)"
                 rules={[
                     {
-                        required: isRequired,
+                        required: true,
                         message: "Please enter dictionary type",
                     },
                     {
@@ -79,17 +78,13 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
                 name="label"
                 label="Label"
                 placeholder="Enter display label (e.g., Active)"
-                rules={[
-                    { required: isRequired, message: "Please enter label" },
-                ]}
+                rules={[{ required: true, message: "Please enter label" }]}
             />
             <ProFormText
                 name="value"
                 label="Value"
                 placeholder="Enter value (e.g., 1)"
-                rules={[
-                    { required: isRequired, message: "Please enter value" },
-                ]}
+                rules={[{ required: true, message: "Please enter value" }]}
             />
             <ProFormTextArea
                 name="description"
@@ -99,5 +94,3 @@ const DictModalForm: React.FC<DictModalFormProps> = ({
         </ModalForm>
     );
 };
-
-export default DictModalForm;

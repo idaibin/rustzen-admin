@@ -4,7 +4,7 @@ import type { User } from "System";
 import { userAPI } from "@/api";
 import { Space, Button } from "antd";
 import React, { useRef } from "react";
-import UserModalForm from "./UserModalForm";
+import { UserModalForm } from "./UserModalForm";
 import { AuthConfirm, AuthWrap } from "@/components/auth";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { MoreButton } from "@/components/button";
@@ -59,7 +59,7 @@ const columns: ProColumns<User.Item>[] = [
         title: "Status",
         dataIndex: "status",
         valueEnum: {
-            1: { text: "Normal", status: "Success" },
+            1: { text: "Enabled", status: "Success" },
             2: { text: "Disabled", status: "Default" },
         },
     },

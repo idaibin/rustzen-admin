@@ -150,7 +150,7 @@ async fn get_dict_options(
 async fn get_dict_by_type(
     State(pool): State<PgPool>,
     Path(dict_type): Path<String>,
-) -> AppResult<Vec<DictItemVo>> {
+) -> AppResult<Vec<OptionItem<String>>> {
     tracing::info!("Dictionary items by type request: {}", dict_type);
 
     let dicts = DictService::get_dict_by_type(&pool, &dict_type).await?;

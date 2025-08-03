@@ -47,7 +47,7 @@ pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;
 // }
 
 /// A generic structure for dropdown options.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct OptionItem<T> {
     pub label: String,
     pub value: T,

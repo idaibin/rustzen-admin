@@ -4,7 +4,7 @@ declare module "Api" {
     type BaseArray = BaseType[] | BaseRecord[];
     type BaseItem = BaseType | BaseArray | BaseRecord;
 
-    // 基础响应类型
+    // Base response type
     export interface ApiResponse<T> {
         code: number;
         message: string;
@@ -12,14 +12,14 @@ declare module "Api" {
         total?: number;
     }
 
-    // 分页响应类型
+    // Page response type
     export interface PageResponse<T> {
         data: T[];
         total: number;
         success: boolean;
     }
 
-    // 基础查询参数
+    // Base query params
     export interface BaseParams {
         current?: number;
         pageSize?: number;
@@ -27,7 +27,7 @@ declare module "Api" {
         [key: string]: BaseItem;
     }
 
-    // 选项类型
+    // Option type
     export interface OptionItem {
         label: string;
         value: string | number;
