@@ -6,8 +6,10 @@ import {
 } from "@ant-design/pro-components";
 import type { User } from "System";
 import { userAPI } from "@/api/system/user";
-import { roleAPI } from "@/api";
+import { ROLE_OPTIONS_URL } from "@/api/constant";
 import { Form } from "antd";
+import useSWR from "swr";
+import { ENABLE_OPTIONS } from "@/api/options";
 
 interface UserModalFormProps {
     initialValues?: Partial<User.Item>;
@@ -16,13 +18,14 @@ interface UserModalFormProps {
     onSuccess?: () => void;
 }
 
-const UserModalForm: React.FC<UserModalFormProps> = ({
+export const UserModalForm: React.FC<UserModalFormProps> = ({
     children,
     initialValues,
     mode = "create",
     onSuccess,
 }) => {
     const [form] = Form.useForm();
+    const { data: roleOptions } = useSWR(ROLE_OPTIONS_URL);
 
     return (
         <ModalForm<User.CreateRequest | User.UpdateRequest>
@@ -105,14 +108,14 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
                 name="status"
                 label="Status"
                 placeholder="Select status"
-                request={userAPI.getStatusOptions}
+                options={ENABLE_OPTIONS}
                 rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormSelect
                 name="roleIds"
                 label="Roles"
                 placeholder="Select roles"
-                request={roleAPI.getOptions}
+                options={roleOptions}
                 mode="multiple"
                 rules={[
                     {
@@ -124,5 +127,3 @@ const UserModalForm: React.FC<UserModalFormProps> = ({
         </ModalForm>
     );
 };
-
-export default UserModalForm;

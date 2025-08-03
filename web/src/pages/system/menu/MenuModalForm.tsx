@@ -8,6 +8,7 @@ import {
 import type { Menu } from "System";
 import { menuAPI } from "@/api/system/menu";
 import { Form } from "antd";
+import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/api/options";
 
 interface MenuModalFormProps {
     initialValues?: Partial<Menu.Item>;
@@ -16,7 +17,7 @@ interface MenuModalFormProps {
     onSuccess?: () => void;
 }
 
-const MenuModalForm: React.FC<MenuModalFormProps> = ({
+export const MenuModalForm: React.FC<MenuModalFormProps> = ({
     children,
     initialValues,
     mode = "create",
@@ -89,21 +90,14 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
             <ProFormSelect
                 label="Type"
                 name="menuType"
-                options={[
-                    { label: "Directory", value: 1 },
-                    { label: "Menu", value: 2 },
-                    { label: "Button", value: 3 },
-                ]}
+                options={MENU_TYPE_OPTIONS}
                 rules={[{ required: true, message: "Please select menu type" }]}
             />
             <ProFormSelect
                 name="status"
                 label="Status"
                 placeholder="Select status"
-                options={[
-                    { label: "Normal", value: 1 },
-                    { label: "Disabled", value: 2 },
-                ]}
+                options={ENABLE_OPTIONS}
                 rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormDigit
@@ -116,5 +110,3 @@ const MenuModalForm: React.FC<MenuModalFormProps> = ({
         </ModalForm>
     );
 };
-
-export default MenuModalForm;

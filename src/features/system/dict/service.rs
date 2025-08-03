@@ -135,18 +135,17 @@ impl DictService {
     pub async fn get_dict_by_type(
         pool: &PgPool,
         dict_type: &str,
-    ) -> Result<Vec<DictItemVo>, ServiceError> {
+    ) -> Result<Vec<OptionItem<String>>, ServiceError> {
         tracing::info!("Retrieving dictionary items by type: {}", dict_type);
 
         let dicts = DictRepository::find_by_type(pool, dict_type).await?;
 
-        let dict_vos: Vec<DictItemVo> = dicts.into_iter().map(DictItemVo::from).collect();
         tracing::info!(
             "Successfully retrieved {} dictionary items for type {}",
-            dict_vos.len(),
+            dicts.len(),
             dict_type
         );
-        Ok(dict_vos)
+        Ok(dicts)
     }
 
     /// Updates the status of a dictionary item

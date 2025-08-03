@@ -10,17 +10,13 @@ interface AuthGuardProps {
     children: React.ReactNode;
 }
 
-export const checkAuth = (code: string) => {
-    return useAuthStore.getState().checkPermissions(code);
-};
-
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     const location = useLocation();
     const { token, updateUserInfo, checkMenuPermissions } = useAuthStore();
     const { data: userInfo } = useSWR("getUserInfo", authAPI.getUserInfo);
 
     useEffect(() => {
-        if (userInfo !== undefined) {
+        if (userInfo) {
             updateUserInfo(userInfo);
         }
     }, [userInfo, updateUserInfo]);
@@ -49,7 +45,7 @@ export const AuthWrap: React.FC<AuthWrapProps> = ({
     children,
     hidden = false,
 }) => {
-    const isPermission = checkAuth(code);
+    const isPermission = useAuthStore.getState().checkPermissions(code);
     if (isPermission && !hidden) {
         return children;
     }
