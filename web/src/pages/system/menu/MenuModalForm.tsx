@@ -5,10 +5,9 @@ import {
     ProFormSelect,
     ProFormDigit,
 } from "@ant-design/pro-components";
-import type { Menu } from "System";
 import { menuAPI } from "@/api/system/menu";
 import { Form } from "antd";
-import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/api/options";
+import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
 interface MenuModalFormProps {
     initialValues?: Partial<Menu.Item>;

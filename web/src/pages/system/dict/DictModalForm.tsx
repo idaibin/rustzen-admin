@@ -4,7 +4,6 @@ import {
     ProFormText,
     ProFormTextArea,
 } from "@ant-design/pro-components";
-import type { Dict } from "System";
 import { dictAPI } from "@/api/system/dict";
 import { Form } from "antd";
 

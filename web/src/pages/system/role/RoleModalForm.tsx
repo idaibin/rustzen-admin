@@ -5,12 +5,11 @@ import {
     ProFormTextArea,
     ProFormSelect,
 } from "@ant-design/pro-components";
-import type { Role } from "System";
 import { roleAPI } from "@/api/system/role";
 import { Form } from "antd";
 import useSWR from "swr";
-import { MENU_OPTIONS_URL } from "@/api/constant";
-import { ENABLE_OPTIONS } from "@/api/options";
+import { MENU_OPTIONS_URL } from "@/constant/urls";
+import { ENABLE_OPTIONS } from "@/constant/options";
 
 interface RoleModalFormProps {
     initialValues?: Partial<Role.Item>;

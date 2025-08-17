@@ -1,7 +1,6 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
-import type { Role } from "System";
-import { roleAPI } from "@/api";
+import { roleAPI } from "@/api/system/role";
 import { Space, Button } from "antd";
 import React, { useRef } from "react";
 import { RoleModalForm } from "./RoleModalForm";
