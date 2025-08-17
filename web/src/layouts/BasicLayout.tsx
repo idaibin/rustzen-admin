@@ -4,7 +4,7 @@ import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { UserOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useAuthStore } from "../stores/useAuthStore";
-import { authAPI } from "@/api";
+import { authAPI } from "@/api/auth";
 import { getMenuData } from "@/router";
 import { messageApi } from "@/main";
 

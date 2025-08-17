@@ -4,12 +4,11 @@ import {
     ProFormText,
     ProFormSelect,
 } from "@ant-design/pro-components";
-import type { User } from "System";
 import { userAPI } from "@/api/system/user";
-import { ROLE_OPTIONS_URL } from "@/api/constant";
+import { ROLE_OPTIONS_URL } from "@/constant/urls";
 import { Form } from "antd";
 import useSWR from "swr";
-import { ENABLE_OPTIONS } from "@/api/options";
+import { ENABLE_OPTIONS } from "@/constant/options";
 
 interface UserModalFormProps {
     initialValues?: Partial<User.Item>;

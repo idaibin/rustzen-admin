@@ -1,6 +1,4 @@
-import { apiRequest, proTableRequest } from "../request";
-import type { OptionItem } from "Api";
-import type { Menu } from "System";
+import { apiRequest, proTableRequest } from "@/api";
 
 /**
  * 菜单管理API服务
@@ -36,7 +34,7 @@ export const menuAPI = {
         apiRequest<void>({ url: `/api/system/menus/${id}`, method: "DELETE" }),
 
     getOptions: () =>
-        apiRequest<OptionItem[]>({ url: "/api/system/menus/options" }).then(
+        apiRequest<Api.OptionItem[]>({ url: "/api/system/menus/options" }).then(
             (res) => [{ label: "Root", value: 0 }, ...res]
         ),
 };

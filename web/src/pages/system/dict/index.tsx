@@ -1,7 +1,6 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns, ActionType } from "@ant-design/pro-components";
-import type { Dict } from "System";
-import { dictAPI } from "@/api";
+import { dictAPI } from "@/api/system/dict";
 import { Tag, Space, Button } from "antd";
 import React, { useRef } from "react";
 import { DictModalForm } from "./DictModalForm";

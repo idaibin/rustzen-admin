@@ -1,6 +1,4 @@
-import { apiRequest, proTableRequest } from "../request";
-import type { OptionItem } from "Api";
-import type { User } from "System";
+import { apiRequest, proTableRequest } from "@/api";
 
 /**
  * 用户管理API服务
@@ -44,5 +42,7 @@ export const userAPI = {
         }),
 
     getStatusOptions: () =>
-        apiRequest<OptionItem[]>({ url: "/api/system/users/status-options" }),
+        apiRequest<Api.OptionItem[]>({
+            url: "/api/system/users/status-options",
+        }),
 };

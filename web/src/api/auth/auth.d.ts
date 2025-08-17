@@ -1,21 +1,20 @@
 // 认证模块类型定义
-
-declare module "Auth" {
+declare namespace Auth {
     // 登录请求
-    export interface LoginRequest {
+    interface LoginRequest {
         username: string;
         password: string;
         rememberMe?: boolean;
     }
 
     // 登录响应
-    export interface LoginResponse {
+    interface LoginResponse {
         token: string;
         userInfo: UserInfoResponse;
     }
 
     // 用户信息响应
-    export interface UserInfoResponse {
+    interface UserInfoResponse {
         id: number;
         username: string;
         realName?: string;
@@ -25,7 +24,7 @@ declare module "Auth" {
     }
 
     // 认证菜单信息
-    export interface AuthMenuInfoEntity {
+    interface AuthMenuInfoEntity {
         id: number;
         parentId?: number;
         title: string;

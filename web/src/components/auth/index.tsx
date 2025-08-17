@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { authAPI } from "@/api";
 import useSWR from "swr";
 import { Popconfirm } from "antd";
 import { modalApi } from "@/main";
+import { authAPI } from "@/api/auth";
 
 interface AuthGuardProps {
     children: React.ReactNode;
