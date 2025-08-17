@@ -1,6 +1,4 @@
-import { apiRequest, proTableRequest } from "../request";
-import type { OptionItem } from "Api";
-import type { Role } from "System";
+import { apiRequest, proTableRequest } from "@/api";
 
 /**
  * 角色管理API服务
@@ -30,5 +28,5 @@ export const roleAPI = {
         apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
 
     getOptions: () =>
-        apiRequest<OptionItem[]>({ url: "/api/system/roles/options" }),
+        apiRequest<Api.OptionItem[]>({ url: "/api/system/roles/options" }),
 };

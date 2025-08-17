@@ -1,5 +1,4 @@
-import { apiRequest } from "../request";
-import type { LoginRequest, LoginResponse, UserInfoResponse } from "Auth";
+import { apiRequest } from "@/api";
 
 /**
  * 认证相关API服务
@@ -8,8 +7,8 @@ export const authAPI = {
     /**
      * 用户登录
      */
-    login: (data: LoginRequest) =>
-        apiRequest<LoginResponse, LoginRequest>({
+    login: (data: Auth.LoginRequest) =>
+        apiRequest<Auth.LoginResponse, Auth.LoginRequest>({
             url: "/api/auth/login",
             method: "POST",
             params: data,
@@ -23,5 +22,6 @@ export const authAPI = {
     /**
      * 获取当前用户信息
      */
-    getUserInfo: () => apiRequest<UserInfoResponse>({ url: "/api/auth/me" }),
+    getUserInfo: () =>
+        apiRequest<Auth.UserInfoResponse>({ url: "/api/auth/me" }),
 };

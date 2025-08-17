@@ -1,8 +1,7 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
 import { Tag } from "antd";
-import type { Log } from "System";
-import { logAPI } from "@/api";
+import { logAPI } from "@/api/system/log";
 
 export default function LogPage() {
     return (

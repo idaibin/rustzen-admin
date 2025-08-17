@@ -1,13 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { LoginResponse, UserInfoResponse } from "Auth";
 
 interface AuthState {
-    userInfo: UserInfoResponse | null;
+    userInfo: Auth.UserInfoResponse | null;
     token: string | null;
-    updateUserInfo: (params: UserInfoResponse) => void;
+    updateUserInfo: (params: Auth.UserInfoResponse) => void;
     updateToken: (params: string) => void;
-    setAuth: (params: LoginResponse) => void;
+    setAuth: (params: Auth.LoginResponse) => void;
     clearAuth: () => void;
     checkPermissions: (code: string) => boolean;
     checkMenuPermissions: (path: string) => boolean;
@@ -18,13 +17,13 @@ export const useAuthStore = create<AuthState>()(
         (set, get) => ({
             userInfo: null,
             token: null,
-            updateUserInfo: (params: UserInfoResponse) => {
+            updateUserInfo: (params: Auth.UserInfoResponse) => {
                 set({ userInfo: params });
             },
             updateToken: (params: string) => {
                 set({ token: params });
             },
-            setAuth: (params: LoginResponse) => {
+            setAuth: (params: Auth.LoginResponse) => {
                 set({ userInfo: params.userInfo, token: params.token });
             },
             // Clear all auth state

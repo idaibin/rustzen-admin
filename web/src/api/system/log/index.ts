@@ -1,5 +1,4 @@
-import { proTableRequest } from "../request";
-import type { Log } from "System";
+import { proTableRequest } from "@/api";
 
 /**
  * 日志管理API服务

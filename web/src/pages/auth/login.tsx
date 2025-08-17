@@ -3,14 +3,13 @@ import { Form, Input, Button, Card, Typography } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/useAuthStore";
-import type { LoginRequest } from "Auth";
-import { authAPI } from "@/api";
+import { authAPI } from "@/api/auth";
 
 export default function LoginPage() {
     const navigate = useNavigate();
     const [isPending, startTransition] = useTransition();
     const { updateToken } = useAuthStore();
-    const onLogin = async (values: LoginRequest) => {
+    const onLogin = async (values: Auth.LoginRequest) => {
         startTransition(async () => {
             try {
                 const res = await authAPI.login(values);

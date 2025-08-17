@@ -1,6 +1,4 @@
-import { apiRequest, proTableRequest } from "../request";
-import type { OptionItem } from "Api";
-import type { Dict } from "System";
+import { apiRequest, proTableRequest } from "@/api";
 
 /**
  * 字典管理API服务
@@ -33,7 +31,7 @@ export const dictAPI = {
         }),
 
     getOptions: () =>
-        apiRequest<OptionItem[]>({ url: "/api/system/dicts/options" }),
+        apiRequest<Api.OptionItem[]>({ url: "/api/system/dicts/options" }),
 
     getOptionsByType: (type: string) =>
         apiRequest<Dict.Item[]>({ url: `/api/system/dicts/type/${type}` }),
