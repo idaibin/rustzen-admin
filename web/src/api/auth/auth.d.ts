@@ -10,7 +10,8 @@ declare namespace Auth {
     // 登录响应
     interface LoginResponse {
         token: string;
-        userInfo: UserInfoResponse;
+        username: string;
+        user_id: number;
     }
 
     // 用户信息响应
@@ -19,21 +20,7 @@ declare namespace Auth {
         username: string;
         realName?: string;
         avatarUrl?: string;
-        menus: AuthMenuInfoEntity[];
         permissions: string[];
-    }
-
-    // 认证菜单信息
-    interface AuthMenuInfoEntity {
-        id: number;
-        parentId?: number;
-        title: string;
-        path: string;
-        component?: string;
-        icon?: string;
-        orderNum?: number;
-        visible?: boolean;
-        keepAlive?: boolean;
-        menuType?: number;
+        isSystem: boolean;
     }
 }

@@ -7,13 +7,14 @@ import { useAuthStore } from "../stores/useAuthStore";
 import { authAPI } from "@/api/auth";
 import { getMenuData } from "@/router";
 import { messageApi } from "@/main";
+import { UserProfileModal } from "@/components/user";
 
 // User dropdown menu items
 const userMenuItems: MenuProps["items"] = [
     {
         key: "profile",
         icon: <UserOutlined />,
-        label: "Profile",
+        label: <UserProfileModal />,
     },
     {
         type: "divider",
@@ -30,7 +31,7 @@ const userMenuItems: MenuProps["items"] = [
     },
 ];
 
-const BasicLayout = () => {
+export const BasicLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { userInfo } = useAuthStore();
@@ -66,5 +67,3 @@ const BasicLayout = () => {
         </ProLayout>
     );
 };
-
-export default BasicLayout;

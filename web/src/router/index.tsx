@@ -1,6 +1,6 @@
 import { createBrowserRouter, redirect } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
-import BasicLayout from "../layouts/BasicLayout";
+import { BasicLayout } from "../layouts/BasicLayout";
 import { AuthGuard } from "@/components/auth";
 import LoginPage from "../pages/auth/login";
 import HomePage from "../pages/home";

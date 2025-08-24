@@ -19,7 +19,7 @@ use axum::{
 };
 use serde_json::json;
 use std::net::SocketAddr;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing;
 
 /// Creates and starts the main application server.
@@ -63,10 +63,15 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     // 对于公开路由，只应用日志中间件
     let public_api = Router::new().nest("/auth", public_auth_routes());
 
+    // 静态文件服务
+    let static_service = ServeDir::new("uploads")
+        .not_found_service(ServeDir::new("uploads").append_index_html_on_directories(true));
+
     // 组合所有路由
     let app = Router::new()
         .route("/api/summary", get(summary))
         .nest("/api", public_api.merge(protected_api))
+        .nest_service("/uploads", static_service) // 添加静态文件服务
         .layer(cors)
         .with_state(pool)
         .into_make_service_with_connect_info::<SocketAddr>();

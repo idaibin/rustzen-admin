@@ -4,6 +4,10 @@
             "source": "/api/(.*)",
             "destination": "/api/proxy.js"
         },
+        {
+            "source": "/uploads/(.*)",
+            "destination": "/api/proxy.js"
+        },
         { "source": "/(.*)", "destination": "/index.html" }
     ]
 }

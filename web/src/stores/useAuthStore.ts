@@ -5,6 +5,7 @@ interface AuthState {
     userInfo: Auth.UserInfoResponse | null;
     token: string | null;
     updateUserInfo: (params: Auth.UserInfoResponse) => void;
+    updateAvatar: (avatarUrl: string) => void;
     updateToken: (params: string) => void;
     setAuth: (params: Auth.LoginResponse) => void;
     clearAuth: () => void;
@@ -20,18 +21,23 @@ export const useAuthStore = create<AuthState>()(
             updateUserInfo: (params: Auth.UserInfoResponse) => {
                 set({ userInfo: params });
             },
+            updateAvatar: (avatarUrl: string) => {
+                set({
+                    userInfo: {
+                        ...(get().userInfo as Auth.UserInfoResponse),
+                        avatarUrl,
+                    },
+                });
+            },
             updateToken: (params: string) => {
                 set({ token: params });
             },
             setAuth: (params: Auth.LoginResponse) => {
-                set({ userInfo: params.userInfo, token: params.token });
+                set({ token: params.token });
             },
             // Clear all auth state
             clearAuth: () => {
-                set({
-                    userInfo: null,
-                    token: null,
-                });
+                set({ userInfo: null, token: null });
             },
             checkPermissions: (code: string) => {
                 const permissions = get().userInfo?.permissions || [];
