@@ -72,6 +72,14 @@ pub enum ServiceError {
     /// Password hashing failed.
     #[error("Password hashing failed")]
     PasswordHashingFailed,
+
+    /// Failed to upload file.
+    #[error("Failed to create avatar folder")]
+    CreateAvatarFolderFailed,
+
+    /// Failed to create avatar file.
+    #[error("Failed to create avatar file")]
+    CreateAvatarFileFailed,
 }
 
 // --- Axum Error Handling ---
@@ -153,6 +161,16 @@ impl From<ServiceError> for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20001, // System-Common-01
                 "Service is temporarily unavailable. Please try again later.".to_string(),
+            ),
+            ServiceError::CreateAvatarFolderFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20002, // System-Common-02
+                "Failed to create avatar folder. Please try again later.".to_string(),
+            ),
+            ServiceError::CreateAvatarFileFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                20003, // System-Common-03
+                "Failed to create avatar file. Please try again later.".to_string(),
             ),
             // ServiceError::InternalServerError => (
             //     StatusCode::INTERNAL_SERVER_ERROR,
