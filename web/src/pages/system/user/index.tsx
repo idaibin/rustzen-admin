@@ -43,6 +43,24 @@ const columns: ProColumns<User.Item>[] = [
         search: false,
     },
     {
+        title: "Avatar",
+        dataIndex: "avatarUrl",
+        width: 60,
+        search: false,
+        render: (_, record) => {
+            if (!record.avatarUrl) {
+                return null;
+            }
+            return (
+                <img
+                    src={record.avatarUrl}
+                    alt="avatar"
+                    className="w-5 h-5 object-fit rounded-full mx-auto"
+                />
+            );
+        },
+    },
+    {
         title: "Username",
         dataIndex: "username",
     },

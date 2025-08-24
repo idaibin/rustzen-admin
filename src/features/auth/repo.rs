@@ -77,4 +77,21 @@ impl AuthRepository {
                 ServiceError::DatabaseQueryFailed
             })
     }
+
+    pub async fn update_avatar(
+        pool: &PgPool,
+        user_id: i64,
+        avatar_url: &str,
+    ) -> Result<(), ServiceError> {
+        sqlx::query("UPDATE users SET avatar_url = $1 WHERE id = $2")
+            .bind(avatar_url)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error in update_avatar, user_id={}: {:?}", user_id, e);
+                ServiceError::DatabaseQueryFailed
+            })?;
+        Ok(())
+    }
 }

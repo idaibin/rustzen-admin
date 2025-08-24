@@ -4,15 +4,17 @@ use super::{
     vo::{LoginVo, UserInfoVo},
 };
 use crate::{
-    common::api::{ApiResponse, AppResult},
-    core::extractor::CurrentUser,
-    core::permission::PermissionService,
+    common::{
+        api::{ApiResponse, AppResult},
+        files::save_avatar,
+    },
+    core::{extractor::CurrentUser, permission::PermissionService},
     features::system::log::service::LogService,
 };
 
 use axum::{
     Json, Router,
-    extract::{ConnectInfo, State},
+    extract::{ConnectInfo, Multipart, State},
     http::HeaderMap,
     routing::{get, post},
 };
@@ -26,7 +28,10 @@ pub fn public_auth_routes() -> Router<PgPool> {
 
 /// Protected auth routes (JWT required)
 pub fn protected_auth_routes() -> Router<PgPool> {
-    Router::new().route("/me", get(get_login_info_handler)).route("/logout", get(logout_handler))
+    Router::new()
+        .route("/me", get(get_login_info_handler))
+        .route("/logout", get(logout_handler))
+        .route("/avatar", post(update_avatar))
 }
 
 /// Login with username/password
@@ -113,4 +118,20 @@ async fn logout_handler(current_user: CurrentUser) -> AppResult<()> {
 
     tracing::info!("Logout completed");
     Ok(ApiResponse::success(()))
+}
+
+/// Update user profile
+#[tracing::instrument(name = "update_avatar", skip(current_user, pool))]
+async fn update_avatar(
+    current_user: CurrentUser,
+    State(pool): State<PgPool>,
+    mut multipart: Multipart,
+) -> AppResult<String> {
+    tracing::info!("Updating avatar for user: {}", current_user.user_id);
+
+    let avatar_url = save_avatar(&mut multipart).await?;
+
+    AuthService::update_avatar(&pool, current_user.user_id, &avatar_url).await?;
+
+    Ok(ApiResponse::success(avatar_url))
 }

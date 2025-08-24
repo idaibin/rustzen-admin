@@ -212,4 +212,15 @@ impl AuthService {
         );
         Ok(())
     }
+
+    pub async fn update_avatar(
+        pool: &PgPool,
+        user_id: i64,
+        avatar_url: &str,
+    ) -> Result<(), ServiceError> {
+        tracing::info!("Updating avatar for user_id: {}", user_id);
+        AuthRepository::update_avatar(pool, user_id, avatar_url).await?;
+        tracing::info!("Avatar updated successfully for user_id: {}", user_id);
+        Ok(())
+    }
 }
