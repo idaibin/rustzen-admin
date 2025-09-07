@@ -59,3 +59,16 @@ systemctl status rustzen-admin
 # 查看日志
 sudo journalctl -u rustzen-admin -n 20
 ```
+
+**start.sh**
+
+```bash
+#!/bin/bash
+
+chmod +x /opt/rustzen-admin/rustzen-admin
+echo "Making rustzen-admin executable"
+
+systemctl restart rustzen-admin
+echo "Starting rustzen-admin"
+
+```
