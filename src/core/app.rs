@@ -3,6 +3,7 @@ use crate::{
     core::db::{create_default_pool, test_connection},
     features::{
         auth::router::{protected_auth_routes, public_auth_routes},
+        dashboard::router::dashboard_routes,
         system::system_routes,
     },
     middleware::{auth::auth_middleware, log::log_middleware},
@@ -56,6 +57,7 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
     // 定义受保护的路由（先执行认证，再执行日志记录）
     let protected_api = Router::new()
         .nest("/auth", protected_auth_routes())
+        .nest("/dashboard", dashboard_routes())
         .nest("/system", system_routes())
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware)) // 后执行
         .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware)); // 先执行

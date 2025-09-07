@@ -2,7 +2,11 @@ import { ProLayout } from "@ant-design/pro-components";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
-import { UserOutlined, LogoutOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    LogoutOutlined,
+    DashboardOutlined,
+} from "@ant-design/icons";
 import { useAuthStore } from "../stores/useAuthStore";
 import { authAPI } from "@/api/auth";
 import { getMenuData } from "@/router";
@@ -48,7 +52,14 @@ export const BasicLayout = () => {
             )}
             route={{
                 path: "/",
-                children: getMenuData(),
+                children: [
+                    {
+                        path: "/",
+                        name: "Dashboard",
+                        icon: <DashboardOutlined />,
+                    },
+                    ...getMenuData(),
+                ],
             }}
             avatarProps={{
                 src: userInfo?.avatarUrl,
