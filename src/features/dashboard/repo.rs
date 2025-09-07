@@ -157,8 +157,7 @@ impl DashboardRepository {
 
     /// 获取每日登录趋势（最近30天）
     async fn get_daily_login_trends(pool: &PgPool) -> Result<Vec<TrendVo>, ServiceError> {
-        let daily_logins = sqlx::query_as!(
-            TrendVo,
+        let daily_logins = sqlx::query_as(
             r#"
             SELECT
                 DATE(created_at)::TEXT as date,
@@ -169,7 +168,7 @@ impl DashboardRepository {
                 AND created_at > NOW() - INTERVAL '30 days'
             GROUP BY DATE(created_at)
             ORDER BY date
-            "#
+            "#,
         )
         .fetch_all(pool)
         .await
@@ -183,8 +182,7 @@ impl DashboardRepository {
 
     /// 获取24小时活跃用户分布
     async fn get_hourly_active_users(pool: &PgPool) -> Result<Vec<TrendVo>, ServiceError> {
-        let hourly_active = sqlx::query_as!(
-            TrendVo,
+        let hourly_active: Vec<TrendVo> = sqlx::query_as(
             r#"
             WITH hour_series AS (
                 SELECT generate_series(0, 23) as hour
@@ -198,7 +196,7 @@ impl DashboardRepository {
                 AND ol.user_id IS NOT NULL
             GROUP BY hs.hour
             ORDER BY hs.hour
-            "#
+            "#,
         )
         .fetch_all(pool)
         .await
