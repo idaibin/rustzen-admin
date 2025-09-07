@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@ant-design/icons": "^6.0.0",
+        "@ant-design/plots": "^2.6.4",
         "@ant-design/pro-components": "^2.8.9",
         "@ant-design/v5-patch-for-react-19": "^1.0.3",
         "@emotion/react": "^11.14.0",
