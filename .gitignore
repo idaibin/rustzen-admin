@@ -6,6 +6,7 @@
 # Frontend
 /web/node_modules
 /web/dist
+/uploads
 
 
 # Editor
@@ -18,3 +19,4 @@
 # Cursor / AI
 # .cursor/
 *.ai.md# Environment variables
+node_modules
