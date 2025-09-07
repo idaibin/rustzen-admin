@@ -3,7 +3,7 @@ import type { RouteObject } from "react-router-dom";
 import { BasicLayout } from "../layouts/BasicLayout";
 import { AuthGuard } from "@/components/auth";
 import LoginPage from "../pages/auth/login";
-import HomePage from "../pages/home";
+import DashboardPage from "../pages/dashboard";
 import { useAuthStore } from "../stores/useAuthStore";
 import { systemRoutes } from "./system";
 
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <HomePage />,
+                element: <DashboardPage />,
             },
             ...pageRoutes,
         ],
