@@ -37,12 +37,12 @@ impl LogService {
         let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
         let description = format!("{} {} - {}", method, uri, status_code);
 
-        // Only log write operations or errors
-        let is_write = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
+        // // Only log write operations or errors
+        // let is_write = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
 
-        if !is_write {
-            return Ok(()); // Skip logging for non-write/read-successful requests
-        }
+        // if !is_write {
+        //     return Ok(()); // Skip logging for non-write/read-successful requests
+        // }
 
         tracing::info!("Logging HTTP request: {} {} - {}", method, uri, status_code);
 
