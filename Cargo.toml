@@ -32,4 +32,5 @@ async-trait = "0.1"
 
 # Password Hashing
 argon2 = "0.5"
+sysinfo = "0.36.1"
 
