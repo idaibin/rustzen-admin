@@ -15,6 +15,7 @@
 *.sw?
 *.log
 *.tmp
+*.DS_Store
 
 # Cursor / AI
 # .cursor/
