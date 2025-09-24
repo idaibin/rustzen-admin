@@ -116,4 +116,21 @@ impl LogRepository {
 
         Ok(log_id)
     }
+
+    pub async fn find_all(
+        pool: &PgPool,
+        query: LogQueryDto,
+    ) -> Result<Vec<LogEntity>, ServiceError> {
+        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+            QueryBuilder::new("SELECT * FROM operation_logs WHERE 1=1");
+
+        Self::format_query(&query, &mut query_builder);
+
+        let logs = query_builder.build_query_as().fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error in operation_logs pagination: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+        Ok(logs)
+    }
 }

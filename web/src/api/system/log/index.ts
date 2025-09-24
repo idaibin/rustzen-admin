@@ -1,4 +1,4 @@
-import { proTableRequest } from "@/api";
+import { apiDownload, proTableRequest } from "@/api";
 
 /**
  * 日志管理API服务
@@ -9,4 +9,10 @@ export const logAPI = {
             url: "/api/system/logs",
             params,
         }),
+
+    exportLogList: () => {
+        apiDownload({ url: "/api/system/logs/export" }).then(async (res) => {
+            console.log("downloadName", res);
+        });
+    },
 };

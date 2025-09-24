@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// Log query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LogQueryDto {
     pub current: Option<i64>,
