@@ -1,6 +1,6 @@
 import { ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { Tag } from "antd";
+import { Button, Tag } from "antd";
 import { logAPI } from "@/api/system/log";
 
 export default function LogPage() {
@@ -11,6 +11,17 @@ export default function LogPage() {
             headerTitle={"Operation Log"}
             columns={columns}
             request={logAPI.getTableData}
+            toolBarRender={() => [
+                <Button
+                    key="export"
+                    type="primary"
+                    onClick={() => {
+                        logAPI.exportLogList();
+                    }}
+                >
+                    Export
+                </Button>,
+            ]}
         />
     );
 }

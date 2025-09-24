@@ -1,8 +1,7 @@
-use super::{dto::LogQueryDto, repo::LogRepository, vo::LogItemVo};
+use super::{dto::LogQueryDto, entity::LogEntity, repo::LogRepository, vo::LogItemVo};
 use crate::common::{error::ServiceError, pagination::Pagination};
 
 use sqlx::PgPool;
-
 /// A service for log-related operations
 pub struct LogService;
 
@@ -36,13 +35,6 @@ impl LogService {
         let action = format!("HTTP_{}", method);
         let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
         let description = format!("{} {} - {}", method, uri, status_code);
-
-        // // Only log write operations or errors
-        // let is_write = matches!(method, "POST" | "PUT" | "DELETE" | "PATCH");
-
-        // if !is_write {
-        //     return Ok(()); // Skip logging for non-write/read-successful requests
-        // }
 
         tracing::info!("Logging HTTP request: {} {} - {}", method, uri, status_code);
 
@@ -92,5 +84,62 @@ impl LogService {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_all_log_csv(
+        pool: &PgPool,
+        query: LogQueryDto,
+    ) -> Result<String, ServiceError> {
+        let logs = LogRepository::find_all(pool, query).await?;
+        Self::create_csv_chunk(logs, true).await
+    }
+
+    /// Create CSV chunk for a batch of logs
+    async fn create_csv_chunk(
+        logs: Vec<LogEntity>,
+        include_header: bool,
+    ) -> Result<String, ServiceError> {
+        let mut csv_content = String::new();
+
+        // Add CSV header if this is the first batch
+        if include_header {
+            csv_content
+                .push_str("ID,user_id,username,action,description,status,duration_ms,ip_address,user_agent,created_at\n");
+        }
+
+        // Add data rows
+        for log in logs {
+            let row = format!(
+                "{},{},{},{},{},{},{},{},{},{}\n",
+                log.id,
+                log.user_id,
+                Self::escape_csv_field(&log.username),
+                Self::escape_csv_field(&log.action),
+                Self::escape_csv_field(log.description.as_deref().unwrap_or("")),
+                Self::escape_csv_field(&log.status),
+                log.duration_ms,
+                Self::escape_csv_field(&log.ip_address.to_string()),
+                Self::escape_csv_field(&log.user_agent),
+                log.created_at.format("%Y-%m-%d %H:%M:%S")
+            );
+            csv_content.push_str(&row);
+        }
+
+        Ok(csv_content)
+    }
+
+    /// Escape CSV field to handle commas, quotes, and newlines
+    fn escape_csv_field(field: &str) -> String {
+        if field.contains(',')
+            || field.contains('"')
+            || field.contains('\n')
+            || field.contains('\r')
+        {
+            // Escape quotes by doubling them and wrap in quotes
+            let escaped = field.replace('"', "\"\"");
+            format!("\"{}\"", escaped)
+        } else {
+            field.to_string()
+        }
     }
 }
