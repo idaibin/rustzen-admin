@@ -38,18 +38,20 @@ interface AuthWrapProps {
     code: string;
     children: React.ReactNode;
     hidden?: boolean;
+    fallback?: React.ReactNode;
 }
 
 export const AuthWrap: React.FC<AuthWrapProps> = ({
     code,
     children,
     hidden = false,
+    fallback = null,
 }) => {
     const isPermission = useAuthStore.getState().checkPermissions(code);
     if (isPermission && !hidden) {
         return children;
     }
-    return null;
+    return fallback;
 };
 
 interface AuthPopconfirmProps extends AuthWrapProps {
