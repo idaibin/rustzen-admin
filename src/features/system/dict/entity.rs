@@ -20,8 +20,3 @@ pub struct DictEntity {
     /// The last update time.
     pub updated_at: NaiveDateTime,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DictOptionEntity {
-    pub label: String,
-    pub value: String,
-}

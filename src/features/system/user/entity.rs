@@ -1,18 +1,6 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-/// User entity (single table)
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct UserEntity {
-    pub id: i64,
-    pub username: Option<String>,
-    pub email: String,
-    pub password_hash: String,
-    pub real_name: Option<String>,
-    pub avatar_url: Option<String>,
-    pub status: i16,
-}
-
 /// User with roles (for view-based queries)
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserWithRolesEntity {
