@@ -33,4 +33,6 @@ async-trait = "0.1"
 # Password Hashing
 argon2 = "0.5"
 sysinfo = "0.36.1"
+tokio-stream = "0.1.17"
+futures = "0.3.31"
 
