@@ -7,8 +7,8 @@ check:
 
 # Development mode: start backend + web together
 dev:
-    just dev-backend &
-    just dev-web
+    just dev-web &
+    just dev-backend
 
 # Start Rust backend (with hot reload)
 dev-backend:
@@ -20,8 +20,8 @@ dev-web:
 
 # Build all (production)
 build:
-    just build-backend
     just build-web
+    just build-backend
 
 # Build Rust backend release
 build-backend:
