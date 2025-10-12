@@ -1,17 +1,18 @@
 use crate::{core::extractor::CurrentUser, features::system::log::service::LogService};
 
 use axum::{
-    extract::{Request, State},
+    extract::{ConnectInfo, Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
 };
 use sqlx::PgPool;
-use std::time::Instant;
+use std::{net::SocketAddr, time::Instant};
 
 /// HTTP 日志中间件：自动记录写操作和错误请求
 pub async fn log_middleware(
     State(pool): State<PgPool>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, String)> {
@@ -26,14 +27,7 @@ pub async fn log_middleware(
         .and_then(|h| h.to_str().ok())
         .unwrap_or("Unknown")
         .to_string();
-    let ip_address = request
-        .headers()
-        .get("x-forwarded-for")
-        .or_else(|| request.headers().get("x-real-ip"))
-        .and_then(|h| h.to_str().ok())
-        .filter(|ip| ip.parse::<std::net::IpAddr>().is_ok()) // Only use valid IP addresses
-        .unwrap_or("127.0.0.1") // Use localhost as fallback instead of "Unknown"
-        .to_string();
+    let client_ip = addr.ip().to_string();
 
     // 获取当前用户
     let current_user = request.extensions().get::<CurrentUser>().cloned();
@@ -52,7 +46,7 @@ pub async fn log_middleware(
         &uri,
         user_id,
         username,
-        &ip_address,
+        &client_ip,
         &user_agent,
         status_code,
         duration.as_millis() as i32,
