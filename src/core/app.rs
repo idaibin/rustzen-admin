@@ -3,7 +3,6 @@ use crate::{
     core::{
         config::CONFIG,
         db::{create_default_pool, test_connection},
-        web_embed::web_embed_file_handler,
     },
     features::{
         auth::router::{protected_auth_routes, public_auth_routes},
@@ -77,9 +76,14 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/summary", get(summary))
         .nest("/api", public_api.merge(protected_api))
         .nest_service("/uploads", uploads_service) // uploads file service
-        .fallback(web_embed_file_handler)
         .layer(cors)
         .with_state(pool)
+        /*
+         * tips: if you want to use web embed
+         * 1. you need to cancel comment in the core/mod.rs file
+         * 2. you need to cancel comment next line
+         */
+        // .fallback(crate::core::web_embed::web_embed_file_handler)
         .into_make_service_with_connect_info::<SocketAddr>();
 
     // get server address
