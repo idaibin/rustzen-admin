@@ -15,26 +15,33 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 once_cell = "1.21"
 
-# 用于 CORS 和日志中间件
+# for CORS and logging middleware
 tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
 
-# 数据库相关依赖
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "chrono", "uuid","ipnetwork"] }
+# database related dependencies
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls-ring-webpki",
+    "postgres",
+    "chrono",
+    "uuid",
+    "ipnetwork",
+] }
 dotenvy = "0.15"
 thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.17", features = ["v4", "serde"] }
 
-# JWT 认证
+# JWT authentication
 jsonwebtoken = "9.3"
 
-# 异步 trait
+# async trait
 async-trait = "0.1"
 
-# Password Hashing
+# password hashing
 argon2 = "0.5"
 sysinfo = "0.36.1"
 tokio-stream = "0.1.17"
 futures = "0.3.31"
 include_dir = "0.7.4"
-
+figment = { version = "0.10.19", features = ["env"] }
