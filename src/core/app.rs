@@ -1,6 +1,7 @@
 use crate::{
     common::api::{ApiResponse, AppResult},
     core::{
+        config::CONFIG,
         db::{create_default_pool, test_connection},
         web_embed::web_embed_file_handler,
     },
@@ -96,10 +97,9 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// Defaults to `0.0.0.0:8000` if `APP_HOST` or `APP_PORT` are not set.
 async fn get_addr() -> String {
-    let host = std::env::var("APP_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let port = std::env::var("APP_PORT").unwrap_or_else(|_| "8000".to_string());
-    tracing::debug!("Server configured to run on {}:{}", host, port);
-    format!("{}:{}", host, port)
+    let addr = format!("{}:{}", CONFIG.app_host, CONFIG.app_port);
+    tracing::debug!("Server configured to run on {}", addr);
+    addr
 }
 
 /// Handles requests to the root (`/`) endpoint.

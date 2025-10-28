@@ -2,8 +2,9 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::env;
 use tracing;
+
+use crate::core::config::CONFIG;
 
 /// JWT Configuration, loaded from environment variables.
 ///
@@ -23,21 +24,8 @@ pub struct JwtConfig {
 /// Provides default values and logs warnings if they are not set, which is
 /// crucial for security and debugging during development.
 pub static JWT_CONFIG: Lazy<JwtConfig> = Lazy::new(|| {
-    let secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-        tracing::warn!("JWT_SECRET environment variable not set. Using a default, insecure key.");
-        "your-super-secret-key".to_string()
-    });
-
-    let expiration = env::var("JWT_EXPIRATION")
-        .map(|exp_str| {
-            exp_str.parse::<i64>().unwrap_or_else(|_| {
-                tracing::warn!(
-                    "Failed to parse JWT_EXPIRATION. Using default value (3600 seconds)."
-                );
-                3600 // Default to 1 hour
-            })
-        })
-        .unwrap_or(3600); // Default to 1 hour if not set
+    let secret = CONFIG.jwt_secret.clone();
+    let expiration = CONFIG.jwt_expiration;
 
     tracing::info!("JWT_CONFIG: {:?}", JwtConfig { secret: secret.clone(), expiration });
     JwtConfig { secret, expiration }

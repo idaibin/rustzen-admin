@@ -4,6 +4,7 @@
 // and middlewares will be defined here.
 
 pub mod app;
+pub mod config;
 pub mod db;
 pub mod extractor;
 pub mod jwt;

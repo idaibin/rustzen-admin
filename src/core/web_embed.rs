@@ -5,17 +5,19 @@ use axum::{
 use include_dir::{Dir, include_dir};
 use tracing::{debug, info, warn};
 
-// 嵌入 dist 目录到二进制文件中
-// 路径相对于 Cargo.toml 文件位置
+use crate::core::config::CONFIG;
+
+// embed dist directory into the binary file
+// path is relative to the Cargo.toml file location
 static WEB_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/web/dist");
 
-/// 静态文件服务处理器
-/// 开发环境：代理到 Vite 开发服务器
-/// 生产环境：使用嵌入的静态文件
+/// static file service handler
+/// development environment: proxy to Vite development server
+/// production environment: use embedded static files
 pub async fn web_embed_file_handler(uri: Uri) -> impl IntoResponse {
-    let is_enabled = std::env::var("WEB_EMBED_ENABLED").unwrap_or_else(|_| "false".to_string());
+    let is_enabled = CONFIG.web_embed_enabled;
     info!("Web embed is enabled: {}", is_enabled);
-    if is_enabled == "true" {
+    if is_enabled {
         let path = uri.path().trim_start_matches('/');
         serve_embedded_files(path).await
     } else {
@@ -25,14 +27,14 @@ pub async fn web_embed_file_handler(uri: Uri) -> impl IntoResponse {
             .unwrap()
     }
 }
-/// 判断是否为静态资源路径
+/// check if the path is a static resource path
 fn is_static_resource_path(path: &str) -> bool {
-    // 如果路径包含文件扩展名，认为是静态资源
+    // if the path contains a file extension, it is a static resource
     if path.contains('.') {
         return true;
     }
 
-    // 特殊的静态资源路径
+    // special static resource paths
     if path.starts_with("assets/")
         || path.starts_with("static/")
         || path.starts_with("public/")
@@ -43,33 +45,33 @@ fn is_static_resource_path(path: &str) -> bool {
         return true;
     }
 
-    // 其他情况认为是 SPA 路由
+    // other cases are considered SPA routes
     false
 }
 
-/// 使用嵌入的静态文件
+/// use embedded static files
 async fn serve_embedded_files(path: &str) -> Response {
-    debug!("[静态文件] 处理请求: {}", path);
+    debug!("[static file] handle request: {}", path);
 
-    // 如果是根路径，直接返回 index.html
+    // if the path is the root path, return index.html
     if path.is_empty() || path == "index.html" {
-        debug!("[静态文件] 返回根路径 index.html");
+        debug!("[static file] return root path index.html");
         return serve_embedded_index_html().await;
     }
 
-    // 检查是否为静态资源
+    // check if the path is a static resource
     let is_static = is_static_resource_path(path);
-    debug!("[静态文件] 路径 '{}' 是否为静态资源: {}", path, is_static);
+    debug!("[static file] path '{}' is static resource: {}", path, is_static);
 
     if is_static {
-        // 尝试获取请求的静态资源文件
+        // try to get the static resource file
         if let Some(file) = WEB_DIR.get_file(path) {
-            // 根据文件扩展名设置 Content-Type
+            // set Content-Type based on the file extension
             let content_type = get_content_type(path);
             let contents = file.contents();
 
             debug!(
-                "[静态文件] 找到嵌入文件: {}, Content-Type: {}, 大小: {} bytes",
+                "[static file] find embedded file: {}, Content-Type: {}, size: {} bytes",
                 path,
                 content_type,
                 contents.len()
@@ -78,12 +80,12 @@ async fn serve_embedded_files(path: &str) -> Response {
             return Response::builder()
                 .status(StatusCode::OK)
                 .header("content-type", content_type)
-                .header("cache-control", "public, max-age=31536000") // 静态资源缓存1年
+                .header("cache-control", "public, max-age=604800") // static resource cache 1 week
                 .body(axum::body::Body::from(contents))
                 .unwrap();
         } else {
-            // 静态资源文件不存在
-            warn!("[静态文件] 嵌入文件未找到: {}", path);
+            // static resource file not found
+            warn!("[static file] embedded file not found: {}", path);
             return Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .header("content-type", "text/plain; charset=utf-8")
@@ -92,26 +94,26 @@ async fn serve_embedded_files(path: &str) -> Response {
         }
     }
 
-    // 对于非静态资源路径（SPA 路由），返回 index.html
-    // 这对 hash 路由特别重要，因为所有路由都应该返回 index.html
-    debug!("[静态文件] SPA 路由，返回嵌入的 index.html: {}", path);
+    // for non-static resource paths (SPA routes), return index.html
+    // this is especially important for hash routes, because all routes should return index.html
+    debug!("[static file] SPA routes, return embedded index.html: {}", path);
     serve_embedded_index_html().await
 }
 
-/// 提供嵌入的 index.html 文件
+/// serve embedded index.html file
 async fn serve_embedded_index_html() -> Response {
     if let Some(index_file) = WEB_DIR.get_file("index.html") {
-        debug!("[静态文件] 提供嵌入的 index.html");
+        debug!("[static file] serve embedded index.html");
         Html(std::str::from_utf8(index_file.contents()).unwrap_or("")).into_response()
     } else {
-        warn!("[静态文件] 嵌入的 index.html 文件未找到");
+        warn!("[static file] embedded index.html file not found");
 
-        // 如果没有嵌入的 index.html，返回一个简单的默认页面
+        // if there is no embedded index.html, return a simple default page
         let default_html = r#"
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Screen Control App</title>
+            <title>RustZen Admin</title>
             <style>
                 body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
                 .logo { font-size: 48px; margin-bottom: 20px; }
@@ -120,9 +122,9 @@ async fn serve_embedded_index_html() -> Response {
         </head>
         <body>
             <div class="logo">🖥️</div>
-            <h1>Screen Control App</h1>
-            <p class="info">Web 界面正在加载中...</p>
-            <p class="info">如果您看到此页面，说明静态文件可能未正确嵌入。</p>
+            <h1>RustZen Admin</h1>
+            <p class="info">Web interface is loading...</p>
+            <p class="info">If you see this page, it means the static files may not be correctly embedded.</p>
         </body>
         </html>
         "#;
@@ -135,7 +137,7 @@ async fn serve_embedded_index_html() -> Response {
     }
 }
 
-/// 根据文件扩展名获取 Content-Type
+/// get Content-Type based on the file extension
 fn get_content_type(path: &str) -> &'static str {
     if let Some(extension) = path.split('.').last() {
         match extension.to_lowercase().as_str() {
@@ -161,7 +163,7 @@ fn get_content_type(path: &str) -> &'static str {
             "pdf" => "application/pdf",
             "xml" => "application/xml; charset=utf-8",
             "txt" => "text/plain; charset=utf-8",
-            "map" => "application/json; charset=utf-8", // Source maps
+            "map" => "application/json; charset=utf-8", // source maps
             _ => "application/octet-stream",
         }
     } else {

@@ -2,6 +2,8 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 use tracing;
 
+use crate::core::config::CONFIG;
+
 /// Configuration for the database connection pool.
 ///
 /// This struct holds all the settings required to establish a connection
@@ -29,11 +31,11 @@ impl Default for DatabaseConfig {
     /// A valid database URL is essential for the application to run.
     fn default() -> Self {
         Self {
-            url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
-            max_connections: 5,
-            min_connections: 1,
-            connect_timeout: Duration::from_secs(10),
-            idle_timeout: Duration::from_secs(300),
+            url: CONFIG.db_url.to_string(),
+            max_connections: CONFIG.db_max_conn,
+            min_connections: CONFIG.db_min_conn,
+            connect_timeout: Duration::from_secs(CONFIG.db_conn_timeout),
+            idle_timeout: Duration::from_secs(CONFIG.db_idle_timeout),
         }
     }
 }
