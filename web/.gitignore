@@ -9,16 +9,26 @@ lerna-debug.log*
 
 node_modules
 dist
-dist-ssr
+dist-*
 *.local
+*.zip
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+.eslintcache
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# svn
+.svn
+.svnignore
+.env.*.local
+
+# other
+_three-demo

@@ -1,32 +1,47 @@
 {
-    "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "explicit"
     },
-    "eslint.validate": ["javascript", "typescript", "typescriptreact"],
-    "eslint.enable": true,
-    "rust-analyzer.checkOnSave": true,
-    "typescript.tsdk": "frontend/node_modules/typescript/lib",
-    "terminal.integrated.defaultProfile.linux": "zsh",
-    "just.executionMode": "terminal",
-    "files.exclude": {},
+    "typescript.tsdk": "node_modules\\typescript\\lib",
+    "files.watcherExclude": {
+        "node_modules": true,
+        ".tanstack": true,
+        "**/routeTree.gen.ts": true
+    },
+    "search.exclude": {
+        "node_modules": true,
+        ".tanstack": true,
+        "**/routeTree.gen.ts": true
+    },
     // 显式声明 justfile 文件类型（避免被当作 YAML 或 Makefile 处理）
     "files.associations": {
-        "justfile": "just"
+        "justfile": "just",
+        ".prettierrc": "json"
+    },
+    "files.readonlyInclude": {
+        "**/routeTree.gen.ts": true
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "[rust]": {
         "editor.defaultFormatter": "rust-lang.rust-analyzer"
     },
-    // 对 justfile 的特殊处理
     "[justfile]": {
         "editor.insertSpaces": true,
         "editor.tabSize": 4,
-        "editor.formatOnSave": false, // 禁止自动格式化
+        "editor.formatOnSave": false,
         "editor.defaultFormatter": null,
         "editor.wordWrap": "off"
     },
     "[shellscript]": {
         "editor.formatOnSave": false
-    }
+    },
+    "gitlens.ai.generateCommitMessage.customInstructions": "Please generate a commit message. Template format: `[<type>] (<scope>): <brief description>`, use English.",
+    "cSpell.words": ["Gantt", "liangjiang", "luohuang", "Stylesheet"]
 }

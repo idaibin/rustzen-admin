@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+cd "$(git rev-parse --show-toplevel)/web" || exit
+
+echo "Running type checks..."
+npm run lint:types
+
+echo "Running lint checks..."
+npx lint-staged
+
