@@ -1,94 +1,83 @@
-import { useTransition } from "react";
-import { Form, Input, Button, Card, Typography } from "antd";
-import { UserOutlined, LockOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../../stores/useAuthStore";
-import { authAPI } from "@/api/auth";
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, Typography } from 'antd';
+import { useTransition } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { authAPI } from '@/api/auth';
+
+import { useAuthStore } from '../../stores/useAuthStore';
 
 export default function LoginPage() {
-    const navigate = useNavigate();
-    const [isPending, startTransition] = useTransition();
-    const { updateToken } = useAuthStore();
-    const onLogin = async (values: Auth.LoginRequest) => {
-        startTransition(async () => {
-            try {
-                const res = await authAPI.login(values);
-                updateToken(res.token);
-                navigate("/", { replace: true });
-            } catch (error) {
-                console.error("Login failed", error);
-            }
-        });
-    };
+  const navigate = useNavigate();
+  const [isPending, startTransition] = useTransition();
+  const { updateToken } = useAuthStore();
+  const onLogin = async (values: Auth.LoginRequest) => {
+    startTransition(async () => {
+      try {
+        const res = await authAPI.login(values);
+        updateToken(res.token);
+        navigate('/', { replace: true });
+      } catch (error) {
+        console.error('Login failed', error);
+      }
+    });
+  };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <Card className="w-96">
-                <div className="text-center mb-8">
-                    <Typography.Title level={2} className="mb-2">
-                        Rustzen Admin
-                    </Typography.Title>
-                </div>
-                <Form
-                    name="login"
-                    onFinish={onLogin}
-                    autoComplete="off"
-                    size="large"
-                    initialValues={{
-                        username: "admin",
-                        password: "rustzen@2025",
-                    }}
-                >
-                    <Form.Item
-                        name="username"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter your username",
-                            },
-                            {
-                                min: 3,
-                                message:
-                                    "Username must be at least 3 characters",
-                            },
-                        ]}
-                    >
-                        <Input
-                            prefix={<UserOutlined />}
-                            placeholder="Username"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="password"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter your password",
-                            },
-                            {
-                                min: 6,
-                                message:
-                                    "Password must be at least 6 characters",
-                            },
-                        ]}
-                    >
-                        <Input.Password
-                            prefix={<LockOutlined />}
-                            placeholder="Password"
-                        />
-                    </Form.Item>
-                    <Form.Item>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={isPending}
-                            className="w-full"
-                        >
-                            Login
-                        </Button>
-                    </Form.Item>
-                </Form>
-            </Card>
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <Card className="w-96">
+        <div className="mb-8 text-center">
+          <Typography.Title level={2} className="mb-2">
+            Rustzen Admin
+          </Typography.Title>
         </div>
-    );
+        <Form
+          name="login"
+          onFinish={onLogin}
+          autoComplete="off"
+          size="large"
+          initialValues={{
+            username: 'admin',
+            password: 'rustzen@2025',
+          }}
+        >
+          <Form.Item
+            name="username"
+            rules={[
+              {
+                required: true,
+                message: 'Please enter your username',
+              },
+              {
+                min: 3,
+                message: 'Username must be at least 3 characters',
+              },
+            ]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="Username" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            rules={[
+              {
+                required: true,
+                message: 'Please enter your password',
+              },
+              {
+                min: 6,
+                message: 'Password must be at least 6 characters',
+              },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={isPending} className="w-full">
+              Login
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+    </div>
+  );
 }
