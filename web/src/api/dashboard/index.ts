@@ -1,6 +1,8 @@
+import { apiRequest } from '@/api';
+
 export const dashboardAPI = {
-  statsUrl: '/api/dashboard/stats',
-  healthUrl: '/api/dashboard/health',
-  metricsUrl: '/api/dashboard/metrics',
-  trendsUrl: '/api/dashboard/trends',
+  getStats: () => apiRequest<Dashboard.Stats>({ url: '/api/dashboard/stats' }),
+  getHealth: () => apiRequest<Dashboard.SystemHealth>({ url: '/api/dashboard/health' }),
+  getMetrics: () => apiRequest<Dashboard.SystemMetricsData>({ url: '/api/dashboard/metrics' }),
+  getTrends: () => apiRequest<Dashboard.UserActivityChart>({ url: '/api/dashboard/trends' }),
 };

@@ -4,10 +4,10 @@ import { persist } from 'zustand/middleware';
 interface AuthState {
   userInfo: Auth.UserInfoResponse | null;
   token: string | null;
-  updateUserInfo: (params: Auth.UserInfoResponse) => void;
-  updateAvatar: (avatarUrl: string) => void;
+  handleLogin: (token: string, userInfo: Auth.UserInfoResponse) => void;
   updateToken: (params: string) => void;
-  setAuth: (params: Auth.LoginResponse) => void;
+  updateAvatar: (avatarUrl: string) => void;
+  updateUserInfo: (params: Auth.UserInfoResponse) => void;
   clearAuth: () => void;
   checkPermissions: (code: string) => boolean;
   checkMenuPermissions: (path: string) => boolean;
@@ -18,8 +18,11 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       userInfo: null,
       token: null,
-      updateUserInfo: (params: Auth.UserInfoResponse) => {
-        set({ userInfo: params });
+      handleLogin: (token, userInfo) => {
+        set({ token, userInfo });
+      },
+      updateToken: (params: string) => {
+        set({ token: params });
       },
       updateAvatar: (avatarUrl: string) => {
         set({
@@ -29,12 +32,10 @@ export const useAuthStore = create<AuthState>()(
           },
         });
       },
-      updateToken: (params: string) => {
-        set({ token: params });
+      updateUserInfo: (params: Auth.UserInfoResponse) => {
+        set({ userInfo: params });
       },
-      setAuth: (params: Auth.LoginResponse) => {
-        set({ token: params.token });
-      },
+
       // Clear all auth state
       clearAuth: () => {
         set({ userInfo: null, token: null });

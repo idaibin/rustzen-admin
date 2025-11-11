@@ -53,7 +53,7 @@ async fn login_handler(
         Ok(response) => {
             if let Err(e) = LogService::log_business_operation(
                 &pool,
-                response.user_id,
+                response.user_info.id,
                 &username,
                 "AUTH_LOGIN",
                 "User login successful",

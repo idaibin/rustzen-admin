@@ -1,62 +1,55 @@
-import type { RouteObject } from 'react-router-dom';
-import { createBrowserRouter, redirect } from 'react-router-dom';
+import {
+  BookOutlined,
+  HistoryOutlined,
+  MenuOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 
-import { AuthGuard } from '@/components/auth';
-
-import { BasicLayout } from '../layouts/BasicLayout';
-import LoginPage from '../pages/auth/login';
-import DashboardPage from '../pages/dashboard';
 import { useAuthStore } from '../stores/useAuthStore';
-import { systemRoutes } from './system';
 
-export type AppRouter = RouteObject & {
+type AppRouter = {
   name?: string;
   icon?: React.ReactNode;
+  path?: string;
   children?: AppRouter[];
 };
 
-const pageRoutes: AppRouter[] = [systemRoutes];
+const systemRoutes: AppRouter = {
+  name: 'System',
+  icon: <SettingOutlined />,
+  path: '/system',
+  children: [
+    {
+      path: '/system/user',
+      name: 'User',
+      icon: <UserOutlined />,
+    },
+    {
+      path: '/system/role',
+      name: 'Role',
+      icon: <TeamOutlined />,
+    },
+    {
+      path: '/system/menu',
+      name: 'Menu',
+      icon: <MenuOutlined />,
+    },
+    {
+      path: '/system/dict',
+      name: 'Dictionary',
+      icon: <BookOutlined />,
+    },
+    {
+      path: '/system/log',
+      name: 'Log',
+      icon: <HistoryOutlined />,
+    },
+  ],
+};
 
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: (
-      <AuthGuard>
-        <BasicLayout />
-      </AuthGuard>
-    ),
-    children: [
-      {
-        index: true,
-        element: <DashboardPage />,
-      },
-      ...pageRoutes,
-    ],
-  },
-  {
-    path: '/login',
-    element: <LoginPage />,
-    loader: () => {
-      const token = useAuthStore.getState().token;
-      return token ? redirect('/') : null;
-    },
-  },
-  {
-    path: '*',
-    loader: () => {
-      const token = useAuthStore.getState().token;
-      return token ? redirect('/') : redirect('/login');
-    },
-  },
-  // {
-  //   path: "/register",
-  //   element: <RegisterPage />,
-  //   loader: () => {
-  //     const token = useAuthStore.getState().token;
-  //     return token ? redirect("/") : null;
-  //   },
-  // },
-]);
+const pageRoutes: AppRouter[] = [systemRoutes];
 
 export const getMenuData = (): AppRouter[] => {
   const { checkMenuPermissions } = useAuthStore.getState();

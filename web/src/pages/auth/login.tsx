@@ -1,22 +1,23 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { useNavigate } from '@tanstack/react-router';
 import { Button, Card, Form, Input, Typography } from 'antd';
 import { useTransition } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { authAPI } from '@/api/auth';
 
 import { useAuthStore } from '../../stores/useAuthStore';
 
 export default function LoginPage() {
+  console.log('LoginPage');
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
-  const { updateToken } = useAuthStore();
+  const { handleLogin } = useAuthStore();
   const onLogin = async (values: Auth.LoginRequest) => {
     startTransition(async () => {
       try {
         const res = await authAPI.login(values);
-        updateToken(res.token);
-        navigate('/', { replace: true });
+        handleLogin(res.token, res.userInfo);
+        navigate({ to: '/', replace: true });
       } catch (error) {
         console.error('Login failed', error);
       }

@@ -6,13 +6,19 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { Column, Line } from '@ant-design/plots';
+import { createFileRoute } from '@tanstack/react-router';
 import { Card, Progress, Statistic } from 'antd';
 
 import { dashboardAPI } from '@/api/dashboard';
 import { useApiQuery } from '@/integrations/react-query';
 import { calculatePercent, convertUnit } from '@/util';
 
-export default function DashboardPage() {
+export const Route = createFileRoute('/')({
+  component: DashboardPage,
+  notFoundComponent: () => <div>404 Not Found 1111</div>,
+});
+
+function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       {/* 统计卡片 */}

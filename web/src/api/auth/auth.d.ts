@@ -10,8 +10,7 @@ declare namespace Auth {
   // 登录响应
   interface LoginResponse {
     token: string;
-    username: string;
-    user_id: number;
+    userInfo: UserInfoResponse;
   }
 
   // 用户信息响应

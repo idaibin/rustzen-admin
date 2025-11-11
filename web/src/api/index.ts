@@ -1,18 +1,29 @@
-import { messageApi } from '@/main';
+import { App } from 'antd';
+import type { MessageInstance } from 'antd/es/message/interface';
+import type { ModalStaticFunctions } from 'antd/es/modal/confirm';
+import type { NotificationInstance } from 'antd/es/notification/interface';
+
 import { useAuthStore } from '@/stores/useAuthStore';
+
+let appMessage: MessageInstance;
+let appNotify: NotificationInstance;
+let appModal: Omit<ModalStaticFunctions, 'warn'>;
+
+export const MessageContent = () => {
+  const staticFunction = App.useApp();
+  appMessage = staticFunction.message;
+  appModal = staticFunction.modal;
+  appNotify = staticFunction.notification;
+  return null;
+};
+
+export { appMessage, appModal, appNotify };
 
 /**
  * API request adapter
  */
 export const apiRequest = <T, P = Api.BaseParams>(props: RequestOptions<P>) => {
   return coreRequest<T, P>(props).then((res) => res.data);
-};
-
-/**
- * SWR fetcher
- */
-export const swrFetcher = <T, P = Api.BaseParams>(url: string, params?: P) => {
-  return coreRequest<T, P>({ url, params }).then((res) => res.data);
 };
 
 /**
@@ -38,9 +49,7 @@ export const apiDownload = async <T>({
 /**
  * ProTable request adapter
  */
-export const proTableRequest = <T, P = Api.BaseParams>(
-  props: RequestOptions<P>,
-): Promise<Api.PageResponse<T>> => {
+export const proTableRequest = <T, P = Api.BaseParams>(props: RequestOptions<P>): Promise<Api.PageResponse<T>> => {
   return coreRequest<T, P>(props).then((res) => ({
     data: res.data as T[],
     total: res.total || 0,
@@ -154,12 +163,12 @@ const handleError = async (error: unknown) => {
         controller.abort();
       }
     });
-    messageApi.error('Invalid session or session expired, please login again.');
+    appMessage.error('Invalid session or session expired, please login again.');
   } else if (statusCode >= 500) {
-    messageApi.error(`Server error: ${response.statusText}`);
+    appMessage.error(`Server error: ${response.statusText}`);
     return Promise.reject(new Error(response.statusText));
   } else {
-    messageApi.error(`Request failed: ${error}`);
+    appMessage.error(`Request failed: ${error}`);
     return Promise.reject(error);
   }
 

@@ -1,11 +1,11 @@
 import { ModalForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
 import { Form } from 'antd';
 import React, { type JSX } from 'react';
-import useSWR from 'swr';
 
+import { roleAPI } from '@/api/system/role';
 import { userAPI } from '@/api/system/user';
 import { ENABLE_OPTIONS } from '@/constant/options';
-import { ROLE_OPTIONS_URL } from '@/constant/urls';
+import { useApiQuery } from '@/integrations/react-query';
 
 interface UserModalFormProps {
   initialValues?: Partial<User.Item>;
@@ -21,7 +21,7 @@ export const UserModalForm: React.FC<UserModalFormProps> = ({
   onSuccess,
 }) => {
   const [form] = Form.useForm();
-  const { data: roleOptions } = useSWR(ROLE_OPTIONS_URL);
+  const { data: roleOptions } = useApiQuery('system/roles/options', roleAPI.getOptions);
 
   return (
     <ModalForm<User.CreateRequest | User.UpdateRequest>

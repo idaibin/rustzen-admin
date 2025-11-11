@@ -1,11 +1,11 @@
 import { ModalForm, ProFormSelect, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
 import { Form } from 'antd';
 import React, { type JSX } from 'react';
-import useSWR from 'swr';
 
+import { menuAPI } from '@/api/system/menu';
 import { roleAPI } from '@/api/system/role';
 import { ENABLE_OPTIONS } from '@/constant/options';
-import { MENU_OPTIONS_URL } from '@/constant/urls';
+import { useApiQuery } from '@/integrations/react-query';
 
 interface RoleModalFormProps {
   initialValues?: Partial<Role.Item>;
@@ -21,7 +21,7 @@ export const RoleModalForm: React.FC<RoleModalFormProps> = ({
   onSuccess,
 }) => {
   const [form] = Form.useForm();
-  const { data: menuOptions = [] } = useSWR(MENU_OPTIONS_URL);
+  const { data: menuOptions = [] } = useApiQuery('system/menus/options', menuAPI.getOptions);
 
   return (
     <ModalForm<Role.CreateRequest | Role.UpdateRequest>

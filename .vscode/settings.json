@@ -43,5 +43,11 @@
         "editor.formatOnSave": false
     },
     "gitlens.ai.generateCommitMessage.customInstructions": "Please generate a commit message. Template format: `[<type>] (<scope>): <brief description>`, use English.",
-    "cSpell.words": ["Gantt", "liangjiang", "luohuang", "Stylesheet"]
+    "cSpell.words": [
+        "Gantt",
+        "liangjiang",
+        "luohuang",
+        "Popconfirm",
+        "Stylesheet"
+    ]
 }

@@ -1,41 +1,46 @@
-import 'antd/dist/reset.css';
 import '@ant-design/v5-patch-for-react-19';
-import '@/index.css';
 
-import { App, ConfigProvider } from 'antd';
-import type { useAppProps } from 'antd/es/app/context';
-import enUS from 'antd/locale/en_US';
-import React from 'react';
+import { createRouter, RouterProvider } from '@tanstack/react-router';
+import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
-import { RouterProvider } from 'react-router-dom';
-import { SWRConfig } from 'swr';
 
-import { swrFetcher } from '@/api';
-import { router } from '@/router';
+import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx';
+import { routeTree } from './routeTree.gen';
 
-// 初始化通用提示
-export let messageApi: useAppProps['message'];
-export let notificationApi: useAppProps['notification'];
-export let modalApi: useAppProps['modal'];
+// Create a new router instance
+const TanStackQueryProviderContext = TanStackQueryProvider.getContext();
+const router = createRouter({
+  routeTree,
+  context: {
+    ...TanStackQueryProviderContext,
+  },
+  defaultPreload: 'intent',
+  scrollRestoration: true,
+  defaultStructuralSharing: true,
+  defaultPreloadStaleTime: 0,
+});
 
-// eslint-disable-next-line react-refresh/only-export-components
-const InitMethods = () => {
-  const { message, notification, modal } = App.useApp();
-  messageApi = message;
-  notificationApi = notification;
-  modalApi = modal;
-  return null;
-};
+// Register the router instance for type safety
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
+  interface StaticDataRouteOption {
+    headerTitle?: string;
+    headerHide?: boolean;
+    headerBack?: boolean;
+  }
+}
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ConfigProvider locale={enUS}>
-      <App>
-        <InitMethods />
-        <SWRConfig value={{ fetcher: swrFetcher }}>
-          <RouterProvider router={router} />
-        </SWRConfig>
-      </App>
-    </ConfigProvider>
-  </React.StrictMode>,
-);
+// Render the root
+const rootElement = document.getElementById('root');
+if (rootElement && !rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
+        <RouterProvider router={router} />
+      </TanStackQueryProvider.Provider>
+    </StrictMode>,
+  );
+}
