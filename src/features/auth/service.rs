@@ -35,7 +35,6 @@ impl AuthService {
                 );
                 e
             })?;
-
         let verification_time = start.elapsed();
         tracing::debug!(
             "User verification completed in {:?} for user_id={}",
@@ -68,6 +67,9 @@ impl AuthService {
             let _ = AuthRepository::update_last_login(&pool_clone, user_id_clone).await;
         });
 
+        // 5. get user info
+        let user_info = Self::get_login_info(pool, user.id).await?;
+
         let total_time = start.elapsed();
         tracing::info!(
             "Login successful for username={}, user_id={}, total_time={:?}",
@@ -76,7 +78,8 @@ impl AuthService {
             total_time
         );
 
-        Ok(LoginVo { token, username: request.username, user_id: user.id })
+        // 6. return login vo
+        Ok(LoginVo { token, user_info })
     }
 
     /// Get detailed user info with roles, menus, and permissions

@@ -1,19 +1,15 @@
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
-import react from '@vitejs/plugin-react';
-import { fileURLToPath } from 'url';
+import viteReact from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     tanstackRouter({ autoCodeSplitting: true }),
-    react({
+    viteReact({
       jsxImportSource: '@emotion/react',
       babel: {
         plugins: [['babel-plugin-react-compiler']],
@@ -27,7 +23,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 9999,
     open: false,
     proxy: {
       '/api': {

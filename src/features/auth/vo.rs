@@ -6,10 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct LoginVo {
     /// JWT token for authenticating subsequent requests
     pub token: String,
-    /// Username of the user
-    pub username: String,
-    /// Unique identifier of the user
-    pub user_id: i64,
+    /// User information
+    pub user_info: UserInfoVo,
 }
 
 /// Comprehensive user information for authenticated sessions.

@@ -1,51 +1,66 @@
 import { DashboardOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { ProLayout } from '@ant-design/pro-components';
+import { Link, useRouter } from '@tanstack/react-router';
 import type { MenuProps } from 'antd';
 import { Dropdown } from 'antd';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { appMessage } from '@/api';
 import { authAPI } from '@/api/auth';
 import { UserProfileModal } from '@/components/user';
-import { messageApi } from '@/main';
 import { getMenuData } from '@/router';
 
 import { useAuthStore } from '../stores/useAuthStore';
 
-// User dropdown menu items
-const userMenuItems: MenuProps['items'] = [
-  {
-    key: 'profile',
-    icon: <UserOutlined />,
-    label: <UserProfileModal />,
-  },
-  {
-    type: 'divider',
-  },
-  {
-    key: 'logout',
-    icon: <LogoutOutlined />,
-    label: 'Logout',
-    onClick: async () => {
-      await authAPI.logout();
-      useAuthStore.getState().clearAuth();
-      messageApi.success('Logout successful');
-    },
-  },
-];
+interface BasicLayoutProps {
+  children: React.ReactNode;
+  hidden?: boolean;
+}
 
-export const BasicLayout = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
+  const router = useRouter();
   const { userInfo } = useAuthStore();
+  const currentPath = router.state.location.pathname;
+
+  // If hidden, return children
+  if (hidden) {
+    return children;
+  }
+
+  // User dropdown menu items
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: <UserProfileModal />,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Logout',
+      onClick: async () => {
+        await authAPI.logout();
+        useAuthStore.getState().clearAuth();
+        appMessage.success('Logout successful');
+        router.navigate({ to: '/login' });
+      },
+    },
+  ];
 
   return (
     <ProLayout
       title="Rustzen Admin"
       logo="/rustzen.png"
-      location={location}
+      location={{ pathname: currentPath }}
       layout="mix"
-      onMenuHeaderClick={() => navigate('/')}
-      menuItemRender={(item, dom) => <Link to={item.path || '/'}>{dom}</Link>}
+      onMenuHeaderClick={() => router.navigate({ to: '/' })}
+      menuItemRender={(item, dom) => (
+        <Link to={item.path || '/'} className="block">
+          {dom}
+        </Link>
+      )}
       route={{
         path: '/',
         children: [
@@ -66,7 +81,7 @@ export const BasicLayout = () => {
         },
       }}
     >
-      <Outlet />
+      {children}
     </ProLayout>
   );
 };

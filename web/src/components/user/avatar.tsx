@@ -1,7 +1,7 @@
 import { UploadOutlined } from '@ant-design/icons';
 import { Upload, type UploadFile } from 'antd';
 
-import { messageApi } from '@/main';
+import { appMessage } from '@/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 // const getBase64 = (img: UploadFile, callback: (url: string) => void) => {
@@ -16,12 +16,12 @@ const beforeUpload = async (file: UploadFile) => {
   }
   const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
   if (!isJpgOrPng) {
-    messageApi.error('You can only upload JPG/JPEG/PNG file!');
+    appMessage.error('You can only upload JPG/JPEG/PNG file!');
     return false;
   }
   const isLimt = file.size / 1024 / 1024 <= 1;
   if (!isLimt) {
-    messageApi.error('Image must smaller than 1MB!');
+    appMessage.error('Image must smaller than 1MB!');
     return false;
   }
   return isJpgOrPng && isLimt;
