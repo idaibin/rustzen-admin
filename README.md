@@ -59,21 +59,21 @@ rustzen-admin/
 
 ### Installation & Setup
 
-1. **Clone the repository:**
+1.  **Clone the repository:**
 
     ```bash
     git clone https://github.com/idaibin/rustzen-admin.git
     cd rustzen-admin
     ```
 
-2. **Set up environment variables:**
+2.  **Set up environment variables:**
 
     ```bash
     cp .env.example .env
     # Edit .env file with database connection information
     ```
 
-3. **Install dependencies:**
+3.  **Install dependencies:**
 
     ```bash
     # Install just and Rust dependencies
@@ -84,7 +84,46 @@ rustzen-admin/
     cd web && pnpm install && cd ..
     ```
 
-4. **Start the project:**
+4.  **Set up database**
+
+    ```bash
+    First, ensure you have PostgreSQL installed and running. Then set up the database:
+
+    # Install sqlx-cli if you haven't already
+    cargo install sqlx-cli --features postgres
+
+    # Set up environment variable for database connection （using .env file）
+    # Option 1: Use DATABASE_URL (recommended for sqlx-cli)
+    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
+
+    # Option 2: Use RUSTZEN_DB_URL (project default)
+    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
+
+    # Check migration status:
+    sqlx migrate info
+
+    # Expected output:
+    # 101/pending system table
+    # 102/pending system relation
+    # 103/pending system view
+    # 104/pending system func
+    # 105/pending system seed
+
+    # Run migrations:
+    sqlx migrate run
+
+    # Expected output after successful migration:
+    # 101/installed system table
+    # 102/installed system relation
+    # 103/installed system view
+    # 104/installed system func
+    # 105/installed system seed
+    # Check database connection
+    ```
+
+    > **Note:** The project uses `RUSTZEN_DB_URL` by default, but `sqlx-cli` uses `DATABASE_URL`.
+
+5.  **Start the project:**
 
     ```bash
     just dev
