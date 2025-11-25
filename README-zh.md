@@ -86,7 +86,62 @@ rustzen-admin/
     cd web && pnpm install && cd ..
     ```
 
-4. **启动项目:**
+4. **设置数据库:**
+
+    首先，确保已安装并运行 PostgreSQL。然后设置数据库：
+
+    ```bash
+    # 如果还没有安装 sqlx-cli，请先安装
+    cargo install sqlx-cli --features postgres
+    ```
+
+    **设置环境变量**（在 `.env` 文件中）：
+
+    ```bash
+    # 选项 1: 使用 DATABASE_URL（推荐，sqlx-cli 默认使用）
+    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
+
+    # 选项 2: 使用 RUSTZEN_DB_URL（项目默认）
+    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
+    ```
+
+    **检查迁移状态:**
+
+    ```bash
+    # 使用 DATABASE_URL（如果已设置）
+    sqlx migrate info
+    ```
+
+    预期输出：
+
+    ```
+    101/pending system table
+    102/pending system relation
+    103/pending system view
+    104/pending system func
+    105/pending system seed
+    ```
+
+    **运行迁移:**
+
+    ```bash
+    # 使用 DATABASE_URL（如果已设置）
+    sqlx migrate run
+    ```
+
+    迁移成功后的预期输出：
+
+    ```
+    101/installed system table
+    102/installed system relation
+    103/installed system view
+    104/installed system func
+    105/installed system seed
+    ```
+
+    > **注意:** 项目默认使用 `RUSTZEN_DB_URL`，但 `sqlx-cli` 使用 `DATABASE_URL`
+
+5. **启动项目:**
 
     ```bash
     just dev
