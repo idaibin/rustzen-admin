@@ -1,17 +1,36 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Tag } from 'antd';
+import { Button, Segmented, Tag } from 'antd';
 
 import { logAPI } from '@/api/system/log';
+import { useLocalStore } from '@/stores/useLocalStore';
 
+const actionOptions = [
+  { label: 'All', value: '' },
+  { label: 'Login', value: 'AUTH_LOGIN' },
+  { label: 'GET', value: 'HTTP_GET' },
+  { label: 'POST', value: 'HTTP_POST' },
+  { label: 'PUT', value: 'HTTP_PUT' },
+  { label: 'DELETE', value: 'HTTP_DELETE' },
+];
 export default function LogPage() {
+  const [actionType, setActionType] = useLocalStore('log-action');
   return (
     <ProTable<Log.Item>
       rowKey="id"
       scroll={{ y: 'calc(100vh - 383px)' }}
-      headerTitle={'Operation Log'}
       columns={columns}
+      params={{ action: actionType }}
       request={logAPI.getTableData}
+      headerTitle={
+        <Segmented
+          value={actionType}
+          options={actionOptions}
+          onChange={(val) => {
+            setActionType(val);
+          }}
+        />
+      }
       toolBarRender={() => [
         <Button
           key="export"
@@ -27,6 +46,13 @@ export default function LogPage() {
   );
 }
 
+const actionColorMap: Record<Log.Action, string> = {
+  HTTP_GET: 'default',
+  HTTP_POST: 'processing',
+  HTTP_PUT: 'warning',
+  HTTP_DELETE: 'error',
+  AUTH_LOGIN: 'success',
+};
 const columns: ProColumns<Log.Item>[] = [
   {
     title: 'ID',
@@ -47,17 +73,12 @@ const columns: ProColumns<Log.Item>[] = [
     hideInSearch: true,
     render: (_, record) => {
       const action = record.action;
-      let color = 'default';
-      if (action.startsWith('HTTP_')) {
-        color = 'blue';
-      } else if (action.includes('CREATE')) {
-        color = 'green';
-      } else if (action.includes('UPDATE')) {
-        color = 'orange';
-      } else if (action.includes('DELETE')) {
-        color = 'red';
-      }
-      return <Tag color={color}>{action}</Tag>;
+      const color = actionColorMap[action];
+      return (
+        <Tag color={color} variant="outlined">
+          {action}
+        </Tag>
+      );
     },
   },
   {
@@ -73,7 +94,11 @@ const columns: ProColumns<Log.Item>[] = [
     render: (_, record) => {
       const status = record.status;
       const color = status === 'SUCCESS' ? 'success' : 'error';
-      return <Tag color={color}>{status}</Tag>;
+      return (
+        <Tag color={color} variant="solid">
+          {status}
+        </Tag>
+      );
     },
   },
   {

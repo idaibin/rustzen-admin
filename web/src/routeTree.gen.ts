@@ -8,99 +8,99 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root';
-import { Route as LoginRouteImport } from './routes/login';
-import { Route as R404RouteImport } from './routes/404';
-import { Route as R403RouteImport } from './routes/403';
-import { Route as IndexRouteImport } from './routes/index';
-import { Route as SystemUserRouteImport } from './routes/system/user';
-import { Route as SystemRoleRouteImport } from './routes/system/role';
-import { Route as SystemMenuRouteImport } from './routes/system/menu';
-import { Route as SystemLogRouteImport } from './routes/system/log';
-import { Route as SystemDictRouteImport } from './routes/system/dict';
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as R404RouteImport } from './routes/404'
+import { Route as R403RouteImport } from './routes/403'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as SystemUserRouteImport } from './routes/system/user'
+import { Route as SystemRoleRouteImport } from './routes/system/role'
+import { Route as SystemMenuRouteImport } from './routes/system/menu'
+import { Route as SystemLogRouteImport } from './routes/system/log'
+import { Route as SystemDictRouteImport } from './routes/system/dict'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const R404Route = R404RouteImport.update({
   id: '/404',
   path: '/404',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const R403Route = R403RouteImport.update({
   id: '/403',
   path: '/403',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SystemUserRoute = SystemUserRouteImport.update({
   id: '/system/user',
   path: '/system/user',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SystemRoleRoute = SystemRoleRouteImport.update({
   id: '/system/role',
   path: '/system/role',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SystemMenuRoute = SystemMenuRouteImport.update({
   id: '/system/menu',
   path: '/system/menu',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SystemLogRoute = SystemLogRouteImport.update({
   id: '/system/log',
   path: '/system/log',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SystemDictRoute = SystemDictRouteImport.update({
   id: '/system/dict',
   path: '/system/dict',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute;
-  '/403': typeof R403Route;
-  '/404': typeof R404Route;
-  '/login': typeof LoginRoute;
-  '/system/dict': typeof SystemDictRoute;
-  '/system/log': typeof SystemLogRoute;
-  '/system/menu': typeof SystemMenuRoute;
-  '/system/role': typeof SystemRoleRoute;
-  '/system/user': typeof SystemUserRoute;
+  '/': typeof IndexRoute
+  '/403': typeof R403Route
+  '/404': typeof R404Route
+  '/login': typeof LoginRoute
+  '/system/dict': typeof SystemDictRoute
+  '/system/log': typeof SystemLogRoute
+  '/system/menu': typeof SystemMenuRoute
+  '/system/role': typeof SystemRoleRoute
+  '/system/user': typeof SystemUserRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute;
-  '/403': typeof R403Route;
-  '/404': typeof R404Route;
-  '/login': typeof LoginRoute;
-  '/system/dict': typeof SystemDictRoute;
-  '/system/log': typeof SystemLogRoute;
-  '/system/menu': typeof SystemMenuRoute;
-  '/system/role': typeof SystemRoleRoute;
-  '/system/user': typeof SystemUserRoute;
+  '/': typeof IndexRoute
+  '/403': typeof R403Route
+  '/404': typeof R404Route
+  '/login': typeof LoginRoute
+  '/system/dict': typeof SystemDictRoute
+  '/system/log': typeof SystemLogRoute
+  '/system/menu': typeof SystemMenuRoute
+  '/system/role': typeof SystemRoleRoute
+  '/system/user': typeof SystemUserRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  '/': typeof IndexRoute;
-  '/403': typeof R403Route;
-  '/404': typeof R404Route;
-  '/login': typeof LoginRoute;
-  '/system/dict': typeof SystemDictRoute;
-  '/system/log': typeof SystemLogRoute;
-  '/system/menu': typeof SystemMenuRoute;
-  '/system/role': typeof SystemRoleRoute;
-  '/system/user': typeof SystemUserRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/403': typeof R403Route
+  '/404': typeof R404Route
+  '/login': typeof LoginRoute
+  '/system/dict': typeof SystemDictRoute
+  '/system/log': typeof SystemLogRoute
+  '/system/menu': typeof SystemMenuRoute
+  '/system/role': typeof SystemRoleRoute
+  '/system/user': typeof SystemUserRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/403'
@@ -110,8 +110,8 @@ export interface FileRouteTypes {
     | '/system/log'
     | '/system/menu'
     | '/system/role'
-    | '/system/user';
-  fileRoutesByTo: FileRoutesByTo;
+    | '/system/user'
+  fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/403'
@@ -121,7 +121,7 @@ export interface FileRouteTypes {
     | '/system/log'
     | '/system/menu'
     | '/system/role'
-    | '/system/user';
+    | '/system/user'
   id:
     | '__root__'
     | '/'
@@ -132,86 +132,86 @@ export interface FileRouteTypes {
     | '/system/log'
     | '/system/menu'
     | '/system/role'
-    | '/system/user';
-  fileRoutesById: FileRoutesById;
+    | '/system/user'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  R403Route: typeof R403Route;
-  R404Route: typeof R404Route;
-  LoginRoute: typeof LoginRoute;
-  SystemDictRoute: typeof SystemDictRoute;
-  SystemLogRoute: typeof SystemLogRoute;
-  SystemMenuRoute: typeof SystemMenuRoute;
-  SystemRoleRoute: typeof SystemRoleRoute;
-  SystemUserRoute: typeof SystemUserRoute;
+  IndexRoute: typeof IndexRoute
+  R403Route: typeof R403Route
+  R404Route: typeof R404Route
+  LoginRoute: typeof LoginRoute
+  SystemDictRoute: typeof SystemDictRoute
+  SystemLogRoute: typeof SystemLogRoute
+  SystemMenuRoute: typeof SystemMenuRoute
+  SystemRoleRoute: typeof SystemRoleRoute
+  SystemUserRoute: typeof SystemUserRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/login': {
-      id: '/login';
-      path: '/login';
-      fullPath: '/login';
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/404': {
-      id: '/404';
-      path: '/404';
-      fullPath: '/404';
-      preLoaderRoute: typeof R404RouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/404'
+      path: '/404'
+      fullPath: '/404'
+      preLoaderRoute: typeof R404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/403': {
-      id: '/403';
-      path: '/403';
-      fullPath: '/403';
-      preLoaderRoute: typeof R403RouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/403'
+      path: '/403'
+      fullPath: '/403'
+      preLoaderRoute: typeof R403RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
-      id: '/';
-      path: '/';
-      fullPath: '/';
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/user': {
-      id: '/system/user';
-      path: '/system/user';
-      fullPath: '/system/user';
-      preLoaderRoute: typeof SystemUserRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/system/user'
+      path: '/system/user'
+      fullPath: '/system/user'
+      preLoaderRoute: typeof SystemUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/role': {
-      id: '/system/role';
-      path: '/system/role';
-      fullPath: '/system/role';
-      preLoaderRoute: typeof SystemRoleRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/system/role'
+      path: '/system/role'
+      fullPath: '/system/role'
+      preLoaderRoute: typeof SystemRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/menu': {
-      id: '/system/menu';
-      path: '/system/menu';
-      fullPath: '/system/menu';
-      preLoaderRoute: typeof SystemMenuRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/system/menu'
+      path: '/system/menu'
+      fullPath: '/system/menu'
+      preLoaderRoute: typeof SystemMenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/log': {
-      id: '/system/log';
-      path: '/system/log';
-      fullPath: '/system/log';
-      preLoaderRoute: typeof SystemLogRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/system/log'
+      path: '/system/log'
+      fullPath: '/system/log'
+      preLoaderRoute: typeof SystemLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/dict': {
-      id: '/system/dict';
-      path: '/system/dict';
-      fullPath: '/system/dict';
-      preLoaderRoute: typeof SystemDictRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/system/dict'
+      path: '/system/dict'
+      fullPath: '/system/dict'
+      preLoaderRoute: typeof SystemDictRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,5 +225,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemMenuRoute: SystemMenuRoute,
   SystemRoleRoute: SystemRoleRoute,
   SystemUserRoute: SystemUserRoute,
-};
-export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)._addFileTypes<FileRouteTypes>();
+}
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
