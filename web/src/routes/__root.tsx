@@ -34,7 +34,6 @@ export const Route = createRootRoute({
       return null;
     }
     const isPermission = checkMenuPermissions(curPath);
-    console.log('Permissions check', curPath, isPermission);
 
     // Redirect to 403 if no permission
     if (token && !isPermission) {
