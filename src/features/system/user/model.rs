@@ -16,3 +16,6 @@ pub struct UserWithRolesEntity {
     pub updated_at: NaiveDateTime,
     pub roles: serde_json::Value,
 }
+
+/// Type alias: repository/API use this name for the user-with-roles model.
+pub type User = UserWithRolesEntity;

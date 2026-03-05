@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateDictDto, DictQueryDto, UpdateDictDto},
-    repo::DictRepository,
-    vo::DictItemVo,
+    dto::{CreateDictDto, DictItemResp, DictQuery, UpdateDictPayload},
+    repo::{DictListQuery, DictRepository},
 };
 use crate::common::{api::OptionItem, error::ServiceError, pagination::Pagination};
 
@@ -13,17 +12,23 @@ impl DictService {
     /// Retrieves a list of dictionary items with optional filtering
     pub async fn get_dict_list(
         pool: &PgPool,
-        query: DictQueryDto,
-    ) -> Result<(Vec<DictItemVo>, i64), ServiceError> {
+        query: DictQuery,
+    ) -> Result<(Vec<DictItemResp>, i64), ServiceError> {
         tracing::info!("Starting to retrieve dictionary list with query: {:?}", query);
 
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
+        let repo_query = DictListQuery {
+            dict_type: query.dict_type,
+            label: query.label,
+            value: query.value,
+            status: query.status,
+        };
 
         // Get filtered items or all items
         let (dicts, total) =
-            DictRepository::find_with_pagination(pool, offset, limit, query).await?;
+            DictRepository::find_with_pagination(pool, offset, limit, repo_query).await?;
 
-        let dict_vos: Vec<DictItemVo> = dicts.into_iter().map(DictItemVo::from).collect();
+        let dict_vos: Vec<DictItemResp> = dicts.into_iter().map(DictItemResp::from).collect();
 
         tracing::info!("Successfully retrieved {} dictionary items", dict_vos.len());
         Ok((dict_vos, total))
@@ -59,7 +64,7 @@ impl DictService {
     pub async fn update_dict(
         pool: &PgPool,
         id: i64,
-        request: UpdateDictDto,
+        request: UpdateDictPayload,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Updating dictionary item: {}", id);
 

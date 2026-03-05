@@ -1,4 +1,4 @@
-use super::{dto::DictQueryDto, entity::DictEntity};
+use super::model::DictEntity;
 use crate::common::{api::OptionItem, error::ServiceError};
 
 use chrono::Utc;
@@ -6,9 +6,17 @@ use sqlx::{PgPool, QueryBuilder};
 
 pub struct DictRepository;
 
+#[derive(Debug, Clone)]
+pub struct DictListQuery {
+    pub dict_type: Option<String>,
+    pub label: Option<String>,
+    pub value: Option<String>,
+    pub status: Option<String>,
+}
+
 impl DictRepository {
     /// Formats the query for the dictionary items
-    fn format_query(query: &DictQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &DictListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(dict_type) = &query.dict_type {
             if !dict_type.trim().is_empty() {
                 query_builder.push(" AND dict_type ILIKE  ").push_bind(format!("%{}%", dict_type));
@@ -32,7 +40,7 @@ impl DictRepository {
     }
 
     /// Count dicts matching filters
-    async fn count_dicts(pool: &PgPool, query: &DictQueryDto) -> Result<i64, ServiceError> {
+    async fn count_dicts(pool: &PgPool, query: &DictListQuery) -> Result<i64, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT COUNT(*) FROM dicts WHERE 1=1");
 
@@ -50,7 +58,7 @@ impl DictRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        query: DictQueryDto,
+        query: DictListQuery,
     ) -> Result<(Vec<DictEntity>, i64), ServiceError> {
         let total = Self::count_dicts(pool, &query).await?;
         if total == 0 {

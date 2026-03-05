@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto},
-    repo::MenuRepository,
-    vo::MenuItemVo,
+    dto::{CreateMenuDto, MenuItemResp, MenuQuery, UpdateMenuPayload},
+    repo::{MenuListQuery, MenuRepository},
 };
 use crate::common::{
     api::{OptionItem, OptionsQuery},
@@ -16,13 +15,19 @@ impl MenuService {
     /// Get menu list as tree structure with optional filtering
     pub async fn get_menu_list(
         pool: &PgPool,
-        query: MenuQueryDto,
-    ) -> Result<(Vec<MenuItemVo>, i64), ServiceError> {
+        query: MenuQuery,
+    ) -> Result<(Vec<MenuItemResp>, i64), ServiceError> {
         tracing::info!("Fetching menu list with query: {:?}", query);
 
-        let menus = MenuRepository::find_all(pool, query).await?;
+        let repo_query = MenuListQuery {
+            name: query.name,
+            code: query.code,
+            status: query.status,
+        };
 
-        let menu_responses: Vec<MenuItemVo> = menus.into_iter().map(MenuItemVo::from).collect();
+        let menus = MenuRepository::find_all(pool, repo_query).await?;
+
+        let menu_responses: Vec<MenuItemResp> = menus.into_iter().map(MenuItemResp::from).collect();
         let count = menu_responses.len() as i64;
 
         Ok((menu_responses, count))
@@ -51,7 +56,7 @@ impl MenuService {
     pub async fn update_menu(
         pool: &PgPool,
         id: i64,
-        request: UpdateMenuDto,
+        request: UpdateMenuPayload,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
 

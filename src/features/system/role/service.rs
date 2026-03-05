@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto},
-    repo::RoleRepository,
-    vo::RoleItemVo,
+    dto::{CreateRoleDto, RoleItemResp, RoleQuery, UpdateRolePayload},
+    repo::{RoleListQuery, RoleRepository},
 };
 use crate::common::{
     api::{OptionItem, OptionsQuery},
@@ -17,16 +16,21 @@ impl RoleService {
     /// Get paginated role list with filtering
     pub async fn get_role_list(
         pool: &PgPool,
-        query: RoleQueryDto,
-    ) -> Result<(Vec<RoleItemVo>, i64), ServiceError> {
+        query: RoleQuery,
+    ) -> Result<(Vec<RoleItemResp>, i64), ServiceError> {
         tracing::info!("Fetching role list with query: {:?}", query);
 
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
+        let repo_query = RoleListQuery {
+            role_name: query.role_name,
+            role_code: query.role_code,
+            status: query.status,
+        };
 
         let (roles, total) =
-            RoleRepository::find_with_pagination(pool, offset, limit, query).await?;
+            RoleRepository::find_with_pagination(pool, offset, limit, repo_query).await?;
 
-        let list = roles.into_iter().map(RoleItemVo::from).collect();
+        let list = roles.into_iter().map(RoleItemResp::from).collect();
 
         Ok((list, total))
     }
@@ -53,7 +57,7 @@ impl RoleService {
     pub async fn update_role(
         pool: &PgPool,
         id: i64,
-        request: UpdateRoleDto,
+        request: UpdateRolePayload,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
 

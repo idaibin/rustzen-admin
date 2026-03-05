@@ -1,11 +1,11 @@
-use super::vo::{StatsVo, SystemMetricsDataVo, TrendVo, UserTrendsVo};
+use super::dto::{StatsResp, SystemMetricsDataResp, TrendResp, UserTrendsResp};
 use crate::common::error::ServiceError;
 use sqlx::PgPool;
 
 pub struct DashboardRepository;
 
 impl DashboardRepository {
-    pub async fn get_stats(pool: &PgPool) -> Result<StatsVo, ServiceError> {
+    pub async fn get_stats(pool: &PgPool) -> Result<StatsResp, ServiceError> {
         // 并行执行所有查询
         let (
             total_users,
@@ -75,11 +75,11 @@ impl DashboardRepository {
         })?;
 
         let stats =
-            StatsVo { total_users, active_users, today_logins, system_uptime, pending_users };
+            StatsResp { total_users, active_users, today_logins, system_uptime, pending_users };
         Ok(stats)
     }
 
-    pub async fn get_metrics(pool: &PgPool) -> Result<SystemMetricsDataVo, ServiceError> {
+    pub async fn get_metrics(pool: &PgPool) -> Result<SystemMetricsDataResp, ServiceError> {
         // 并行获取系统指标
         let (
             total_requests,
@@ -131,7 +131,7 @@ impl DashboardRepository {
         // 计算平均响应时间（毫秒）
         let avg_response_time_ms = avg_response_time.unwrap_or(0.0) as i64;
 
-        let metrics = SystemMetricsDataVo {
+        let metrics = SystemMetricsDataResp {
             avg_response_time: avg_response_time_ms,
             error_rate: error_rate,
             total_requests,
@@ -140,7 +140,7 @@ impl DashboardRepository {
         Ok(metrics)
     }
 
-    pub async fn get_trends(pool: &PgPool) -> Result<UserTrendsVo, ServiceError> {
+    pub async fn get_trends(pool: &PgPool) -> Result<UserTrendsResp, ServiceError> {
         // 并行获取趋势数据
         let (daily_logins, hourly_active) = tokio::join!(
             // 获取最近30天的登录趋势
@@ -152,11 +152,11 @@ impl DashboardRepository {
         let daily_logins = daily_logins?;
         let hourly_active = hourly_active?;
 
-        Ok(UserTrendsVo { daily_logins, hourly_active })
+        Ok(UserTrendsResp { daily_logins, hourly_active })
     }
 
     /// 获取每日登录趋势（最近30天）
-    async fn get_daily_login_trends(pool: &PgPool) -> Result<Vec<TrendVo>, ServiceError> {
+    async fn get_daily_login_trends(pool: &PgPool) -> Result<Vec<TrendResp>, ServiceError> {
         let daily_logins = sqlx::query_as(
             r#"
             SELECT
@@ -181,8 +181,8 @@ impl DashboardRepository {
     }
 
     /// 获取24小时活跃用户分布
-    async fn get_hourly_active_users(pool: &PgPool) -> Result<Vec<TrendVo>, ServiceError> {
-        let hourly_active: Vec<TrendVo> = sqlx::query_as(
+    async fn get_hourly_active_users(pool: &PgPool) -> Result<Vec<TrendResp>, ServiceError> {
+        let hourly_active: Vec<TrendResp> = sqlx::query_as(
             r#"
             WITH hour_series AS (
                 SELECT generate_series(0, 23) as hour

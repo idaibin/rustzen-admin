@@ -1,10 +1,9 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserDto, UpdateUserPasswordDto, UpdateUserStatusDto, UserOptionsDto,
-        UserQueryDto,
+        CreateUserDto, UpdateUserPayload, UpdateUserPasswordPayload, UpdateUserStatusPayload, UserItemResp,
+        UserOptionResp, UserOptionsQuery, UserQuery,
     },
     service::UserService,
-    vo::{UserItemVo, UserOptionVo},
 };
 use crate::{
     common::{
@@ -72,8 +71,8 @@ pub fn user_routes() -> Router<sqlx::PgPool> {
 #[instrument(skip(pool, query))]
 pub async fn get_user_list(
     State(pool): State<PgPool>,
-    Query(query): Query<UserQueryDto>,
-) -> AppResult<Vec<UserItemVo>> {
+    Query(query): Query<UserQuery>,
+) -> AppResult<Vec<UserItemResp>> {
     tracing::info!("Getting user list");
 
     let (users, total) = UserService::get_user_list(&pool, query).await?;
@@ -101,7 +100,7 @@ pub async fn create_user(
 pub async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(dto): Json<UpdateUserDto>,
+    Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
     tracing::info!("Updating user ID: {}", id);
 
@@ -128,7 +127,7 @@ pub async fn delete_user(State(pool): State<PgPool>, Path(id): Path<i64>) -> App
 
 /// Get user status options
 #[instrument]
-pub async fn get_user_status_options() -> AppResult<Vec<UserOptionVo>> {
+pub async fn get_user_status_options() -> AppResult<Vec<UserOptionResp>> {
     tracing::info!("Getting user status options");
 
     let result = UserService::get_user_status_options();
@@ -141,8 +140,8 @@ pub async fn get_user_status_options() -> AppResult<Vec<UserOptionVo>> {
 #[instrument(skip(pool, query))]
 pub async fn get_user_options(
     State(pool): State<PgPool>,
-    Query(query): Query<UserOptionsDto>,
-) -> AppResult<Vec<UserOptionVo>> {
+    Query(query): Query<UserOptionsQuery>,
+) -> AppResult<Vec<UserOptionResp>> {
     tracing::info!("Getting user options");
 
     let result = UserService::get_user_options(&pool, query).await?;
@@ -155,7 +154,7 @@ pub async fn get_user_options(
 pub async fn update_user_password(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(dto): Json<UpdateUserPasswordDto>,
+    Json(dto): Json<UpdateUserPasswordPayload>,
 ) -> AppResult<bool> {
     tracing::info!("Updating user password for user: {}", id);
 
@@ -169,7 +168,7 @@ pub async fn update_user_password(
 pub async fn update_user_status(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(dto): Json<UpdateUserStatusDto>,
+    Json(dto): Json<UpdateUserStatusPayload>,
 ) -> AppResult<bool> {
     tracing::info!("Updating user status for user: {}", id);
 

@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateRoleDto, RoleQueryDto, UpdateRoleDto},
+    dto::{CreateRoleDto, RoleItemResp, RoleQuery, UpdateRolePayload},
     service::RoleService,
-    vo::RoleItemVo,
 };
 use crate::{
     common::{
@@ -51,8 +50,8 @@ pub fn role_routes() -> Router<PgPool> {
 /// Get paginated role list with filtering
 async fn get_role_list(
     State(pool): State<PgPool>,
-    Query(query): Query<RoleQueryDto>,
-) -> AppResult<Vec<RoleItemVo>> {
+    Query(query): Query<RoleQuery>,
+) -> AppResult<Vec<RoleItemResp>> {
     tracing::info!("Role list request: query={:?}", query);
 
     let (role_list, total) = RoleService::get_role_list(&pool, query).await?;
@@ -80,7 +79,7 @@ async fn create_role(
 async fn update_role(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateRoleDto>,
+    Json(request): Json<UpdateRolePayload>,
 ) -> AppResult<()> {
     tracing::info!("Update role {}: name={:?}, menus={:?}", id, request.name, request.menu_ids);
 

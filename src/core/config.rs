@@ -30,7 +30,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            app_port: 8000,
+            app_port: 8007,
             app_host: "0.0.0.0".into(),
             db_url: "sqlite://rustzen.db".into(),
             db_max_conn: 10,

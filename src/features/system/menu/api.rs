@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateMenuDto, MenuQueryDto, UpdateMenuDto},
+    dto::{CreateMenuDto, MenuItemResp, MenuQuery, UpdateMenuPayload},
     service::MenuService,
-    vo::MenuItemVo,
 };
 use crate::{
     common::{
@@ -53,8 +52,8 @@ pub fn menu_routes() -> Router<PgPool> {
 /// Need show all menu, not pagination
 async fn get_menu_list(
     State(pool): State<PgPool>,
-    Query(params): Query<MenuQueryDto>,
-) -> AppResult<Vec<MenuItemVo>> {
+    Query(params): Query<MenuQuery>,
+) -> AppResult<Vec<MenuItemResp>> {
     tracing::info!("Menu list request: {:?}", params);
 
     let (menu_list, total) = MenuService::get_menu_list(&pool, params).await?;
@@ -79,7 +78,7 @@ async fn create_menu(
 async fn update_menu(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateMenuDto>,
+    Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
     let menu_id = MenuService::update_menu(&pool, id, request).await?;
     Ok(ApiResponse::success(menu_id))

@@ -1,10 +1,10 @@
-use super::entity::{AuthUserEntity, LoginCredentialsEntity};
+use super::model::{AuthUserEntity, LoginCredentialsEntity};
 use crate::common::error::ServiceError;
 
 use chrono::Utc;
 use sqlx::PgPool;
 
-/// Auth repository for authentication-specific database operations
+/// Auth db for authentication-specific database operations
 pub struct AuthRepository;
 
 impl AuthRepository {

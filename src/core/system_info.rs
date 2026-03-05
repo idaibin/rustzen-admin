@@ -16,7 +16,7 @@ pub struct SystemInfo {
     pub disk_free: u64,
 }
 
-/// 系统工具函数集合
+/// 系统信息工具（CPU/内存/磁盘等）
 pub struct SystemUtils;
 
 impl SystemUtils {

@@ -1,14 +1,32 @@
-use super::{dto::CreateUserDto, entity::UserWithRolesEntity};
-use crate::{common::error::ServiceError, features::system::user::dto::UserQueryDto};
+use super::model::UserWithRolesEntity;
+use crate::common::error::ServiceError;
 
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
-/// User repository for database operations
+/// User db for database operations
 pub struct UserRepository;
 
+#[derive(Debug, Clone)]
+pub struct UserListQuery {
+    pub username: Option<String>,
+    pub status: Option<String>,
+    pub real_name: Option<String>,
+    pub email: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateUserCommand {
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub real_name: Option<String>,
+    pub status: Option<i16>,
+    pub role_ids: Vec<i64>,
+}
+
 impl UserRepository {
-    fn format_query(query: &UserQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(username) = &query.username {
             if !username.trim().is_empty() {
                 query_builder.push(" AND username ILIKE ").push_bind(format!("%{}%", username));
@@ -32,7 +50,7 @@ impl UserRepository {
     }
 
     /// Count users matching filters
-    async fn count_users(pool: &PgPool, query: &UserQueryDto) -> Result<i64, ServiceError> {
+    async fn count_users(pool: &PgPool, query: &UserListQuery) -> Result<i64, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT COUNT(*) FROM user_with_roles WHERE 1=1");
 
@@ -52,7 +70,7 @@ impl UserRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        query: UserQueryDto,
+        query: UserListQuery,
     ) -> Result<(Vec<UserWithRolesEntity>, i64), ServiceError> {
         tracing::debug!("Finding users with pagination and filters: {:?}", query);
         let total = Self::count_users(pool, &query).await?;
@@ -122,7 +140,7 @@ impl UserRepository {
         Ok(result)
     }
 
-    /// Find user by ID
+    /// Find user by ID (returns None if not found)
     pub async fn find_by_id(
         pool: &PgPool,
         id: i64,
@@ -140,8 +158,18 @@ impl UserRepository {
         Ok(result)
     }
 
+    /// Get user by ID (returns NotFound error if not found)
+    pub async fn get_by_id(
+        pool: &PgPool,
+        id: i64,
+    ) -> Result<UserWithRolesEntity, ServiceError> {
+        Self::find_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))
+    }
+
     /// Create new user with optional roles (unified method)
-    pub async fn create_user(pool: &PgPool, dto: &CreateUserDto) -> Result<i64, ServiceError> {
+    pub async fn create_user(pool: &PgPool, cmd: &CreateUserCommand) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting transaction for user creation: {:?}", e);
             ServiceError::DatabaseQueryFailed
@@ -153,20 +181,20 @@ impl UserRepository {
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id",
         )
-        .bind(&dto.username)
-        .bind(&dto.email)
-        .bind(&dto.password)
-        .bind(dto.real_name.as_deref())
-        .bind(dto.status.unwrap_or(1))
+        .bind(&cmd.username)
+        .bind(&cmd.email)
+        .bind(&cmd.password_hash)
+        .bind(cmd.real_name.as_deref())
+        .bind(cmd.status.unwrap_or(1))
         .bind(Utc::now().naive_utc())
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| {
-            tracing::error!("Database error creating user '{}': {:?}", dto.username, e);
+            tracing::error!("Database error creating user '{}': {:?}", cmd.username, e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Self::insert_user_roles(&mut tx, user_id, &dto.role_ids).await?;
+        Self::insert_user_roles(&mut tx, user_id, &cmd.role_ids).await?;
 
         tx.commit().await.map_err(|e| {
             tracing::error!("Database error committing user creation transaction: {:?}", e);

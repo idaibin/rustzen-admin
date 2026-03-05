@@ -1,7 +1,6 @@
 use super::{
-    dto::{CreateDictDto, DictQueryDto, UpdateDictDto, UpdateDictStatusDto},
+    dto::{CreateDictDto, DictItemResp, DictQuery, UpdateDictPayload, UpdateDictStatusPayload},
     service::DictService,
-    vo::DictItemVo,
 };
 use crate::{
     common::{
@@ -61,8 +60,8 @@ pub fn dict_routes() -> Router<PgPool> {
 /// Retrieves a complete list of dictionary items with optional filtering.
 async fn get_dict_list(
     State(pool): State<PgPool>,
-    Query(query): Query<DictQueryDto>,
-) -> AppResult<Vec<DictItemVo>> {
+    Query(query): Query<DictQuery>,
+) -> AppResult<Vec<DictItemResp>> {
     tracing::info!("Dictionary list request received with params: {:?}", query);
 
     let (dict_list, total) = DictService::get_dict_list(&pool, query).await?;
@@ -90,7 +89,7 @@ async fn create_dict(
 async fn update_dict(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateDictDto>,
+    Json(request): Json<UpdateDictPayload>,
 ) -> AppResult<i64> {
     tracing::info!("Update dictionary item {}: {:?}", id, request);
 
@@ -115,7 +114,7 @@ async fn delete_dict(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResu
 async fn update_dict_status(
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
-    Json(request): Json<UpdateDictStatusDto>,
+    Json(request): Json<UpdateDictStatusPayload>,
 ) -> AppResult<()> {
     tracing::info!("Update dictionary item {} status to: {}", id, request.status);
 
