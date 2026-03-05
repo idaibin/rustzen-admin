@@ -1,4 +1,4 @@
-use super::{dto::LogQueryDto, entity::LogEntity};
+use super::model::LogEntity;
 use crate::common::error::ServiceError;
 
 use sqlx::{PgPool, QueryBuilder};
@@ -6,8 +6,16 @@ use sqlx::{PgPool, QueryBuilder};
 /// Log data access layer
 pub struct LogRepository;
 
+#[derive(Debug, Clone)]
+pub struct LogListQuery {
+    pub username: Option<String>,
+    pub action: Option<String>,
+    pub description: Option<String>,
+    pub ip_address: Option<String>,
+}
+
 impl LogRepository {
-    fn format_query(query: &LogQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(username) = &query.username {
             if !username.trim().is_empty() {
                 query_builder.push(" AND username ILIKE ").push_bind(format!("%{}%", username));
@@ -35,7 +43,7 @@ impl LogRepository {
     }
 
     /// Count logs matching filters
-    async fn count_logs(pool: &PgPool, query: &LogQueryDto) -> Result<i64, ServiceError> {
+    async fn count_logs(pool: &PgPool, query: &LogListQuery) -> Result<i64, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT COUNT(*) FROM operation_logs WHERE 1=1");
 
@@ -55,7 +63,7 @@ impl LogRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        query: LogQueryDto,
+        query: LogListQuery,
     ) -> Result<(Vec<LogEntity>, i64), ServiceError> {
         tracing::debug!("Finding users with pagination and filters: {:?}", query);
         let total = Self::count_logs(pool, &query).await?;
@@ -117,10 +125,7 @@ impl LogRepository {
         Ok(log_id)
     }
 
-    pub async fn find_all(
-        pool: &PgPool,
-        query: LogQueryDto,
-    ) -> Result<Vec<LogEntity>, ServiceError> {
+    pub async fn find_all(pool: &PgPool, query: LogListQuery) -> Result<Vec<LogEntity>, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT * FROM operation_logs WHERE 1=1");
 

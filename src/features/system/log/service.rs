@@ -1,4 +1,8 @@
-use super::{dto::LogQueryDto, entity::LogEntity, repo::LogRepository, vo::LogItemVo};
+use super::{
+    dto::{LogItemResp, LogQuery},
+    model::LogEntity,
+    repo::{LogListQuery, LogRepository},
+};
 use crate::common::{error::ServiceError, pagination::Pagination};
 
 use sqlx::PgPool;
@@ -9,12 +13,19 @@ impl LogService {
     /// Retrieves a paginated list of system logs
     pub async fn get_log_list(
         pool: &PgPool,
-        query: LogQueryDto,
-    ) -> Result<(Vec<LogItemVo>, i64), ServiceError> {
+        query: LogQuery,
+    ) -> Result<(Vec<LogItemResp>, i64), ServiceError> {
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
+        let repo_query = LogListQuery {
+            username: query.username,
+            action: query.action,
+            description: query.description,
+            ip_address: query.ip_address,
+        };
 
-        let (logs, total) = LogRepository::find_with_pagination(pool, offset, limit, query).await?;
-        let list: Vec<LogItemVo> = logs.into_iter().map(LogItemVo::from).collect();
+        let (logs, total) =
+            LogRepository::find_with_pagination(pool, offset, limit, repo_query).await?;
+        let list: Vec<LogItemResp> = logs.into_iter().map(LogItemResp::from).collect();
 
         Ok((list, total))
     }
@@ -86,11 +97,14 @@ impl LogService {
         Ok(())
     }
 
-    pub async fn get_all_log_csv(
-        pool: &PgPool,
-        query: LogQueryDto,
-    ) -> Result<String, ServiceError> {
-        let logs = LogRepository::find_all(pool, query).await?;
+    pub async fn get_all_log_csv(pool: &PgPool, query: LogQuery) -> Result<String, ServiceError> {
+        let repo_query = LogListQuery {
+            username: query.username,
+            action: query.action,
+            description: query.description,
+            ip_address: query.ip_address,
+        };
+        let logs = LogRepository::find_all(pool, repo_query).await?;
         Self::create_csv_chunk(logs, true).await
     }
 

@@ -1,8 +1,7 @@
 use super::{
-    dto::LoginRequest,
-    entity::{LoginCredentialsEntity, UserStatus},
+    dto::{LoginRequest, LoginResp, UserInfoResp},
+    model::{LoginCredentialsEntity, UserStatus},
     repo::AuthRepository,
-    vo::{LoginVo, UserInfoVo},
 };
 use crate::{
     common::error::ServiceError,
@@ -21,7 +20,7 @@ pub struct AuthService;
 
 impl AuthService {
     /// Login with username/password
-    pub async fn login(pool: &PgPool, request: LoginRequest) -> Result<LoginVo, ServiceError> {
+    pub async fn login(pool: &PgPool, request: LoginRequest) -> Result<LoginResp, ServiceError> {
         let start = std::time::Instant::now();
         tracing::info!("Login attempt received for username: {}", request.username);
 
@@ -79,11 +78,11 @@ impl AuthService {
         );
 
         // 6. return login vo
-        Ok(LoginVo { token, user_info })
+        Ok(LoginResp { token, user_info })
     }
 
     /// Get detailed user info with roles, menus, and permissions
-    pub async fn get_login_info(pool: &PgPool, user_id: i64) -> Result<UserInfoVo, ServiceError> {
+    pub async fn get_login_info(pool: &PgPool, user_id: i64) -> Result<UserInfoResp, ServiceError> {
         tracing::info!(user_id, "Starting to fetch comprehensive user info");
 
         // Get user basic info
@@ -113,7 +112,7 @@ impl AuthService {
             user.username
         );
 
-        Ok(UserInfoVo {
+        Ok(UserInfoResp {
             id: user.id,
             username: user.username.clone(),
             real_name: user.real_name,

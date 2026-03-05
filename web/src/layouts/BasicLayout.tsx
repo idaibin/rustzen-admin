@@ -1,6 +1,6 @@
 import { DashboardOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { ProLayout } from '@ant-design/pro-components';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link, useLocation, useRouter } from '@tanstack/react-router';
 import type { MenuProps } from 'antd';
 import { Dropdown } from 'antd';
 
@@ -17,9 +17,9 @@ interface BasicLayoutProps {
 }
 
 export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
-  const router = useRouter();
   const { userInfo } = useAuthStore();
-  const currentPath = router.state.location.pathname;
+  const router = useRouter();
+  const currentPath = useLocation().pathname;
 
   // If hidden, return children
   if (hidden) {
@@ -48,7 +48,6 @@ export const BasicLayout = ({ children, hidden = false }: BasicLayoutProps) => {
       },
     },
   ];
-
   return (
     <ProLayout
       title="Rustzen Admin"

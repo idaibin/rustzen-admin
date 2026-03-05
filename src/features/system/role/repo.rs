@@ -1,4 +1,4 @@
-use super::{dto::RoleQueryDto, entity::RoleWithMenuEntity};
+use super::model::RoleWithMenuEntity;
 use crate::common::error::ServiceError;
 
 use chrono::Utc;
@@ -6,8 +6,15 @@ use sqlx::{PgPool, QueryBuilder};
 
 pub struct RoleRepository;
 
+#[derive(Debug, Clone)]
+pub struct RoleListQuery {
+    pub role_name: Option<String>,
+    pub role_code: Option<String>,
+    pub status: Option<String>,
+}
+
 impl RoleRepository {
-    fn format_query(query: &RoleQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(role_name) = &query.role_name {
             if !role_name.trim().is_empty() {
                 query_builder.push(" AND role_name ILIKE  ").push_bind(format!("%{}%", role_name));
@@ -26,7 +33,7 @@ impl RoleRepository {
     }
 
     /// Count users matching filters
-    async fn count_roles(pool: &PgPool, query: &RoleQueryDto) -> Result<i64, ServiceError> {
+    async fn count_roles(pool: &PgPool, query: &RoleListQuery) -> Result<i64, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
             QueryBuilder::new("SELECT COUNT(*) FROM role_with_menus WHERE 1=1");
 
@@ -44,7 +51,7 @@ impl RoleRepository {
         pool: &PgPool,
         offset: i64,
         limit: i64,
-        query: RoleQueryDto,
+        query: RoleListQuery,
     ) -> Result<(Vec<RoleWithMenuEntity>, i64), ServiceError> {
         let total = Self::count_roles(pool, &query).await?;
         if total == 0 {

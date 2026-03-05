@@ -5,5 +5,6 @@ pub mod extractor;
 pub mod jwt;
 pub mod password;
 pub mod permission;
+pub mod system_info;
 
 // pub mod web_embed;

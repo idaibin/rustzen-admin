@@ -13,3 +13,6 @@ pub struct RoleWithMenuEntity {
     pub is_system: Option<bool>,
     pub menus: serde_json::Value,
 }
+
+/// Type alias for the role-with-menus model.
+pub type Role = RoleWithMenuEntity;

@@ -5,8 +5,8 @@ use crate::{
         db::{create_default_pool, test_connection},
     },
     features::{
-        auth::router::{protected_auth_routes, public_auth_routes},
-        dashboard::router::dashboard_routes,
+        auth::api::{protected_auth_routes, public_auth_routes},
+        dashboard::api::dashboard_routes,
         system::system_routes,
     },
     middleware::{auth::auth_middleware, log::log_middleware},
@@ -84,6 +84,7 @@ pub async fn create_server() -> Result<(), Box<dyn std::error::Error>> {
          * 2. you need to cancel comment next line
          */
         // .fallback(crate::core::web_embed::web_embed_file_handler)
+        .fallback_service(ServeDir::new("web/dist").append_index_html_on_directories(true))
         .into_make_service_with_connect_info::<SocketAddr>();
 
     // get server address

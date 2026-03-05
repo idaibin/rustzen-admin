@@ -1,4 +1,4 @@
-use super::{dto::LogQueryDto, service::LogService, vo::LogItemVo};
+use super::{dto::{LogItemResp, LogQuery}, service::LogService};
 use crate::{
     common::{
         api::{ApiResponse, AppResult},
@@ -35,15 +35,15 @@ pub fn log_routes() -> Router<PgPool> {
 /// Handles the request to get a paginated list of logs
 pub async fn get_log_list(
     State(pool): State<PgPool>,
-    Query(query): Query<LogQueryDto>,
-) -> AppResult<Vec<LogItemVo>> {
+    Query(query): Query<LogQuery>,
+) -> AppResult<Vec<LogItemResp>> {
     let (logs, total) = LogService::get_log_list(&pool, query).await?;
     Ok(ApiResponse::page(logs, total))
 }
 
 pub async fn export_log_list(
     State(pool): State<PgPool>,
-    Query(query): Query<LogQueryDto>,
+    Query(query): Query<LogQuery>,
 ) -> Result<Response, (StatusCode, String)> {
     let content = LogService::get_all_log_csv(&pool, query).await.unwrap();
 

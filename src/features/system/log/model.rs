@@ -19,3 +19,6 @@ pub struct LogEntity {
     pub user_agent: String,
     pub created_at: NaiveDateTime,
 }
+
+/// Type alias for the log model.
+pub type Log = LogEntity;

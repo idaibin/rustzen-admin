@@ -1,11 +1,9 @@
 use super::{
+    dto::{StatsResp, SystemMetricsDataResp, UserTrendsResp},
     service::DashboardService,
-    vo::{StatsVo, SystemMetricsDataVo, UserTrendsVo},
 };
-use crate::common::{
-    api::{ApiResponse, AppResult},
-    utils::system::{SystemInfo, SystemUtils},
-};
+use crate::common::api::{ApiResponse, AppResult};
+use crate::core::system_info::{SystemInfo, SystemUtils};
 use axum::{Router, extract::State, routing::get};
 
 use sqlx::PgPool;
@@ -20,7 +18,7 @@ pub fn dashboard_routes() -> Router<PgPool> {
 }
 
 #[instrument(skip(pool,))]
-pub async fn get_stats(State(pool): State<PgPool>) -> AppResult<StatsVo> {
+pub async fn get_stats(State(pool): State<PgPool>) -> AppResult<StatsResp> {
     tracing::info!("Getting stats");
     let stats = DashboardService::get_stats(&pool).await?;
     Ok(ApiResponse::success(stats))
@@ -32,13 +30,13 @@ pub async fn get_health() -> AppResult<SystemInfo> {
     Ok(ApiResponse::success(system_info))
 }
 
-pub async fn get_metrics(State(pool): State<PgPool>) -> AppResult<SystemMetricsDataVo> {
+pub async fn get_metrics(State(pool): State<PgPool>) -> AppResult<SystemMetricsDataResp> {
     tracing::info!("Getting metrics");
     let metrics = DashboardService::get_metrics(&pool).await?;
     Ok(ApiResponse::success(metrics))
 }
 
-pub async fn get_trends(State(pool): State<PgPool>) -> AppResult<UserTrendsVo> {
+pub async fn get_trends(State(pool): State<PgPool>) -> AppResult<UserTrendsResp> {
     tracing::info!("Getting trends");
     let operations = DashboardService::get_trends(&pool).await?;
     Ok(ApiResponse::success(operations))

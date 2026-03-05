@@ -1,4 +1,4 @@
-use super::{dto::MenuQueryDto, entity::MenuEntity};
+use super::model::MenuEntity;
 use crate::common::error::ServiceError;
 
 use chrono::Utc;
@@ -7,8 +7,15 @@ use sqlx::{PgPool, QueryBuilder};
 /// Menu data access layer
 pub struct MenuRepository;
 
+#[derive(Debug, Clone)]
+pub struct MenuListQuery {
+    pub name: Option<String>,
+    pub code: Option<String>,
+    pub status: Option<String>,
+}
+
 impl MenuRepository {
-    fn format_query(query: &MenuQueryDto, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         if let Some(name) = &query.name {
             if !name.trim().is_empty() {
                 query_builder.push(" AND name ILIKE  ").push_bind(format!("%{}%", name));
@@ -31,7 +38,7 @@ impl MenuRepository {
     /// Queries menus based on conditions
     pub async fn find_all(
         pool: &PgPool,
-        query: MenuQueryDto,
+        query: MenuListQuery,
     ) -> Result<Vec<MenuEntity>, ServiceError> {
         let mut query_builder: QueryBuilder<'_, sqlx::Postgres> = QueryBuilder::new(
             "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE 1=1",

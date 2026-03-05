@@ -1,7 +1,6 @@
 use super::{
-    dto::LoginRequest,
+    dto::{LoginRequest, LoginResp, UserInfoResp},
     service::AuthService,
-    vo::{LoginVo, UserInfoVo},
 };
 use crate::{
     common::{
@@ -41,7 +40,7 @@ async fn login_handler(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
-) -> AppResult<LoginVo> {
+) -> AppResult<LoginResp> {
     let start_time = Instant::now();
     tracing::info!("Login attempt from {}", addr.ip());
 
@@ -99,7 +98,7 @@ async fn login_handler(
 async fn get_login_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
-) -> AppResult<UserInfoVo> {
+) -> AppResult<UserInfoResp> {
     tracing::debug!("Get me info");
 
     let user_info = AuthService::get_login_info(&pool, current_user.user_id).await?;

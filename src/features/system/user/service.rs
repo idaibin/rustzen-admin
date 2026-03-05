@@ -1,10 +1,9 @@
 use super::{
     dto::{
-        CreateUserDto, UpdateUserDto, UpdateUserPasswordDto, UpdateUserStatusDto, UserOptionsDto,
-        UserQueryDto,
+        CreateUserDto, UpdateUserPayload, UpdateUserPasswordPayload, UpdateUserStatusPayload, UserItemResp,
+        UserOptionResp, UserOptionsQuery, UserQuery,
     },
-    repo::UserRepository,
-    vo::{UserItemVo, UserOptionVo},
+    repo::{CreateUserCommand, UserListQuery, UserRepository},
 };
 use crate::{
     common::{error::ServiceError, pagination::Pagination},
@@ -20,17 +19,23 @@ impl UserService {
     /// Get user list with pagination
     pub async fn get_user_list(
         pool: &PgPool,
-        query: UserQueryDto,
-    ) -> Result<(Vec<UserItemVo>, i64), ServiceError> {
+        query: UserQuery,
+    ) -> Result<(Vec<UserItemResp>, i64), ServiceError> {
         tracing::info!("Fetching user list with query: {:?}", query);
 
         let (limit, offset, _) = Pagination::normalize(query.current, query.page_size);
+        let repo_query = UserListQuery {
+            username: query.username.clone(),
+            status: query.status.clone(),
+            real_name: query.real_name.clone(),
+            email: query.email.clone(),
+        };
 
         let (users, total) =
-            UserRepository::find_with_pagination(pool, offset, limit, query).await?;
+            UserRepository::find_with_pagination(pool, offset, limit, repo_query).await?;
 
         tracing::info!("Users: {:?}", users);
-        let list = users.into_iter().map(UserItemVo::from).collect();
+        let list = users.into_iter().map(UserItemResp::from).collect();
 
         Ok((list, total))
     }
@@ -53,16 +58,16 @@ impl UserService {
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
 
         // Create user DTO with hashed password
-        let create_dto = CreateUserDto {
+        let create_cmd = CreateUserCommand {
             username: dto.username,
             email: dto.email,
-            password: password_hash,
+            password_hash,
             real_name: dto.real_name,
             status: dto.status,
             role_ids: dto.role_ids,
         };
 
-        let user_id = UserRepository::create_user(pool, &create_dto).await?;
+        let user_id = UserRepository::create_user(pool, &create_cmd).await?;
 
         Ok(user_id)
     }
@@ -71,7 +76,7 @@ impl UserService {
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
-        request: UpdateUserDto,
+        request: UpdateUserPayload,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
 
@@ -92,30 +97,27 @@ impl UserService {
     pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::debug!("Deleting user ID: {}", id);
 
-        // Check if user exists
-        if UserRepository::find_by_id(pool, id).await?.is_none() {
-            return Err(ServiceError::NotFound("User".to_string()));
-        }
+        // Ensure user exists (get_by_id returns NotFound if missing)
+        let _ = UserRepository::get_by_id(pool, id).await?;
 
-        // Soft delete user
         UserRepository::soft_delete(pool, id).await?;
 
         Ok(())
     }
 
     /// Get user status options
-    pub fn get_user_status_options() -> Vec<UserOptionVo> {
+    pub fn get_user_status_options() -> Vec<UserOptionResp> {
         vec![
-            UserOptionVo { label: "Normal".to_string(), value: 1 },
-            UserOptionVo { label: "Disabled".to_string(), value: 2 },
+            UserOptionResp { label: "Normal".to_string(), value: 1 },
+            UserOptionResp { label: "Disabled".to_string(), value: 2 },
         ]
     }
 
     /// Get user options for dropdowns
     pub async fn get_user_options(
         pool: &PgPool,
-        query: UserOptionsDto,
-    ) -> Result<Vec<UserOptionVo>, ServiceError> {
+        query: UserOptionsQuery,
+    ) -> Result<Vec<UserOptionResp>, ServiceError> {
         tracing::debug!("Getting user options with query: {:?}", query);
 
         let options =
@@ -123,7 +125,7 @@ impl UserService {
                 .await?;
 
         let user_options =
-            options.into_iter().map(|(value, label)| UserOptionVo { label, value }).collect();
+            options.into_iter().map(|(value, label)| UserOptionResp { label, value }).collect();
 
         Ok(user_options)
     }
@@ -131,7 +133,7 @@ impl UserService {
     pub async fn update_user_password(
         pool: &PgPool,
         id: i64,
-        dto: UpdateUserPasswordDto,
+        dto: UpdateUserPasswordPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user password for user ID: {}", id);
 
@@ -145,7 +147,7 @@ impl UserService {
     pub async fn update_user_status(
         pool: &PgPool,
         id: i64,
-        dto: UpdateUserStatusDto,
+        dto: UpdateUserStatusPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
 

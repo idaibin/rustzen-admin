@@ -20,3 +20,6 @@ pub struct DictEntity {
     /// The last update time.
     pub updated_at: NaiveDateTime,
 }
+
+/// Type alias for the dict model.
+pub type Dict = DictEntity;

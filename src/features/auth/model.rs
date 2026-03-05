@@ -58,3 +58,8 @@ impl UserStatus {
         }
     }
 }
+
+/// Type alias for login credentials model.
+pub type LoginCredentials = LoginCredentialsEntity;
+/// Type alias for auth user model.
+pub type AuthUser = AuthUserEntity;

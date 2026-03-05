@@ -7,11 +7,11 @@ pub mod user;
 use axum::Router;
 use sqlx::PgPool;
 
-use dict::router::dict_routes;
-use log::router::log_routes;
-use menu::router::menu_routes;
-use role::router::role_routes;
-use user::router::user_routes;
+use dict::api::dict_routes;
+use log::api::log_routes;
+use menu::api::menu_routes;
+use role::api::role_routes;
+use user::api::user_routes;
 
 /// 系统路由
 pub fn system_routes() -> Router<PgPool> {

@@ -15,3 +15,6 @@ pub struct MenuEntity {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
+
+/// Type alias for the menu model.
+pub type Menu = MenuEntity;
