@@ -29,7 +29,7 @@ function UserPage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="User List"
             columns={columns}
-            request={userAPI.getTableData}
+            request={userAPI.listUsers}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -146,7 +146,7 @@ const columns: ProColumns<User.Item>[] = [
                             title={`Are you sure you want to ${status} this user?`}
                             children={status}
                             onConfirm={async () => {
-                                await userAPI.updateStatus(
+                                await userAPI.updateUserStatus(
                                     entity.id,
                                     entity.status === 1 ? 2 : 1,
                                 );
@@ -159,7 +159,7 @@ const columns: ProColumns<User.Item>[] = [
                             title="Are you sure you want to reset the password of this user?"
                             children="Reset Password"
                             onConfirm={async () => {
-                                await userAPI.resetPassword(
+                                await userAPI.updateUserPassword(
                                     entity.id,
                                     `${entity.username}@123456`,
                                 );
@@ -173,7 +173,7 @@ const columns: ProColumns<User.Item>[] = [
                             className="text-red-500"
                             children={"Delete User"}
                             onConfirm={async () => {
-                                await userAPI.delete(entity.id);
+                                await userAPI.deleteUser(entity.id);
                                 await action?.reload();
                             }}
                         />
@@ -200,7 +200,7 @@ const UserModalForm = ({
     const [form] = Form.useForm();
     const { data: roleOptions } = useApiQuery(
         "system/roles/options",
-        roleAPI.getOptions,
+        roleAPI.listRoleOptions,
     );
 
     return (
@@ -230,9 +230,9 @@ const UserModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await userAPI.create(values as User.CreateRequest);
+                    await userAPI.createUser(values as User.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await userAPI.update(
+                    await userAPI.updateUser(
                         initialValues.id,
                         values as User.UpdateRequest,
                     );

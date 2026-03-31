@@ -28,9 +28,9 @@ declare namespace Api {
     }
 
     // Option type
-    interface OptionItem {
+    interface OptionItem<T = string | number> {
         label: string;
-        value: string | number;
+        value: T;
         [key: string]: unknown;
     }
 }

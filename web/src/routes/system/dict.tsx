@@ -23,7 +23,7 @@ function DictPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Dictionary Management"
             columns={columns}
-            request={dictAPI.getTableData}
+            request={dictAPI.listDicts}
             actionRef={actionRef}
             toolBarRender={() => [
                 <AuthWrap code="system:dict:create">
@@ -94,7 +94,7 @@ const columns: ProColumns<Dict.Item>[] = [
                     title="Are you sure you want to delete this dictionary?"
                     description="This action cannot be undone."
                     onConfirm={async () => {
-                        await dictAPI.delete(entity.id);
+                        await dictAPI.deleteDict(entity.id);
                         action?.reload();
                     }}
                 >
@@ -144,9 +144,9 @@ const DictModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await dictAPI.create(values as Dict.CreateRequest);
+                    await dictAPI.createDict(values as Dict.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await dictAPI.update(initialValues.id, values as Dict.UpdateRequest);
+                    await dictAPI.updateDict(initialValues.id, values as Dict.UpdateRequest);
                 }
                 onSuccess?.();
                 return true;

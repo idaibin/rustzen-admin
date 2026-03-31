@@ -4,7 +4,7 @@ import { apiRequest, proTableRequest } from "@/api";
  * 菜单管理API服务
  */
 export const menuAPI = {
-    getTableData: (params?: Menu.QueryParams) => {
+    listMenus: (params?: Menu.QueryParams) => {
         return proTableRequest<Menu.Item, Menu.QueryParams>({
             url: "/api/system/menus",
             params,
@@ -16,24 +16,24 @@ export const menuAPI = {
         });
     },
 
-    create: (data: Menu.CreateAndUpdateRequest) =>
-        apiRequest<Menu.Item, Menu.CreateAndUpdateRequest>({
+    createMenu: (data: Menu.CreateRequest) =>
+        apiRequest<Menu.Item, Menu.CreateRequest>({
             url: "/api/system/menus",
             method: "POST",
             params: data,
         }),
 
-    update: (id: number, data: Menu.CreateAndUpdateRequest) =>
-        apiRequest<Menu.Item, Menu.CreateAndUpdateRequest>({
+    updateMenu: (id: number, data: Menu.UpdateRequest) =>
+        apiRequest<Menu.Item, Menu.UpdateRequest>({
             url: `/api/system/menus/${id}`,
             method: "PUT",
             params: data,
         }),
 
-    delete: (id: number) => apiRequest<void>({ url: `/api/system/menus/${id}`, method: "DELETE" }),
+    deleteMenu: (id: number) => apiRequest<void>({ url: `/api/system/menus/${id}`, method: "DELETE" }),
 
-    getOptions: () =>
-        apiRequest<Api.OptionItem[]>({ url: "/api/system/menus/options" }).then((res) => [
+    listMenuOptions: () =>
+        apiRequest<Api.OptionItem<number>[]>({ url: "/api/system/menus/options" }).then((res) => [
             { label: "Root", value: 0 },
             ...res,
         ]),
