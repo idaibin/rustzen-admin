@@ -30,7 +30,7 @@ function RolePage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="Role Management"
             columns={columns}
-            request={roleAPI.getTableData}
+            request={roleAPI.listRoles}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -60,12 +60,18 @@ const columns: ProColumns<Role.Item>[] = [
         dataIndex: "name",
         width: 200,
         ellipsis: true,
+        search: {
+            transform: (value) => ({ roleName: value }),
+        },
     },
     {
         title: "Role Code",
         dataIndex: "code",
         width: 200,
         ellipsis: true,
+        search: {
+            transform: (value) => ({ roleCode: value }),
+        },
     },
     {
         title: "Description",
@@ -132,7 +138,7 @@ const columns: ProColumns<Role.Item>[] = [
                         title="Are you sure you want to delete this role?"
                         description="This action cannot be undone."
                         onConfirm={async () => {
-                            await roleAPI.delete(entity.id);
+                            await roleAPI.deleteRole(entity.id);
                             action?.reload();
                         }}
                     >
@@ -158,7 +164,7 @@ const RoleModalForm = ({
     onSuccess,
 }: RoleModalFormProps) => {
     const [form] = Form.useForm();
-    const { data: menuOptions = [] } = useApiQuery("system/menus/options", menuAPI.getOptions);
+    const { data: menuOptions = [] } = useApiQuery("system/menus/options", menuAPI.listMenuOptions);
 
     return (
         <ModalForm<Role.CreateRequest | Role.UpdateRequest>
@@ -188,9 +194,9 @@ const RoleModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await roleAPI.create(values as Role.CreateRequest);
+                    await roleAPI.createRole(values as Role.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await roleAPI.update(initialValues.id, values as Role.UpdateRequest);
+                    await roleAPI.updateRole(initialValues.id, values as Role.UpdateRequest);
                 }
                 onSuccess?.();
                 return true;

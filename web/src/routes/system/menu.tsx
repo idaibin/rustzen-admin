@@ -24,7 +24,7 @@ function MenuPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Menu Management"
             columns={columns}
-            request={menuAPI.getTableData}
+            request={menuAPI.listMenus}
             actionRef={actionRef}
             pagination={false}
             toolBarRender={() => [
@@ -112,7 +112,7 @@ const columns: ProColumns<Menu.Item>[] = [
                     description="This action cannot be undone."
                     hidden={entity.isSystem}
                     onConfirm={async () => {
-                        await menuAPI.delete(entity.id);
+                        await menuAPI.deleteMenu(entity.id);
                         action?.reload();
                     }}
                 >
@@ -139,7 +139,7 @@ const MenuModalForm = ({
     const [form] = Form.useForm();
 
     return (
-        <ModalForm<Menu.CreateAndUpdateRequest>
+        <ModalForm<Menu.CreateRequest | Menu.UpdateRequest>
             form={form}
             width={600}
             layout="horizontal"
@@ -162,9 +162,9 @@ const MenuModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await menuAPI.create(values as Menu.CreateAndUpdateRequest);
+                    await menuAPI.createMenu(values as Menu.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await menuAPI.update(initialValues.id, values as Menu.CreateAndUpdateRequest);
+                    await menuAPI.updateMenu(initialValues.id, values as Menu.UpdateRequest);
                 }
                 onSuccess?.();
                 return true;
@@ -174,7 +174,7 @@ const MenuModalForm = ({
                 name="parentId"
                 label="Parent Menu"
                 placeholder="Select parent menu (optional)"
-                request={menuAPI.getOptions}
+                request={menuAPI.listMenuOptions}
                 fieldProps={{
                     // showSearch: true,
                     optionFilterProp: "label",

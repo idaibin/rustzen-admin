@@ -31,6 +31,8 @@ declare namespace User {
         current?: number;
         pageSize?: number;
         username?: string;
+        realName?: string;
+        email?: string;
         status?: string; // "1" | "2" | "all"
     }
 
@@ -48,7 +50,6 @@ declare namespace User {
     interface UpdateRequest {
         email?: string;
         realName?: string;
-        status?: number;
         roleIds?: number[];
     }
 }

@@ -6,7 +6,10 @@ declare namespace Dict {
         dictType: string;
         label: string;
         value: string;
-        isDefault: boolean;
+        status: number;
+        description: string;
+        sortOrder: number;
+        updatedAt: string;
     }
 
     // 查询参数
@@ -14,6 +17,9 @@ declare namespace Dict {
         current?: number;
         pageSize?: number;
         dictType?: string;
+        label?: string;
+        value?: string;
+        status?: string;
         q?: string;
         limit?: number;
     }
@@ -23,7 +29,9 @@ declare namespace Dict {
         dictType: string;
         label: string;
         value: string;
-        isDefault?: boolean;
+        status?: number;
+        description?: string;
+        sortOrder?: number;
     }
 
     // 更新字典请求
@@ -31,6 +39,8 @@ declare namespace Dict {
         dictType?: string;
         label?: string;
         value?: string;
-        isDefault?: boolean;
+        status?: number;
+        description?: string;
+        sortOrder?: number;
     }
 }

@@ -18,6 +18,7 @@ declare namespace Menu {
         isSystem: boolean;
         createdAt: string;
         updatedAt: string;
+        children?: Item[] | null;
     }
 
     // 查询参数
@@ -26,15 +27,25 @@ declare namespace Menu {
         pageSize?: number;
         name?: string;
         code?: string;
+        status?: string;
     }
 
     // 创建菜单请求
-    interface CreateAndUpdateRequest {
+    interface CreateRequest {
         parentId: number;
         name: string;
         code: string;
         menuType: number;
         sortOrder: number;
-        status: Status;
+        status: number;
+    }
+
+    interface UpdateRequest {
+        parentId: number;
+        name: string;
+        code: string;
+        menuType: number;
+        sortOrder: number;
+        status: number;
     }
 }

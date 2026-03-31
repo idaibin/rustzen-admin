@@ -4,7 +4,6 @@ declare namespace Auth {
     interface LoginRequest {
         username: string;
         password: string;
-        rememberMe?: boolean;
     }
 
     // 登录响应

@@ -13,7 +13,6 @@ declare namespace Role {
         code: string;
         description?: string;
         status: Status;
-        sortOrder?: number;
         createdAt: string;
         updatedAt: string;
         menus: Api.OptionItem<number>[];
@@ -23,8 +22,8 @@ declare namespace Role {
     interface QueryParams {
         current?: number;
         pageSize?: number;
-        name?: string;
-        code?: string;
+        roleName?: string;
+        roleCode?: string;
         status?: string; // "1" | "2" | "all"
     }
 
@@ -33,18 +32,16 @@ declare namespace Role {
         name: string;
         code: string;
         description?: string;
-        status?: number;
-        sortOrder?: number;
-        menuIds: Api.OptionItem<number>[];
+        status: number;
+        menuIds: number[];
     }
 
     // 更新角色请求 - 更新为与后端一致
     interface UpdateRequest {
-        name?: string;
-        code?: string;
+        name: string;
+        code: string;
         description?: string;
-        status?: number;
-        sortOrder?: number;
-        menuIds?: number[];
+        status: number;
+        menuIds: number[];
     }
 }

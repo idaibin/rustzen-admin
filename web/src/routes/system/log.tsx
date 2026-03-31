@@ -25,7 +25,7 @@ function LogPage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             columns={columns}
             params={{ action: actionType }}
-            request={logAPI.getTableData}
+            request={logAPI.listLogs}
             headerTitle={
                 <Segmented
                     value={actionType}
@@ -40,7 +40,7 @@ function LogPage() {
                     key="export"
                     type="primary"
                     onClick={() => {
-                        logAPI.exportLogList();
+                        void logAPI.exportLogs();
                     }}
                 >
                     Export
@@ -50,7 +50,7 @@ function LogPage() {
     );
 }
 
-const actionColorMap: Record<Log.Action, string> = {
+const actionColorMap: Record<string, string> = {
     HTTP_GET: "default",
     HTTP_POST: "processing",
     HTTP_PUT: "warning",
