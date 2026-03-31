@@ -4,9 +4,8 @@
     // List of extensions which should be recommended for users of this workspace.
     "recommendations": [
         "bradlc.vscode-tailwindcss",
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "streetsidesoftware.code-spell-checker"
+        "streetsidesoftware.code-spell-checker",
+        "VoidZero.vite-plus-extension-pack"
     ],
     "unwantedRecommendations": []
 }
