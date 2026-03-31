@@ -1,18 +1,13 @@
-# justfile - Project unified command entry
+# justfile - monorepo command entry
 
 # check
 check:
-    cargo check &
-    cd web && pnpm lint
-
-# Development mode: start backend + web together
-dev:
-    just dev-web &
-    just dev-backend
+    cargo check --manifest-path server/Cargo.toml
+    cd web && vp lint
 
 # Start Rust backend (with hot reload)
-dev-backend:
-    cargo watch -x run -w src
+dev-server:
+    cargo watch --manifest-path server/Cargo.toml -x run -w server/src
 
 # Start web (Vite dev mode)
 dev-web:
@@ -25,7 +20,7 @@ build:
 
 # Build Rust backend release
 build-backend:
-    cargo build --release
+    cargo build --manifest-path server/Cargo.toml --release
 
 # Build web production bundle
 build-web:
@@ -33,4 +28,4 @@ build-web:
 
 # Clean build outputs
 clean:
-    rm -rf /target web/dist
+    rm -rf target web/dist server/target
