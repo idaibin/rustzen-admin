@@ -4,14 +4,10 @@ pub mod service;
 pub mod types;
 
 use axum::{Router, routing::get};
-use sqlx::PgPool;
 use handler::{export_logs, list_logs};
-use crate::{
-    common::router_ext::RouterExt,
-    infra::permission::PermissionsCheck,
-};
+use sqlx::PgPool;
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
-/// Log management routes
 pub fn log_routes() -> Router<PgPool> {
     Router::new()
         .route_with_permission(

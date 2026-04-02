@@ -7,17 +7,13 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::PgPool;
-use crate::{
-    common::router_ext::RouterExt,
-    infra::permission::PermissionsCheck,
-};
 use handler::{
     create_user, delete_user, get_user_options, get_user_status_options, list_users,
     update_user, update_user_password, update_user_status,
 };
+use sqlx::PgPool;
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
-/// User management routes
 pub fn user_routes() -> Router<PgPool> {
     Router::new()
         .route_with_permission(

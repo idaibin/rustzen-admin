@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::common::api::OptionItem;
+use crate::common::error::ServiceError;
 
 /// Role with menus row from the database view.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -69,9 +70,15 @@ pub struct RoleItemResp {
     pub menus: Vec<OptionItem<i64>>,
 }
 
-impl From<RoleWithMenusRow> for RoleItemResp {
-    fn from(role: RoleWithMenusRow) -> Self {
-        Self {
+impl TryFrom<RoleWithMenusRow> for RoleItemResp {
+    type Error = ServiceError;
+
+    fn try_from(role: RoleWithMenusRow) -> Result<Self, Self::Error> {
+        let menus = serde_json::from_value::<Vec<OptionItem<i64>>>(role.menus).map_err(|e| {
+            ServiceError::InvalidOperation(format!("Invalid role menu data: {}", e))
+        })?;
+
+        Ok(Self {
             id: role.id,
             name: role.name,
             code: role.code,
@@ -79,7 +86,7 @@ impl From<RoleWithMenusRow> for RoleItemResp {
             status: role.status,
             created_at: role.created_at,
             updated_at: role.updated_at,
-            menus: serde_json::from_value::<Vec<OptionItem<i64>>>(role.menus).unwrap_or_default(),
-        }
+            menus,
+        })
     }
 }

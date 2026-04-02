@@ -4,8 +4,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-// --- Business Service Errors ---
-
 /// A unified error type for the business logic layer.
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
@@ -29,9 +27,13 @@ pub enum ServiceError {
     #[error("User is admin")]
     UserIsAdmin,
 
-    /// Internal server error.
-    // #[error("Internal server error")]
-    // InternalServerError,
+    /// Role is system built-in.
+    #[error("Role is system built-in")]
+    RoleIsSystem,
+
+    /// Menu is system built-in.
+    #[error("Menu is system built-in")]
+    MenuIsSystem,
 
     /// A database query failed.
     #[error("Database query failed")]
@@ -82,11 +84,13 @@ pub enum ServiceError {
     CreateAvatarFileFailed,
 }
 
-// --- Axum Error Handling ---
-
 /// A unified error type for the application layer, which can be converted into an HTTP response.
 #[derive(Debug)]
 pub struct AppError((StatusCode, i32, String));
+
+fn app_error(status: StatusCode, code: i32, message: impl Into<String>) -> AppError {
+    AppError((status, code, message.into()))
+}
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
@@ -104,92 +108,89 @@ impl IntoResponse for AppError {
 /// This is the central place to map business logic errors to HTTP-level errors.
 impl From<ServiceError> for AppError {
     fn from(err: ServiceError) -> Self {
-        let (status, code, message) = match err {
-            // 1xxxx: User/Business Errors
-            ServiceError::NotFound(resource) => (
+        match err {
+            ServiceError::NotFound(resource) => app_error(
                 StatusCode::NOT_FOUND,
-                10001, // Business-Common-01
+                10001,
                 format!("{} not found.", resource),
             ),
-            ServiceError::InvalidOperation(reason) => (
-                StatusCode::BAD_REQUEST,
-                10002, // Business-Common-02
-                reason,
-            ),
-            ServiceError::PasswordHashingFailed => (
+            ServiceError::InvalidOperation(reason) => {
+                app_error(StatusCode::BAD_REQUEST, 10002, reason)
+            }
+            ServiceError::PasswordHashingFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 10003,
-                "Password processing failed. Please try again.".into(),
+                "Password processing failed. Please try again.",
             ),
             ServiceError::UserIsDisabled => {
-                (StatusCode::FORBIDDEN, 10004, "User account is disabled.".into())
+                app_error(StatusCode::FORBIDDEN, 10004, "User account is disabled.")
             }
             ServiceError::UserIsPending => {
-                (StatusCode::BAD_REQUEST, 10005, "User account is pending approval.".into())
+                app_error(StatusCode::BAD_REQUEST, 10005, "User account is pending approval.")
             }
             ServiceError::UserIsLocked => {
-                (StatusCode::BAD_REQUEST, 10006, "User account is locked.".into())
+                app_error(StatusCode::BAD_REQUEST, 10006, "User account is locked.")
             }
             ServiceError::InvalidUserStatus => {
-                (StatusCode::BAD_REQUEST, 10007, "User status is invalid.".into())
+                app_error(StatusCode::BAD_REQUEST, 10007, "User status is invalid.")
             }
             ServiceError::UserIsAdmin => {
-                (StatusCode::BAD_REQUEST, 10008, "Cannot update admin user.".into())
+                app_error(StatusCode::BAD_REQUEST, 10008, "Cannot update admin user.")
             }
-            ServiceError::InvalidCredentials => (
+            ServiceError::RoleIsSystem => app_error(
+                StatusCode::BAD_REQUEST,
+                10009,
+                "Cannot modify system built-in role.",
+            ),
+            ServiceError::MenuIsSystem => app_error(
+                StatusCode::BAD_REQUEST,
+                10010,
+                "Cannot modify system built-in menu.",
+            ),
+            ServiceError::InvalidCredentials => app_error(
                 StatusCode::UNAUTHORIZED,
-                10101, // Business-Auth-01
-                "Invalid username or password.".to_string(),
+                10101,
+                "Invalid username or password.",
             ),
-            ServiceError::TokenCreationFailed => (
+            ServiceError::TokenCreationFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                10103, // Business-Auth-03
-                "Failed to generate login token. Please try again.".to_string(),
+                10103,
+                "Failed to generate login token. Please try again.",
             ),
-            ServiceError::UsernameConflict => (
+            ServiceError::UsernameConflict => app_error(
                 StatusCode::CONFLICT,
-                10201, // Business-User-01
-                "Username already exists.".to_string(),
+                10201,
+                "Username already exists.",
             ),
-            ServiceError::EmailConflict => (
-                StatusCode::CONFLICT,
-                10202, // Business-User-02
-                "Email already exists.".to_string(),
-            ),
-            // 2xxxx: System Errors
-            ServiceError::DatabaseQueryFailed => (
+            ServiceError::EmailConflict => {
+                app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
+            }
+            ServiceError::DatabaseQueryFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                20001, // System-Common-01
-                "Service is temporarily unavailable. Please try again later.".to_string(),
+                20001,
+                "Service is temporarily unavailable. Please try again later.",
             ),
-            ServiceError::CreateAvatarFolderFailed => (
+            ServiceError::CreateAvatarFolderFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                20002, // System-Common-02
-                "Failed to create avatar folder. Please try again later.".to_string(),
+                20002,
+                "Failed to create avatar folder. Please try again later.",
             ),
-            ServiceError::CreateAvatarFileFailed => (
+            ServiceError::CreateAvatarFileFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                20003, // System-Common-03
-                "Failed to create avatar file. Please try again later.".to_string(),
+                20003,
+                "Failed to create avatar file. Please try again later.",
             ),
-            // ServiceError::InternalServerError => (
-            //     StatusCode::INTERNAL_SERVER_ERROR,
-            //     20002, // System-Common-02
-            //     "Internal server error. Please contact the administrator.".to_string(),
-            // ),
-            // 3xxxx: Permission Errors
-            ServiceError::InvalidToken => (
+            ServiceError::InvalidToken => app_error(
                 StatusCode::UNAUTHORIZED,
-                30000, // System-Auth-01
-                "Invalid or expired token. Please log in again.".to_string(),
+                30000,
+                "Invalid or expired token. Please log in again.",
             ),
-            ServiceError::PermissionDenied => (
+            ServiceError::PermissionDenied => app_error(
                 StatusCode::FORBIDDEN,
-                30001, // System-Auth-02
-                "You do not have permission to perform this action.".to_string(),
+                30001,
+                "You do not have permission to perform this action.",
             ),
-        };
-        AppError((status, code, message))
+        }
     }
 }
 
@@ -198,7 +199,6 @@ impl From<ServiceError> for AppError {
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         tracing::error!("Database error: {:?}", err);
-        let service_error = ServiceError::DatabaseQueryFailed;
-        service_error.into()
+        ServiceError::DatabaseQueryFailed.into()
     }
 }

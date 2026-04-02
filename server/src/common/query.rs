@@ -33,6 +33,29 @@ pub fn push_eq<'a, T>(
     }
 }
 
+/// Parse an optional `i16` filter from query text.
+///
+/// `default_on_empty` is used when the value is missing or empty.
+/// `all` always disables the filter.
+pub fn parse_optional_i16_filter(
+    value: Option<&str>,
+    field_name: &str,
+    default_on_empty: Option<i16>,
+) -> Result<Option<i16>, ServiceError> {
+    match value.map(str::trim) {
+        None | Some("") => Ok(default_on_empty),
+        Some("all") => Ok(None),
+        Some(raw) => raw.parse::<i16>().map(Some).map_err(|_| {
+            ServiceError::InvalidOperation(format!("Invalid {} value: {}", field_name, raw))
+        }),
+    }
+}
+
+fn map_db_error(context: &str, err: sqlx::Error) -> ServiceError {
+    tracing::error!("Database error {}: {:?}", context, err);
+    ServiceError::DatabaseQueryFailed
+}
+
 /// Count rows for a filtered query.
 pub async fn count_with_filters<F>(
     pool: &PgPool,
@@ -45,10 +68,11 @@ where
     let mut query_builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(base_sql);
     apply_filters(&mut query_builder);
 
-    let count: (i64,) = query_builder.build_query_as().fetch_one(pool).await.map_err(|e| {
-        tracing::error!("Database error counting rows: {:?}", e);
-        ServiceError::DatabaseQueryFailed
-    })?;
+    let count: (i64,) = query_builder
+        .build_query_as()
+        .fetch_one(pool)
+        .await
+        .map_err(|e| map_db_error("counting rows", e))?;
 
     Ok(count.0)
 }
@@ -81,10 +105,11 @@ where
         query_builder.push(" OFFSET ").push_bind(offset);
     }
 
-    let rows = query_builder.build_query_as::<T>().fetch_all(pool).await.map_err(|e| {
-        tracing::error!("Database error fetching rows: {:?}", e);
-        ServiceError::DatabaseQueryFailed
-    })?;
+    let rows = query_builder
+        .build_query_as::<T>()
+        .fetch_all(pool)
+        .await
+        .map_err(|e| map_db_error("fetching rows", e))?;
 
     Ok(rows)
 }

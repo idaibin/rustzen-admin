@@ -7,14 +7,10 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::PgPool;
 use handler::{create_menu, delete_menu, get_menu_options, list_menus, update_menu};
-use crate::{
-    common::router_ext::RouterExt,
-    infra::permission::PermissionsCheck,
-};
+use sqlx::PgPool;
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
-/// Menu management routes with permission examples
 pub fn menu_routes() -> Router<PgPool> {
     Router::new()
         .route_with_permission(

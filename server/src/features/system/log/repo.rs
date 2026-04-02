@@ -33,7 +33,7 @@ impl LogRepository {
         limit: i64,
         query: LogListQuery,
     ) -> Result<(Vec<LogItemResp>, i64), ServiceError> {
-        tracing::debug!("Finding users with pagination and filters: {:?}", query);
+        tracing::debug!("Finding logs with pagination and filters: {:?}", query);
         let total = count_with_filters(pool, "SELECT COUNT(*) FROM operation_logs WHERE 1=1", |query_builder| {
             Self::format_query(&query, query_builder);
         })

@@ -11,10 +11,12 @@ use super::types::UserWithRolesRow;
 /// User db for database operations
 pub struct UserRepository;
 
+const DEFAULT_USER_STATUS: i16 = 1;
+
 #[derive(Debug, Clone)]
 pub struct UserListQuery {
     pub username: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<i16>,
     pub real_name: Option<String>,
     pub email: Option<String>,
 }
@@ -34,7 +36,7 @@ impl UserRepository {
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "real_name", query.real_name.as_deref());
         push_ilike(query_builder, "email", query.email.as_deref());
-        push_eq(query_builder, "status", query.status.as_deref().and_then(|s| s.parse::<i16>().ok()));
+        push_eq(query_builder, "status", query.status);
     }
 
     /// Find users with pagination and filters
@@ -45,16 +47,20 @@ impl UserRepository {
         query: UserListQuery,
     ) -> Result<(Vec<UserWithRolesRow>, i64), ServiceError> {
         tracing::debug!("Finding users with pagination and filters: {:?}", query);
-        let total = count_with_filters(pool, "SELECT COUNT(*) FROM user_with_roles WHERE 1=1", |query_builder| {
-            Self::format_query(&query, query_builder);
-        })
+        let total = count_with_filters(
+            pool,
+            "SELECT COUNT(*) FROM user_with_roles WHERE 1=1",
+            |query_builder| {
+                Self::format_query(&query, query_builder);
+            },
+        )
         .await?;
         if total == 0 {
             return Ok((Vec::new(), total));
         }
         let users = fetch_with_filters(
             pool,
-            "SELECT * FROM user_with_roles WHERE 1=1",
+            "SELECT id, username, email, password_hash, real_name, avatar_url, is_system, status, last_login_at, created_at, updated_at, roles FROM user_with_roles WHERE 1=1",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },
@@ -70,13 +76,13 @@ impl UserRepository {
     /// Find users for dropdown options
     pub async fn list_user_options(
         pool: &PgPool,
-        status: Option<i16>, // 1, 2, or None (all users)
+        status: Option<i16>,
         q: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
-        let result = fetch_with_filters(
+        fetch_with_filters(
             pool,
-            "SELECT id, COALESCE(real_name, username) AS display_name FROM users WHERE deleted_at IS NULL",
+            "SELECT id, COALESCE(real_name, username) AS label FROM users WHERE deleted_at IS NULL",
             |query_builder| {
                 push_eq(query_builder, "status", status);
                 if let Some(search_term) = q {
@@ -92,13 +98,11 @@ impl UserRepository {
                     }
                 }
             },
-            Some("display_name ASC"),
+            Some("label ASC"),
             limit,
             None,
         )
-        .await?;
-
-        Ok(result)
+        .await
     }
 
     /// Find user by ID (returns None if not found)
@@ -106,17 +110,16 @@ impl UserRepository {
         pool: &PgPool,
         id: i64,
     ) -> Result<Option<UserWithRolesRow>, ServiceError> {
-        let result =
-            sqlx::query_as::<_, UserWithRolesRow>("SELECT * FROM user_with_roles WHERE id = $1")
-                .bind(id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database error finding user by ID {}: {:?}", id, e);
-                    ServiceError::DatabaseQueryFailed
-                })?;
-
-        Ok(result)
+        sqlx::query_as::<_, UserWithRolesRow>(
+            "SELECT id, username, email, password_hash, real_name, avatar_url, is_system, status, last_login_at, created_at, updated_at, roles FROM user_with_roles WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error finding user by ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })
     }
 
     /// Create new user with optional roles (unified method)
@@ -125,19 +128,19 @@ impl UserRepository {
             tracing::error!("Database error starting transaction for user creation: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
+        let now = Utc::now().naive_utc();
 
-        // Create user
         let user_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO users (username, email, password_hash, real_name, status, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $6)
              RETURNING id",
         )
         .bind(&cmd.username)
         .bind(&cmd.email)
         .bind(&cmd.password_hash)
         .bind(cmd.real_name.as_deref())
-        .bind(cmd.status.unwrap_or(1))
-        .bind(Utc::now().naive_utc())
+        .bind(cmd.status.unwrap_or(DEFAULT_USER_STATUS))
+        .bind(now)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| {
@@ -170,13 +173,14 @@ impl UserRepository {
 
         let user_id = sqlx::query_scalar::<_, i64>(
             "UPDATE users
-             SET email = $1, real_name = $2
+             SET email = $1, real_name = $2, updated_at = $4
              WHERE id = $3 AND deleted_at IS NULL
              RETURNING id",
         )
         .bind(email)
         .bind(real_name)
         .bind(id)
+        .bind(Utc::now().naive_utc())
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| {
@@ -198,16 +202,17 @@ impl UserRepository {
 
     /// Soft delete user
     pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
-        let result =
-            sqlx::query("UPDATE users SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL")
-                .bind(Utc::now().naive_utc())
-                .bind(id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
-                    ServiceError::DatabaseQueryFailed
-                })?;
+        let result = sqlx::query(
+            "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+        )
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -281,9 +286,10 @@ impl UserRepository {
         id: i64,
         password_hash: &str,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
+        let result = sqlx::query("UPDATE users SET password_hash = $1, updated_at = $3 WHERE id = $2")
             .bind(password_hash)
             .bind(id)
+            .bind(Utc::now().naive_utc())
             .execute(pool)
             .await
             .map_err(|e| {
@@ -299,9 +305,10 @@ impl UserRepository {
         id: i64,
         status: i16,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = $1 WHERE id = $2")
+        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $3 WHERE id = $2")
             .bind(status)
             .bind(id)
+            .bind(Utc::now().naive_utc())
             .execute(pool)
             .await
             .map_err(|e| {

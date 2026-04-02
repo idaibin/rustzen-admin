@@ -1,6 +1,6 @@
 use super::{
     repo::AuthRepository,
-    types::{LoginCredentialsRow, LoginRequest, LoginResp, UserInfoResp, UserStatus},
+    types::{LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
 };
 use crate::{
     common::error::ServiceError,
@@ -19,20 +19,19 @@ pub struct AuthService;
 
 impl AuthService {
     /// Login with username/password
-    pub async fn login(pool: &PgPool, request: LoginRequest) -> Result<LoginResp, ServiceError> {
+    pub async fn login(
+        pool: &PgPool,
+        username: &str,
+        password: &str,
+    ) -> Result<LoginResp, ServiceError> {
         let start = std::time::Instant::now();
-        tracing::info!("Login attempt received for username: {}", request.username);
+        tracing::info!("Login attempt received for username: {}", username);
 
         // 1. verify login credentials
-        let user =
-            Self::verify_login(pool, &request.username, &request.password).await.map_err(|e| {
-                tracing::warn!(
-                    "Login verification failed for username={}: {:?}",
-                    request.username,
-                    e
-                );
-                e
-            })?;
+        let user = Self::verify_login(pool, username, password).await.map_err(|e| {
+            tracing::warn!("Login verification failed for username={}: {:?}", username, e);
+            e
+        })?;
         let verification_time = start.elapsed();
         tracing::debug!(
             "User verification completed in {:?} for user_id={}",
@@ -41,7 +40,7 @@ impl AuthService {
         );
 
         // 2. generate token
-        let token = jwt::generate_token(user.id, &request.username).map_err(|e| {
+        let token = jwt::generate_token(user.id, username).map_err(|e| {
             tracing::error!("Failed to generate token for user_id={}: {:?}", user.id, e);
             ServiceError::TokenCreationFailed
         })?;
@@ -59,8 +58,8 @@ impl AuthService {
         })?;
 
         // 4. update last login time
-        let pool_clone = pool.clone();
         let user_id_clone = user.id;
+        let pool_clone = pool.clone();
         tokio::spawn(async move {
             let _ = AuthRepository::update_last_login(&pool_clone, user_id_clone).await;
         });
@@ -71,7 +70,7 @@ impl AuthService {
         let total_time = start.elapsed();
         tracing::info!(
             "Login successful for username={}, user_id={}, total_time={:?}",
-            &request.username,
+            username,
             user.id,
             total_time
         );
@@ -88,36 +87,39 @@ impl AuthService {
         let user = AuthRepository::find_user_by_id(pool, user_id)
             .await?
             .ok_or(ServiceError::NotFound("User".to_string()))?;
+        let super::types::AuthUserRow {
+            id,
+            username,
+            real_name,
+            email,
+            avatar_url,
+            is_system,
+        } = user;
 
         tracing::debug!(
             "User basic info retrieved for user_id={}, username={}",
             user_id,
-            user.username
+            username
         );
 
-        // Get menus and permissions in parallel
-        let permissions = if user.is_system {
-            vec!["*".to_string()]
-        } else {
-            AuthRepository::get_user_permissions(pool, user_id).await?
-        };
+        let permissions = Self::load_permissions(pool, user_id, is_system).await?;
 
         // Refresh user permissions cache
-        Self::refresh_user_permissions_cache(user_id, user.is_system, &permissions).await?;
+        Self::refresh_user_permissions_cache(user_id, &permissions).await?;
 
         tracing::info!(
             "User info retrieved successfully for user_id={}, username={}",
             user_id,
-            user.username
+            username
         );
 
         Ok(UserInfoResp {
-            id: user.id,
-            username: user.username.clone(),
-            real_name: user.real_name,
-            email: user.email,
-            avatar_url: user.avatar_url,
-            is_system: user.is_system,
+            id,
+            username,
+            real_name,
+            email,
+            avatar_url,
+            is_system,
             permissions,
         })
     }
@@ -172,46 +174,18 @@ impl AuthService {
     ) -> Result<(), ServiceError> {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
-        if is_system {
-            PermissionService::cache_user_permissions(user_id, &["*".to_string()]);
-            tracing::info!("Successfully cached * permissions for user_id={}", user_id);
-            return Ok(());
-        }
-        let permissions: Vec<String> = AuthRepository::get_user_permissions(pool, user_id).await?;
-
-        PermissionService::cache_user_permissions(user_id, &permissions);
-        tracing::info!(
-            "Successfully cached {} permissions for user_id={}: {:?}",
-            permissions.len(),
-            user_id,
-            permissions
-        );
-
-        Ok(())
+        let permissions = Self::load_permissions(pool, user_id, is_system).await?;
+        Self::cache_permissions_with_values(user_id, &permissions)
     }
 
     /// Refresh user permissions cache
     pub async fn refresh_user_permissions_cache(
         user_id: i64,
-        is_system: bool,
         permissions: &[String],
     ) -> Result<(), ServiceError> {
         tracing::debug!("Refreshing permissions cache for user_id: {}", user_id);
 
-        if is_system {
-            PermissionService::cache_user_permissions(user_id, &["*".to_string()]);
-            tracing::info!("Successfully refreshed * permissions cache for user_id={}", user_id);
-            return Ok(());
-        }
-
-        PermissionService::cache_user_permissions(user_id, permissions);
-        tracing::info!(
-            "Successfully refreshed {} permissions cache for user_id={}: {:?}",
-            permissions.len(),
-            user_id,
-            permissions
-        );
-        Ok(())
+        Self::cache_permissions_with_values(user_id, permissions)
     }
 
     pub async fn update_avatar(
@@ -222,6 +196,31 @@ impl AuthService {
         tracing::info!("Updating avatar for user_id: {}", user_id);
         AuthRepository::update_avatar(pool, user_id, avatar_url).await?;
         tracing::info!("Avatar updated successfully for user_id: {}", user_id);
+        Ok(())
+    }
+
+    async fn load_permissions(
+        pool: &PgPool,
+        user_id: i64,
+        is_system: bool,
+    ) -> Result<Vec<String>, ServiceError> {
+        if is_system {
+            AuthRepository::get_all_permissions(pool).await
+        } else {
+            AuthRepository::get_user_permissions(pool, user_id).await
+        }
+    }
+
+    fn cache_permissions_with_values(
+        user_id: i64,
+        permissions: &[String],
+    ) -> Result<(), ServiceError> {
+        PermissionService::cache_user_permissions(user_id, permissions);
+        tracing::info!(
+            "Successfully refreshed {} permissions cache for user_id={}",
+            permissions.len(),
+            user_id
+        );
         Ok(())
     }
 }
