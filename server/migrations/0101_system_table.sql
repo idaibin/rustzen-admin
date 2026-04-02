@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Module: User Management
--- Description: Create users table, indexes, and comments. Zen migration style.
+-- Description: Create users table, indexes, and comments.
 -- ============================================================================
 
 CREATE TABLE users (
@@ -33,7 +33,7 @@ COMMENT ON COLUMN users.is_system IS 'System built-in user flag: TRUE for system
 
 -- ============================================================================
 -- Module: Role Management
--- Description: Create roles table, indexes, and comments. Zen migration style.
+-- Description: Create roles table, indexes, and comments.
 -- ============================================================================
 
 CREATE TABLE roles (
@@ -66,8 +66,8 @@ COMMENT ON COLUMN roles.deleted_at IS 'Soft delete timestamp, NULL means not del
 
 
 -- ============================================================================
--- Module: Resource Management
--- Description: Create menus table, indexes, and comments. Zen migration style.
+-- Module: Menu Management
+-- Description: Create menus table, indexes, and comments.
 -- ============================================================================
 
 CREATE TABLE menus (
@@ -92,18 +92,18 @@ CREATE INDEX idx_resources_parent_sort ON menus(parent_id, sort_order) WHERE del
 CREATE INDEX idx_resources_menu_type ON menus(menu_type) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_is_system ON menus(is_system) WHERE is_system = TRUE AND deleted_at IS NULL;
 
-COMMENT ON TABLE menus IS 'Resources table: stores resource definitions';
-COMMENT ON COLUMN menus.name IS 'Resource name';
-COMMENT ON COLUMN menus.code IS 'Resource code';
-COMMENT ON COLUMN menus.menu_type IS 'Resource menu_type: 1=directory, 2=menu, 3=button';
-COMMENT ON COLUMN menus.status IS 'Resource status: 1=visible, 2=hidden';
-COMMENT ON COLUMN menus.is_system IS 'System built-in resource flag';
+COMMENT ON TABLE menus IS 'Menus table: stores menu definitions';
+COMMENT ON COLUMN menus.name IS 'Menu name';
+COMMENT ON COLUMN menus.code IS 'Menu code';
+COMMENT ON COLUMN menus.menu_type IS 'Menu type: 1=directory, 2=menu, 3=button';
+COMMENT ON COLUMN menus.status IS 'Menu status: 1=visible, 2=hidden';
+COMMENT ON COLUMN menus.is_system IS 'System built-in menu flag';
 COMMENT ON COLUMN menus.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
 
 
 -- ============================================================================
 -- Module: Dictionary
--- Description: Create dicts table, indexes, and comments. Zen migration style.
+-- Description: Create dicts table, indexes, and comments.
 -- ============================================================================
 
 CREATE TABLE dicts (
@@ -154,7 +154,7 @@ CREATE TABLE operation_logs (
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
-COMMENT ON TABLE operation_logs IS 'Operation logs table (partitioned by month): stores operation logs for auditing';
+COMMENT ON TABLE operation_logs IS 'Operation logs table partitioned by month.';
 COMMENT ON COLUMN operation_logs.user_id IS 'User ID';
 COMMENT ON COLUMN operation_logs.username IS 'Username';
 COMMENT ON COLUMN operation_logs.action IS 'Request action';
@@ -164,4 +164,3 @@ COMMENT ON COLUMN operation_logs.status IS 'Request status';
 COMMENT ON COLUMN operation_logs.duration_ms IS 'Request duration in milliseconds';
 COMMENT ON COLUMN operation_logs.ip_address IS 'Request IP address';
 COMMENT ON COLUMN operation_logs.user_agent IS 'Request user agent string';
-
