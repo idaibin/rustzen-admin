@@ -1,5 +1,5 @@
 -- ============================================================================
--- Module: Aggregated view for user with roles.
+-- Module: User views.
 -- ============================================================================
 
 CREATE OR REPLACE VIEW user_with_roles AS
@@ -12,7 +12,7 @@ SELECT
     u.avatar_url,
     u.status,
     u.is_system,
-    u.last_login_at ,
+    u.last_login_at,
     u.created_at,
     u.updated_at,
     COALESCE(
@@ -39,13 +39,13 @@ COMMENT ON VIEW user_with_roles IS 'Aggregated user info with roles as JSON arra
 
 CREATE OR REPLACE VIEW user_permissions AS
 SELECT DISTINCT
-    u.id as user_id,
+    u.id AS user_id,
     u.username,
-    m.code as menu_code,
+    m.code AS menu_code,
     m.menu_type,
-    r.code as role_code,
-    m.id as menu_id,
-    r.id as role_id
+    r.code AS role_code,
+    m.id AS menu_id,
+    r.id AS role_id
 FROM users u
 JOIN user_roles ur ON u.id = ur.user_id
 JOIN roles r ON ur.role_id = r.id AND r.status = 1 AND r.deleted_at IS NULL
@@ -55,11 +55,11 @@ WHERE u.deleted_at IS NULL
   AND u.status = 1
   AND m.code IS NOT NULL;
 
-COMMENT ON VIEW user_permissions IS 'Enhanced user permissions view with additional menu and role identifiers for better performance';
+COMMENT ON VIEW user_permissions IS 'User permissions view.';
 
 
 -- ============================================================================
--- Module: Aggregated role info with menus as JSON array.
+-- Module: Role views.
 -- ============================================================================
 
 CREATE OR REPLACE VIEW role_with_menus AS
@@ -88,4 +88,4 @@ LEFT JOIN menus m ON rm.menu_id = m.id AND m.deleted_at IS NULL
 WHERE r.deleted_at IS NULL
 GROUP BY r.id, r.name, r.code, r.description, r.status, r.created_at, r.updated_at, r.deleted_at, r.is_system;
 
-COMMENT ON VIEW role_with_menus IS 'Aggregated role info with menus as JSON array.';
+COMMENT ON VIEW role_with_menus IS 'Role info with menus as JSON array.';

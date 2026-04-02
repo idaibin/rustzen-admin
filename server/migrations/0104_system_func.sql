@@ -1,6 +1,5 @@
-
 -- ============================================================================
--- Module: Update updated_at column trigger function and update triggers for users, roles, menus.
+-- Module: Update timestamps.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -11,7 +10,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers for updating updated_at on row update
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -30,7 +28,7 @@ CREATE TRIGGER update_dicts_updated_at BEFORE UPDATE ON dicts
 
 
 -- ============================================================================
--- Module: Get user basic info
+-- Module: User helper functions.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION get_user_basic_info(p_user_id BIGINT)
@@ -60,10 +58,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
-COMMENT ON FUNCTION get_user_basic_info(BIGINT) IS 'Efficiently retrieves basic user information for authentication responses';
+COMMENT ON FUNCTION get_user_basic_info(BIGINT) IS 'Returns basic user information.';
 
 -- ============================================================================
--- Module: Get user permissions
+-- Module: Permissions helper.
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS get_user_permissions(BIGINT);
@@ -82,10 +80,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
-COMMENT ON FUNCTION get_user_permissions(BIGINT) IS 'Efficiently retrieves all permissions for a specific user';
+COMMENT ON FUNCTION get_user_permissions(BIGINT) IS 'Returns all permissions for a user.';
 
 -- ============================================================================
--- Module: Get login credentials
+-- Module: Login helper.
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS get_login_credentials(VARCHAR);
@@ -110,11 +108,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
-COMMENT ON FUNCTION get_login_credentials(VARCHAR) IS 'Efficiently retrieves user credentials for login authentication';
+COMMENT ON FUNCTION get_login_credentials(VARCHAR) IS 'Returns login credentials for a username.';
 
 
 -- ============================================================================
--- Module: Log operation
+-- Module: Log helper.
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS log_operation(
@@ -144,9 +142,7 @@ RETURNS BIGINT AS $$
 DECLARE
     log_id BIGINT;
 BEGIN
-    -- Ensure current month partition exists
     PERFORM create_log_partition(CURRENT_DATE::DATE);
-    -- Insert log record
     INSERT INTO operation_logs (
         user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at
     ) VALUES (
@@ -156,11 +152,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION log_operation(BIGINT, VARCHAR, VARCHAR, TEXT, JSONB, INET, TEXT, VARCHAR, INTEGER) IS 'Logs a single operation with automatic partition handling, including data field.';
+COMMENT ON FUNCTION log_operation(BIGINT, VARCHAR, VARCHAR, TEXT, JSONB, INET, TEXT, VARCHAR, INTEGER) IS 'Logs a single operation.';
 
 
 -- ============================================================================
--- Module: Create log partition
+-- Module: Partition helper.
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS create_log_partition(DATE);
@@ -175,11 +171,9 @@ BEGIN
     partition_name := 'operation_logs_' || to_char(partition_date, 'YYYY_MM');
     start_date := date_trunc('month', partition_date);
     end_date := start_date + INTERVAL '1 month';
-    -- Create partition table (if not exists)
     EXECUTE format('CREATE TABLE IF NOT EXISTS %I PARTITION OF operation_logs
                     FOR VALUES FROM (%L) TO (%L)',
                    partition_name, start_date, end_date);
-    -- Create indexes for partition table (if not exists)
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_user_id ON %I(user_id)',
                    partition_name, partition_name);
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_action ON %I(action)',
@@ -190,4 +184,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION create_log_partition(DATE) IS 'Creates a new partition for operation_logs table for the specified month';
+COMMENT ON FUNCTION create_log_partition(DATE) IS 'Creates a monthly partition for operation_logs.';
