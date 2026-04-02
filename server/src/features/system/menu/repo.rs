@@ -15,18 +15,14 @@ pub struct MenuRepository;
 pub struct MenuListQuery {
     pub name: Option<String>,
     pub code: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<i16>,
 }
 
 impl MenuRepository {
     fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
         push_ilike(query_builder, "name", query.name.as_deref());
         push_ilike(query_builder, "code", query.code.as_deref());
-        if let Some(status) = query.status.as_deref().and_then(|s| s.parse::<i16>().ok()) {
-            push_eq(query_builder, "status", Some(status));
-        } else {
-            query_builder.push(" AND status = 1");
-        }
+        push_eq(query_builder, "status", query.status);
     }
 
     /// Queries menus based on conditions
@@ -57,9 +53,10 @@ impl MenuRepository {
         sort_order: i16,
         status: i16,
     ) -> Result<i64, ServiceError> {
+        let now = Utc::now().naive_utc();
         let menu_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
              RETURNING id",
         )
         .bind(parent_id)
@@ -68,7 +65,7 @@ impl MenuRepository {
         .bind(menu_type)
         .bind(sort_order)
         .bind(status)
-        .bind(Utc::now().naive_utc())
+        .bind(now)
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -111,6 +108,20 @@ impl MenuRepository {
         } else {
             Err(ServiceError::NotFound("Menu".to_string()))
         }
+    }
+
+    /// Returns whether the menu is a system built-in menu.
+    pub async fn is_system_menu(pool: &PgPool, id: i64) -> Result<Option<bool>, ServiceError> {
+        sqlx::query_scalar::<_, bool>(
+            "SELECT is_system FROM menus WHERE id = $1 AND deleted_at IS NULL",
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error fetching menu {} system flag: {:?}", id, e);
+            ServiceError::DatabaseQueryFailed
+        })
     }
 
     /// Soft deletes a menu

@@ -31,56 +31,41 @@ pub async fn login_handler(
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResp> {
     let start_time = Instant::now();
-    tracing::info!("Login attempt from {}", addr.ip());
-
-    let username = request.username.clone();
+    let LoginRequest { username, password } = request;
     let ip_address = addr.ip().to_string();
-    let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown");
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown")
+        .to_string();
 
-    match AuthService::login(&pool, request).await {
+    match AuthService::login(&pool, &username, &password).await {
         Ok(response) => {
-            if let Err(e) = LogService::record_operation(
+            record_login_operation(
                 &pool,
-                LogWriteCommand {
-                    user_id: response.user_info.id,
-                    username: username.clone(),
-                    action: "AUTH_LOGIN".to_string(),
-                    description: "User login successful".to_string(),
-                    data: Some(serde_json::json!({})),
-                    status: "SUCCESS".to_string(),
-                    duration_ms: start_time.elapsed().as_millis() as i32,
-                    ip_address: ip_address.clone(),
-                    user_agent: user_agent.to_string(),
-                },
+                response.user_info.id,
+                &username,
+                "SUCCESS",
+                "User login successful",
+                start_time,
+                &ip_address,
+                &user_agent,
             )
-            .await
-            {
-                tracing::error!("Failed to log login operation: {:?}", e);
-            }
-            tracing::info!("Login successful");
+            .await;
             Ok(ApiResponse::success(response))
         }
         Err(err) => {
-            let user_id = 0_i64;
-            if let Err(e) = LogService::record_operation(
+            record_login_operation(
                 &pool,
-                LogWriteCommand {
-                    user_id,
-                    username: username.clone(),
-                    action: "AUTH_LOGIN".to_string(),
-                    description: err.to_string(),
-                    data: Some(serde_json::json!({})),
-                    status: "FAIL".to_string(),
-                    duration_ms: start_time.elapsed().as_millis() as i32,
-                    ip_address: ip_address.clone(),
-                    user_agent: user_agent.to_string(),
-                },
+                0,
+                &username,
+                "FAIL",
+                &err.to_string(),
+                start_time,
+                &ip_address,
+                &user_agent,
             )
-            .await
-            {
-                tracing::error!("Failed to log failed login operation: {:?}", e);
-            }
-            tracing::error!("Login failed for user: {}", username);
+            .await;
             Err(err.into())
         }
     }
@@ -92,22 +77,15 @@ pub async fn get_login_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<UserInfoResp> {
-    tracing::debug!("Get me info");
-
-    let user_info = AuthService::get_login_info(&pool, current_user.user_id).await?;
-
-    tracing::debug!("Me info retrieved: {:?}", user_info);
-    Ok(ApiResponse::success(user_info))
+    Ok(ApiResponse::success(
+        AuthService::get_login_info(&pool, current_user.user_id).await?,
+    ))
 }
 
 /// Logout and clear cache
 #[tracing::instrument(name = "logout", skip(current_user))]
 pub async fn logout_handler(current_user: CurrentUser) -> AppResult<()> {
-    tracing::info!("Logout");
-
     PermissionService::clear_user_cache(current_user.user_id);
-
-    tracing::info!("Logout completed");
     Ok(ApiResponse::success(()))
 }
 
@@ -118,11 +96,39 @@ pub async fn update_avatar(
     State(pool): State<PgPool>,
     mut multipart: Multipart,
 ) -> AppResult<String> {
-    tracing::info!("Updating avatar for user: {}", current_user.user_id);
-
     let avatar_url = save_avatar(&mut multipart).await?;
 
     AuthService::update_avatar(&pool, current_user.user_id, &avatar_url).await?;
 
     Ok(ApiResponse::success(avatar_url))
+}
+
+async fn record_login_operation(
+    pool: &PgPool,
+    user_id: i64,
+    username: &str,
+    status: &str,
+    description: &str,
+    start_time: Instant,
+    ip_address: &str,
+    user_agent: &str,
+) {
+    if let Err(e) = LogService::record_operation(
+        pool,
+        LogWriteCommand {
+            user_id,
+            username: username.to_string(),
+            action: "AUTH_LOGIN".to_string(),
+            description: description.to_string(),
+            data: Some(serde_json::json!({})),
+            status: status.to_string(),
+            duration_ms: start_time.elapsed().as_millis() as i32,
+            ip_address: ip_address.to_string(),
+            user_agent: user_agent.to_string(),
+        },
+    )
+    .await
+    {
+        tracing::error!("Failed to log login operation: {:?}", e);
+    }
 }

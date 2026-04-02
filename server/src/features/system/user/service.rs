@@ -9,6 +9,7 @@ use crate::{
     common::{
         error::ServiceError,
         pagination::{Pagination, PaginationQuery},
+        query::parse_optional_i16_filter,
     },
     infra::password::PasswordUtils,
 };
@@ -26,45 +27,39 @@ impl UserService {
     ) -> Result<(Vec<UserItemResp>, i64), ServiceError> {
         tracing::info!("Fetching user list with query: {:?}", query);
 
-        let pagination = Pagination::from_query(PaginationQuery {
-            current: query.current,
-            page_size: query.page_size,
-        });
+        let UserQuery { current, page_size, username, status, real_name, email } = query;
+        let pagination = Pagination::from_query(PaginationQuery { current, page_size });
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
+        let status = parse_optional_i16_filter(status.as_deref(), "user status", None)?;
         let repo_query = UserListQuery {
-            username: query.username.clone(),
-            status: query.status.clone(),
-            real_name: query.real_name.clone(),
-            email: query.email.clone(),
+            username,
+            status,
+            real_name,
+            email,
         };
 
         let (users, total) = UserRepository::list_users(pool, offset, limit, repo_query).await?;
 
-        tracing::info!("Users: {:?}", users);
-        let list = users.into_iter().map(UserItemResp::from).collect();
-
-        Ok((list, total))
+        Ok((
+            users
+                .into_iter()
+                .map(UserItemResp::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            total,
+        ))
     }
 
     /// Create user
     pub async fn create_user(pool: &PgPool, dto: CreateUserRequest) -> Result<i64, ServiceError> {
         tracing::debug!("Creating user: {}", dto.username);
-
-        // Check if username already exists
         if UserRepository::username_exists(pool, &dto.username).await? {
             return Err(ServiceError::UsernameConflict);
         }
-
-        // Check if email already exists
         if UserRepository::email_exists(pool, &dto.email).await? {
             return Err(ServiceError::EmailConflict);
         }
-
-        // Hash password
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
-
-        // Create user DTO with hashed password
         let create_cmd = CreateUserCommand {
             username: dto.username,
             email: dto.email,
@@ -86,27 +81,24 @@ impl UserService {
         request: UpdateUserPayload,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
-
-        // Update user
-        let user_id = UserRepository::update_user(
-            pool,
-            id,
-            &request.email,
-            &request.real_name,
-            &request.role_ids,
-        )
-        .await?;
-
-        Ok(user_id)
+        let user = UserRepository::find_user_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
+        if user.is_system {
+            return Err(ServiceError::UserIsAdmin);
+        }
+        UserRepository::update_user(pool, id, &request.email, &request.real_name, &request.role_ids).await
     }
 
     /// Delete user
     pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::debug!("Deleting user ID: {}", id);
-
-        // Ensure user exists before soft deleting.
-        let _ = UserRepository::find_user_by_id(pool, id).await?;
-
+        let user = UserRepository::find_user_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
+        if user.is_system {
+            return Err(ServiceError::UserIsAdmin);
+        }
         UserRepository::soft_delete(pool, id).await?;
 
         Ok(())
@@ -126,15 +118,13 @@ impl UserService {
         query: UserOptionsQuery,
     ) -> Result<Vec<UserOptionResp>, ServiceError> {
         tracing::debug!("Getting user options with query: {:?}", query);
-
-        let options =
+        Ok(
             UserRepository::list_user_options(pool, query.status, query.q.as_deref(), query.limit)
-                .await?;
-
-        let user_options =
-            options.into_iter().map(|(value, label)| UserOptionResp { label, value }).collect();
-
-        Ok(user_options)
+                .await?
+                .into_iter()
+                .map(|(value, label)| UserOptionResp { label, value })
+                .collect(),
+        )
     }
 
     pub async fn update_user_password(
@@ -143,12 +133,9 @@ impl UserService {
         dto: UpdateUserPasswordPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user password for user ID: {}", id);
-
+        Self::ensure_user_is_mutable(pool, id).await?;
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
-
-        let result = UserRepository::update_user_password(pool, id, &password_hash).await?;
-
-        Ok(result)
+        UserRepository::update_user_password(pool, id, &password_hash).await
     }
 
     pub async fn update_user_status(
@@ -157,9 +144,17 @@ impl UserService {
         dto: UpdateUserStatusPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
+        Self::ensure_user_is_mutable(pool, id).await?;
+        UserRepository::update_user_status(pool, id, dto.status).await
+    }
 
-        let result = UserRepository::update_user_status(pool, id, dto.status).await?;
-
-        Ok(result)
+    async fn ensure_user_is_mutable(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+        let user = UserRepository::find_user_by_id(pool, id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
+        if user.is_system {
+            return Err(ServiceError::UserIsAdmin);
+        }
+        Ok(())
     }
 }

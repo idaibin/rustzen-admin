@@ -7,14 +7,10 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::PgPool;
 use handler::{create_role, delete_role, get_role_options, list_roles, update_role};
-use crate::{
-    common::router_ext::RouterExt,
-    infra::permission::PermissionsCheck,
-};
+use sqlx::PgPool;
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
-/// Role management routes with permission examples
 pub fn role_routes() -> Router<PgPool> {
     Router::new()
         .route_with_permission(

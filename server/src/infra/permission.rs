@@ -25,9 +25,6 @@ pub enum PermissionsCheck {
 impl PermissionsCheck {
     /// Core permission validation logic
     pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
-        if user_permissions.contains("*") {
-            return true;
-        }
         match self {
             PermissionsCheck::Require(code) => user_permissions.contains(*code),
             PermissionsCheck::Any(codes) => {
@@ -91,11 +88,12 @@ impl PermissionCacheManager {
 
     /// Store user permissions in cache
     pub fn set(&self, user_id: i64, permission_cache: UserPermissionCache) {
+        let permission_count = permission_cache.permissions.len();
         if let Ok(mut cache) = self.cache.write() {
             cache.insert(user_id, permission_cache);
             tracing::debug!(
                 "Cached {} permissions for user {} (expires in {}h)",
-                cache.get(&user_id).map(|c| c.permissions.len()).unwrap_or(0),
+                permission_count,
                 user_id,
                 CACHE_EXPIRE_HOURS
             );
@@ -148,10 +146,10 @@ impl PermissionService {
     /// Cache user permissions (called during login)
     pub fn cache_user_permissions(user_id: i64, permissions: &[String]) {
         let permission_cache = UserPermissionCache::new(permissions.to_vec());
-        PERMISSION_CACHE.set(user_id, permission_cache.clone());
+        PERMISSION_CACHE.set(user_id, permission_cache);
         tracing::info!(
             "Cached {} permissions for user {} (expires in {}h)",
-            permission_cache.permissions.len(),
+            permissions.len(),
             user_id,
             CACHE_EXPIRE_HOURS
         );

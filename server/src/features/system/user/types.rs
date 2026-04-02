@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::common::api::OptionItem;
+use crate::common::error::ServiceError;
 
 /// User with roles row from the database view.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -12,6 +13,7 @@ pub struct UserWithRolesRow {
     pub password_hash: String,
     pub real_name: Option<String>,
     pub avatar_url: Option<String>,
+    pub is_system: bool,
     pub status: i16,
     pub last_login_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
@@ -103,9 +105,15 @@ pub struct UserItemResp {
 /// User option
 pub type UserOptionResp = OptionItem<i64>;
 
-impl From<UserWithRolesRow> for UserItemResp {
-    fn from(user: UserWithRolesRow) -> Self {
-        Self {
+impl TryFrom<UserWithRolesRow> for UserItemResp {
+    type Error = ServiceError;
+
+    fn try_from(user: UserWithRolesRow) -> Result<Self, Self::Error> {
+        let roles = serde_json::from_value::<Vec<UserOptionResp>>(user.roles).map_err(|e| {
+            ServiceError::InvalidOperation(format!("Invalid user role data: {}", e))
+        })?;
+
+        Ok(Self {
             id: user.id,
             username: user.username,
             email: user.email,
@@ -115,7 +123,7 @@ impl From<UserWithRolesRow> for UserItemResp {
             last_login_at: user.last_login_at,
             created_at: user.created_at,
             updated_at: user.updated_at,
-            roles: serde_json::from_value::<Vec<UserOptionResp>>(user.roles).unwrap_or_default(),
-        }
+            roles,
+        })
     }
 }

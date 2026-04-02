@@ -11,12 +11,15 @@ use super::types::{DictItemResp, UpdateDictPayload};
 
 pub struct DictRepository;
 
+const DEFAULT_DICT_STATUS: i16 = 1;
+const DEFAULT_DICT_SORT_ORDER: i32 = 1;
+
 #[derive(Debug, Clone)]
 pub struct DictListQuery {
     pub dict_type: Option<String>,
     pub label: Option<String>,
     pub value: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<i16>,
 }
 
 impl DictRepository {
@@ -25,7 +28,7 @@ impl DictRepository {
         push_ilike(query_builder, "dict_type", query.dict_type.as_deref());
         push_ilike(query_builder, "label", query.label.as_deref());
         push_ilike(query_builder, "value", query.value.as_deref());
-        push_eq(query_builder, "status", query.status.as_deref().and_then(|s| s.parse::<i16>().ok()));
+        push_eq(query_builder, "status", query.status);
     }
 
     /// Retrieves dictionary items with pagination
@@ -35,16 +38,20 @@ impl DictRepository {
         limit: i64,
         query: DictListQuery,
     ) -> Result<(Vec<DictItemResp>, i64), ServiceError> {
-        let total = count_with_filters(pool, "SELECT COUNT(*) FROM dicts WHERE 1=1", |query_builder| {
-            Self::format_query(&query, query_builder);
-        })
+        let total = count_with_filters(
+            pool,
+            "SELECT COUNT(*) FROM dicts WHERE 1=1 AND deleted_at IS NULL",
+            |query_builder| {
+                Self::format_query(&query, query_builder);
+            },
+        )
         .await?;
         if total == 0 {
             return Ok((Vec::new(), total));
         }
         let dicts = fetch_with_filters(
             pool,
-            "SELECT id, dict_type, label, value, status, COALESCE(description, '') AS description, sort_order, updated_at FROM dicts WHERE 1=1 AND deleted_at IS NULL AND status = 1",
+            "SELECT id, dict_type, label, value, status, COALESCE(description, '') AS description, sort_order, updated_at FROM dicts WHERE 1=1 AND deleted_at IS NULL",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },
@@ -62,10 +69,10 @@ impl DictRepository {
         pool: &PgPool,
         dict_type: Option<&str>,
         search_query: Option<&str>,
-        limit: i64,
+        limit: Option<i64>,
     ) -> Result<Vec<(String, String)>, ServiceError> {
         tracing::debug!(
-            "Querying dictionary options with type: {:?}, search: {:?}, limit: {}",
+            "Querying dictionary options with type: {:?}, search: {:?}, limit: {:?}",
             dict_type,
             search_query,
             limit
@@ -84,7 +91,7 @@ impl DictRepository {
                 push_ilike(query_builder, "label", search_query);
             },
             Some("sort_order ASC, label ASC"),
-            Some(limit),
+            limit,
             None,
         )
         .await?;
@@ -126,19 +133,20 @@ impl DictRepository {
         sort_order: Option<i32>,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Creating new dictionary item with type: {}, label: {}", dict_type, label);
+        let now = Utc::now().naive_utc();
 
         let dict = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO dicts (dict_type, label, value, status, description, sort_order, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "INSERT INTO dicts (dict_type, label, value, status, description, sort_order, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
              RETURNING id",
         )
         .bind(dict_type)
         .bind(label)
         .bind(value)
-        .bind(status.unwrap_or(1))
+        .bind(status.unwrap_or(DEFAULT_DICT_STATUS))
         .bind(description)
-        .bind(sort_order.unwrap_or(1))
-        .bind(Utc::now().naive_utc())
+        .bind(sort_order.unwrap_or(DEFAULT_DICT_SORT_ORDER))
+        .bind(now)
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -171,9 +179,9 @@ impl DictRepository {
         .bind(&request.dict_type)
         .bind(&request.label)
         .bind(&request.value)
-        .bind(request.status.unwrap_or(1))
+        .bind(request.status.unwrap_or(DEFAULT_DICT_STATUS))
         .bind(request.description.as_deref())
-        .bind(request.sort_order.unwrap_or(1))
+        .bind(request.sort_order.unwrap_or(DEFAULT_DICT_SORT_ORDER))
         .bind(Utc::now().naive_utc())
         .bind(id)
         .fetch_optional(pool)

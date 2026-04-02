@@ -6,6 +6,7 @@ use crate::common::{
     api::OptionItem,
     error::ServiceError,
     pagination::{Pagination, PaginationQuery},
+    query::parse_optional_i16_filter,
 };
 
 use sqlx::PgPool;
@@ -20,23 +21,15 @@ impl DictService {
     ) -> Result<(Vec<DictItemResp>, i64), ServiceError> {
         tracing::info!("Starting to retrieve dictionary list with query: {:?}", query);
 
-        let pagination = Pagination::from_query(PaginationQuery {
-            current: query.current,
-            page_size: query.page_size,
-        });
+        let DictQuery { current, page_size, dict_type, label, value, status } = query;
+        let pagination = Pagination::from_query(PaginationQuery { current, page_size });
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
-        let repo_query = DictListQuery {
-            dict_type: query.dict_type,
-            label: query.label,
-            value: query.value,
-            status: query.status,
-        };
+        let status = parse_optional_i16_filter(status.as_deref(), "dict status", None)?;
+        let repo_query = DictListQuery { dict_type, label, value, status };
 
-        // Get filtered items or all items
         let (dicts, total) = DictRepository::list_dicts(pool, offset, limit, repo_query).await?;
 
-        tracing::info!("Successfully retrieved {} dictionary items", dicts.len());
         Ok((dicts, total))
     }
 
@@ -47,8 +40,7 @@ impl DictService {
             request.dict_type,
             request.label
         );
-
-        let dict_id: i64 = DictRepository::create(
+        DictRepository::create(
             pool,
             &request.dict_type,
             &request.label,
@@ -58,12 +50,6 @@ impl DictService {
             request.sort_order,
         )
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to create dictionary item: {}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(dict_id)
     }
 
     /// Updates an existing dictionary item with validation
@@ -73,28 +59,15 @@ impl DictService {
         request: UpdateDictPayload,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Updating dictionary item: {}", id);
-
-        let updated_dict = DictRepository::update(pool, id, &request)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to update dictionary item {}: {}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(updated_dict)
+        DictRepository::update(pool, id, &request).await
     }
 
     /// Deletes a dictionary item by ID
     pub async fn delete_dict(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Deleting dictionary item: {}", id);
-
-        let success = DictRepository::soft_delete(pool, id).await?;
-
-        if success {
-            tracing::info!("Successfully deleted dictionary item: {}", id);
+        if DictRepository::soft_delete(pool, id).await? {
             Ok(())
         } else {
-            tracing::warn!("Dictionary item not found during deletion: {}", id);
             Err(ServiceError::NotFound("Dictionary item".to_string()))
         }
     }
@@ -106,31 +79,18 @@ impl DictService {
         search_query: Option<String>,
         limit: Option<i64>,
     ) -> Result<Vec<OptionItem<String>>, ServiceError> {
-        let limit = limit.unwrap_or(50);
-        tracing::info!(
-            "Retrieving dictionary options with type: {:?}, search: {:?}, limit: {}",
-            dict_type,
-            search_query,
-            limit
-        );
-
-        let options = DictRepository::list_dict_options(
-            pool,
-            dict_type.as_deref(),
-            search_query.as_deref(),
-            limit,
+        Ok(
+            DictRepository::list_dict_options(
+                pool,
+                dict_type.as_deref(),
+                search_query.as_deref(),
+                limit,
+            )
+            .await?
+            .into_iter()
+            .map(|(label, value)| OptionItem { label, value })
+            .collect(),
         )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to retrieve dictionary options: {}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        let result: Vec<OptionItem<String>> =
-            options.into_iter().map(|(label, value)| OptionItem { label, value }).collect();
-
-        tracing::info!("Successfully retrieved {} dictionary options", result.len());
-        Ok(result)
     }
 
     /// Retrieves dictionary items by type
@@ -138,16 +98,7 @@ impl DictService {
         pool: &PgPool,
         dict_type: &str,
     ) -> Result<Vec<OptionItem<String>>, ServiceError> {
-        tracing::info!("Retrieving dictionary items by type: {}", dict_type);
-
-        let dicts = DictRepository::list_dicts_by_type(pool, dict_type).await?;
-
-        tracing::info!(
-            "Successfully retrieved {} dictionary items for type {}",
-            dicts.len(),
-            dict_type
-        );
-        Ok(dicts)
+        DictRepository::list_dicts_by_type(pool, dict_type).await
     }
 
     /// Updates the status of a dictionary item
@@ -158,20 +109,15 @@ impl DictService {
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating dictionary item {} status to: {}", id, status);
 
-        // Validate status value
         if ![1, 2].contains(&status) {
             return Err(ServiceError::InvalidOperation(
                 "Status must be 1 (active) or 2 (inactive)".to_string(),
             ));
         }
 
-        let success = DictRepository::update_status(pool, id, status).await?;
-
-        if success {
-            tracing::info!("Successfully updated dictionary item {} status to {}", id, status);
+        if DictRepository::update_status(pool, id, status).await? {
             Ok(())
         } else {
-            tracing::warn!("Dictionary item not found for status update: {}", id);
             Err(ServiceError::NotFound("Dictionary item".to_string()))
         }
     }

@@ -99,8 +99,8 @@ impl DashboardRepository {
             .fetch_one(pool),
 
             // 获取平均响应时间（毫秒）
-            sqlx::query_scalar::<_, Option<f64>>(
-                "SELECT AVG(duration_ms::FLOAT8) FROM operation_logs WHERE created_at > NOW() - INTERVAL '7 days' AND duration_ms IS NOT NULL"
+            sqlx::query_scalar::<_, f64>(
+                "SELECT COALESCE(AVG(duration_ms::FLOAT8), 0) FROM operation_logs WHERE created_at > NOW() - INTERVAL '7 days' AND duration_ms IS NOT NULL"
             )
             .fetch_one(pool)
         );
@@ -129,7 +129,7 @@ impl DashboardRepository {
         };
 
         // 计算平均响应时间（毫秒）
-        let avg_response_time_ms = avg_response_time.unwrap_or(0.0) as i64;
+        let avg_response_time_ms = avg_response_time as i64;
 
         let metrics = SystemMetricsDataResp {
             avg_response_time: avg_response_time_ms,

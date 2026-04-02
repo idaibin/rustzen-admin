@@ -44,6 +44,5 @@ pub async fn export_logs(
 
 /// get timestamp
 fn get_timestamp() -> String {
-    let now = Utc::now().timestamp_millis();
-    format!("{}", now)
+    Utc::now().timestamp_millis().to_string()
 }
