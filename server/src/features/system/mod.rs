@@ -13,7 +13,6 @@ use menu::menu_routes;
 use role::role_routes;
 use user::user_routes;
 
-/// 系统路由
 pub fn system_routes() -> Router<PgPool> {
     Router::new()
         .nest("/users", user_routes())

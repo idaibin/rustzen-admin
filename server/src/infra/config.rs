@@ -1,55 +1,45 @@
 use figment::{
     Figment,
-    providers::{Env, Serialized},
+    providers::Env,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    /// application port
     pub app_port: u16,
-    /// application host
     pub app_host: String,
-    /// database URL
-    pub db_url: String,
-    /// database maximum connection count
     pub db_max_conn: u32,
-    /// database minimum connection count
     pub db_min_conn: u32,
-    /// database connection timeout
     pub db_conn_timeout: u64,
-    /// database idle connection timeout
     pub db_idle_timeout: u64,
-    /// JWT secret key
     pub jwt_secret: String,
-    /// JWT expiration time    
     pub jwt_expiration: i64,
+    pub web_dist: String,
+    pub upload_dir: String,
+    pub avatar_dir: String,
+    pub upload_public_prefix: String,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            app_port: 8007,
-            app_host: "0.0.0.0".into(),
-            db_url: "sqlite://rustzen.db".into(),
-            db_max_conn: 10,
-            db_min_conn: 1,
-            db_conn_timeout: 10,
-            db_idle_timeout: 0,
-            jwt_secret: "rustzen-admin-secret-key".into(),
-            jwt_expiration: 60 * 60, // 1 hour
-        }
-    }
-}
-// 全局单例
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config: Config = Figment::new()
-        .merge(Serialized::defaults(Config::default()))
         .merge(Env::prefixed("RUSTZEN_"))
         .extract()
         .expect("Failed to load configuration");
 
-    tracing::info!("CONFIG: {:?}", config);
+    tracing::info!(
+        app_host = %config.app_host,
+        app_port = config.app_port,
+        db_max_conn = config.db_max_conn,
+        db_min_conn = config.db_min_conn,
+        db_conn_timeout = config.db_conn_timeout,
+        db_idle_timeout = config.db_idle_timeout,
+        jwt_expiration = config.jwt_expiration,
+        web_dist = %config.web_dist,
+        upload_dir = %config.upload_dir,
+        avatar_dir = %config.avatar_dir,
+        upload_public_prefix = %config.upload_public_prefix,
+        "Configuration loaded"
+    );
     config
 });

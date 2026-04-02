@@ -23,15 +23,11 @@ pub struct DatabaseConfig {
 }
 
 impl Default for DatabaseConfig {
-    /// Creates a default database configuration from environment variables.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the `DATABASE_URL` environment variable is not set.
-    /// A valid database URL is essential for the application to run.
+    /// Creates a database configuration from `DATABASE_URL` and `RUSTZEN_*` runtime config.
     fn default() -> Self {
+        let url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         Self {
-            url: CONFIG.db_url.to_string(),
+            url,
             max_connections: CONFIG.db_max_conn,
             min_connections: CONFIG.db_min_conn,
             connect_timeout: Duration::from_secs(CONFIG.db_conn_timeout),
