@@ -28,10 +28,7 @@ where
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         parts.extensions.get::<CurrentUser>().cloned().ok_or_else(|| {
             tracing::error!(
                 "CurrentUser not found - auth middleware missing or user not authenticated"

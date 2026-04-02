@@ -121,7 +121,7 @@ const columns: ProColumns<Role.Item>[] = [
             const isSystemRole = entity.id === 1;
             return (
                 <Space size="middle">
-                    <AuthWrap code="system:role:edit" hidden={isSystemRole}>
+                    <AuthWrap code="system:role:update" hidden={isSystemRole}>
                         <RoleModalForm
                             mode={"edit"}
                             initialValues={entity}

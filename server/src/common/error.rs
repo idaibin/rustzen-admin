@@ -109,11 +109,9 @@ impl IntoResponse for AppError {
 impl From<ServiceError> for AppError {
     fn from(err: ServiceError) -> Self {
         match err {
-            ServiceError::NotFound(resource) => app_error(
-                StatusCode::NOT_FOUND,
-                10001,
-                format!("{} not found.", resource),
-            ),
+            ServiceError::NotFound(resource) => {
+                app_error(StatusCode::NOT_FOUND, 10001, format!("{} not found.", resource))
+            }
             ServiceError::InvalidOperation(reason) => {
                 app_error(StatusCode::BAD_REQUEST, 10002, reason)
             }
@@ -137,31 +135,23 @@ impl From<ServiceError> for AppError {
             ServiceError::UserIsAdmin => {
                 app_error(StatusCode::BAD_REQUEST, 10008, "Cannot update admin user.")
             }
-            ServiceError::RoleIsSystem => app_error(
-                StatusCode::BAD_REQUEST,
-                10009,
-                "Cannot modify system built-in role.",
-            ),
-            ServiceError::MenuIsSystem => app_error(
-                StatusCode::BAD_REQUEST,
-                10010,
-                "Cannot modify system built-in menu.",
-            ),
-            ServiceError::InvalidCredentials => app_error(
-                StatusCode::UNAUTHORIZED,
-                10101,
-                "Invalid username or password.",
-            ),
+            ServiceError::RoleIsSystem => {
+                app_error(StatusCode::BAD_REQUEST, 10009, "Cannot modify system built-in role.")
+            }
+            ServiceError::MenuIsSystem => {
+                app_error(StatusCode::BAD_REQUEST, 10010, "Cannot modify system built-in menu.")
+            }
+            ServiceError::InvalidCredentials => {
+                app_error(StatusCode::UNAUTHORIZED, 10101, "Invalid username or password.")
+            }
             ServiceError::TokenCreationFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 10103,
                 "Failed to generate login token. Please try again.",
             ),
-            ServiceError::UsernameConflict => app_error(
-                StatusCode::CONFLICT,
-                10201,
-                "Username already exists.",
-            ),
+            ServiceError::UsernameConflict => {
+                app_error(StatusCode::CONFLICT, 10201, "Username already exists.")
+            }
             ServiceError::EmailConflict => {
                 app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
             }

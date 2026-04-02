@@ -10,10 +10,8 @@ const USER_AVATAR_MAX_SIZE: usize = 1024 * 1024;
 /// 保存头像
 pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceError> {
     let avatar_dir = &CONFIG.avatar_dir;
-    let avatar_public_prefix = format!(
-        "{}/avatars",
-        CONFIG.upload_public_prefix.trim_end_matches('/')
-    );
+    let avatar_public_prefix =
+        format!("{}/avatars", CONFIG.upload_public_prefix.trim_end_matches('/'));
 
     // 确保上传目录存在
     tokio::fs::create_dir_all(avatar_dir)

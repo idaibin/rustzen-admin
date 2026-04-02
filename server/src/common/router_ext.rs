@@ -30,6 +30,7 @@ impl RouterExt<PgPool> for Router<PgPool> {
         method_router: MethodRouter<PgPool>,
         permissions_check: PermissionsCheck,
     ) -> Self {
+        PermissionService::register_permission_codes(permissions_check.codes());
         tracing::debug!(
             "Registering route '{}' with permission: {}",
             path,

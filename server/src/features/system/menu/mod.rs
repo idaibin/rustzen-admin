@@ -3,21 +3,17 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{
     Router,
     routing::{delete, get, post, put},
 };
 use handler::{create_menu, delete_menu, get_menu_options, list_menus, update_menu};
 use sqlx::PgPool;
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
 pub fn menu_routes() -> Router<PgPool> {
     Router::new()
-        .route_with_permission(
-            "/",
-            get(list_menus),
-            PermissionsCheck::Require("system:menu:list"),
-        )
+        .route_with_permission("/", get(list_menus), PermissionsCheck::Require("system:menu:list"))
         .route_with_permission(
             "/",
             post(create_menu),

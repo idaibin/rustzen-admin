@@ -34,9 +34,13 @@ impl LogRepository {
         query: LogListQuery,
     ) -> Result<(Vec<LogItemResp>, i64), ServiceError> {
         tracing::debug!("Finding logs with pagination and filters: {:?}", query);
-        let total = count_with_filters(pool, "SELECT COUNT(*) FROM operation_logs WHERE 1=1", |query_builder| {
-            Self::format_query(&query, query_builder);
-        })
+        let total = count_with_filters(
+            pool,
+            "SELECT COUNT(*) FROM operation_logs WHERE 1=1",
+            |query_builder| {
+                Self::format_query(&query, query_builder);
+            },
+        )
         .await?;
         if total == 0 {
             return Ok((Vec::new(), total));

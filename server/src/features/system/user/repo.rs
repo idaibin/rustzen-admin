@@ -286,16 +286,17 @@ impl UserRepository {
         id: i64,
         password_hash: &str,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET password_hash = $1, updated_at = $3 WHERE id = $2")
-            .bind(password_hash)
-            .bind(id)
-            .bind(Utc::now().naive_utc())
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
+        let result =
+            sqlx::query("UPDATE users SET password_hash = $1, updated_at = $3 WHERE id = $2")
+                .bind(password_hash)
+                .bind(id)
+                .bind(Utc::now().naive_utc())
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
+                    ServiceError::DatabaseQueryFailed
+                })?;
 
         Ok(result.rows_affected() > 0)
     }

@@ -2,9 +2,7 @@ use super::{
     service::MenuService,
     types::{CreateMenuRequest, MenuItemResp, MenuQuery, UpdateMenuPayload},
 };
-use crate::common::{
-    api::{ApiResponse, AppResult, OptionsQuery},
-};
+use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
 use axum::{
     Json,

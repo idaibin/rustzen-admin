@@ -32,22 +32,11 @@ impl UserService {
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
         let status = parse_optional_i16_filter(status.as_deref(), "user status", None)?;
-        let repo_query = UserListQuery {
-            username,
-            status,
-            real_name,
-            email,
-        };
+        let repo_query = UserListQuery { username, status, real_name, email };
 
         let (users, total) = UserRepository::list_users(pool, offset, limit, repo_query).await?;
 
-        Ok((
-            users
-                .into_iter()
-                .map(UserItemResp::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-            total,
-        ))
+        Ok((users.into_iter().map(UserItemResp::try_from).collect::<Result<Vec<_>, _>>()?, total))
     }
 
     /// Create user
@@ -87,7 +76,8 @@ impl UserService {
         if user.is_system {
             return Err(ServiceError::UserIsAdmin);
         }
-        UserRepository::update_user(pool, id, &request.email, &request.real_name, &request.role_ids).await
+        UserRepository::update_user(pool, id, &request.email, &request.real_name, &request.role_ids)
+            .await
     }
 
     /// Delete user
@@ -118,13 +108,11 @@ impl UserService {
         query: UserOptionsQuery,
     ) -> Result<Vec<UserOptionResp>, ServiceError> {
         tracing::debug!("Getting user options with query: {:?}", query);
-        Ok(
-            UserRepository::list_user_options(pool, query.status, query.q.as_deref(), query.limit)
-                .await?
-                .into_iter()
-                .map(|(value, label)| UserOptionResp { label, value })
-                .collect(),
-        )
+        Ok(UserRepository::list_user_options(pool, query.status, query.q.as_deref(), query.limit)
+            .await?
+            .into_iter()
+            .map(|(value, label)| UserOptionResp { label, value })
+            .collect())
     }
 
     pub async fn update_user_password(
