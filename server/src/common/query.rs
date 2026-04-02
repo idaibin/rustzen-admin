@@ -1,6 +1,6 @@
 use crate::common::error::ServiceError;
 
-use sqlx::{postgres::PgRow, PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder, postgres::PgRow};
 
 /// Apply a case-insensitive LIKE filter when the value is present and non-empty.
 pub fn push_ilike(

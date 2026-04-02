@@ -31,7 +31,10 @@ impl MenuService {
     }
 
     /// Create new menu with validation
-    pub async fn create_menu(pool: &PgPool, request: CreateMenuRequest) -> Result<i64, ServiceError> {
+    pub async fn create_menu(
+        pool: &PgPool,
+        request: CreateMenuRequest,
+    ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to create menu with name: {}", request.name);
         MenuRepository::create(
             pool,
@@ -81,12 +84,10 @@ impl MenuService {
         query: OptionsQuery,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!("Fetching menu options: {:?}", query);
-        Ok(
-            MenuRepository::list_menu_options(pool, query.q.as_deref(), query.limit)
-                .await?
-                .into_iter()
-                .map(|(id, name)| OptionItem { label: name, value: id })
-                .collect(),
-        )
+        Ok(MenuRepository::list_menu_options(pool, query.q.as_deref(), query.limit)
+            .await?
+            .into_iter()
+            .map(|(id, name)| OptionItem { label: name, value: id })
+            .collect())
     }
 }

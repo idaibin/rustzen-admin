@@ -26,25 +26,18 @@ impl RoleService {
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
         let status = parse_optional_i16_filter(status.as_deref(), "role status", None)?;
-        let repo_query = RoleListQuery {
-            role_name,
-            role_code,
-            status,
-        };
+        let repo_query = RoleListQuery { role_name, role_code, status };
 
         let (roles, total) = RoleRepository::list_roles(pool, offset, limit, repo_query).await?;
 
-        Ok((
-            roles
-                .into_iter()
-                .map(RoleItemResp::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-            total,
-        ))
+        Ok((roles.into_iter().map(RoleItemResp::try_from).collect::<Result<Vec<_>, _>>()?, total))
     }
 
     /// Create new role with validation
-    pub async fn create_role(pool: &PgPool, request: CreateRoleRequest) -> Result<(), ServiceError> {
+    pub async fn create_role(
+        pool: &PgPool,
+        request: CreateRoleRequest,
+    ) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
         RoleRepository::create(
             pool,
@@ -120,12 +113,10 @@ impl RoleService {
         query: OptionsQuery,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!("Retrieving role options: {:?}", query);
-        Ok(
-            RoleRepository::list_role_options(pool, query.q.as_deref(), query.limit)
-                .await?
-                .into_iter()
-                .map(|(id, name)| OptionItem { label: name, value: id })
-                .collect(),
-        )
+        Ok(RoleRepository::list_role_options(pool, query.q.as_deref(), query.limit)
+            .await?
+            .into_iter()
+            .map(|(id, name)| OptionItem { label: name, value: id })
+            .collect())
     }
 }

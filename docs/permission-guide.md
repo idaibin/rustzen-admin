@@ -8,11 +8,18 @@
 - The current project mainly uses `PermissionsCheck::Require("domain:resource:action")` by default.
 - `Any(...)` and `All(...)` are reserved in code and should not be promoted as standard practice.
 - Permission checks rely on in-memory cache written at login. Missing or expired cache is treated as a re-login requirement.
+- Route permissions are also collected at registration time and synchronized into `menus` on startup through `sync_permissions(pool)`.
+- Route permission registration is fail-fast: lock poisoning in `register_permission_codes(...)` or `take_registered_permission_codes()` aborts startup instead of silently skipping sync data.
+- Menu hierarchy is derived from `permission_code` and `parent_code`.
+- `menus.is_manual = TRUE` means the menu has been manually maintained and is no longer overwritten by sync.
+- Startup sync only updates rows with `is_manual = FALSE`.
+- System built-in menus are backfilled with `is_manual = FALSE`.
 
 ## Code Locations
 
 - Route extension: `server/src/common/router_ext.rs`
 - Permission model: `server/src/infra/permission.rs`
+- Startup sync: `server/src/infra/app.rs`
 - Current user extractor: `server/src/infra/extractor.rs`
 
 ## Recommended Pattern
@@ -29,6 +36,7 @@ Router::new().route_with_permission(
 
 - Use `Require(...)` for standard CRUD routes.
 - Permission strings follow `domain:resource:action`.
+- For system pages, use `create`, `update`, `delete`, `list`, `options`, `status`, and `password` as the stable action names.
 - Do not treat "super-admin fallback" or "any-of-many permissions" as the default mode for new endpoints.
 - Only evaluate `Any(...)` or `All(...)` when a feature explicitly needs combined permission logic.
 
@@ -38,6 +46,15 @@ Router::new().route_with_permission(
 - Clear the permission cache on logout.
 - When cache expires, return an invalid login state and require re-authentication.
 - The current implementation does not auto-refresh from the source and does not apply implicit fallbacks.
+
+## Menu Sync Behavior
+
+- Route permission codes are expanded by `:` into parent codes before synchronization.
+- `menus.parent_code` is the source field for building tree relationships during sync.
+- `parent_id` is rebuilt from `parent_code` after upsert, and root nodes keep `parent_id = 0`.
+- Leaf permissions are humanized from every segment, and `:*` nodes append `Management` to the humanized base title.
+- `menu_type` is derived by a fixed rule: permissions ending in `:*` are `directory`, permissions ending in `:list` or `:view` are `menu`, and all other leaf permissions are `button`.
+- Manual menu edits keep `is_manual = TRUE`; sync-generated menus use `FALSE`.
 
 ## Error Rules
 

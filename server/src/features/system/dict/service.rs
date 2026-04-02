@@ -34,7 +34,10 @@ impl DictService {
     }
 
     /// Creates a new dictionary item with validation
-    pub async fn create_dict(pool: &PgPool, request: CreateDictRequest) -> Result<i64, ServiceError> {
+    pub async fn create_dict(
+        pool: &PgPool,
+        request: CreateDictRequest,
+    ) -> Result<i64, ServiceError> {
         tracing::info!(
             "Creating dictionary item: type={}, key={}",
             request.dict_type,
@@ -79,18 +82,16 @@ impl DictService {
         search_query: Option<String>,
         limit: Option<i64>,
     ) -> Result<Vec<OptionItem<String>>, ServiceError> {
-        Ok(
-            DictRepository::list_dict_options(
-                pool,
-                dict_type.as_deref(),
-                search_query.as_deref(),
-                limit,
-            )
-            .await?
-            .into_iter()
-            .map(|(label, value)| OptionItem { label, value })
-            .collect(),
+        Ok(DictRepository::list_dict_options(
+            pool,
+            dict_type.as_deref(),
+            search_query.as_deref(),
+            limit,
         )
+        .await?
+        .into_iter()
+        .map(|(label, value)| OptionItem { label, value })
+        .collect())
     }
 
     /// Retrieves dictionary items by type

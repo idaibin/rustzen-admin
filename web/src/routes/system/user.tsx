@@ -130,7 +130,7 @@ const columns: ProColumns<User.Item>[] = [
             const status = entity.status === 1 ? "Disable" : "Enable";
             return (
                 <Space size="middle">
-                    <AuthWrap code="system:user:edit">
+                    <AuthWrap code="system:user:update">
                         <UserModalForm
                             mode={"edit"}
                             initialValues={entity}

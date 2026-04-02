@@ -87,20 +87,10 @@ impl AuthService {
         let user = AuthRepository::find_user_by_id(pool, user_id)
             .await?
             .ok_or(ServiceError::NotFound("User".to_string()))?;
-        let super::types::AuthUserRow {
-            id,
-            username,
-            real_name,
-            email,
-            avatar_url,
-            is_system,
-        } = user;
+        let super::types::AuthUserRow { id, username, real_name, email, avatar_url, is_system } =
+            user;
 
-        tracing::debug!(
-            "User basic info retrieved for user_id={}, username={}",
-            user_id,
-            username
-        );
+        tracing::debug!("User basic info retrieved for user_id={}, username={}", user_id, username);
 
         let permissions = Self::load_permissions(pool, user_id, is_system).await?;
 
@@ -113,15 +103,7 @@ impl AuthService {
             username
         );
 
-        Ok(UserInfoResp {
-            id,
-            username,
-            real_name,
-            email,
-            avatar_url,
-            is_system,
-            permissions,
-        })
+        Ok(UserInfoResp { id, username, real_name, email, avatar_url, is_system, permissions })
     }
 
     /// Verify login credentials

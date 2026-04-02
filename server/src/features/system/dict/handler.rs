@@ -1,10 +1,10 @@
 use super::{
     service::DictService,
-    types::{CreateDictRequest, DictItemResp, DictQuery, UpdateDictPayload, UpdateDictStatusPayload},
+    types::{
+        CreateDictRequest, DictItemResp, DictQuery, UpdateDictPayload, UpdateDictStatusPayload,
+    },
 };
-use crate::common::{
-    api::{ApiResponse, AppResult, DictOptionsQuery, OptionItem},
-};
+use crate::common::api::{ApiResponse, AppResult, DictOptionsQuery, OptionItem};
 
 use axum::{
     Json,

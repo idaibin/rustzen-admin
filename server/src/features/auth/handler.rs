@@ -7,10 +7,7 @@ use crate::{
         api::{ApiResponse, AppResult},
         files::save_avatar,
     },
-    features::system::log::{
-        service::LogService,
-        types::LogWriteCommand,
-    },
+    features::system::log::{service::LogService, types::LogWriteCommand},
     infra::{extractor::CurrentUser, permission::PermissionService},
 };
 
@@ -33,11 +30,8 @@ pub async fn login_handler(
     let start_time = Instant::now();
     let LoginRequest { username, password } = request;
     let ip_address = addr.ip().to_string();
-    let user_agent = headers
-        .get("user-agent")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("Unknown")
-        .to_string();
+    let user_agent =
+        headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown").to_string();
 
     match AuthService::login(&pool, &username, &password).await {
         Ok(response) => {
@@ -77,9 +71,7 @@ pub async fn get_login_info_handler(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<UserInfoResp> {
-    Ok(ApiResponse::success(
-        AuthService::get_login_info(&pool, current_user.user_id).await?,
-    ))
+    Ok(ApiResponse::success(AuthService::get_login_info(&pool, current_user.user_id).await?))
 }
 
 /// Logout and clear cache

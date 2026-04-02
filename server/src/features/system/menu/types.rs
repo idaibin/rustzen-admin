@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 pub struct MenuRow {
     pub id: i64,
     pub parent_id: i64,
+    pub parent_code: Option<String>,
     pub name: String,
     pub code: String,
     pub menu_type: i16,
     pub status: i16,
     pub is_system: bool,
+    pub is_manual: bool,
     pub sort_order: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,

@@ -3,21 +3,17 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
+use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{
     Router,
     routing::{delete, get, post, put},
 };
 use handler::{create_role, delete_role, get_role_options, list_roles, update_role};
 use sqlx::PgPool;
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 
 pub fn role_routes() -> Router<PgPool> {
     Router::new()
-        .route_with_permission(
-            "/",
-            get(list_roles),
-            PermissionsCheck::Require("system:role:list"),
-        )
+        .route_with_permission("/", get(list_roles), PermissionsCheck::Require("system:role:list"))
         .route_with_permission(
             "/",
             post(create_role),

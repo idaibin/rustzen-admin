@@ -5,11 +5,7 @@ use super::{
         UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
     },
 };
-use crate::{
-    common::{
-        api::{ApiResponse, AppResult},
-    },
-};
+use crate::common::api::{ApiResponse, AppResult};
 
 use axum::{
     Json,

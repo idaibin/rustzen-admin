@@ -33,8 +33,9 @@ pub async fn export_logs(
     let disposition = format!("attachment; filename={}", filename);
 
     let mut headers = HeaderMap::new();
-    let content_disposition = HeaderValue::from_str(&disposition)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "invalid content disposition".to_string()))?;
+    let content_disposition = HeaderValue::from_str(&disposition).map_err(|_| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "invalid content disposition".to_string())
+    })?;
     headers.insert(header::CONTENT_DISPOSITION, content_disposition);
     headers.insert(header::CONTENT_LENGTH, HeaderValue::from(content.len()));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));

@@ -32,7 +32,7 @@ impl MenuRepository {
     ) -> Result<Vec<MenuRow>, ServiceError> {
         fetch_with_filters(
             pool,
-            "SELECT id, parent_id, name, code, menu_type, status, is_system, sort_order, created_at, updated_at FROM menus WHERE 1=1 AND deleted_at IS NULL",
+            "SELECT id, parent_id, parent_code, name, code, menu_type, status, is_system, is_manual, sort_order, created_at, updated_at FROM menus WHERE 1=1 AND deleted_at IS NULL",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },
@@ -55,8 +55,8 @@ impl MenuRepository {
     ) -> Result<i64, ServiceError> {
         let now = Utc::now().naive_utc();
         let menu_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+            "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, is_manual, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7, $7)
              RETURNING id",
         )
         .bind(parent_id)
@@ -84,7 +84,7 @@ impl MenuRepository {
     ) -> Result<i64, ServiceError> {
         let menu_id = sqlx::query_scalar::<_, i64>(
                 "UPDATE menus
-                 SET parent_id = $2, name = $3, code = $4, menu_type = $5, sort_order = $6, status = $7, updated_at = $8
+                 SET parent_id = $2, name = $3, code = $4, menu_type = $5, sort_order = $6, status = $7, is_manual = TRUE, updated_at = $8
                  WHERE id = $1 AND deleted_at IS NULL
                  RETURNING id",
             )

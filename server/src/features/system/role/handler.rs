@@ -2,11 +2,7 @@ use super::{
     service::RoleService,
     types::{CreateRoleRequest, RoleItemResp, RoleQuery, UpdateRolePayload},
 };
-use crate::{
-    common::{
-        api::{ApiResponse, AppResult, OptionItem, OptionsQuery},
-    },
-};
+use crate::common::api::{ApiResponse, AppResult, OptionItem, OptionsQuery};
 
 use axum::{
     Json,

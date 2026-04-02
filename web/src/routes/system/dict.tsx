@@ -78,7 +78,7 @@ const columns: ProColumns<Dict.Item>[] = [
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
             <Space size="middle">
-                <AuthWrap code="system:dict:edit">
+                <AuthWrap code="system:dict:update">
                     <DictModalForm
                         mode={"edit"}
                         initialValues={entity}

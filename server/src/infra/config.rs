@@ -1,7 +1,4 @@
-use figment::{
-    Figment,
-    providers::Env,
-};
+use figment::{Figment, providers::Env};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 

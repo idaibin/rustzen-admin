@@ -8,6 +8,7 @@ use crate::{
     infra::{
         config::CONFIG,
         db::{create_default_pool, test_connection},
+        permission::PermissionService,
     },
     middleware::{auth::auth_middleware, log::log_middleware},
 };
@@ -24,7 +25,10 @@ use axum::{
 use serde_json::json;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}};
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+};
 
 #[tracing::instrument(name = "run_server")]
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,9 +49,11 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
 
     let public_api = Router::new().nest("/auth", public_auth_routes());
+
+    PermissionService::sync_permissions(&pool).await?;
+
     let uploads_prefix = CONFIG.upload_public_prefix.clone();
-    let uploads_service =
-        ServeDir::new(&CONFIG.upload_dir).append_index_html_on_directories(true);
+    let uploads_service = ServeDir::new(&CONFIG.upload_dir).append_index_html_on_directories(true);
     let static_dir = PathBuf::from(&CONFIG.web_dist);
     let index_path = static_dir.join("index.html");
 

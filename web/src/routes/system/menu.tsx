@@ -95,7 +95,7 @@ const columns: ProColumns<Menu.Item>[] = [
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
             <Space size="middle">
-                <AuthWrap code="system:menu:edit">
+                <AuthWrap code="system:menu:update">
                     <MenuModalForm
                         mode={"edit"}
                         initialValues={entity}
