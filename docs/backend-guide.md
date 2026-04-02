@@ -54,6 +54,7 @@ server/migrations/
 ## Configuration
 
 - Application runtime config uses `RUSTZEN_*` environment variables.
+- Database connections use `DATABASE_URL`.
 - Both development and production read the same runtime keys from environment variables.
 - `config/app.env` is only the environment-variable carrier, not a second config system.
 - Do not maintain a parallel yaml primary config for runtime paths, database connections, JWT, or other application runtime settings.
