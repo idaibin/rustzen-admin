@@ -1,11 +1,9 @@
-/// Common query pagination input.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PaginationQuery {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
 }
 
-/// 分页参数转换工具
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Pagination {
     pub offset: u32,
@@ -13,7 +11,6 @@ pub struct Pagination {
 }
 
 impl Pagination {
-    /// 标准化分页参数。
     pub fn from_query(q: PaginationQuery) -> Self {
         let page = q.current.unwrap_or(1).max(1) as u64;
         let size = q.page_size.unwrap_or(10).clamp(1, 100) as u64;

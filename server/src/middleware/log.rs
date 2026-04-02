@@ -12,7 +12,7 @@ use axum::{
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
 
-/// HTTP 日志中间件：自动记录写操作和错误请求
+/// HTTP logging middleware.
 pub async fn log_middleware(
     State(pool): State<PgPool>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -20,46 +20,30 @@ pub async fn log_middleware(
     next: Next,
 ) -> Result<Response, (StatusCode, String)> {
     let start = Instant::now();
-
-    // 提取请求信息
     let method = request.method().clone();
     let uri = request.uri().to_string();
-    let user_agent = request
-        .headers()
-        .get("user-agent")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("Unknown")
-        .to_string();
+    let user_agent = request_user_agent(&request);
     let client_ip = addr.ip().to_string();
-
-    // 获取当前用户
     let current_user = request.extensions().get::<CurrentUser>().cloned();
-
-    // 处理请求
     let response = next.run(request).await;
     let duration = start.elapsed();
 
     let user_id = current_user.as_ref().map(|u| u.user_id);
-    let username = current_user.as_ref().map(|u| u.username.as_str());
+    let username = current_user.as_ref().map(|u| u.username.as_str()).unwrap_or("anonymous");
     let status_code = response.status().as_u16();
-
-    let action = format!("HTTP_{}", method);
-    let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
-    let description = format!("{} {} - {}", method, uri, status_code);
 
     if let Err(e) = LogService::record_operation(
         &pool,
-        LogWriteCommand {
-            user_id: user_id.unwrap_or(0),
-            username: username.unwrap_or("anonymous").to_string(),
-            action,
-            description,
-            data: None,
-            status: status.to_string(),
-            duration_ms: duration.as_millis() as i32,
-            ip_address: client_ip,
+        build_request_log(
+            user_id.unwrap_or(0),
+            username,
+            method,
+            &uri,
+            status_code,
+            duration,
+            client_ip,
             user_agent,
-        },
+        ),
     )
     .await
     {
@@ -67,4 +51,37 @@ pub async fn log_middleware(
     }
 
     Ok(response)
+}
+
+fn request_user_agent(request: &Request) -> String {
+    request
+        .headers()
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown")
+        .to_string()
+}
+
+fn build_request_log(
+    user_id: i64,
+    username: &str,
+    method: axum::http::Method,
+    uri: &str,
+    status_code: u16,
+    duration: std::time::Duration,
+    ip_address: String,
+    user_agent: String,
+) -> LogWriteCommand {
+    let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
+    LogWriteCommand {
+        user_id,
+        username: username.to_string(),
+        action: format!("HTTP_{}", method),
+        description: format!("{} {} - {}", method, uri, status_code),
+        data: None,
+        status: status.to_string(),
+        duration_ms: duration.as_millis() as i32,
+        ip_address,
+        user_agent,
+    }
 }

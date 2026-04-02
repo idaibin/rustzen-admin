@@ -27,7 +27,7 @@ pub static JWT_CONFIG: Lazy<JwtConfig> = Lazy::new(|| {
     let secret = CONFIG.jwt_secret.clone();
     let expiration = CONFIG.jwt_expiration;
 
-    tracing::info!("JWT_CONFIG: {:?}", JwtConfig { secret: secret.clone(), expiration });
+    tracing::info!(expiration, secret_len = secret.len(), "JWT_CONFIG initialized");
     JwtConfig { secret, expiration }
 });
 
