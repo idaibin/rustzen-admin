@@ -8,70 +8,62 @@ alwaysApply: false
 
 ## Project Structure
 
--   Entry point: [web/src/main.tsx](mdc:web/src/main.tsx)
--   Main HTML: [web/index.html](mdc:web/index.html)
--   Configuration files: [web/package.json](mdc:web/package.json), [web/vite.config.ts](mdc:web/vite.config.ts)
--   Styling: [web/tailwind.config.js](mdc:web/tailwind.config.js), [web/src/index.css](mdc:web/src/index.css)
+- Entry point: [web/src/main.tsx](mdc:web/src/main.tsx)
+- Root route: [web/src/routes/\_\_root.tsx](mdc:web/src/routes/__root.tsx)
+- Route tree: [web/src/routeTree.gen.ts](mdc:web/src/routeTree.gen.ts) (generated, do not edit manually)
+- Config files: [web/package.json](mdc:web/package.json), [web/vite.config.ts](mdc:web/vite.config.ts)
+- Global style: [web/src/style.css](mdc:web/src/style.css)
+- Query setup: [web/src/integrations/react-query.ts](mdc:web/src/integrations/react-query.ts)
 
 ## Code Organization
 
--   **Pages**: Feature pages in [web/src/pages/](mdc:web/src/pages/)
--   **Components**: Reusable components in [web/src/components/](mdc:web/src/components/)
--   **Layouts**: Layout components in [web/src/layouts/](mdc:web/src/layouts/)
--   **API**: API integration in [web/src/api/](mdc:web/src/api/)
--   **Stores**: State management in [web/src/stores/](mdc:web/src/stores/)
--   **Types**: TypeScript definitions in [web/src/types/](mdc:web/src/types/)
--   **Router**: Routing configuration in [web/src/router/](mdc:web/src/router/)
+- Pages/routes in [web/src/routes/](mdc:web/src/routes/)
+- Reusable components in [web/src/components/](mdc:web/src/components/)
+- Layouts in [web/src/layouts/](mdc:web/src/layouts/)
+- API modules in [web/src/api/](mdc:web/src/api/)
+- Shared state in [web/src/stores/](mdc:web/src/stores/)
+- Query integrations in [web/src/integrations/](mdc:web/src/integrations/)
 
 ## TypeScript Conventions
 
--   Use strict TypeScript configuration from [web/tsconfig.json](mdc:web/tsconfig.json)
--   Define interfaces in [web/src/types/](mdc:web/src/types/) directory
--   Use proper type definitions for API responses
--   Follow naming conventions: PascalCase for interfaces, camelCase for variables
+- Keep API/request/response fields in `camelCase`.
+- Reuse module types under `web/src/api/<module>/`.
+- Avoid redefining API types in page files.
 
 ## Component Architecture
 
--   Use functional components with hooks
--   Follow the modal form pattern established in components like [web/src/pages/system/user/UserModalForm.tsx](mdc:web/src/pages/system/user/UserModalForm.tsx)
--   Implement consistent props interfaces
--   Use proper component composition
+- Use functional components with hooks.
+- Keep pages as composition/orchestration; move reusable UI to `components`.
+- Do not mix unrelated request logic into presentational components.
 
 ## State Management
 
--   Use custom hooks for state management as shown in [web/src/stores/useAuthStore.ts](mdc:web/src/stores/useAuthStore.ts)
--   Keep state close to where it's used
--   Use proper state lifting patterns
+- Use Zustand for shared state (see [web/src/stores/useAuthStore.ts](mdc:web/src/stores/useAuthStore.ts) and [web/src/stores/useLocalStore.ts](mdc:web/src/stores/useLocalStore.ts)).
+- Keep state close to usage; avoid unnecessary global stores.
 
 ## API Integration
 
--   Use the centralized API structure from [web/src/api/](mdc:web/src/api/)
--   Follow the request patterns in [web/src/api/request.ts](mdc:web/src/api/request.ts)
--   Implement proper error handling for API calls
--   Use consistent response typing
+- Place request logic in `web/src/api/<module>/`.
+- Do not write raw HTTP calls directly in route/page files.
+- Keep module types next to request wrappers, for example [web/src/api/system/user/user.d.ts](mdc:web/src/api/system/user/user.d.ts).
+- Keep API contract changes synced with backend and frontend callsites.
 
 ## Styling Guidelines
 
--   Use Tailwind CSS for styling
--   Follow the configuration in [web/tailwind.config.js](mdc:web/tailwind.config.js)
--   Maintain consistent spacing and color schemes
--   Use responsive design patterns
+- Prefer Ant Design and Pro Components as primary UI layer.
+- Tailwind is for local supplements, not as a replacement UI system.
 
 ## Routing
 
--   Use React Router configuration from [web/src/router/](mdc:web/src/router/)
--   Follow the routing patterns established in [web/src/router/system.tsx](mdc:web/src/router/system.tsx)
--   Implement proper route guards for authentication
+- Use TanStack Router file routes under [web/src/routes/](mdc:web/src/routes/).
+- Keep route guards in root route flow (see `__root.tsx`).
 
 ## Development Tools
 
--   Use ESLint configuration from [web/eslint.config.js](mdc:web/eslint.config.js)
--   Follow Prettier configuration from [web/prettier.config.ts](mdc:web/prettier.config.ts)
--   Use Vite for development and building
+- Development/build entry remains `vp dev` and `vp build` via package scripts.
+- `just check` executes frontend lint through `vp lint`.
 
 ## File Naming
 
--   Use PascalCase for component files (e.g., `UserModalForm.tsx`)
--   Use camelCase for utility files and hooks
--   Use kebab-case for CSS files and assets
--   Use descriptive names that reflect component purpose
+- Keep naming consistent with existing files in `web/src/`.
+- Do not manually edit generated `routeTree.gen.ts`.

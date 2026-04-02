@@ -1,22 +1,35 @@
 # rustzen-admin
 
-Rust + React 管理后台模板。当前仓库是迁移中的 monorepo，后端在 `server/`，前端在 `web/`。
+Rust + React admin template. The backend lives in `server/`, and the frontend lives in `web/`.
 
-## 规范入口
+## Document Entry Points
 
-- [AGENTS.md](./AGENTS.md): 协作规则和当前仓库约定
-- [docs/architecture.md](./docs/architecture.md): 项目规范和分层约定
+- [AGENTS.md](./AGENTS.md): root collaboration rules and repository-level conventions
+- [server/AGENTS.md](./server/AGENTS.md): backend quick-entry guidance inside `server/`
+- [web/AGENTS.md](./web/AGENTS.md): frontend quick-entry guidance inside `web/`
+- [docs/architecture.md](./docs/architecture.md): repository-wide architecture, document layers, boundaries, and commands
+- [docs/project-map.md](./docs/project-map.md): entrypoint and high-frequency path index
+- [docs/backend-guide.md](./docs/backend-guide.md): backend layering, naming, database, and error rules
+- [docs/frontend-guide.md](./docs/frontend-guide.md): frontend routing, state, request, and UI rules
+- [docs/deployment-guide.md](./docs/deployment-guide.md): production layout, release flow, and runtime config rules
+- [docs/permission-guide.md](./docs/permission-guide.md): permission model and usage rules
 
-## 常用命令
+## Common Commands
 
 ```bash
-just dev-server # 只启动后端
-just dev-web    # 只启动前端
-just check      # 后端 check + 前端 lint
-just build      # 构建后端和前端
+just dev-server # start the backend only
+just dev-web    # start the frontend only
+just check      # backend check + frontend vp lint
+just build      # build backend and frontend
 ```
 
-## 目录
+## Document Layers
+
+- Root documents: `README.md` and `AGENTS.md`. They define the repository entrypoint and global collaboration rules.
+- Subdirectory entry documents: `server/AGENTS.md` and `web/AGENTS.md`. They define quick local rules for each subproject.
+- `docs/` specification documents: six core documents covering architecture, backend, frontend, deployment, permissions, and the project map.
+
+## Layout
 
 ```txt
 .
@@ -25,12 +38,9 @@ just build      # 构建后端和前端
 │   ├── migrations/
 │   └── src/
 │       ├── features/
-│       │   └── user/
-│       │       ├── mod.rs
-│       │       ├── handler.rs
-│       │       ├── service.rs
-│       │       ├── repo.rs
-│       │       └── types.rs
+│       │   ├── auth/
+│       │   ├── dashboard/
+│       │   └── system/
 │       ├── infra/
 │       ├── common/
 │       └── middleware/
