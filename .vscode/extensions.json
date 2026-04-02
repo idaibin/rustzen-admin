@@ -4,6 +4,7 @@
     // List of extensions which should be recommended for users of this workspace.
     "recommendations": [
         "bradlc.vscode-tailwindcss",
+        "oxc.oxc-vscode",
         "streetsidesoftware.code-spell-checker",
         "VoidZero.vite-plus-extension-pack"
     ],
