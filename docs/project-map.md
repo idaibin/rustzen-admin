@@ -36,10 +36,14 @@
 - Root route guard and devtools: `web/src/routes/__root.tsx`
 - Route pages: `web/src/routes/`
 - Shared layout component: `web/src/components/base-layout/`
-- API wrappers: `web/src/api/`
-- Shared components: `web/src/components/`
-- Shared state: `web/src/stores/`
-- Constants: `web/src/constant/`
+- API barrel: `web/src/api/index.ts`
+- System API barrel: `web/src/api/system/index.ts`
+- Shared API runtime refs: `web/src/api/runtime.ts`
+- Shared request layer: `web/src/api/request.ts`
+- API wrappers and modules: `web/src/api/index.ts`, `web/src/api/system/index.ts`, `web/src/api/runtime.ts`, `web/src/api/request.ts`, `web/src/api/<module>/api.ts`
+- API module layout, naming, `apiRequest` default vs `raw`, and `list` return conventions: see **API Module Rules** in `docs/frontend-guide.md`
+- Shared components: `web/src/components/` (`base-auth/`, `base-button/`, `base-layout/`, `base-user/`, …)
+- Shared state: `web/src/store/`
 - Utilities: `web/src/util/`
 - Global styles: `web/src/style.css`
 
@@ -49,11 +53,11 @@
 - Change permission checks: `server/src/common/router_ext.rs`
 - Change permission model: `server/src/infra/permission.rs`
 - Add a frontend page: `web/src/routes/`
-- Change frontend requests: `web/src/api/<module>/`
+- Change frontend requests: `web/src/api/request.ts` and `web/src/api/<module>/api.ts`
 - Change frontend bootstrap and providers: `web/src/main.tsx`
 - Change root route guard or devtools: `web/src/routes/__root.tsx`
 - Change frontend layout: `web/src/components/base-layout/index.tsx`
-- Change auth state: `web/src/stores/useAuthStore.ts`
+- Change auth state: `web/src/store/useAuthStore.ts`
 
 ## Common Commands
 

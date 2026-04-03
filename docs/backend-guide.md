@@ -5,22 +5,9 @@
 - Applies to all Rust backend implementation under `server/`.
 - Defines backend implementation rules only. Do not repeat repository-wide or frontend rules here.
 
-## Structure
+## Layout
 
-```txt
-server/src/
-  features/<feature>/
-    mod.rs
-    handler.rs
-    service.rs
-    repo.rs
-    types.rs
-  infra/
-  common/
-  middleware/
-server/migrations/
-```
-
+- See `docs/architecture.md` for the repository tree layout.
 - For a new feature, create these five files first.
 - In `types.rs`, put row and entity types first, then request, response, and query types.
 - `mod.rs` exports and wires feature routes only; it must not carry business implementation.
@@ -38,6 +25,7 @@ server/migrations/
 - Use `snake_case` for Rust and database names.
 - Use `camelCase` for JSON and frontend-facing fields.
 - Handler names should follow endpoint intent: `list_users`, `get_user`, `create_user`, `update_user`, `delete_user`.
+- Do not add redundant `_handler` suffixes; handler functions already live in `handler.rs`.
 - Repo names should follow data intent: `find_by_id`, `insert`, `update`, `delete_by_id`.
 - Prefer `#[serde(rename_all = "camelCase")]` on response types to keep output format consistent.
 

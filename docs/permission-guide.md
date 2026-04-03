@@ -15,6 +15,8 @@
 - Startup sync only updates rows with `is_manual = FALSE`.
 - System built-in menus are backfilled with `is_manual = FALSE`.
 - `*` is the wildcard permission for system administrators. It is displayed as `All Permissions` and grants access to every permission check.
+- `users.is_system`, `roles.is_system`, and `menus.is_system` are built-in record flags only. They do not grant authorization by themselves.
+- When code needs to protect a built-in record from normal admins, check whether the current user has `*`.
 - The base migrations already include `parent_code` and `is_manual`; existing deployments use `deploy/sql/repair_menu_schema.sql` once before startup.
 
 ## Code Locations
@@ -40,6 +42,7 @@ Router::new().route_with_permission(
 - Permission strings follow `domain:resource:action`.
 - For system pages, use `create`, `update`, `delete`, `list`, `options`, `status`, and `password` as the stable action names.
 - Do not treat "super-admin fallback" or "any-of-many permissions" as the default mode for new endpoints.
+- Do not use `is_system` as a permission grant. Only `*` represents full authorization.
 - Only evaluate `Any(...)` or `All(...)` when a feature explicitly needs combined permission logic.
 
 ## Cache Behavior
