@@ -1,5 +1,5 @@
 ---
-globs: src/**/*.rs,Cargo.toml,Cargo.lock,justfile
+globs: server/**/*.rs,server/Cargo.toml,Cargo.lock,justfile
 description: Backend Rust development guidelines and conventions
 ---
 
@@ -7,59 +7,54 @@ description: Backend Rust development guidelines and conventions
 
 ## Project Structure
 
--   Main entry point: [src/main.rs](mdc:src/main.rs)
--   Core modules in [src/core/](mdc:src/core/) (app, db, jwt, password)
--   Features organized in [src/features/](mdc:src/features/) with auth and system modules
--   Common utilities in [src/common/](mdc:src/common/)
--   Middleware in [src/middleware/](mdc:src/middleware/)
+- Main entry point: [server/src/main.rs](mdc:server/src/main.rs)
+- Features in [server/src/features/](mdc:server/src/features/)
+- Infra in [server/src/infra/](mdc:server/src/infra/)
+- Common utilities in [server/src/common/](mdc:server/src/common/)
+- Middleware in [server/src/middleware/](mdc:server/src/middleware/)
+- Migrations in [server/migrations/](mdc:server/migrations/)
 
 ## Dependency Management
 
--   **NEVER** directly modify [Cargo.toml](mdc:Cargo.toml)
--   Always use `cargo add <dependency>` for new dependencies
--   Obtain user confirmation before adding new dependencies
--   Keep [Cargo.lock](mdc:Cargo.lock) in version control
+- Never directly modify `Cargo.toml` to add dependencies; use `cargo add`.
+- Obtain user confirmation before adding new dependencies.
+- Keep `Cargo.lock` under version control.
 
 ## Error Handling
 
--   All exceptions in querying data should be handled internally at the first exception site
--   Use proper error types and implement comprehensive error handling
--   Follow the error handling patterns in [src/common/error.rs](mdc:src/common/error.rs)
+- Follow patterns in [server/src/common/error.rs](mdc:server/src/common/error.rs).
+- Return explicit errors; avoid silent fallback branches.
 
 ## API Conventions
 
--   All API responses MUST use camelCase for return value fields
--   Follow REST conventions for endpoint naming
--   Use proper HTTP status codes
--   Implement consistent response structures
+- API response fields should use `camelCase`.
+- Handler naming follows REST semantics (`list_*`, `get_*`, `create_*`, `update_*`, `delete_*`).
+- Keep response structure consistent with existing `ApiResponse`.
 
 ## Code Organization
 
--   Each feature should have its own module with:
-    -   `mod.rs` - Module declaration
-    -   `entity.rs` - Database entities
-    -   `dto.rs` - Data transfer objects
-    -   `vo.rs` - Value objects
-    -   `repo.rs` - Repository layer
-    -   `service.rs` - Business logic
-    -   `router.rs` - HTTP routing
--   Follow the pattern established in [src/features/system/user/](mdc:src/features/system/user/)
+- Each feature should use:
+    - `mod.rs` for routing assembly
+    - `handler.rs` for request/response only
+    - `service.rs` for orchestration
+    - `repo.rs` for SQL/persistence
+    - `types.rs` for row/entity/request/response/query types
+- Follow the pattern in [server/src/features/system/user/](mdc:server/src/features/system/user/).
 
 ## Database Integration
 
--   Use the database connection pool from [src/core/db.rs](mdc:src/core/db.rs)
--   Follow repository pattern for data access
--   Use proper transaction handling where needed
+- Use pool and infra helpers in [server/src/infra/db.rs](mdc:server/src/infra/db.rs).
+- Keep SQL in `repo.rs`, avoid `SELECT *`, and use transactions when needed.
 
 ## Authentication & Authorization
 
--   JWT handling in [src/core/jwt.rs](mdc:src/core/jwt.rs)
--   Password hashing in [src/core/password.rs](mdc:src/core/password.rs)
--   Auth middleware in [src/middleware/auth.rs](mdc:src/middleware/auth.rs)
--   Permission checking in [src/features/auth/permission.rs](mdc:src/features/auth/permission.rs)
+- JWT in [server/src/infra/jwt.rs](mdc:server/src/infra/jwt.rs)
+- Password hashing in [server/src/infra/password.rs](mdc:server/src/infra/password.rs)
+- Auth middleware in [server/src/middleware/auth.rs](mdc:server/src/middleware/auth.rs)
+- Permission model in [server/src/infra/permission.rs](mdc:server/src/infra/permission.rs)
+- Route permission extension in [server/src/common/router_ext.rs](mdc:server/src/common/router_ext.rs)
 
 ## Logging
 
--   Use structured logging throughout the application
--   Log middleware in [src/middleware/log.rs](mdc:src/middleware/log.rs)
--   Follow consistent logging patterns for debugging and monitoring
+- Use structured logging throughout backend code.
+- Log middleware in [server/src/middleware/log.rs](mdc:server/src/middleware/log.rs).

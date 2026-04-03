@@ -4,8 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Button, Card, Form, Input, Typography } from "antd";
 import { useTransition } from "react";
 
-import { authAPI } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { authAPI } from "@/api";
+import { useAuthStore } from "@/store/useAuthStore";
 export const Route = createFileRoute("/login")({
     component: () => <LoginPage />,
 });
@@ -19,7 +19,7 @@ function LoginPage() {
             try {
                 const res = await authAPI.login(values);
                 handleLogin(res.token, res.userInfo);
-                navigate({ to: "/", replace: true });
+                void navigate({ to: "/", replace: true });
             } catch (error) {
                 console.error("Login failed", error);
             }
@@ -40,8 +40,8 @@ function LoginPage() {
                     autoComplete="off"
                     size="large"
                     initialValues={{
-                        username: "admin",
-                        password: "rustzen@2025",
+                        username: "superadmin",
+                        password: "rustzen@123",
                     }}
                 >
                     <Form.Item

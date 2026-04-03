@@ -1,151 +1,101 @@
-# 📚 rustzen-admin Documentation Center
+# rustzen-admin
 
----
+A structured monorepo foundation for Rust full-stack admin systems.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Language](https://img.shields.io/badge/lang-Rust%20%7C%20TypeScript-orange.svg)
-![Status](https://img.shields.io/badge/status-Development-yellow.svg)
+> `rustzen-admin` combines an Axum backend, a React frontend, and repository-level documentation in a single codebase designed for clear boundaries, maintainability, and AI-friendly collaboration.
 
----
+## Overview
 
-[简体中文](./README-zh.md)
+`rustzen-admin` is an open-source full-stack admin system foundation built for real-world projects, not just isolated UI demos.
 
-> A modern full-stack admin system template built with **Rust (Axum)** and **React (Vite + Ant Design)**. Designed for performance, simplicity, and scalability.
+The repository is organized as a monorepo:
 
-## 🎯 Project Goals
+- `server/` contains the Rust backend application
+- `web/` contains the React frontend application
+- `docs/` contains repository-level architecture and development guides
+- the root keeps shared commands, workspace metadata, and collaboration entry documents
 
-This project aims to become a **modern admin backend template** in the Rust ecosystem, providing:
+This layout keeps backend, frontend, and repository rules explicit, making the codebase easier to understand, review, and evolve.
 
-1. **Out-of-the-box**: Complete RBAC permission system and basic functionality
-2. **Code Quality**: Good code structure and security
-3. **Easy to Extend**: Clear modular architecture
-4. **Best Practices**: Demonstrates Rust + React full-stack development patterns
+## Why this repository
 
----
+Many admin repositories optimize for getting pages running quickly, but become harder to maintain once features, permissions, and data flow start to grow.
 
-## ⚙️ Tech Stack
+`rustzen-admin` is built around a different goal:
 
-| Layer        | Technology                                       |
-| ------------ | ------------------------------------------------ |
-| **Backend**  | Rust, Axum, SQLx, PostgreSQL, Tracing            |
-| **Frontend** | React, TypeScript, Vite, Ant Design, TailwindCSS |
-| **Auth**     | JWT (JSON Web Tokens)                            |
-| **Tooling**  | just, pnpm                                       |
+- explicit backend and frontend boundaries
+- feature-oriented backend organization
+- repository-level documentation and collaboration rules
+- synchronized changes across code, contracts, and docs
+- a structure that is easier for contributors and AI tools to work with
 
----
+## Repository Layout
 
-## 📦 Directory Structure
-
+```txt
+.
+├── server/
+│   ├── Cargo.toml
+│   ├── migrations/
+│   └── src/
+│       ├── features/
+│       │   ├── auth/
+│       │   ├── dashboard/
+│       │   └── system/
+│       ├── infra/
+│       ├── common/
+│       └── middleware/
+├── web/
+│   └── src/
+│       ├── routes/
+│       ├── api/
+│       ├── components/
+│       │   └── base-layout/
+│       └── stores/
+├── docs/
+├── AGENTS.md
+├── justfile
+├── Cargo.toml
+├── Cargo.lock
+└── pnpm-workspace.yaml
 ```
-rustzen-admin/
-├── src/              # Rust (Axum) API service source code
-├── web/              # React (Vite) admin frontend
-├── migrations/       # Database migration files
-├── docs/             # Project documentation
-├── Cargo.toml        # Rust dependencies configuration
-├── justfile          # Project command runner
-└── README.md
+
+## Documentation Entry Points
+
+- [AGENTS.md](./AGENTS.md): repository-level collaboration rules
+- [server/AGENTS.md](./server/AGENTS.md): backend entry guide
+- [web/AGENTS.md](./web/AGENTS.md): frontend entry guide
+- [docs/architecture.md](./docs/architecture.md): repository structure, boundaries, and command entrypoints
+- [docs/project-map.md](./docs/project-map.md): entrypoints and high-frequency change paths
+- [docs/backend-guide.md](./docs/backend-guide.md): backend layering, naming, database, and error rules
+- [docs/frontend-guide.md](./docs/frontend-guide.md): frontend routing, request, state, and UI rules
+- [docs/deployment-guide.md](./docs/deployment-guide.md): deployment and runtime configuration rules
+- [docs/permission-guide.md](./docs/permission-guide.md): permission model and usage rules
+
+## Common Commands
+
+```bash
+just dev-server
+just dev-web
+just check
+just build
 ```
 
----
+## Project Principles
 
-## 🛠️ Quick Start
+- clear repository boundaries
+- minimal root-level responsibility
+- single-purpose documentation
+- maintainability over patchwork changes
+- explicit architecture conventions
+- AI-friendly engineering structure
 
-### Prerequisites
+## Status
 
--   [Rust](https://www.rust-lang.org/tools/install)
--   [Node.js](https://nodejs.org/) (v24+) and `pnpm`
--   [Just](https://github.com/casey/just) command runner
+The repository is under active restructuring and refinement.
 
-### Installation & Setup
+Current focus:
 
-1.  **Clone the repository:**
-
-    ```bash
-    git clone https://github.com/idaibin/rustzen-admin.git
-    cd rustzen-admin
-    ```
-
-2.  **Set up environment variables:**
-
-    ```bash
-    cp .env.example .env
-    # Edit .env file with database connection information
-    ```
-
-3.  **Install dependencies:**
-
-    ```bash
-    # Install just and Rust dependencies
-    cargo install just
-    cargo install cargo-watch
-
-    # Install frontend dependencies
-    cd web && pnpm install && cd ..
-    ```
-
-4.  **Set up database**
-
-    ```bash
-    First, ensure you have PostgreSQL installed and running. Then set up the database:
-
-    # Install sqlx-cli if you haven't already
-    cargo install sqlx-cli --features postgres
-
-    # Set up environment variable for database connection （using .env file）
-    # Option 1: Use DATABASE_URL (recommended for sqlx-cli)
-    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
-
-    # Option 2: Use RUSTZEN_DB_URL (project default)
-    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
-
-    # Check migration status:
-    sqlx migrate info
-
-    # Expected output:
-    # 101/pending system table
-    # 102/pending system relation
-    # 103/pending system view
-    # 104/pending system func
-    # 105/pending system seed
-
-    # Run migrations:
-    sqlx migrate run
-
-    # Expected output after successful migration:
-    # 101/installed system table
-    # 102/installed system relation
-    # 103/installed system view
-    # 104/installed system func
-    # 105/installed system seed
-    # Check database connection
-    ```
-
-    > **Note:** The project uses `RUSTZEN_DB_URL` by default, but `sqlx-cli` uses `DATABASE_URL`.
-
-5.  **Start the project:**
-
-    ```bash
-    just dev
-    ```
-
-    The application will be available at `http://localhost:5173`.
-
----
-
-## 📖 Project Documentation
-
--   [🏗️ Architecture Design](./docs/architecture.md) - System modules and technical architecture
--   [⚙️ Permission Design](./docs/permissions-guide.md) - Design and usage guide
-
----
-
-## 📄 Open Source License
-
-This project is licensed under the MIT License. See [LICENSE.md](./LICENSE.md) for details.
-
----
-
-Developed by [idaibin], committed to building deployable, maintainable, and scalable Rust full-stack system engineering templates 🦀
-
----
+- stabilizing the monorepo layout
+- aligning backend, frontend, and docs
+- refining repository-level conventions
+- building a stronger long-term foundation for feature growth

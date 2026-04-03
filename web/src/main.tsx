@@ -1,16 +1,27 @@
 import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
 
-import * as TanStackQueryProvider from "./integrations/tanstack-query/root-provider.tsx";
 import { routeTree } from "./routeTree.gen";
 
-// Create a new router instance
-const TanStackQueryProviderContext = TanStackQueryProvider.getContext();
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            refetchInterval: 1000 * 60 * 10,
+            refetchIntervalInBackground: true,
+            staleTime: Infinity,
+            gcTime: Infinity,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+        },
+    },
+});
+
 const router = createRouter({
     routeTree,
     context: {
-        ...TanStackQueryProviderContext,
+        queryClient,
     },
     defaultPreload: "intent",
     scrollRestoration: true,
@@ -33,12 +44,12 @@ declare module "@tanstack/react-router" {
 // Render the root
 const rootElement = document.getElementById("root");
 if (rootElement && !rootElement.innerHTML) {
-    const root = ReactDOM.createRoot(rootElement);
+    const root = createRoot(rootElement);
     root.render(
         <StrictMode>
-            <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
+            <QueryClientProvider client={queryClient}>
                 <RouterProvider router={router} />
-            </TanStackQueryProvider.Provider>
+            </QueryClientProvider>
         </StrictMode>,
     );
 }

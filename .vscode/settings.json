@@ -1,10 +1,7 @@
 {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": "explicit"
+        "source.fixAll.oxc": "explicit"
     },
-    "typescript.tsdk": "node_modules\\typescript\\lib",
     "files.watcherExclude": {
         "node_modules": true,
         ".tanstack": true,
@@ -15,39 +12,10 @@
         ".tanstack": true,
         "**/routeTree.gen.ts": true
     },
-    // 显式声明 justfile 文件类型（避免被当作 YAML 或 Makefile 处理）
     "files.associations": {
-        "justfile": "just",
-        ".prettierrc": "json"
+        "justfile": "just"
     },
     "files.readonlyInclude": {
         "**/routeTree.gen.ts": true
-    },
-    "[json]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "[jsonc]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "[rust]": {
-        "editor.defaultFormatter": "rust-lang.rust-analyzer"
-    },
-    "[justfile]": {
-        "editor.insertSpaces": true,
-        "editor.tabSize": 4,
-        "editor.formatOnSave": false,
-        "editor.defaultFormatter": null,
-        "editor.wordWrap": "off"
-    },
-    "[shellscript]": {
-        "editor.formatOnSave": false
-    },
-    "gitlens.ai.generateCommitMessage.customInstructions": "Please generate a commit message. Template format: `[<type>] (<scope>): <brief description>`, use English.",
-    "cSpell.words": [
-        "Gantt",
-        "liangjiang",
-        "luohuang",
-        "Popconfirm",
-        "Stylesheet"
-    ]
+    }
 }

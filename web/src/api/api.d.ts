@@ -12,8 +12,8 @@ declare namespace Api {
         total?: number;
     }
 
-    // Page response type
-    interface PageResponse<T> {
+    // Page result type
+    interface PageResult<T> {
         data: T[];
         total: number;
         success: boolean;
@@ -28,9 +28,9 @@ declare namespace Api {
     }
 
     // Option type
-    interface OptionItem {
+    interface OptionItem<T = string | number> {
         label: string;
-        value: string | number;
+        value: T;
         [key: string]: unknown;
     }
 }

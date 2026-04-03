@@ -1,180 +1,101 @@
-# 📚 rustzen-admin 中文文档中心
+# rustzen-admin
 
----
+面向 Rust 全栈管理后台系统的结构化 monorepo 基座。
 
-> 一个现代化的全栈管理系统模板，基于 **Rust (Axum)** 和 **React (Vite + Ant Design)** 构建。为性能、简洁和可扩展性而设计。
+> `rustzen-admin` 将 Axum 后端、React 前端和仓库级文档组织在同一个代码库中，强调清晰边界、可维护性，以及对 AI 协作友好的工程结构。
 
-[English](./README.md)
+## 概览
 
----
+`rustzen-admin` 是一个面向真实项目的开源全栈管理后台基础仓库，而不只是孤立的 UI 演示。
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Language](https://img.shields.io/badge/lang-Rust%20%7C%20TypeScript-orange.svg)
-![Status](https://img.shields.io/badge/status-开发中-yellow.svg)
+仓库采用 monorepo 组织方式：
 
----
+- `server/` 存放 Rust 后端应用
+- `web/` 存放 React 前端应用
+- `docs/` 存放仓库级架构与开发规范文档
+- 根目录保留共享命令、工作区元信息和协作入口文档
 
-## 🎯 项目目标
+这种布局让后端、前端和仓库规则保持明确边界，使整个代码库更容易理解、评审和持续演进。
 
-这个项目的目标是成为 Rust 生态中的 **现代化管理后台模板**，提供：
+## 为什么是这个仓库
 
-1. **开箱即用**：完整的 RBAC 权限系统和基础功能
-2. **代码质量**：良好的代码结构和安全性
-3. **易于扩展**：清晰的模块化架构
-4. **最佳实践**：展示 Rust + React 全栈开发模式
+很多管理后台仓库更关注尽快把页面跑起来，但随着功能、权限和数据流逐步增长，维护成本也会迅速上升。
 
----
+`rustzen-admin` 围绕另一种目标来构建：
 
-## ⚙️ 技术栈
+- 明确的后端与前端边界
+- 面向特性的后端组织方式
+- 仓库级文档与协作规则
+- 代码、契约与文档的同步变更
+- 更适合贡献者与 AI 工具协作的结构
 
-| 层级       | 技术选型                                         |
-| ---------- | ------------------------------------------------ |
-| **后端**   | Rust, Axum, SQLx, PostgreSQL, Tracing            |
-| **前端**   | React, TypeScript, Vite, Ant Design, TailwindCSS |
-| **认证**   | JWT (JSON Web Tokens)                            |
-| **工具链** | just, pnpm                                       |
+## 仓库结构
 
----
-
-## 📦 目录结构
-
+```txt
+.
+├── server/
+│   ├── Cargo.toml
+│   ├── migrations/
+│   └── src/
+│       ├── features/
+│       │   ├── auth/
+│       │   ├── dashboard/
+│       │   └── system/
+│       ├── infra/
+│       ├── common/
+│       └── middleware/
+├── web/
+│   └── src/
+│       ├── routes/
+│       ├── api/
+│       ├── components/
+│       │   └── base-layout/
+│       └── stores/
+├── docs/
+├── AGENTS.md
+├── justfile
+├── Cargo.toml
+├── Cargo.lock
+└── pnpm-workspace.yaml
 ```
-rustzen-admin/
-├── src/              # Rust (Axum) API 服务源码
-├── web/              # React (Vite) 管理后台前端
-├── migrations/       # 数据库迁移文件
-├── docs/             # 项目文档
-├── Cargo.toml        # Rust 依赖配置
-├── justfile          # 项目命令运行器
-└── README.md
+
+## 文档入口
+
+- [AGENTS.md](./AGENTS.md)：仓库级协作规则
+- [server/AGENTS.md](./server/AGENTS.md)：后端入口指南
+- [web/AGENTS.md](./web/AGENTS.md)：前端入口指南
+- [docs/architecture.md](./docs/architecture.md)：仓库结构、边界与命令入口
+- [docs/project-map.md](./docs/project-map.md)：入口文件与高频改动路径索引
+- [docs/backend-guide.md](./docs/backend-guide.md)：后端分层、命名、数据库与错误处理规则
+- [docs/frontend-guide.md](./docs/frontend-guide.md)：前端路由、请求、状态与 UI 规则
+- [docs/deployment-guide.md](./docs/deployment-guide.md)：部署与运行时配置规则
+- [docs/permission-guide.md](./docs/permission-guide.md)：权限模型与使用规则
+
+## 常用命令
+
+```bash
+just dev-server
+just dev-web
+just check
+just build
 ```
 
----
+## 项目原则
 
-## 🛠️ 快速开始
+- 清晰的仓库边界
+- 最小化的根目录职责
+- 单一职责的文档组织
+- 优先可维护性，而不是补丁式堆叠
+- 明确的架构约定
+- 对 AI 协作友好的工程结构
 
-### 环境要求
+## 当前状态
 
--   [Rust](https://www.rust-lang.org/tools/install)
--   [Node.js](https://nodejs.org/) (v24+) 及 `pnpm`
--   [Just](https://github.com/casey/just) 命令运行器
+仓库仍处于持续重构和整理阶段。
 
-### 安装与启动
+当前重点包括：
 
-1. **克隆仓库:**
-
-    ```bash
-    git clone https://github.com/idaibin/rustzen-admin.git
-    cd rustzen-admin
-    ```
-
-2. **设置环境变量:**
-
-    ```bash
-    cp .env.example .env
-    # 编辑 .env 文件，配置数据库连接信息
-    ```
-
-3. **安装依赖:**
-
-    ```bash
-    # 安装 just 和 Rust 依赖
-    cargo install just
-    cargo install cargo-watch
-
-    # 安装前端依赖
-    cd web && pnpm install && cd ..
-    ```
-
-4. **设置数据库:**
-
-    首先，确保已安装并运行 PostgreSQL。然后设置数据库：
-
-    ```bash
-    # 如果还没有安装 sqlx-cli，请先安装
-    cargo install sqlx-cli --features postgres
-    ```
-
-    **设置环境变量**（在 `.env` 文件中）：
-
-    ```bash
-    # 选项 1: 使用 DATABASE_URL（推荐，sqlx-cli 默认使用）
-    DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
-
-    # 选项 2: 使用 RUSTZEN_DB_URL（项目默认）
-    RUSTZEN_DB_URL="postgresql://username:password@localhost:5432/database_name"
-    ```
-
-    **检查迁移状态:**
-
-    ```bash
-    # 使用 DATABASE_URL（如果已设置）
-    sqlx migrate info
-    ```
-
-    预期输出：
-
-    ```
-    101/pending system table
-    102/pending system relation
-    103/pending system view
-    104/pending system func
-    105/pending system seed
-    ```
-
-    **运行迁移:**
-
-    ```bash
-    # 使用 DATABASE_URL（如果已设置）
-    sqlx migrate run
-    ```
-
-    迁移成功后的预期输出：
-
-    ```
-    101/installed system table
-    102/installed system relation
-    103/installed system view
-    104/installed system func
-    105/installed system seed
-    ```
-
-    > **注意:** 项目默认使用 `RUSTZEN_DB_URL`，但 `sqlx-cli` 使用 `DATABASE_URL`
-
-5. **启动项目:**
-
-    ```bash
-    just dev
-    ```
-
-    应用将在 `http://localhost:5173` 上可用。
-
----
-
-## 📚 基础功能
-
--   **认证系统**: JWT 登录、用户信息获取、权限验证
--   **用户管理**: CRUD 操作、角色分配、状态管理
--   **角色管理**: 角色 CRUD、菜单权限分配
--   **菜单管理**: 树形菜单结构、权限控制
--   **数据字典**: 字典项管理、选项 API
--   **操作日志**: 系统日志记录和查询
-
----
-
-## 📖 项目文档
-
--   [🏗️ 架构设计](./docs/architecture.md) - 系统模块和技术架构
--   [⚙️ 权限设计](./docs/permissions-guide.md) - 设计和使用说明
-
----
-
-## 📄 开源协议
-
-本项目采用 MIT 协议。详情请见 [LICENSE.md](./LICENSE.md) 文件。
-
----
-
-由 [idaibin] 开发，致力于打造可落地、可维护、可成长的 Rust 全栈系统工程模板 🦀
-
----
+- 稳定 monorepo 布局
+- 对齐后端、前端与文档
+- 持续收敛仓库级约定
+- 为后续功能增长打下更稳固的长期基础

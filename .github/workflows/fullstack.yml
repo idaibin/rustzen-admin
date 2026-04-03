@@ -15,27 +15,52 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10.32.1
+
             # ---------- 前端构建 ----------
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
 
             - name: Install frontend dependencies
-              run: npm install
+              run: pnpm install --frozen-lockfile
               working-directory: ./web
 
             - name: Build frontend
-              run: npm run build
+              run: pnpm build
               working-directory: ./web
 
             # ---------- 后端构建 ----------
             - name: Build backend
               run: cargo build --release
 
+            # ---------- 组装部署包 ----------
+            - name: Prepare deployment package
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  rm -rf rustzen-admin rustzen-admin.zip
+                  mkdir -p \
+                    rustzen-admin/bin \
+                    rustzen-admin/config \
+                    rustzen-admin/data/server \
+                    rustzen-admin/data/uploads \
+                    rustzen-admin/logs \
+                    rustzen-admin/versions \
+                    rustzen-admin/web/dist
+                  cp target/release/rustzen-admin rustzen-admin/bin/rustzen-admin
+                  cp -R web/dist/. rustzen-admin/web/dist/
+                  cp .env.example rustzen-admin/config/app.env
+                  (cd rustzen-admin && zip -qr ../rustzen-admin.zip .)
+
             # ---------- 上传构建产物 ----------
-            - name: Upload full build artifact
+            - name: Upload deployment package
               uses: actions/upload-artifact@v4
               with:
-                  name: rustzen-admin
-                  path: target/release/rustzen-admin
+                  name: rustzen-admin-zip
+                  path: rustzen-admin.zip

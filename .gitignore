@@ -6,6 +6,7 @@
 # Frontend
 /web/node_modules
 /web/dist
+/web/.eslintcache
 /uploads
 
 
@@ -19,5 +20,9 @@
 
 # Cursor / AI
 # .cursor/
-*.ai.md# Environment variables
+*.ai.md
+/.tmp/
+/.rustzen-admin/
+
+# Environment variables
 node_modules

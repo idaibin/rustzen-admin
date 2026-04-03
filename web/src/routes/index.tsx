@@ -6,39 +6,38 @@ import {
     UserOutlined,
 } from "@ant-design/icons";
 import { Column, Line } from "@ant-design/plots";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, Progress, Statistic } from "antd";
 
-import { dashboardAPI } from "@/api/dashboard";
-import { useApiQuery } from "@/integrations/react-query";
+import { dashboardAPI } from "@/api";
 import { calculatePercent, convertUnit } from "@/util";
 
 export const Route = createFileRoute("/")({
     component: DashboardPage,
-    notFoundComponent: () => <div>404 Not Found 1111</div>,
+    notFoundComponent: () => <div>404 Not Found</div>,
 });
 
 function DashboardPage() {
     return (
         <div className="flex flex-col gap-4">
-            {/* 统计卡片 */}
             <StatsCard />
 
-            {/* 系统健康状态 */}
             <div className="grid grid-cols-2 gap-4">
                 <HealthCard />
                 <MetricsCard />
             </div>
 
-            {/* 用户活动趋势 */}
             <UserActivityTrendCard />
         </div>
     );
 }
 
-// 统计卡片
 const StatsCard = () => {
-    const { data: stats } = useApiQuery("dashboard/stats", dashboardAPI.getStats);
+    const { data: stats } = useQuery({
+        queryKey: ["dashboard", "stats"],
+        queryFn: dashboardAPI.stats,
+    });
     return (
         <div className="grid grid-cols-4 gap-4">
             <Card>
@@ -78,9 +77,11 @@ const StatsCard = () => {
     );
 };
 
-// 系统健康状态
 const HealthCard = () => {
-    const { data: health } = useApiQuery("dashboard/health", dashboardAPI.getHealth);
+    const { data: health } = useQuery({
+        queryKey: ["dashboard", "health"],
+        queryFn: dashboardAPI.health,
+    });
     const memoryUsage = calculatePercent(health?.memoryUsed, health?.memoryTotal);
     const cpuUsage = calculatePercent(health?.cpuUsed, health?.cpuTotal);
     const diskUsage = calculatePercent(health?.diskUsed, health?.diskTotal);
@@ -126,9 +127,11 @@ const HealthCard = () => {
     );
 };
 
-// 性能指标
 const MetricsCard = () => {
-    const { data: metrics } = useApiQuery("dashboard/metrics", dashboardAPI.getMetrics);
+    const { data: metrics } = useQuery({
+        queryKey: ["dashboard", "metrics"],
+        queryFn: dashboardAPI.metrics,
+    });
     return (
         <Card
             title="7 days performance metrics"
@@ -161,9 +164,11 @@ const MetricsCard = () => {
     );
 };
 
-// 用户活动趋势
 const UserActivityTrendCard = () => {
-    const { data } = useApiQuery("dashboard/trends", dashboardAPI.getTrends);
+    const { data } = useQuery({
+        queryKey: ["dashboard", "trends"],
+        queryFn: dashboardAPI.trends,
+    });
     return (
         <div className="grid grid-cols-2 gap-4">
             <Card title="30 days user login trend">
