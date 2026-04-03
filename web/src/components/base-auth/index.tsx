@@ -2,7 +2,7 @@ import { Popconfirm } from "antd";
 import React from "react";
 
 import { appModal } from "@/api";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface AuthWrapProps {
     code: string;

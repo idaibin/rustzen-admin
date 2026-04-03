@@ -2,7 +2,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import { Upload, type UploadFile } from "antd";
 
 import { appMessage } from "@/api";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // const getBase64 = (img: UploadFile, callback: (url: string) => void) => {
 //     const reader = new FileReader();
@@ -21,7 +21,7 @@ const beforeUpload = async (file: UploadFile) => {
     }
     const isLimt = file.size / 1024 / 1024 <= 1;
     if (!isLimt) {
-        appMessage.error("Image must smaller than 1MB!");
+        appMessage.error("Image must be smaller than 1MB!");
         return false;
     }
     return isJpgOrPng && isLimt;
@@ -53,9 +53,9 @@ export const UserAvatar = () => {
                     <UploadOutlined />
                 )}
             </Upload>
-            <div className="mt-2 w-full text-center">上传头像</div>
-            <div className="w-full text-left text-gray-500">格式：支持JPG、PNG、JPEG</div>
-            <div className="w-full text-left text-gray-500">大小：1M以内</div>
+            <div className="mt-2 w-full text-center">Upload avatar</div>
+            <div className="w-full text-left text-gray-500">Format: JPG, PNG, JPEG</div>
+            <div className="w-full text-left text-gray-500">Size: under 1 MB</div>
         </>
     );
 };

@@ -5,17 +5,16 @@ import {
     ProFormSelect,
     ProFormText,
 } from "@ant-design/pro-components";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Space, Form } from "antd";
 import React, { useRef } from "react";
 
-import { roleAPI } from "@/api/system/role";
-import { userAPI } from "@/api/system/user";
-import { AuthConfirm, AuthWrap } from "@/components/auth";
-import { MoreButton } from "@/components/button";
+import { systemAPI } from "@/api";
+import { AuthConfirm, AuthWrap } from "@/components/base-auth";
+import { MoreButton } from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
-import { useApiQuery } from "@/integrations/react-query";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createFileRoute("/system/user")({
     component: UserPage,
@@ -29,7 +28,7 @@ function UserPage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="User List"
             columns={columns}
-            request={userAPI.listUsers}
+            request={systemAPI.user.list}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -37,7 +36,7 @@ function UserPage() {
                     <UserModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">Create User</Button>
@@ -146,11 +145,11 @@ const columns: ProColumns<User.Item>[] = [
                             title={`Are you sure you want to ${status} this user?`}
                             children={status}
                             onConfirm={async () => {
-                                await userAPI.updateUserStatus(
+                                await systemAPI.user.status(
                                     entity.id,
                                     entity.status === 1 ? 2 : 1,
                                 );
-                                action?.reload();
+                                void action?.reload();
                             }}
                         />
                         <AuthConfirm
@@ -159,11 +158,11 @@ const columns: ProColumns<User.Item>[] = [
                             title="Are you sure you want to reset the password of this user?"
                             children="Reset Password"
                             onConfirm={async () => {
-                                await userAPI.updateUserPassword(
+                                await systemAPI.user.password(
                                     entity.id,
                                     `${entity.username}@123456`,
                                 );
-                                action?.reload();
+                                void action?.reload();
                             }}
                         />
                         <AuthConfirm
@@ -173,8 +172,8 @@ const columns: ProColumns<User.Item>[] = [
                             className="text-red-500"
                             children={"Delete User"}
                             onConfirm={async () => {
-                                await userAPI.deleteUser(entity.id);
-                                await action?.reload();
+                                await systemAPI.user.delete(entity.id);
+                                void action?.reload();
                             }}
                         />
                     </MoreButton>
@@ -198,10 +197,10 @@ const UserModalForm = ({
     onSuccess,
 }: UserModalFormProps) => {
     const [form] = Form.useForm();
-    const { data: roleOptions } = useApiQuery(
-        "system/roles/options",
-        roleAPI.listRoleOptions,
-    );
+    const { data: roleOptions } = useQuery({
+        queryKey: ["system", "roles", "options"],
+        queryFn: systemAPI.role.options,
+    });
 
     return (
         <ModalForm<User.CreateRequest | User.UpdateRequest>
@@ -230,9 +229,9 @@ const UserModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await userAPI.createUser(values as User.CreateRequest);
+                    await systemAPI.user.create(values as User.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await userAPI.updateUser(
+                    await systemAPI.user.update(
                         initialValues.id,
                         values as User.UpdateRequest,
                     );

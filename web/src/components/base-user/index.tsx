@@ -1,7 +1,7 @@
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
 import { Form } from "antd";
 
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 import { UserAvatar } from "./avatar";
 

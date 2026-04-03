@@ -1,13 +1,18 @@
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
-import { ModalForm, ProFormDigit, ProFormSelect, ProFormText } from "@ant-design/pro-components";
+import {
+    ModalForm,
+    ProFormDigit,
+    ProFormSelect,
+    ProFormText,
+} from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Space, Tag } from "antd";
 import { Form } from "antd";
 import React, { useRef } from "react";
 
-import { menuAPI } from "@/api/system/menu";
-import { AuthPopconfirm, AuthWrap } from "@/components/auth";
+import { systemAPI } from "@/api";
+import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
 export const Route = createFileRoute("/system/menu")({
@@ -24,7 +29,7 @@ function MenuPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Menu Management"
             columns={columns}
-            request={menuAPI.listMenus}
+            request={systemAPI.menu.list}
             actionRef={actionRef}
             pagination={false}
             toolBarRender={() => [
@@ -32,7 +37,7 @@ function MenuPage() {
                     <MenuModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">Create Menu</Button>
@@ -93,14 +98,19 @@ const columns: ProColumns<Menu.Item>[] = [
         key: "action",
         width: 120,
         fixed: "right",
-        render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
+        render: (
+            _dom: React.ReactNode,
+            entity: Menu.Item,
+            _index,
+            action?: ActionType,
+        ) => (
             <Space size="middle">
                 <AuthWrap code="system:menu:update">
                     <MenuModalForm
                         mode={"edit"}
                         initialValues={entity}
                         onSuccess={() => {
-                            action?.reload();
+                            void action?.reload();
                         }}
                     >
                         <a>Edit</a>
@@ -112,11 +122,13 @@ const columns: ProColumns<Menu.Item>[] = [
                     description="This menu will be disabled."
                     hidden={entity.isSystem}
                     onConfirm={async () => {
-                        await menuAPI.deleteMenu(entity.id);
-                        action?.reload();
+                        await systemAPI.menu.delete(entity.id);
+                        void action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-yellow-600">Disable</span>
+                    <span className="cursor-pointer text-yellow-600">
+                        Disable
+                    </span>
                 </AuthPopconfirm>
             </Space>
         ),
@@ -162,9 +174,12 @@ const MenuModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await menuAPI.createMenu(values as Menu.CreateRequest);
+                    await systemAPI.menu.create(values as Menu.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await menuAPI.updateMenu(initialValues.id, values as Menu.UpdateRequest);
+                    await systemAPI.menu.update(
+                        initialValues.id,
+                        values as Menu.UpdateRequest,
+                    );
                 }
                 onSuccess?.();
                 return true;
@@ -174,12 +189,14 @@ const MenuModalForm = ({
                 name="parentId"
                 label="Parent Menu"
                 placeholder="Select parent menu (optional)"
-                request={menuAPI.listMenuOptions}
+                request={systemAPI.menu.options}
                 fieldProps={{
                     // showSearch: true,
                     optionFilterProp: "label",
                 }}
-                rules={[{ required: true, message: "Please select parent menu" }]}
+                rules={[
+                    { required: true, message: "Please select parent menu" },
+                ]}
             />
             <ProFormText
                 name="name"
@@ -191,7 +208,9 @@ const MenuModalForm = ({
                 name="code"
                 label="Permission Code"
                 placeholder="Enter permission code (e.g., system:menu:list)"
-                rules={[{ required: true, message: "Please enter permission code" }]}
+                rules={[
+                    { required: true, message: "Please enter permission code" },
+                ]}
             />
             <ProFormSelect
                 label="Type"

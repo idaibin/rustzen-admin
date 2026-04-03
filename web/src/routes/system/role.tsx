@@ -7,15 +7,14 @@ import {
     type ActionType,
     type ProColumns,
 } from "@ant-design/pro-components";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Form, Button, Space } from "antd";
 import React, { useRef } from "react";
 
-import { menuAPI } from "@/api/system/menu";
-import { roleAPI } from "@/api/system/role";
-import { AuthPopconfirm, AuthWrap } from "@/components/auth";
+import { systemAPI } from "@/api";
+import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
 import { ENABLE_OPTIONS } from "@/constant/options";
-import { useApiQuery } from "@/integrations/react-query";
 
 export const Route = createFileRoute("/system/role")({
     component: RolePage,
@@ -30,7 +29,7 @@ function RolePage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             headerTitle="Role Management"
             columns={columns}
-            request={roleAPI.listRoles}
+            request={systemAPI.role.list}
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
@@ -38,7 +37,7 @@ function RolePage() {
                     <RoleModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">Create Role</Button>
@@ -117,32 +116,37 @@ const columns: ProColumns<Role.Item>[] = [
         key: "action",
         width: 110,
         hideInSearch: true,
-        render: (_dom: React.ReactNode, entity: Role.Item, _index, action?: ActionType) => {
-            const isSystemRole = entity.id === 1;
+        render: (
+            _dom: React.ReactNode,
+            entity: Role.Item,
+            _index,
+            action?: ActionType,
+        ) => {
             return (
                 <Space size="middle">
-                    <AuthWrap code="system:role:update" hidden={isSystemRole}>
+                    <AuthWrap code="system:role:update">
                         <RoleModalForm
                             mode={"edit"}
-                            initialValues={entity}
+                            record={entity}
                             onSuccess={() => {
-                                action?.reload();
+                                void action?.reload();
                             }}
                         >
                             <a>Edit</a>
                         </RoleModalForm>
                     </AuthWrap>
                     <AuthPopconfirm
-                        hidden={isSystemRole}
                         code="system:role:delete"
                         title="Are you sure you want to delete this role?"
                         description="This action cannot be undone."
                         onConfirm={async () => {
-                            await roleAPI.deleteRole(entity.id);
-                            action?.reload();
+                            await systemAPI.role.delete(entity.id);
+                            void action?.reload();
                         }}
                     >
-                        <span className="cursor-pointer text-red-500">Delete</span>
+                        <span className="cursor-pointer text-red-500">
+                            Delete
+                        </span>
                     </AuthPopconfirm>
                 </Space>
             );
@@ -151,23 +155,38 @@ const columns: ProColumns<Role.Item>[] = [
 ];
 
 interface RoleModalFormProps {
-    initialValues?: Partial<Role.Item>;
+    record?: Partial<Role.Item>;
     mode?: "create" | "edit";
     children: React.ReactNode;
     onSuccess?: () => void;
 }
 
+type RoleFormValues = {
+    name: string;
+    code: string;
+    status: number;
+    description?: string;
+    menus: Api.OptionItem<number>[];
+};
+
 const RoleModalForm = ({
     children,
-    initialValues,
+    record,
     mode = "create",
     onSuccess,
 }: RoleModalFormProps) => {
     const [form] = Form.useForm();
-    const { data: menuOptions = [] } = useApiQuery("system/menus/options", menuAPI.listMenuOptions);
+    const { data: menuOptions = [] } = useQuery({
+        queryKey: ["system", "menus", "options"],
+        queryFn: systemAPI.menu.options,
+    });
+    const menuSelectOptions = React.useMemo(
+        () => menuOptions.filter((option) => option.value !== 0),
+        [menuOptions],
+    );
 
     return (
-        <ModalForm<Role.CreateRequest | Role.UpdateRequest>
+        <ModalForm<RoleFormValues>
             form={form}
             width={600}
             layout="horizontal"
@@ -183,20 +202,28 @@ const RoleModalForm = ({
             }}
             onOpenChange={(open) => {
                 if (open) {
-                    const menuIds = initialValues?.menus?.map((menu) => menu.value);
                     form.setFieldsValue({
-                        ...initialValues,
-                        menuIds,
+                        name: record?.name,
+                        code: record?.code,
+                        status: record?.status,
+                        description: record?.description,
+                        menus: record?.menus ?? [],
                     });
                 } else {
                     form.resetFields();
                 }
             }}
             onFinish={async (values) => {
+                const { menus, ...payload } = values;
+                const submitData = {
+                    ...payload,
+                    menuIds: menus.map((item) => item.value),
+                };
+
                 if (mode === "create") {
-                    await roleAPI.createRole(values as Role.CreateRequest);
-                } else if (mode === "edit" && initialValues?.id) {
-                    await roleAPI.updateRole(initialValues.id, values as Role.UpdateRequest);
+                    await systemAPI.role.create(submitData);
+                } else if (mode === "edit" && record?.id) {
+                    await systemAPI.role.update(record.id, submitData);
                 }
                 onSuccess?.();
                 return true;
@@ -228,7 +255,8 @@ const RoleModalForm = ({
                     },
                     {
                         pattern: /^[A-Z_]+$/,
-                        message: "Role code can only contain uppercase letters and underscores",
+                        message:
+                            "Role code can only contain uppercase letters and underscores",
                     },
                 ]}
             />
@@ -241,11 +269,14 @@ const RoleModalForm = ({
                 rules={[{ required: true, message: "Please select status" }]}
             />
             <ProFormSelect
-                name="menuIds"
+                name="menus"
                 label="Permissions"
                 placeholder="Select permissions"
-                options={[{ label: "Root", value: 0 }, ...menuOptions]}
+                options={menuSelectOptions}
                 mode="multiple"
+                fieldProps={{
+                    labelInValue: true,
+                }}
                 rules={[
                     {
                         required: true,
