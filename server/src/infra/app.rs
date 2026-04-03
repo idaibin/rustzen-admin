@@ -54,8 +54,11 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
 
     PermissionService::sync_permissions(&pool).await?;
 
-    let uploads_prefix = CONFIG.upload_public_prefix.clone();
-    let uploads_service = ServeDir::new(&CONFIG.upload_dir).append_index_html_on_directories(true);
+    let uploads_prefix = CONFIG.files_prefix.clone();
+    let avatars_prefix = CONFIG.avatars_prefix();
+    let uploads_service =
+        ServeDir::new(CONFIG.uploads_dir()).append_index_html_on_directories(true);
+    let avatars_service = ServeDir::new(CONFIG.avatars_dir()).append_index_html_on_directories(true);
     let static_dir = PathBuf::from(&CONFIG.web_dist);
     let index_path = static_dir.join("index.html");
 
@@ -64,6 +67,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/api/summary", get(summary))
         .nest("/api", public_api.merge(protected_api))
+        .nest_service(&avatars_prefix, avatars_service)
         .nest_service(&uploads_prefix, uploads_service)
         .layer(cors)
         .with_state(pool)
