@@ -6,7 +6,7 @@
 
 - Route permissions are mounted through `RouterExt::route_with_permission`.
 - The current project mainly uses `PermissionsCheck::Require("domain:resource:action")` by default.
-- `Any(...)` and `All(...)` are reserved in code and should not be promoted as standard practice.
+- `Any(...)` and `All(...)` are reserved in code, currently unused, and should not be promoted as standard practice.
 - Permission checks rely on in-memory cache written at login. Missing or expired cache is treated as a re-login requirement.
 - Route permissions are also collected at registration time and synchronized into `menus` on startup through `sync_permissions(pool)`.
 - Route permission registration is fail-fast: lock poisoning in `register_permission_codes(...)` or `take_registered_permission_codes()` aborts startup instead of silently skipping sync data.

@@ -61,9 +61,11 @@ impl MenuService {
 
     /// Delete menu with child validation
     pub async fn delete_menu(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
-        tracing::info!("Attempting to delete menu: {}", id);
+        tracing::info!("Attempting to disable menu: {}", id);
 
-        if MenuRepository::soft_delete(pool, id).await? {
+        Self::ensure_menu_is_mutable(pool, id).await?;
+
+        if MenuRepository::disable(pool, id).await? {
             Ok(())
         } else {
             Err(ServiceError::NotFound("Menu".to_string()))

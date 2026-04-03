@@ -108,15 +108,15 @@ const columns: ProColumns<Menu.Item>[] = [
                 </AuthWrap>
                 <AuthPopconfirm
                     code="system:menu:delete"
-                    title="Are you sure you want to delete this menu?"
-                    description="This action cannot be undone."
+                    title="Are you sure you want to disable this menu?"
+                    description="This menu will be disabled."
                     hidden={entity.isSystem}
                     onConfirm={async () => {
                         await menuAPI.deleteMenu(entity.id);
                         action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-red-500">Delete</span>
+                    <span className="cursor-pointer text-yellow-600">Disable</span>
                 </AuthPopconfirm>
             </Space>
         ),

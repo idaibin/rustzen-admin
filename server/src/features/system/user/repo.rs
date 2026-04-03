@@ -4,7 +4,7 @@ use crate::common::{
 };
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{Error as SqlxError, PgPool, QueryBuilder};
 
 use super::types::UserWithRolesRow;
 
@@ -143,10 +143,7 @@ impl UserRepository {
         .bind(now)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error creating user '{}': {:?}", cmd.username, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        .map_err(|e| Self::map_user_write_error("creating user", e))?;
 
         Self::insert_user_roles(&mut tx, user_id, &cmd.role_ids).await?;
 
@@ -183,10 +180,7 @@ impl UserRepository {
         .bind(Utc::now().naive_utc())
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error updating user ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
+        .map_err(|e| Self::map_user_write_error("updating user", e))?;
 
         if let Some(id) = user_id {
             Self::insert_user_roles(&mut tx, id, role_ids).await?;
@@ -318,5 +312,26 @@ impl UserRepository {
             })?;
 
         Ok(result.rows_affected() > 0)
+    }
+
+    fn map_user_write_error(context: &str, err: SqlxError) -> ServiceError {
+        if let SqlxError::Database(db_err) = &err
+            && db_err.code().as_deref() == Some("23505")
+        {
+            match db_err.constraint() {
+                Some("idx_users_username") | Some("users_username_key") => {
+                    tracing::warn!("Unique username conflict while {}", context);
+                    return ServiceError::UsernameConflict;
+                }
+                Some("idx_users_email") | Some("users_email_key") => {
+                    tracing::warn!("Unique email conflict while {}", context);
+                    return ServiceError::EmailConflict;
+                }
+                _ => {}
+            }
+        }
+
+        tracing::error!("Database error {}: {:?}", context, err);
+        ServiceError::DatabaseQueryFailed
     }
 }

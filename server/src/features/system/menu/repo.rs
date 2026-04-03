@@ -124,17 +124,17 @@ impl MenuRepository {
         })
     }
 
-    /// Soft deletes a menu
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+    /// Disable a menu.
+    pub async fn disable(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE menus SET deleted_at = $1, updated_at = $1 WHERE (id = $2 OR parent_id = $2) AND is_system = false AND deleted_at IS NULL"
+            "UPDATE menus SET status = 2, updated_at = $1 WHERE id = $2 AND is_system = false AND deleted_at IS NULL"
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
         .execute(pool)
         .await
         .map_err(|e| {
-            tracing::error!("Database error soft deleting menu {}: {:?}", id, e);
+            tracing::error!("Database error disabling menu {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })?;
 

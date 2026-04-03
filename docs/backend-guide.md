@@ -92,4 +92,4 @@ server/migrations/
 
 ## Checks
 
-- Run `cargo check --manifest-path server/Cargo.toml` after backend changes.
+- Run `cargo check -p server` after backend changes.
