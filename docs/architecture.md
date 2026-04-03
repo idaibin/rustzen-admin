@@ -51,9 +51,8 @@ Current layout:
 - `web/src/routes/`: pages and route entrypoints
 - `web/src/api/`: frontend request wrappers and API types
 - `web/src/components/`: shared frontend components
-- `web/src/layouts/`: shared frontend layouts
+- `web/src/components/base-layout/`: frontend admin shell
 - `web/src/stores/`: shared frontend state
-- `web/src/integrations/`: query and framework integrations
 
 ## Repository Boundaries
 

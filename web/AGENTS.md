@@ -16,15 +16,15 @@
 - `web/src/routes/`: pages and route entrypoints
 - `web/src/api/`: request wrappers and API types
 - `web/src/components/`: shared components
-- `web/src/layouts/`: shared layouts
+- `web/src/components/base-layout/`: root admin layout component
 - `web/src/stores/`: shared state
-- `web/src/integrations/`: query and framework integrations
 - `web/src/routeTree.gen.ts`: generated file, do not edit manually
 
 ## Rules
 
 - Keep request logic only in `web/src/api/<module>/`.
 - Do not write request code directly inside pages.
+- Keep root app wiring in `web/src/main.tsx` and route guards in `web/src/routes/__root.tsx`.
 - Do not edit `web/src/routeTree.gen.ts` manually.
 - Pages only assemble screens; components should keep a single responsibility.
 - Build the smallest implementation that solves the current need.
