@@ -1,4 +1,8 @@
-import { ModalForm, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
+import {
+    ModalForm,
+    ProFormText,
+    ProFormTextArea,
+} from "@ant-design/pro-components";
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
@@ -6,8 +10,8 @@ import { Form } from "antd";
 import { Button, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
-import { dictAPI } from "@/api/system/dict";
-import { AuthPopconfirm, AuthWrap } from "@/components/auth";
+import { systemAPI } from "@/api";
+import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
 
 export const Route = createFileRoute("/system/dict")({
     component: DictPage,
@@ -23,14 +27,14 @@ function DictPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Dictionary Management"
             columns={columns}
-            request={dictAPI.listDicts}
+            request={systemAPI.dict.list}
             actionRef={actionRef}
             toolBarRender={() => [
                 <AuthWrap code="system:dict:create">
                     <DictModalForm
                         mode={"create"}
                         onSuccess={() => {
-                            actionRef.current?.reload();
+                            void actionRef.current?.reload();
                         }}
                     >
                         <Button type="primary">Create Dictionary</Button>
@@ -76,14 +80,19 @@ const columns: ProColumns<Dict.Item>[] = [
         key: "action",
         width: 110,
         fixed: "right",
-        render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
+        render: (
+            _dom: React.ReactNode,
+            entity: Dict.Item,
+            _index,
+            action?: ActionType,
+        ) => (
             <Space size="middle">
                 <AuthWrap code="system:dict:update">
                     <DictModalForm
                         mode={"edit"}
                         initialValues={entity}
                         onSuccess={() => {
-                            action?.reload();
+                            void action?.reload();
                         }}
                     >
                         <a>Edit</a>
@@ -94,8 +103,8 @@ const columns: ProColumns<Dict.Item>[] = [
                     title="Are you sure you want to delete this dictionary?"
                     description="This action cannot be undone."
                     onConfirm={async () => {
-                        await dictAPI.deleteDict(entity.id);
-                        action?.reload();
+                        await systemAPI.dict.delete(entity.id);
+                        void action?.reload();
                     }}
                 >
                     <span className="cursor-pointer text-red-500">Delete</span>
@@ -144,9 +153,12 @@ const DictModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await dictAPI.createDict(values as Dict.CreateRequest);
+                    await systemAPI.dict.create(values as Dict.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await dictAPI.updateDict(initialValues.id, values as Dict.UpdateRequest);
+                    await systemAPI.dict.update(
+                        initialValues.id,
+                        values as Dict.UpdateRequest,
+                    );
                 }
                 onSuccess?.();
                 return true;

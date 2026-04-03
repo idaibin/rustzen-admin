@@ -35,8 +35,6 @@ export const useAuthStore = create<AuthState>()(
             updateUserInfo: (params: Auth.UserInfoResponse) => {
                 set({ userInfo: params });
             },
-
-            // Clear all auth state
             clearAuth: () => {
                 set({ userInfo: null, token: null });
             },
@@ -51,7 +49,6 @@ export const useAuthStore = create<AuthState>()(
                 if (permissions.includes(code)) {
                     return true;
                 }
-                // system:user:* -> system:*
                 const codeArr = code.split(":");
                 for (let i = codeArr.length - 1; i > 0; i--) {
                     const prefix = codeArr.slice(0, i).join(":") + ":*";
@@ -74,17 +71,14 @@ export const useAuthStore = create<AuthState>()(
 
 const formatPathCode = (pathname: string) => {
     const code = pathname.replace(/\//g, ":").slice(1);
-    // create page
     if (code.endsWith(":create")) {
         return code;
     }
-    // edit page, detail page
     if (code.endsWith(":edit") || code.endsWith(":detail")) {
         return code
             .split(":")
             .filter((s) => !/^\d+$/.test(s))
             .join(":");
     }
-    // list page
     return `${code}:list`;
 };

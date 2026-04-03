@@ -1,6 +1,6 @@
 import { Dropdown, type DropdownProps } from "antd";
 
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface MoreButtonProps {
     children: React.ReactElement[];

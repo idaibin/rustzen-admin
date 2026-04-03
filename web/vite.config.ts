@@ -23,11 +23,11 @@ export default defineConfig({
         open: false,
         proxy: {
             "/api": {
-                target: "http://localhost:8000",
+                target: "http://localhost:8007",
                 changeOrigin: true,
             },
             "/uploads": {
-                target: "http://localhost:8000",
+                target: "http://localhost:8007",
                 changeOrigin: true,
             },
         },

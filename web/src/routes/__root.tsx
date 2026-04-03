@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRoute, Navigate, Outlet, redirect } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { App, ConfigProvider } from "antd";
-import enUS from "antd/locale/en_US";
 import { useEffect } from "react";
 
-import { MessageContent } from "@/api";
-import { authAPI } from "@/api/auth";
-import { TanStackDevtoolsLayout } from "@/integrations/tanstack-query/layout";
-import { BasicLayout } from "@/layouts/BasicLayout";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { MessageContent, authAPI } from "@/api";
+import { BaseLayout } from "@/components/base-layout";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createRootRoute({
     beforeLoad: (ctx) => {
@@ -47,8 +46,9 @@ export const Route = createRootRoute({
 function RootLayout() {
     const { token, updateUserInfo } = useAuthStore();
     const { data: userInfo } = useQuery({
-        queryKey: ["auth-userInfo"],
-        queryFn: authAPI.getUserInfo,
+        queryKey: ["auth", "me"],
+        queryFn: authAPI.me,
+        enabled: !!token,
     });
 
     useEffect(() => {
@@ -58,14 +58,15 @@ function RootLayout() {
     }, [userInfo, updateUserInfo]);
 
     return (
-        <ConfigProvider locale={enUS}>
+        <ConfigProvider>
             <App>
-                <BasicLayout hidden={!token}>
+                <BaseLayout hidden={!token}>
                     <Outlet />
-                </BasicLayout>
+                </BaseLayout>
                 <MessageContent />
             </App>
-            <TanStackDevtoolsLayout />
+            <ReactQueryDevtools buttonPosition="bottom-right" />
+            <TanStackRouterDevtools />
         </ConfigProvider>
     );
 }
