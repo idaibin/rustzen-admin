@@ -22,11 +22,40 @@ Current layout:
 │   ├── Cargo.toml
 │   ├── migrations/
 │   └── src/
-│       ├── features/
-│       ├── infra/
 │       ├── common/
+│       ├── features/
+│       │   └── <feature>/
+│       │       ├── mod.rs
+│       │       ├── handler.rs
+│       │       ├── service.rs
+│       │       ├── repo.rs
+│       │       └── types.rs
+│       ├── infra/
 │       └── middleware/
 ├── web/
+│   └── src/
+│       ├── api/
+│       │   ├── index.ts
+│       │   ├── runtime.ts
+│       │   ├── request.ts
+│       │   ├── api.d.ts
+│       │   ├── system/
+│       │   │   ├── index.ts
+│       │   │   └── <module>/
+│       │   │       ├── api.ts
+│       │   │       └── types.d.ts
+│       │   └── <module>/
+│       │       ├── api.ts
+│       │       └── types.d.ts
+│       ├── components/
+│       │   ├── base-auth/
+│       │   ├── base-button/
+│       │   ├── base-layout/
+│       │   └── base-user/
+│       ├── routes/
+│       ├── store/
+│       ├── util/
+│       └── style.css
 └── docs/
 ```
 
@@ -49,16 +78,16 @@ Current layout:
 - `server/src/common/`: shared cross-feature capabilities
 - `server/src/middleware/`: Axum middleware
 - `web/src/routes/`: pages and route entrypoints
-- `web/src/api/`: frontend request wrappers and API types
-- `web/src/components/`: shared frontend components
+- `web/src/api/`: frontend barrel exports, request wrappers, API constants, option lists, and API types
+- `web/src/components/`: shared frontend components; each uses a `base-<name>/` subdirectory (for example `base-auth/`, `base-button/`, `base-layout/`, `base-user/`)
 - `web/src/components/base-layout/`: frontend admin shell
-- `web/src/stores/`: shared frontend state
+- `web/src/store/`: shared frontend state
 
 ## Repository Boundaries
 
 - Do not add parallel app directories or move the existing primary directories without an explicit repository change.
 - Backend business code belongs in `server/src/features/<feature>/`.
-- Frontend pages belong in `web/src/routes/`, and request wrappers belong in `web/src/api/`.
+- Frontend pages belong in `web/src/routes/`, request wrappers belong in `web/src/api/request.ts`, and API barrel exports belong in `web/src/api/index.ts` and `web/src/api/system/index.ts`.
 - Generated files must stay in generated paths and out of manually maintained paths.
 
 ## Change Sync
