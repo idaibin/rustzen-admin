@@ -43,6 +43,9 @@ pub enum PermissionsCheck {
 impl PermissionsCheck {
     /// Core permission validation logic
     pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
+        if user_permissions.contains(SYSTEM_SUPER_ADMIN_CODE) {
+            return true;
+        }
         match self {
             PermissionsCheck::Require(code) => user_permissions.contains(*code),
             PermissionsCheck::Any(codes) => {
@@ -215,6 +218,14 @@ impl PermissionService {
         Err(ServiceError::InvalidToken)
     }
 
+    /// Check whether a user has a specific permission code.
+    pub async fn has_permission(
+        user_id: i64,
+        permission: &'static str,
+    ) -> Result<bool, ServiceError> {
+        Self::check_permissions(user_id, &PermissionsCheck::Require(permission)).await
+    }
+
     /// Cache user permissions (called during login)
     pub fn cache_user_permissions(user_id: i64, permissions: &[String]) {
         let permission_cache = UserPermissionCache::new(permissions.to_vec());
@@ -320,7 +331,7 @@ fn menu_type(permission_code: &str) -> i16 {
 
 fn permission_title(permission_code: &str) -> String {
     if permission_code == SYSTEM_SUPER_ADMIN_CODE {
-        return "System Super Admin".to_string();
+        return "All Permissions".to_string();
     }
 
     let segments: Vec<&str> = permission_code.split(':').collect();
@@ -470,6 +481,26 @@ mod tests {
                 "system:user:list".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn super_admin_wildcard_grants_all_permissions() {
+        let permissions = HashSet::from(["*".to_string()]);
+
+        assert!(PermissionsCheck::Require("system:user:list").check(&permissions));
+        assert!(
+            PermissionsCheck::Any(vec!["system:user:list", "system:user:create"])
+                .check(&permissions)
+        );
+        assert!(
+            PermissionsCheck::All(vec!["system:user:update", "system:user:delete"])
+                .check(&permissions)
+        );
+    }
+
+    #[test]
+    fn wildcard_permission_uses_clear_display_title() {
+        assert_eq!(permission_title("*"), "All Permissions");
     }
 
     #[test]

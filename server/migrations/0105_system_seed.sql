@@ -21,7 +21,7 @@ ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO roles (name, code, description, status, is_system, sort_order)
 VALUES
-    ('System Administrator', 'SYSTEM_ADMIN', 'System administrator with full access to all system functions', 1, TRUE, 1)
+    ('System Administrator', 'SYSTEM_ADMIN', 'Wildcard admin role. The "*" permission grants access to all system functions.', 1, TRUE, 1)
 ON CONFLICT (code) DO NOTHING;
 
 
@@ -32,7 +32,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, is_system, is_manual)
 VALUES (
     0,
-    'System Super Admin',
+    'All Permissions',
     '*',
     1,
     1,

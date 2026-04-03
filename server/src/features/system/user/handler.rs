@@ -6,6 +6,7 @@ use super::{
     },
 };
 use crate::common::api::{ApiResponse, AppResult};
+use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
@@ -36,17 +37,22 @@ pub async fn create_user(
 /// Update user
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user(
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(UserService::update_user(&pool, id, dto).await?))
+    Ok(ApiResponse::success(UserService::update_user(&pool, id, current_user.user_id, dto).await?))
 }
 
 /// Delete user
-#[instrument(skip(pool, id))]
-pub async fn delete_user(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
-    UserService::delete_user(&pool, id).await?;
+#[instrument(skip(pool, id, current_user))]
+pub async fn delete_user(
+    current_user: CurrentUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> AppResult<()> {
+    UserService::delete_user(&pool, id, current_user.user_id).await?;
     Ok(ApiResponse::success(()))
 }
 
@@ -67,18 +73,24 @@ pub async fn get_user_options(
 
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_password(
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPasswordPayload>,
 ) -> AppResult<bool> {
-    Ok(ApiResponse::success(UserService::update_user_password(&pool, id, dto).await?))
+    Ok(ApiResponse::success(
+        UserService::update_user_password(&pool, id, current_user.user_id, dto).await?,
+    ))
 }
 
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_status(
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserStatusPayload>,
 ) -> AppResult<bool> {
-    Ok(ApiResponse::success(UserService::update_user_status(&pool, id, dto).await?))
+    Ok(ApiResponse::success(
+        UserService::update_user_status(&pool, id, current_user.user_id, dto).await?,
+    ))
 }

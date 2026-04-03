@@ -27,7 +27,7 @@ pub async fn auth_middleware(
         ServiceError::InvalidToken
     })?;
 
-    let current_user = CurrentUser::new(claims.user_id, claims.username.clone());
+    let current_user = CurrentUser::new(claims.user_id, claims.username.clone(), claims.is_system);
     parts.extensions.insert(current_user);
     parts.extensions.insert(pool);
 

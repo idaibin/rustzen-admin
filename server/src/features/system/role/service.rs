@@ -8,6 +8,7 @@ use crate::common::{
     pagination::{Pagination, PaginationQuery},
     query::parse_optional_i16_filter,
 };
+use crate::infra::permission::PermissionService;
 
 use sqlx::PgPool;
 
@@ -55,10 +56,11 @@ impl RoleService {
     pub async fn update_role(
         pool: &PgPool,
         id: i64,
+        current_user_id: i64,
         request: UpdateRolePayload,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
-        Self::ensure_role_is_mutable(pool, id).await?;
+        Self::ensure_role_is_mutable(pool, id, current_user_id).await?;
         RoleRepository::update(
             pool,
             id,
@@ -73,9 +75,13 @@ impl RoleService {
     }
 
     /// Delete role with user assignment validation
-    pub async fn delete_role(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    pub async fn delete_role(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         tracing::info!("Attempting to delete role: {}", id);
-        Self::ensure_role_is_mutable(pool, id).await?;
+        Self::ensure_role_is_mutable(pool, id, current_user_id).await?;
 
         // Check if role is still assigned to users
         let user_count = RoleRepository::get_role_user_count(pool, id).await?;
@@ -99,9 +105,19 @@ impl RoleService {
         }
     }
 
-    async fn ensure_role_is_mutable(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    async fn ensure_role_is_mutable(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         match RoleRepository::is_system_role(pool, id).await? {
-            Some(true) => Err(ServiceError::RoleIsSystem),
+            Some(true) => {
+                if PermissionService::has_permission(current_user_id, "*").await? {
+                    Ok(())
+                } else {
+                    Err(ServiceError::RoleIsSystem)
+                }
+            }
             Some(false) => Ok(()),
             None => Err(ServiceError::NotFound(format!("Role id: {}", id))),
         }

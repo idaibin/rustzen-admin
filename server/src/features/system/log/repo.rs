@@ -3,6 +3,7 @@ use crate::common::{
     query::{count_with_filters, fetch_with_filters, push_ilike},
 };
 
+use chrono::{Months, Utc};
 use sqlx::{PgPool, QueryBuilder};
 
 use super::types::{LogItemResp, LogWriteCommand};
@@ -68,17 +69,21 @@ impl LogRepository {
         tracing::debug!("Creating detailed log entry with action: {:?}", command.action);
 
         let log_id = sqlx::query_scalar::<_, i64>(
-            "SELECT log_operation($1, $2, $3, $4, $5, $6::inet, $7, $8, $9)",
+            "INSERT INTO operation_logs (
+                user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8::inet, $9, CURRENT_TIMESTAMP
+            ) RETURNING id",
         )
         .bind(command.user_id)
         .bind(command.username.as_str())
         .bind(command.action.as_str())
         .bind(command.description.as_str())
         .bind(command.data.clone()) // Option<serde_json::Value> will map to JSONB or NULL
-        .bind(command.ip_address.as_str())
-        .bind(command.user_agent.as_str())
         .bind(command.status.as_str())
         .bind(command.duration_ms)
+        .bind(command.ip_address.as_str())
+        .bind(command.user_agent.as_str())
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -87,6 +92,38 @@ impl LogRepository {
         })?;
 
         Ok(log_id)
+    }
+
+    /// Ensure the current and near-future monthly partitions exist before request logging begins.
+    pub async fn ensure_partitions(pool: &PgPool) -> Result<(), ServiceError> {
+        let today = Utc::now().date_naive();
+
+        for month_offset in 0..=12 {
+            let partition_date =
+                today.checked_add_months(Months::new(month_offset)).ok_or_else(|| {
+                    tracing::error!(
+                        month_offset,
+                        "Failed to compute log partition date while bootstrapping"
+                    );
+                    ServiceError::DatabaseQueryFailed
+                })?;
+
+            sqlx::query("SELECT create_log_partition($1::date)")
+                .bind(partition_date)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!(
+                        month_offset,
+                        partition_date = %partition_date,
+                        "Database error creating log partition: {:?}",
+                        e
+                    );
+                    ServiceError::DatabaseQueryFailed
+                })?;
+        }
+
+        Ok(())
     }
 
     pub async fn list_logs_for_export(

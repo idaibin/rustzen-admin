@@ -3,6 +3,7 @@ use super::{
     types::{CreateRoleRequest, RoleItemResp, RoleQuery, UpdateRolePayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionItem, OptionsQuery};
+use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
@@ -30,17 +31,22 @@ pub async fn create_role(
 
 /// Update role information
 pub async fn update_role(
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateRolePayload>,
 ) -> AppResult<()> {
-    RoleService::update_role(&pool, id, request).await?;
+    RoleService::update_role(&pool, id, current_user.user_id, request).await?;
     Ok(ApiResponse::success(()))
 }
 
 /// Delete role with dependency validation
-pub async fn delete_role(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
-    RoleService::delete_role(&pool, id).await?;
+pub async fn delete_role(
+    current_user: CurrentUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> AppResult<()> {
+    RoleService::delete_role(&pool, id, current_user.user_id).await?;
     Ok(ApiResponse::success(()))
 }
 

@@ -10,12 +10,14 @@ pub struct CurrentUser {
     pub user_id: i64,
     /// Username
     pub username: String,
+    /// Whether the user is a built-in system administrator.
+    pub is_system: bool,
 }
 
 impl CurrentUser {
     /// Create new CurrentUser instance
-    pub fn new(user_id: i64, username: String) -> Self {
-        Self { user_id, username }
+    pub fn new(user_id: i64, username: String, is_system: bool) -> Self {
+        Self { user_id, username, is_system }
     }
 }
 
