@@ -11,32 +11,29 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+            - name: Checkout
+              uses: actions/checkout@v6
 
-            # ---------- 设置 Rust 环境 ----------
             - name: Setup Rust
               uses: actions-rs/toolchain@v1
               with:
                   toolchain: stable
                   override: true
 
-            # ---------- 安装 musl 目标（静态链接，不依赖 GLIBC）----------
             - name: Install musl target
               run: rustup target add x86_64-unknown-linux-musl
 
-            # ---------- 安装 musl 工具链 ----------
             - name: Install musl toolchain
               run: |
                   sudo apt-get update
                   sudo apt-get install -y musl-tools
 
-            - name: Build
+            - name: Build release binary
               run: cargo build -p server --release --target x86_64-unknown-linux-musl
 
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
                   name: rustzen-admin
-                  path: target/x86_64-unknown-linux-musl/release/server
+                  path: target/x86_64-unknown-linux-musl/release/rustzen-admin
                   retention-days: 30

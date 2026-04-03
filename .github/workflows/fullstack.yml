@@ -12,35 +12,33 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+            - name: Checkout
+              uses: actions/checkout@v6
 
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
-              with:
-                  version: 10.32.1
-
-            # ---------- 前端构建 ----------
             - name: Setup Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v6
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: pnpm
+                  cache-dependency-path: web/pnpm-lock.yaml
 
-            - name: Install frontend dependencies
+            - name: Enable pnpm
+              run: |
+                  corepack enable
+                  corepack prepare pnpm@10.32.1 --activate
+
+            - name: Install dependencies
               run: pnpm install --frozen-lockfile
-              working-directory: ./web
+              working-directory: web
 
             - name: Build frontend
               run: pnpm build
-              working-directory: ./web
+              working-directory: web
 
-            # ---------- 后端构建 ----------
-            - name: Build backend
-              run: cargo build --release
+            - name: Build release binary
+              run: cargo build -p server --release
 
-            # ---------- 组装部署包 ----------
-            - name: Prepare deployment package
+            - name: Package deployment
               shell: bash
               run: |
                   set -euo pipefail
@@ -58,8 +56,7 @@ jobs:
                   cp .env.example rustzen-admin/config/app.env
                   (cd rustzen-admin && zip -qr ../rustzen-admin.zip .)
 
-            # ---------- 上传构建产物 ----------
-            - name: Upload deployment package
+            - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
                   name: rustzen-admin-zip
