@@ -32,6 +32,7 @@
 - `data/`: persistent application data.
 - `data/server/`: backend persistence data.
 - `data/uploads/`: user-uploaded files.
+- `deploy/sql/`: one-time repair SQL for existing deployments.
 - `logs/`: runtime logs.
 - `versions/`: release packages and archived bundles.
 - `web/dist/`: frontend build output.
@@ -145,3 +146,15 @@ WantedBy=multi-user.target
 - `config/app.env` contains all required `RUSTZEN_*` values.
 - `data/uploads/` exists and is writable.
 - `logs/` exists and is writable.
+
+## One-time Repair SQL
+
+- Use `deploy/sql/repair_menu_schema.sql` only for existing deployments that already ran older migrations.
+- Run it manually before the service starts if `menus.parent_code` or `menus.is_manual` is missing.
+- New databases should not need this script because the base migrations already include the final schema.
+
+Example:
+
+```bash
+psql "$DATABASE_URL" -f deploy/sql/repair_menu_schema.sql
+```

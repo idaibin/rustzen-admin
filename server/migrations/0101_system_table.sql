@@ -73,11 +73,13 @@ COMMENT ON COLUMN roles.deleted_at IS 'Soft delete timestamp, NULL means not del
 CREATE TABLE menus (
     id BIGSERIAL PRIMARY KEY, -- Unique menu ID
     parent_id BIGINT DEFAULT 0, -- Parent menu ID (0 for root)
+    parent_code VARCHAR(100), -- Parent menu permission code for hierarchy during sync
     name VARCHAR(100) UNIQUE NOT NULL, -- Menu title
     code VARCHAR(100) UNIQUE NOT NULL, -- Unique permission code for menu/button
     menu_type SMALLINT DEFAULT 2 CHECK (menu_type IN (1, 2, 3)), -- 1=directory, 2=menu, 3=button
     status SMALLINT DEFAULT 1 CHECK (status IN (1, 2)), -- 1: visible, 2: hidden
     is_system BOOLEAN DEFAULT FALSE, -- System built-in resource flag
+    is_manual BOOLEAN DEFAULT TRUE, -- Manual row: not overwritten by permission sync when TRUE
     sort_order INTEGER DEFAULT 0, -- Sort order
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Creation timestamp
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
@@ -91,6 +93,7 @@ CREATE INDEX idx_resources_deleted_at ON menus(deleted_at);
 CREATE INDEX idx_resources_parent_sort ON menus(parent_id, sort_order) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_menu_type ON menus(menu_type) WHERE deleted_at IS NULL;
 CREATE INDEX idx_resources_is_system ON menus(is_system) WHERE is_system = TRUE AND deleted_at IS NULL;
+CREATE INDEX idx_resources_parent_code ON menus(parent_code) WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE menus IS 'Menus table: stores menu definitions';
 COMMENT ON COLUMN menus.name IS 'Menu name';
@@ -98,6 +101,8 @@ COMMENT ON COLUMN menus.code IS 'Menu code';
 COMMENT ON COLUMN menus.menu_type IS 'Menu type: 1=directory, 2=menu, 3=button';
 COMMENT ON COLUMN menus.status IS 'Menu status: 1=visible, 2=hidden';
 COMMENT ON COLUMN menus.is_system IS 'System built-in menu flag';
+COMMENT ON COLUMN menus.parent_code IS 'Parent menu permission code for hierarchy during sync';
+COMMENT ON COLUMN menus.is_manual IS 'TRUE when the menu row has been manually maintained and must not be overwritten by sync';
 COMMENT ON COLUMN menus.deleted_at IS 'Soft delete timestamp, NULL means not deleted';
 
 
