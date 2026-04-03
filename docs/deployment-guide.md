@@ -77,13 +77,22 @@ RUSTZEN_JWT_SECRET=replace-me
 RUSTZEN_JWT_EXPIRATION=3600
 
 RUSTZEN_WEB_DIST=web/dist
-RUSTZEN_UPLOAD_DIR=data/uploads
-RUSTZEN_AVATAR_DIR=data/uploads/avatars
-RUSTZEN_UPLOAD_PUBLIC_PREFIX=/uploads
+RUSTZEN_DATA_DIR=data
+RUSTZEN_FILES_PREFIX=/resources
+
+RUSTZEN_LOG_DIR=logs
+RUSTZEN_LOG_FILE_PREFIX=server
+RUSTZEN_LOG_RETENTION_DAYS=7
+
+RUST_LOG=info
 ```
 
 - `DATABASE_URL` is the database connection string used by the backend and local migration tools.
 - Production service startup reads `DATABASE_URL` for the database and `RUSTZEN_*` for the other application settings.
+- Runtime logs are written into `RUSTZEN_LOG_DIR` with daily rolling files named as `RUSTZEN_LOG_FILE_PREFIX-YYYY-MM-DD.log`.
+- Expired log files are deleted by the app itself based on `RUSTZEN_LOG_RETENTION_DAYS`.
+- Local development may omit the standard `RUSTZEN_*` runtime keys because the backend provides code defaults for host, port, DB pool, JWT expiration, runtime paths, file prefix, and log settings.
+- `RUSTZEN_JWT_SECRET` has no code default and must be set explicitly in every environment.
 
 ### Config Rules
 
@@ -94,6 +103,9 @@ RUSTZEN_UPLOAD_PUBLIC_PREFIX=/uploads
 - Production deployment should generate `config/app.env` from the same field set as `.env.example`.
 - Do not introduce `system.yaml` or another parallel runtime config source.
 - Do not keep the same setting in code defaults, yaml, and env at the same time.
+- Production runtime config must stay explicit for secrets and deployment-specific values.
+- Local-development code defaults are available for `RUSTZEN_APP_HOST`, `RUSTZEN_APP_PORT`, `RUSTZEN_DB_MAX_CONN`, `RUSTZEN_DB_MIN_CONN`, `RUSTZEN_DB_CONN_TIMEOUT`, `RUSTZEN_DB_IDLE_TIMEOUT`, `RUSTZEN_JWT_EXPIRATION`, `RUSTZEN_WEB_DIST`, `RUSTZEN_DATA_DIR`, `RUSTZEN_FILES_PREFIX`, `RUSTZEN_LOG_DIR`, `RUSTZEN_LOG_FILE_PREFIX`, and `RUSTZEN_LOG_RETENTION_DAYS`.
+- `RUSTZEN_JWT_SECRET` has no code default and must be set explicitly.
 - Deployment directories may be relative to `WorkingDirectory`; runtime code must not assume build-machine absolute paths.
 - Production database configuration must use a PostgreSQL connection URL in `DATABASE_URL`.
 
@@ -103,6 +115,8 @@ RUSTZEN_UPLOAD_PUBLIC_PREFIX=/uploads
 - `ExecStart` must point to `bin/rustzen-admin`.
 - Frontend static assets must be deployed to `web/dist`.
 - Upload data must be stored under `data/uploads/`.
+- Avatar data must be stored under `data/avatars/` and served from the shared file prefix.
+- Public file access must use the shared route prefix from `RUSTZEN_FILES_PREFIX`.
 - Service values must not be split across multiple config models.
 - Deployment examples in this document are production requirements, not a description of every current code default.
 
@@ -111,7 +125,8 @@ RUSTZEN_UPLOAD_PUBLIC_PREFIX=/uploads
 - Build frontend first.
 - Build backend release binary.
 - Assemble the deployment tree under `rustzen-admin/`.
-- Copy the binary to `bin/rustzen-admin`.
+- The backend release binary is generated as `target/release/rustzen-admin`.
+- Copy `target/release/rustzen-admin` to `bin/rustzen-admin`.
 - Copy frontend output to `web/dist/`.
 - Generate `config/app.env` from the runtime field set.
 - Package the directory as `rustzen-admin.zip`.
