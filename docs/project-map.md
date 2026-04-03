@@ -7,7 +7,7 @@
 - Backend startup entrypoint: `server/src/main.rs`
 - Frontend startup entrypoint: `web/src/main.tsx`
 - Root route entrypoint: `web/src/routes/__root.tsx`
-- Root layout entrypoint: `web/src/layouts/BasicLayout.tsx`
+- Root layout entrypoint: `web/src/components/base-layout/index.tsx`
 - Shared command entrypoint: `justfile`
 
 ## Backend Index
@@ -32,10 +32,11 @@
 
 ## Frontend Index
 
+- App bootstrap: `web/src/main.tsx`
+- Root route guard and devtools: `web/src/routes/__root.tsx`
 - Route pages: `web/src/routes/`
-- Shared layouts: `web/src/layouts/`
+- Shared layout component: `web/src/components/base-layout/`
 - API wrappers: `web/src/api/`
-- Query integrations: `web/src/integrations/`
 - Shared components: `web/src/components/`
 - Shared state: `web/src/stores/`
 - Constants: `web/src/constant/`
@@ -49,7 +50,9 @@
 - Change permission model: `server/src/infra/permission.rs`
 - Add a frontend page: `web/src/routes/`
 - Change frontend requests: `web/src/api/<module>/`
-- Change frontend layout: `web/src/layouts/BasicLayout.tsx`
+- Change frontend bootstrap and providers: `web/src/main.tsx`
+- Change root route guard or devtools: `web/src/routes/__root.tsx`
+- Change frontend layout: `web/src/components/base-layout/index.tsx`
 - Change auth state: `web/src/stores/useAuthStore.ts`
 
 ## Common Commands

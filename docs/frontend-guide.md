@@ -8,11 +8,12 @@
 ## Structure
 
 - Use `TanStack Router` for the page layer.
+- Keep app bootstrap and shared providers in `web/src/main.tsx`.
+- Keep route guards and global devtools in `web/src/routes/__root.tsx`.
 - Keep request modules in `web/src/api/<module>/`.
 - Put shared components in `web/src/components/`.
-- Put shared layouts in `web/src/layouts/`.
+- Keep the admin shell in `web/src/components/base-layout/`.
 - Put shared state in `web/src/stores/`.
-- Put query integrations in `web/src/integrations/`.
 
 ## UI Stack
 
@@ -35,9 +36,11 @@
 
 - Use `TanStack Query` for data fetching.
 - Use `Zustand` for shared state.
+- Keep the `QueryClient` setup in `web/src/main.tsx`.
+- Call `useQuery` directly where data is consumed. Do not add extra query wrapper layers.
 - Do not scatter request code inside pages.
-- API modules should own `query`, `mutation`, and type definitions together.
-- Split query and mutation logic by resource.
+- API modules should own request functions and related type definitions together.
+- Split request logic by resource.
 
 ## Types
 
@@ -49,7 +52,7 @@
 
 - Each component should own one clear responsibility.
 - Shared reusable components belong in `web/src/components/`.
-- Layout-related components should prefer `web/src/layouts/`.
+- The root admin shell belongs in `web/src/components/base-layout/`.
 - Do not create "do-everything" components.
 - Do not mix unrelated request or routing logic into components.
 
