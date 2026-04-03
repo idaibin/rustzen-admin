@@ -47,7 +47,9 @@
 - `config/app.env` is only the environment-variable carrier, not a second config system.
 - Do not maintain a parallel yaml primary config for runtime paths, database connections, JWT, or other application runtime settings.
 - Only complex structured rules that are not process-level config may live in separate json or yaml files.
-- Production runtime config must be explicit and must not rely on fallback defaults.
+- The backend provides safe defaults for local development runtime keys, including bind address, port, DB pool settings, JWT expiration, runtime paths, file prefix, and log settings.
+- `RUSTZEN_JWT_SECRET` has no code default and must be set explicitly.
+- Production runtime config must remain explicit for deployment-specific values and secrets.
 - PostgreSQL is the only supported runtime database backend for this project.
 - Deployment-specific path values and environment file layout belong in `docs/deployment-guide.md`, not here.
 
