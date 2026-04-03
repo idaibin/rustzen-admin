@@ -2,19 +2,18 @@ use crate::common::error::ServiceError;
 use crate::infra::config::CONFIG;
 
 use axum::extract::Multipart;
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write};
 use uuid::Uuid;
 
 const USER_AVATAR_MAX_SIZE: usize = 1024 * 1024;
 
 /// 保存头像
 pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceError> {
-    let avatar_dir = &CONFIG.avatar_dir;
-    let avatar_public_prefix =
-        format!("{}/avatars", CONFIG.upload_public_prefix.trim_end_matches('/'));
+    let avatar_dir = CONFIG.avatars_dir();
+    let avatar_public_prefix = CONFIG.avatars_prefix();
 
     // 确保上传目录存在
-    tokio::fs::create_dir_all(avatar_dir)
+    tokio::fs::create_dir_all(&avatar_dir)
         .await
         .map_err(|_| ServiceError::CreateAvatarFolderFailed)?;
 
@@ -38,7 +37,7 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
 
     // 生成唯一文件名
     let file_name = format!("{}.{}", Uuid::new_v4(), extension);
-    let file_path = PathBuf::from(avatar_dir).join(&file_name);
+    let file_path = avatar_dir.join(&file_name);
 
     // 读取文件数据
     let data = field
