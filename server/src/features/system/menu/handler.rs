@@ -40,7 +40,7 @@ pub async fn update_menu(
     Ok(ApiResponse::success(MenuService::update_menu(&pool, id, request).await?))
 }
 
-/// Delete menu (handles child cleanup)
+/// Disable menu
 pub async fn delete_menu(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
     MenuService::delete_menu(&pool, id).await?;
     Ok(ApiResponse::success(()))

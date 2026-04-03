@@ -31,7 +31,7 @@
 
 ## Commands
 
-- `cargo check --manifest-path server/Cargo.toml`
+- `cargo check -p server`
 - `just dev-server`
 - `just check` (backend `cargo check` + frontend `vp lint`)
 

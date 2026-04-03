@@ -1,6 +1,6 @@
 [package]
 authors = ["bruce <bruce@idaibin.dev>"]
-name = "rustzen-admin"
+name = "server"
 version = "0.2.2"
 edition = "2024"
 

@@ -2,12 +2,12 @@
 
 # check
 check:
-    cargo check --manifest-path server/Cargo.toml
+    cargo check -p server
     cd web && vp lint
 
 # Start Rust backend (with hot reload)
 dev-server:
-    cargo watch --manifest-path server/Cargo.toml -x run -w server/src
+    cargo watch -x 'run -p server'
 
 # Start web (Vite dev mode)
 dev-web:
@@ -20,7 +20,7 @@ build:
 
 # Build Rust backend release
 build-backend:
-    cargo build --manifest-path server/Cargo.toml --release
+    cargo build -p server --release
 
 # Build web production bundle
 build-web:
