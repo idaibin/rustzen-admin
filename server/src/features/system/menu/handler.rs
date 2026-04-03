@@ -3,6 +3,7 @@ use super::{
     types::{CreateMenuRequest, MenuItemResp, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
+use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
@@ -33,16 +34,23 @@ pub async fn create_menu(
 /// Update menu
 /// Body: name, path, parent_id, icon, sort_order, status (all optional)
 pub async fn update_menu(
+    current_user: CurrentUser,
     State(pool): State<PgPool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(MenuService::update_menu(&pool, id, request).await?))
+    Ok(ApiResponse::success(
+        MenuService::update_menu(&pool, id, current_user.user_id, request).await?,
+    ))
 }
 
 /// Disable menu
-pub async fn delete_menu(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
-    MenuService::delete_menu(&pool, id).await?;
+pub async fn delete_menu(
+    current_user: CurrentUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> AppResult<()> {
+    MenuService::delete_menu(&pool, id, current_user.user_id).await?;
     Ok(ApiResponse::success(()))
 }
 

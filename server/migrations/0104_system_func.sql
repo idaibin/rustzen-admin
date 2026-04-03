@@ -142,7 +142,6 @@ RETURNS BIGINT AS $$
 DECLARE
     log_id BIGINT;
 BEGIN
-    PERFORM create_log_partition(CURRENT_DATE::DATE);
     INSERT INTO operation_logs (
         user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at
     ) VALUES (

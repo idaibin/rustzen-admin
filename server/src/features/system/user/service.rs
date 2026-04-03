@@ -12,6 +12,7 @@ use crate::{
         query::parse_optional_i16_filter,
     },
     infra::password::PasswordUtils,
+    infra::permission::PermissionService,
 };
 
 use sqlx::PgPool;
@@ -67,28 +68,23 @@ impl UserService {
     pub async fn update_user(
         pool: &PgPool,
         id: i64,
+        current_user_id: i64,
         request: UpdateUserPayload,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
-        let user = UserRepository::find_user_by_id(pool, id)
-            .await?
-            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
-        if user.is_system {
-            return Err(ServiceError::UserIsAdmin);
-        }
+        Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         UserRepository::update_user(pool, id, &request.email, &request.real_name, &request.role_ids)
             .await
     }
 
     /// Delete user
-    pub async fn delete_user(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    pub async fn delete_user(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         tracing::debug!("Deleting user ID: {}", id);
-        let user = UserRepository::find_user_by_id(pool, id)
-            .await?
-            .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
-        if user.is_system {
-            return Err(ServiceError::UserIsAdmin);
-        }
+        Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         UserRepository::soft_delete(pool, id).await?;
 
         Ok(())
@@ -118,10 +114,11 @@ impl UserService {
     pub async fn update_user_password(
         pool: &PgPool,
         id: i64,
+        current_user_id: i64,
         dto: UpdateUserPasswordPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user password for user ID: {}", id);
-        Self::ensure_user_is_mutable(pool, id).await?;
+        Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
         UserRepository::update_user_password(pool, id, &password_hash).await
     }
@@ -129,18 +126,23 @@ impl UserService {
     pub async fn update_user_status(
         pool: &PgPool,
         id: i64,
+        current_user_id: i64,
         dto: UpdateUserStatusPayload,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
-        Self::ensure_user_is_mutable(pool, id).await?;
+        Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         UserRepository::update_user_status(pool, id, dto.status).await
     }
 
-    async fn ensure_user_is_mutable(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    async fn ensure_user_is_mutable(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         let user = UserRepository::find_user_by_id(pool, id)
             .await?
             .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
-        if user.is_system {
+        if user.is_system && !PermissionService::has_permission(current_user_id, "*").await? {
             return Err(ServiceError::UserIsAdmin);
         }
         Ok(())

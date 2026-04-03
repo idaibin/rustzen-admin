@@ -21,7 +21,7 @@ use std::{net::SocketAddr, time::Instant};
 
 /// Login with username/password
 #[tracing::instrument(name = "login", skip(pool, addr, headers, request))]
-pub async fn login_handler(
+pub async fn login(
     State(pool): State<PgPool>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
@@ -67,7 +67,7 @@ pub async fn login_handler(
 
 /// Get current user info with roles and menus
 #[tracing::instrument(name = "get_login_info", skip(current_user, pool))]
-pub async fn get_login_info_handler(
+pub async fn get_login_info(
     current_user: CurrentUser,
     State(pool): State<PgPool>,
 ) -> AppResult<UserInfoResp> {
@@ -76,7 +76,7 @@ pub async fn get_login_info_handler(
 
 /// Logout and clear cache
 #[tracing::instrument(name = "logout", skip(current_user))]
-pub async fn logout_handler(current_user: CurrentUser) -> AppResult<()> {
+pub async fn logout(current_user: CurrentUser) -> AppResult<()> {
     PermissionService::clear_user_cache(current_user.user_id);
     Ok(ApiResponse::success(()))
 }

@@ -7,6 +7,7 @@ use crate::common::{
     error::ServiceError,
     query::parse_optional_i16_filter,
 };
+use crate::infra::permission::PermissionService;
 
 use sqlx::PgPool;
 
@@ -52,18 +53,22 @@ impl MenuService {
     pub async fn update_menu(
         pool: &PgPool,
         id: i64,
+        current_user_id: i64,
         request: UpdateMenuPayload,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
-        Self::ensure_menu_is_mutable(pool, id).await?;
+        Self::ensure_menu_is_mutable(pool, id, current_user_id).await?;
         MenuRepository::update(pool, id, &request).await
     }
 
     /// Delete menu with child validation
-    pub async fn delete_menu(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    pub async fn delete_menu(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         tracing::info!("Attempting to disable menu: {}", id);
-
-        Self::ensure_menu_is_mutable(pool, id).await?;
+        Self::ensure_menu_is_mutable(pool, id, current_user_id).await?;
 
         if MenuRepository::disable(pool, id).await? {
             Ok(())
@@ -72,9 +77,19 @@ impl MenuService {
         }
     }
 
-    async fn ensure_menu_is_mutable(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    async fn ensure_menu_is_mutable(
+        pool: &PgPool,
+        id: i64,
+        current_user_id: i64,
+    ) -> Result<(), ServiceError> {
         match MenuRepository::is_system_menu(pool, id).await? {
-            Some(true) => Err(ServiceError::MenuIsSystem),
+            Some(true) => {
+                if PermissionService::has_permission(current_user_id, "*").await? {
+                    Ok(())
+                } else {
+                    Err(ServiceError::MenuIsSystem)
+                }
+            }
             Some(false) => Ok(()),
             None => Err(ServiceError::NotFound(format!("Menu id: {}", id))),
         }

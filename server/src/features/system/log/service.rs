@@ -13,6 +13,10 @@ use sqlx::PgPool;
 pub struct LogService;
 
 impl LogService {
+    pub async fn ensure_partitions(pool: &PgPool) -> Result<(), ServiceError> {
+        LogRepository::ensure_partitions(pool).await
+    }
+
     /// Retrieves a paginated list of system logs
     pub async fn list_logs(
         pool: &PgPool,
