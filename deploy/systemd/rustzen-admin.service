@@ -1,0 +1,16 @@
+[Unit]
+Description=rustzen-admin
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rustzen-admin
+ExecStart=/opt/rustzen-admin/bin/rustzen-admin
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/rustzen-admin/config/app.env
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+
+[Install]
+WantedBy=multi-user.target

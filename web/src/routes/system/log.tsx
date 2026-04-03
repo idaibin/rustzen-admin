@@ -3,8 +3,8 @@ import { ProTable } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Segmented, Tag } from "antd";
 
-import { logAPI } from "@/api/system/log";
-import { useLocalStore } from "@/stores/useLocalStore";
+import { systemAPI } from "@/api";
+import { useLocalStore } from "@/store/useLocalStore";
 
 export const Route = createFileRoute("/system/log")({
     component: LogPage,
@@ -25,7 +25,7 @@ function LogPage() {
             scroll={{ y: "calc(100vh - 383px)" }}
             columns={columns}
             params={{ action: actionType }}
-            request={logAPI.getTableData}
+            request={systemAPI.log.list}
             headerTitle={
                 <Segmented
                     value={actionType}
@@ -40,7 +40,7 @@ function LogPage() {
                     key="export"
                     type="primary"
                     onClick={() => {
-                        logAPI.exportLogList();
+                        void systemAPI.log.export();
                     }}
                 >
                     Export
@@ -50,7 +50,7 @@ function LogPage() {
     );
 }
 
-const actionColorMap: Record<Log.Action, string> = {
+const actionColorMap: Record<string, string> = {
     HTTP_GET: "default",
     HTTP_POST: "processing",
     HTTP_PUT: "warning",

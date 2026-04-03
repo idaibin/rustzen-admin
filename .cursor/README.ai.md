@@ -10,15 +10,16 @@
 ## 🧱 项目任务管理
 
 - 所有项目开发/构建命令请通过 `just` 调用；
-- 启动开发模式：`just dev`
+- 启动后端：`just dev-server`
+- 启动前端：`just dev-web`
 - 构建生产版本：`just build`
 - 清理构建产物：`just clean`
 
 ## 🧩 项目模块约定
 
-- Rust 后端模块拆分为：`routes/`、`service/`、`repo/`、`model/`
-- React 前端模块集中于 `src/`，使用 `hooks` 管理业务逻辑，`zustand` 管理状态，`swr` 请求数据
-- 页面接口类型统一声明在 `types/`，使用 `declare module` 按模块划分
+- Rust 后端模块拆分为：`mod.rs`、`handler.rs`、`service.rs`、`repo.rs`、`types.rs`
+- React 前端模块集中于 `src/`，使用 `zustand` 管理共享状态，API 逻辑放在 `src/api/`
+- 页面接口类型统一声明在 `src/api/<module>/`，不要在页面里重复定义
 
 ## 📑 文件/目录约定
 
