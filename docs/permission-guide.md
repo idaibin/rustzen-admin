@@ -14,6 +14,7 @@
 - `menus.is_manual = TRUE` means the menu has been manually maintained and is no longer overwritten by sync.
 - Startup sync only updates rows with `is_manual = FALSE`.
 - System built-in menus are backfilled with `is_manual = FALSE`.
+- The base migrations already include `parent_code` and `is_manual`; existing deployments use `deploy/sql/repair_menu_schema.sql` once before startup.
 
 ## Code Locations
 
