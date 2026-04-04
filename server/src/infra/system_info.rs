@@ -1,9 +1,28 @@
+use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::HashSet;
-use std::path::Path;
-use sysinfo::{Disk, Disks, System};
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
+use sysinfo::{CpuRefreshKind, Disk, Disks, MemoryRefreshKind, RefreshKind, System};
 
-#[derive(Debug, Serialize)]
+#[cfg(target_os = "macos")]
+use std::path::Path;
+
+static SYSTEM: Lazy<RwLock<System>> = Lazy::new(|| {
+    RwLock::new(
+        System::new_with_specifics(
+            RefreshKind::nothing()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything()),
+        ),
+    )
+});
+
+const SYSTEM_INFO_CACHE_TTL: Duration = Duration::from_secs(10);
+
+static CACHED_INFO: Lazy<RwLock<Option<CachedSystemInfo>>> = Lazy::new(|| RwLock::new(None));
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemInfo {
     pub memory_total: u64,
@@ -16,18 +35,29 @@ pub struct SystemInfo {
     pub disk_free: u64,
 }
 
+#[derive(Debug, Clone)]
+struct CachedSystemInfo {
+    info: SystemInfo,
+    fetched_at: Instant,
+}
+
 /// 系统信息工具（CPU/内存/磁盘等）
 pub struct SystemUtils;
 
 impl SystemUtils {
     /// 获取系统信息
     pub fn get_system_info() -> SystemInfo {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+        if let Some(info) = Self::get_cached_system_info() {
+            return info;
+        }
+
+        let mut sys = SYSTEM.write().expect("system info lock poisoned");
+        sys.refresh_memory();
+        sys.refresh_cpu_usage();
 
         let (disk_total, disk_used, disk_free) = Self::get_disk_info();
 
-        SystemInfo {
+        let info = SystemInfo {
             memory_total: sys.total_memory(),
             memory_used: sys.used_memory(),
             memory_free: sys.free_memory(),
@@ -36,7 +66,11 @@ impl SystemUtils {
             disk_total,
             disk_used,
             disk_free,
-        }
+        };
+
+        Self::cache_system_info(&info);
+
+        info
     }
 
     /// 获取磁盘信息
@@ -69,6 +103,22 @@ impl SystemUtils {
 
         (total_space, used_space, free_space)
     }
+
+    fn get_cached_system_info() -> Option<SystemInfo> {
+        let cache = CACHED_INFO.read().expect("system info cache lock poisoned");
+        let cached = cache.as_ref()?;
+
+        if cached.fetched_at.elapsed() >= SYSTEM_INFO_CACHE_TTL {
+            return None;
+        }
+
+        Some(cached.info.clone())
+    }
+
+    fn cache_system_info(info: &SystemInfo) {
+        let mut cache = CACHED_INFO.write().expect("system info cache lock poisoned");
+        *cache = Some(CachedSystemInfo { info: info.clone(), fetched_at: Instant::now() });
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -89,4 +139,30 @@ fn is_main_disk(disk: &Disk) -> bool {
 fn is_main_disk(_disk: &Disk) -> bool {
     // Windows: 每个盘符都是真实磁盘，直接返回 true
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CachedSystemInfo, SYSTEM_INFO_CACHE_TTL, SystemInfo};
+    use std::time::Instant;
+
+    fn sample_info() -> SystemInfo {
+        SystemInfo {
+            memory_total: 1,
+            memory_used: 1,
+            memory_free: 0,
+            cpu_total: 2,
+            cpu_used: 10.0,
+            disk_total: 3,
+            disk_used: 1,
+            disk_free: 2,
+        }
+    }
+
+    #[test]
+    fn cached_system_info_is_fresh_within_ttl() {
+        let cached = CachedSystemInfo { info: sample_info(), fetched_at: Instant::now() };
+
+        assert!(cached.fetched_at.elapsed() < SYSTEM_INFO_CACHE_TTL);
+    }
 }
