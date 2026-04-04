@@ -3,9 +3,6 @@ name: Backend Build
 on:
     workflow_dispatch:
 
-env:
-    CARGO_TERM_COLOR: always
-
 jobs:
     build:
         runs-on: ubuntu-latest
@@ -14,26 +11,12 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v6
 
-            - name: Setup Rust
-              uses: actions-rs/toolchain@v1
-              with:
-                  toolchain: stable
-                  override: true
-
-            - name: Install musl target
-              run: rustup target add x86_64-unknown-linux-musl
-
-            - name: Install musl toolchain
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y musl-tools
-
-            - name: Build release binary
-              run: cargo build -p server --release --target x86_64-unknown-linux-musl
+            - name: Build binary
+              run: docker buildx build --platform linux/amd64 --target binary --output type=local,dest=target/dist/bin -f deploy/binary.Dockerfile .
 
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: rustzen-admin
-                  path: target/x86_64-unknown-linux-musl/release/rustzen-admin
+                  name: rustzen-admin-binary
+                  path: target/dist/bin/rustzen-admin
                   retention-days: 30

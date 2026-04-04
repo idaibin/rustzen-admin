@@ -3,10 +3,6 @@ name: Full Stack Build
 on:
     workflow_dispatch:
 
-env:
-    NODE_VERSION: "24.2.0"
-    CARGO_TERM_COLOR: always
-
 jobs:
     build:
         runs-on: ubuntu-latest
@@ -15,49 +11,11 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v6
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v6
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: pnpm
-                  cache-dependency-path: web/pnpm-lock.yaml
-
-            - name: Enable pnpm
-              run: |
-                  corepack enable
-                  corepack prepare pnpm@10.32.1 --activate
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-              working-directory: web
-
-            - name: Build frontend
-              run: pnpm build
-              working-directory: web
-
-            - name: Build release binary
-              run: cargo build -p server --release
-
-            - name: Package deployment
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  rm -rf rustzen-admin rustzen-admin.zip
-                  mkdir -p \
-                    rustzen-admin/bin \
-                    rustzen-admin/config \
-                    rustzen-admin/data/server \
-                    rustzen-admin/data/uploads \
-                    rustzen-admin/logs \
-                    rustzen-admin/versions \
-                    rustzen-admin/web/dist
-                  cp target/release/rustzen-admin rustzen-admin/bin/rustzen-admin
-                  cp -R web/dist/. rustzen-admin/web/dist/
-                  cp .env.example rustzen-admin/config/app.env
-                  (cd rustzen-admin && zip -qr ../rustzen-admin.zip .)
+            - name: Build release package
+              run: docker buildx build --platform linux/amd64 --target release --output type=local,dest=target/dist -f deploy/release.Dockerfile .
 
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: rustzen-admin-zip
-                  path: rustzen-admin.zip
+                  name: rustzen-admin-release
+                  path: target/dist/rustzen-admin.zip
