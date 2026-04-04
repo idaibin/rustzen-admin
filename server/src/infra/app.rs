@@ -8,7 +8,7 @@ use crate::{
     },
     infra::{
         config::CONFIG,
-        db::{create_default_pool, test_connection},
+        db::{create_default_pool, run_migrations, test_connection},
         permission::PermissionService,
     },
     middleware::{auth::auth_middleware, log::log_middleware},
@@ -25,7 +25,6 @@ use axum::{
 };
 use serde_json::json;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -35,6 +34,7 @@ use tower_http::{
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Initializing database connection pool...");
     let pool = create_default_pool().await?;
+    run_migrations(&pool).await?;
     test_connection(&pool).await?;
     LogService::ensure_partitions(&pool).await?;
 
@@ -59,7 +59,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let uploads_service =
         ServeDir::new(CONFIG.uploads_dir()).append_index_html_on_directories(true);
     let avatars_service = ServeDir::new(CONFIG.avatars_dir()).append_index_html_on_directories(true);
-    let static_dir = PathBuf::from(&CONFIG.web_dist);
+    let static_dir = CONFIG.web_dist_dir();
     let index_path = static_dir.join("index.html");
 
     tracing::info!(?static_dir, "Serving frontend assets from static dir");

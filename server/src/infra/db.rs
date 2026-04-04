@@ -4,6 +4,8 @@ use tracing;
 
 use crate::infra::config::CONFIG;
 
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
 /// Configuration for the database connection pool.
 ///
 /// This struct holds all the settings required to establish a connection
@@ -18,8 +20,8 @@ pub struct DatabaseConfig {
     pub min_connections: u32,
     /// The timeout for a single connection attempt.
     pub connect_timeout: Duration,
-    /// The timeout for an idle connection.
-    pub idle_timeout: Duration,
+    /// The timeout for an idle connection. `None` disables idle reaping.
+    pub idle_timeout: Option<Duration>,
 }
 
 impl Default for DatabaseConfig {
@@ -31,9 +33,13 @@ impl Default for DatabaseConfig {
             max_connections: CONFIG.db_max_conn,
             min_connections: CONFIG.db_min_conn,
             connect_timeout: Duration::from_secs(CONFIG.db_conn_timeout),
-            idle_timeout: Duration::from_secs(CONFIG.db_idle_timeout),
+            idle_timeout: db_idle_timeout(CONFIG.db_idle_timeout),
         }
     }
+}
+
+fn db_idle_timeout(timeout_secs: u64) -> Option<Duration> {
+    if timeout_secs == 0 { None } else { Some(Duration::from_secs(timeout_secs)) }
 }
 
 /// Creates a new database connection pool based on the provided configuration.
@@ -76,5 +82,34 @@ pub async fn test_connection(pool: &PgPool) -> Result<(), sqlx::Error> {
     tracing::debug!("Executing database connection test query...");
     sqlx::query("SELECT 1").execute(pool).await?;
     tracing::info!("Database connection test successful.");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::db_idle_timeout;
+    use std::time::Duration;
+
+    #[test]
+    fn db_idle_timeout_disables_reaping_for_zero() {
+        assert_eq!(db_idle_timeout(0), None);
+    }
+
+    #[test]
+    fn db_idle_timeout_uses_seconds_for_positive_values() {
+        assert_eq!(db_idle_timeout(600), Some(Duration::from_secs(600)));
+    }
+}
+
+/// Runs embedded database migrations on startup.
+///
+/// # Errors
+///
+/// Returns a migration error if applying the embedded migrations fails.
+#[tracing::instrument(name = "run_db_migrations", skip(pool))]
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
+    tracing::info!("Running embedded database migrations...");
+    MIGRATOR.run(pool).await?;
+    tracing::info!("Embedded database migrations completed successfully.");
     Ok(())
 }
