@@ -21,6 +21,7 @@ pub async fn auth_middleware(
     let (mut parts, body) = request.into_parts();
 
     let path = parts.uri.path().to_string();
+    tracing::debug!(path = %path, "Authenticating request");
     let token = extract_bearer_token(&parts.headers, &path)?;
     let claims = jwt::verify_token(token).map_err(|e| {
         tracing::warn!("JWT verification failed for {}: {:?}", path, e);
@@ -30,6 +31,13 @@ pub async fn auth_middleware(
     let current_user = CurrentUser::new(claims.user_id, claims.username.clone(), claims.is_system);
     parts.extensions.insert(current_user);
     parts.extensions.insert(pool);
+
+    tracing::debug!(
+        path = %path,
+        user_id = claims.user_id,
+        username = %claims.username,
+        "Request authenticated"
+    );
 
     let request = Request::from_parts(parts, body);
     Ok(next.run(request).await)

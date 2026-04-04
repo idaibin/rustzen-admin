@@ -24,7 +24,7 @@ impl LogRepository {
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "action", query.action.as_deref());
         push_ilike(query_builder, "description", query.description.as_deref());
-        push_ilike(query_builder, "ip_address::text", query.ip_address.as_deref());
+        push_ilike(query_builder, "host(ip_address)", query.ip_address.as_deref());
     }
 
     /// Find logs with pagination and filters
@@ -48,7 +48,7 @@ impl LogRepository {
         }
         let logs = fetch_with_filters(
             pool,
-            "SELECT id, user_id, username, action, description, data, status, duration_ms, ip_address::text AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
+            "SELECT id, user_id, username, action, description, data, status, duration_ms, host(ip_address) AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },
@@ -132,7 +132,7 @@ impl LogRepository {
     ) -> Result<Vec<LogItemResp>, ServiceError> {
         fetch_with_filters(
             pool,
-            "SELECT id, user_id, username, action, description, data, status, duration_ms, ip_address::text AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
+            "SELECT id, user_id, username, action, description, data, status, duration_ms, host(ip_address) AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },

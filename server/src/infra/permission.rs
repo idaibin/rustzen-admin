@@ -31,11 +31,14 @@ pub struct MenuSeedRecord {
 
 /// Permission check types for flexible access control
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum PermissionsCheck {
     /// User needs one permission to pass. This is the default and current mode.
     Require(&'static str),
+    /// TODO: 后续维护使用，暂不处理。
     /// User needs any one of the permissions (OR logic). Reserved for future use.
     Any(Vec<&'static str>),
+    /// TODO: 后续维护使用，暂不处理。
     /// User needs all permissions (AND logic). Reserved for future use.
     All(Vec<&'static str>),
 }
