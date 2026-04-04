@@ -12,6 +12,7 @@ The repository is organized as a monorepo:
 
 - `server/` contains the Rust backend application
 - `web/` contains the React frontend application
+- `deploy/` contains deployment assets and release support files
 - `docs/` contains repository-level architecture and development guides
 - the root keeps shared commands, workspace metadata, and collaboration entry documents
 
@@ -50,13 +51,19 @@ Many admin repositories optimize for getting pages running quickly, but become h
 │       ├── api/
 │       ├── components/
 │       │   └── base-layout/
-│       └── stores/
+│       └── store/
+├── deploy/
+│   ├── binary.Dockerfile
+│   ├── release.Dockerfile
+│   ├── runtime.Dockerfile
+│   ├── repair_menu_schema.sql
+│   └── rustzen-admin.service
 ├── docs/
 ├── AGENTS.md
 ├── justfile
 ├── Cargo.toml
 ├── Cargo.lock
-└── pnpm-workspace.yaml
+└── README.md
 ```
 
 ## Documentation Entry Points
@@ -78,6 +85,9 @@ just dev-server
 just dev-web
 just check
 just build
+just build-binary
+just build-release
+just build-image
 ```
 
 ## Project Principles

@@ -44,10 +44,12 @@
 - Application runtime config uses `RUSTZEN_*` environment variables.
 - Database connections use `DATABASE_URL`.
 - Both development and production read the same runtime keys from environment variables.
+- Use a single `RUSTZEN_RUNTIME_ROOT` to derive runtime directories such as `web/dist`, `data/`, and `logs/`.
 - `config/app.env` is only the environment-variable carrier, not a second config system.
 - Do not maintain a parallel yaml primary config for runtime paths, database connections, JWT, or other application runtime settings.
 - Only complex structured rules that are not process-level config may live in separate json or yaml files.
-- The backend provides safe defaults for local development runtime keys, including bind address, port, DB pool settings, JWT expiration, runtime paths, file prefix, and log settings.
+- The backend provides safe defaults for local development runtime keys, including bind address, port, DB pool settings, JWT expiration, runtime root, file prefix, and log settings.
+- Production deployments must provide `DATABASE_URL` and `RUSTZEN_JWT_SECRET`; other `RUSTZEN_*` keys have defaults but may still be set explicitly in `config/app.env`.
 - `RUSTZEN_JWT_SECRET` has no code default and must be set explicitly.
 - Production runtime config must remain explicit for deployment-specific values and secrets.
 - PostgreSQL is the only supported runtime database backend for this project.

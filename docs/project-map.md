@@ -10,6 +10,14 @@
 - Root layout entrypoint: `web/src/components/base-layout/index.tsx`
 - Shared command entrypoint: `justfile`
 
+## Deployment Index
+
+- Standalone Linux x86_64 backend binary build: `deploy/binary.Dockerfile`
+- Release tree and zip build: `deploy/release.Dockerfile`
+- Runtime image build: `deploy/runtime.Dockerfile`
+- Systemd service template: `deploy/rustzen-admin.service`
+- One-time repair SQL: `deploy/repair_menu_schema.sql`
+
 ## Backend Index
 
 - Feature registry: `server/src/features/mod.rs`
@@ -58,6 +66,7 @@
 - Change root route guard or devtools: `web/src/routes/__root.tsx`
 - Change frontend layout: `web/src/components/base-layout/index.tsx`
 - Change auth state: `web/src/store/useAuthStore.ts`
+- Change deployment packaging or service files: `deploy/`
 
 ## Common Commands
 
@@ -65,3 +74,6 @@
 - `just dev-web`
 - `just check`
 - `just build`
+- `just build-binary`
+- `just build-release`
+- `just build-image`
