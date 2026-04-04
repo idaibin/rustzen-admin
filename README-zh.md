@@ -12,6 +12,7 @@
 
 - `server/` 存放 Rust 后端应用
 - `web/` 存放 React 前端应用
+- `deploy/` 存放部署资产和发布支持文件
 - `docs/` 存放仓库级架构与开发规范文档
 - 根目录保留共享命令、工作区元信息和协作入口文档
 
@@ -50,13 +51,19 @@
 │       ├── api/
 │       ├── components/
 │       │   └── base-layout/
-│       └── stores/
+│       └── store/
+├── deploy/
+│   ├── binary.Dockerfile
+│   ├── release.Dockerfile
+│   ├── runtime.Dockerfile
+│   ├── repair_menu_schema.sql
+│   └── rustzen-admin.service
 ├── docs/
 ├── AGENTS.md
 ├── justfile
 ├── Cargo.toml
 ├── Cargo.lock
-└── pnpm-workspace.yaml
+└── README.md
 ```
 
 ## 文档入口
@@ -78,6 +85,9 @@ just dev-server
 just dev-web
 just check
 just build
+just build-binary
+just build-release
+just build-image
 ```
 
 ## 项目原则

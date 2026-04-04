@@ -34,6 +34,9 @@
 - `cargo check -p server`
 - `just dev-server`
 - `just check` (backend `cargo check` + frontend `vp lint`)
+- `just build-binary` (Docker standalone backend binary export)
+- `just build-release` (Docker release tree and zip export)
+- `just build-image` (Docker runtime image build)
 
 ## Maintenance Rules
 

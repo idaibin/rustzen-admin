@@ -7,6 +7,7 @@
 - The root only keeps workspace metadata, shared command entrypoints, and repository-level documents.
 - The backend lives in `server/`.
 - The frontend lives in `web/`.
+- Deployment assets live in `deploy/`.
 - Database migrations live in `server/migrations/`.
 - `docs/` only contains single-responsibility specification documents.
 
@@ -16,7 +17,6 @@ Current layout:
 .
 ├── Cargo.toml
 ├── Cargo.lock
-├── pnpm-workspace.yaml
 ├── justfile
 ├── server/
 │   ├── Cargo.toml
@@ -56,6 +56,12 @@ Current layout:
 │       ├── store/
 │       ├── util/
 │       └── style.css
+├── deploy/
+│   ├── binary.Dockerfile
+│   ├── release.Dockerfile
+│   ├── runtime.Dockerfile
+│   ├── repair_menu_schema.sql
+│   └── rustzen-admin.service
 └── docs/
 ```
 
@@ -82,6 +88,7 @@ Current layout:
 - `web/src/components/`: shared frontend components; each uses a `base-<name>/` subdirectory (for example `base-auth/`, `base-button/`, `base-layout/`, `base-user/`)
 - `web/src/components/base-layout/`: frontend admin shell
 - `web/src/store/`: shared frontend state
+- `deploy/`: deployment assets, the binary/release/runtime Dockerfiles, SQL repair script, and the systemd service template
 
 ## Repository Boundaries
 
@@ -119,4 +126,7 @@ just dev-server # start the backend only
 just dev-web    # start the frontend only
 just check      # backend check + frontend vp lint
 just build      # build backend and frontend
+just build-binary # export the Ubuntu x86_64 backend binary from Docker
+just build-release # export the Ubuntu x86_64 release tree and zip from Docker
+just build-image # build the Ubuntu x86_64 runtime image from Docker
 ```

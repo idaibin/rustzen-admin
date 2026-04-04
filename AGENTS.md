@@ -18,6 +18,8 @@
 - Backend lives in `server/`.
 - Migrations live in `server/migrations/`.
 - Frontend lives in `web/`.
+- Deployment assets live in `deploy/`.
+- `deploy/` stays flat; do not add nested `docker/`, `systemd/`, or similar subdirectories unless the deployment surface actually becomes complex.
 - Root only keeps workspace metadata, docs, and command entry points.
 - Root-level docs define the outer contract; subdirectory `AGENTS.md` files only provide local quick-entry rules.
 - When working in a specific subproject, always read the nearest `AGENTS.md` in that directory before modifying files.
@@ -51,3 +53,6 @@
 - `just dev-web`: start frontend
 - `just check`: run backend check and frontend `vp lint`
 - `just build`: build backend and frontend
+- `just build-binary`: export the Linux x86_64 backend binary from Docker
+- `just build-release`: export the Linux x86_64 release tree and zip from Docker
+- `just build-image`: build the Linux x86_64 runtime image from Docker
