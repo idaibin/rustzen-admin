@@ -17,9 +17,10 @@ pub struct LoggingGuard {
 }
 
 pub fn init_logging() -> Result<LoggingGuard, Box<dyn std::error::Error>> {
-    fs::create_dir_all(&CONFIG.log_dir)?;
+    let log_dir = CONFIG.log_dir();
+    fs::create_dir_all(&log_dir)?;
 
-    let file_appender = DailyLogWriter::new(&CONFIG.log_dir, &CONFIG.log_file_prefix)?;
+    let file_appender = DailyLogWriter::new(&log_dir, &CONFIG.log_file_prefix)?;
     let (file_writer, file_guard) = tracing_appender::non_blocking(file_appender);
 
     let env_filter = match std::env::var("RUST_LOG") {
@@ -40,7 +41,7 @@ pub fn init_logging() -> Result<LoggingGuard, Box<dyn std::error::Error>> {
     spawn_log_cleanup_task();
 
     tracing::info!(
-        log_dir = %CONFIG.log_dir,
+        log_dir = %log_dir.display(),
         log_file_prefix = %CONFIG.log_file_prefix,
         log_retention_days = CONFIG.log_retention_days,
         "Logging initialized"
@@ -52,22 +53,27 @@ pub fn init_logging() -> Result<LoggingGuard, Box<dyn std::error::Error>> {
 fn spawn_log_cleanup_task() {
     tokio::spawn(async move {
         let interval = Duration::from_secs(24 * 60 * 60);
+        tracing::debug!("Started log cleanup background task");
         loop {
             tokio::time::sleep(interval).await;
 
+            tracing::debug!("Running expired log cleanup");
             if let Err(error) = cleanup_expired_logs() {
                 tracing::error!(%error, "Failed to cleanup expired log files");
+            } else {
+                tracing::debug!("Expired log cleanup finished");
             }
         }
     });
 }
 
 fn cleanup_expired_logs() -> Result<(), Box<dyn std::error::Error>> {
+    let log_dir = CONFIG.log_dir();
     let today = Local::now().date_naive();
     let mut scanned = 0_u64;
     let mut deleted = 0_u64;
 
-    for entry in fs::read_dir(&CONFIG.log_dir)? {
+    for entry in fs::read_dir(&log_dir)? {
         let entry = entry?;
         let path = entry.path();
 
@@ -92,7 +98,7 @@ fn cleanup_expired_logs() -> Result<(), Box<dyn std::error::Error>> {
     let cutoff = today - chrono::Days::new(CONFIG.log_retention_days);
 
     tracing::info!(
-        log_dir = %CONFIG.log_dir,
+        log_dir = %log_dir.display(),
         log_file_prefix = %CONFIG.log_file_prefix,
         retention_days = CONFIG.log_retention_days,
         cutoff = %cutoff,
@@ -125,12 +131,12 @@ struct DailyLogWriter {
 }
 
 impl DailyLogWriter {
-    fn new(log_dir: &str, log_file_prefix: &str) -> Result<Self, io::Error> {
+    fn new(log_dir: &Path, log_file_prefix: &str) -> Result<Self, io::Error> {
         let current_date = Local::now().date_naive();
-        let file = open_log_file(Path::new(log_dir), log_file_prefix, current_date)?;
+        let file = open_log_file(log_dir, log_file_prefix, current_date)?;
 
         Ok(Self {
-            log_dir: PathBuf::from(log_dir),
+            log_dir: log_dir.to_path_buf(),
             log_file_prefix: log_file_prefix.to_string(),
             current_date,
             file,
