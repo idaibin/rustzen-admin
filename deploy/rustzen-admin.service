@@ -9,6 +9,7 @@ ExecStart=/opt/rustzen-admin/bin/rustzen-admin
 Restart=always
 RestartSec=5
 EnvironmentFile=/opt/rustzen-admin/config/app.env
+Environment=RUSTZEN_RUNTIME_ROOT=.
 Environment=RUST_LOG=info
 Environment=RUST_BACKTRACE=1
 
