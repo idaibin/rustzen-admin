@@ -9,13 +9,11 @@ use sysinfo::{CpuRefreshKind, Disk, Disks, MemoryRefreshKind, RefreshKind, Syste
 use std::path::Path;
 
 static SYSTEM: Lazy<RwLock<System>> = Lazy::new(|| {
-    RwLock::new(
-        System::new_with_specifics(
-            RefreshKind::nothing()
-                .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything()),
-        ),
-    )
+    RwLock::new(System::new_with_specifics(
+        RefreshKind::nothing()
+            .with_cpu(CpuRefreshKind::everything())
+            .with_memory(MemoryRefreshKind::everything()),
+    ))
 });
 
 const SYSTEM_INFO_CACHE_TTL: Duration = Duration::from_secs(10);
