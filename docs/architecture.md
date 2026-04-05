@@ -57,10 +57,11 @@ Current layout:
 │       ├── util/
 │       └── style.css
 ├── deploy/
+│   ├── sql/
+│   │   └── repair_menu_schema.sql
 │   ├── binary.Dockerfile
 │   ├── release.Dockerfile
 │   ├── runtime.Dockerfile
-│   ├── repair_menu_schema.sql
 │   └── rustzen-admin.service
 └── docs/
 ```
@@ -88,7 +89,7 @@ Current layout:
 - `web/src/components/`: shared frontend components; each uses a `base-<name>/` subdirectory (for example `base-auth/`, `base-button/`, `base-layout/`, `base-user/`)
 - `web/src/components/base-layout/`: frontend admin shell
 - `web/src/store/`: shared frontend state
-- `deploy/`: deployment assets, the binary/release/runtime Dockerfiles, SQL repair script, and the systemd service template
+- `deploy/`: deployment assets, the binary/release/runtime Dockerfiles, `deploy/sql/` repair scripts, and the systemd service template
 
 ## Repository Boundaries
 

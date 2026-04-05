@@ -17,7 +17,6 @@
 - `*` is the wildcard permission for system administrators. It is displayed as `All Permissions` and grants access to every permission check.
 - `users.is_system`, `roles.is_system`, and `menus.is_system` are built-in record flags only. They do not grant authorization by themselves.
 - When code needs to protect a built-in record from normal admins, check whether the current user has `*`.
-- The base migrations already include `parent_code` and `is_manual`; existing deployments use `deploy/repair_menu_schema.sql` once before startup.
 
 ## Code Locations
 
