@@ -53,10 +53,11 @@ Many admin repositories optimize for getting pages running quickly, but become h
 │       │   └── base-layout/
 │       └── store/
 ├── deploy/
+│   ├── sql/
+│   │   └── repair_menu_schema.sql
 │   ├── binary.Dockerfile
 │   ├── release.Dockerfile
 │   ├── runtime.Dockerfile
-│   ├── repair_menu_schema.sql
 │   └── rustzen-admin.service
 ├── docs/
 ├── AGENTS.md
@@ -68,6 +69,7 @@ Many admin repositories optimize for getting pages running quickly, but become h
 
 ## Documentation Entry Points
 
+- [CHANGELOG.md](./CHANGELOG.md): release notes and breaking changes (start here when upgrading)
 - [AGENTS.md](./AGENTS.md): repository-level collaboration rules
 - [server/AGENTS.md](./server/AGENTS.md): backend entry guide
 - [web/AGENTS.md](./web/AGENTS.md): frontend entry guide

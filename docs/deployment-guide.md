@@ -7,7 +7,7 @@
 - Use one deploy root for the whole app.
 - Keep backend binary, frontend bundle, config, data, logs, and versions under the same root.
 - Do not add extra compatibility paths or fallback layouts.
-- Keep repository deployment assets flat under `deploy/`; do not add nested `docker/` or `systemd/` directories unless the deployment surface actually becomes complex.
+- Keep repository deployment assets flat under `deploy/` except `deploy/sql/` for one-off SQL scripts; do not add nested `docker/` or `systemd/` directories unless the deployment surface actually becomes complex.
 
 ## Naming Convention
 
@@ -78,7 +78,7 @@
 - `deploy/release.Dockerfile`: Docker multi-stage build for release tree and zip export
 - `deploy/runtime.Dockerfile`: Docker multi-stage build for runtime image export
 - `deploy/rustzen-admin.service`: systemd service template
-- `deploy/repair_menu_schema.sql`: one-time repair SQL for older deployments
+- `deploy/sql/repair_menu_schema.sql`: one-time repair SQL for older deployments
 
 ### `config/app.env` Templates
 
@@ -219,12 +219,12 @@ WantedBy=multi-user.target
 
 ## One-time Repair SQL
 
-- Use `deploy/repair_menu_schema.sql` only for existing deployments that already ran older migrations.
+- Use `deploy/sql/repair_menu_schema.sql` only for existing deployments that already ran older migrations.
 - Run it manually before the service starts if `menus.parent_code` or `menus.is_manual` is missing.
 - New databases should not need this script because the base migrations already include the final schema.
 
 Example:
 
 ```bash
-psql "$DATABASE_URL" -f deploy/repair_menu_schema.sql
+psql "$DATABASE_URL" -f deploy/sql/repair_menu_schema.sql
 ```

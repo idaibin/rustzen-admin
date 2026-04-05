@@ -53,10 +53,11 @@
 │       │   └── base-layout/
 │       └── store/
 ├── deploy/
+│   ├── sql/
+│   │   └── repair_menu_schema.sql
 │   ├── binary.Dockerfile
 │   ├── release.Dockerfile
 │   ├── runtime.Dockerfile
-│   ├── repair_menu_schema.sql
 │   └── rustzen-admin.service
 ├── docs/
 ├── AGENTS.md
@@ -68,6 +69,7 @@
 
 ## 文档入口
 
+- [CHANGELOG.md](./CHANGELOG.md)：版本说明与破坏性变更（升级请先读）
 - [AGENTS.md](./AGENTS.md)：仓库级协作规则
 - [server/AGENTS.md](./server/AGENTS.md)：后端入口指南
 - [web/AGENTS.md](./web/AGENTS.md)：前端入口指南

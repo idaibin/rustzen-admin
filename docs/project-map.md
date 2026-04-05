@@ -16,7 +16,7 @@
 - Release tree and zip build: `deploy/release.Dockerfile`
 - Runtime image build: `deploy/runtime.Dockerfile`
 - Systemd service template: `deploy/rustzen-admin.service`
-- One-time repair SQL: `deploy/repair_menu_schema.sql`
+- One-time repair SQL: `deploy/sql/repair_menu_schema.sql`
 
 ## Backend Index
 

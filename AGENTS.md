@@ -19,7 +19,7 @@
 - Migrations live in `server/migrations/`.
 - Frontend lives in `web/`.
 - Deployment assets live in `deploy/`.
-- `deploy/` stays flat; do not add nested `docker/`, `systemd/`, or similar subdirectories unless the deployment surface actually becomes complex.
+- `deploy/` stays flat except `deploy/sql/` for one-off operational SQL; do not add nested `docker/`, `systemd/`, or similar subdirectories unless the deployment surface actually becomes complex.
 - Root only keeps workspace metadata, docs, and command entry points.
 - Root-level docs define the outer contract; subdirectory `AGENTS.md` files only provide local quick-entry rules.
 - When working in a specific subproject, always read the nearest `AGENTS.md` in that directory before modifying files.
