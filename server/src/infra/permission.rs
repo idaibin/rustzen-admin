@@ -2,6 +2,10 @@ use crate::common::error::ServiceError;
 
 use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::Lazy;
+use rustzen_core::{
+    auth::CurrentUser,
+    permission::{PermissionsCheck, take_registered_permission_codes},
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -27,59 +31,6 @@ pub struct MenuSeedRecord {
     pub menu_type: i16,
     pub is_system: bool,
     pub is_manual: bool,
-}
-
-/// Permission check types for flexible access control
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum PermissionsCheck {
-    /// User needs one permission to pass. This is the default and current mode.
-    Require(&'static str),
-    /// TODO: 后续维护使用，暂不处理。
-    /// User needs any one of the permissions (OR logic). Reserved for future use.
-    Any(Vec<&'static str>),
-    /// TODO: 后续维护使用，暂不处理。
-    /// User needs all permissions (AND logic). Reserved for future use.
-    All(Vec<&'static str>),
-}
-
-impl PermissionsCheck {
-    /// Core permission validation logic
-    pub fn check(&self, user_permissions: &HashSet<String>) -> bool {
-        if user_permissions.contains(SYSTEM_SUPER_ADMIN_CODE) {
-            return true;
-        }
-        match self {
-            PermissionsCheck::Require(code) => user_permissions.contains(*code),
-            PermissionsCheck::Any(codes) => {
-                codes.iter().any(|code| user_permissions.contains(*code))
-            }
-            PermissionsCheck::All(codes) => {
-                codes.iter().all(|code| user_permissions.contains(*code))
-            }
-        }
-    }
-
-    /// Return all permission codes referenced by this check.
-    pub fn codes(&self) -> Vec<&'static str> {
-        match self {
-            PermissionsCheck::Require(permission) => vec![*permission],
-            PermissionsCheck::Any(permissions) | PermissionsCheck::All(permissions) => {
-                permissions.clone()
-            }
-        }
-    }
-
-    /// Returns a description of the permission check for logging
-    pub fn description(&self) -> String {
-        match self {
-            PermissionsCheck::Require(permission) => {
-                format!("required permission '{}'", permission)
-            }
-            PermissionsCheck::Any(permissions) => format!("any of permissions {:?}", permissions),
-            PermissionsCheck::All(permissions) => format!("all permissions {:?}", permissions),
-        }
-    }
 }
 
 /// Cached user permissions with expiration
@@ -145,22 +96,11 @@ impl PermissionCacheManager {
 
 /// Global permission cache instance
 static PERMISSION_CACHE: Lazy<PermissionCacheManager> = Lazy::new(PermissionCacheManager::new);
-static ROUTE_PERMISSION_CODES: Lazy<RwLock<Vec<String>>> = Lazy::new(|| RwLock::new(Vec::new()));
 
 /// Permission service with intelligent caching
 pub struct PermissionService;
 
 impl PermissionService {
-    /// Register permission codes discovered from route definitions.
-    pub fn register_permission_codes<I>(codes: I)
-    where
-        I: IntoIterator<Item = &'static str>,
-    {
-        let mut registry =
-            ROUTE_PERMISSION_CODES.write().expect("permission seed registry lock poisoned");
-        registry.extend(codes.into_iter().map(ToString::to_string));
-    }
-
     /// Synchronize collected route permissions into the menus table.
     pub async fn sync_permissions(pool: &PgPool) -> Result<(), ServiceError> {
         let raw_codes = take_registered_permission_codes();
@@ -200,25 +140,15 @@ impl PermissionService {
         permissions_check: &PermissionsCheck,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Checking {} for user {}", permissions_check.description(), user_id);
-
-        // Only check cache, do not auto-refresh
-        if let Some(cache) = PERMISSION_CACHE.get(user_id) {
-            if cache.is_expired() {
-                tracing::info!("Cache expired for user {}", user_id);
-                PERMISSION_CACHE.remove(user_id);
-                return Err(ServiceError::InvalidToken);
-            }
-            let has_permission = permissions_check.check(&cache.permissions);
-            tracing::debug!(
-                "Permission check {} for user {} ({})",
-                if has_permission { "GRANTED" } else { "DENIED" },
-                user_id,
-                permissions_check.description()
-            );
-            return Ok(has_permission);
-        }
-        tracing::warn!("No permission cache for user {} - requiring re-auth", user_id);
-        Err(ServiceError::InvalidToken)
+        let current_user = Self::load_current_user(user_id, "")?;
+        let has_permission = permissions_check.check(&current_user);
+        tracing::debug!(
+            "Permission check {} for user {} ({})",
+            if has_permission { "GRANTED" } else { "DENIED" },
+            user_id,
+            permissions_check.description()
+        );
+        Ok(has_permission)
     }
 
     /// Check whether a user has a specific permission code.
@@ -246,12 +176,29 @@ impl PermissionService {
         PERMISSION_CACHE.remove(user_id);
         tracing::info!("Cleared cache for user {} (logout)", user_id);
     }
-}
 
-fn take_registered_permission_codes() -> Vec<String> {
-    let mut registry =
-        ROUTE_PERMISSION_CODES.write().expect("permission seed registry lock poisoned");
-    std::mem::take(&mut *registry)
+    pub fn load_current_user(user_id: i64, username: &str) -> Result<CurrentUser, ServiceError> {
+        let cache = match PERMISSION_CACHE.get(user_id) {
+            Some(cache) => cache,
+            None => {
+                tracing::warn!("No permission cache for user {} - requiring re-auth", user_id);
+                return Err(ServiceError::InvalidToken);
+            }
+        };
+
+        if cache.is_expired() {
+            tracing::info!("Cache expired for user {}", user_id);
+            PERMISSION_CACHE.remove(user_id);
+            return Err(ServiceError::InvalidToken);
+        }
+
+        Ok(CurrentUser::new(
+            user_id,
+            username,
+            cache.permissions.iter().cloned(),
+            cache.permissions.contains(SYSTEM_SUPER_ADMIN_CODE),
+        ))
+    }
 }
 
 fn build_menu_seed_records(raw_codes: &[String]) -> Vec<MenuSeedRecord> {
@@ -450,19 +397,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn permissions_check_codes_cover_all_variants() {
-        assert_eq!(PermissionsCheck::Require("system:user:list").codes(), vec!["system:user:list"]);
-        assert_eq!(
-            PermissionsCheck::Any(vec!["system:user:list", "system:user:create"]).codes(),
-            vec!["system:user:list", "system:user:create"]
-        );
-        assert_eq!(
-            PermissionsCheck::All(vec!["system:user:update", "system:user:delete"]).codes(),
-            vec!["system:user:update", "system:user:delete"]
-        );
-    }
-
-    #[test]
     fn expands_parent_chain_and_dedupes_codes() {
         let codes = vec![
             "system:user:list".to_string(),
@@ -483,21 +417,6 @@ mod tests {
                 "system:user:create".to_string(),
                 "system:user:list".to_string(),
             ]
-        );
-    }
-
-    #[test]
-    fn super_admin_wildcard_grants_all_permissions() {
-        let permissions = HashSet::from(["*".to_string()]);
-
-        assert!(PermissionsCheck::Require("system:user:list").check(&permissions));
-        assert!(
-            PermissionsCheck::Any(vec!["system:user:list", "system:user:create"])
-                .check(&permissions)
-        );
-        assert!(
-            PermissionsCheck::All(vec!["system:user:update", "system:user:delete"])
-                .check(&permissions)
         );
     }
 
@@ -573,5 +492,19 @@ mod tests {
 
         assert!(!record.is_manual);
         assert!(record.is_system);
+    }
+
+    #[test]
+    fn load_current_user_marks_super_from_cached_wildcard() {
+        PermissionService::cache_user_permissions(42, &["*".to_string()]);
+
+        let user = PermissionService::load_current_user(42, "root").expect("cached user");
+
+        assert_eq!(user.user_id, 42);
+        assert_eq!(user.username, "root");
+        assert!(user.is_super);
+        assert!(user.permissions.contains("*"));
+
+        PermissionService::clear_user_cache(42);
     }
 }

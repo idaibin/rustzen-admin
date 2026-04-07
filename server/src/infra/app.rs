@@ -7,11 +7,12 @@ use crate::{
         system::system_routes,
     },
     infra::{
+        auth_runtime::{ServerAuthContextLoader, jwt_codec},
         config::CONFIG,
         db::{create_default_pool, run_migrations, test_connection},
         permission::PermissionService,
     },
-    middleware::{auth::auth_middleware, log::log_middleware},
+    middleware::log::log_middleware,
 };
 
 use axum::{
@@ -23,6 +24,7 @@ use axum::{
     middleware,
     routing::get,
 };
+use rustzen_core::auth::auth_middleware;
 use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::{
@@ -48,7 +50,10 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/dashboard", dashboard_routes())
         .nest("/system", system_routes())
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
-        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
+        .route_layer(middleware::from_fn_with_state(
+            (jwt_codec(), ServerAuthContextLoader),
+            auth_middleware,
+        ));
 
     let public_api = Router::new().nest("/auth", public_auth_routes());
 
@@ -58,7 +63,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let avatars_prefix = CONFIG.avatars_prefix();
     let uploads_service =
         ServeDir::new(CONFIG.uploads_dir()).append_index_html_on_directories(true);
-    let avatars_service = ServeDir::new(CONFIG.avatars_dir()).append_index_html_on_directories(true);
+    let avatars_service =
+        ServeDir::new(CONFIG.avatars_dir()).append_index_html_on_directories(true);
     let static_dir = CONFIG.web_dist_dir();
     let index_path = static_dir.join("index.html");
 

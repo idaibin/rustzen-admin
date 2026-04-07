@@ -10,6 +10,7 @@ A structured monorepo foundation for Rust full-stack admin systems.
 
 The repository is organized as a monorepo:
 
+- `core/` contains shared auth and permission capabilities for Rust services
 - `server/` contains the Rust backend application
 - `web/` contains the React frontend application
 - `deploy/` contains deployment assets and release support files
@@ -25,6 +26,7 @@ Many admin repositories optimize for getting pages running quickly, but become h
 `rustzen-admin` is built around a different goal:
 
 - explicit backend and frontend boundaries
+- reusable auth and permission capability layers
 - feature-oriented backend organization
 - repository-level documentation and collaboration rules
 - synchronized changes across code, contracts, and docs
@@ -34,6 +36,13 @@ Many admin repositories optimize for getting pages running quickly, but become h
 
 ```txt
 .
+├── core/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── auth/
+│       ├── permission/
+│       ├── error.rs
+│       └── lib.rs
 ├── server/
 │   ├── Cargo.toml
 │   ├── migrations/

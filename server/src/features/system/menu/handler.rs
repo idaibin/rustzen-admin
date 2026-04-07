@@ -3,12 +3,12 @@ use super::{
     types::{CreateMenuRequest, MenuItemResp, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
-use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
 
 /// Get menu list with optional filtering

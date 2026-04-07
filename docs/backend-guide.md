@@ -8,6 +8,7 @@
 ## Layout
 
 - See `docs/architecture.md` for the repository tree layout.
+- Shared auth and permission capabilities live in `core/`; `server/` only wires them to runtime config, cache, and database-backed menu sync.
 - For a new feature, create these five files first.
 - In `types.rs`, put row and entity types first, then request, response, and query types.
 - `mod.rs` exports and wires feature routes only; it must not carry business implementation.
@@ -33,6 +34,7 @@
 
 - Use `Require(...)` as the default permission check.
 - Use `Any(...)` or `All(...)` only when a feature explicitly needs it.
+- Do not re-implement JWT, auth extractor, or route permission helpers inside `server/`; reuse `core/`.
 - Build the smallest implementation that solves the current requirement.
 - Handlers must not touch the database.
 - Services must not bypass repos.

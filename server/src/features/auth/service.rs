@@ -4,11 +4,7 @@ use super::{
 };
 use crate::{
     common::error::ServiceError,
-    infra::{
-        jwt::{self},
-        password::PasswordUtils,
-        permission::PermissionService,
-    },
+    infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 
 use sqlx::PgPool;
@@ -40,7 +36,7 @@ impl AuthService {
         );
 
         // 2. generate token
-        let token = jwt::generate_token(user.id, username, user.is_system).map_err(|e| {
+        let token = jwt_codec().encode(user.id, username).map_err(|e| {
             tracing::error!("Failed to generate token for user_id={}: {:?}", user.id, e);
             ServiceError::TokenCreationFailed
         })?;

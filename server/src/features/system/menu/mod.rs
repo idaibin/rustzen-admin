@@ -3,12 +3,12 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{
     Router,
     routing::{delete, get, post, put},
 };
 use handler::{create_menu, delete_menu, get_menu_options, list_menus, update_menu};
+use rustzen_core::permission::{PermissionsCheck, RouterExt};
 use sqlx::PgPool;
 
 pub fn menu_routes() -> Router<PgPool> {

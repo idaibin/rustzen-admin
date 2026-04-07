@@ -3,12 +3,12 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{
     Router,
     routing::{delete, get, post, put},
 };
 use handler::{create_role, delete_role, get_role_options, list_roles, update_role};
+use rustzen_core::permission::{PermissionsCheck, RouterExt};
 use sqlx::PgPool;
 
 pub fn role_routes() -> Router<PgPool> {

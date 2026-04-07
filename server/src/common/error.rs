@@ -55,10 +55,6 @@ pub enum ServiceError {
     #[error("Failed to generate token")]
     TokenCreationFailed,
 
-    /// The user does not have permission to perform this action.
-    #[error("Permission denied")]
-    PermissionDenied,
-
     /// A username that was provided already exists.
     #[error("Username already exists")]
     UsernameConflict,
@@ -174,11 +170,6 @@ impl From<ServiceError> for AppError {
                 StatusCode::UNAUTHORIZED,
                 30000,
                 "Invalid or expired token. Please log in again.",
-            ),
-            ServiceError::PermissionDenied => app_error(
-                StatusCode::FORBIDDEN,
-                30001,
-                "You do not have permission to perform this action.",
             ),
         }
     }

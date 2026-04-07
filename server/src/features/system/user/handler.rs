@@ -6,12 +6,12 @@ use super::{
     },
 };
 use crate::common::api::{ApiResponse, AppResult};
-use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
 use tracing::instrument;
 

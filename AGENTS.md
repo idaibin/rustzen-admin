@@ -15,12 +15,13 @@
 
 ## Current Layout
 
+- Shared auth and permission capability code lives in `core/`.
 - Backend lives in `server/`.
 - Migrations live in `server/migrations/`.
 - Frontend lives in `web/`.
 - Deployment assets live in `deploy/`.
 - `deploy/` stays flat except `deploy/sql/` for one-off operational SQL; do not add nested `docker/`, `systemd/`, or similar subdirectories unless the deployment surface actually becomes complex.
-- Root only keeps workspace metadata, docs, and command entry points.
+- Root keeps workspace metadata, the `core/` crate, docs, and command entry points.
 - Root-level docs define the outer contract; subdirectory `AGENTS.md` files only provide local quick-entry rules.
 - When working in a specific subproject, always read the nearest `AGENTS.md` in that directory before modifying files.
 - Backend structure is `server/src/features/<feature>/` with `mod.rs + handler.rs + service.rs + repo.rs + types.rs`.
@@ -32,6 +33,7 @@
 - Prefer the smallest viable implementation (MVP) that solves the task.
 - Do not stack extra abstractions, fallback branches, or compatibility code.
 - Reuse existing code before introducing new code paths.
+- Keep reusable auth and permission logic in `core/`; keep system-specific auth, cache, DB sync, and CRUD logic in `server/`.
 - Keep backend code in `server/src/infra/`, `server/src/common/`, `server/src/middleware/`, and `server/src/features/<feature>`.
 - Keep each feature self-contained inside `server/src/features/<feature>/`.
 - Keep generated files out of manual edits.

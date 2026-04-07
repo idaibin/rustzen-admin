@@ -1,7 +1,4 @@
-use crate::{
-    features::system::log::{service::LogService, types::LogWriteCommand},
-    infra::extractor::CurrentUser,
-};
+use crate::features::system::log::{service::LogService, types::LogWriteCommand};
 
 use axum::{
     extract::{ConnectInfo, Request, State},
@@ -10,6 +7,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
 
