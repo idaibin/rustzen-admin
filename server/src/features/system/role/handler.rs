@@ -3,12 +3,12 @@ use super::{
     types::{CreateRoleRequest, RoleItemResp, RoleQuery, UpdateRolePayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionItem, OptionsQuery};
-use crate::infra::extractor::CurrentUser;
 
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
 
 /// Get paginated role list with filtering

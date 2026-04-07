@@ -3,8 +3,8 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{Router, routing::get};
+use rustzen_core::permission::{PermissionsCheck, RouterExt};
 use sqlx::PgPool;
 
 use handler::{get_health, get_metrics, get_stats, get_trends};

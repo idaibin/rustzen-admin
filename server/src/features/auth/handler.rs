@@ -8,7 +8,7 @@ use crate::{
         files::save_avatar,
     },
     features::system::log::{service::LogService, types::LogWriteCommand},
-    infra::{extractor::CurrentUser, permission::PermissionService},
+    infra::permission::PermissionService,
 };
 
 use axum::{
@@ -16,6 +16,7 @@ use axum::{
     extract::{ConnectInfo, Multipart, State},
     http::HeaderMap,
 };
+use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
 use std::{net::SocketAddr, time::Instant};
 

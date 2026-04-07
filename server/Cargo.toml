@@ -15,6 +15,7 @@ axum-extra = { version = "0.10.3", features = ["typed-header"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rustzen-core = { path = "../core" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
@@ -37,11 +38,6 @@ dotenvy = "0.15"
 thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.17", features = ["v4", "serde"] }
-
-# JWT authentication
-jsonwebtoken = "9.3"
-
-# async trait
 async-trait = "0.1"
 
 # password hashing

@@ -3,7 +3,6 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{
     Router,
     routing::{delete, get, patch, post, put},
@@ -12,6 +11,7 @@ use handler::{
     create_dict, delete_dict, get_dict_by_type, get_dict_options, list_dicts, update_dict,
     update_dict_status,
 };
+use rustzen_core::permission::{PermissionsCheck, RouterExt};
 use sqlx::PgPool;
 
 pub fn dict_routes() -> Router<PgPool> {

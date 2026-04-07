@@ -3,9 +3,9 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use crate::{common::router_ext::RouterExt, infra::permission::PermissionsCheck};
 use axum::{Router, routing::get};
 use handler::{export_logs, list_logs};
+use rustzen_core::permission::{PermissionsCheck, RouterExt};
 use sqlx::PgPool;
 
 pub fn log_routes() -> Router<PgPool> {

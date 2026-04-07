@@ -14,8 +14,9 @@
 
 ## Directory Highlights
 
+- `core/`: shared auth and permission capability crate used by `server/`
 - `server/src/features/`: business features
-- `server/src/infra/`: infrastructure such as config, database, JWT, and permissions
+- `server/src/infra/`: infrastructure such as config, database, auth runtime wiring, and menu sync
 - `server/src/common/`: shared capabilities across features
 - `server/src/middleware/`: middleware
 - `server/migrations/`: database migrations

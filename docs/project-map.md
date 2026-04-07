@@ -4,6 +4,7 @@
 
 ## Repository Entrypoints
 
+- Shared auth and permission crate entrypoint: `core/src/lib.rs`
 - Backend startup entrypoint: `server/src/main.rs`
 - Frontend startup entrypoint: `web/src/main.tsx`
 - Root route entrypoint: `web/src/routes/__root.tsx`
@@ -20,6 +21,9 @@
 
 ## Backend Index
 
+- Shared auth and permission core: `core/src/`
+- Auth context, JWT codec, and middleware: `core/src/auth/`
+- Permission rules, registry, and route helper: `core/src/permission/`
 - Feature registry: `server/src/features/mod.rs`
 - Auth: `server/src/features/auth/`
 - Dashboard: `server/src/features/dashboard/`
@@ -58,8 +62,9 @@
 ## High-Frequency Change Points
 
 - Add a backend endpoint: `server/src/features/<feature>/`
-- Change permission checks: `server/src/common/router_ext.rs`
-- Change permission model: `server/src/infra/permission.rs`
+- Change route permission wiring: `core/src/permission/route.rs`
+- Change auth context or JWT behavior: `core/src/auth/`
+- Change permission cache or menu sync: `server/src/infra/permission.rs`
 - Add a frontend page: `web/src/routes/`
 - Change frontend requests: `web/src/api/request.ts` and `web/src/api/<module>/api.ts`
 - Change frontend bootstrap and providers: `web/src/main.tsx`

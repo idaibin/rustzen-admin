@@ -4,7 +4,8 @@
 
 ## Repository Layout
 
-- The root only keeps workspace metadata, shared command entrypoints, and repository-level documents.
+- The root keeps workspace metadata, shared command entrypoints, repository-level documents, and the shared `core/` crate.
+- Shared auth and permission capabilities live in `core/`.
 - The backend lives in `server/`.
 - The frontend lives in `web/`.
 - Deployment assets live in `deploy/`.
@@ -18,6 +19,13 @@ Current layout:
 ├── Cargo.toml
 ├── Cargo.lock
 ├── justfile
+├── core/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── auth/
+│       ├── permission/
+│       ├── error.rs
+│       └── lib.rs
 ├── server/
 │   ├── Cargo.toml
 │   ├── migrations/
@@ -80,8 +88,10 @@ Current layout:
 
 ## Directory Responsibilities
 
+- `core/src/auth/`: shared JWT, auth context, extractor, and auth middleware
+- `core/src/permission/`: shared permission checks, registry, and route helpers
 - `server/src/features/`: backend business features
-- `server/src/infra/`: infrastructure such as config, database, JWT, password, and permissions
+- `server/src/infra/`: infrastructure such as config, database, password, auth runtime wiring, and menu sync
 - `server/src/common/`: shared cross-feature capabilities
 - `server/src/middleware/`: Axum middleware
 - `web/src/routes/`: pages and route entrypoints
