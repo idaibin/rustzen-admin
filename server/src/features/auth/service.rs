@@ -101,7 +101,7 @@ impl AuthService {
         let permissions = Self::load_permissions(pool, user_id, is_system).await?;
 
         // Refresh user permissions cache
-        Self::refresh_user_permissions_cache(user_id, &permissions).await?;
+        PermissionService::cache_user_permissions(user_id, &permissions);
 
         tracing::info!(
             "User info retrieved successfully for user_id={}, username={}",
@@ -163,17 +163,13 @@ impl AuthService {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
         let permissions = Self::load_permissions(pool, user_id, is_system).await?;
-        Self::cache_permissions_with_values(user_id, &permissions)
-    }
-
-    /// Refresh user permissions cache
-    pub async fn refresh_user_permissions_cache(
-        user_id: i64,
-        permissions: &[String],
-    ) -> Result<(), ServiceError> {
-        tracing::debug!("Refreshing permissions cache for user_id: {}", user_id);
-
-        Self::cache_permissions_with_values(user_id, permissions)
+        PermissionService::cache_user_permissions(user_id, &permissions);
+        tracing::info!(
+            "Successfully refreshed {} permissions cache for user_id={}",
+            permissions.len(),
+            user_id
+        );
+        Ok(())
     }
 
     pub async fn update_avatar(
@@ -199,16 +195,4 @@ impl AuthService {
         }
     }
 
-    fn cache_permissions_with_values(
-        user_id: i64,
-        permissions: &[String],
-    ) -> Result<(), ServiceError> {
-        PermissionService::cache_user_permissions(user_id, permissions);
-        tracing::info!(
-            "Successfully refreshed {} permissions cache for user_id={}",
-            permissions.len(),
-            user_id
-        );
-        Ok(())
-    }
 }

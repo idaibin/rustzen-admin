@@ -134,29 +134,21 @@ impl PermissionService {
         Ok(())
     }
 
-    /// Check user permissions with simple caching
-    pub async fn check_permissions(
-        user_id: i64,
-        permissions_check: &PermissionsCheck,
-    ) -> Result<bool, ServiceError> {
-        tracing::debug!("Checking {} for user {}", permissions_check.description(), user_id);
-        let current_user = Self::load_current_user(user_id, "")?;
-        let has_permission = permissions_check.check(&current_user);
-        tracing::debug!(
-            "Permission check {} for user {} ({})",
-            if has_permission { "GRANTED" } else { "DENIED" },
-            user_id,
-            permissions_check.description()
-        );
-        Ok(has_permission)
-    }
-
     /// Check whether a user has a specific permission code.
     pub async fn has_permission(
         user_id: i64,
         permission: &'static str,
     ) -> Result<bool, ServiceError> {
-        Self::check_permissions(user_id, &PermissionsCheck::Require(permission)).await
+        tracing::debug!("Checking required permission '{}' for user {}", permission, user_id);
+        let current_user = Self::load_current_user(user_id, "")?;
+        let has_permission = PermissionsCheck::Require(permission).check(&current_user);
+        tracing::debug!(
+            "Permission check {} for user {} (required permission '{}')",
+            if has_permission { "GRANTED" } else { "DENIED" },
+            user_id,
+            permission
+        );
+        Ok(has_permission)
     }
 
     /// Cache user permissions (called during login)
