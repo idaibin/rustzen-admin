@@ -20,7 +20,11 @@
 - Product direction: `docs/goals/product-direction.md`
 - Repository evolution goals: `docs/goals/repository-evolution.md`
 - Current rollout plan: `docs/plans/2026-04-22-documentation-governance-rollout.md`
+- Current Phase 1 foundation rollout plan: `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
 - Current documentation governance spec: `docs/specs/2026-04-22-documentation-governance.md`
+- Current Phase 1 foundation spec: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
+- Current identity baseline spec: `docs/specs/2026-04-23-identity-baseline.md`
+- Current access baseline spec: `docs/specs/2026-04-23-access-baseline.md`
 - Stable agent operating rules: `docs/agents/operating-rules.md`
 - Current agent-facing iteration state: `docs/agents/current-iteration.md`
 - Repository-wide structure rules: `docs/architecture.md`
@@ -61,6 +65,22 @@
 - Middleware: `zen-server/src/middleware/`
 - Database migrations: `zen-server/migrations/`
 
+## Phase 1 Capability Map
+
+- `identity`: currently starts from `zen-server/src/features/auth/`
+- `access`: currently starts from `zen-server/src/features/system/menu/`, `zen-server/src/features/system/role/`, and access-facing parts of `zen-server/src/features/system/user/`
+- `audit`: currently starts from `zen-server/src/features/system/log/`
+- `system`: currently starts from `zen-server/src/features/system/dict/` and future config ownership
+- `runtime`: currently has no dedicated top-level feature and will be introduced as a new group
+
+Current-to-target backend ownership:
+
+- `auth` -> `identity`
+- `system/menu` + `system/role` + access-facing parts of `system/user` -> `access`
+- `system/log` -> `audit`
+- `system/dict` + future config -> `system`
+- new file/resource capability -> `runtime`
+
 ## Frontend Index
 
 - App bootstrap: `zen-web/src/main.tsx`
@@ -77,6 +97,22 @@
 - Shared state: `zen-web/src/store/`
 - Utilities: `zen-web/src/util/`
 - Global styles: `zen-web/src/style.css`
+
+## Phase 1 Frontend Alignment
+
+- `identity`: `zen-web/src/api/identity/`, `zen-web/src/routes/profile/`
+- `access`: `zen-web/src/api/access/`, `zen-web/src/routes/access/`
+- `audit`: `zen-web/src/api/audit/`, `zen-web/src/routes/audit/`
+- `system`: `zen-web/src/api/system/`, `zen-web/src/routes/system/`
+- `runtime`: `zen-web/src/api/runtime/`, `zen-web/src/routes/runtime/`
+
+Initial regrouping rules:
+
+- current `auth` frontend API maps into `identity`
+- current `system/menu` and `system/role` pages and APIs map into `access`
+- current `system/log` maps into `audit`
+- current `system/dict` stays in `system`
+- current `dashboard` remains outside the first regrouping wave unless needed by a Phase 1 slice
 
 ## High-Frequency Change Points
 

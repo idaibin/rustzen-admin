@@ -87,7 +87,11 @@ Many admin repositories optimize for getting pages running quickly, but become h
 - [docs/goals/product-direction.md](./docs/goals/product-direction.md): product direction and repository intent
 - [docs/goals/repository-evolution.md](./docs/goals/repository-evolution.md): near-term repository evolution goals
 - [docs/plans/2026-04-22-documentation-governance-rollout.md](./docs/plans/2026-04-22-documentation-governance-rollout.md): rollout plan for documentation governance
+- [docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md](./docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md): rollout plan for the first admin foundation capability phase
 - [docs/specs/2026-04-22-documentation-governance.md](./docs/specs/2026-04-22-documentation-governance.md): formal documentation governance spec
+- [docs/specs/2026-04-23-admin-foundation-phase-1.md](./docs/specs/2026-04-23-admin-foundation-phase-1.md): Phase 1 product-capability spec for the admin foundation
+- [docs/specs/2026-04-23-identity-baseline.md](./docs/specs/2026-04-23-identity-baseline.md): child spec for the Phase 1 identity baseline
+- [docs/specs/2026-04-23-access-baseline.md](./docs/specs/2026-04-23-access-baseline.md): child spec for the Phase 1 access baseline
 - [docs/agents/operating-rules.md](./docs/agents/operating-rules.md): stable agent operating rules
 - [docs/agents/current-iteration.md](./docs/agents/current-iteration.md): current documentation iteration state
 - [docs/repository-comparison.md](./docs/repository-comparison.md): cross-repository baseline for future updates and optimization
