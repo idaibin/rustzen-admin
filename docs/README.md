@@ -48,6 +48,7 @@ Do not use `goals/` for:
 Sequencing and delivery planning:
 
 - `plans/2026-04-22-documentation-governance-rollout.md`
+- `plans/2026-04-23-admin-foundation-phase-1-rollout.md`
 
 Use `plans/` for:
 
@@ -66,6 +67,9 @@ Do not use `plans/` for:
 Formal design and structure contracts:
 
 - `specs/2026-04-22-documentation-governance.md`
+- `specs/2026-04-23-admin-foundation-phase-1.md`
+- `specs/2026-04-23-identity-baseline.md`
+- `specs/2026-04-23-access-baseline.md`
 
 Use `specs/` for:
 
