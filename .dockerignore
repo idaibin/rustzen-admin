@@ -1,8 +1,8 @@
 .git
 .DS_Store
 target
-web/node_modules
-web/dist
+zen-web/node_modules
+zen-web/dist
 logs
 uploads
 .rustzen-admin

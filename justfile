@@ -3,7 +3,7 @@
 # check
 check:
     cargo check -p server
-    cd web && vp lint
+    cd zen-web && vp lint
 
 # Start Rust backend (with hot reload)
 dev-server:
@@ -11,7 +11,7 @@ dev-server:
 
 # Start web (Vite dev mode)
 dev-web:
-    cd web && pnpm dev
+    cd zen-web && pnpm dev
 
 # Build all (production)
 build:
@@ -40,8 +40,8 @@ build-image:
 
 # Build web production bundle
 build-web:
-    cd web && pnpm build
+    cd zen-web && pnpm build
 
 # Clean build outputs
 clean:
-    rm -rf target web/dist server/target .rustzen-admin
+    rm -rf target zen-web/dist zen-server/target .rustzen-admin

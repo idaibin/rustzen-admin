@@ -4,9 +4,9 @@
 .env
 
 # Frontend
-/web/node_modules
-/web/dist
-/web/.eslintcache
+/zen-web/node_modules
+/zen-web/dist
+/zen-web/.eslintcache
 /uploads
 
 
@@ -26,3 +26,4 @@
 
 # Environment variables
 node_modules
+.pnpm-store
