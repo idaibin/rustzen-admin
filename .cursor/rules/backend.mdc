@@ -1,5 +1,5 @@
 ---
-globs: server/**/*.rs,server/Cargo.toml,Cargo.lock,justfile
+globs: zen-server/**/*.rs,zen-server/Cargo.toml,zen-core/**/*.rs,zen-core/Cargo.toml,Cargo.lock,justfile
 description: Backend Rust development guidelines and conventions
 ---
 
@@ -7,12 +7,12 @@ description: Backend Rust development guidelines and conventions
 
 ## Project Structure
 
-- Main entry point: [server/src/main.rs](mdc:server/src/main.rs)
-- Features in [server/src/features/](mdc:server/src/features/)
-- Infra in [server/src/infra/](mdc:server/src/infra/)
-- Common utilities in [server/src/common/](mdc:server/src/common/)
-- Middleware in [server/src/middleware/](mdc:server/src/middleware/)
-- Migrations in [server/migrations/](mdc:server/migrations/)
+- Main entry point: [zen-server/src/main.rs](mdc:zen-server/src/main.rs)
+- Features in [zen-server/src/features/](mdc:zen-server/src/features/)
+- Infra in [zen-server/src/infra/](mdc:zen-server/src/infra/)
+- Common utilities in [zen-server/src/common/](mdc:zen-server/src/common/)
+- Middleware in [zen-server/src/middleware/](mdc:zen-server/src/middleware/)
+- Migrations in [zen-server/migrations/](mdc:zen-server/migrations/)
 
 ## Dependency Management
 
@@ -22,7 +22,7 @@ description: Backend Rust development guidelines and conventions
 
 ## Error Handling
 
-- Follow patterns in [server/src/common/error.rs](mdc:server/src/common/error.rs).
+- Follow patterns in [zen-server/src/common/error.rs](mdc:zen-server/src/common/error.rs).
 - Return explicit errors; avoid silent fallback branches.
 
 ## API Conventions
@@ -39,22 +39,23 @@ description: Backend Rust development guidelines and conventions
     - `service.rs` for orchestration
     - `repo.rs` for SQL/persistence
     - `types.rs` for row/entity/request/response/query types
-- Follow the pattern in [server/src/features/system/user/](mdc:server/src/features/system/user/).
+- Follow the pattern in [zen-server/src/features/system/user/](mdc:zen-server/src/features/system/user/).
 
 ## Database Integration
 
-- Use pool and infra helpers in [server/src/infra/db.rs](mdc:server/src/infra/db.rs).
+- Use pool and infra helpers in [zen-server/src/infra/db.rs](mdc:zen-server/src/infra/db.rs).
 - Keep SQL in `repo.rs`, avoid `SELECT *`, and use transactions when needed.
 
 ## Authentication & Authorization
 
-- JWT in [server/src/infra/jwt.rs](mdc:server/src/infra/jwt.rs)
-- Password hashing in [server/src/infra/password.rs](mdc:server/src/infra/password.rs)
-- Auth middleware in [server/src/middleware/auth.rs](mdc:server/src/middleware/auth.rs)
-- Permission model in [server/src/infra/permission.rs](mdc:server/src/infra/permission.rs)
-- Route permission extension in [server/src/common/router_ext.rs](mdc:server/src/common/router_ext.rs)
+- Shared JWT codec, claims, extractor, and `auth_middleware` live under [zen-core/src/auth/](mdc:zen-core/src/auth/) (for example [zen-core/src/auth/jwt.rs](mdc:zen-core/src/auth/jwt.rs) and [zen-core/src/auth/middleware.rs](mdc:zen-core/src/auth/middleware.rs)).
+- Route permission extension (`RouterExt`) lives in [zen-core/src/permission/route.rs](mdc:zen-core/src/permission/route.rs).
+- Do not re-implement JWT or route permission helpers in `zen-server/`; reuse `zen-core` and wire secrets/runtime in `zen-server` infra only (see `docs/backend-guide.md`).
+- Password hashing in [zen-server/src/infra/password.rs](mdc:zen-server/src/infra/password.rs).
+- Permission cache and menu sync in [zen-server/src/infra/permission.rs](mdc:zen-server/src/infra/permission.rs).
+- App JWT wiring and codec singleton: [zen-server/src/infra/auth_runtime.rs](mdc:zen-server/src/infra/auth_runtime.rs) (composed in [zen-server/src/infra/app.rs](mdc:zen-server/src/infra/app.rs)).
 
 ## Logging
 
 - Use structured logging throughout backend code.
-- Log middleware in [server/src/middleware/log.rs](mdc:server/src/middleware/log.rs).
+- Log middleware in [zen-server/src/middleware/log.rs](mdc:zen-server/src/middleware/log.rs).

@@ -1,6 +1,6 @@
 ---
 description: Frontend React/TypeScript development guidelines and conventions
-globs: web/**/*.ts,web/**/*.tsx,web/**/*.js,web/**/*.json,web/**/*.css
+globs: zen-web/**/*.ts,zen-web/**/*.tsx,zen-web/**/*.js,zen-web/**/*.json,zen-web/**/*.css
 alwaysApply: false
 ---
 
@@ -8,26 +8,24 @@ alwaysApply: false
 
 ## Project Structure
 
-- Entry point: [web/src/main.tsx](mdc:web/src/main.tsx)
-- Root route: [web/src/routes/\_\_root.tsx](mdc:web/src/routes/__root.tsx)
-- Route tree: [web/src/routeTree.gen.ts](mdc:web/src/routeTree.gen.ts) (generated, do not edit manually)
-- Config files: [web/package.json](mdc:web/package.json), [web/vite.config.ts](mdc:web/vite.config.ts)
-- Global style: [web/src/style.css](mdc:web/src/style.css)
-- Query setup: [web/src/integrations/react-query.ts](mdc:web/src/integrations/react-query.ts)
+- Entry point: [zen-web/src/main.tsx](mdc:zen-web/src/main.tsx)
+- Root route: [zen-web/src/routes/\_\_root.tsx](mdc:zen-web/src/routes/__root.tsx)
+- Route tree: [zen-web/src/routeTree.gen.ts](mdc:zen-web/src/routeTree.gen.ts) (generated, do not edit manually)
+- Config files: [zen-web/package.json](mdc:zen-web/package.json), [zen-web/vite.config.ts](mdc:zen-web/vite.config.ts)
+- Global style: [zen-web/src/style.css](mdc:zen-web/src/style.css)
 
 ## Code Organization
 
-- Pages/routes in [web/src/routes/](mdc:web/src/routes/)
-- Reusable components in [web/src/components/](mdc:web/src/components/)
-- Layouts in [web/src/layouts/](mdc:web/src/layouts/)
-- API modules in [web/src/api/](mdc:web/src/api/)
-- Shared state in [web/src/stores/](mdc:web/src/stores/)
-- Query integrations in [web/src/integrations/](mdc:web/src/integrations/)
+- Pages/routes in [zen-web/src/routes/](mdc:zen-web/src/routes/)
+- Reusable components in [zen-web/src/components/](mdc:zen-web/src/components/)
+- Admin shell layout in [zen-web/src/components/base-layout/](mdc:zen-web/src/components/base-layout/)
+- API modules in [zen-web/src/api/](mdc:zen-web/src/api/)
+- Shared state in [zen-web/src/store/](mdc:zen-web/src/store/)
 
 ## TypeScript Conventions
 
 - Keep API/request/response fields in `camelCase`.
-- Reuse module types under `web/src/api/<module>/`.
+- Reuse module types under `zen-web/src/api/<module>/`.
 - Avoid redefining API types in page files.
 
 ## Component Architecture
@@ -38,14 +36,14 @@ alwaysApply: false
 
 ## State Management
 
-- Use Zustand for shared state (see [web/src/stores/useAuthStore.ts](mdc:web/src/stores/useAuthStore.ts) and [web/src/stores/useLocalStore.ts](mdc:web/src/stores/useLocalStore.ts)).
+- Use Zustand for shared state (see [zen-web/src/store/useAuthStore.ts](mdc:zen-web/src/store/useAuthStore.ts) and [zen-web/src/store/useLocalStore.ts](mdc:zen-web/src/store/useLocalStore.ts)).
 - Keep state close to usage; avoid unnecessary global stores.
 
 ## API Integration
 
-- Place request logic in `web/src/api/<module>/`.
+- Place request logic in `zen-web/src/api/<module>/`.
 - Do not write raw HTTP calls directly in route/page files.
-- Keep module types next to request wrappers, for example [web/src/api/system/user/user.d.ts](mdc:web/src/api/system/user/user.d.ts).
+- Keep module types next to request wrappers, for example [zen-web/src/api/system/user/types.d.ts](mdc:zen-web/src/api/system/user/types.d.ts).
 - Keep API contract changes synced with backend and frontend callsites.
 
 ## Styling Guidelines
@@ -55,7 +53,7 @@ alwaysApply: false
 
 ## Routing
 
-- Use TanStack Router file routes under [web/src/routes/](mdc:web/src/routes/).
+- Use TanStack Router file routes under [zen-web/src/routes/](mdc:zen-web/src/routes/).
 - Keep route guards in root route flow (see `__root.tsx`).
 
 ## Development Tools
@@ -65,5 +63,5 @@ alwaysApply: false
 
 ## File Naming
 
-- Keep naming consistent with existing files in `web/src/`.
+- Keep naming consistent with existing files in `zen-web/src/`.
 - Do not manually edit generated `routeTree.gen.ts`.
