@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Monorepo directories renamed to `zen-core/`, `zen-server/`, and `zen-web/` (Cargo package names unchanged: `rustzen-core`, `server`). Packaged deployments still place static assets under `<runtime_root>/web/dist`, not under the `zen-web/` source folder name.
+- Older changelog sections below may still name directories as they were at release time (for example `server/` or `web/`); the current tree uses `zen-server/` and `zen-web/` (plus `zen-core/`).
+
 ## [0.3.0] - 2026-04-05
 
 ### Added

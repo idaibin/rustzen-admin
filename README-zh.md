@@ -10,8 +10,9 @@
 
 仓库采用 monorepo 组织方式：
 
-- `server/` 存放 Rust 后端应用
-- `web/` 存放 React 前端应用
+- `zen-core/` 存放共享的 Rust 认证与权限能力 crate
+- `zen-server/` 存放 Rust 后端应用
+- `zen-web/` 存放 React 前端应用
 - `deploy/` 存放部署资产和发布支持文件
 - `docs/` 存放仓库级架构与开发规范文档
 - 根目录保留共享命令、工作区元信息和协作入口文档
@@ -25,6 +26,7 @@
 `rustzen-admin` 围绕另一种目标来构建：
 
 - 明确的后端与前端边界
+- 可复用的认证与权限能力层
 - 面向特性的后端组织方式
 - 仓库级文档与协作规则
 - 代码、契约与文档的同步变更
@@ -34,7 +36,14 @@
 
 ```txt
 .
-├── server/
+├── zen-core/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── auth/
+│       ├── permission/
+│       ├── error.rs
+│       └── lib.rs
+├── zen-server/
 │   ├── Cargo.toml
 │   ├── migrations/
 │   └── src/
@@ -45,7 +54,7 @@
 │       ├── infra/
 │       ├── common/
 │       └── middleware/
-├── web/
+├── zen-web/
 │   └── src/
 │       ├── routes/
 │       ├── api/
@@ -71,8 +80,8 @@
 
 - [CHANGELOG.md](./CHANGELOG.md)：版本说明与破坏性变更（升级请先读）
 - [AGENTS.md](./AGENTS.md)：仓库级协作规则
-- [server/AGENTS.md](./server/AGENTS.md)：后端入口指南
-- [web/AGENTS.md](./web/AGENTS.md)：前端入口指南
+- [zen-server/AGENTS.md](./zen-server/AGENTS.md)：后端入口指南
+- [zen-web/AGENTS.md](./zen-web/AGENTS.md)：前端入口指南
 - [docs/architecture.md](./docs/architecture.md)：仓库结构、边界与命令入口
 - [docs/project-map.md](./docs/project-map.md)：入口文件与高频改动路径索引
 - [docs/backend-guide.md](./docs/backend-guide.md)：后端分层、命名、数据库与错误处理规则
