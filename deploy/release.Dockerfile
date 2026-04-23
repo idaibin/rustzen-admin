@@ -1,13 +1,13 @@
 FROM node:24-bookworm AS web-builder
 
-WORKDIR /app/web
+WORKDIR /app/zen-web
 
 RUN corepack enable
 
-COPY web/package.json web/pnpm-lock.yaml ./
+COPY zen-web/package.json zen-web/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY web ./
+COPY zen-web ./
 RUN pnpm exec vp build
 
 FROM ubuntu:24.04 AS server-builder
@@ -33,10 +33,11 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
 RUN rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
-COPY server/Cargo.toml server/Cargo.toml
-COPY server/build.rs server/build.rs
-COPY server/src server/src
-COPY server/migrations server/migrations
+COPY zen-core zen-core
+COPY zen-server/Cargo.toml zen-server/Cargo.toml
+COPY zen-server/build.rs zen-server/build.rs
+COPY zen-server/src zen-server/src
+COPY zen-server/migrations zen-server/migrations
 
 RUN cargo build -p server --release --target x86_64-unknown-linux-musl
 
@@ -53,7 +54,7 @@ RUN apt-get update \
 WORKDIR /out
 
 COPY --from=server-builder /app/target/x86_64-unknown-linux-musl/release/rustzen-admin /out/rustzen-admin/bin/rustzen-admin
-COPY --from=web-builder /app/web/dist /out/rustzen-admin/web/dist
+COPY --from=web-builder /app/zen-web/dist /out/rustzen-admin/web/dist
 COPY .env.example /out/rustzen-admin/config/app.env
 COPY deploy/rustzen-admin.service /out/rustzen-admin/systemd/rustzen-admin.service
 
