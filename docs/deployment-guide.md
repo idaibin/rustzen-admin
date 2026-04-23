@@ -9,6 +9,25 @@
 - Do not add extra compatibility paths or fallback layouts.
 - Keep repository deployment assets flat under `deploy/` except `deploy/sql/` for one-off SQL scripts; do not add nested `docker/` or `systemd/` directories unless the deployment surface actually becomes complex.
 
+## Related Docs
+
+- `docs/README.md`: documentation system map and placement rules
+- `docs/architecture.md`: repository layout and deployment-facing boundaries
+- `docs/project-map.md`: deployment entrypoints and build artifacts
+- `docs/goals/repository-evolution.md`: near-term repository direction
+- `docs/agents/operating-rules.md`: stable agent reading order and document placement rules
+
+## Does Not Cover
+
+- backend feature implementation rules
+- frontend page or component rules
+- active plans or current execution state
+- long-lived product goals beyond deployment-related direction
+
+## Source vs runtime paths
+
+- Frontend **source** lives in the monorepo under `zen-web/`. The production **deploy root** still places the built bundle at `<runtime_root>/web/dist` (this `web/dist` segment is fixed by backend config, not renamed to `zen-web/dist`). Docker and release packaging copy from the `zen-web` build stage into that `web/dist` location.
+
 ## Naming Convention
 
 - `binary` means the standalone Linux x86_64 backend executable.

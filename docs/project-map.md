@@ -4,12 +4,31 @@
 
 ## Repository Entrypoints
 
-- Shared auth and permission crate entrypoint: `core/src/lib.rs`
-- Backend startup entrypoint: `server/src/main.rs`
-- Frontend startup entrypoint: `web/src/main.tsx`
-- Root route entrypoint: `web/src/routes/__root.tsx`
-- Root layout entrypoint: `web/src/components/base-layout/index.tsx`
+- Shared auth and permission crate entrypoint: `zen-core/src/lib.rs`
+- Backend startup entrypoint: `zen-server/src/main.rs`
+- Frontend startup entrypoint: `zen-web/src/main.tsx`
+- Root route entrypoint: `zen-web/src/routes/__root.tsx`
+- Root layout entrypoint: `zen-web/src/components/base-layout/index.tsx`
 - Shared command entrypoint: `justfile`
+
+## Documentation Index
+
+- Documentation system entrypoint: `docs/README.md`
+- Repository rules and reading order: `AGENTS.md`
+- Backend entry rules: `zen-server/AGENTS.md`
+- Frontend entry rules: `zen-web/AGENTS.md`
+- Product direction: `docs/goals/product-direction.md`
+- Repository evolution goals: `docs/goals/repository-evolution.md`
+- Current rollout plan: `docs/plans/2026-04-22-documentation-governance-rollout.md`
+- Current documentation governance spec: `docs/specs/2026-04-22-documentation-governance.md`
+- Stable agent operating rules: `docs/agents/operating-rules.md`
+- Current agent-facing iteration state: `docs/agents/current-iteration.md`
+- Repository-wide structure rules: `docs/architecture.md`
+- Cross-repository comparison baseline: `docs/repository-comparison.md`
+- Backend implementation rules: `docs/backend-guide.md`
+- Frontend implementation rules: `docs/frontend-guide.md`
+- Deployment rules: `docs/deployment-guide.md`
+- Permission model rules: `docs/permission-guide.md`
 
 ## Deployment Index
 
@@ -21,57 +40,61 @@
 
 ## Backend Index
 
-- Shared auth and permission core: `core/src/`
-- Auth context, JWT codec, and middleware: `core/src/auth/`
-- Permission rules, registry, and route helper: `core/src/permission/`
-- Feature registry: `server/src/features/mod.rs`
-- Auth: `server/src/features/auth/`
-- Dashboard: `server/src/features/dashboard/`
-- System management aggregator: `server/src/features/system/mod.rs`
-- Users: `server/src/features/system/user/`
-- Roles: `server/src/features/system/role/`
-- Menus: `server/src/features/system/menu/`
-- Dictionaries: `server/src/features/system/dict/`
-- Logs: `server/src/features/system/log/`
-- Infrastructure: `server/src/infra/`
-- Runtime config entrypoint: `server/src/infra/config.rs`
-- Service assembly and static paths: `server/src/infra/app.rs`
-- System info helpers: `server/src/infra/system_info.rs`
-- Shared utilities: `server/src/common/`
-- Upload path handling: `server/src/common/files.rs`
-- Middleware: `server/src/middleware/`
-- Database migrations: `server/migrations/`
+- Shared auth and permission core: `zen-core/src/`
+- Auth context, JWT codec, and middleware: `zen-core/src/auth/`
+- Permission rules, registry, and route helper: `zen-core/src/permission/`
+- Feature registry: `zen-server/src/features/mod.rs`
+- Auth: `zen-server/src/features/auth/`
+- Dashboard: `zen-server/src/features/dashboard/`
+- System management aggregator: `zen-server/src/features/system/mod.rs`
+- Users: `zen-server/src/features/system/user/`
+- Roles: `zen-server/src/features/system/role/`
+- Menus: `zen-server/src/features/system/menu/`
+- Dictionaries: `zen-server/src/features/system/dict/`
+- Logs: `zen-server/src/features/system/log/`
+- Infrastructure: `zen-server/src/infra/`
+- Runtime config entrypoint: `zen-server/src/infra/config.rs`
+- Service assembly and static paths: `zen-server/src/infra/app.rs`
+- System info helpers: `zen-server/src/infra/system_info.rs`
+- Shared utilities: `zen-server/src/common/`
+- Upload path handling: `zen-server/src/common/files.rs`
+- Middleware: `zen-server/src/middleware/`
+- Database migrations: `zen-server/migrations/`
 
 ## Frontend Index
 
-- App bootstrap: `web/src/main.tsx`
-- Root route guard and devtools: `web/src/routes/__root.tsx`
-- Route pages: `web/src/routes/`
-- Shared layout component: `web/src/components/base-layout/`
-- API barrel: `web/src/api/index.ts`
-- System API barrel: `web/src/api/system/index.ts`
-- Shared API runtime refs: `web/src/api/runtime.ts`
-- Shared request layer: `web/src/api/request.ts`
-- API wrappers and modules: `web/src/api/index.ts`, `web/src/api/system/index.ts`, `web/src/api/runtime.ts`, `web/src/api/request.ts`, `web/src/api/<module>/api.ts`
+- App bootstrap: `zen-web/src/main.tsx`
+- Root route guard and devtools: `zen-web/src/routes/__root.tsx`
+- Route pages: `zen-web/src/routes/`
+- Shared layout component: `zen-web/src/components/base-layout/`
+- API barrel: `zen-web/src/api/index.ts`
+- System API barrel: `zen-web/src/api/system/index.ts`
+- Shared API runtime refs: `zen-web/src/api/runtime.ts`
+- Shared request layer: `zen-web/src/api/request.ts`
+- API wrappers and modules: `zen-web/src/api/index.ts`, `zen-web/src/api/system/index.ts`, `zen-web/src/api/runtime.ts`, `zen-web/src/api/request.ts`, `zen-web/src/api/<module>/api.ts`
 - API module layout, naming, `apiRequest` default vs `raw`, and `list` return conventions: see **API Module Rules** in `docs/frontend-guide.md`
-- Shared components: `web/src/components/` (`base-auth/`, `base-button/`, `base-layout/`, `base-user/`, …)
-- Shared state: `web/src/store/`
-- Utilities: `web/src/util/`
-- Global styles: `web/src/style.css`
+- Shared components: `zen-web/src/components/` (`base-auth/`, `base-button/`, `base-layout/`, `base-user/`, …)
+- Shared state: `zen-web/src/store/`
+- Utilities: `zen-web/src/util/`
+- Global styles: `zen-web/src/style.css`
 
 ## High-Frequency Change Points
 
-- Add a backend endpoint: `server/src/features/<feature>/`
-- Change route permission wiring: `core/src/permission/route.rs`
-- Change auth context or JWT behavior: `core/src/auth/`
-- Change permission cache or menu sync: `server/src/infra/permission.rs`
-- Add a frontend page: `web/src/routes/`
-- Change frontend requests: `web/src/api/request.ts` and `web/src/api/<module>/api.ts`
-- Change frontend bootstrap and providers: `web/src/main.tsx`
-- Change root route guard or devtools: `web/src/routes/__root.tsx`
-- Change frontend layout: `web/src/components/base-layout/index.tsx`
-- Change auth state: `web/src/store/useAuthStore.ts`
+- Add a backend endpoint: `zen-server/src/features/<feature>/`
+- Change route permission wiring: `zen-core/src/permission/route.rs`
+- Change auth context or JWT behavior: `zen-core/src/auth/`
+- Change permission cache or menu sync: `zen-server/src/infra/permission.rs`
+- Add a frontend page: `zen-web/src/routes/`
+- Change frontend requests: `zen-web/src/api/request.ts` and `zen-web/src/api/<module>/api.ts`
+- Change frontend bootstrap and providers: `zen-web/src/main.tsx`
+- Change root route guard or devtools: `zen-web/src/routes/__root.tsx`
+- Change frontend layout: `zen-web/src/components/base-layout/index.tsx`
+- Change auth state: `zen-web/src/store/useAuthStore.ts`
 - Change deployment packaging or service files: `deploy/`
+- Change product direction or repository intent: `docs/goals/`
+- Change active rollout sequencing: `docs/plans/`
+- Change structural design contracts: `docs/specs/`
+- Change agent execution rules or current iteration state: `docs/agents/`
 
 ## Common Commands
 

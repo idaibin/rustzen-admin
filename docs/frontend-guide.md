@@ -2,8 +2,23 @@
 
 ## Scope
 
-- Applies to all frontend implementation under `web/`.
+- Applies to all frontend implementation under `zen-web/`.
 - Covers directory boundaries, state, requests, UI composition, and component responsibilities in one place.
+
+## Related Docs
+
+- `docs/README.md`: documentation system map and placement rules
+- `docs/architecture.md`: repository layout and document layers
+- `docs/project-map.md`: entrypoints and high-frequency change paths
+- `docs/goals/repository-evolution.md`: near-term repository direction
+- `docs/agents/operating-rules.md`: stable agent reading order and document placement rules
+
+## Does Not Cover
+
+- repository-wide document placement rules
+- active plans or current execution state
+- backend implementation rules
+- deployment packaging and runtime layout
 
 ## Layout Notes
 
@@ -25,6 +40,7 @@
 - Pages assemble screens only; do not pack all business logic into them.
 - Local components may stay near the page only when the scope is local, explicit, and easy to contain.
 - Keep page-specific action entry points near the page when they do not belong in shared components.
+- When a route page starts accumulating modal forms, table actions, or other local interaction blocks, split them into `zen-web/src/routes/<page>/-content/` components next to the route.
 
 ## State and Requests
 
@@ -36,7 +52,7 @@
 
 ## API Module Rules
 
-- `web/src/api/` only keeps the shared request layer, barrel exports, request wrappers, API constants, option lists, and module types.
+- `zen-web/src/api/` only keeps the shared request layer, barrel exports, request wrappers, API constants, option lists, and module types.
 - Use one folder per API module or resource boundary.
 - Keep module implementation and module types together in the same folder as `api.ts` and `types.d.ts`.
 - Do not call HTTP clients directly from pages or reusable components.
@@ -49,19 +65,19 @@
 
 ### API Subfile Rules
 
-- `web/src/api/index.ts` owns the public barrel exports for module APIs.
-- `web/src/api/index.ts` also exports shared app message/modal refs and `MessageContent`.
-- `web/src/api/runtime.ts` owns the underlying app message/modal bindings.
-- `web/src/api/<domain>/index.ts` owns a grouped domain barrel export when one is needed.
-- `web/src/api/request.ts` owns the shared request layer and only exports cross-module request helpers and app-level request plumbing.
-- `web/src/api/api.d.ts` owns shared `Api.*` base types only.
-- `web/src/api/<module>/api.ts` owns the concrete request functions for that module.
-- `web/src/api/<module>/types.d.ts` owns that module's types, enums, and option shapes.
+- `zen-web/src/api/index.ts` owns the public barrel exports for module APIs.
+- `zen-web/src/api/index.ts` also exports shared app message/modal refs and `MessageContent`.
+- `zen-web/src/api/runtime.ts` owns the underlying app message/modal bindings.
+- `zen-web/src/api/<domain>/index.ts` owns a grouped domain barrel export when one is needed.
+- `zen-web/src/api/request.ts` owns the shared request layer and only exports cross-module request helpers and app-level request plumbing.
+- `zen-web/src/api/api.d.ts` owns shared `Api.*` base types only.
+- `zen-web/src/api/<module>/api.ts` owns the concrete request functions for that module.
+- `zen-web/src/api/<module>/types.d.ts` owns that module's types, enums, and option shapes.
 - Keep `api.ts` as the public implementation entrypoint for a module folder.
 - Do not add extra wrapper files when a module can be expressed with `api.ts` plus one `types.d.ts` file.
 - Keep option list endpoints or option constants inside the owning module folder, not in a separate top-level directory.
 - `apiRequest` should unwrap and return `data` by default; use `raw: true` only when the caller needs the full response envelope for pagination or other metadata.
-- Shared pages and components should import request helpers from `web/src/api/request.ts`, not from module internals.
+- Shared pages and components should import request helpers from `zen-web/src/api/request.ts`, not from module internals.
 - Expose resources through their barrel API, such as `resourceAPI.list()`, `resourceAPI.get()`, `resourceAPI.create()`, and similar resource-action pairs.
 - Keep method names short and resource-oriented: `list`, `get`, `create`, `update`, `delete`.
 - Use concise names for non-CRUD endpoints, such as `me()` or `stats()`, instead of `get*` wrappers.
@@ -77,10 +93,11 @@
 ## Component Boundaries
 
 - Each component should own one clear responsibility.
-- Shared reusable components belong in `web/src/components/`, grouped by feature or responsibility when helpful.
+- Shared reusable components belong in `zen-web/src/components/`, grouped by feature or responsibility when helpful.
 - Do not create "do-everything" components.
 - Do not mix unrelated request or routing logic into components.
 - Keep menus, headers, and other layout-only concerns inside the layout tree, not page views.
+- Route-local helper components that are only used by one page should stay under that route's `-content/` directory instead of moving into shared components too early.
 
 ## Constraints
 

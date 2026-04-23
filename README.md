@@ -10,11 +10,11 @@ A structured monorepo foundation for Rust full-stack admin systems.
 
 The repository is organized as a monorepo:
 
-- `core/` contains shared auth and permission capabilities for Rust services
-- `server/` contains the Rust backend application
-- `web/` contains the React frontend application
+- `zen-core/` contains shared auth and permission capabilities for Rust services
+- `zen-server/` contains the Rust backend application
+- `zen-web/` contains the React frontend application
 - `deploy/` contains deployment assets and release support files
-- `docs/` contains repository-level architecture and development guides
+- `docs/` contains repository-level guides plus goals, plans, specs, and agent-facing documents
 - the root keeps shared commands, workspace metadata, and collaboration entry documents
 
 This layout keeps backend, frontend, and repository rules explicit, making the codebase easier to understand, review, and evolve.
@@ -36,14 +36,14 @@ Many admin repositories optimize for getting pages running quickly, but become h
 
 ```txt
 .
-├── core/
+├── zen-core/
 │   ├── Cargo.toml
 │   └── src/
 │       ├── auth/
 │       ├── permission/
 │       ├── error.rs
 │       └── lib.rs
-├── server/
+├── zen-server/
 │   ├── Cargo.toml
 │   ├── migrations/
 │   └── src/
@@ -54,7 +54,7 @@ Many admin repositories optimize for getting pages running quickly, but become h
 │       ├── infra/
 │       ├── common/
 │       └── middleware/
-├── web/
+├── zen-web/
 │   └── src/
 │       ├── routes/
 │       ├── api/
@@ -79,10 +79,18 @@ Many admin repositories optimize for getting pages running quickly, but become h
 ## Documentation Entry Points
 
 - [CHANGELOG.md](./CHANGELOG.md): release notes and breaking changes (start here when upgrading)
+- [docs/README.md](./docs/README.md): documentation system entrypoint and placement rules
 - [AGENTS.md](./AGENTS.md): repository-level collaboration rules
-- [server/AGENTS.md](./server/AGENTS.md): backend entry guide
-- [web/AGENTS.md](./web/AGENTS.md): frontend entry guide
+- [zen-server/AGENTS.md](./zen-server/AGENTS.md): backend entry guide
+- [zen-web/AGENTS.md](./zen-web/AGENTS.md): frontend entry guide
 - [docs/architecture.md](./docs/architecture.md): repository structure, boundaries, and command entrypoints
+- [docs/goals/product-direction.md](./docs/goals/product-direction.md): product direction and repository intent
+- [docs/goals/repository-evolution.md](./docs/goals/repository-evolution.md): near-term repository evolution goals
+- [docs/plans/2026-04-22-documentation-governance-rollout.md](./docs/plans/2026-04-22-documentation-governance-rollout.md): rollout plan for documentation governance
+- [docs/specs/2026-04-22-documentation-governance.md](./docs/specs/2026-04-22-documentation-governance.md): formal documentation governance spec
+- [docs/agents/operating-rules.md](./docs/agents/operating-rules.md): stable agent operating rules
+- [docs/agents/current-iteration.md](./docs/agents/current-iteration.md): current documentation iteration state
+- [docs/repository-comparison.md](./docs/repository-comparison.md): cross-repository baseline for future updates and optimization
 - [docs/project-map.md](./docs/project-map.md): entrypoints and high-frequency change paths
 - [docs/backend-guide.md](./docs/backend-guide.md): backend layering, naming, database, and error rules
 - [docs/frontend-guide.md](./docs/frontend-guide.md): frontend routing, request, state, and UI rules

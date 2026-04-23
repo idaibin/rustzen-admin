@@ -3,58 +3,43 @@
 ## Source of Truth
 
 - `README.md`: developer entry point and document map
-- `AGENTS.md`: repository-level collaboration rules
-- `server/AGENTS.md`: backend quick-entry guidance inside `server/`
-- `web/AGENTS.md`: frontend quick-entry guidance inside `web/`
+- `AGENTS.md`: repository-level collaboration rules and reading order
+- `zen-server/AGENTS.md`: backend quick-entry guidance inside `zen-server/`
+- `zen-web/AGENTS.md`: frontend quick-entry guidance inside `zen-web/`
 - `docs/architecture.md`: repository layout, document layers, repo boundaries, and command summary
-- `docs/deployment-guide.md`: production deployment rules, packaging, service startup, and runtime config requirements
-- `docs/permission-guide.md`: current permission model and usage constraints
+- `docs/README.md`: documentation system map and placement rules
 - `docs/backend-guide.md`: Rust backend layering, file roles, naming, and database rules
 - `docs/frontend-guide.md`: React routing, state, API organization, page rules, and UI constraints
+- `docs/deployment-guide.md`: production deployment rules, packaging, service startup, and runtime config requirements
+- `docs/permission-guide.md`: current permission model and usage constraints
 - `docs/project-map.md`: file and entrypoint map for fast orientation
+- `docs/goals/product-direction.md`: product direction and repository intent
+- `docs/plans/`: active planning documents
+- `docs/specs/`: formal design and structure specs
+- `docs/agents/operating-rules.md`: stable agent operating contract
+- `docs/agents/current-iteration.md`: current documentation iteration state
 
-## Current Layout
+## Reading Order
 
-- Shared auth and permission capability code lives in `core/`.
-- Backend lives in `server/`.
-- Migrations live in `server/migrations/`.
-- Frontend lives in `web/`.
+1. Read `README.md`.
+2. Read `AGENTS.md`.
+3. Read the nearest subdirectory `AGENTS.md`.
+4. Read the relevant guide docs in `docs/`.
+5. Read the relevant goal, plan, spec, or agent-state file only when the task needs it.
+
+## Repository Boundaries
+
+- Shared auth and permission capability code lives in `zen-core/`.
+- Backend lives in `zen-server/`.
+- Migrations live in `zen-server/migrations/`.
+- Frontend lives in `zen-web/`.
 - Deployment assets live in `deploy/`.
-- `deploy/` stays flat except `deploy/sql/` for one-off operational SQL; do not add nested `docker/`, `systemd/`, or similar subdirectories unless the deployment surface actually becomes complex.
-- Root keeps workspace metadata, the `core/` crate, docs, and command entry points.
-- Root-level docs define the outer contract; subdirectory `AGENTS.md` files only provide local quick-entry rules.
-- When working in a specific subproject, always read the nearest `AGENTS.md` in that directory before modifying files.
-- Backend structure is `server/src/features/<feature>/` with `mod.rs + handler.rs + service.rs + repo.rs + types.rs`.
-- Do not change the directory structure unless the docs and commands are updated in the same change.
+- Root keeps workspace metadata, docs, command entry points, and the shared crate.
 
 ## Working Rules
 
-- Prefer the smallest change that solves the task.
-- Prefer the smallest viable implementation (MVP) that solves the task.
-- Do not stack extra abstractions, fallback branches, or compatibility code.
-- Reuse existing code before introducing new code paths.
-- Keep reusable auth and permission logic in `core/`; keep system-specific auth, cache, DB sync, and CRUD logic in `server/`.
-- Keep backend code in `server/src/infra/`, `server/src/common/`, `server/src/middleware/`, and `server/src/features/<feature>`.
-- Keep each feature self-contained inside `server/src/features/<feature>/`.
-- Keep generated files out of manual edits.
-- Do not rename or move backend paths unless docs and commands are updated with the change.
-- When API contracts or schema change, update backend, frontend, and docs together.
-- Documentation must stay single-responsibility; do not reintroduce cross-linked domain docs inside `docs/`.
-- Permission checks currently use `Require(...)` as the default mode.
-- `Any(...)` and `All(...)` are reserved in code for future permission combinations and should not be used unless the feature explicitly needs them.
-- For feature route handlers, use `list_users`, `get_user`, `create_user`, `update_user`, `delete_user` style names.
-- When adding a new feature, create `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` first, then wire routes from `mod.rs`.
-- Keep row/entity definitions at the top of `types.rs`.
-- Use `sqlx::FromRow` on response types when the database shape already matches the API shape closely enough; do not add a separate `model.rs` just for basic queries.
-- Keep request/response/query types in `types.rs`.
-
-## Commands
-
-- Start backend and frontend separately; do not add a combined `just dev` target back.
-- `just dev-server`: start backend
-- `just dev-web`: start frontend
-- `just check`: run backend check and frontend `vp lint`
-- `just build`: build backend and frontend
-- `just build-binary`: export the Linux x86_64 backend binary from Docker
-- `just build-release`: export the Linux x86_64 release tree and zip from Docker
-- `just build-image`: build the Linux x86_64 runtime image from Docker
+- Prefer the smallest viable change.
+- Do not add fallback or compatibility logic.
+- Keep stable formal rules in `docs/`.
+- Keep subdirectory `AGENTS.md` files thin.
+- Update code, docs, and commands together when structure changes.

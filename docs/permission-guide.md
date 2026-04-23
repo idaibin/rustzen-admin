@@ -2,13 +2,28 @@
 
 > This document explains only the current permission model and usage constraints. It does not expand on reserved future capability.
 
+## Related Docs
+
+- `docs/README.md`: documentation system map and placement rules
+- `docs/architecture.md`: repository layout and document layers
+- `docs/backend-guide.md`: backend implementation boundaries
+- `docs/project-map.md`: permission-related code locations
+- `docs/agents/operating-rules.md`: stable agent reading order and document placement rules
+
+## Does Not Cover
+
+- frontend page implementation rules
+- deployment packaging and runtime layout
+- active plans or current execution state
+- long-lived product goals beyond permission constraints
+
 ## Current Model
 
 - Route permissions are mounted through `rustzen_core::permission::RouterExt::route_with_permission`.
 - The current project mainly uses `PermissionsCheck::Require("domain:resource:action")` by default.
 - `Any(...)` and `All(...)` are reserved in code, currently unused, and should not be promoted as standard practice.
-- JWT decode, auth context extraction, permission rule evaluation, and route permission registration live in `core/`.
-- Permission checks in `server/` rely on in-memory cache written at login. Missing or expired cache is treated as a re-login requirement.
+- JWT decode, auth context extraction, permission rule evaluation, and route permission registration live in `zen-core/`.
+- Permission checks in `zen-server/` rely on in-memory cache written at login. Missing or expired cache is treated as a re-login requirement.
 - Route permissions are also collected at registration time and synchronized into `menus` on startup through `sync_permissions(pool)`.
 - Route permission registration is fail-fast: lock poisoning in `register_permission_codes(...)` or `take_registered_permission_codes()` aborts startup instead of silently skipping sync data.
 - Menu hierarchy is derived from `permission_code` and `parent_code`.
@@ -21,11 +36,11 @@
 
 ## Code Locations
 
-- Route extension and permission registry: `core/src/permission/`
-- Auth claims, current user, extractor, and JWT codec: `core/src/auth/`
-- Server permission cache and menu sync: `server/src/infra/permission.rs`
-- Startup sync: `server/src/infra/app.rs`
-- Server auth runtime wiring: `server/src/infra/auth_runtime.rs`
+- Route extension and permission registry: `zen-core/src/permission/`
+- Auth claims, current user, extractor, and JWT codec: `zen-core/src/auth/`
+- Server permission cache and menu sync: `zen-server/src/infra/permission.rs`
+- Startup sync: `zen-server/src/infra/app.rs`
+- Server auth runtime wiring: `zen-server/src/infra/auth_runtime.rs`
 
 ## Recommended Pattern
 

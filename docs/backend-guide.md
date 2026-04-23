@@ -2,13 +2,28 @@
 
 ## Scope
 
-- Applies to all Rust backend implementation under `server/`.
+- Applies to all Rust backend implementation under `zen-server/`.
 - Defines backend implementation rules only. Do not repeat repository-wide or frontend rules here.
+
+## Related Docs
+
+- `docs/README.md`: documentation system map and placement rules
+- `docs/architecture.md`: repository layout and document layers
+- `docs/project-map.md`: entrypoints and high-frequency change paths
+- `docs/goals/repository-evolution.md`: near-term repository direction
+- `docs/agents/operating-rules.md`: stable agent reading order and document placement rules
+
+## Does Not Cover
+
+- repository-wide document placement rules
+- active plans or current execution state
+- frontend implementation rules
+- deploy packaging layout beyond backend-facing config boundaries
 
 ## Layout
 
 - See `docs/architecture.md` for the repository tree layout.
-- Shared auth and permission capabilities live in `core/`; `server/` only wires them to runtime config, cache, and database-backed menu sync.
+- Shared auth and permission capabilities live in `zen-core/`; `zen-server/` only wires them to runtime config, cache, and database-backed menu sync.
 - For a new feature, create these five files first.
 - In `types.rs`, put row and entity types first, then request, response, and query types.
 - `mod.rs` exports and wires feature routes only; it must not carry business implementation.
@@ -34,7 +49,7 @@
 
 - Use `Require(...)` as the default permission check.
 - Use `Any(...)` or `All(...)` only when a feature explicitly needs it.
-- Do not re-implement JWT, auth extractor, or route permission helpers inside `server/`; reuse `core/`.
+- Do not re-implement JWT, auth extractor, or route permission helpers inside `zen-server/`; reuse `zen-core/`.
 - Build the smallest implementation that solves the current requirement.
 - Handlers must not touch the database.
 - Services must not bypass repos.
@@ -46,7 +61,7 @@
 - Application runtime config uses `RUSTZEN_*` environment variables.
 - Database connections use `DATABASE_URL`.
 - Both development and production read the same runtime keys from environment variables.
-- Use a single `RUSTZEN_RUNTIME_ROOT` to derive runtime directories such as `web/dist`, `data/`, and `logs/`.
+- Use a single `RUSTZEN_RUNTIME_ROOT` to derive runtime directories such as `web/dist` (deploy static bundle), `data/`, and `logs/`.
 - `config/app.env` is only the environment-variable carrier, not a second config system.
 - Do not maintain a parallel yaml primary config for runtime paths, database connections, JWT, or other application runtime settings.
 - Only complex structured rules that are not process-level config may live in separate json or yaml files.
