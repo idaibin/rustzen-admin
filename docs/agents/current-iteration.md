@@ -51,18 +51,44 @@ Roll out and align the documentation governance structure and establish the firs
 - [x] derived the backend identity implementation checklist from the current `auth` module
 - [x] derived the frontend identity implementation checklist from the current login flow and missing profile surface
 - [x] turned the current `system/user` findings into an `access` ownership contract
+- [x] derived a concrete backend split checklist for `system/user` during the `access` slice
+- [x] derived a concrete frontend regrouping checklist for `system/role`, `system/menu`, and `system/user`
+- [x] decided to keep admin user management inside the Phase 1 `access` slice
+- [x] added an explicit “admin user management inside access” subsection under Slice 2 in the rollout plan
+- [x] aligned the rollout plan task checklist with the documentation work already completed
+- [x] decided to formalize the `audit` child spec before `system` and `runtime`
+- [x] wrote a dedicated `audit` baseline spec under `docs/specs/`
+- [x] added the new audit child spec to the repository documentation indexes
+- [x] derived the current backend audit ownership checklist from `system/log` and login logging
+- [x] added an explicit audit ownership subsection under Slice 3 in the rollout plan
+- [x] decided to formalize the `system` child spec before `runtime` after the audit baseline
+- [x] wrote a dedicated `system` baseline spec under `docs/specs/`
+- [x] added the new system child spec to the repository documentation indexes
+- [x] derived the current backend system ownership checklist from `system/dict` and config-related scope
+- [x] added an explicit system ownership subsection under Slice 4 in the rollout plan
+- [x] decided that `runtime` is ready to be formalized without another focused current-state audit
+- [x] wrote a dedicated `runtime` baseline spec under `docs/specs/`
+- [x] added the new runtime child spec to the repository documentation indexes
+- [x] derived the current backend runtime ownership checklist from avatar upload and resource-serving paths
+- [x] added an explicit runtime ownership subsection under Slice 5 in the rollout plan
+- [x] confirmed the Phase 1 documentation loop is complete enough to stop the recurring documentation heartbeat
+- [x] synced repository docs for the monorepo directory rename to `zen-core/`, `zen-server/`, and `zen-web/`
+- [x] updated `README-zh.md` and `CHANGELOG.md` to clarify current vs historical directory naming
+- [x] added `docs/specs/admin-foundation-phase-1.md` and linked it from documentation indexes
+- [x] replaced login page banner image at `zen-web/src/assets/login-illustration.png` with the new visual asset
+- [x] adjusted login banner presentation in `zen-web/src/routes/login.tsx` to improve focus, spacing, and visual hierarchy
 
 ## Next Task Queue
 
-- [ ] define how administrative user CRUD will be owned during the future `access` slice
-- [ ] derive a concrete backend split checklist for `system/user` during the `access` slice
-- [ ] derive a concrete frontend regrouping checklist for `system/role`, `system/menu`, and `system/user`
-- [ ] decide whether the Phase 1 rollout plan should split admin user management into its own implementation slice or keep it inside `access`
+- [ ] start the first code-facing implementation slice from the Phase 1 documentation baseline
 
 ## Source Documents For This Iteration
 
 - `docs/README.md`
-- `docs/specs/2026-04-23-admin-foundation-phase-1.md`
-- `docs/specs/2026-04-23-identity-baseline.md`
-- `docs/specs/2026-04-23-access-baseline.md`
-- `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
+- `docs/specs/admin-foundation-phase-1.md`
+- `docs/specs/audit-baseline.md`
+- `docs/specs/identity-baseline.md`
+- `docs/specs/access-baseline.md`
+- `docs/specs/system-baseline.md`
+- `docs/specs/runtime-baseline.md`
+- `docs/plans/admin-foundation-phase-1-rollout.md`

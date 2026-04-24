@@ -225,17 +225,17 @@ Expected reading order for an agent working in this repo:
 
 ### Plans
 
-- dated or scope-based names
+- scope- and content-based names
 - examples:
-  - `docs/plans/2026-04-docs-governance-rollout.md`
-  - `docs/plans/admin-foundation-expansion.md`
+  - `docs/plans/documentation-governance-rollout.md`
+  - `docs/plans/admin-foundation-phase-1-rollout.md`
 
 ### Specs
 
-- dated names for traceability
+- capability- and content-based names
 - examples:
-  - `docs/specs/2026-04-22-documentation-governance.md`
-  - `docs/specs/2026-05-01-auth-permission-simplification.md`
+  - `docs/specs/documentation-governance.md`
+  - `docs/specs/auth-permission-simplification.md`
 
 ### Agents
 

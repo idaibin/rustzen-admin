@@ -11,7 +11,6 @@
 - `docs/architecture.md`
 - `docs/permission-guide.md`
 - `docs/project-map.md`
-- `docs/agents/operating-rules.md`
 
 ## Directory Highlights
 

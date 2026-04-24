@@ -109,6 +109,34 @@ The baseline may continue to consume shared user records and current-user identi
 - keep self-service account updates out of `access`
 - keep logs and dictionaries out of `access`
 
+## Administrative User CRUD Ownership
+
+`system/user` must be split by ownership intent instead of by record type.
+
+Administrative user actions belong to `access` when they determine or constrain what a user can access.
+
+That means the future `access` slice owns:
+
+- create admin-managed user accounts
+- assign and replace user roles
+- change user status
+- perform administrator-triggered password reset
+- delete admin-managed user accounts
+- provide admin user option lists used by access-facing forms
+
+The future `access` slice does not own:
+
+- current-user session data
+- self-profile edits
+- self-password change
+- self-avatar update
+
+The key rule is simple:
+
+- user record ownership does not automatically mean `identity`
+- self-service actions belong to `identity`
+- administrator-managed access actions belong to `access`
+
 ## Frontend Boundary Rules
 
 - move role and menu management into a dedicated `access` route group
@@ -135,6 +163,18 @@ This spec does not introduce:
 - keep current permission cache and route-permission behavior intact while moving capability ownership
 - leave self-service account updates outside the slice
 
+## Concrete Backend Split Checklist For `system/user`
+
+- move the current `list_users` admin endpoint into the future `access` ownership boundary
+- move `create_user` into `access` because account creation currently includes initial role assignment
+- move `update_user` into `access` because it replaces assigned roles
+- move `update_user_status` into `access`
+- move `update_user_password` into `access` as an administrator-triggered reset path
+- move `delete_user` into `access`
+- move `get_user_options` and `get_user_status_options` into `access` while they are consumed by admin management flows
+- keep permission codes explicit during the move instead of hiding them behind a new compatibility layer
+- do not move self-profile or self-password paths into this slice if they are introduced later under `identity`
+
 ## Frontend Implementation Checklist
 
 - create `zen-web/src/api/access/` as the dedicated client surface for access ownership
@@ -142,6 +182,17 @@ This spec does not introduce:
 - move role and menu pages out of the `system` route group
 - keep administrative user-management actions with `access`
 - keep profile and self-password flows out of the access route group
+
+## Concrete Frontend Regrouping Checklist
+
+- move `zen-web/src/routes/system/role.tsx` into the future `access` route group
+- move `zen-web/src/routes/system/menu.tsx` into the future `access` route group
+- move `zen-web/src/routes/system/user.tsx` into the future `access` route group
+- move `zen-web/src/api/system/role/` into the future `access` API namespace
+- move `zen-web/src/api/system/menu/` into the future `access` API namespace
+- move `zen-web/src/api/system/user/` into the future `access` API namespace
+- keep `systemAPI.user` out of any self-service profile flow
+- preserve existing permission-code checks on role, menu, and user-management actions during regrouping
 
 ## Exit Condition
 

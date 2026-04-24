@@ -19,12 +19,15 @@
 - Frontend entry rules: `zen-web/AGENTS.md`
 - Product direction: `docs/goals/product-direction.md`
 - Repository evolution goals: `docs/goals/repository-evolution.md`
-- Current rollout plan: `docs/plans/2026-04-22-documentation-governance-rollout.md`
-- Current Phase 1 foundation rollout plan: `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
-- Current documentation governance spec: `docs/specs/2026-04-22-documentation-governance.md`
-- Current Phase 1 foundation spec: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
-- Current identity baseline spec: `docs/specs/2026-04-23-identity-baseline.md`
-- Current access baseline spec: `docs/specs/2026-04-23-access-baseline.md`
+- Current rollout plan: `docs/plans/documentation-governance-rollout.md`
+- Current Phase 1 foundation rollout plan: `docs/plans/admin-foundation-phase-1-rollout.md`
+- Current documentation governance spec: `docs/specs/documentation-governance.md`
+- Current Phase 1 foundation spec: `docs/specs/admin-foundation-phase-1.md`
+- Current audit baseline spec: `docs/specs/audit-baseline.md`
+- Current identity baseline spec: `docs/specs/identity-baseline.md`
+- Current access baseline spec: `docs/specs/access-baseline.md`
+- Current system baseline spec: `docs/specs/system-baseline.md`
+- Current runtime baseline spec: `docs/specs/runtime-baseline.md`
 - Stable agent operating rules: `docs/agents/operating-rules.md`
 - Current agent-facing iteration state: `docs/agents/current-iteration.md`
 - Repository-wide structure rules: `docs/architecture.md`

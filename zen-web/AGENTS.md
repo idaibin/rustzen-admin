@@ -10,7 +10,6 @@
 - `docs/frontend-guide.md`
 - `docs/architecture.md`
 - `docs/project-map.md`
-- `docs/agents/operating-rules.md`
 
 ## Directory Highlights
 
