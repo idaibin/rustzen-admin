@@ -20,7 +20,7 @@
 - Modify: `zen-web/AGENTS.md`
 - Modify: `README.md`
 - Modify: `docs/architecture.md`
-- Reference only: `docs/specs/2026-04-22-documentation-governance.md`
+- Reference only: `docs/specs/documentation-governance.md`
 - Validate with: `find docs -maxdepth 2 -type f | sort`, `git diff --check`, `rg`
 
 ### Task 1: Seed The New Documentation Areas
@@ -29,7 +29,7 @@
 - Create: `docs/goals/product-direction.md`
 - Create: `docs/agents/operating-rules.md`
 - Create: `docs/agents/current-iteration.md`
-- Reference: `docs/specs/2026-04-22-documentation-governance.md`
+- Reference: `docs/specs/documentation-governance.md`
 
 - [ ] **Step 1: Create `docs/goals/product-direction.md` with a stable product-direction baseline**
 
@@ -107,7 +107,7 @@ It is not a vertical product and it is not a template dump. The repository exist
 
 ## Focus
 
-Roll out the documentation governance structure introduced by `docs/specs/2026-04-22-documentation-governance.md`.
+Roll out the documentation governance structure introduced by `docs/specs/documentation-governance.md`.
 
 ## In Scope
 
@@ -144,8 +144,8 @@ Expected: output includes:
 docs/agents/current-iteration.md
 docs/agents/operating-rules.md
 docs/goals/product-direction.md
-docs/plans/2026-04-22-documentation-governance-rollout.md
-docs/specs/2026-04-22-documentation-governance.md
+docs/plans/documentation-governance-rollout.md
+docs/specs/documentation-governance.md
 ```
 
 - [ ] **Step 5: Commit the seeded documentation areas**
@@ -163,7 +163,7 @@ Expected: commit succeeds and only the new seed files are included.
 
 **Files:**
 - Modify: `AGENTS.md`
-- Reference: `docs/specs/2026-04-22-documentation-governance.md`
+- Reference: `docs/specs/documentation-governance.md`
 - Reference: `docs/goals/product-direction.md`
 - Reference: `docs/agents/operating-rules.md`
 
@@ -384,8 +384,8 @@ Expected: commit succeeds and includes only the two subdirectory `AGENTS.md` fil
 - Modify: `README.md`
 - Modify: `docs/architecture.md`
 - Reference: `docs/goals/product-direction.md`
-- Reference: `docs/plans/2026-04-22-documentation-governance-rollout.md`
-- Reference: `docs/specs/2026-04-22-documentation-governance.md`
+- Reference: `docs/plans/documentation-governance-rollout.md`
+- Reference: `docs/specs/documentation-governance.md`
 - Reference: `docs/agents/operating-rules.md`
 - Reference: `docs/agents/current-iteration.md`
 
@@ -395,8 +395,8 @@ Add entries in the documentation section for:
 
 ```md
 - [docs/goals/product-direction.md](./docs/goals/product-direction.md): product direction and repository intent
-- [docs/plans/2026-04-22-documentation-governance-rollout.md](./docs/plans/2026-04-22-documentation-governance-rollout.md): rollout plan for documentation governance
-- [docs/specs/2026-04-22-documentation-governance.md](./docs/specs/2026-04-22-documentation-governance.md): formal documentation governance spec
+- [docs/plans/documentation-governance-rollout.md](./docs/plans/documentation-governance-rollout.md): rollout plan for documentation governance
+- [docs/specs/documentation-governance.md](./docs/specs/documentation-governance.md): formal documentation governance spec
 - [docs/agents/operating-rules.md](./docs/agents/operating-rules.md): stable agent operating rules
 - [docs/agents/current-iteration.md](./docs/agents/current-iteration.md): current documentation iteration state
 ```
@@ -455,7 +455,7 @@ Expected: commit succeeds and includes only the repository entry docs.
 
 ## Self-Review Checklist
 
-- This plan covers all items required by `docs/specs/2026-04-22-documentation-governance.md`.
+- This plan covers all items required by `docs/specs/documentation-governance.md`.
 - The plan does not rely on unspecified placeholder files.
 - The plan keeps `AGENTS.md` thin and routes stable detail into `docs/`.
 - The rollout seeds all four new document areas:

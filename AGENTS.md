@@ -13,11 +13,6 @@
 - `docs/deployment-guide.md`: production deployment rules, packaging, service startup, and runtime config requirements
 - `docs/permission-guide.md`: current permission model and usage constraints
 - `docs/project-map.md`: file and entrypoint map for fast orientation
-- `docs/goals/product-direction.md`: product direction and repository intent
-- `docs/plans/`: active planning documents
-- `docs/specs/`: formal design and structure specs
-- `docs/agents/operating-rules.md`: stable agent operating contract
-- `docs/agents/current-iteration.md`: current documentation iteration state
 
 ## Reading Order
 
@@ -25,7 +20,7 @@
 2. Read `AGENTS.md`.
 3. Read the nearest subdirectory `AGENTS.md`.
 4. Read the relevant guide docs in `docs/`.
-5. Read the relevant goal, plan, spec, or agent-state file only when the task needs it.
+5. Read additional docs under `docs/` only when the task needs them.
 
 ## Repository Boundaries
 

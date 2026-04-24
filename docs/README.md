@@ -8,7 +8,7 @@
 2. `AGENTS.md`
 3. the nearest subdirectory `AGENTS.md`
 4. this file
-5. the relevant guide, goal, plan, spec, or agent document for the task
+5. the relevant guide document for the task
 
 ## Document Areas
 
@@ -24,81 +24,14 @@ Long-lived repository guides and technical rules:
 - `project-map.md`
 - `repository-comparison.md`
 
-### Goals
+### Internal Execution Docs
 
-Long-lived repository and product direction:
+Directories below are internal execution context for AI-driven continuous work and progress tracking, not default reading for contributors:
 
-- `goals/product-direction.md`
-- `goals/repository-evolution.md`
-
-Use `goals/` for:
-
-- product direction
-- repository intent
-- medium- and long-lived goals
-
-Do not use `goals/` for:
-
-- execution steps
-- task tracking
-- temporary implementation notes
-
-### Plans
-
-Sequencing and delivery planning:
-
-- `plans/2026-04-22-documentation-governance-rollout.md`
-- `plans/2026-04-23-admin-foundation-phase-1-rollout.md`
-
-Use `plans/` for:
-
-- phased rollout work
-- scoped implementation plans
-- active and upcoming sequencing
-
-Do not use `plans/` for:
-
-- stable architecture rules
-- current execution state
-- historical logs
-
-### Specs
-
-Formal design and structure contracts:
-
-- `specs/2026-04-22-documentation-governance.md`
-- `specs/2026-04-23-admin-foundation-phase-1.md`
-- `specs/2026-04-23-identity-baseline.md`
-- `specs/2026-04-23-access-baseline.md`
-
-Use `specs/` for:
-
-- bounded design decisions
-- structure contracts
-- implementation-shaping specs
-
-Do not use `specs/` for:
-
-- task tracking
-- day-to-day execution notes
-
-### Agents
-
-Agent-facing stable rules and current state:
-
-- `agents/operating-rules.md`
-- `agents/current-iteration.md`
-
-Use `agents/` for:
-
-- stable agent operating rules
-- current execution scope and exit conditions
-
-Do not use `agents/` for:
-
-- long-term product goals
-- implementation plans
-- historical run logs
+- `goals/`
+- `plans/`
+- `specs/`
+- `agents/`
 
 ## Placement Rules
 

@@ -14,23 +14,10 @@ The repository is organized as a monorepo:
 - `zen-server/` contains the Rust backend application
 - `zen-web/` contains the React frontend application
 - `deploy/` contains deployment assets and release support files
-- `docs/` contains repository-level guides plus goals, plans, specs, and agent-facing documents
+- `docs/` contains repository-level architecture and development guides
 - the root keeps shared commands, workspace metadata, and collaboration entry documents
 
 This layout keeps backend, frontend, and repository rules explicit, making the codebase easier to understand, review, and evolve.
-
-## Why this repository
-
-Many admin repositories optimize for getting pages running quickly, but become harder to maintain once features, permissions, and data flow start to grow.
-
-`rustzen-admin` is built around a different goal:
-
-- explicit backend and frontend boundaries
-- reusable auth and permission capability layers
-- feature-oriented backend organization
-- repository-level documentation and collaboration rules
-- synchronized changes across code, contracts, and docs
-- a structure that is easier for contributors and AI tools to work with
 
 ## Repository Layout
 
@@ -84,17 +71,6 @@ Many admin repositories optimize for getting pages running quickly, but become h
 - [zen-server/AGENTS.md](./zen-server/AGENTS.md): backend entry guide
 - [zen-web/AGENTS.md](./zen-web/AGENTS.md): frontend entry guide
 - [docs/architecture.md](./docs/architecture.md): repository structure, boundaries, and command entrypoints
-- [docs/goals/product-direction.md](./docs/goals/product-direction.md): product direction and repository intent
-- [docs/goals/repository-evolution.md](./docs/goals/repository-evolution.md): near-term repository evolution goals
-- [docs/plans/2026-04-22-documentation-governance-rollout.md](./docs/plans/2026-04-22-documentation-governance-rollout.md): rollout plan for documentation governance
-- [docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md](./docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md): rollout plan for the first admin foundation capability phase
-- [docs/specs/2026-04-22-documentation-governance.md](./docs/specs/2026-04-22-documentation-governance.md): formal documentation governance spec
-- [docs/specs/2026-04-23-admin-foundation-phase-1.md](./docs/specs/2026-04-23-admin-foundation-phase-1.md): Phase 1 product-capability spec for the admin foundation
-- [docs/specs/2026-04-23-identity-baseline.md](./docs/specs/2026-04-23-identity-baseline.md): child spec for the Phase 1 identity baseline
-- [docs/specs/2026-04-23-access-baseline.md](./docs/specs/2026-04-23-access-baseline.md): child spec for the Phase 1 access baseline
-- [docs/agents/operating-rules.md](./docs/agents/operating-rules.md): stable agent operating rules
-- [docs/agents/current-iteration.md](./docs/agents/current-iteration.md): current documentation iteration state
-- [docs/repository-comparison.md](./docs/repository-comparison.md): cross-repository baseline for future updates and optimization
 - [docs/project-map.md](./docs/project-map.md): entrypoints and high-frequency change paths
 - [docs/backend-guide.md](./docs/backend-guide.md): backend layering, naming, database, and error rules
 - [docs/frontend-guide.md](./docs/frontend-guide.md): frontend routing, request, state, and UI rules
@@ -113,22 +89,7 @@ just build-release
 just build-image
 ```
 
-## Project Principles
+## Notes
 
-- clear repository boundaries
-- minimal root-level responsibility
-- single-purpose documentation
-- maintainability over patchwork changes
-- explicit architecture conventions
-- AI-friendly engineering structure
-
-## Status
-
-The repository is under active restructuring and refinement.
-
-Current focus:
-
-- stabilizing the monorepo layout
-- aligning backend, frontend, and docs
-- refining repository-level conventions
-- building a stronger long-term foundation for feature growth
+- `README.md` and `AGENTS.md` stay as lightweight entry documents.
+- Detailed execution plans, progress tracking, and iteration logs are maintained in dedicated docs under `docs/` when needed.

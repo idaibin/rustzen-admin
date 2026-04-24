@@ -12,12 +12,12 @@
 
 ## File Structure
 
-- Create: `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
+- Create: `docs/plans/admin-foundation-phase-1-rollout.md`
 - Modify: `docs/README.md`
 - Modify: `README.md`
 - Modify: `docs/agents/current-iteration.md`
-- Reference: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
-- Reference: `docs/specs/2026-04-22-documentation-governance.md`
+- Reference: `docs/specs/admin-foundation-phase-1.md`
+- Reference: `docs/specs/documentation-governance.md`
 - Reference: `docs/project-map.md`
 - Reference: `zen-server/src/features/`
 - Reference: `zen-web/src/routes/`
@@ -79,6 +79,7 @@ This means the rollout must explicitly address:
 - There is no dedicated profile route group yet under `zen-web/src/routes/profile/`.
 - `zen-web/src/routes/system/user.tsx` is an administrative user-management page with role assignment, password reset, status changes, and delete actions. It is not a self-service identity page and should stay out of the first `identity` slice.
 - `zen-web/src/api/system/user/api.ts` is also admin-facing and should not be reused as the Phase 1 `identity` API surface.
+- `zen-web/src/routes/system/role.tsx` and `zen-web/src/routes/system/menu.tsx` are already explicit access-control pages and should regroup with admin user management under the future `access` route group.
 
 ## Status Snapshot
 
@@ -89,7 +90,99 @@ This means the rollout must explicitly address:
 - done: write the dedicated `access` child spec
 - done: turn the identity findings into an implementation checklist before code refactors begin
 - done: define the `access` ownership contract for administrative user management
-- next: derive concrete `system/user` split checklists for backend and frontend
+- done: derive concrete `system/user` split checklists for backend and frontend
+- done: decide whether admin user management stays inside the `access` slice or becomes a dedicated later slice
+- done: formalize the `audit` child spec before `system` and `runtime`
+- done: derive the concrete backend audit ownership checklist from `system/log` and login logging
+- done: formalize the `system` child spec before `runtime`
+- done: decide whether Slice 4 needs an explicit system ownership subsection
+- done: decide that `runtime` is ready to be formalized without another focused audit
+- done: formalize the `runtime` child spec and decide whether Slice 5 needs an explicit runtime ownership subsection
+- done: complete the Phase 1 documentation loop for all five capability groups
+
+## Administrative User Management Decision
+
+Phase 1 should keep administrative user management inside the `access` slice.
+
+Reasoning:
+
+- the current `system/user` module is access-facing because create, update, status change, password reset, and delete all operate under admin permissions
+- the frontend page is already governed by access-control codes and role assignment workflows
+- splitting admin user management into a separate slice now would add another ownership boundary before the repository has even completed `identity` and `access`
+- the cleaner boundary is `self-service user state -> identity` and `administrator-managed access state -> access`
+
+This means Phase 1 should not introduce a separate `user-admin` capability group.
+
+## Next Documentation Slice Decision
+
+The next child spec should formalize `audit` first.
+
+Reasoning:
+
+- `zen-server/src/features/system/log/` already exists as a bounded backend capability
+- `zen-web/src/routes/system/log.tsx` already exists as a bounded frontend surface
+- the current login flow already records `AUTH_LOGIN` through the log service, so `identity` currently depends on `audit`
+- `system` still needs clearer expansion around config ownership
+- `runtime` does not yet have a dedicated top-level feature or frontend surface, so its spec would be more speculative right now
+
+This sets the next documentation order as:
+
+1. `audit`
+2. `system`
+3. `runtime`
+
+## Post-Audit Documentation Decision
+
+After `audit`, the next child spec should formalize `system` before `runtime`.
+
+Reasoning:
+
+- `zen-server/src/features/system/dict/` already exists as a bounded backend module
+- `zen-web/src/routes/system/dict.tsx` and `zen-web/src/api/system/dict/` already exist as bounded frontend surfaces
+- the Phase 1 `system` scope already has a concrete current anchor in dictionary management even before config ownership is expanded
+- `runtime` is still mostly implicit: current file handling is concentrated in avatar upload helpers and static file serving, not in a dedicated top-level capability
+- writing `runtime` first would force a more speculative contract than `system`
+
+This sets the next documentation order after `audit` as:
+
+1. `system`
+2. `runtime`
+
+## Runtime Readiness Decision
+
+`runtime` is ready to be formalized now. It does not need another focused current-state audit first.
+
+Reasoning:
+
+- the current backend already has concrete runtime anchors in `common/files.rs`, runtime path helpers in `infra/config.rs`, and static resource serving in `infra/app.rs`
+- the current product surface already exposes avatar upload as a file-handling path rather than a purely internal helper
+- the current `/resources` prefix and avatar/static directory wiring are enough to define a minimal Phase 1 runtime contract
+- `runtime` is still thinner than the other child specs, but the remaining uncertainty is design scope, not discovery scope
+
+This means the next smallest documentation task after `system` is to write the `runtime` baseline spec.
+
+## Concrete Split Checklist
+
+### Backend `system/user` Split
+
+- move `list_users` into the future `access` owner
+- move `create_user` into `access`
+- move `update_user` into `access`
+- move `update_user_status` into `access`
+- move `update_user_password` into `access` as an admin reset path
+- move `delete_user` into `access`
+- move `get_user_options` and `get_user_status_options` into `access`
+- keep future self-profile and self-password paths out of this split
+
+### Frontend Regrouping
+
+- move `zen-web/src/routes/system/role.tsx` into the future `access` route group
+- move `zen-web/src/routes/system/menu.tsx` into the future `access` route group
+- move `zen-web/src/routes/system/user.tsx` into the future `access` route group
+- move `zen-web/src/api/system/role/` into the future `access` API namespace
+- move `zen-web/src/api/system/menu/` into the future `access` API namespace
+- move `zen-web/src/api/system/user/` into the future `access` API namespace
+- keep self-profile and self-password UI under the future `identity` route group
 
 ### Task 1: Expose The Phase 1 Plan In Documentation Entry Points
 
@@ -97,9 +190,9 @@ This means the rollout must explicitly address:
 - Modify: `docs/README.md`
 - Modify: `README.md`
 - Modify: `docs/agents/current-iteration.md`
-- Create: `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
+- Create: `docs/plans/admin-foundation-phase-1-rollout.md`
 
-- [ ] **Step 1: Add the new rollout plan to `docs/README.md`**
+- [x] **Step 1: Add the new rollout plan to `docs/README.md`**
 
 Update the `Plans` section so it includes:
 
@@ -108,20 +201,20 @@ Update the `Plans` section so it includes:
 
 Sequencing and delivery planning:
 
-- `plans/2026-04-22-documentation-governance-rollout.md`
-- `plans/2026-04-23-admin-foundation-phase-1-rollout.md`
+- `plans/documentation-governance-rollout.md`
+- `plans/admin-foundation-phase-1-rollout.md`
 ```
 
-- [ ] **Step 2: Add the new Phase 1 spec and plan to the root `README.md` documentation entry list**
+- [x] **Step 2: Add the new Phase 1 spec and plan to the root `README.md` documentation entry list**
 
 Add entries such as:
 
 ```md
-- [docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md](./docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md): rollout plan for the first admin foundation capability phase
-- [docs/specs/2026-04-23-admin-foundation-phase-1.md](./docs/specs/2026-04-23-admin-foundation-phase-1.md): Phase 1 product-capability spec for the admin foundation
+- [docs/plans/admin-foundation-phase-1-rollout.md](./docs/plans/admin-foundation-phase-1-rollout.md): rollout plan for the first admin foundation capability phase
+- [docs/specs/admin-foundation-phase-1.md](./docs/specs/admin-foundation-phase-1.md): Phase 1 product-capability spec for the admin foundation
 ```
 
-- [ ] **Step 3: Update `docs/agents/current-iteration.md` so the current documentation focus includes Phase 1 foundation planning**
+- [x] **Step 3: Update `docs/agents/current-iteration.md` so the current documentation focus includes Phase 1 foundation planning**
 
 Add or adjust content so it clearly states:
 
@@ -132,12 +225,12 @@ Add or adjust content so it clearly states:
 - rollout planning for turning the current admin shell into a reusable foundation
 ```
 
-- [ ] **Step 4: Verify the new plan is discoverable from repository entry docs**
+- [x] **Step 4: Verify the new plan is discoverable from repository entry docs**
 
 Run:
 
 ```bash
-rg -n "2026-04-23-admin-foundation-phase-1" README.md docs/README.md docs/agents/current-iteration.md
+rg -n "admin-foundation-phase-1" README.md docs/README.md docs/agents/current-iteration.md
 ```
 
 Expected: matches exist in the root `README.md`, `docs/README.md`, and the current-iteration doc.
@@ -147,7 +240,7 @@ Expected: matches exist in the root `README.md`, `docs/README.md`, and the curre
 Run:
 
 ```bash
-git add README.md docs/README.md docs/agents/current-iteration.md docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+git add README.md docs/README.md docs/agents/current-iteration.md docs/plans/admin-foundation-phase-1-rollout.md
 git commit -m "docs: add phase 1 foundation rollout plan"
 ```
 
@@ -157,12 +250,12 @@ Expected: commit succeeds and only Phase 1 planning entry docs are included.
 
 **Files:**
 - Modify: `docs/project-map.md`
-- Reference: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
+- Reference: `docs/specs/admin-foundation-phase-1.md`
 - Reference: `zen-server/src/features/auth/`
 - Reference: `zen-server/src/features/system/`
 - Reference: `zen-server/src/features/dashboard/`
 
-- [ ] **Step 1: Add a Phase 1 foundation capability section to `docs/project-map.md`**
+- [x] **Step 1: Add a Phase 1 foundation capability section to `docs/project-map.md`**
 
 The new section should map current ownership to target ownership:
 
@@ -176,7 +269,7 @@ The new section should map current ownership to target ownership:
 - `runtime`: currently has no dedicated top-level feature and will be introduced as a new group
 ```
 
-- [ ] **Step 2: Document the required backend split decisions inline in the plan**
+- [x] **Step 2: Document the required backend split decisions inline in the plan**
 
 Keep this migration map explicit:
 
@@ -188,12 +281,12 @@ Keep this migration map explicit:
 - new file/resource capability -> `runtime`
 ```
 
-- [ ] **Step 3: Verify the backend migration map does not introduce business-domain modules**
+- [x] **Step 3: Verify the backend migration map does not introduce business-domain modules**
 
 Run:
 
 ```bash
-rg -n "tenant|organization|project|workflow|approval|order|content" docs/project-map.md docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+rg -n "tenant|organization|project|workflow|approval|order|content" docs/project-map.md docs/plans/admin-foundation-phase-1-rollout.md
 ```
 
 Expected: no Phase 1 migration map should introduce those business-domain modules as implementation targets.
@@ -203,7 +296,7 @@ Expected: no Phase 1 migration map should introduce those business-domain module
 Run:
 
 ```bash
-git add docs/project-map.md docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+git add docs/project-map.md docs/plans/admin-foundation-phase-1-rollout.md
 git commit -m "docs: map backend foundation capability groups"
 ```
 
@@ -213,11 +306,11 @@ Expected: commit succeeds and includes only the mapping updates.
 
 **Files:**
 - Modify: `docs/project-map.md`
-- Reference: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
+- Reference: `docs/specs/admin-foundation-phase-1.md`
 - Reference: `zen-web/src/routes/`
 - Reference: `zen-web/src/api/`
 
-- [ ] **Step 1: Add a frontend capability-alignment section to `docs/project-map.md`**
+- [x] **Step 1: Add a frontend capability-alignment section to `docs/project-map.md`**
 
 The new section should define the target shape:
 
@@ -231,7 +324,7 @@ The new section should define the target shape:
 - `runtime`: `zen-web/src/api/runtime/`, `zen-web/src/routes/runtime/`
 ```
 
-- [ ] **Step 2: Record the initial route/API regrouping rules in the plan**
+- [x] **Step 2: Record the initial route/API regrouping rules in the plan**
 
 Document these rules:
 
@@ -243,12 +336,12 @@ Document these rules:
 - current `dashboard` remains outside the first regrouping wave unless needed by a Phase 1 slice
 ```
 
-- [ ] **Step 3: Verify the alignment still keeps frontend ownership under capability groups rather than technical layers**
+- [x] **Step 3: Verify the alignment still keeps frontend ownership under capability groups rather than technical layers**
 
 Run:
 
 ```bash
-rg -n "identity|access|audit|system|runtime" docs/project-map.md docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+rg -n "identity|access|audit|system|runtime" docs/project-map.md docs/plans/admin-foundation-phase-1-rollout.md
 ```
 
 Expected: the capability groups are present as ownership units in both the map and the plan.
@@ -258,7 +351,7 @@ Expected: the capability groups are present as ownership units in both the map a
 Run:
 
 ```bash
-git add docs/project-map.md docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+git add docs/project-map.md docs/plans/admin-foundation-phase-1-rollout.md
 git commit -m "docs: define frontend foundation capability alignment"
 ```
 
@@ -267,10 +360,10 @@ Expected: commit succeeds and includes only the frontend-alignment documentation
 ### Task 4: Define The First Implementation Slices
 
 **Files:**
-- Modify: `docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md`
-- Reference: `docs/specs/2026-04-23-admin-foundation-phase-1.md`
+- Modify: `docs/plans/admin-foundation-phase-1-rollout.md`
+- Reference: `docs/specs/admin-foundation-phase-1.md`
 
-- [ ] **Step 1: Define the first backend-first implementation slice**
+- [x] **Step 1: Define the first backend-first implementation slice**
 
 Record the first slice as:
 
@@ -283,7 +376,7 @@ Record the first slice as:
 - keep the slice free of role and permission management changes
 ```
 
-- [ ] **Step 2: Define the second implementation slice**
+- [x] **Step 2: Define the second implementation slice**
 
 Record the second slice as:
 
@@ -295,7 +388,7 @@ Record the second slice as:
 - keep data-scope and policy-engine work out of scope
 ```
 
-- [ ] **Step 3: Define the remaining Phase 1 slices**
+- [x] **Step 3: Define the remaining Phase 1 slices**
 
 Record the remaining slices as:
 
@@ -315,12 +408,12 @@ Record the remaining slices as:
 - introduce `runtime` for file upload and file metadata
 ```
 
-- [ ] **Step 4: Verify the slice order still matches the approved priority**
+- [x] **Step 4: Verify the slice order still matches the approved priority**
 
 Run:
 
 ```bash
-rg -n "Slice 1|Slice 2|Slice 3|Slice 4|Slice 5|identity|access|audit|system|runtime" docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+rg -n "Slice 1|Slice 2|Slice 3|Slice 4|Slice 5|identity|access|audit|system|runtime" docs/plans/admin-foundation-phase-1-rollout.md
 ```
 
 Expected: the slice order reflects `identity -> access -> audit -> system -> runtime`.
@@ -330,7 +423,7 @@ Expected: the slice order reflects `identity -> access -> audit -> system -> run
 Run:
 
 ```bash
-git add docs/plans/2026-04-23-admin-foundation-phase-1-rollout.md
+git add docs/plans/admin-foundation-phase-1-rollout.md
 git commit -m "docs: define phase 1 foundation implementation slices"
 ```
 
@@ -350,6 +443,54 @@ Expected: commit succeeds and includes only the rollout-plan updates.
 - extract role, menu, and permission-facing user-management ownership from the catch-all `system` area
 - keep administrative user lifecycle actions with `access`, not `identity`
 - preserve the current permission cache and visible-menu behavior while moving capability ownership
+
+#### Admin User Management Inside Access
+
+- keep administrator-managed user creation inside `access`
+- keep user-role assignment inside `access`
+- keep administrator-triggered password reset inside `access`
+- keep status change and delete actions inside `access`
+- keep self-profile and self-password flows out of this slice
+
+### Slice 3: Audit Baseline
+
+- move log ownership out of the generic `system` area
+- make `audit` the explicit owner of login and operation logs
+- preserve the current list and export surfaces while changing capability ownership
+
+#### Audit Ownership Inside Slice 3
+
+- keep `AUTH_LOGIN` recording as an `audit` responsibility even when triggered by `identity`
+- keep structured log-write contracts inside `audit`
+- keep log list and export behavior inside `audit`
+- keep permission decisions and workflow history out of this slice
+
+### Slice 4: System Baseline
+
+- keep dictionary ownership inside the `system` capability
+- reserve product-facing configuration ownership for `system`
+- keep support-data contracts explicit while avoiding another catch-all bucket
+
+#### System Ownership Inside Slice 4
+
+- keep dictionary CRUD and lookup behavior inside `system`
+- keep option-source behavior inside `system`
+- keep future product-facing system configuration inside `system`
+- keep access, audit, identity, and runtime ownership out of this slice
+
+### Slice 5: Runtime Baseline
+
+- keep file-resource handling inside the `runtime` capability
+- keep upload and resource-path conventions explicit
+- avoid turning `runtime` into a generic infrastructure bucket
+
+#### Runtime Ownership Inside Slice 5
+
+- keep reusable file upload handling inside `runtime`
+- keep file validation rules inside `runtime`
+- keep resource-prefix and file-path conventions inside `runtime`
+- keep avatar upload as a consumer of runtime, not the owner of it
+- keep access, audit, identity, and system ownership out of this slice
 
 ## Self-Review Checklist
 
