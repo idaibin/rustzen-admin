@@ -88,34 +88,16 @@ Current-to-target backend ownership:
 
 - App bootstrap: `zen-web/src/main.tsx`
 - Root route guard and devtools: `zen-web/src/routes/__root.tsx`
+- Root layout shell and navigation: `zen-web/src/components/base-layout/index.tsx`
 - Route pages: `zen-web/src/routes/`
-- Shared layout component: `zen-web/src/components/base-layout/`
 - API barrel: `zen-web/src/api/index.ts`
-- System API barrel: `zen-web/src/api/system/index.ts`
-- Shared API runtime refs: `zen-web/src/api/runtime.ts`
 - Shared request layer: `zen-web/src/api/request.ts`
-- API wrappers and modules: `zen-web/src/api/index.ts`, `zen-web/src/api/system/index.ts`, `zen-web/src/api/runtime.ts`, `zen-web/src/api/request.ts`, `zen-web/src/api/<module>/api.ts`
-- API module layout, naming, `apiRequest` default vs `raw`, and `list` return conventions: see **API Module Rules** in `docs/frontend-guide.md`
-- Shared components: `zen-web/src/components/` (`base-auth/`, `base-button/`, `base-layout/`, `base-user/`, …)
+- API modules: `zen-web/src/api/<domain>/api.ts` and `zen-web/src/api/system/<resource>/api.ts`
+- Frontend rules: `docs/frontend-guide.md`
+- Shared components: `zen-web/src/components/`
 - Shared state: `zen-web/src/store/`
 - Utilities: `zen-web/src/util/`
 - Global styles: `zen-web/src/style.css`
-
-## Phase 1 Frontend Alignment
-
-- `identity`: `zen-web/src/api/identity/`, `zen-web/src/routes/profile/`
-- `access`: `zen-web/src/api/access/`, `zen-web/src/routes/access/`
-- `audit`: `zen-web/src/api/audit/`, `zen-web/src/routes/audit/`
-- `system`: `zen-web/src/api/system/`, `zen-web/src/routes/system/`
-- `runtime`: `zen-web/src/api/runtime/`, `zen-web/src/routes/runtime/`
-
-Initial regrouping rules:
-
-- current `auth` frontend API maps into `identity`
-- current `system/menu` and `system/role` pages and APIs map into `access`
-- current `system/log` maps into `audit`
-- current `system/dict` stays in `system`
-- current `dashboard` remains outside the first regrouping wave unless needed by a Phase 1 slice
 
 ## High-Frequency Change Points
 
