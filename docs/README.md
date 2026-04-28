@@ -24,6 +24,13 @@ Long-lived repository guides and technical rules:
 - `project-map.md`
 - `repository-comparison.md`
 
+### UI Design Inputs
+
+Repository-local visual references and frontend asset mappings:
+
+- `ui/README.md`
+- `ui/login-page-design.png`
+
 ### Internal Execution Docs
 
 Directories below are internal execution context for AI-driven continuous work and progress tracking, not default reading for contributors:
