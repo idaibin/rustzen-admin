@@ -16,7 +16,6 @@ import { calculatePercent, convertUnit } from "@/util";
 
 export const Route = createFileRoute("/")({
     component: DashboardPage,
-    notFoundComponent: () => <div>404 Not Found</div>,
 });
 
 function DashboardPage() {
