@@ -24,8 +24,8 @@
 - Current documentation governance spec: `docs/specs/documentation-governance.md`
 - Current Phase 1 foundation spec: `docs/specs/admin-foundation-phase-1.md`
 - Current audit baseline spec: `docs/specs/audit-baseline.md`
-- Current identity baseline spec: `docs/specs/identity-baseline.md`
-- Current access baseline spec: `docs/specs/access-baseline.md`
+- Current auth/account baseline spec: `docs/specs/auth-account-baseline.md`
+- Current RBAC baseline spec: `docs/specs/rbac-baseline.md`
 - Current system baseline spec: `docs/specs/system-baseline.md`
 - Current runtime baseline spec: `docs/specs/runtime-baseline.md`
 - Stable agent operating rules: `docs/agents/operating-rules.md`
@@ -52,6 +52,7 @@
 - Permission rules, registry, and route helper: `zen-core/src/permission/`
 - Feature registry: `zen-server/src/features/mod.rs`
 - Auth: `zen-server/src/features/auth/`
+- Account: `zen-server/src/features/account/`
 - Dashboard: `zen-server/src/features/dashboard/`
 - System management aggregator: `zen-server/src/features/system/mod.rs`
 - Users: `zen-server/src/features/system/user/`
@@ -70,16 +71,18 @@
 
 ## Phase 1 Capability Map
 
-- `identity`: currently starts from `zen-server/src/features/auth/`
-- `access`: currently starts from `zen-server/src/features/system/menu/`, `zen-server/src/features/system/role/`, and access-facing parts of `zen-server/src/features/system/user/`
+- `auth`: implemented in `zen-server/src/features/auth/`
+- `account`: implemented in `zen-server/src/features/account/`
+- `rbac`: currently implemented by `zen-server/src/features/system/menu/`, `zen-server/src/features/system/role/`, and access-facing parts of `zen-server/src/features/system/user/`
 - `audit`: currently starts from `zen-server/src/features/system/log/`
 - `system`: currently starts from `zen-server/src/features/system/dict/` and future config ownership
 - `runtime`: currently has no dedicated top-level feature and will be introduced as a new group
 
 Current-to-target backend ownership:
 
-- `auth` -> `identity`
-- `system/menu` + `system/role` + access-facing parts of `system/user` -> `access`
+- `auth` owns login, logout, and current-session bootstrap
+- `account` owns self-profile, avatar, and self-password flows
+- `system/menu` + `system/role` + access-facing parts of `system/user` are the current RBAC carriers
 - `system/log` -> `audit`
 - `system/dict` + future config -> `system`
 - new file/resource capability -> `runtime`
@@ -111,6 +114,8 @@ Current-to-target backend ownership:
 - Change root route guard or devtools: `zen-web/src/routes/__root.tsx`
 - Change frontend layout: `zen-web/src/components/base-layout/index.tsx`
 - Change auth state: `zen-web/src/store/useAuthStore.ts`
+- Change auth APIs: `zen-web/src/api/auth/`
+- Change account APIs: `zen-web/src/api/account/`
 - Change deployment packaging or service files: `deploy/`
 - Change product direction or repository intent: `docs/goals/`
 - Change active rollout sequencing: `docs/plans/`

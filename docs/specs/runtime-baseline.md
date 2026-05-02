@@ -38,7 +38,7 @@ Current starting points:
 - `zen-server/src/common/files.rs`
 - `zen-server/src/infra/app.rs`
 - `zen-server/src/infra/config.rs`
-- avatar upload path in `zen-server/src/features/auth/handler.rs`
+- avatar upload path in `zen-server/src/features/account/handler.rs`
 
 Current baseline already present:
 
@@ -52,7 +52,7 @@ Current boundary issues:
 
 - file handling currently sits across `common/`, `infra/`, and `auth` instead of a dedicated `runtime` capability owner
 - the current product-facing upload path is avatar-specific, so the baseline is still narrower than the long-term Phase 1 `runtime` target
-- without a dedicated `runtime` spec, file-resource ownership can drift into identity or generic infrastructure
+- without a dedicated `runtime` spec, file-resource ownership can drift into account or generic infrastructure
 
 ### Frontend
 
@@ -70,7 +70,7 @@ Current baseline already present:
 
 Current boundary issues:
 
-- the current frontend file surface is embedded in the identity/profile experience instead of a dedicated runtime route or API namespace
+- the current frontend file surface is embedded in the account/profile experience instead of a dedicated runtime route or API namespace
 - there is no dedicated `zen-web/src/api/runtime/` capability surface yet
 
 ## Phase 1 Runtime Baseline
@@ -88,7 +88,7 @@ The baseline must deliver:
 - file metadata or file-location contract for uploaded resources
 - static resource exposure for uploaded files
 
-The baseline may continue to be consumed first by identity avatar flows, but that does not make `identity` the owner of file-resource handling.
+The baseline may continue to be consumed first by account avatar flows, but that does not make `account` the owner of file-resource handling.
 
 ## Backend Boundary Rules
 

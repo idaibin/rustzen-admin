@@ -4,7 +4,7 @@ use crate::common::error::ServiceError;
 use chrono::Utc;
 use sqlx::PgPool;
 
-/// Auth db for authentication-specific database operations
+/// Auth db operations.
 pub struct AuthRepository;
 
 impl AuthRepository {
@@ -29,7 +29,7 @@ impl AuthRepository {
         })
     }
 
-    /// Find user by ID for authentication (returns AuthUserRow)
+    /// Find user by ID for auth/session data.
     pub async fn find_user_by_id(
         pool: &PgPool,
         id: i64,
@@ -89,23 +89,5 @@ impl AuthRepository {
                 tracing::error!("Database error in get_all_permissions: {:?}", e);
                 ServiceError::DatabaseQueryFailed
             })
-    }
-
-    pub async fn update_avatar(
-        pool: &PgPool,
-        user_id: i64,
-        avatar_url: &str,
-    ) -> Result<(), ServiceError> {
-        sqlx::query("UPDATE users SET avatar_url = $1, updated_at = $3 WHERE id = $2")
-            .bind(avatar_url)
-            .bind(user_id)
-            .bind(Utc::now().naive_utc())
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error in update_avatar, user_id={}: {:?}", user_id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-        Ok(())
     }
 }

@@ -14,7 +14,6 @@ import type { MenuProps } from "antd";
 import { Dropdown } from "antd";
 
 import { appMessage, authAPI } from "@/api";
-import { UserProfileModal } from "@/components/base-user";
 import { useAuthStore } from "@/store/useAuthStore";
 
 type AppRouter = {
@@ -102,7 +101,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
         {
             key: "profile",
             icon: <UserOutlined />,
-            label: <UserProfileModal />,
+            label: <Link to="/profile">Profile</Link>,
         },
         {
             type: "divider",

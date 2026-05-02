@@ -35,6 +35,7 @@ This layout keeps backend, frontend, and repository rules explicit, making the c
 │   ├── migrations/
 │   └── src/
 │       ├── features/
+│       │   ├── account/
 │       │   ├── auth/
 │       │   ├── dashboard/
 │       │   └── system/

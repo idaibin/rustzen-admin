@@ -101,7 +101,7 @@ The baseline may continue to rely on infrastructure configuration loading intern
 - keep dictionary management inside the `system` route group
 - keep dictionary API ownership inside the `system` namespace
 - reserve future system-config pages for the `system` route group
-- keep access, audit, and identity pages out of the `system` route group
+- keep RBAC, audit, and account pages out of the `system` route group
 
 ## Explicit Non-Goals
 
@@ -127,7 +127,7 @@ This spec does not introduce:
 - keep `zen-web/src/api/system/dict/` as the current API anchor for `system`
 - add future system-config pages under `zen-web/src/routes/system/`
 - add future system-config API modules under `zen-web/src/api/system/`
-- keep dictionary and future config surfaces separate from access, audit, and identity regrouping work
+- keep dictionary and future config surfaces separate from RBAC, audit, and account regrouping work
 
 ## Exit Condition
 

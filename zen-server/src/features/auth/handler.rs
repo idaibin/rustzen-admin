@@ -3,17 +3,14 @@ use super::{
     types::{LoginRequest, LoginResp, UserInfoResp},
 };
 use crate::{
-    common::{
-        api::{ApiResponse, AppResult},
-        files::save_avatar,
-    },
+    common::api::{ApiResponse, AppResult},
     features::system::log::{service::LogService, types::LogWriteCommand},
     infra::permission::PermissionService,
 };
 
 use axum::{
     Json,
-    extract::{ConnectInfo, Multipart, State},
+    extract::{ConnectInfo, State},
     http::HeaderMap,
 };
 use rustzen_core::auth::CurrentUser;
@@ -80,20 +77,6 @@ pub async fn get_login_info(
 pub async fn logout(current_user: CurrentUser) -> AppResult<()> {
     PermissionService::clear_user_cache(current_user.user_id);
     Ok(ApiResponse::success(()))
-}
-
-/// Update user profile
-#[tracing::instrument(name = "update_avatar", skip(current_user, pool))]
-pub async fn update_avatar(
-    current_user: CurrentUser,
-    State(pool): State<PgPool>,
-    mut multipart: Multipart,
-) -> AppResult<String> {
-    let avatar_url = save_avatar(&mut multipart).await?;
-
-    AuthService::update_avatar(&pool, current_user.user_id, &avatar_url).await?;
-
-    Ok(ApiResponse::success(avatar_url))
 }
 
 async fn record_login_operation(

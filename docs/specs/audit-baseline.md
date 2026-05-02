@@ -51,7 +51,7 @@ Current boundary issues:
 
 - log ownership still lives under `system/log` instead of an explicit `audit` capability
 - login flow in `zen-server/src/features/auth/handler.rs` directly writes `AUTH_LOGIN` records through the current system log service
-- `audit` already has inbound dependencies from `identity`, but that relationship is not yet documented as a first-class capability boundary
+- `audit` already has inbound dependencies from `auth`, but that relationship is not yet documented as a first-class capability boundary
 
 ### Frontend
 
@@ -87,13 +87,13 @@ The baseline must deliver:
 - paginated log listing
 - log export
 
-The baseline may continue to consume actions emitted by `identity`, `access`, and future `system` or `runtime` flows, but that does not change `audit` ownership.
+The baseline may continue to consume actions emitted by `auth`, `account`, `rbac`, and future `system` or `runtime` flows, but that does not change `audit` ownership.
 
 ## Backend Boundary Rules
 
 - keep log query and export behavior inside `audit`
 - keep reusable log-write contracts inside `audit`
-- keep login-event recording as an `audit` responsibility even when triggered by `identity`
+- keep login-event recording as an `audit` responsibility even when triggered by `auth`
 - keep permission checks out of `audit`
 - keep business workflow history out of Phase 1 `audit`
 
@@ -120,7 +120,7 @@ This spec does not introduce:
 - move `system/log` route ownership into the future `audit` capability name
 - keep `LogWriteCommand` as the reusable write contract for Phase 1 audit records
 - preserve `AUTH_LOGIN` logging from the current auth flow while moving ownership naming from `system/log` to `audit`
-- keep `LogService::record_operation()` as the integration point consumed by `identity` and later by `access`
+- keep `LogService::record_operation()` as the integration point consumed by `auth` and later by `rbac`
 - keep partition management and export behavior inside `audit`
 
 ## Frontend Implementation Checklist

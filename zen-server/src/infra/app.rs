@@ -1,6 +1,7 @@
 use crate::{
     common::api::{ApiResponse, AppResult},
     features::{
+        account::account_routes,
         auth::{protected_auth_routes, public_auth_routes},
         dashboard::dashboard_routes,
         system::log::service::LogService,
@@ -46,6 +47,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .allow_headers([CONTENT_TYPE, AUTHORIZATION, ACCEPT]);
 
     let protected_api = Router::new()
+        .nest("/account", account_routes())
         .nest("/auth", protected_auth_routes())
         .nest("/dashboard", dashboard_routes())
         .nest("/system", system_routes())

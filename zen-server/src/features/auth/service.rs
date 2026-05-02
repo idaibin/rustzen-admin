@@ -1,6 +1,6 @@
 use super::{
     repo::AuthRepository,
-    types::{LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
+    types::{AuthUserRow, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
 };
 use crate::{
     common::error::ServiceError,
@@ -10,7 +10,7 @@ use crate::{
 use sqlx::PgPool;
 use tracing;
 
-/// Authentication service for login/register operations
+/// Auth service for login and current-user session operations.
 pub struct AuthService;
 
 impl AuthService {
@@ -93,8 +93,7 @@ impl AuthService {
         let user = AuthRepository::find_user_by_id(pool, user_id)
             .await?
             .ok_or(ServiceError::NotFound("User".to_string()))?;
-        let super::types::AuthUserRow { id, username, real_name, email, avatar_url, is_system } =
-            user;
+        let AuthUserRow { id, username, real_name, email, avatar_url, is_system } = user;
 
         tracing::debug!("User basic info retrieved for user_id={}, username={}", user_id, username);
 
@@ -172,17 +171,6 @@ impl AuthService {
         Ok(())
     }
 
-    pub async fn update_avatar(
-        pool: &PgPool,
-        user_id: i64,
-        avatar_url: &str,
-    ) -> Result<(), ServiceError> {
-        tracing::info!("Updating avatar for user_id: {}", user_id);
-        AuthRepository::update_avatar(pool, user_id, avatar_url).await?;
-        tracing::info!("Avatar updated successfully for user_id: {}", user_id);
-        Ok(())
-    }
-
     async fn load_permissions(
         pool: &PgPool,
         user_id: i64,
@@ -194,5 +182,4 @@ impl AuthService {
             AuthRepository::get_user_permissions(pool, user_id).await
         }
     }
-
 }
