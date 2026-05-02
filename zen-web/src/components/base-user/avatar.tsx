@@ -36,7 +36,7 @@ export const UserAvatar = () => {
                 name="avatar"
                 listType="picture-circle"
                 showUploadList={false}
-                action="/api/auth/avatar"
+                action="/api/account/avatar"
                 beforeUpload={beforeUpload}
                 headers={{
                     Authorization: `Bearer ${token}`,

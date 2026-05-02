@@ -42,10 +42,11 @@ It should not optimize for:
 
 ## Phase 1 Feature Groups
 
-Phase 1 should include exactly five top-level feature groups:
+Phase 1 should include exactly six practical starter groups:
 
-- `identity`
-- `access`
+- `auth`
+- `account`
+- `rbac`
 - `audit`
 - `system`
 - `runtime`
@@ -54,16 +55,33 @@ These groups form the minimum reusable admin baseline.
 
 ## Feature Group Responsibilities
 
-### `identity`
+### `auth`
 
-Owns user identity capabilities that answer: who is the current user and how does the current user manage their own account state.
+Owns authentication and current-session bootstrap.
 
 Includes:
 
 - login
 - logout
 - current user
+
+Does not include:
+
+- personal profile ownership
+- role management
+- menu management
+- permission assignment
+- complex credential recovery flows
+- OAuth2, OIDC, SAML, SSO, MFA, or enterprise directory features
+
+### `account`
+
+Owns the current administrator's self-service account state.
+
+Includes:
+
 - personal profile
+- avatar update
 - change password
 
 Does not include:
@@ -71,11 +89,11 @@ Does not include:
 - role management
 - menu management
 - permission assignment
-- complex credential recovery flows
+- administrator-driven user lifecycle actions
 
-### `access`
+### `rbac`
 
-Owns access-control capabilities that answer: what can the current user see and do.
+Owns starter-level role-based access-control capabilities.
 
 Includes:
 
@@ -86,6 +104,7 @@ Includes:
 - role-menu assignment
 - visible-menu resolution for the current user
 - backend permission enforcement contracts
+- administrative user management needed for assigning roles
 
 Does not include:
 
@@ -147,8 +166,9 @@ Does not include:
 
 ## Cross-Group Rules
 
-- `identity` answers who the current user is.
-- `access` answers what the current user can do.
+- `auth` answers whether the current user is authenticated.
+- `account` answers how the current user manages their own account.
+- `rbac` answers what the current user can see and do.
 - `audit` records what happened.
 - `system` provides reusable support data.
 - `runtime` provides reusable resource handling.
@@ -157,22 +177,21 @@ No feature group should absorb another group's primary ownership.
 
 In particular:
 
-- `identity` must not absorb authorization ownership
-- `access` must not be hidden under `system`
+- `auth` must not absorb account, RBAC, or IAM-platform ownership
+- `account` must not absorb administrator user management
+- `rbac` must not be hidden under `system`
 - `audit` must record actions but not decide policy
 - `runtime` must not become a generic bucket for unrelated infrastructure features
 
 ## Phase 1 Minimum Deliverables
 
-### `identity`
+### `auth`
 
 Must deliver:
 
 - login
 - logout
 - current-user query
-- self profile update
-- self password change
 
 Will not deliver in Phase 1:
 
@@ -181,11 +200,27 @@ Will not deliver in Phase 1:
 - phone verification
 - MFA
 - third-party login
+- OAuth2 or OIDC provider behavior
 
-### `access`
+### `account`
 
 Must deliver:
 
+- self profile update
+- self avatar update
+- self password change
+
+Will not deliver in Phase 1:
+
+- account recovery
+- device management
+- session management UI
+
+### `rbac`
+
+Must deliver:
+
+- admin user management
 - user-role relation
 - role-permission relation
 - role-menu relation
@@ -247,15 +282,16 @@ Will not deliver in Phase 1:
 
 Phase 1 should prioritize feature groups in this order:
 
-1. `identity`
-2. `access`
-3. `audit`
-4. `system`
-5. `runtime`
+1. `auth`
+2. `account`
+3. `rbac`
+4. `audit`
+5. `system`
+6. `runtime`
 
 This order is intentional:
 
-- `identity` and `access` establish the reusable admin backbone
+- `auth`, `account`, and `rbac` establish the reusable admin backbone
 - `audit` raises the foundation from demo-level to operationally usable
 - `system` and `runtime` extend reuse value without driving the architecture
 
@@ -283,49 +319,50 @@ Do not introduce new top-level apps or new shared crates for this phase.
 
 ### Backend
 
-Backend feature groups should be represented as top-level feature folders under:
+Current Phase 1 backend ownership uses existing folders where they already work:
 
-- `zen-server/src/features/identity/`
-- `zen-server/src/features/access/`
-- `zen-server/src/features/audit/`
-- `zen-server/src/features/system/`
-- `zen-server/src/features/runtime/`
+- `zen-server/src/features/auth/`
+- `zen-server/src/features/account/`
+- RBAC is currently carried by `zen-server/src/features/system/role/`, `zen-server/src/features/system/menu/`, and access-facing parts of `zen-server/src/features/system/user/`
+- audit is currently carried by `zen-server/src/features/system/log/`
+- system support data is currently carried by `zen-server/src/features/system/dict/`
+- runtime file handling is currently carried by `zen-server/src/common/files.rs` and runtime wiring in `zen-server/src/infra/`
 
 Rules:
 
-- `system/` should stop acting as a catch-all home for unrelated admin capabilities
-- `identity`, `access`, `audit`, and `runtime` should be first-class feature groups when the work starts
-- standard feature structure still applies: `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, `types.rs`
+- do not create new feature folders just to match capability labels
+- standard feature structure still applies when a new backend feature is actually needed: `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, `types.rs`
 
 ### Frontend
 
-Frontend API modules should mirror backend capability groups:
+Current Phase 1 frontend ownership uses existing routes and API modules where they already work:
 
-- `zen-web/src/api/identity/`
-- `zen-web/src/api/access/`
-- `zen-web/src/api/audit/`
+- `zen-web/src/api/auth/`
+- `zen-web/src/api/account/`
 - `zen-web/src/api/system/`
-- `zen-web/src/api/runtime/`
+- `systemAPI.role`, `systemAPI.menu`, and `systemAPI.user` are the current RBAC API carriers
+- `systemAPI.log` is the current audit API carrier
+- `systemAPI.dict` is the current system support-data API carrier
 
-Frontend routes should also follow capability boundaries:
+Current routes:
 
-- `zen-web/src/routes/profile/`
-- `zen-web/src/routes/access/`
-- `zen-web/src/routes/audit/`
+- `zen-web/src/routes/profile.tsx`
 - `zen-web/src/routes/system/`
-- `zen-web/src/routes/runtime/`
+- `system/role`, `system/menu`, and `system/user` are the current RBAC route carriers
+- `system/log` is the current audit route carrier
+- `system/dict` is the current system route carrier
 
 ### Documentation
 
-Future Phase 1 follow-up docs should use the same boundaries:
+Future Phase 1 follow-up docs should use these boundaries:
 
 - one foundation-level rollout plan
 - feature-group-specific specs only when a group needs deeper design work
 
 ## Structural Rules
 
-- Do not rename `identity` back to `auth` at the product-capability level.
-- Do not hide `access` under `system`.
+- Do not introduce a general IAM product-capability group in Phase 1.
+- Do not create `rbac` paths just for naming consistency.
 - Do not let `runtime` become a generic infrastructure bucket.
 - Do not add speculative extension surfaces before the first baseline closes.
 
@@ -334,15 +371,15 @@ Future Phase 1 follow-up docs should use the same boundaries:
 Phase 1 is successful when:
 
 - `rustzen-admin` can act as a real admin starting point for downstream projects
-- identity and access are reusable without business-module assumptions
+- auth, account, and RBAC are reusable without business-module assumptions
 - audit exists as a first-class reusable capability
 - system support data and runtime file handling are available as foundation services
 - repository structure stays clear and does not absorb speculative platform concerns
 
 ## Follow-Up
 
-The next artifact after this spec should be a rollout plan that:
+The rollout plan should:
 
-- converts the five feature groups into phased implementation work
-- identifies which existing modules move, stay, or split
-- defines the first implementation slices for `identity`, `access`, `audit`, `system`, and `runtime`
+- convert the six starter groups into phased implementation work
+- identify which existing modules already satisfy the baseline
+- defines the first implementation slices for `auth`, `account`, `rbac`, `audit`, `system`, and `runtime`

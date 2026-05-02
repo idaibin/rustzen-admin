@@ -1,8 +1,5 @@
 import { apiRequest } from "@/api/request";
 
-/**
- * Authentication API service.
- */
 export const authAPI = {
     login: (data: Auth.LoginRequest) => {
         return apiRequest<Auth.LoginResponse, Auth.LoginRequest>({

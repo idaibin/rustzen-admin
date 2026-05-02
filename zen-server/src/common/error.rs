@@ -71,6 +71,14 @@ pub enum ServiceError {
     #[error("Password hashing failed")]
     PasswordHashingFailed,
 
+    /// Current password verification failed.
+    #[error("Current password is incorrect")]
+    InvalidCurrentPassword,
+
+    /// New password confirmation does not match.
+    #[error("New password confirmation does not match")]
+    PasswordConfirmationMismatch,
+
     /// Failed to upload file.
     #[error("Failed to create avatar folder")]
     CreateAvatarFolderFailed,
@@ -115,6 +123,14 @@ impl From<ServiceError> for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 10003,
                 "Password processing failed. Please try again.",
+            ),
+            ServiceError::InvalidCurrentPassword => {
+                app_error(StatusCode::BAD_REQUEST, 10011, "Current password is incorrect.")
+            }
+            ServiceError::PasswordConfirmationMismatch => app_error(
+                StatusCode::BAD_REQUEST,
+                10012,
+                "New password confirmation does not match.",
             ),
             ServiceError::UserIsDisabled => {
                 app_error(StatusCode::FORBIDDEN, 10004, "User account is disabled.")

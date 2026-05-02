@@ -25,7 +25,7 @@
 - Positioning is explicit: it is a monorepo foundation for Rust admin systems, not a finished vertical product.
 - The core split is clean: shared auth and permission code in `zen-core/`, business backend in `zen-server/`, frontend in `zen-web/`.
 - Backend shape is already usable as a template:
-  - top-level features: `auth/`, `dashboard/`, `system/`
+  - top-level features: `auth/`, `account/`, `dashboard/`, `system/`
   - `system/` is further split into `dict/`, `log/`, `menu/`, `role/`, `user/`
 - Frontend route coverage matches the current admin baseline: login, dashboard-like index, and system management pages.
 - Documentation discipline is good and already close to a reusable starter repo.

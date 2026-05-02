@@ -24,7 +24,7 @@
 - Keep auth redirects, permission gates, current-user bootstrap, and not-found handling in `zen-web/src/routes/__root.tsx`.
 - Keep route paths stable because `zen-web/src/store/useAuthStore.ts` derives permission codes from pathname.
 - Permission codes follow current store behavior: normal pages map to `<path>:list`, `:create` is kept, and numeric `edit` / `detail` segments are ignored.
-- Do not create future frontend groups such as `identity`, `access`, `audit`, or `runtime` until implementation actually lands.
+- Do not create future frontend groups such as `rbac`, `audit`, or `runtime` until implementation actually lands.
 
 ## API Rules
 

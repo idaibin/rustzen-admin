@@ -29,7 +29,7 @@ export const Route = createRootRoute({
         }
 
         // Redirect to home skip permissions check
-        if (curPath === "/") {
+        if (curPath === "/" || curPath === "/profile") {
             return null;
         }
         const isPermission = checkMenuPermissions(curPath);
