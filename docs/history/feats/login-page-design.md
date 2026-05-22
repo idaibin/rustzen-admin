@@ -1,10 +1,10 @@
-# UI Design Inputs
+# Login Page Design
 
-This directory stores repository-local UI design inputs that have already been approved for implementation.
+This historical record stores the repository-local login page design input that has already been approved for implementation.
 
 ## Login Page
 
-- Full-page design reference: `docs/ui/login-page-design.png`
+- Full-page design reference: `docs/history/feats/login-page-design.png`
 - Implemented route: `zen-web/src/routes/login.tsx`
 - Frontend logo asset: `zen-web/src/assets/rustzen-logo.png`
 - Frontend illustration asset: `zen-web/src/assets/login-illustration.png`

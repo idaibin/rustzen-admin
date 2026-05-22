@@ -21,76 +21,17 @@ This layout keeps backend, frontend, and repository rules explicit, making the c
 
 ## Repository Layout
 
-```txt
-.
-├── zen-core/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── auth/
-│       ├── permission/
-│       ├── error.rs
-│       └── lib.rs
-├── zen-server/
-│   ├── Cargo.toml
-│   ├── migrations/
-│   └── src/
-│       ├── features/
-│       │   ├── account/
-│       │   ├── auth/
-│       │   ├── dashboard/
-│       │   └── system/
-│       ├── infra/
-│       ├── common/
-│       └── middleware/
-├── zen-web/
-│   └── src/
-│       ├── routes/
-│       ├── api/
-│       ├── components/
-│       │   └── base-layout/
-│       └── store/
-├── deploy/
-│   ├── sql/
-│   │   └── repair_menu_schema.sql
-│   ├── binary.Dockerfile
-│   ├── release.Dockerfile
-│   ├── runtime.Dockerfile
-│   └── rustzen-admin.service
-├── docs/
-├── AGENTS.md
-├── justfile
-├── Cargo.toml
-├── Cargo.lock
-└── README.md
-```
+→ Architecture summary: [docs/architecture.md](./docs/architecture.md)
 
-## Documentation Entry Points
+## Documentation
 
-- [CHANGELOG.md](./CHANGELOG.md): release notes and breaking changes (start here when upgrading)
-- [docs/README.md](./docs/README.md): documentation system entrypoint and placement rules
-- [AGENTS.md](./AGENTS.md): repository-level collaboration rules
-- [zen-server/AGENTS.md](./zen-server/AGENTS.md): backend entry guide
-- [zen-web/AGENTS.md](./zen-web/AGENTS.md): frontend entry guide
-- [docs/architecture.md](./docs/architecture.md): repository structure, boundaries, and command entrypoints
-- [docs/project-map.md](./docs/project-map.md): entrypoints and high-frequency change paths
-- [docs/backend-guide.md](./docs/backend-guide.md): backend layering, naming, database, and error rules
-- [docs/frontend-guide.md](./docs/frontend-guide.md): frontend routing, request, state, and UI rules
-- [docs/deployment-guide.md](./docs/deployment-guide.md): deployment and runtime configuration rules
-- [docs/permission-guide.md](./docs/permission-guide.md): permission model and usage rules
+→ Complete documentation index: [docs/README.md](./docs/README.md)
 
-## Common Commands
+## Command Source
 
-```bash
-just dev-server
-just dev-web
-just check
-just build
-just build-binary
-just build-release
-just build-image
-```
+Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
 
 ## Notes
 
 - `README.md` and `AGENTS.md` stay as lightweight entry documents.
-- Detailed execution plans, progress tracking, and iteration logs are maintained in dedicated docs under `docs/` when needed.
+- `docs/history/` contains historical execution records and is not current implementation truth.

@@ -30,10 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Environment variables use the `RUSTZEN_` prefix (see `.env.example`). `DATABASE_URL` remains unprefixed.
 - Replaced per-path env keys (`web_dist`, `upload_dir`, `avatar_dir`, `upload_public_prefix`) with `RUSTZEN_RUNTIME_ROOT` and `RUSTZEN_FILES_PREFIX`.
-- CI and `just` targets updated for the new layout (`just build-binary`, `just build-release`, `just build-image`). See `justfile` and `docs/deployment-guide.md`.
+- CI and `just` targets updated for the new layout (`just build-binary`, `just build-release`, `just build-image`). See `justfile` and `docs/guides/deployment.md`.
 
 ### Migration notes
 
 - **Fresh installs**: use `.env.example`, run the backend once so embedded migrations apply; no repair script needed.
-- **Existing databases** that predate `parent_code` / `is_manual` on `menus`: run `psql "$DATABASE_URL" -f deploy/sql/repair_menu_schema.sql` once before startup. Details: `docs/deployment-guide.md`, `docs/permission-guide.md`.
-- **Full upgrade steps**: `docs/deployment-guide.md`.
+- **Existing databases** that predate `parent_code` / `is_manual` on `menus`: run `psql "$DATABASE_URL" -f deploy/sql/repair_menu_schema.sql` once before startup. Details: `docs/guides/deployment.md`, `docs/guides/permission.md`.
+- **Full upgrade steps**: `docs/guides/deployment.md`.
