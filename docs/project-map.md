@@ -1,133 +1,69 @@
 # Project Map
 
-> This document is only an index. Use it to quickly locate entrypoints, directories, and high-frequency change points.
+This is a practical path index for task orientation. It maps where to look first and when a path matters.
 
-## Repository Entrypoints
+## Root
 
-- Shared auth and permission crate entrypoint: `zen-core/src/lib.rs`
-- Backend startup entrypoint: `zen-server/src/main.rs`
-- Frontend startup entrypoint: `zen-web/src/main.tsx`
-- Root route entrypoint: `zen-web/src/routes/__root.tsx`
-- Root layout entrypoint: `zen-web/src/components/base-layout/index.tsx`
-- Shared command entrypoint: `justfile`
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `README.md` | Human entrypoint and project summary. | You need a quick repository overview. |
+| `AGENTS.md` | Repository-wide AI constraints. | You start any task. |
+| `Cargo.toml` | Rust workspace definition. | You need crate or dependency context. |
+| `justfile` | Command source of truth. | You need to run, check, build, or package. |
+| `.env.example` | Environment-variable template. | You touch runtime config or deployment. |
 
-## Documentation Index
+## Documentation
 
-- Documentation system entrypoint: `docs/README.md`
-- Repository rules and reading order: `AGENTS.md`
-- Backend entry rules: `zen-server/AGENTS.md`
-- Frontend entry rules: `zen-web/AGENTS.md`
-- Product direction: `docs/goals/product-direction.md`
-- Repository evolution goals: `docs/goals/repository-evolution.md`
-- Current rollout plan: `docs/plans/documentation-governance-rollout.md`
-- Current Phase 1 foundation rollout plan: `docs/plans/admin-foundation-phase-1-rollout.md`
-- Current documentation governance spec: `docs/specs/documentation-governance.md`
-- Current Phase 1 foundation spec: `docs/specs/admin-foundation-phase-1.md`
-- Current audit baseline spec: `docs/specs/audit-baseline.md`
-- Current auth/account baseline spec: `docs/specs/auth-account-baseline.md`
-- Current RBAC baseline spec: `docs/specs/rbac-baseline.md`
-- Current system baseline spec: `docs/specs/system-baseline.md`
-- Current runtime baseline spec: `docs/specs/runtime-baseline.md`
-- Stable agent operating rules: `docs/agents/operating-rules.md`
-- Current agent-facing iteration state: `docs/agents/current-iteration.md`
-- Repository-wide structure rules: `docs/architecture.md`
-- Cross-repository comparison baseline: `docs/repository-comparison.md`
-- Backend implementation rules: `docs/backend-guide.md`
-- Frontend implementation rules: `docs/frontend-guide.md`
-- Deployment rules: `docs/deployment-guide.md`
-- Permission model rules: `docs/permission-guide.md`
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `docs/README.md` | Documentation index with file roles and values. | You need to choose which docs to read. |
+| `docs/architecture.md` | Current repository facts. | You need boundaries, topology, or data flow. |
+| `docs/project-map.md` | Path orientation. | You need to find the right files. |
+| `docs/guides/` | Current development rules. | You are about to edit backend, frontend, deployment, or permission behavior. |
+| `docs/reference/` | Optional deep context. | Current facts and guides are not enough. |
+| `docs/history/` | Non-current records. | You need completed designs or historical context. |
 
-## Deployment Index
+## Backend
 
-- Standalone Linux x86_64 backend binary build: `deploy/binary.Dockerfile`
-- Release tree and zip build: `deploy/release.Dockerfile`
-- Runtime image build: `deploy/runtime.Dockerfile`
-- Systemd service template: `deploy/rustzen-admin.service`
-- One-time repair SQL: `deploy/sql/repair_menu_schema.sql`
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `zen-core/` | Shared auth and permission crate. | You touch auth context, JWT, extractors, or permission checks. |
+| `zen-server/AGENTS.md` | Backend-specific AI rules. | You work under `zen-server/`. |
+| `zen-server/src/infra/` | Config, app assembly, database, auth runtime, permission cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or permission sync. |
+| `zen-server/src/common/` | Cross-feature backend helpers. | You touch shared file or utility behavior. |
+| `zen-server/src/middleware/` | Axum middleware. | You touch request middleware behavior. |
+| `zen-server/migrations/` | SQL migrations. | You change schema. |
 
-## Backend Index
+## Backend Features
 
-- Shared auth and permission core: `zen-core/src/`
-- Auth context, JWT codec, and middleware: `zen-core/src/auth/`
-- Permission rules, registry, and route helper: `zen-core/src/permission/`
-- Feature registry: `zen-server/src/features/mod.rs`
-- Auth: `zen-server/src/features/auth/`
-- Account: `zen-server/src/features/account/`
-- Dashboard: `zen-server/src/features/dashboard/`
-- System management aggregator: `zen-server/src/features/system/mod.rs`
-- Users: `zen-server/src/features/system/user/`
-- Roles: `zen-server/src/features/system/role/`
-- Menus: `zen-server/src/features/system/menu/`
-- Dictionaries: `zen-server/src/features/system/dict/`
-- Logs: `zen-server/src/features/system/log/`
-- Infrastructure: `zen-server/src/infra/`
-- Runtime config entrypoint: `zen-server/src/infra/config.rs`
-- Service assembly and static paths: `zen-server/src/infra/app.rs`
-- System info helpers: `zen-server/src/infra/system_info.rs`
-- Shared utilities: `zen-server/src/common/`
-- Upload path handling: `zen-server/src/common/files.rs`
-- Middleware: `zen-server/src/middleware/`
-- Database migrations: `zen-server/migrations/`
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `zen-server/src/features/auth/` | Login, logout, and current-session bootstrap. | You touch session, token, login info, or logout behavior. |
+| `zen-server/src/features/account/` | Current-account profile, avatar, and password flows. | You touch self-service account behavior. |
+| `zen-server/src/features/dashboard/` | Dashboard summary APIs. | You touch dashboard cards or summary stats. |
+| `zen-server/src/features/system/dict/` | Dictionary management. | You touch dictionary data or option sources. |
+| `zen-server/src/features/system/log/` | System log management and current audit carrier. | You touch operation or login logs. |
+| `zen-server/src/features/system/menu/` | Menu and permission menu management. | You touch menu trees or permission-code menu rows. |
+| `zen-server/src/features/system/role/` | Role management. | You touch roles or role-menu assignment. |
+| `zen-server/src/features/system/user/` | User management and access-facing user-role behavior. | You touch admin user CRUD, status, password reset, or user-role assignment. |
 
-## Phase 1 Capability Map
+## Frontend
 
-- `auth`: implemented in `zen-server/src/features/auth/`
-- `account`: implemented in `zen-server/src/features/account/`
-- `rbac`: currently implemented by `zen-server/src/features/system/menu/`, `zen-server/src/features/system/role/`, and access-facing parts of `zen-server/src/features/system/user/`
-- `audit`: currently starts from `zen-server/src/features/system/log/`
-- `system`: currently starts from `zen-server/src/features/system/dict/` and future config ownership
-- `runtime`: currently has no dedicated top-level feature and will be introduced as a new group
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `zen-web/AGENTS.md` | Frontend-specific AI rules. | You work under `zen-web/`. |
+| `zen-web/package.json` | Frontend package and scripts. | You touch frontend dependencies or scripts. |
+| `zen-web/src/routes/` | File-based route pages and root guard. | You add or change pages, redirects, auth gates, or error routes. |
+| `zen-web/src/api/` | Request wrapper, API modules, and frontend API types. | You change backend contracts or page data access. |
+| `zen-web/src/components/base-layout/` | Admin shell, navigation, and layout concerns. | You touch menus, header, shell, or logout UI. |
+| `zen-web/src/components/base-user/` | Current-user UI such as avatar behavior. | You touch profile/avatar visible behavior. |
+| `zen-web/src/store/` | Shared frontend state. | You touch auth state or persisted cross-page state. |
+| `zen-web/src/constant/` | Frontend constants and option lists. | You touch static frontend options. |
+| `zen-web/src/util/` | Frontend utilities. | You touch shared frontend helpers. |
 
-Current-to-target backend ownership:
+## Deployment
 
-- `auth` owns login, logout, and current-session bootstrap
-- `account` owns self-profile, avatar, and self-password flows
-- `system/menu` + `system/role` + access-facing parts of `system/user` are the current RBAC carriers
-- `system/log` -> `audit`
-- `system/dict` + future config -> `system`
-- new file/resource capability -> `runtime`
-
-## Frontend Index
-
-- App bootstrap: `zen-web/src/main.tsx`
-- Root route guard and devtools: `zen-web/src/routes/__root.tsx`
-- Root layout shell and navigation: `zen-web/src/components/base-layout/index.tsx`
-- Route pages: `zen-web/src/routes/`
-- API barrel: `zen-web/src/api/index.ts`
-- Shared request layer: `zen-web/src/api/request.ts`
-- API modules: `zen-web/src/api/<domain>/api.ts` and `zen-web/src/api/system/<resource>/api.ts`
-- Frontend rules: `docs/frontend-guide.md`
-- Shared components: `zen-web/src/components/`
-- Shared state: `zen-web/src/store/`
-- Utilities: `zen-web/src/util/`
-- Global styles: `zen-web/src/style.css`
-
-## High-Frequency Change Points
-
-- Add a backend endpoint: `zen-server/src/features/<feature>/`
-- Change route permission wiring: `zen-core/src/permission/route.rs`
-- Change auth context or JWT behavior: `zen-core/src/auth/`
-- Change permission cache or menu sync: `zen-server/src/infra/permission.rs`
-- Add a frontend page: `zen-web/src/routes/`
-- Change frontend requests: `zen-web/src/api/request.ts` and `zen-web/src/api/<module>/api.ts`
-- Change frontend bootstrap and providers: `zen-web/src/main.tsx`
-- Change root route guard or devtools: `zen-web/src/routes/__root.tsx`
-- Change frontend layout: `zen-web/src/components/base-layout/index.tsx`
-- Change auth state: `zen-web/src/store/useAuthStore.ts`
-- Change auth APIs: `zen-web/src/api/auth/`
-- Change account APIs: `zen-web/src/api/account/`
-- Change deployment packaging or service files: `deploy/`
-- Change product direction or repository intent: `docs/goals/`
-- Change active rollout sequencing: `docs/plans/`
-- Change structural design contracts: `docs/specs/`
-- Change agent execution rules or current iteration state: `docs/agents/`
-
-## Common Commands
-
-- `just dev-server`
-- `just dev-web`
-- `just check`
-- `just build`
-- `just build-binary`
-- `just build-release`
-- `just build-image`
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `deploy/` | Dockerfiles and service template. | You package or deploy the app. |
+| `deploy/sql/` | One-off SQL repair scripts. | You repair an older deployment. |

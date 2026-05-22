@@ -1,40 +1,25 @@
-# Backend Guide
+# Backend Rules
 
-## Scope
+## Read
 
-- Applies to `zen-server/`.
-- Keep only quick local rules for work inside `zen-server/`.
+- `docs/guides/backend.md`
+- `docs/guides/permission.md`
 
-## Quick Entry
+## Boundaries
 
-- `docs/backend-guide.md`
-- `docs/architecture.md`
-- `docs/permission-guide.md`
-- `docs/project-map.md`
+- Business features live in `zen-server/src/features/`.
+- Shared auth and permission code stays in `zen-core/`.
+- Migrations live in `zen-server/migrations/`.
 
-## Directory Highlights
+## Rules
 
-- `zen-core/`: shared auth and permission capability crate used by `zen-server/`
-- `zen-server/src/features/`: business features
-- `zen-server/src/infra/`: infrastructure such as config, database, auth runtime wiring, and menu sync
-- `zen-server/src/common/`: shared capabilities across features
-- `zen-server/src/middleware/`: middleware
-- `zen-server/migrations/`: database migrations
-
-## Local Rules
-
-- For a new feature, create `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` first.
-- Handlers only deal with request and response handling; do not write SQL there.
+- New features use `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs`.
+- Handlers only handle requests and responses; do not write SQL there.
 - Services handle orchestration, validation, and transactions.
 - Repos only handle persistence and must not cross feature boundaries.
 - Use `Require(...)` as the default permission check.
 - Do not add compatibility fallbacks or extra abstraction layers.
 
-## Commands
+## Command Source
 
-- `cargo check -p server`
-- `just dev-server`
-- `just check` (backend `cargo check` + frontend `vp lint`)
-- `just build-binary` (Docker standalone backend binary export)
-- `just build-release` (Docker release tree and zip export)
-- `just build-image` (Docker runtime image build)
+- Use root `justfile` as the command source of truth.
