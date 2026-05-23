@@ -1,19 +1,61 @@
 use super::{
     repo::AuthRepository,
-    types::{AuthUserRow, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
+    types::{
+        AuthUserRow, LoginAuditCommand, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus,
+    },
 };
 use crate::{
     common::error::ServiceError,
+    features::system::log::{service::LogService, types::LogWriteCommand},
     infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 
 use sqlx::PgPool;
-use tracing;
+use std::time::Instant;
 
 /// Auth service for login and current-user session operations.
 pub struct AuthService;
 
 impl AuthService {
+    pub async fn login_with_audit(
+        pool: &PgPool,
+        username: &str,
+        password: &str,
+        audit_command: LoginAuditCommand,
+    ) -> Result<LoginResp, ServiceError> {
+        let start_time = Instant::now();
+
+        match Self::login(pool, username, password).await {
+            Ok(response) => {
+                Self::record_login_operation(
+                    pool,
+                    response.user_info.id,
+                    username,
+                    "SUCCESS",
+                    "User login successful",
+                    start_time,
+                    &audit_command,
+                )
+                .await;
+                Ok(response)
+            }
+            Err(err) => {
+                let description = err.to_string();
+                Self::record_login_operation(
+                    pool,
+                    0,
+                    username,
+                    "FAIL",
+                    &description,
+                    start_time,
+                    &audit_command,
+                )
+                .await;
+                Err(err)
+            }
+        }
+    }
+
     /// Login with username/password
     pub async fn login(
         pool: &PgPool,
@@ -23,10 +65,9 @@ impl AuthService {
         let start = std::time::Instant::now();
         tracing::info!("Login attempt received for username: {}", username);
 
-        // 1. verify login credentials
-        let user = Self::verify_login(pool, username, password).await.map_err(|e| {
-            tracing::warn!("Login verification failed for username={}: {:?}", username, e);
-            e
+        let user = Self::verify_login(pool, username, password).await.map_err(|error| {
+            tracing::warn!("Login verification failed for username={}: {:?}", username, error);
+            error
         })?;
         let verification_time = start.elapsed();
         tracing::debug!(
@@ -35,7 +76,6 @@ impl AuthService {
             user.id
         );
 
-        // 2. generate token
         let token = jwt_codec().encode(user.id, username).map_err(|e| {
             tracing::error!("Failed to generate token for user_id={}: {:?}", user.id, e);
             ServiceError::TokenCreationFailed
@@ -43,7 +83,6 @@ impl AuthService {
 
         tracing::debug!("JWT token generated successfully for user_id={}", user.id);
 
-        // 3. cache user permissions
         Self::cache_user_permissions(pool, user.id, user.is_system).await.map_err(|e| {
             tracing::error!(
                 "Failed to cache permissions during login for user_id={}: {:?}",
@@ -53,7 +92,6 @@ impl AuthService {
             e
         })?;
 
-        // 4. update last login time
         let user_id_clone = user.id;
         let pool_clone = pool.clone();
         tokio::spawn(async move {
@@ -70,7 +108,6 @@ impl AuthService {
             }
         });
 
-        // 5. get user info
         let user_info = Self::get_login_info(pool, user.id).await?;
 
         let total_time = start.elapsed();
@@ -81,7 +118,6 @@ impl AuthService {
             total_time
         );
 
-        // 6. return login vo
         Ok(LoginResp { token, user_info })
     }
 
@@ -89,17 +125,15 @@ impl AuthService {
     pub async fn get_login_info(pool: &PgPool, user_id: i64) -> Result<UserInfoResp, ServiceError> {
         tracing::info!(user_id, "Starting to fetch comprehensive user info");
 
-        // Get user basic info
         let user = AuthRepository::find_user_by_id(pool, user_id)
             .await?
-            .ok_or(ServiceError::NotFound("User".to_string()))?;
+            .ok_or_else(|| ServiceError::NotFound("User".to_string()))?;
         let AuthUserRow { id, username, real_name, email, avatar_url, is_system } = user;
 
         tracing::debug!("User basic info retrieved for user_id={}, username={}", user_id, username);
 
         let permissions = Self::load_permissions(pool, user_id, is_system).await?;
 
-        // Refresh user permissions cache
         PermissionService::cache_user_permissions(user_id, &permissions);
 
         tracing::info!(
@@ -111,6 +145,39 @@ impl AuthService {
         Ok(UserInfoResp { id, username, real_name, email, avatar_url, is_system, permissions })
     }
 
+    pub fn logout(user_id: i64) {
+        PermissionService::clear_user_cache(user_id);
+    }
+
+    async fn record_login_operation(
+        pool: &PgPool,
+        user_id: i64,
+        username: &str,
+        status: &str,
+        description: &str,
+        start_time: Instant,
+        audit_command: &LoginAuditCommand,
+    ) {
+        if let Err(e) = LogService::record_operation(
+            pool,
+            LogWriteCommand {
+                user_id,
+                username: username.to_string(),
+                action: "AUTH_LOGIN".to_string(),
+                description: description.to_string(),
+                data: Some(serde_json::json!({})),
+                status: status.to_string(),
+                duration_ms: start_time.elapsed().as_millis() as i32,
+                ip_address: audit_command.ip_address.clone(),
+                user_agent: audit_command.user_agent.clone(),
+            },
+        )
+        .await
+        {
+            tracing::error!("Failed to log login operation: {:?}", e);
+        }
+    }
+
     /// Verify login credentials
     pub async fn verify_login(
         pool: &PgPool,
@@ -119,7 +186,6 @@ impl AuthService {
     ) -> Result<LoginCredentialsRow, ServiceError> {
         tracing::info!("Starting login verification for username: {}", username);
 
-        // 1. get login credentials
         let user = AuthRepository::get_login_credentials(pool, username)
             .await?
             .ok_or(ServiceError::InvalidCredentials)?;
@@ -131,11 +197,9 @@ impl AuthService {
             user.status
         );
 
-        // 2. check if user is enabled
         let status = UserStatus::try_from(user.status)?;
         status.check_status()?;
 
-        // 3. verify password
         if !PasswordUtils::verify_password(password, &user.password_hash) {
             tracing::warn!(
                 "Invalid login attempt: password verification failed for username={}, user_id={}",

@@ -7,12 +7,11 @@ use uuid::Uuid;
 
 const USER_AVATAR_MAX_SIZE: usize = 1024 * 1024;
 
-/// 保存头像
+/// Saves a user avatar and returns its public URL.
 pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceError> {
     let avatar_dir = CONFIG.avatars_dir();
     let avatar_public_prefix = CONFIG.avatars_prefix();
 
-    // 确保上传目录存在
     tokio::fs::create_dir_all(&avatar_dir)
         .await
         .map_err(|_| ServiceError::CreateAvatarFolderFailed)?;
@@ -25,32 +24,34 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
         return Err(ServiceError::InvalidOperation("No file provided".into()));
     };
 
-    // 验证文件类型
-    let content_type = field.content_type().unwrap_or("");
+    let content_type = field
+        .content_type()
+        .ok_or_else(|| ServiceError::InvalidOperation("Missing file content type".into()))?;
     if !content_type.starts_with("image/") {
         return Err(ServiceError::InvalidOperation("Only image files are allowed".into()));
     }
 
-    // 获取文件扩展名
-    let filename = field.file_name().unwrap_or("unknown");
-    let extension = filename.rsplit('.').next().unwrap_or("jpg");
+    let filename = field
+        .file_name()
+        .ok_or_else(|| ServiceError::InvalidOperation("Missing file name".into()))?;
+    let extension = filename
+        .rsplit_once('.')
+        .map(|(_, extension)| extension)
+        .filter(|extension| !extension.is_empty())
+        .ok_or_else(|| ServiceError::InvalidOperation("Missing file extension".into()))?;
 
-    // 生成唯一文件名
     let file_name = format!("{}.{}", Uuid::new_v4(), extension);
     let file_path = avatar_dir.join(&file_name);
 
-    // 读取文件数据
     let data = field
         .bytes()
         .await
         .map_err(|_| ServiceError::InvalidOperation("Failed to read file data".into()))?;
 
-    // 验证文件大小
     if data.len() > USER_AVATAR_MAX_SIZE {
         return Err(ServiceError::InvalidOperation("File size must be less than 1MB".into()));
     }
 
-    // 保存文件
     let mut file = File::create(&file_path).map_err(|_| ServiceError::CreateAvatarFileFailed)?;
     file.write_all(&data).map_err(|_| ServiceError::CreateAvatarFileFailed)?;
 

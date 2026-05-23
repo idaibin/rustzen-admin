@@ -1,6 +1,6 @@
 use super::{
-    repo::{MenuListQuery, MenuRepository},
-    types::{CreateMenuRequest, MenuItemResp, MenuQuery, UpdateMenuPayload},
+    repo::MenuRepository,
+    types::{CreateMenuRequest, MenuItemResp, MenuListQuery, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::{
     api::{OptionItem, OptionsQuery},

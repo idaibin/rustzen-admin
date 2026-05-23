@@ -6,16 +6,9 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
-use super::types::RoleWithMenusRow;
+use super::types::{RoleListQuery, RoleWithMenusRow};
 
 pub struct RoleRepository;
-
-#[derive(Debug, Clone)]
-pub struct RoleListQuery {
-    pub role_name: Option<String>,
-    pub role_code: Option<String>,
-    pub status: Option<i16>,
-}
 
 impl RoleRepository {
     fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {

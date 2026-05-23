@@ -1,12 +1,8 @@
 use super::{
     service::AuthService,
-    types::{LoginRequest, LoginResp, UserInfoResp},
+    types::{LoginAuditCommand, LoginRequest, LoginResp, UserInfoResp},
 };
-use crate::{
-    common::api::{ApiResponse, AppResult},
-    features::system::log::{service::LogService, types::LogWriteCommand},
-    infra::permission::PermissionService,
-};
+use crate::common::api::{ApiResponse, AppResult};
 
 use axum::{
     Json,
@@ -15,7 +11,7 @@ use axum::{
 };
 use rustzen_core::auth::CurrentUser;
 use sqlx::PgPool;
-use std::{net::SocketAddr, time::Instant};
+use std::net::SocketAddr;
 
 /// Login with username/password
 #[tracing::instrument(name = "login", skip(pool, addr, headers, request))]
@@ -25,42 +21,19 @@ pub async fn login(
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResp> {
-    let start_time = Instant::now();
     let LoginRequest { username, password } = request;
-    let ip_address = addr.ip().to_string();
-    let user_agent =
-        headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown").to_string();
+    let audit_command = LoginAuditCommand {
+        ip_address: addr.ip().to_string(),
+        user_agent: headers
+            .get("user-agent")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("Unknown")
+            .to_string(),
+    };
 
-    match AuthService::login(&pool, &username, &password).await {
-        Ok(response) => {
-            record_login_operation(
-                &pool,
-                response.user_info.id,
-                &username,
-                "SUCCESS",
-                "User login successful",
-                start_time,
-                &ip_address,
-                &user_agent,
-            )
-            .await;
-            Ok(ApiResponse::success(response))
-        }
-        Err(err) => {
-            record_login_operation(
-                &pool,
-                0,
-                &username,
-                "FAIL",
-                &err.to_string(),
-                start_time,
-                &ip_address,
-                &user_agent,
-            )
-            .await;
-            Err(err.into())
-        }
-    }
+    Ok(ApiResponse::success(
+        AuthService::login_with_audit(&pool, &username, &password, audit_command).await?,
+    ))
 }
 
 /// Get current user info with roles and menus
@@ -75,36 +48,6 @@ pub async fn get_login_info(
 /// Logout and clear cache
 #[tracing::instrument(name = "logout", skip(current_user))]
 pub async fn logout(current_user: CurrentUser) -> AppResult<()> {
-    PermissionService::clear_user_cache(current_user.user_id);
+    AuthService::logout(current_user.user_id);
     Ok(ApiResponse::success(()))
-}
-
-async fn record_login_operation(
-    pool: &PgPool,
-    user_id: i64,
-    username: &str,
-    status: &str,
-    description: &str,
-    start_time: Instant,
-    ip_address: &str,
-    user_agent: &str,
-) {
-    if let Err(e) = LogService::record_operation(
-        pool,
-        LogWriteCommand {
-            user_id,
-            username: username.to_string(),
-            action: "AUTH_LOGIN".to_string(),
-            description: description.to_string(),
-            data: Some(serde_json::json!({})),
-            status: status.to_string(),
-            duration_ms: start_time.elapsed().as_millis() as i32,
-            ip_address: ip_address.to_string(),
-            user_agent: user_agent.to_string(),
-        },
-    )
-    .await
-    {
-        tracing::error!("Failed to log login operation: {:?}", e);
-    }
 }

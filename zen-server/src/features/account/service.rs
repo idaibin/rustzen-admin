@@ -47,7 +47,7 @@ impl AccountService {
         tracing::info!("Changing account password for user_id: {}", user_id);
         let current = AccountRepository::find_password_hash_by_id(pool, user_id)
             .await?
-            .ok_or(ServiceError::NotFound("User".to_string()))?;
+            .ok_or_else(|| ServiceError::NotFound("User".to_string()))?;
         let password_hash = Self::build_password_hash(
             &request.current_password,
             &current.password_hash,
@@ -55,7 +55,9 @@ impl AccountService {
             &request.confirm_password,
         )?;
 
-        AccountRepository::update_password(pool, user_id, &password_hash).await
+        AccountRepository::update_password(pool, user_id, &password_hash).await?;
+        AuthService::logout(user_id);
+        Ok(())
     }
 
     pub fn build_password_hash(

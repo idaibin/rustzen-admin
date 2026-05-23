@@ -1,8 +1,9 @@
 use super::{
-    repo::{CreateUserCommand, UserListQuery, UserRepository},
+    repo::UserRepository,
     types::{
-        CreateUserRequest, UpdateUserPasswordPayload, UpdateUserPayload, UpdateUserStatusPayload,
-        UserItemResp, UserOptionResp, UserOptionsQuery, UserQuery,
+        CreateUserCommand, CreateUserRequest, UpdateUserPasswordPayload, UpdateUserPayload,
+        UpdateUserStatusPayload, UserItemResp, UserListQuery, UserOptionResp, UserOptionsQuery,
+        UserQuery,
     },
 };
 use crate::{
