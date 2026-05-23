@@ -52,7 +52,9 @@ This is a practical path index for task orientation. It maps where to look first
 | Path | Value | Inspect when |
 | --- | --- | --- |
 | `zen-web/AGENTS.md` | Frontend-specific AI rules. | You work under `zen-web/`. |
-| `zen-web/package.json` | Frontend package and scripts. | You touch frontend dependencies or scripts. |
+| `zen-web/package.json` | Frontend package and pnpm scripts. | You touch frontend dependencies or scripts. |
+| `zen-web/pnpm-lock.yaml` | Frontend pnpm lockfile. | You change frontend dependencies or package-manager behavior. |
+| `zen-web/pnpm-workspace.yaml` | Frontend pnpm build-script approvals. | You change pnpm install behavior or packages with install scripts. |
 | `zen-web/src/routes/` | File-based route pages and root guard. | You add or change pages, redirects, auth gates, or error routes. |
 | `zen-web/src/api/` | Request wrapper, API modules, and frontend API types. | You change backend contracts or page data access. |
 | `zen-web/src/components/base-layout/` | Admin shell, navigation, and layout concerns. | You touch menus, header, shell, or logout UI. |
