@@ -1,6 +1,6 @@
 use super::{
-    repo::{RoleListQuery, RoleRepository},
-    types::{CreateRoleRequest, RoleItemResp, RoleQuery, UpdateRolePayload},
+    repo::RoleRepository,
+    types::{CreateRoleRequest, RoleItemResp, RoleListQuery, RoleQuery, UpdateRolePayload},
 };
 use crate::common::{
     api::{OptionItem, OptionsQuery},

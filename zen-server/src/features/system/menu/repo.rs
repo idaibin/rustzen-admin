@@ -6,17 +6,10 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
-use super::types::{MenuRow, UpdateMenuPayload};
+use super::types::{MenuListQuery, MenuRow, UpdateMenuPayload};
 
 /// Menu data access layer
 pub struct MenuRepository;
-
-#[derive(Debug, Clone)]
-pub struct MenuListQuery {
-    pub name: Option<String>,
-    pub code: Option<String>,
-    pub status: Option<i16>,
-}
 
 impl MenuRepository {
     fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {

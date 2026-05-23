@@ -42,18 +42,6 @@ pub struct UpdateMenuPayload {
     pub status: i16,
 }
 
-/// Menu query parameters
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MenuQuery {
-    /// The name of the menu.
-    pub name: Option<String>,
-    /// The code of the menu.
-    pub code: Option<String>,
-    /// The status of the menu.
-    pub status: Option<String>,
-}
-
 /// Menu item for tree list display
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +57,26 @@ pub struct MenuItemResp {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub children: Option<Vec<MenuItemResp>>,
+}
+
+/// Menu query parameters
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuQuery {
+    /// The name of the menu.
+    pub name: Option<String>,
+    /// The code of the menu.
+    pub code: Option<String>,
+    /// The status of the menu.
+    pub status: Option<String>,
+}
+
+/// Menu repository list query.
+#[derive(Debug, Clone)]
+pub struct MenuListQuery {
+    pub name: Option<String>,
+    pub code: Option<String>,
+    pub status: Option<i16>,
 }
 
 impl From<MenuRow> for MenuItemResp {

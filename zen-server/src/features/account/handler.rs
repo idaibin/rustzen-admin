@@ -8,7 +8,6 @@ use crate::{
         files::save_avatar,
     },
     features::auth::types::UserInfoResp,
-    infra::permission::PermissionService,
 };
 
 use axum::{
@@ -52,6 +51,5 @@ pub async fn change_password(
     Json(request): Json<ChangeAccountPasswordRequest>,
 ) -> AppResult<()> {
     AccountService::change_password(&pool, current_user.user_id, request).await?;
-    PermissionService::clear_user_cache(current_user.user_id);
     Ok(ApiResponse::success(()))
 }

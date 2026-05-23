@@ -7,20 +7,12 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{PgPool, QueryBuilder};
 
-use super::types::{DictItemResp, UpdateDictPayload};
+use super::types::{DictItemResp, DictListQuery, UpdateDictPayload};
 
 pub struct DictRepository;
 
 const DEFAULT_DICT_STATUS: i16 = 1;
 const DEFAULT_DICT_SORT_ORDER: i32 = 1;
-
-#[derive(Debug, Clone)]
-pub struct DictListQuery {
-    pub dict_type: Option<String>,
-    pub label: Option<String>,
-    pub value: Option<String>,
-    pub status: Option<i16>,
-}
 
 impl DictRepository {
     /// Formats the query for the dictionary items

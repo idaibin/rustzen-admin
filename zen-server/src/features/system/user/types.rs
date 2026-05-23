@@ -46,6 +46,35 @@ pub struct UpdateUserPayload {
     pub role_ids: Vec<i64>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUserPasswordPayload {
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUserStatusPayload {
+    pub status: i16,
+}
+
+/// User item for list display
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserItemResp {
+    pub id: i64,
+    pub username: String,
+    pub email: String,
+    pub real_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub status: i16,
+    pub last_login_at: Option<NaiveDateTime>,
+    pub roles: Vec<UserOptionResp>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+/// User option
+pub type UserOptionResp = OptionItem<i64>;
+
 /// User list query parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,34 +105,23 @@ pub struct UserOptionsQuery {
     pub status: Option<i16>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpdateUserPasswordPayload {
-    pub password: String,
+#[derive(Debug, Clone)]
+pub struct UserListQuery {
+    pub username: Option<String>,
+    pub status: Option<i16>,
+    pub real_name: Option<String>,
+    pub email: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpdateUserStatusPayload {
-    pub status: i16,
-}
-
-/// User item for list display
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UserItemResp {
-    pub id: i64,
+#[derive(Debug, Clone)]
+pub struct CreateUserCommand {
     pub username: String,
     pub email: String,
+    pub password_hash: String,
     pub real_name: Option<String>,
-    pub avatar_url: Option<String>,
-    pub status: i16,
-    pub last_login_at: Option<NaiveDateTime>,
-    pub roles: Vec<UserOptionResp>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub status: Option<i16>,
+    pub role_ids: Vec<i64>,
 }
-
-/// User option
-pub type UserOptionResp = OptionItem<i64>;
 
 impl TryFrom<UserWithRolesRow> for UserItemResp {
     type Error = ServiceError;

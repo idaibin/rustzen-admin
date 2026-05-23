@@ -6,18 +6,10 @@ use crate::common::{
 use chrono::{Months, Utc};
 use sqlx::{PgPool, QueryBuilder};
 
-use super::types::{LogItemResp, LogWriteCommand};
+use super::types::{LogItemResp, LogListQuery, LogWriteCommand};
 
 /// Log data access layer
 pub struct LogRepository;
-
-#[derive(Debug, Clone)]
-pub struct LogListQuery {
-    pub username: Option<String>,
-    pub action: Option<String>,
-    pub description: Option<String>,
-    pub ip_address: Option<String>,
-}
 
 impl LogRepository {
     fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {

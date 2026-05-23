@@ -1,6 +1,6 @@
 use super::{
-    repo::{LogListQuery, LogRepository},
-    types::{LogItemResp, LogQuery, LogWriteCommand},
+    repo::LogRepository,
+    types::{LogItemResp, LogListQuery, LogQuery, LogWriteCommand},
 };
 use crate::common::{
     error::ServiceError,

@@ -30,23 +30,6 @@ pub struct UpdateDictPayload {
     pub description: Option<String>,
     pub sort_order: Option<i32>,
 }
-/// Dictionary query parameters
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DictQuery {
-    /// The page number to retrieve. Defaults to 1.
-    pub current: Option<i64>,
-    /// The number of items per page. Defaults to 10.
-    pub page_size: Option<i64>,
-    /// Filter by dictionary type.
-    pub dict_type: Option<String>,
-    /// Filter by label.
-    pub label: Option<String>,
-    /// Filter by value.
-    pub value: Option<String>,
-    /// Filter by status.
-    pub status: Option<String>,
-}
 
 /// Updates the status of a dictionary item.
 #[derive(Debug, Clone, Deserialize)]
@@ -73,4 +56,30 @@ pub struct DictItemResp {
     pub sort_order: i32,
     /// The last update time.
     pub updated_at: NaiveDateTime,
+}
+
+/// Dictionary query parameters
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DictQuery {
+    /// The page number to retrieve. Defaults to 1.
+    pub current: Option<i64>,
+    /// The number of items per page. Defaults to 10.
+    pub page_size: Option<i64>,
+    /// Filter by dictionary type.
+    pub dict_type: Option<String>,
+    /// Filter by label.
+    pub label: Option<String>,
+    /// Filter by value.
+    pub value: Option<String>,
+    /// Filter by status.
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DictListQuery {
+    pub dict_type: Option<String>,
+    pub label: Option<String>,
+    pub value: Option<String>,
+    pub status: Option<i16>,
 }

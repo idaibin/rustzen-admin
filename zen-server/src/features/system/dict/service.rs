@@ -1,6 +1,6 @@
 use super::{
-    repo::{DictListQuery, DictRepository},
-    types::{CreateDictRequest, DictItemResp, DictQuery, UpdateDictPayload},
+    repo::DictRepository,
+    types::{CreateDictRequest, DictItemResp, DictListQuery, DictQuery, UpdateDictPayload},
 };
 use crate::common::{
     api::OptionItem,

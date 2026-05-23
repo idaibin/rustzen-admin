@@ -40,6 +40,20 @@ pub struct UpdateRolePayload {
     pub description: Option<String>,
 }
 
+/// Role item for list display
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoleItemResp {
+    pub id: i64,
+    pub name: String,
+    pub code: String,
+    pub description: Option<String>,
+    pub status: i16,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub menus: Vec<OptionItem<i64>>,
+}
+
 /// Role list query parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,18 +70,12 @@ pub struct RoleQuery {
     pub status: Option<String>,
 }
 
-/// Role item for list display
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RoleItemResp {
-    pub id: i64,
-    pub name: String,
-    pub code: String,
-    pub description: Option<String>,
-    pub status: i16,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-    pub menus: Vec<OptionItem<i64>>,
+/// Role repository list query.
+#[derive(Debug, Clone)]
+pub struct RoleListQuery {
+    pub role_name: Option<String>,
+    pub role_code: Option<String>,
+    pub status: Option<i16>,
 }
 
 impl TryFrom<RoleWithMenusRow> for RoleItemResp {

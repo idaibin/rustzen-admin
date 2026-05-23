@@ -6,30 +6,12 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{Error as SqlxError, PgPool, QueryBuilder};
 
-use super::types::UserWithRolesRow;
+use super::types::{CreateUserCommand, UserListQuery, UserWithRolesRow};
 
 /// User db for database operations
 pub struct UserRepository;
 
 const DEFAULT_USER_STATUS: i16 = 1;
-
-#[derive(Debug, Clone)]
-pub struct UserListQuery {
-    pub username: Option<String>,
-    pub status: Option<i16>,
-    pub real_name: Option<String>,
-    pub email: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateUserCommand {
-    pub username: String,
-    pub email: String,
-    pub password_hash: String,
-    pub real_name: Option<String>,
-    pub status: Option<i16>,
-    pub role_ids: Vec<i64>,
-}
 
 impl UserRepository {
     fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
