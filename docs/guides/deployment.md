@@ -30,6 +30,7 @@ Current deployment rules.
 - Avatars live under `<runtime_root>/data/avatars`.
 - Logs live under `<runtime_root>/logs`.
 - Build and deploy targets are defined in the root `justfile`.
+- Frontend release builds use pnpm with `zen-web/pnpm-lock.yaml`.
 
 ## Prohibited
 
@@ -37,6 +38,7 @@ Current deployment rules.
 - Fallback deploy layouts.
 - Build-machine absolute paths in runtime behavior.
 - Nested deployment asset directories unless the deployment surface grows.
+- npm or Bun lockfiles for the `zen-web` release build.
 
 ## Checks
 

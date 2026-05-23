@@ -30,6 +30,13 @@ Rules for frontend work under `zen-web/`.
 - Use existing design-system primitives before adding wrappers.
 - Use root `justfile` as the command source of truth.
 
+## Package Manager
+
+- `zen-web` uses pnpm; keep `zen-web/pnpm-lock.yaml` as the frontend lockfile.
+- Keep pnpm build-script approvals in `zen-web/pnpm-workspace.yaml`.
+- Use `pnpm dev`, `pnpm build`, and `pnpm exec ...` for frontend commands.
+- Do not introduce `package-lock.json`, `bun.lock`, npm commands, or Bun commands for `zen-web`.
+
 ## Prohibited
 
 - Multiple entrypoints for the same API domain.

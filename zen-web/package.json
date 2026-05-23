@@ -11,47 +11,39 @@
         "build": "vp build"
     },
     "dependencies": {
-        "@ant-design/icons": "^6.1.0",
+        "@ant-design/icons": "^6.2.3",
         "@ant-design/plots": "^2.6.8",
         "@ant-design/pro-components": "^2.8.10",
         "@emotion/react": "^11.14.0",
-        "@tanstack/react-query": "^5.91.0",
-        "@tanstack/react-query-devtools": "^5.91.3",
-        "@tanstack/react-router": "^1.167.5",
-        "@tanstack/react-router-devtools": "^1.166.9",
-        "@tanstack/router-plugin": "^1.166.14",
-        "antd": "^6.3.3",
-        "http-proxy-middleware": "^3.0.5",
-        "react": "^19.2.4",
-        "react-dom": "^19.2.4",
-        "zustand": "^5.0.12"
+        "@tanstack/react-query": "^5.100.13",
+        "@tanstack/react-query-devtools": "^5.100.13",
+        "@tanstack/react-router": "^1.170.7",
+        "@tanstack/react-router-devtools": "^1.167.0",
+        "@tanstack/router-plugin": "^1.168.10",
+        "antd": "^6.4.3",
+        "http-proxy-middleware": "^4.0.0",
+        "react": "^19.2.6",
+        "react-dom": "^19.2.6",
+        "zustand": "^5.0.13"
     },
     "devDependencies": {
         "@rustzen/zipper": "^0.1.4",
-        "@tailwindcss/postcss": "^4.2.2",
-        "@tailwindcss/vite": "^4.2.2",
-        "@types/node": "^25.5.0",
-        "@types/react": "^19.2.14",
+        "@tailwindcss/postcss": "^4.3.0",
+        "@tailwindcss/vite": "^4.3.0",
+        "@types/node": "^25.9.1",
+        "@types/react": "^19.2.15",
         "@types/react-dom": "^19.2.3",
-        "@vitejs/plugin-react": "^6.0.1",
-        "autoprefixer": "^10.4.27",
-        "globals": "^17.4.0",
-        "postcss": "^8.5.8",
-        "tailwindcss": "^4.2.2",
-        "typescript": "~5.9.3",
+        "@vitejs/plugin-react": "^6.0.2",
+        "autoprefixer": "^10.5.0",
+        "globals": "^17.6.0",
+        "postcss": "^8.5.15",
+        "tailwindcss": "^4.3.0",
+        "typescript": "~6.0.3",
         "vite": "latest",
         "vite-plus": "latest"
     },
     "volta": {
         "node": "24.2.0"
     },
-    "packageManager": "pnpm@10.32.1",
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "@rustzen/zipper",
-            "@swc/core",
-            "@tailwindcss/oxide",
-            "esbuild"
-        ]
-    }
+    "packageManager": "pnpm@11.2.2"
 }
