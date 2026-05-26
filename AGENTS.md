@@ -3,6 +3,7 @@
 ## Source of Truth
 
 - Current facts: source code, then [docs/architecture.md](./docs/architecture.md), then [docs/guides/](./docs/guides/).
+- AI contribution constraints: [docs/guides/ai-coding-rules.md](./docs/guides/ai-coding-rules.md).
 - Command source: root `justfile`; inspect the target before running it.
 
 ## Reading Order
@@ -32,3 +33,4 @@
 - SQLite is the default V2 storage backend.
 - PostgreSQL-first behavior is archived under `legacy/pg-admin`.
 - Update code, docs, and commands together when structure changes.
+- Keep task completion tied to the task's verification commands before updating status.

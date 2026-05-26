@@ -27,7 +27,7 @@ This does not mean adding AI product features. It means making the repository ea
 
 **Steps:**
 
-- [ ] Check the working tree before branch operations.
+- [x] Check the working tree before branch operations.
 
 ```bash
 git status --short
@@ -35,7 +35,7 @@ git status --short
 
 Expected: either no output, or unrelated local changes are explicitly noted before continuing.
 
-- [ ] Create and publish the legacy PostgreSQL branch from the current baseline.
+- [x] Create and publish the legacy PostgreSQL branch from the current baseline.
 
 ```bash
 git checkout main
@@ -45,7 +45,7 @@ git push origin legacy/pg-admin
 git checkout main
 ```
 
-- [ ] Verify the branch exists remotely.
+- [x] Verify the branch exists remotely.
 
 ```bash
 git ls-remote --heads origin legacy/pg-admin
@@ -69,7 +69,7 @@ Expected: one `refs/heads/legacy/pg-admin` line.
 
 **Steps:**
 
-- [ ] Inspect local and remote branches that still use old router names.
+- [x] Inspect local and remote branches that still use old router names.
 
 ```bash
 git branch --all --list '*react-router*'
@@ -77,7 +77,7 @@ git branch --all --list '*react-router*'
 
 Expected: any old `dev-react-router` or `feat-react-router` branches are visible before renaming.
 
-- [ ] Create or update the archive branch name.
+- [x] Create or update the archive branch name.
 
 ```bash
 git checkout dev-react-router
@@ -87,7 +87,7 @@ git push origin legacy/react-router
 
 If the active source branch is `feat-react-router`, use it in place of `dev-react-router`.
 
-- [ ] Verify the archive branch exists remotely.
+- [x] Verify the archive branch exists remotely.
 
 ```bash
 git ls-remote --heads origin legacy/react-router
@@ -120,7 +120,7 @@ Expected: one `refs/heads/legacy/react-router` line.
 
 **Steps:**
 
-- [ ] Replace the old positioning with the V2 positioning.
+- [x] Replace the old positioning with the V2 positioning.
 
 Use this project description in `README.md`:
 
@@ -128,7 +128,7 @@ Use this project description in `README.md`:
 rustzen-admin is an AI-first and local-first Rust admin/runtime framework, designed for simple local development, SQLite-first storage, and long-term AI-assisted maintenance.
 ```
 
-- [ ] Update architecture and guides so PostgreSQL is not documented as the default runtime database.
+- [x] Update architecture and guides so PostgreSQL is not documented as the default runtime database.
 
 Required wording:
 
@@ -137,7 +137,7 @@ SQLite is the default V2 storage backend.
 PostgreSQL-first behavior is archived under legacy/pg-admin.
 ```
 
-- [ ] Keep the historical boundary explicit.
+- [x] Keep the historical boundary explicit.
 
 Required wording in `docs/README.md` or `docs/history/README.md`:
 
@@ -145,7 +145,7 @@ Required wording in `docs/README.md` or `docs/history/README.md`:
 V2 design records under docs/history/ are historical inputs. Current implementation truth remains source code, docs/architecture.md, and docs/guides/.
 ```
 
-- [ ] Verify there are no stale first-class PostgreSQL claims in current documentation.
+- [x] Verify there are no stale first-class PostgreSQL claims in current documentation.
 
 ```bash
 rg -n "PostgreSQL is the only|PostgreSQL-first|PG architecture|traditional admin" README.md AGENTS.md docs/README.md docs/architecture.md docs/project-map.md docs/guides
@@ -153,7 +153,7 @@ rg -n "PostgreSQL is the only|PostgreSQL-first|PG architecture|traditional admin
 
 Expected: no matches, except historical or explicit legacy references.
 
-- [ ] Verify Markdown formatting and whitespace.
+- [x] Verify Markdown formatting and whitespace.
 
 ```bash
 git diff --check
@@ -189,7 +189,7 @@ Expected: no output.
 
 **Steps:**
 
-- [ ] Replace PostgreSQL connection configuration with SQLite defaults.
+- [x] Replace PostgreSQL connection configuration with SQLite defaults.
 
 Required local defaults:
 
@@ -198,7 +198,7 @@ RUSTZEN_STORAGE=sqlite
 RUSTZEN_SQLITE_PATH=./data/rustzen.db
 ```
 
-- [ ] Add SQLite dependencies only.
+- [x] Add SQLite dependencies only.
 
 Expected dependency shape in `zen-server/Cargo.toml`:
 
@@ -208,7 +208,7 @@ sqlx = { version = "...", features = ["runtime-tokio-rustls", "sqlite", "migrate
 
 Do not include PostgreSQL features in V2 first-phase storage dependencies.
 
-- [ ] Create SQLite migrations under `zen-server/migrations/sqlite/`.
+- [x] Create SQLite migrations under `zen-server/migrations/sqlite/`.
 
 Expected first-phase layout:
 
@@ -218,11 +218,11 @@ zen-server/migrations/sqlite/0002_auth.sql
 zen-server/migrations/sqlite/0003_workspace.sql
 ```
 
-- [ ] Update SQL syntax in repos only where SQLite requires it.
+- [x] Update SQL syntax in repos only where SQLite requires it.
 
 Repository SQL must remain explicit and must not use `SELECT *`.
 
-- [ ] Verify backend compile.
+- [x] Verify backend compile.
 
 ```bash
 cargo check -p server
@@ -230,7 +230,7 @@ cargo check -p server
 
 Expected: completes successfully.
 
-- [ ] Verify repository-wide check target.
+- [x] Verify repository-wide check target.
 
 ```bash
 just check
@@ -261,7 +261,7 @@ Expected: `cargo check -p server` and `vp lint` both complete successfully.
 
 **Steps:**
 
-- [ ] Add or preserve a single backend startup command.
+- [x] Add or preserve a single backend startup command.
 
 Required command:
 
@@ -269,7 +269,7 @@ Required command:
 cargo run -p server
 ```
 
-- [ ] Keep `just dev-server` as a convenience wrapper only if it remains thin.
+- [x] Keep `just dev-server` as a convenience wrapper only if it remains thin.
 
 Allowed wrapper:
 
@@ -278,7 +278,7 @@ dev-server:
     cargo watch -x 'run -p server'
 ```
 
-- [ ] Document local startup without PostgreSQL, Redis, Kafka, Docker Compose, or microservices.
+- [x] Document local startup without PostgreSQL, Redis, Kafka, Docker Compose, or microservices.
 
 Required README snippet:
 
@@ -286,7 +286,7 @@ Required README snippet:
 cargo run -p server
 ```
 
-- [ ] Verify backend startup reaches config loading.
+- [x] Verify backend startup reaches config loading.
 
 ```bash
 cargo run -p server
@@ -330,7 +330,7 @@ Expected: the server starts or fails only on an explicit port conflict or invali
 
 **Steps:**
 
-- [ ] Move runnable apps under `apps/`.
+- [x] Move runnable apps under `apps/`.
 
 Expected layout:
 
@@ -339,7 +339,7 @@ apps/server/
 apps/web/
 ```
 
-- [ ] Move shared Rust capabilities under `crates/`.
+- [x] Move shared Rust capabilities under `crates/`.
 
 Expected first-phase layout:
 
@@ -351,7 +351,7 @@ crates/runtime/
 crates/storage/
 ```
 
-- [ ] Keep the layout intentionally shallow.
+- [x] Keep the layout intentionally shallow.
 
 Do not create these modules in the first phase:
 
@@ -362,7 +362,7 @@ workspace-repo
 workspace-api
 ```
 
-- [ ] Update workspace members.
+- [x] Update workspace members.
 
 Expected `Cargo.toml` member shape:
 
@@ -379,7 +379,7 @@ members = [
 resolver = "2"
 ```
 
-- [ ] Update frontend commands to use the new path.
+- [x] Update frontend commands to use the new path.
 
 Expected command shape:
 
@@ -388,7 +388,7 @@ build-web:
     cd apps/web && pnpm build
 ```
 
-- [ ] Verify command paths.
+- [x] Verify command paths.
 
 ```bash
 just check
@@ -422,7 +422,7 @@ Expected: both commands complete successfully.
 
 **Steps:**
 
-- [ ] Add a storage crate that exposes SQLite-specific functions.
+- [x] Add a storage crate that exposes SQLite-specific functions.
 
 Allowed public API shape:
 
@@ -433,7 +433,7 @@ pub mod sqlite;
 pub use sqlite::{connect_sqlite, SqlitePool};
 ```
 
-- [ ] Keep the connection API concrete.
+- [x] Keep the connection API concrete.
 
 Allowed function shape:
 
@@ -441,7 +441,7 @@ Allowed function shape:
 pub async fn connect_sqlite(database_url: &str) -> Result<SqlitePool, sqlx::Error>
 ```
 
-- [ ] Do not add backend-neutral provider traits.
+- [x] Do not add backend-neutral provider traits.
 
 Forbidden names:
 
@@ -451,7 +451,7 @@ QueryExecutor
 StorageBackend
 ```
 
-- [ ] Verify forbidden names are absent.
+- [x] Verify forbidden names are absent.
 
 ```bash
 rg -n "DatabaseProvider|QueryExecutor|StorageBackend" apps crates
@@ -459,7 +459,7 @@ rg -n "DatabaseProvider|QueryExecutor|StorageBackend" apps crates
 
 Expected: no output.
 
-- [ ] Verify backend compile.
+- [x] Verify backend compile.
 
 ```bash
 cargo check -p server
@@ -565,7 +565,7 @@ Expected: completes successfully.
 
 **Steps:**
 
-- [ ] Add AI coding rules as a current guide, not a historical plan.
+- [x] Add AI coding rules as a current guide, not a historical plan.
 
 Required guide topics:
 
@@ -578,7 +578,7 @@ no speculative abstraction
 how to update code and docs together
 ```
 
-- [ ] Keep subdirectory `AGENTS.md` files thin.
+- [x] Keep subdirectory `AGENTS.md` files thin.
 
 Allowed shape:
 
@@ -590,7 +590,7 @@ Allowed shape:
 - Do not add compatibility fallbacks or speculative abstractions.
 ```
 
-- [ ] Verify no current docs point to `docs/history/` as implementation truth.
+- [x] Verify no current docs point to `docs/history/` as implementation truth.
 
 ```bash
 rg -n "history/.*truth|implementation truth.*history" docs README.md AGENTS.md
@@ -598,7 +598,7 @@ rg -n "history/.*truth|implementation truth.*history" docs README.md AGENTS.md
 
 Expected: no matches that promote historical files as current truth.
 
-- [ ] Verify documentation formatting.
+- [x] Verify documentation formatting.
 
 ```bash
 git diff --check
@@ -625,7 +625,7 @@ Expected: no output.
 
 **Steps:**
 
-- [ ] Confirm these features are absent from first-phase task branches.
+- [x] Confirm these features are absent from first-phase task branches.
 
 ```bash
 rg -n "desktop|plugin|sync|PostgreSQL Provider|enterprise deployment|microservice|Kafka|Redis|Docker Compose" README.md AGENTS.md docs apps crates deploy
@@ -633,7 +633,7 @@ rg -n "desktop|plugin|sync|PostgreSQL Provider|enterprise deployment|microservic
 
 Expected: no matches that describe these as first-phase implementation work.
 
-- [ ] If a future-direction note is needed, keep it explicit.
+- [x] If a future-direction note is needed, keep it explicit.
 
 Allowed wording:
 

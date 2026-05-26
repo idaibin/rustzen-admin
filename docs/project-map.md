@@ -17,6 +17,7 @@ This is a practical path index for task orientation. It maps where to look first
 | Path | Value | Inspect when |
 | --- | --- | --- |
 | `docs/README.md` | Documentation index with file roles and values. | You need to choose which docs to read. |
+| `docs/guides/ai-coding-rules.md` | AI coding constraints and completion checks. | You start a task with AI contribution expectations. |
 | `docs/architecture.md` | Current repository facts. | You need boundaries, topology, or data flow. |
 | `docs/project-map.md` | Path orientation. | You need to find the right files. |
 | `docs/guides/` | Current development rules. | You are about to edit backend, frontend, deployment, or permission behavior. |

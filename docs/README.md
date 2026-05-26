@@ -15,6 +15,7 @@ This is the documentation entrypoint for `rustzen-admin`.
 
 | File | Role | Value |
 | --- | --- | --- |
+| [ai-coding-rules.md](./guides/ai-coding-rules.md) | Current rule | Defines source-of-truth order, module ownership, and task verification expectations for AI-assisted changes. |
 | [architecture.md](./architecture.md) | Current fact | Defines repository boundaries, runtime topology, data flow, and command source. |
 | [project-map.md](./project-map.md) | Current fact | Maps important directories without implementation detail. |
 | [guides/backend.md](./guides/backend.md) | Current rule | Gives backend layering, naming, config, SQL, and prohibited-change rules. |

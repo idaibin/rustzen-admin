@@ -3,6 +3,7 @@
 ## Read
 
 - `docs/guides/frontend.md`
+- `docs/guides/ai-coding-rules.md`
 
 ## Rules
 

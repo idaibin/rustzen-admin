@@ -4,6 +4,7 @@
 
 - `docs/guides/backend.md`
 - `docs/guides/permission.md`
+- `docs/guides/ai-coding-rules.md`
 
 ## Boundaries
 
