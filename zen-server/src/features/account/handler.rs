@@ -15,13 +15,13 @@ use axum::{
     extract::{Multipart, State},
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Update current-account avatar.
 #[tracing::instrument(name = "update_avatar", skip(current_user, pool))]
 pub async fn update_avatar(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     mut multipart: Multipart,
 ) -> AppResult<String> {
     let avatar_url = save_avatar(&mut multipart).await?;
@@ -35,7 +35,7 @@ pub async fn update_avatar(
 #[tracing::instrument(name = "update_profile", skip(current_user, pool, request))]
 pub async fn update_profile(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(request): Json<UpdateAccountProfileRequest>,
 ) -> AppResult<UserInfoResp> {
     Ok(ApiResponse::success(
@@ -47,7 +47,7 @@ pub async fn update_profile(
 #[tracing::instrument(name = "change_password", skip(current_user, pool, request))]
 pub async fn change_password(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(request): Json<ChangeAccountPasswordRequest>,
 ) -> AppResult<()> {
     AccountService::change_password(&pool, current_user.user_id, request).await?;

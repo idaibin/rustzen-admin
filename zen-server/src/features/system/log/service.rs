@@ -7,19 +7,19 @@ use crate::common::{
     pagination::{Pagination, PaginationQuery},
 };
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// A service for log-related operations
 pub struct LogService;
 
 impl LogService {
-    pub async fn ensure_partitions(pool: &PgPool) -> Result<(), ServiceError> {
+    pub async fn ensure_partitions(pool: &SqlitePool) -> Result<(), ServiceError> {
         LogRepository::ensure_partitions(pool).await
     }
 
     /// Retrieves a paginated list of system logs
     pub async fn list_logs(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: LogQuery,
     ) -> Result<(Vec<LogItemResp>, i64), ServiceError> {
         let LogQuery { current, page_size, username, action, description, ip_address } = query;
@@ -33,13 +33,13 @@ impl LogService {
 
     /// Stores a structured log record.
     pub async fn record_operation(
-        pool: &PgPool,
+        pool: &SqlitePool,
         command: LogWriteCommand,
     ) -> Result<i64, ServiceError> {
         LogRepository::insert_log_entry(pool, &command).await
     }
 
-    pub async fn export_logs_csv(pool: &PgPool, query: LogQuery) -> Result<String, ServiceError> {
+    pub async fn export_logs_csv(pool: &SqlitePool, query: LogQuery) -> Result<String, ServiceError> {
         let LogQuery { username, action, description, ip_address, .. } = query;
         let repo_query = LogListQuery { username, action, description, ip_address };
         Self::create_csv_chunk(LogRepository::list_logs_for_export(pool, repo_query).await?, true)

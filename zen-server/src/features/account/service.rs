@@ -8,14 +8,14 @@ use crate::{
     infra::password::PasswordUtils,
 };
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Account service for current-user profile operations.
 pub struct AccountService;
 
 impl AccountService {
     pub async fn update_avatar(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         avatar_url: &str,
     ) -> Result<(), ServiceError> {
@@ -26,7 +26,7 @@ impl AccountService {
     }
 
     pub async fn update_profile(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         request: UpdateAccountProfileRequest,
     ) -> Result<UserInfoResp, ServiceError> {
@@ -40,7 +40,7 @@ impl AccountService {
     }
 
     pub async fn change_password(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         request: ChangeAccountPasswordRequest,
     ) -> Result<(), ServiceError> {

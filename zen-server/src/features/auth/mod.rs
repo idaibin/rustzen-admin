@@ -7,14 +7,14 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 use handler::{get_login_info, login, logout};
 
-pub fn public_auth_routes() -> Router<PgPool> {
+pub fn public_auth_routes() -> Router<SqlitePool> {
     Router::new().route("/login", post(login))
 }
 
-pub fn protected_auth_routes() -> Router<PgPool> {
+pub fn protected_auth_routes() -> Router<SqlitePool> {
     Router::new().route("/me", get(get_login_info)).route("/logout", get(logout))
 }

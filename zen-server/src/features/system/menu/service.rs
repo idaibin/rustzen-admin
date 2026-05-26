@@ -9,14 +9,14 @@ use crate::common::{
 };
 use crate::infra::permission::PermissionService;
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 pub struct MenuService;
 
 impl MenuService {
     /// Get menu list as tree structure with optional filtering
     pub async fn list_menus(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: MenuQuery,
     ) -> Result<(Vec<MenuItemResp>, i64), ServiceError> {
         tracing::info!("Fetching menu list with query: {:?}", query);
@@ -33,7 +33,7 @@ impl MenuService {
 
     /// Create new menu with validation
     pub async fn create_menu(
-        pool: &PgPool,
+        pool: &SqlitePool,
         request: CreateMenuRequest,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to create menu with name: {}", request.name);
@@ -51,7 +51,7 @@ impl MenuService {
 
     /// Update existing menu with validation
     pub async fn update_menu(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
         request: UpdateMenuPayload,
@@ -63,7 +63,7 @@ impl MenuService {
 
     /// Delete menu with child validation
     pub async fn delete_menu(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {
@@ -78,7 +78,7 @@ impl MenuService {
     }
 
     async fn ensure_menu_is_mutable(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {
@@ -97,7 +97,7 @@ impl MenuService {
 
     /// Get menu options for dropdowns
     pub async fn get_menu_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: OptionsQuery,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!("Fetching menu options: {:?}", query);

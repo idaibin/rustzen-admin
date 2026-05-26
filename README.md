@@ -1,5 +1,7 @@
 # rustzen-admin
 
+rustzen-admin is an AI-first and local-first Rust admin/runtime framework, designed for simple local development, SQLite-first storage, and long-term AI-assisted maintenance.
+
 A structured monorepo foundation for Rust full-stack admin systems.
 
 > `rustzen-admin` combines an Axum backend, a React frontend, and repository-level documentation in a single codebase designed for clear boundaries, maintainability, and AI-friendly collaboration.
@@ -30,6 +32,12 @@ This layout keeps backend, frontend, and repository rules explicit, making the c
 ## Command Source
 
 Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
+
+```bash
+cargo run -p server
+```
+
+The backend can be started locally with SQLite storage defaults (no PostgreSQL required).
 
 ## Demo
 

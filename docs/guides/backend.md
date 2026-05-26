@@ -20,8 +20,9 @@ Rules for Rust backend work under `zen-server/`.
 - Prefer `#[serde(rename_all = "camelCase")]` on HTTP request/response structs.
 - SQL must be explicit; do not use `SELECT *`.
 - Schema changes require migrations.
-- Runtime config uses `DATABASE_URL` and `RUSTZEN_*`.
-- PostgreSQL is the only runtime database backend.
+- Runtime config uses `RUSTZEN_STORAGE`, `RUSTZEN_SQLITE_PATH`, and `RUSTZEN_*`.
+- SQLite is the default runtime storage backend.
+- PostgreSQL compatibility is not part of this V2 first-phase implementation.
 - Use root `justfile` as the command source of truth.
 
 ## Prohibited

@@ -9,9 +9,9 @@ use axum::{
 };
 use handler::{create_role, delete_role, get_role_options, list_roles, update_role};
 use rustzen_core::permission::{PermissionsCheck, RouterExt};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
-pub fn role_routes() -> Router<PgPool> {
+pub fn role_routes() -> Router<SqlitePool> {
     Router::new()
         .route_with_permission("/", get(list_roles), PermissionsCheck::Require("system:role:list"))
         .route_with_permission(

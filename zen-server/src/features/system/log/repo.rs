@@ -3,8 +3,8 @@ use crate::common::{
     query::{count_with_filters, fetch_with_filters, push_ilike},
 };
 
-use chrono::{Months, Utc};
-use sqlx::{PgPool, QueryBuilder};
+use chrono::Utc;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{LogItemResp, LogListQuery, LogWriteCommand};
 
@@ -12,16 +12,16 @@ use super::types::{LogItemResp, LogListQuery, LogWriteCommand};
 pub struct LogRepository;
 
 impl LogRepository {
-    fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "action", query.action.as_deref());
         push_ilike(query_builder, "description", query.description.as_deref());
-        push_ilike(query_builder, "host(ip_address)", query.ip_address.as_deref());
+        push_ilike(query_builder, "ip_address", query.ip_address.as_deref());
     }
 
     /// Find logs with pagination and filters
     pub async fn list_logs(
-        pool: &PgPool,
+        pool: &SqlitePool,
         offset: i64,
         limit: i64,
         query: LogListQuery,
@@ -40,7 +40,7 @@ impl LogRepository {
         }
         let logs = fetch_with_filters(
             pool,
-            "SELECT id, user_id, username, action, description, data, status, duration_ms, host(ip_address) AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
+            "SELECT id, user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },
@@ -55,7 +55,7 @@ impl LogRepository {
 
     /// Creates a new log entry with full details (for business operations)
     pub async fn insert_log_entry(
-        pool: &PgPool,
+        pool: &SqlitePool,
         command: &LogWriteCommand,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Creating detailed log entry with action: {:?}", command.action);
@@ -64,7 +64,7 @@ impl LogRepository {
             "INSERT INTO operation_logs (
                 user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8::inet, $9, CURRENT_TIMESTAMP
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
             ) RETURNING id",
         )
         .bind(command.user_id)
@@ -87,44 +87,20 @@ impl LogRepository {
     }
 
     /// Ensure the current and near-future monthly partitions exist before request logging begins.
-    pub async fn ensure_partitions(pool: &PgPool) -> Result<(), ServiceError> {
-        let today = Utc::now().date_naive();
-
-        for month_offset in 0..=12 {
-            let partition_date =
-                today.checked_add_months(Months::new(month_offset)).ok_or_else(|| {
-                    tracing::error!(
-                        month_offset,
-                        "Failed to compute log partition date while bootstrapping"
-                    );
-                    ServiceError::DatabaseQueryFailed
-                })?;
-
-            sqlx::query("SELECT create_log_partition($1::date)")
-                .bind(partition_date)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!(
-                        month_offset,
-                        partition_date = %partition_date,
-                        "Database error creating log partition: {:?}",
-                        e
-                    );
-                    ServiceError::DatabaseQueryFailed
-                })?;
-        }
+    pub async fn ensure_partitions(_pool: &SqlitePool) -> Result<(), ServiceError> {
+        let _ = Utc::now();
+        tracing::debug!("Skipping partition creation for SQLite backend");
 
         Ok(())
     }
 
     pub async fn list_logs_for_export(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: LogListQuery,
     ) -> Result<Vec<LogItemResp>, ServiceError> {
         fetch_with_filters(
             pool,
-            "SELECT id, user_id, username, action, description, data, status, duration_ms, host(ip_address) AS ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
+            "SELECT id, user_id, username, action, description, data, status, duration_ms, ip_address, user_agent, created_at FROM operation_logs WHERE 1=1",
             |query_builder| {
                 Self::format_query(&query, query_builder);
             },

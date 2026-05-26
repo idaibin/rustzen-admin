@@ -1,10 +1,10 @@
 use crate::common::error::ServiceError;
 
-use sqlx::{PgPool, Postgres, QueryBuilder, postgres::PgRow};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, sqlite::SqliteRow};
 
 /// Apply a case-insensitive LIKE filter when the value is present and non-empty.
 pub fn push_ilike(
-    query_builder: &mut QueryBuilder<'_, Postgres>,
+    query_builder: &mut QueryBuilder<'_, Sqlite>,
     column: &str,
     value: Option<&str>,
 ) {
@@ -13,20 +13,21 @@ pub fn push_ilike(
         if !value.is_empty() {
             query_builder
                 .push(" AND ")
+                .push("LOWER(")
                 .push(column)
-                .push(" ILIKE ")
-                .push_bind(format!("%{}%", value));
+                .push(") LIKE ")
+                .push_bind(format!("%{}%", value.to_lowercase()));
         }
     }
 }
 
 /// Apply an equality filter when the value is present.
 pub fn push_eq<'a, T>(
-    query_builder: &mut QueryBuilder<'a, Postgres>,
+    query_builder: &mut QueryBuilder<'a, Sqlite>,
     column: &str,
     value: Option<T>,
 ) where
-    T: for<'q> sqlx::Encode<'q, Postgres> + sqlx::Type<Postgres> + 'a,
+    T: for<'q> sqlx::Encode<'q, Sqlite> + sqlx::Type<Sqlite> + 'a,
 {
     if let Some(value) = value {
         query_builder.push(" AND ").push(column).push(" = ").push_bind(value);
@@ -58,14 +59,14 @@ fn map_db_error(context: &str, err: sqlx::Error) -> ServiceError {
 
 /// Count rows for a filtered query.
 pub async fn count_with_filters<F>(
-    pool: &PgPool,
+    pool: &SqlitePool,
     base_sql: &'static str,
     apply_filters: F,
 ) -> Result<i64, ServiceError>
 where
-    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Postgres>),
+    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Sqlite>),
 {
-    let mut query_builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(base_sql);
+    let mut query_builder: QueryBuilder<'_, Sqlite> = QueryBuilder::new(base_sql);
     apply_filters(&mut query_builder);
 
     let count: (i64,) = query_builder
@@ -79,7 +80,7 @@ where
 
 /// Fetch rows for a filtered query with optional ordering and pagination.
 pub async fn fetch_with_filters<T, F>(
-    pool: &PgPool,
+    pool: &SqlitePool,
     base_sql: &'static str,
     apply_filters: F,
     order_by: Option<&'static str>,
@@ -87,10 +88,10 @@ pub async fn fetch_with_filters<T, F>(
     offset: Option<i64>,
 ) -> Result<Vec<T>, ServiceError>
 where
-    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Postgres>),
-    T: for<'r> sqlx::FromRow<'r, PgRow> + Send + Unpin,
+    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Sqlite>),
+    T: for<'r> sqlx::FromRow<'r, SqliteRow> + Send + Unpin,
 {
-    let mut query_builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(base_sql);
+    let mut query_builder: QueryBuilder<'_, Sqlite> = QueryBuilder::new(base_sql);
     apply_filters(&mut query_builder);
 
     if let Some(order_by) = order_by {

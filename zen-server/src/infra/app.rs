@@ -98,7 +98,7 @@ fn server_addr() -> String {
 async fn summary() -> AppResult<serde_json::Value> {
     Ok(ApiResponse::success(json!({
         "message": "Welcome to rustzen-admin API",
-        "description": "A backend management system built with Rust, Axum, SQLx, and PostgreSQL.",
+        "description": "A backend management system built with Rust, Axum, SQLx, and SQLite.",
         "github": "https://github.com/idaibin/rustzen-admin"
     })))
 }

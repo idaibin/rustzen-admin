@@ -7,6 +7,10 @@ const DEV_RUNTIME_ROOT: &str = ".rustzen-admin";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_storage")]
+    pub storage: String,
+    #[serde(default = "default_sqlite_path")]
+    pub sqlite_path: String,
     #[serde(default = "default_app_port")]
     pub app_port: u16,
     #[serde(default = "default_app_host")]
@@ -66,6 +70,14 @@ impl Config {
     }
 }
 
+fn default_storage() -> String {
+    "sqlite".to_string()
+}
+
+fn default_sqlite_path() -> String {
+    "./data/rustzen.db".to_string()
+}
+
 fn default_log_file_prefix() -> String {
     "server".to_string()
 }
@@ -123,6 +135,8 @@ mod tests {
     #[test]
     fn runtime_root_derives_standard_runtime_paths() {
         let config = Config {
+            storage: "sqlite".to_string(),
+            sqlite_path: "./data/rustzen.db".to_string(),
             app_port: 8007,
             app_host: "0.0.0.0".to_string(),
             db_max_conn: 4,

@@ -10,13 +10,13 @@ use axum::{
     http::HeaderMap,
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use std::net::SocketAddr;
 
 /// Login with username/password
 #[tracing::instrument(name = "login", skip(pool, addr, headers, request))]
 pub async fn login(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
@@ -40,7 +40,7 @@ pub async fn login(
 #[tracing::instrument(name = "get_login_info", skip(current_user, pool))]
 pub async fn get_login_info(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
 ) -> AppResult<UserInfoResp> {
     Ok(ApiResponse::success(AuthService::get_login_info(&pool, current_user.user_id).await?))
 }

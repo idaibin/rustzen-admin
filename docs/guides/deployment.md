@@ -22,8 +22,8 @@ Current deployment rules.
 - Use one deploy root for the whole app.
 - Production runs with `WorkingDirectory=/opt/rustzen-admin`.
 - Production sets `RUSTZEN_RUNTIME_ROOT=.`.
-- Runtime config comes from `DATABASE_URL` and `RUSTZEN_*`.
-- Production must provide `DATABASE_URL` and `RUSTZEN_JWT_SECRET`.
+- Runtime config comes from `RUSTZEN_STORAGE`, `RUSTZEN_SQLITE_PATH`, and `RUSTZEN_*`.
+- Production must provide `RUSTZEN_STORAGE`, `RUSTZEN_SQLITE_PATH`, and `RUSTZEN_JWT_SECRET`.
 - `config/app.env` is only an environment-variable carrier.
 - Backend static files are served from `<runtime_root>/web/dist`.
 - Uploads live under `<runtime_root>/data/uploads`.
@@ -33,6 +33,8 @@ Current deployment rules.
 - Frontend release builds use pnpm with `zen-web/pnpm-lock.yaml`.
 - `deploy/sql/` contains one-off SQL repair scripts for older deployments; these are not migration files and should not be used for schema evolution.
 
+The first V2 phase uses SQLite by default and does not require PostgreSQL for local startup.
+
 ## Prohibited
 
 - Parallel runtime config files such as `system.yaml`.
@@ -40,6 +42,12 @@ Current deployment rules.
 - Build-machine absolute paths in runtime behavior.
 - Nested deployment asset directories unless the deployment surface grows.
 - npm or Bun lockfiles for the `zen-web` release build.
+
+## Local startup
+
+```bash
+cargo run -p server
+```
 
 ## Checks
 

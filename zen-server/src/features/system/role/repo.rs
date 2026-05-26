@@ -4,14 +4,14 @@ use crate::common::{
 };
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{RoleListQuery, RoleWithMenusRow};
 
 pub struct RoleRepository;
 
 impl RoleRepository {
-    fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
         push_ilike(query_builder, "role_name", query.role_name.as_deref());
         push_ilike(query_builder, "role_code", query.role_code.as_deref());
         push_eq(query_builder, "status", query.status);
@@ -19,7 +19,7 @@ impl RoleRepository {
 
     /// Queries roles with pagination
     pub async fn list_roles(
-        pool: &PgPool,
+        pool: &SqlitePool,
         offset: i64,
         limit: i64,
         query: RoleListQuery,
@@ -52,7 +52,7 @@ impl RoleRepository {
 
     /// Creates a new role
     pub async fn create(
-        pool: &PgPool,
+        pool: &SqlitePool,
         role_name: &str,
         role_code: &str,
         description: Option<&str>,
@@ -67,7 +67,7 @@ impl RoleRepository {
 
         let role_id = sqlx::query_scalar::<_, i64>(
             "INSERT INTO roles (name, code, description, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $5)
+             VALUES (?, ?, ?, ?, ?, ?)
              RETURNING id",
         )
         .bind(role_name)
@@ -94,7 +94,7 @@ impl RoleRepository {
 
     /// Updates an existing role
     pub async fn update(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         role_name: &str,
         role_code: &str,
@@ -109,8 +109,8 @@ impl RoleRepository {
 
         let id_opt = sqlx::query_scalar::<_, i64>(
             "UPDATE roles
-                 SET name = $1, code = $2, description = $3, status = $4, updated_at = $6
-                 WHERE id = $5 AND deleted_at IS NULL
+                 SET name = ?, code = ?, description = ?, status = ?, updated_at = ?
+                 WHERE id = ? AND deleted_at IS NULL
                  RETURNING id",
         )
         .bind(role_name)
@@ -139,9 +139,9 @@ impl RoleRepository {
     }
 
     /// Soft deletes a role
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn soft_delete(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE roles SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+            "UPDATE roles SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
@@ -156,9 +156,9 @@ impl RoleRepository {
     }
 
     /// Returns whether the role is a system built-in role.
-    pub async fn is_system_role(pool: &PgPool, id: i64) -> Result<Option<bool>, ServiceError> {
+    pub async fn is_system_role(pool: &SqlitePool, id: i64) -> Result<Option<bool>, ServiceError> {
         sqlx::query_scalar::<_, bool>(
-            "SELECT is_system FROM roles WHERE id = $1 AND deleted_at IS NULL",
+            "SELECT is_system FROM roles WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -171,11 +171,11 @@ impl RoleRepository {
 
     /// insert role_menus
     async fn insert_role_menus(
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tx: &mut sqlx::Transaction<'_, Sqlite>,
         role_id: i64,
         menu_ids: &[i64],
     ) -> Result<(), ServiceError> {
-        sqlx::query("DELETE FROM role_menus WHERE role_id = $1")
+        sqlx::query("DELETE FROM role_menus WHERE role_id = ?")
             .bind(role_id)
             .execute(&mut **tx)
             .await
@@ -187,7 +187,7 @@ impl RoleRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+        let mut query_builder: QueryBuilder<'_, Sqlite> =
             QueryBuilder::new("INSERT INTO role_menus (role_id, menu_id, created_at) ");
         query_builder.push_values(menu_ids.iter(), |mut builder, menu_id| {
             builder.push_bind(role_id).push_bind(menu_id).push_bind(now);
@@ -202,7 +202,7 @@ impl RoleRepository {
 
     /// Retrieves role list for Options API
     pub async fn list_role_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         search_query: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {
@@ -219,9 +219,9 @@ impl RoleRepository {
         .await
     }
 
-    pub async fn get_role_user_count(pool: &PgPool, role_id: i64) -> Result<i64, ServiceError> {
+    pub async fn get_role_user_count(pool: &SqlitePool, role_id: i64) -> Result<i64, ServiceError> {
         let result =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_roles WHERE role_id = $1")
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_roles WHERE role_id = ?")
                 .bind(role_id)
                 .fetch_one(pool)
                 .await

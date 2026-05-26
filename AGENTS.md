@@ -29,4 +29,6 @@
 - Keep stable rules in `docs/architecture.md` and `docs/guides/`.
 - Keep subdirectory `AGENTS.md` files thin.
 - Do not use `docs/reference/` or `docs/history/` as default implementation truth.
+- SQLite is the default V2 storage backend.
+- PostgreSQL-first behavior is archived under `legacy/pg-admin`.
 - Update code, docs, and commands together when structure changes.

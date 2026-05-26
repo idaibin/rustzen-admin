@@ -12,9 +12,9 @@ use handler::{
     update_user_password, update_user_status,
 };
 use rustzen_core::permission::{PermissionsCheck, RouterExt};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
-pub fn user_routes() -> Router<PgPool> {
+pub fn user_routes() -> Router<SqlitePool> {
     Router::new()
         .route_with_permission("/", get(list_users), PermissionsCheck::Require("system:user:list"))
         .route_with_permission(

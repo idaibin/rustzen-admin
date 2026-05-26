@@ -4,7 +4,7 @@ use crate::common::{
 };
 
 use chrono::Utc;
-use sqlx::{Error as SqlxError, PgPool, QueryBuilder};
+use sqlx::{Error as SqlxError, QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{CreateUserCommand, UserListQuery, UserWithRolesRow};
 
@@ -14,7 +14,7 @@ pub struct UserRepository;
 const DEFAULT_USER_STATUS: i16 = 1;
 
 impl UserRepository {
-    fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "real_name", query.real_name.as_deref());
         push_ilike(query_builder, "email", query.email.as_deref());
@@ -23,7 +23,7 @@ impl UserRepository {
 
     /// Find users with pagination and filters
     pub async fn list_users(
-        pool: &PgPool,
+        pool: &SqlitePool,
         offset: i64,
         limit: i64,
         query: UserListQuery,
@@ -57,7 +57,7 @@ impl UserRepository {
 
     /// Find users for dropdown options
     pub async fn list_user_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         status: Option<i16>,
         q: Option<&str>,
         limit: Option<i64>,
@@ -72,9 +72,9 @@ impl UserRepository {
                     if !search_term.is_empty() {
                         let pattern = format!("%{}%", search_term);
                         query_builder
-                            .push(" AND (username ILIKE ")
+                            .push(" AND (LOWER(username) LIKE ")
                             .push_bind(pattern.clone())
-                            .push(" OR real_name ILIKE ")
+                            .push(" OR LOWER(real_name) LIKE ")
                             .push_bind(pattern)
                             .push(")");
                     }
@@ -89,11 +89,11 @@ impl UserRepository {
 
     /// Find user by ID (returns None if not found)
     pub async fn find_user_by_id(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
     ) -> Result<Option<UserWithRolesRow>, ServiceError> {
         sqlx::query_as::<_, UserWithRolesRow>(
-            "SELECT id, username, email, password_hash, real_name, avatar_url, is_system, status, last_login_at, created_at, updated_at, roles FROM user_with_roles WHERE id = $1",
+            "SELECT id, username, email, password_hash, real_name, avatar_url, is_system, status, last_login_at, created_at, updated_at, roles FROM user_with_roles WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -105,7 +105,7 @@ impl UserRepository {
     }
 
     /// Create new user with optional roles (unified method)
-    pub async fn create_user(pool: &PgPool, cmd: &CreateUserCommand) -> Result<i64, ServiceError> {
+    pub async fn create_user(pool: &SqlitePool, cmd: &CreateUserCommand) -> Result<i64, ServiceError> {
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting transaction for user creation: {:?}", e);
             ServiceError::DatabaseQueryFailed
@@ -114,7 +114,7 @@ impl UserRepository {
 
         let user_id = sqlx::query_scalar::<_, i64>(
             "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $6)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
              RETURNING id",
         )
         .bind(&cmd.username)
@@ -139,7 +139,7 @@ impl UserRepository {
 
     /// Update existing user
     pub async fn update_user(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         email: &str,
         real_name: &str,
@@ -152,8 +152,8 @@ impl UserRepository {
 
         let user_id = sqlx::query_scalar::<_, i64>(
             "UPDATE users
-             SET email = $1, real_name = $2, updated_at = $4
-             WHERE id = $3 AND deleted_at IS NULL
+             SET email = ?, real_name = ?, updated_at = ?
+             WHERE id = ? AND deleted_at IS NULL
              RETURNING id",
         )
         .bind(email)
@@ -177,9 +177,9 @@ impl UserRepository {
     }
 
     /// Soft delete user
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn soft_delete(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE users SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND deleted_at IS NULL",
+            "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
@@ -195,11 +195,11 @@ impl UserRepository {
 
     /// Set user roles (replace all existing roles)
     pub async fn insert_user_roles(
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tx: &mut sqlx::Transaction<'_, Sqlite>,
         user_id: i64,
         role_ids: &[i64],
     ) -> Result<(), ServiceError> {
-        sqlx::query("DELETE FROM user_roles WHERE user_id = $1")
+        sqlx::query("DELETE FROM user_roles WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut **tx)
             .await
@@ -212,7 +212,7 @@ impl UserRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder: QueryBuilder<'_, sqlx::Postgres> =
+        let mut query_builder: QueryBuilder<'_, Sqlite> =
             QueryBuilder::new("INSERT INTO user_roles (user_id, role_id, created_at) ");
         query_builder.push_values(role_ids.iter(), |mut builder, role_id| {
             builder.push_bind(user_id).push_bind(role_id).push_bind(now);
@@ -226,9 +226,9 @@ impl UserRepository {
     }
 
     /// Check if email exists
-    pub async fn email_exists(pool: &PgPool, email: &str) -> Result<bool, ServiceError> {
+    pub async fn email_exists(pool: &SqlitePool, email: &str) -> Result<bool, ServiceError> {
         let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND deleted_at IS NULL)",
+            "SELECT EXISTS(SELECT 1 FROM users WHERE email = ? AND deleted_at IS NULL)",
         )
         .bind(email)
         .fetch_one(pool)
@@ -242,9 +242,9 @@ impl UserRepository {
     }
 
     /// Check if username exists
-    pub async fn username_exists(pool: &PgPool, username: &str) -> Result<bool, ServiceError> {
+    pub async fn username_exists(pool: &SqlitePool, username: &str) -> Result<bool, ServiceError> {
         let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 AND deleted_at IS NULL)",
+            "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? AND deleted_at IS NULL)",
         )
         .bind(username)
         .fetch_one(pool)
@@ -258,12 +258,12 @@ impl UserRepository {
     }
 
     pub async fn update_user_password(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         password_hash: &str,
     ) -> Result<bool, ServiceError> {
         let result =
-            sqlx::query("UPDATE users SET password_hash = $1, updated_at = $3 WHERE id = $2")
+            sqlx::query("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?")
                 .bind(password_hash)
                 .bind(id)
                 .bind(Utc::now().naive_utc())
@@ -278,11 +278,11 @@ impl UserRepository {
     }
 
     pub async fn update_user_status(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         status: i16,
     ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = $1, updated_at = $3 WHERE id = $2")
+        let result = sqlx::query("UPDATE users SET status = ?, updated_at = ? WHERE id = ?")
             .bind(status)
             .bind(id)
             .bind(Utc::now().naive_utc())

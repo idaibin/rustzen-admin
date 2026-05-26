@@ -9,13 +9,13 @@ use axum::{
     extract::{Path, Query, State},
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Get menu list with optional filtering
 /// Query params: title, status
 /// Need show all menu, not pagination
 pub async fn list_menus(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(params): Query<MenuQuery>,
 ) -> AppResult<Vec<MenuItemResp>> {
     let (menu_list, total) = MenuService::list_menus(&pool, params).await?;
@@ -25,7 +25,7 @@ pub async fn list_menus(
 /// Create new menu
 /// Body: name, path, parent_id, icon, sort_order, status
 pub async fn create_menu(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(request): Json<CreateMenuRequest>,
 ) -> AppResult<i64> {
     Ok(ApiResponse::success(MenuService::create_menu(&pool, request).await?))
@@ -35,7 +35,7 @@ pub async fn create_menu(
 /// Body: name, path, parent_id, icon, sort_order, status (all optional)
 pub async fn update_menu(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
@@ -47,7 +47,7 @@ pub async fn update_menu(
 /// Disable menu
 pub async fn delete_menu(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
     MenuService::delete_menu(&pool, id, current_user.user_id).await?;
@@ -56,7 +56,7 @@ pub async fn delete_menu(
 
 /// Get menu options for dropdowns
 pub async fn get_menu_options(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<OptionsQuery>,
 ) -> AppResult<Vec<crate::common::api::OptionItem<i64>>> {
     Ok(ApiResponse::success(MenuService::get_menu_options(&pool, query).await?))

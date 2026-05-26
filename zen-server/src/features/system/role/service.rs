@@ -10,14 +10,14 @@ use crate::common::{
 };
 use crate::infra::permission::PermissionService;
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 pub struct RoleService;
 
 impl RoleService {
     /// Get paginated role list with filtering
     pub async fn list_roles(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: RoleQuery,
     ) -> Result<(Vec<RoleItemResp>, i64), ServiceError> {
         tracing::info!("Fetching role list with query: {:?}", query);
@@ -36,7 +36,7 @@ impl RoleService {
 
     /// Create new role with validation
     pub async fn create_role(
-        pool: &PgPool,
+        pool: &SqlitePool,
         request: CreateRoleRequest,
     ) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
@@ -54,7 +54,7 @@ impl RoleService {
 
     /// Update existing role with validation
     pub async fn update_role(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
         request: UpdateRolePayload,
@@ -76,7 +76,7 @@ impl RoleService {
 
     /// Delete role with user assignment validation
     pub async fn delete_role(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {
@@ -106,7 +106,7 @@ impl RoleService {
     }
 
     async fn ensure_role_is_mutable(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {
@@ -125,7 +125,7 @@ impl RoleService {
 
     /// Get role options for dropdowns
     pub async fn get_role_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: OptionsQuery,
     ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
         tracing::info!("Retrieving role options: {:?}", query);

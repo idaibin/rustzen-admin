@@ -7,7 +7,7 @@ use rustzen_core::{
     permission::{PermissionsCheck, take_registered_permission_codes},
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres};
+use sqlx::{SqlitePool, Sqlite};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
@@ -102,7 +102,7 @@ pub struct PermissionService;
 
 impl PermissionService {
     /// Synchronize collected route permissions into the menus table.
-    pub async fn sync_permissions(pool: &PgPool) -> Result<(), ServiceError> {
+    pub async fn sync_permissions(pool: &SqlitePool) -> Result<(), ServiceError> {
         let raw_codes = take_registered_permission_codes();
         let seed_records = build_menu_seed_records(&raw_codes);
 
@@ -315,14 +315,14 @@ fn humanize_segments(segments: &[&str]) -> String {
 }
 
 async fn upsert_menu_seed_record(
-    tx: &mut sqlx::Transaction<'_, Postgres>,
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
     record: &MenuSeedRecord,
 ) -> Result<(), ServiceError> {
     let now = Utc::now().naive_utc();
     sqlx::query(
         "INSERT INTO menus (parent_id, parent_code, name, code, menu_type, status, is_system, is_manual, created_at, updated_at)
-         VALUES (0, $1, $2, $3, $4, $5, $6, $7, $8, $8)
-         ON CONFLICT (code) DO UPDATE
+         VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT DO UPDATE
          SET parent_code = EXCLUDED.parent_code,
              name = EXCLUDED.name,
              menu_type = EXCLUDED.menu_type,
@@ -340,6 +340,7 @@ async fn upsert_menu_seed_record(
     .bind(record.is_system)
     .bind(record.is_manual)
     .bind(now)
+    .bind(now)
     .execute(&mut **tx)
     .await
     .map_err(|e| {
@@ -355,7 +356,7 @@ async fn upsert_menu_seed_record(
 }
 
 async fn refresh_menu_parent_id(
-    tx: &mut sqlx::Transaction<'_, Postgres>,
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
     permission_code: &str,
 ) -> Result<(), ServiceError> {
     let now = Utc::now().naive_utc();
@@ -365,11 +366,11 @@ async fn refresh_menu_parent_id(
              (SELECT parent.id FROM menus parent WHERE parent.code = menus.parent_code AND parent.deleted_at IS NULL),
              0
          ),
-         updated_at = $2
-         WHERE code = $1 AND deleted_at IS NULL AND is_manual = FALSE",
+         updated_at = ?
+         WHERE code = ? AND deleted_at IS NULL AND is_manual = FALSE",
     )
-    .bind(permission_code)
     .bind(now)
+    .bind(permission_code)
     .execute(&mut **tx)
     .await
     .map_err(|e| {

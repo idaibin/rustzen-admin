@@ -16,7 +16,7 @@ use crate::{
     infra::permission::PermissionService,
 };
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// User service for business operations
 pub struct UserService;
@@ -24,7 +24,7 @@ pub struct UserService;
 impl UserService {
     /// Get user list with pagination
     pub async fn list_users(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: UserQuery,
     ) -> Result<(Vec<UserItemResp>, i64), ServiceError> {
         tracing::info!("Fetching user list with query: {:?}", query);
@@ -42,7 +42,7 @@ impl UserService {
     }
 
     /// Create user
-    pub async fn create_user(pool: &PgPool, dto: CreateUserRequest) -> Result<i64, ServiceError> {
+    pub async fn create_user(pool: &SqlitePool, dto: CreateUserRequest) -> Result<i64, ServiceError> {
         tracing::debug!("Creating user: {}", dto.username);
         if UserRepository::username_exists(pool, &dto.username).await? {
             return Err(ServiceError::UsernameConflict);
@@ -67,7 +67,7 @@ impl UserService {
 
     /// Update user
     pub async fn update_user(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
         request: UpdateUserPayload,
@@ -80,7 +80,7 @@ impl UserService {
 
     /// Delete user
     pub async fn delete_user(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {
@@ -101,7 +101,7 @@ impl UserService {
 
     /// Get user options for dropdowns
     pub async fn get_user_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: UserOptionsQuery,
     ) -> Result<Vec<UserOptionResp>, ServiceError> {
         tracing::debug!("Getting user options with query: {:?}", query);
@@ -113,7 +113,7 @@ impl UserService {
     }
 
     pub async fn update_user_password(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
         dto: UpdateUserPasswordPayload,
@@ -125,7 +125,7 @@ impl UserService {
     }
 
     pub async fn update_user_status(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
         dto: UpdateUserStatusPayload,
@@ -136,7 +136,7 @@ impl UserService {
     }
 
     async fn ensure_user_is_mutable(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
     ) -> Result<(), ServiceError> {

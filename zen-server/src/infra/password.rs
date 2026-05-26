@@ -1,8 +1,9 @@
 use crate::common::error::ServiceError;
 
+use rand_core::OsRng;
 use argon2::{
     Argon2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 
 /// Password utilities for secure hashing and verification.

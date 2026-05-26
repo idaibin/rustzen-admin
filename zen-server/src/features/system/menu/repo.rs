@@ -4,7 +4,7 @@ use crate::common::{
 };
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{MenuListQuery, MenuRow, UpdateMenuPayload};
 
@@ -12,7 +12,7 @@ use super::types::{MenuListQuery, MenuRow, UpdateMenuPayload};
 pub struct MenuRepository;
 
 impl MenuRepository {
-    fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
         push_ilike(query_builder, "name", query.name.as_deref());
         push_ilike(query_builder, "code", query.code.as_deref());
         push_eq(query_builder, "status", query.status);
@@ -20,7 +20,7 @@ impl MenuRepository {
 
     /// Queries menus based on conditions
     pub async fn list_menus(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: MenuListQuery,
     ) -> Result<Vec<MenuRow>, ServiceError> {
         fetch_with_filters(
@@ -38,7 +38,7 @@ impl MenuRepository {
 
     /// Creates a new menu
     pub async fn create(
-        pool: &PgPool,
+        pool: &SqlitePool,
         parent_id: i64,
         name: &str,
         code: &str,
@@ -49,7 +49,7 @@ impl MenuRepository {
         let now = Utc::now().naive_utc();
         let menu_id = sqlx::query_scalar::<_, i64>(
             "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, is_manual, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7, $7)
+             VALUES (?, ?, ?, ?, ?, ?, TRUE, ?, ?)
              RETURNING id",
         )
         .bind(parent_id)
@@ -71,14 +71,14 @@ impl MenuRepository {
 
     /// Updates an existing menu
     pub async fn update(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         request: &UpdateMenuPayload,
     ) -> Result<i64, ServiceError> {
         let menu_id = sqlx::query_scalar::<_, i64>(
                 "UPDATE menus
-                 SET parent_id = $2, name = $3, code = $4, menu_type = $5, sort_order = $6, status = $7, is_manual = TRUE, updated_at = $8
-                 WHERE id = $1 AND deleted_at IS NULL
+                 SET parent_id = ?, name = ?, code = ?, menu_type = ?, sort_order = ?, status = ?, is_manual = TRUE, updated_at = ?
+                 WHERE id = ? AND deleted_at IS NULL
                  RETURNING id",
             )
             .bind(id)
@@ -104,9 +104,9 @@ impl MenuRepository {
     }
 
     /// Returns whether the menu is a system built-in menu.
-    pub async fn is_system_menu(pool: &PgPool, id: i64) -> Result<Option<bool>, ServiceError> {
+    pub async fn is_system_menu(pool: &SqlitePool, id: i64) -> Result<Option<bool>, ServiceError> {
         sqlx::query_scalar::<_, bool>(
-            "SELECT is_system FROM menus WHERE id = $1 AND deleted_at IS NULL",
+            "SELECT is_system FROM menus WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -118,9 +118,9 @@ impl MenuRepository {
     }
 
     /// Disable a menu.
-    pub async fn disable(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn disable(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
         let result = sqlx::query(
-            "UPDATE menus SET status = 2, updated_at = $1 WHERE id = $2 AND is_system = false AND deleted_at IS NULL"
+            "UPDATE menus SET status = 2, updated_at = ? WHERE id = ? AND is_system = false AND deleted_at IS NULL"
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
@@ -136,7 +136,7 @@ impl MenuRepository {
 
     /// Retrieves menu list for Options API
     pub async fn list_menu_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         search_query: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Vec<(i64, String)>, ServiceError> {

@@ -9,11 +9,11 @@ use axum::{
     extract::{Path, Query, State},
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Get paginated role list with filtering
 pub async fn list_roles(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<RoleQuery>,
 ) -> AppResult<Vec<RoleItemResp>> {
     let (role_list, total) = RoleService::list_roles(&pool, query).await?;
@@ -22,7 +22,7 @@ pub async fn list_roles(
 
 /// Create new role
 pub async fn create_role(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(request): Json<CreateRoleRequest>,
 ) -> AppResult<()> {
     RoleService::create_role(&pool, request).await?;
@@ -32,7 +32,7 @@ pub async fn create_role(
 /// Update role information
 pub async fn update_role(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateRolePayload>,
 ) -> AppResult<()> {
@@ -43,7 +43,7 @@ pub async fn update_role(
 /// Delete role with dependency validation
 pub async fn delete_role(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
     RoleService::delete_role(&pool, id, current_user.user_id).await?;
@@ -52,7 +52,7 @@ pub async fn delete_role(
 
 /// Get role options for dropdowns
 pub async fn get_role_options(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<OptionsQuery>,
 ) -> AppResult<Vec<OptionItem<i64>>> {
     Ok(ApiResponse::success(RoleService::get_role_options(&pool, query).await?))

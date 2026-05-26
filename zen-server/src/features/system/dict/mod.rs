@@ -12,9 +12,9 @@ use handler::{
     update_dict_status,
 };
 use rustzen_core::permission::{PermissionsCheck, RouterExt};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
-pub fn dict_routes() -> Router<PgPool> {
+pub fn dict_routes() -> Router<SqlitePool> {
     Router::new()
         .route_with_permission("/", get(list_dicts), PermissionsCheck::Require("system:dict:list"))
         .route_with_permission(

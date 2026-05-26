@@ -9,9 +9,9 @@ use axum::{
 };
 use handler::{create_menu, delete_menu, get_menu_options, list_menus, update_menu};
 use rustzen_core::permission::{PermissionsCheck, RouterExt};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
-pub fn menu_routes() -> Router<PgPool> {
+pub fn menu_routes() -> Router<SqlitePool> {
     Router::new()
         .route_with_permission("/", get(list_menus), PermissionsCheck::Require("system:menu:list"))
         .route_with_permission(

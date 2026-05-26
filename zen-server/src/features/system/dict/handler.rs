@@ -10,11 +10,11 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Retrieves a complete list of dictionary items with optional filtering.
 pub async fn list_dicts(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<DictQuery>,
 ) -> AppResult<Vec<DictItemResp>> {
     let (dict_list, total) = DictService::list_dicts(&pool, query).await?;
@@ -23,7 +23,7 @@ pub async fn list_dicts(
 
 /// Creates a new dictionary item.
 pub async fn create_dict(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(request): Json<CreateDictRequest>,
 ) -> AppResult<i64> {
     Ok(ApiResponse::success(DictService::create_dict(&pool, request).await?))
@@ -31,7 +31,7 @@ pub async fn create_dict(
 
 /// Updates an existing dictionary item.
 pub async fn update_dict(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateDictPayload>,
 ) -> AppResult<i64> {
@@ -39,13 +39,13 @@ pub async fn update_dict(
 }
 
 /// Deletes a dictionary item by ID.
-pub async fn delete_dict(State(pool): State<PgPool>, Path(id): Path<i64>) -> AppResult<()> {
+pub async fn delete_dict(State(pool): State<SqlitePool>, Path(id): Path<i64>) -> AppResult<()> {
     DictService::delete_dict(&pool, id).await?;
     Ok(ApiResponse::success(()))
 }
 
 pub async fn update_dict_status(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateDictStatusPayload>,
 ) -> AppResult<()> {
@@ -55,7 +55,7 @@ pub async fn update_dict_status(
 
 /// Retrieves dictionary options for dropdown/select components.
 pub async fn get_dict_options(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<DictOptionsQuery>,
 ) -> AppResult<Vec<OptionItem<String>>> {
     Ok(ApiResponse::success(
@@ -65,7 +65,7 @@ pub async fn get_dict_options(
 
 /// Retrieves dictionary items by type.
 pub async fn get_dict_by_type(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(dict_type): Path<String>,
 ) -> AppResult<Vec<OptionItem<String>>> {
     Ok(ApiResponse::success(DictService::get_dict_by_type(&pool, &dict_type).await?))

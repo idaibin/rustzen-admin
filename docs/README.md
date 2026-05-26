@@ -7,8 +7,9 @@ This is the documentation entrypoint for `rustzen-admin`.
 1. source code
 2. [architecture.md](./architecture.md)
 3. [guides/](./guides/)
-4. [reference/](./reference/)
-5. [history/](./history/)
+4. [history/README.md](./history/README.md) (historical input and completion records)
+5. [reference/](./reference/)
+6. [history/](./history/)
 
 ## Files
 
@@ -29,6 +30,7 @@ This is the documentation entrypoint for `rustzen-admin`.
 | [reference/code-review-checklist.md](./reference/code-review-checklist.md) | Appendix | Provides a compact review checklist. |
 | [history/README.md](./history/README.md) | Historical index | Explains where non-current records live. |
 | [history/feats/login-page-design.md](./history/feats/login-page-design.md) | Historical design | Preserves the completed login-page design input and asset link. |
+| [history/feats/v2-ai-first-local-first-roadmap.md](./history/feats/v2-ai-first-local-first-roadmap.md) | Historical feature task record | Breaks the V2 AI-first, local-first, SQLite-first design into executable and verifiable tasks. |
 | [history/plans/update-docs.md](./history/plans/update-docs.md) | Historical task list | Records the completed documentation-governance task request. |
 | [history/fixes/documentation-audit-report-2026-05-20.md](./history/fixes/documentation-audit-report-2026-05-20.md) | Historical audit | Preserves the pre-consolidation documentation audit snapshot. |
 
@@ -40,3 +42,4 @@ This is the documentation entrypoint for `rustzen-admin`.
 - Put completed designs, task records, proposals, fixes, and incidents in `history/`.
 - Do not put Chinese text in documentation files.
 - Use `kebab-case.md` for Markdown file names.
+- V2 design records under docs/history/ are historical inputs. Current implementation truth remains source code, [architecture.md](./architecture.md), and [guides/](./guides/).

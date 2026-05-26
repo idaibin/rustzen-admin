@@ -9,14 +9,14 @@ use crate::common::{
     query::parse_optional_i16_filter,
 };
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 pub struct DictService;
 
 impl DictService {
     /// Retrieves a list of dictionary items with optional filtering
     pub async fn list_dicts(
-        pool: &PgPool,
+        pool: &SqlitePool,
         query: DictQuery,
     ) -> Result<(Vec<DictItemResp>, i64), ServiceError> {
         tracing::info!("Starting to retrieve dictionary list with query: {:?}", query);
@@ -35,7 +35,7 @@ impl DictService {
 
     /// Creates a new dictionary item with validation
     pub async fn create_dict(
-        pool: &PgPool,
+        pool: &SqlitePool,
         request: CreateDictRequest,
     ) -> Result<i64, ServiceError> {
         tracing::info!(
@@ -57,7 +57,7 @@ impl DictService {
 
     /// Updates an existing dictionary item with validation
     pub async fn update_dict(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         request: UpdateDictPayload,
     ) -> Result<i64, ServiceError> {
@@ -66,7 +66,7 @@ impl DictService {
     }
 
     /// Deletes a dictionary item by ID
-    pub async fn delete_dict(pool: &PgPool, id: i64) -> Result<(), ServiceError> {
+    pub async fn delete_dict(pool: &SqlitePool, id: i64) -> Result<(), ServiceError> {
         tracing::info!("Deleting dictionary item: {}", id);
         if DictRepository::soft_delete(pool, id).await? {
             Ok(())
@@ -77,7 +77,7 @@ impl DictService {
 
     /// Retrieves dictionary options for dropdown selections
     pub async fn get_dict_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         dict_type: Option<String>,
         search_query: Option<String>,
         limit: Option<i64>,
@@ -96,7 +96,7 @@ impl DictService {
 
     /// Retrieves dictionary items by type
     pub async fn get_dict_by_type(
-        pool: &PgPool,
+        pool: &SqlitePool,
         dict_type: &str,
     ) -> Result<Vec<OptionItem<String>>, ServiceError> {
         DictRepository::list_dicts_by_type(pool, dict_type).await
@@ -104,7 +104,7 @@ impl DictService {
 
     /// Updates the status of a dictionary item
     pub async fn update_dict_status(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         status: i16,
     ) -> Result<(), ServiceError> {

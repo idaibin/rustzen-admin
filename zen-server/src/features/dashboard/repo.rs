@@ -1,11 +1,11 @@
 use super::types::{StatsResp, SystemMetricsDataResp, TrendResp, UserTrendsResp};
 use crate::common::error::ServiceError;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 pub struct DashboardRepository;
 
 impl DashboardRepository {
-    pub async fn get_stats(pool: &PgPool) -> Result<StatsResp, ServiceError> {
+    pub async fn get_stats(pool: &SqlitePool) -> Result<StatsResp, ServiceError> {
         // 并行执行所有查询
         let (
             total_users,
@@ -20,23 +20,29 @@ impl DashboardRepository {
 
             // 获取活跃用户数（7天内登录）
             sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM users WHERE last_login_at > NOW() - INTERVAL '7 days' AND deleted_at IS NULL"
+                "SELECT COUNT(*) FROM users WHERE last_login_at > datetime('now', '-7 day') AND deleted_at IS NULL"
             )
             .fetch_one(pool),
 
             // 获取今日登录数
             sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM users WHERE last_login_at > NOW() - INTERVAL '1 day' AND deleted_at IS NULL"
+                "SELECT COUNT(*) FROM users WHERE last_login_at > datetime('now', '-1 day') AND deleted_at IS NULL"
             )
             .fetch_one(pool),
 
             // 计算系统运行时间
-            // EXTRACT(MINUTES FROM (NOW() - pg_postmaster_start_time()))::text || '分钟'
+            // 计算系统运行时间（近似）：基于数据库中第一条日志时间
             sqlx::query_scalar::<_, String>(
                 r#"
                 SELECT
-                    EXTRACT(DAYS FROM (NOW() - pg_postmaster_start_time()))::text || '天 ' ||
-                    EXTRACT(HOURS FROM (NOW() - pg_postmaster_start_time()))::text || '小时 '
+                    ((CAST(strftime('%s', 'now') AS INTEGER) - CAST(COALESCE(
+                        (SELECT CAST(strftime('%s', created_at) AS INTEGER) FROM operation_logs ORDER BY created_at ASC LIMIT 1),
+                        strftime('%s', 'now')
+                    ) AS INTEGER)) / 86400) || '天 ' ||
+                    (((CAST(strftime('%s', 'now') AS INTEGER) - CAST(COALESCE(
+                        (SELECT CAST(strftime('%s', created_at) AS INTEGER) FROM operation_logs ORDER BY created_at ASC LIMIT 1),
+                        strftime('%s', 'now')
+                    ) AS INTEGER)) % 86400) / 3600) || '小时 '
                 "#
             )
             .fetch_one(pool),
@@ -79,7 +85,7 @@ impl DashboardRepository {
         Ok(stats)
     }
 
-    pub async fn get_metrics(pool: &PgPool) -> Result<SystemMetricsDataResp, ServiceError> {
+    pub async fn get_metrics(pool: &SqlitePool) -> Result<SystemMetricsDataResp, ServiceError> {
         // 并行获取系统指标
         let (
             total_requests,
@@ -88,19 +94,19 @@ impl DashboardRepository {
         ) = tokio::join!(
             // 获取总请求数（从日志表统计）
             sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM operation_logs WHERE created_at > NOW() - INTERVAL '7 days'"
+                "SELECT COUNT(*) FROM operation_logs WHERE created_at > datetime('now', '-7 day')"
             )
             .fetch_one(pool),
 
             // 获取错误请求数（状态为 FAILED 或 ERROR）
             sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM operation_logs WHERE status IN ('FAILED', 'ERROR') AND created_at > NOW() - INTERVAL '7 days'"
+                "SELECT COUNT(*) FROM operation_logs WHERE status IN ('FAILED', 'ERROR') AND created_at > datetime('now', '-7 day')"
             )
             .fetch_one(pool),
 
             // 获取平均响应时间（毫秒）
             sqlx::query_scalar::<_, f64>(
-                "SELECT COALESCE(AVG(duration_ms::FLOAT8), 0) FROM operation_logs WHERE created_at > NOW() - INTERVAL '7 days' AND duration_ms IS NOT NULL"
+                "SELECT COALESCE(AVG(CAST(duration_ms AS REAL)), 0) FROM operation_logs WHERE created_at > datetime('now', '-7 day') AND duration_ms IS NOT NULL"
             )
             .fetch_one(pool)
         );
@@ -140,7 +146,7 @@ impl DashboardRepository {
         Ok(metrics)
     }
 
-    pub async fn get_trends(pool: &PgPool) -> Result<UserTrendsResp, ServiceError> {
+    pub async fn get_trends(pool: &SqlitePool) -> Result<UserTrendsResp, ServiceError> {
         // 并行获取趋势数据
         let (daily_logins, hourly_active) = tokio::join!(
             // 获取最近30天的登录趋势
@@ -156,16 +162,16 @@ impl DashboardRepository {
     }
 
     /// 获取每日登录趋势（最近30天）
-    async fn get_daily_login_trends(pool: &PgPool) -> Result<Vec<TrendResp>, ServiceError> {
+    async fn get_daily_login_trends(pool: &SqlitePool) -> Result<Vec<TrendResp>, ServiceError> {
         let daily_logins = sqlx::query_as(
             r#"
             SELECT
-                DATE(created_at)::TEXT as date,
+                strftime('%Y-%m-%d', created_at) as date,
                 COUNT(*) as count
             FROM operation_logs
             WHERE action = 'AUTH_LOGIN'
                 AND status = 'SUCCESS'
-                AND created_at > NOW() - INTERVAL '30 days'
+                AND created_at > datetime('now', '-30 day')
             GROUP BY DATE(created_at)
             ORDER BY date
             "#,
@@ -181,18 +187,20 @@ impl DashboardRepository {
     }
 
     /// 获取24小时活跃用户分布
-    async fn get_hourly_active_users(pool: &PgPool) -> Result<Vec<TrendResp>, ServiceError> {
+    async fn get_hourly_active_users(pool: &SqlitePool) -> Result<Vec<TrendResp>, ServiceError> {
         let hourly_active: Vec<TrendResp> = sqlx::query_as(
             r#"
-            WITH hour_series AS (
-                SELECT generate_series(0, 23) as hour
+            WITH RECURSIVE hour_series AS (
+                SELECT 0 as hour
+                UNION ALL
+                SELECT hour + 1 FROM hour_series WHERE hour < 23
             )
             SELECT
-                hs.hour::TEXT as date,
+                CAST(hs.hour AS TEXT) as date,
                 COALESCE(COUNT(DISTINCT ol.user_id), 0) as count
             FROM hour_series hs
-            LEFT JOIN operation_logs ol ON EXTRACT(HOUR FROM ol.created_at) = hs.hour
-                AND ol.created_at > NOW() - INTERVAL '24 hours'
+            LEFT JOIN operation_logs ol ON CAST(strftime('%H', ol.created_at) AS INTEGER) = hs.hour
+                AND ol.created_at > datetime('now', '-24 hour')
                 AND ol.user_id IS NOT NULL
             GROUP BY hs.hour
             ORDER BY hs.hour

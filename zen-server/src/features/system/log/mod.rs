@@ -6,9 +6,9 @@ pub mod types;
 use axum::{Router, routing::get};
 use handler::{export_logs, list_logs};
 use rustzen_core::permission::{PermissionsCheck, RouterExt};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
-pub fn log_routes() -> Router<PgPool> {
+pub fn log_routes() -> Router<SqlitePool> {
     Router::new()
         .route_with_permission("/", get(list_logs), PermissionsCheck::Require("system:log:list"))
         .route_with_permission(

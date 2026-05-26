@@ -5,7 +5,7 @@ use crate::common::{
 };
 
 use chrono::Utc;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{DictItemResp, DictListQuery, UpdateDictPayload};
 
@@ -16,7 +16,7 @@ const DEFAULT_DICT_SORT_ORDER: i32 = 1;
 
 impl DictRepository {
     /// Formats the query for the dictionary items
-    fn format_query(query: &DictListQuery, query_builder: &mut QueryBuilder<'_, sqlx::Postgres>) {
+    fn format_query(query: &DictListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
         push_ilike(query_builder, "dict_type", query.dict_type.as_deref());
         push_ilike(query_builder, "label", query.label.as_deref());
         push_ilike(query_builder, "value", query.value.as_deref());
@@ -25,7 +25,7 @@ impl DictRepository {
 
     /// Retrieves dictionary items with pagination
     pub async fn list_dicts(
-        pool: &PgPool,
+        pool: &SqlitePool,
         offset: i64,
         limit: i64,
         query: DictListQuery,
@@ -58,7 +58,7 @@ impl DictRepository {
     }
 
     pub async fn list_dict_options(
-        pool: &PgPool,
+        pool: &SqlitePool,
         dict_type: Option<&str>,
         search_query: Option<&str>,
         limit: Option<i64>,
@@ -94,7 +94,7 @@ impl DictRepository {
 
     /// Retrieves dictionary items by type
     pub async fn list_dicts_by_type(
-        pool: &PgPool,
+        pool: &SqlitePool,
         dict_type: &str,
     ) -> Result<Vec<OptionItem<String>>, ServiceError> {
         tracing::debug!("Querying dictionary items with type: {}", dict_type);
@@ -116,7 +116,7 @@ impl DictRepository {
 
     /// Creates a new dictionary item
     pub async fn create(
-        pool: &PgPool,
+        pool: &SqlitePool,
         dict_type: &str,
         label: &str,
         value: &str,
@@ -129,7 +129,7 @@ impl DictRepository {
 
         let dict = sqlx::query_scalar::<_, i64>(
             "INSERT INTO dicts (dict_type, label, value, status, description, sort_order, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
              RETURNING id",
         )
         .bind(dict_type)
@@ -156,7 +156,7 @@ impl DictRepository {
 
     /// Updates an existing dictionary item
     pub async fn update(
-        pool: &PgPool,
+        pool: &SqlitePool,
         id: i64,
         request: &UpdateDictPayload,
     ) -> Result<i64, ServiceError> {
@@ -164,8 +164,8 @@ impl DictRepository {
 
         let dict_id = sqlx::query_scalar::<_, i64>(
             "UPDATE dicts
-             SET dict_type = $1, label = $2, value = $3, status = $4, description = $5, sort_order = $6, updated_at = $7
-             WHERE id = $8 AND deleted_at IS NULL
+             SET dict_type = ?, label = ?, value = ?, status = ?, description = ?, sort_order = ?, updated_at = ?
+             WHERE id = ? AND deleted_at IS NULL
              RETURNING id",
         )
         .bind(&request.dict_type)
@@ -191,13 +191,13 @@ impl DictRepository {
     }
 
     /// Soft deletes a dictionary item by ID
-    pub async fn soft_delete(pool: &PgPool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn soft_delete(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
         tracing::debug!("Soft deleting dictionary item with id: {}", id);
 
         let result = sqlx::query(
             "UPDATE dicts
-             SET deleted_at = $1, updated_at = $1
-             WHERE id = $2 AND deleted_at IS NULL",
+             SET deleted_at = ?, updated_at = ?
+             WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
@@ -219,13 +219,13 @@ impl DictRepository {
     }
 
     /// Updates the status of a dictionary item
-    pub async fn update_status(pool: &PgPool, id: i64, status: i16) -> Result<bool, ServiceError> {
+    pub async fn update_status(pool: &SqlitePool, id: i64, status: i16) -> Result<bool, ServiceError> {
         tracing::debug!("Updating dictionary item {} status to: {}", id, status);
 
         let result = sqlx::query(
             "UPDATE dicts
-             SET status = $1, updated_at = $2
-             WHERE id = $3 AND deleted_at IS NULL",
+             SET status = ?, updated_at = ?
+             WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(status)
         .bind(Utc::now().naive_utc())

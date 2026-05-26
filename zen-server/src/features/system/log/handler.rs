@@ -10,11 +10,11 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 /// Handles the request to get a paginated list of logs
 pub async fn list_logs(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<LogQuery>,
 ) -> AppResult<Vec<LogItemResp>> {
     let (logs, total) = LogService::list_logs(&pool, query).await?;
@@ -22,7 +22,7 @@ pub async fn list_logs(
 }
 
 pub async fn export_logs(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<LogQuery>,
 ) -> Result<Response, (StatusCode, String)> {
     let content = LogService::export_logs_csv(&pool, query)

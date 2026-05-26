@@ -8,6 +8,8 @@
 - `zen-server/` owns the Axum backend runtime and business features.
 - `zen-server/migrations/` owns SQL migrations.
 - `zen-web/` owns the React frontend.
+
+SQLite is the default V2 storage backend. PostgreSQL-first behavior is archived under `legacy/pg-admin`.
 - `deploy/` owns deployment assets.
 - `docs/` owns repository documentation.
 
@@ -39,7 +41,7 @@ Packaged deployment runs the backend as the serving process:
 - Frontend API modules call backend HTTP endpoints through `zen-web/src/api/request.ts`.
 - Backend handlers parse requests and return responses.
 - Backend services coordinate validation, transactions, permission-aware behavior, and repo calls.
-- Backend repos run SQL against PostgreSQL.
+- Backend repos run SQL against SQLite by default.
 - Static files and uploaded resources are served from paths derived from `RUSTZEN_RUNTIME_ROOT`.
 
 ## Permissions

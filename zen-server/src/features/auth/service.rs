@@ -10,7 +10,7 @@ use crate::{
     infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use std::time::Instant;
 
 /// Auth service for login and current-user session operations.
@@ -18,7 +18,7 @@ pub struct AuthService;
 
 impl AuthService {
     pub async fn login_with_audit(
-        pool: &PgPool,
+        pool: &SqlitePool,
         username: &str,
         password: &str,
         audit_command: LoginAuditCommand,
@@ -58,7 +58,7 @@ impl AuthService {
 
     /// Login with username/password
     pub async fn login(
-        pool: &PgPool,
+        pool: &SqlitePool,
         username: &str,
         password: &str,
     ) -> Result<LoginResp, ServiceError> {
@@ -122,7 +122,7 @@ impl AuthService {
     }
 
     /// Get detailed user info with roles, menus, and permissions
-    pub async fn get_login_info(pool: &PgPool, user_id: i64) -> Result<UserInfoResp, ServiceError> {
+    pub async fn get_login_info(pool: &SqlitePool, user_id: i64) -> Result<UserInfoResp, ServiceError> {
         tracing::info!(user_id, "Starting to fetch comprehensive user info");
 
         let user = AuthRepository::find_user_by_id(pool, user_id)
@@ -150,7 +150,7 @@ impl AuthService {
     }
 
     async fn record_login_operation(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         username: &str,
         status: &str,
@@ -180,7 +180,7 @@ impl AuthService {
 
     /// Verify login credentials
     pub async fn verify_login(
-        pool: &PgPool,
+        pool: &SqlitePool,
         username: &str,
         password: &str,
     ) -> Result<LoginCredentialsRow, ServiceError> {
@@ -219,7 +219,7 @@ impl AuthService {
 
     /// Cache user permissions
     pub async fn cache_user_permissions(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         is_system: bool,
     ) -> Result<(), ServiceError> {
@@ -236,7 +236,7 @@ impl AuthService {
     }
 
     async fn load_permissions(
-        pool: &PgPool,
+        pool: &SqlitePool,
         user_id: i64,
         is_system: bool,
     ) -> Result<Vec<String>, ServiceError> {

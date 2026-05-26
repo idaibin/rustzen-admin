@@ -12,13 +12,13 @@ use axum::{
     extract::{Path, Query, State},
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// Get user list
 #[instrument(skip(pool, query))]
 pub async fn list_users(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<UserQuery>,
 ) -> AppResult<Vec<UserItemResp>> {
     let (users, total) = UserService::list_users(&pool, query).await?;
@@ -28,7 +28,7 @@ pub async fn list_users(
 /// Create user
 #[instrument(skip(pool, dto))]
 pub async fn create_user(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Json(dto): Json<CreateUserRequest>,
 ) -> AppResult<i64> {
     Ok(ApiResponse::success(UserService::create_user(&pool, dto).await?))
@@ -38,7 +38,7 @@ pub async fn create_user(
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
@@ -49,7 +49,7 @@ pub async fn update_user(
 #[instrument(skip(pool, id, current_user))]
 pub async fn delete_user(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
     UserService::delete_user(&pool, id, current_user.user_id).await?;
@@ -65,7 +65,7 @@ pub async fn get_user_status_options() -> AppResult<Vec<UserOptionResp>> {
 /// Get user options
 #[instrument(skip(pool, query))]
 pub async fn get_user_options(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Query(query): Query<UserOptionsQuery>,
 ) -> AppResult<Vec<UserOptionResp>> {
     Ok(ApiResponse::success(UserService::get_user_options(&pool, query).await?))
@@ -74,7 +74,7 @@ pub async fn get_user_options(
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_password(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPasswordPayload>,
 ) -> AppResult<bool> {
@@ -86,7 +86,7 @@ pub async fn update_user_password(
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_status(
     current_user: CurrentUser,
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserStatusPayload>,
 ) -> AppResult<bool> {

@@ -8,7 +8,7 @@ use axum::{
     response::Response,
 };
 use rustzen_core::auth::CurrentUser;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use std::{net::SocketAddr, time::Instant};
 
 fn should_log(method: &Method, path: &str) -> bool {
@@ -23,7 +23,7 @@ fn should_log(method: &Method, path: &str) -> bool {
 
 /// HTTP logging middleware.
 pub async fn log_middleware(
-    State(pool): State<PgPool>,
+    State(pool): State<SqlitePool>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     request: Request,
     next: Next,
