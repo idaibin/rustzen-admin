@@ -17,7 +17,7 @@ export const AuthWrap: React.FC<AuthWrapProps> = ({
     hidden = false,
     fallback = null,
 }) => {
-    const isPermission = useAuthStore.getState().checkPermissions(code);
+    const isPermission = useAuthStore((state) => state.checkPermissions(code));
     if (isPermission && !hidden) {
         return children;
     }
@@ -60,7 +60,10 @@ interface AuthConfirmProps extends AuthPopconfirmProps {
 }
 
 export const AuthConfirm: React.FC<AuthConfirmProps> = (props) => {
-    const handleConfirm = () => {
+    const handleConfirm = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+
         appModal.confirm({
             title: props.title,
             content: props.description,
@@ -71,9 +74,13 @@ export const AuthConfirm: React.FC<AuthConfirmProps> = (props) => {
 
     return (
         <AuthWrap code={props.code} hidden={props.hidden}>
-            <span onClick={handleConfirm} className={props.className}>
+            <button
+                type="button"
+                onClick={handleConfirm}
+                className={`rounded border-0 bg-transparent p-0 text-left ${props.className || ""}`}
+            >
                 {props.children}
-            </span>
+            </button>
         </AuthWrap>
     );
 };

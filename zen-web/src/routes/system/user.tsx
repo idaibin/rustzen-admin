@@ -3,10 +3,10 @@ import { ProTable } from "@ant-design/pro-components";
 import { ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Space, Form } from "antd";
-import React, { useRef } from "react";
+import { Button, Form, Space } from "antd";
+import React, { useMemo, useRef } from "react";
 
-import { systemAPI } from "@/api";
+import { appMessage, systemAPI } from "@/api";
 import { AuthConfirm, AuthWrap } from "@/components/base-auth";
 import { MoreButton } from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
@@ -16,8 +16,34 @@ export const Route = createFileRoute("/system/user")({
     component: UserPage,
 });
 
+const formatResetDateSuffix = (date: Date) => {
+    const year = date.getFullYear() % 100;
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${String(year).padStart(2, "0")}${String(month).padStart(2, "0")}${String(day).padStart(
+        2,
+        "0",
+    )}`;
+};
+
+const buildResetPassword = (username: string, date = new Date()) => {
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+        return `User@${formatResetDateSuffix(date)}`;
+    }
+    const normalized = trimmedUsername.charAt(0).toUpperCase() + trimmedUsername.slice(1);
+    return `${normalized}@${formatResetDateSuffix(date)}`;
+};
+
 function UserPage() {
     const actionRef = useRef<ActionType>(null);
+    const currentUserId = useAuthStore((state) => state.userInfo?.id);
+    const columns = useMemo(
+        () =>
+            buildColumns(currentUserId),
+        [currentUserId],
+    );
+
     return (
         <ProTable<User.Item>
             rowKey="id"
@@ -43,7 +69,7 @@ function UserPage() {
     );
 }
 
-const columns: ProColumns<User.Item>[] = [
+const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
     {
         title: "ID",
         dataIndex: "id",
@@ -113,8 +139,7 @@ const columns: ProColumns<User.Item>[] = [
         width: 110,
         search: false,
         render: (_dom: React.ReactNode, entity: User.Item, _index, action?: ActionType) => {
-            const cur = useAuthStore.getState().userInfo;
-            if (entity.id === cur?.id || entity.id === 1) {
+            if (entity.id === currentUserId || entity.id === 1) {
                 return null;
             }
             const status = entity.status === 1 ? "Disable" : "Enable";
@@ -146,10 +171,9 @@ const columns: ProColumns<User.Item>[] = [
                             title="Are you sure you want to reset the password of this user?"
                             children="Reset Password"
                             onConfirm={async () => {
-                                await systemAPI.user.password(
-                                    entity.id,
-                                    `${entity.username}@123456`,
-                                );
+                                const password = buildResetPassword(entity.username);
+                                await systemAPI.user.password(entity.id, password);
+                                appMessage.success(`Password reset to ${password}`);
                                 void action?.reload();
                             }}
                         />
