@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
     BookOutlined,
     DashboardOutlined,
@@ -63,9 +64,7 @@ const systemRoutes: AppRouter = {
 
 const pageRoutes: AppRouter[] = [systemRoutes];
 
-const getMenuData = (): AppRouter[] => {
-    const { checkMenuPermissions } = useAuthStore.getState();
-
+const getMenuData = (checkMenuPermissions: (path: string) => boolean): AppRouter[] => {
     const getMenuList = (menuList: AppRouter[]): AppRouter[] => {
         return menuList
             .filter((item) => {
@@ -89,9 +88,17 @@ const getMenuData = (): AppRouter[] => {
 };
 
 export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
-    const { userInfo } = useAuthStore();
+    const userInfo = useAuthStore((state) => state.userInfo);
+    const clearAuth = useAuthStore((state) => state.clearAuth);
+    const checkMenuPermissions = useAuthStore((state) => state.checkMenuPermissions);
+    const menuPermissionSignature = useAuthStore((state) => state.userInfo?.permissions?.join("|") || "");
     const router = useRouter();
     const currentPath = useLocation().pathname;
+
+    const menuData = useMemo(
+        () => getMenuData(checkMenuPermissions),
+        [checkMenuPermissions, menuPermissionSignature],
+    );
 
     if (hidden) {
         return children;
@@ -112,7 +119,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
             label: "Logout",
             onClick: async () => {
                 await authAPI.logout();
-                useAuthStore.getState().clearAuth();
+                clearAuth();
                 appMessage.success("Logout successful");
                 void router.navigate({ to: "/login" });
                 return true;
@@ -140,7 +147,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
                         name: "Dashboard",
                         icon: <DashboardOutlined />,
                     },
-                    ...getMenuData(),
+                    ...menuData,
                 ],
             }}
             avatarProps={{
