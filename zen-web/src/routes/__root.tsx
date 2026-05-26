@@ -24,7 +24,6 @@ export const Route = createRootRoute({
 
         // Redirect to home if already logged in
         if (curPath === "/login") {
-            console.log("Redirect to home");
             throw redirect({ to: "/" });
         }
 

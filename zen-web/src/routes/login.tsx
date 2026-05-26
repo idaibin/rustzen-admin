@@ -21,6 +21,7 @@ function LoginPage() {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { handleLogin } = useAuthStore();
+    const currentYear = new Date().getFullYear();
     const onLogin = async (values: LoginFormValues) => {
         setIsSubmitting(true);
         try {
@@ -64,34 +65,34 @@ function LoginPage() {
                         <div className="h-[500px] xl:h-[610px]">
                             <img
                                 src={loginIllustrationUrl}
-                                alt="Rustzen Admin 运维管理平台"
+                                alt="Rustzen Admin Operations Management Platform"
                                 className="h-full w-full object-contain object-left drop-shadow-[0_34px_72px_rgba(38,103,255,0.12)]"
                             />
                         </div>
                         <div className="-mt-9 pl-3 xl:-mt-14">
                             <div className="flex items-center gap-5 text-[34px] font-extrabold leading-none text-[#061634] xl:text-[38px]">
-                                <span>高效</span>
+                                <span>Efficient</span>
                                 <span className="text-[28px] text-[#1677ff]">•</span>
-                                <span>稳定</span>
+                                <span>Reliable</span>
                                 <span className="text-[28px] text-[#1677ff]">•</span>
-                                <span>智能</span>
+                                <span>Smart</span>
                             </div>
                             <p className="mt-5 text-[22px] leading-none text-[#7484a0]">
-                                一体化管理平台，让运维管理更简单
+                                A unified operations platform for simpler and more efficient management.
                             </p>
                         </div>
                     </section>
 
                     <section
                         className="mx-auto w-full max-w-[420px] rounded-[18px] bg-white px-7 py-10 shadow-[0_28px_76px_rgba(45,88,150,0.09)] sm:px-12 sm:py-14 xl:max-w-[532px] xl:px-[62px] xl:py-[86px]"
-                        aria-label="登录"
+                        aria-label="Login"
                     >
                         <div className="mb-10 text-center xl:mb-12">
                             <h1 className="m-0 text-[36px] font-extrabold leading-none text-[#061634] xl:text-[40px]">
                                 Rustzen <span className="text-[#1677ff]">Admin</span>
                             </h1>
                             <p className="mt-6 text-base leading-none text-[#8b98ae]">
-                                欢迎登录管理系统
+                                Welcome to Rustzen Admin
                             </p>
                         </div>
 
@@ -101,7 +102,6 @@ function LoginPage() {
                             autoComplete="off"
                             size="large"
                             layout="vertical"
-                            initialValues={{ username: "superadmin", remember: true }}
                             requiredMark={false}
                         >
                             <Form.Item
@@ -109,23 +109,23 @@ function LoginPage() {
                                 className="mb-8"
                                 label={
                                     <span className="text-base font-semibold text-[#10213d]">
-                                        用户名
+                                        Username
                                     </span>
                                 }
                                 rules={[
                                     {
                                         required: true,
-                                        message: "请输入用户名",
+                                        message: "Please enter username",
                                     },
                                     {
                                         min: 3,
-                                        message: "用户名至少 3 个字符",
+                                        message: "Username must be at least 3 characters",
                                     },
                                 ]}
                             >
-                                <Input
+                                    <Input
                                     prefix={<UserOutlined className="text-[#8a9ab5]" />}
-                                    placeholder="请输入用户名"
+                                    placeholder="Enter username"
                                     autoComplete="username"
                                     className="h-[60px] rounded-[10px] border-[#dce4f1] px-4 text-base shadow-none hover:border-[#1677ff] focus:border-[#1677ff]"
                                 />
@@ -136,23 +136,23 @@ function LoginPage() {
                                 className="mb-7"
                                 label={
                                     <span className="text-base font-semibold text-[#10213d]">
-                                        密码
+                                        Password
                                     </span>
                                 }
                                 rules={[
                                     {
                                         required: true,
-                                        message: "请输入密码",
+                                        message: "Please enter password",
                                     },
                                     {
                                         min: 6,
-                                        message: "密码至少 6 个字符",
+                                        message: "Password must be at least 6 characters",
                                     },
                                 ]}
                             >
                                 <Input.Password
                                     prefix={<LockOutlined className="text-[#8a9ab5]" />}
-                                    placeholder="请输入密码"
+                                    placeholder="Enter password"
                                     autoComplete="current-password"
                                     className="h-[60px] rounded-[10px] border-[#dce4f1] px-4 text-base shadow-none hover:border-[#1677ff] focus:border-[#1677ff]"
                                 />
@@ -160,9 +160,9 @@ function LoginPage() {
 
                             <div className="mb-8 flex items-center justify-between text-base leading-none">
                                 <Form.Item name="remember" valuePropName="checked" noStyle>
-                                    <Checkbox className="text-[#22324d]">记住我</Checkbox>
+                                    <Checkbox className="text-[#22324d]">Remember me</Checkbox>
                                 </Form.Item>
-                                <span className="font-medium text-[#1677ff]">忘记密码?</span>
+                                <span className="font-medium text-[#1677ff]">Forgot password?</span>
                             </div>
 
                             <Button
@@ -171,14 +171,14 @@ function LoginPage() {
                                 loading={isSubmitting}
                                 className="h-[60px] w-full rounded-[10px] bg-[#1677ff] text-lg font-semibold shadow-[0_12px_22px_rgba(22,119,255,0.24)]"
                             >
-                                登 录
+                                Login
                             </Button>
                         </Form>
                     </section>
                 </div>
 
                 <footer className="shrink-0 pb-3 text-sm text-[#7f8da7]">
-                    © 2024 Rustzen. All rights reserved.
+                    © {currentYear} Rustzen. All rights reserved.
                 </footer>
             </div>
         </main>

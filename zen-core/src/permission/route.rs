@@ -25,7 +25,9 @@ where
         method_router: MethodRouter<S>,
         permissions_check: PermissionsCheck,
     ) -> Self {
-        register_permission_codes(permissions_check.codes());
+        let codes = permissions_check.codes();
+        tracing::info!("route_with_permission called for path='{:?}', codes={:?}", path, codes);
+        register_permission_codes(codes);
         self.route(
             path,
             method_router.layer(axum::middleware::from_fn(move |request: Request, next: Next| {

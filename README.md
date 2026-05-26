@@ -31,6 +31,12 @@ This layout keeps backend, frontend, and repository rules explicit, making the c
 
 Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
 
+## Demo
+
+- Local demo URL: `http://localhost:8010/login`
+- Demo username: `superadmin`
+- Demo password: `rustzen@123`
+
 ## Notes
 
 - `README.md` and `AGENTS.md` stay as lightweight entry documents.

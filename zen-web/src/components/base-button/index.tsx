@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Dropdown, type DropdownProps } from "antd";
 
 import { useAuthStore } from "@/store/useAuthStore";
@@ -9,21 +10,27 @@ interface MoreButtonProps {
 }
 
 export const MoreButton = ({ children, ...props }: MoreButtonProps) => {
-    const items = children
-        .filter((child) => {
-            const item = child.props as { code?: string; hidden?: boolean };
-            if (item.hidden) {
-                return false;
-            }
-            if (item.code) {
-                return useAuthStore.getState().checkPermissions(item.code);
-            }
-            return true;
-        })
-        .map((child, index) => ({
-            key: child?.key || index,
-            label: child,
-        }));
+    const permissionSignature = useAuthStore((state) => state.userInfo?.permissions?.join("|") || "");
+    const checkPermissions = useAuthStore((state) => state.checkPermissions);
+    const items = useMemo(
+        () =>
+            children
+                .filter((child) => {
+                    const item = child.props as { code?: string; hidden?: boolean };
+                    if (item.hidden) {
+                        return false;
+                    }
+                    if (item.code) {
+                        return checkPermissions(item.code);
+                    }
+                    return true;
+                })
+                .map((child, index) => ({
+                    key: child?.key || index,
+                    label: child,
+                })),
+        [children, checkPermissions, permissionSignature],
+    );
 
     if (items.length === 0) {
         return null;
