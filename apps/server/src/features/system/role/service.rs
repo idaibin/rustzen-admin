@@ -9,6 +9,7 @@ use crate::common::{
     query::parse_optional_i16_filter,
 };
 use crate::infra::permission::PermissionService;
+use rustzen_core::capability::SYSTEM_WILDCARD;
 
 use sqlx::SqlitePool;
 
@@ -112,7 +113,7 @@ impl RoleService {
     ) -> Result<(), ServiceError> {
         match RoleRepository::is_system_role(pool, id).await? {
             Some(true) => {
-                if PermissionService::has_permission(current_user_id, "*").await? {
+                if PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await? {
                     Ok(())
                 } else {
                     Err(ServiceError::RoleIsSystem)

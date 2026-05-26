@@ -27,10 +27,10 @@ This is a practical path index for task orientation. It maps where to look first
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `crates/auth/` | Shared auth and permission crate. | You touch auth context, JWT, extractors, or permission checks. |
+| `crates/auth/` | Shared auth and capability checks. | You touch auth context, JWT, extractors, or capability checks. |
 | `crates/storage/` | Shared SQLite storage helpers and migration invocations. | You touch DB bootstrap, connection helpers, or migration wiring. |
 | `apps/server/AGENTS.md` | Backend-specific AI rules. | You work under `apps/server/`. |
-| `apps/server/src/infra/` | Config, app assembly, database, auth runtime, permission cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or permission sync. |
+| `apps/server/src/infra/` | Config, app assembly, database, auth runtime, capability cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or capability sync. |
 | `apps/server/src/common/` | Cross-feature backend helpers. | You touch shared file or utility behavior. |
 | `apps/server/src/middleware/` | Axum middleware. | You touch request middleware behavior. |
 | `apps/server/migrations/` | SQL migrations. | You change schema. |

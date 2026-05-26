@@ -17,9 +17,9 @@ impl PermissionsCheck {
 
     pub fn description(&self) -> String {
         match self {
-            Self::Require(code) => format!("required permission '{code}'"),
-            Self::Any(codes) => format!("any of permissions {codes:?}"),
-            Self::All(codes) => format!("all permissions {codes:?}"),
+            Self::Require(code) => format!("required capability '{code}'"),
+            Self::Any(codes) => format!("any of capabilities {codes:?}"),
+            Self::All(codes) => format!("all capabilities {codes:?}"),
         }
     }
 

@@ -11,7 +11,7 @@ use sqlx::{Sqlite, SqlitePool};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
-/// Permission cache expiration time (1 hour)
+/// Capability cache expiration time (1 hour)
 const CACHE_EXPIRE_HOURS: i64 = 1;
 const MENU_STATUS_VISIBLE: i16 = 1;
 const MENU_TYPE_DIRECTORY: i16 = 1;
@@ -19,7 +19,7 @@ const MENU_TYPE_MENU: i16 = 2;
 const MENU_TYPE_BUTTON: i16 = 3;
 const SYSTEM_SUPER_ADMIN_CODE: &str = "*";
 
-/// Seed record derived from route permissions.
+/// Seed record derived from route-level capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MenuSeedRecord {
     pub permission_code: String,
@@ -36,19 +36,19 @@ pub struct MenuSeedRecord {
 /// Cached user permissions with expiration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPermissionCache {
-    /// User's permissions set
+    /// User's capability set
     pub permissions: HashSet<String>,
     /// Cache creation timestamp
     pub cached_at: DateTime<Utc>,
 }
 
 impl UserPermissionCache {
-    /// Create new permission cache
+    /// Create new capability cache for user runtime checks
     pub fn new(permissions: Vec<String>) -> Self {
         Self { permissions: permissions.into_iter().collect(), cached_at: Utc::now() }
     }
 
-    /// Check if cache has expired
+    /// Check if cached capabilities have expired.
     pub fn is_expired(&self) -> bool {
         let now = Utc::now();
         let expire_time = self.cached_at + Duration::hours(CACHE_EXPIRE_HOURS);
@@ -56,7 +56,7 @@ impl UserPermissionCache {
     }
 }
 
-/// Thread-safe in-memory permission cache manager
+/// Thread-safe in-memory capability cache manager
 pub struct PermissionCacheManager {
     cache: Arc<RwLock<HashMap<i64, UserPermissionCache>>>,
 }
@@ -66,18 +66,18 @@ impl PermissionCacheManager {
         Self { cache: Arc::new(RwLock::new(HashMap::new())) }
     }
 
-    /// Get cached permissions for user
+    /// Get cached capabilities for user.
     pub fn get(&self, user_id: i64) -> Option<UserPermissionCache> {
         self.cache.read().ok()?.get(&user_id).cloned()
     }
 
-    /// Store user permissions in cache
+    /// Store user capabilities in cache.
     pub fn set(&self, user_id: i64, permission_cache: UserPermissionCache) {
         let permission_count = permission_cache.permissions.len();
         if let Ok(mut cache) = self.cache.write() {
             cache.insert(user_id, permission_cache);
             tracing::debug!(
-                "Cached {} permissions for user {} (expires in {}h)",
+                "Cached {} capabilities for user {} (expires in {}h)",
                 permission_count,
                 user_id,
                 CACHE_EXPIRE_HOURS
@@ -85,16 +85,16 @@ impl PermissionCacheManager {
         }
     }
 
-    /// Remove user permissions from cache
+    /// Remove user capability cache.
     pub fn remove(&self, user_id: i64) {
         if let Ok(mut cache) = self.cache.write() {
             cache.remove(&user_id);
-            tracing::debug!("Removed permission cache for user {}", user_id);
+            tracing::debug!("Removed capability cache for user {}", user_id);
         }
     }
 }
 
-/// Global permission cache instance
+/// Global capability cache instance
 static PERMISSION_CACHE: Lazy<PermissionCacheManager> = Lazy::new(PermissionCacheManager::new);
 
 /// Permission service with intelligent caching
@@ -134,24 +134,24 @@ impl PermissionService {
         Ok(())
     }
 
-    /// Check whether a user has a specific permission code.
+    /// Check whether a user has a specific capability code.
     pub async fn has_permission(
         user_id: i64,
-        permission: &'static str,
+        capability_code: &'static str,
     ) -> Result<bool, ServiceError> {
-        tracing::debug!("Checking required permission '{}' for user {}", permission, user_id);
+        tracing::debug!("Checking required capability '{}' for user {}", capability_code, user_id);
         let current_user = Self::load_current_user(user_id, "")?;
-        let has_permission = PermissionsCheck::Require(permission).check(&current_user);
+        let has_permission = PermissionsCheck::Require(capability_code).check(&current_user);
         tracing::debug!(
-            "Permission check {} for user {} (required permission '{}')",
+            "Capability check {} for user {} (required capability '{}')",
             if has_permission { "GRANTED" } else { "DENIED" },
             user_id,
-            permission
+            capability_code
         );
         Ok(has_permission)
     }
 
-    /// Cache user permissions (called during login)
+    /// Cache user capabilities (called during login).
     pub fn cache_user_permissions(user_id: i64, permissions: &[String]) {
         let permission_cache = UserPermissionCache::new(permissions.to_vec());
         PERMISSION_CACHE.set(user_id, permission_cache);
@@ -173,7 +173,7 @@ impl PermissionService {
         let cache = match PERMISSION_CACHE.get(user_id) {
             Some(cache) => cache,
             None => {
-                tracing::warn!("No permission cache for user {} - requiring re-auth", user_id);
+                tracing::warn!("No capability cache for user {} - requiring re-auth", user_id);
                 return Err(ServiceError::InvalidToken);
             }
         };
@@ -273,7 +273,7 @@ fn menu_type(permission_code: &str) -> i16 {
 
 fn permission_title(permission_code: &str) -> String {
     if permission_code == SYSTEM_SUPER_ADMIN_CODE {
-        return "All Permissions".to_string();
+        return "All Capabilities".to_string();
     }
 
     let segments: Vec<&str> = permission_code.split(':').collect();
@@ -390,7 +390,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn expands_parent_chain_and_dedupes_codes() {
+    fn expands_capability_chain_and_dedupes_codes() {
         let codes = vec![
             "system:user:list".to_string(),
             "system:user:create".to_string(),
@@ -414,12 +414,12 @@ mod tests {
     }
 
     #[test]
-    fn wildcard_permission_uses_clear_display_title() {
-        assert_eq!(permission_title("*"), "All Permissions");
+    fn wildcard_capability_uses_clear_display_title() {
+        assert_eq!(permission_title("*"), "All Capabilities");
     }
 
     #[test]
-    fn builds_menu_seed_records_with_titles_and_types() {
+    fn builds_menu_seed_records_with_capability_titles_and_types() {
         let codes = vec![
             "dashboard:view".to_string(),
             "system:user:*".to_string(),
@@ -480,7 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn seed_records_default_to_system_owned() {
+    fn seed_records_default_to_system_owned_capabilities() {
         let record = menu_seed_record("system:user:list");
 
         assert!(!record.is_manual);
@@ -488,7 +488,7 @@ mod tests {
     }
 
     #[test]
-    fn load_current_user_marks_super_from_cached_wildcard() {
+    fn load_current_user_marks_super_from_cached_capability_wildcard() {
         PermissionService::cache_user_permissions(42, &["*".to_string()]);
 
         let user = PermissionService::load_current_user(42, "root").expect("cached user");

@@ -47,8 +47,8 @@ Packaged deployment runs the backend as the serving process:
 
 ## Permissions
 
-- JWT, auth context extraction, permission checks, and route permission registration live in `crates/auth/`.
-- Backend permission cache and menu synchronization live in `apps/server/src/infra/`.
+- JWT, auth context extraction, and capability checks live in `crates/auth/`.
+- Backend capability cache and menu synchronization live in `apps/server/src/infra/`.
 - New protected backend routes use `PermissionsCheck::Require(...)` by default.
 - `*` is the only full-authorization grant.
 

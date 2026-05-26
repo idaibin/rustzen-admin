@@ -8,6 +8,7 @@ use crate::common::{
     query::parse_optional_i16_filter,
 };
 use crate::infra::permission::PermissionService;
+use rustzen_core::capability::SYSTEM_WILDCARD;
 
 use sqlx::SqlitePool;
 
@@ -84,7 +85,7 @@ impl MenuService {
     ) -> Result<(), ServiceError> {
         match MenuRepository::is_system_menu(pool, id).await? {
             Some(true) => {
-                if PermissionService::has_permission(current_user_id, "*").await? {
+                if PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await? {
                     Ok(())
                 } else {
                     Err(ServiceError::MenuIsSystem)

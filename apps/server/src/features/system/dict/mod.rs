@@ -11,41 +11,44 @@ use handler::{
     create_dict, delete_dict, get_dict_by_type, get_dict_options, list_dicts, update_dict,
     update_dict_status,
 };
-use rustzen_core::permission::{PermissionsCheck, RouterExt};
+use rustzen_core::{
+    capability::system_dict,
+    permission::{PermissionsCheck, RouterExt},
+};
 use sqlx::SqlitePool;
 
 pub fn dict_routes() -> Router<SqlitePool> {
     Router::new()
-        .route_with_permission("/", get(list_dicts), PermissionsCheck::Require("system:dict:list"))
+        .route_with_permission("/", get(list_dicts), PermissionsCheck::Require(system_dict::LIST))
         .route_with_permission(
             "/",
             post(create_dict),
-            PermissionsCheck::Require("system:dict:create"),
+            PermissionsCheck::Require(system_dict::CREATE),
         )
         // More specific routes first to avoid ambiguous matching with `/{id}`.
         .route_with_permission(
             "/options",
             get(get_dict_options),
-            PermissionsCheck::Require("system:dict:options"),
+            PermissionsCheck::Require(system_dict::OPTIONS),
         )
         .route_with_permission(
             "/type/{type}",
             get(get_dict_by_type),
-            PermissionsCheck::Require("system:dict:options"),
+            PermissionsCheck::Require(system_dict::OPTIONS),
         )
         .route_with_permission(
             "/{id}/status",
             patch(update_dict_status),
-            PermissionsCheck::Require("system:dict:update"),
+            PermissionsCheck::Require(system_dict::UPDATE),
         )
         .route_with_permission(
             "/{id}",
             put(update_dict),
-            PermissionsCheck::Require("system:dict:update"),
+            PermissionsCheck::Require(system_dict::UPDATE),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_dict),
-            PermissionsCheck::Require("system:dict:delete"),
+            PermissionsCheck::Require(system_dict::DELETE),
         )
 }

@@ -491,7 +491,7 @@ Expected: completes successfully.
 
 **Steps:**
 
-- [ ] Keep existing admin objects.
+- [x] Keep existing admin objects.
 
 Required retained concepts:
 
@@ -502,7 +502,7 @@ permissions
 menus
 ```
 
-- [ ] Introduce capability naming only where it reduces ambiguity.
+- [x] Introduce capability naming only where it reduces ambiguity.
 
 Allowed examples:
 
@@ -514,7 +514,7 @@ workspace.manage
 system.config
 ```
 
-- [ ] Do not introduce desktop-only capabilities in the first phase.
+- [x] Do not introduce desktop-only capabilities in the first phase.
 
 Forbidden first-phase examples:
 
@@ -523,7 +523,7 @@ filesystem.read
 shell.exec
 ```
 
-- [ ] Verify current route protection still uses explicit permission checks.
+- [x] Verify current route protection still uses explicit permission checks.
 
 ```bash
 rg -n "PermissionsCheck::Require|route_with_permission" apps/server crates
@@ -531,7 +531,7 @@ rg -n "PermissionsCheck::Require|route_with_permission" apps/server crates
 
 Expected: protected routes still register explicit requirements.
 
-- [ ] Verify permission checks compile.
+- [x] Verify permission checks compile.
 
 ```bash
 cargo check -p server

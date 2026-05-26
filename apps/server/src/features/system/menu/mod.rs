@@ -8,30 +8,33 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use handler::{create_menu, delete_menu, get_menu_options, list_menus, update_menu};
-use rustzen_core::permission::{PermissionsCheck, RouterExt};
+use rustzen_core::{
+    capability::system_menu,
+    permission::{PermissionsCheck, RouterExt},
+};
 use sqlx::SqlitePool;
 
 pub fn menu_routes() -> Router<SqlitePool> {
     Router::new()
-        .route_with_permission("/", get(list_menus), PermissionsCheck::Require("system:menu:list"))
+        .route_with_permission("/", get(list_menus), PermissionsCheck::Require(system_menu::LIST))
         .route_with_permission(
             "/",
             post(create_menu),
-            PermissionsCheck::Require("system:menu:create"),
+            PermissionsCheck::Require(system_menu::CREATE),
         )
         .route_with_permission(
             "/{id}",
             put(update_menu),
-            PermissionsCheck::Require("system:menu:update"),
+            PermissionsCheck::Require(system_menu::UPDATE),
         )
         .route_with_permission(
             "/{id}",
             delete(delete_menu),
-            PermissionsCheck::Require("system:menu:delete"),
+            PermissionsCheck::Require(system_menu::DELETE),
         )
         .route_with_permission(
             "/options",
             get(get_menu_options),
-            PermissionsCheck::Require("system:menu:options"),
+            PermissionsCheck::Require(system_menu::OPTIONS),
         )
 }

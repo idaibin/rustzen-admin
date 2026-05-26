@@ -15,6 +15,7 @@ use crate::{
     infra::password::PasswordUtils,
     infra::permission::PermissionService,
 };
+use rustzen_core::capability::SYSTEM_WILDCARD;
 
 use sqlx::SqlitePool;
 
@@ -146,7 +147,9 @@ impl UserService {
         let user = UserRepository::find_user_by_id(pool, id)
             .await?
             .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
-        if user.is_system && !PermissionService::has_permission(current_user_id, "*").await? {
+        if user.is_system
+            && !PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await?
+        {
             return Err(ServiceError::UserIsAdmin);
         }
         Ok(())
