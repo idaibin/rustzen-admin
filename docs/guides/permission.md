@@ -4,8 +4,8 @@ Current permission model and usage rules.
 
 ## Ownership
 
-- Shared auth and permission code lives in `zen-core/`.
-- Server permission cache and menu sync live in `zen-server/src/infra/`.
+- Shared auth and permission code lives in `crates/auth/`.
+- Server permission cache and menu sync live in `apps/server/src/infra/`.
 - Route permissions are registered with `route_with_permission`.
 - Startup sync writes registered permission codes into `menus`.
 

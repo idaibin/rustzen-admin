@@ -30,7 +30,7 @@ Current deployment rules.
 - Avatars live under `<runtime_root>/data/avatars`.
 - Logs live under `<runtime_root>/logs`.
 - Build and deploy targets are defined in the root `justfile`.
-- Frontend release builds use pnpm with `zen-web/pnpm-lock.yaml`.
+- Frontend release builds use pnpm with `apps/web/pnpm-lock.yaml`.
 - `deploy/sql/` contains one-off SQL repair scripts for older deployments; these are not migration files and should not be used for schema evolution.
 
 The first V2 phase uses SQLite by default and does not require PostgreSQL for local startup.
@@ -41,7 +41,7 @@ The first V2 phase uses SQLite by default and does not require PostgreSQL for lo
 - Fallback deploy layouts.
 - Build-machine absolute paths in runtime behavior.
 - Nested deployment asset directories unless the deployment surface grows.
-- npm or Bun lockfiles for the `zen-web` release build.
+- npm or Bun lockfiles for the `apps/web` release build.
 
 ## Local startup
 

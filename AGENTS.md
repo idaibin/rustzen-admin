@@ -15,12 +15,12 @@
 
 ## Boundaries
 
-- Shared auth and permission capability code lives in `zen-core/`.
-- Backend lives in `zen-server/`.
-- Migrations live in `zen-server/migrations/`.
-- Frontend lives in `zen-web/`.
+- Shared auth and permission capability code lives in `crates/auth/`.
+- Backend lives in `apps/server/`.
+- Migrations live in `apps/server/migrations/`.
+- Frontend lives in `apps/web/`.
 - Deployment assets live in `deploy/`.
-- Root keeps workspace metadata, docs, command entry points, and the shared crate.
+- Root keeps workspace metadata, docs, command entry points, and shared crates.
 
 ## Working Rules
 

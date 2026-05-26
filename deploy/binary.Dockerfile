@@ -21,11 +21,11 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
 RUN rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
-COPY zen-core zen-core
-COPY zen-server/Cargo.toml zen-server/Cargo.toml
-COPY zen-server/build.rs zen-server/build.rs
-COPY zen-server/src zen-server/src
-COPY zen-server/migrations zen-server/migrations
+COPY crates/auth crates/auth
+COPY apps/server/Cargo.toml apps/server/Cargo.toml
+COPY apps/server/build.rs apps/server/build.rs
+COPY apps/server/src apps/server/src
+COPY apps/server/migrations apps/server/migrations
 
 RUN cargo build -p server --release --target x86_64-unknown-linux-musl
 

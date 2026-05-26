@@ -1,13 +1,13 @@
 # Frontend Guide
 
-Rules for frontend work under `zen-web/`.
+Rules for frontend work under `apps/web/`.
 
 ## Routes
 
 - Use file-based routes that match the final pathname.
-- Keep auth redirects, permission gates, current-user bootstrap, and not-found handling in `zen-web/src/routes/__root.tsx`.
-- Keep route paths stable; `zen-web/src/store/useAuthStore.ts` derives permission codes from pathname.
-- Do not edit `zen-web/src/routeTree.gen.ts` manually.
+- Keep auth redirects, permission gates, current-user bootstrap, and not-found handling in `apps/web/src/routes/__root.tsx`.
+- Keep route paths stable; `apps/web/src/store/useAuthStore.ts` derives permission codes from pathname.
+- Do not edit `apps/web/src/routeTree.gen.ts` manually.
 - Do not create future groups such as `rbac`, `audit`, or `runtime` until implementation lands.
 
 ## APIs
@@ -26,14 +26,14 @@ Rules for frontend work under `zen-web/`.
 - React Query owns read-side server state.
 - Zustand stays limited to shared auth state and small persisted UI filters.
 - Keep page-local tables, forms, and action handlers in the route file until reuse is real.
-- Keep layout-only concerns in `zen-web/src/components/base-layout/`.
+- Keep layout-only concerns in `apps/web/src/components/base-layout/`.
 - Use existing design-system primitives before adding wrappers.
 - Use root `justfile` as the command source of truth.
 
 ## Package Manager
 
-- `zen-web` uses pnpm; keep `zen-web/pnpm-lock.yaml` as the frontend lockfile.
-- Keep pnpm build-script approvals in `zen-web/pnpm-workspace.yaml`.
+- `apps/web` uses pnpm; keep `apps/web/pnpm-lock.yaml` as the frontend lockfile.
+- Keep pnpm build-script approvals in `apps/web/pnpm-workspace.yaml`.
 - `vite-plus` is the frontend build tool used in package.json scripts (aliases: `vp`).
 - Use `pnpm dev`, `pnpm build`, and `pnpm exec ...` for frontend commands.
 

@@ -1,21 +1,22 @@
 # Architecture
 
-`rustzen-admin` is a Rust full-stack admin foundation. The repository is a monorepo with one shared Rust capability crate, one backend service, one React frontend, and deployment assets.
+`rustzen-admin` is a Rust full-stack admin foundation. The repository is a monorepo with shared Rust capability crates, one backend service, one React frontend, and deployment assets.
 
 ## Module Boundaries
 
-- `zen-core/` owns shared auth and permission capability code.
-- `zen-server/` owns the Axum backend runtime and business features.
-- `zen-server/migrations/` owns SQL migrations.
-- `zen-web/` owns the React frontend.
+- `crates/auth/` owns shared auth and permission capability code.
+- `crates/storage/` owns SQLite connection helpers and migration helpers.
+- `apps/server/` owns the Axum backend runtime and business features.
+- `apps/server/migrations/` owns SQL migrations.
+- `apps/web/` owns the React frontend.
 
 SQLite is the default V2 storage backend. PostgreSQL-first behavior is archived under `legacy/pg-admin`.
 - `deploy/` owns deployment assets.
 - `docs/` owns repository documentation.
 
-Backend feature code lives under `zen-server/src/features/<feature>/` with `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` unless the feature is intentionally smaller.
+Backend feature code lives under `apps/server/src/features/<feature>/` with `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` unless the feature is intentionally smaller.
 
-Frontend pages live under `zen-web/src/routes/`. Frontend API modules live under `zen-web/src/api/`.
+Frontend pages live under `apps/web/src/routes/`. Frontend API modules live under `apps/web/src/api/`.
 
 ## Runtime Topology
 
@@ -37,8 +38,8 @@ Packaged deployment runs the backend as the serving process:
 
 ## Data Flow
 
-- Browser pages call typed frontend API modules from `zen-web/src/api/`.
-- Frontend API modules call backend HTTP endpoints through `zen-web/src/api/request.ts`.
+- Browser pages call typed frontend API modules from `apps/web/src/api/`.
+- Frontend API modules call backend HTTP endpoints through `apps/web/src/api/request.ts`.
 - Backend handlers parse requests and return responses.
 - Backend services coordinate validation, transactions, permission-aware behavior, and repo calls.
 - Backend repos run SQL against SQLite by default.
@@ -46,8 +47,8 @@ Packaged deployment runs the backend as the serving process:
 
 ## Permissions
 
-- JWT, auth context extraction, permission checks, and route permission registration live in `zen-core/`.
-- Backend permission cache and menu synchronization live in `zen-server/src/infra/`.
+- JWT, auth context extraction, permission checks, and route permission registration live in `crates/auth/`.
+- Backend permission cache and menu synchronization live in `apps/server/src/infra/`.
 - New protected backend routes use `PermissionsCheck::Require(...)` by default.
 - `*` is the only full-authorization grant.
 

@@ -10,9 +10,9 @@
 
 仓库采用 monorepo 组织方式：
 
-- `zen-core/` — 共享的 Rust 认证与权限能力 crate
-- `zen-server/` — Rust 后端应用
-- `zen-web/` — React 前端应用
+- `crates/auth/` — 共享的 Rust 认证与权限能力 crate
+- `apps/server/` — Rust 后端应用
+- `apps/web/` — React 前端应用
 - `deploy/` — 部署资产和发布支持文件
 - `docs/` — 仓库级架构与开发规范文档
 

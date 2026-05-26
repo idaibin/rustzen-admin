@@ -27,41 +27,42 @@ This is a practical path index for task orientation. It maps where to look first
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `zen-core/` | Shared auth and permission crate. | You touch auth context, JWT, extractors, or permission checks. |
-| `zen-server/AGENTS.md` | Backend-specific AI rules. | You work under `zen-server/`. |
-| `zen-server/src/infra/` | Config, app assembly, database, auth runtime, permission cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or permission sync. |
-| `zen-server/src/common/` | Cross-feature backend helpers. | You touch shared file or utility behavior. |
-| `zen-server/src/middleware/` | Axum middleware. | You touch request middleware behavior. |
-| `zen-server/migrations/` | SQL migrations. | You change schema. |
+| `crates/auth/` | Shared auth and permission crate. | You touch auth context, JWT, extractors, or permission checks. |
+| `crates/storage/` | Shared SQLite storage helpers and migration invocations. | You touch DB bootstrap, connection helpers, or migration wiring. |
+| `apps/server/AGENTS.md` | Backend-specific AI rules. | You work under `apps/server/`. |
+| `apps/server/src/infra/` | Config, app assembly, database, auth runtime, permission cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or permission sync. |
+| `apps/server/src/common/` | Cross-feature backend helpers. | You touch shared file or utility behavior. |
+| `apps/server/src/middleware/` | Axum middleware. | You touch request middleware behavior. |
+| `apps/server/migrations/` | SQL migrations. | You change schema. |
 
 ## Backend Features
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `zen-server/src/features/auth/` | Login, logout, and current-session bootstrap. | You touch session, token, login info, or logout behavior. |
-| `zen-server/src/features/account/` | Current-account profile, avatar, and password flows. | You touch self-service account behavior. |
-| `zen-server/src/features/dashboard/` | Dashboard summary APIs. | You touch dashboard cards or summary stats. |
-| `zen-server/src/features/system/dict/` | Dictionary management. | You touch dictionary data or option sources. |
-| `zen-server/src/features/system/log/` | System log management and current audit carrier. | You touch operation or login logs. |
-| `zen-server/src/features/system/menu/` | Menu and permission menu management. | You touch menu trees or permission-code menu rows. |
-| `zen-server/src/features/system/role/` | Role management. | You touch roles or role-menu assignment. |
-| `zen-server/src/features/system/user/` | User management and access-facing user-role behavior. | You touch admin user CRUD, status, password reset, or user-role assignment. |
+| `apps/server/src/features/auth/` | Login, logout, and current-session bootstrap. | You touch session, token, login info, or logout behavior. |
+| `apps/server/src/features/account/` | Current-account profile, avatar, and password flows. | You touch self-service account behavior. |
+| `apps/server/src/features/dashboard/` | Dashboard summary APIs. | You touch dashboard cards or summary stats. |
+| `apps/server/src/features/system/dict/` | Dictionary management. | You touch dictionary data or option sources. |
+| `apps/server/src/features/system/log/` | System log management and current audit carrier. | You touch operation or login logs. |
+| `apps/server/src/features/system/menu/` | Menu and permission menu management. | You touch menu trees or permission-code menu rows. |
+| `apps/server/src/features/system/role/` | Role management. | You touch roles or role-menu assignment. |
+| `apps/server/src/features/system/user/` | User management and access-facing user-role behavior. | You touch admin user CRUD, status, password reset, or user-role assignment. |
 
 ## Frontend
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `zen-web/AGENTS.md` | Frontend-specific AI rules. | You work under `zen-web/`. |
-| `zen-web/package.json` | Frontend package and pnpm scripts. | You touch frontend dependencies or scripts. |
-| `zen-web/pnpm-lock.yaml` | Frontend pnpm lockfile. | You change frontend dependencies or package-manager behavior. |
-| `zen-web/pnpm-workspace.yaml` | Frontend pnpm build-script approvals. | You change pnpm install behavior or packages with install scripts. |
-| `zen-web/src/routes/` | File-based route pages and root guard. | You add or change pages, redirects, auth gates, or error routes. |
-| `zen-web/src/api/` | Request wrapper, API modules, and frontend API types. | You change backend contracts or page data access. |
-| `zen-web/src/components/base-layout/` | Admin shell, navigation, and layout concerns. | You touch menus, header, shell, or logout UI. |
-| `zen-web/src/components/base-user/` | Current-user UI such as avatar behavior. | You touch profile/avatar visible behavior. |
-| `zen-web/src/store/` | Shared frontend state. | You touch auth state or persisted cross-page state. |
-| `zen-web/src/constant/` | Frontend constants and option lists. | You touch static frontend options. |
-| `zen-web/src/util/` | Frontend utilities. | You touch shared frontend helpers. |
+| `apps/web/AGENTS.md` | Frontend-specific AI rules. | You work under `apps/web/`. |
+| `apps/web/package.json` | Frontend package and pnpm scripts. | You touch frontend dependencies or scripts. |
+| `apps/web/pnpm-lock.yaml` | Frontend pnpm lockfile. | You change frontend dependencies or package-manager behavior. |
+| `apps/web/pnpm-workspace.yaml` | Frontend pnpm build-script approvals. | You change pnpm install behavior or packages with install scripts. |
+| `apps/web/src/routes/` | File-based route pages and root guard. | You add or change pages, redirects, auth gates, or error routes. |
+| `apps/web/src/api/` | Request wrapper, API modules, and frontend API types. | You change backend contracts or page data access. |
+| `apps/web/src/components/base-layout/` | Admin shell, navigation, and layout concerns. | You touch menus, header, shell, or logout UI. |
+| `apps/web/src/components/base-user/` | Current-user UI such as avatar behavior. | You touch profile/avatar visible behavior. |
+| `apps/web/src/store/` | Shared frontend state. | You touch auth state or persisted cross-page state. |
+| `apps/web/src/constant/` | Frontend constants and option lists. | You touch static frontend options. |
+| `apps/web/src/util/` | Frontend utilities. | You touch shared frontend helpers. |
 
 ## Deployment
 

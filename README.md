@@ -12,9 +12,9 @@ A structured monorepo foundation for Rust full-stack admin systems.
 
 The repository is organized as a monorepo:
 
-- `zen-core/` contains shared auth and permission capabilities for Rust services
-- `zen-server/` contains the Rust backend application
-- `zen-web/` contains the React frontend application
+- `crates/auth/` contains shared auth and permission capabilities for Rust services
+- `apps/server/` contains the Rust backend application
+- `apps/web/` contains the React frontend application
 - `deploy/` contains deployment assets and release support files
 - `docs/` contains repository-level architecture and development guides
 - the root keeps shared commands, workspace metadata, and collaboration entry documents

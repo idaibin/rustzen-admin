@@ -4,9 +4,10 @@
 .env
 
 # Frontend
-/zen-web/node_modules
-/zen-web/dist
-/zen-web/.eslintcache
+/apps/web/node_modules
+/apps/web/dist
+/apps/web/.eslintcache
+/apps/web/.vite
 /uploads
 
 

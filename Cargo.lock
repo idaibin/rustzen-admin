@@ -1610,6 +1610,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
+name = "rustzen-config"
+version = "0.1.0"
+
+[[package]]
 name = "rustzen-core"
 version = "0.1.0"
 dependencies = [
@@ -1624,6 +1628,17 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "rustzen-runtime"
+version = "0.1.0"
+
+[[package]]
+name = "rustzen-storage"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
 ]
 
 [[package]]
@@ -1717,6 +1732,7 @@ dependencies = [
  "once_cell",
  "rand_core",
  "rustzen-core",
+ "rustzen-storage",
  "serde",
  "serde_json",
  "sqlx",
