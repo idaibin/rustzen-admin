@@ -29,6 +29,8 @@ This is a practical path index for task orientation. It maps where to look first
 | Path | Value | Inspect when |
 | --- | --- | --- |
 | `crates/auth/` | Shared auth and capability checks. | You touch auth context, JWT, extractors, or capability checks. |
+| `crates/config/` | Shared runtime configuration and runtime root layout helpers. | You touch runtime config parsing or env-driven startup behavior. |
+| `crates/runtime/` | Runtime path and startup context helpers. | You touch runtime path resolution or deployment topology behavior. |
 | `crates/storage/` | Shared SQLite storage helpers and migration invocations. | You touch DB bootstrap, connection helpers, or migration wiring. |
 | `apps/server/AGENTS.md` | Backend-specific AI rules. | You work under `apps/server/`. |
 | `apps/server/src/infra/` | Config, app assembly, database, auth runtime, capability cache, and menu sync. | You touch startup, runtime paths, DB wiring, static serving, or capability sync. |

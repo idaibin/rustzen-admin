@@ -646,6 +646,64 @@ Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment a
 - P3 items do not appear in P0, P1, or P2 implementation branches.
 - V2 first-phase work remains focused on local-first SQLite runtime, structure, and documentation.
 
+## Task 11: Make config and runtime ownership explicit
+
+**Priority:** P1
+
+**Goal:** Consolidate runtime configuration and runtime-path logic into `crates/config` and `crates/runtime` rather than keeping duplicated placeholder implementations in `apps/server`.
+
+**Files:**
+
+- Create: `crates/config/src/lib.rs`
+- Update: `crates/config/Cargo.toml`
+- Create: `crates/runtime/src/lib.rs`
+- Update: `apps/server/Cargo.toml`
+- Update: `apps/server/src/infra/config.rs`
+- Update: `docs/architecture.md`
+- Update: `docs/project-map.md`
+- Update: `docs/guides/backend.md`
+
+**Steps:**
+
+- [x] Remove placeholder `crates/config` and `crates/runtime` implementations and implement concrete types.
+
+- [x] Keep one configuration source of truth by using `rustzen_config::CONFIG` from `apps/server` startup modules.
+
+- [x] Update docs to include the new ownership boundaries.
+
+**Acceptance:**
+
+- Startup config and runtime paths are resolved through dedicated crates.
+- No placeholder functions remain for config/runtime core modules.
+- `cargo check -p server` and config crate tests pass.
+
+## Task 12: Keep active migrations SQLite-first
+
+**Priority:** P1
+
+**Goal:** Make active migration inputs explicitly SQLite-only while preserving PostgreSQL artifacts only as historical reference.
+
+**Files:**
+
+- Move: `apps/server/migrations/0101_system_table.sql`
+- Move: `apps/server/migrations/0102_system_relation.sql`
+- Move: `apps/server/migrations/0103_system_view.sql`
+- Move: `apps/server/migrations/0104_system_func.sql`
+- Move: `apps/server/migrations/0105_system_seed.sql`
+- Create: `apps/server/migrations/postgresql_legacy/README.md`
+
+**Steps:**
+
+- [x] Preserve legacy PostgreSQL migrations under `apps/server/migrations/postgresql_legacy/`.
+
+- [x] Keep runtime migration path bound to `apps/server/migrations/sqlite/`.
+
+**Acceptance:**
+
+- `rg -n "0101_system_table|0102_system_relation|0103_system_view|0104_system_func|0105_system_seed" apps/server` only matches archival location and historical docs.
+- Migration execution path in `crates/storage/src/migration.rs` stays unchanged.
+- Startup compiles with `cargo check -p server`.
+
 ## First-phase completion checks
 
 Run these after P0 and P1 tasks land:

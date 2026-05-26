@@ -15,6 +15,8 @@ Rules for Rust backend work under `apps/server/`.
 - New features use `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs`.
 - Reuse auth and permission code from `crates/auth/`; do not re-implement it in `apps/server/`.
 - Use storage helpers from `crates/storage/` for SQLite connection and migration calls.
+- Use `crates/config/` for runtime config and resolved runtime directories.
+- Use `crates/runtime/` for runtime path helpers where startup behavior needs stable runtime topology.
 - Use `PermissionsCheck::Require(...)` by default.
 - Use `snake_case` for Rust and database names.
 - Use `camelCase` for JSON and frontend-facing fields.

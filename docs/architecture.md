@@ -5,6 +5,8 @@
 ## Module Boundaries
 
 - `crates/auth/` owns shared auth and permission capability code.
+- `crates/config/` owns runtime configuration loading and layout paths.
+- `crates/runtime/` owns concrete runtime-path primitives for local-first deployment topology.
 - `crates/storage/` owns SQLite connection helpers and migration helpers.
 - `apps/server/` owns the Axum backend runtime and business features.
 - `apps/server/migrations/` owns SQL migrations.

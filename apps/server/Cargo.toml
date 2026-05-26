@@ -16,6 +16,7 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rustzen-core = { path = "../../crates/auth" }
+rustzen-config = { path = "../../crates/config" }
 rustzen-storage = { path = "../../crates/storage" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
