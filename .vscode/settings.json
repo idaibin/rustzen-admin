@@ -1,21 +1,21 @@
 {
     "editor.codeActionsOnSave": {
-        "source.fixAll.oxc": "explicit"
+        "source.fixAll.oxc": "explicit",
     },
     "files.watcherExclude": {
         "node_modules": true,
         ".tanstack": true,
-        "**/routeTree.gen.ts": true
+        "**/routeTree.gen.ts": true,
     },
     "search.exclude": {
         "node_modules": true,
         ".tanstack": true,
-        "**/routeTree.gen.ts": true
+        "**/routeTree.gen.ts": true,
     },
     "files.associations": {
-        "justfile": "just"
+        "justfile": "just",
     },
     "files.readonlyInclude": {
-        "**/routeTree.gen.ts": true
-    }
+        "**/routeTree.gen.ts": true,
+    },
 }

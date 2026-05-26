@@ -31,6 +31,7 @@ Current deployment rules.
 - Logs live under `<runtime_root>/logs`.
 - Build and deploy targets are defined in the root `justfile`.
 - Frontend release builds use pnpm with `zen-web/pnpm-lock.yaml`.
+- `deploy/sql/` contains one-off SQL repair scripts for older deployments; these are not migration files and should not be used for schema evolution.
 
 ## Prohibited
 
