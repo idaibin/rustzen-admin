@@ -34,8 +34,8 @@ Rules for frontend work under `zen-web/`.
 
 - `zen-web` uses pnpm; keep `zen-web/pnpm-lock.yaml` as the frontend lockfile.
 - Keep pnpm build-script approvals in `zen-web/pnpm-workspace.yaml`.
+- `vite-plus` is the frontend build tool used in package.json scripts (aliases: `vp`).
 - Use `pnpm dev`, `pnpm build`, and `pnpm exec ...` for frontend commands.
-- Do not introduce `package-lock.json`, `bun.lock`, npm commands, or Bun commands for `zen-web`.
 
 ## Prohibited
 

@@ -6,7 +6,7 @@
         "bradlc.vscode-tailwindcss",
         "oxc.oxc-vscode",
         "streetsidesoftware.code-spell-checker",
-        "VoidZero.vite-plus-extension-pack"
+        "VoidZero.vite-plus-extension-pack",
     ],
-    "unwantedRecommendations": []
+    "unwantedRecommendations": [],
 }
