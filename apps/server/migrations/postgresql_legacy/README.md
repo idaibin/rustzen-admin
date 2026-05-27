@@ -2,7 +2,7 @@
 
 These SQL migrations are preserved only for historical/archival reference.
 
-Current first-phase V2 startup loads migrations from:
+Current sqlite-first startup loads migrations from:
 
 ```text
 apps/server/migrations/sqlite/

@@ -33,7 +33,7 @@ Current deployment rules.
 - Frontend release builds use pnpm with `apps/web/pnpm-lock.yaml`.
 - `deploy/sql/` contains one-off SQL repair scripts for older deployments; these are not migration files and should not be used for schema evolution.
 
-The first V2 phase uses SQLite by default and does not require PostgreSQL for local startup.
+The sqlite-first phase uses SQLite by default and does not require PostgreSQL for local startup.
 
 ## Prohibited
 

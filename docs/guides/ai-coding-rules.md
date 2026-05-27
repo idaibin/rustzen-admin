@@ -32,4 +32,4 @@ This is a current guide for AI-assisted contributions.
 
 ## Phase Scope
 
-- Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment are outside the V2 first-phase scope.
+- Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment are outside the sqlite-first phase scope.

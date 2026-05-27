@@ -25,7 +25,7 @@ Rules for Rust backend work under `apps/server/`.
 - Schema changes require migrations.
 - Runtime config uses `RUSTZEN_STORAGE`, `RUSTZEN_SQLITE_PATH`, and `RUSTZEN_*`.
 - SQLite is the default runtime storage backend.
-- PostgreSQL compatibility is not part of this V2 first-phase implementation.
+- PostgreSQL compatibility is not part of this sqlite-first phase implementation.
 - Use root `justfile` as the command source of truth.
 
 ## Prohibited

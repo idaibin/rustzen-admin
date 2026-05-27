@@ -12,7 +12,7 @@
 - `apps/server/migrations/` owns SQL migrations.
 - `apps/web/` owns the React frontend.
 
-SQLite is the default V2 storage backend. PostgreSQL-first behavior is archived under `legacy/pg-admin`.
+SQLite is the default storage backend. PostgreSQL-first behavior is archived under `legacy/pg-admin`.
 - `deploy/` owns deployment assets.
 - `docs/` owns repository documentation.
 

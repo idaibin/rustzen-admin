@@ -32,7 +32,7 @@ impl Default for DatabaseConfig {
     fn default() -> Self {
         assert!(
             CONFIG.storage == "sqlite",
-            "Unsupported storage backend `{}`. V2 backend currently supports only `sqlite`.",
+            "Unsupported storage backend `{}`. Current backend currently supports only `sqlite`.",
             CONFIG.storage
         );
 

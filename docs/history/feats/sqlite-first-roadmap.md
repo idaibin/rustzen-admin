@@ -1,16 +1,16 @@
-# V2 AI-First Local-First Roadmap
+# SQLite-First Roadmap
 
-This historical feature record turns `docs/history/plans/v2-design.md` into executable and verifiable work items.
+This historical feature record turns `docs/history/plans/sqlite-first-design.md` into executable and verifiable work items.
 
 ## Direction
 
-V2 moves `main` toward an AI-first, local-first, SQLite-first Rust admin/runtime framework.
+This roadmap moves `main` toward a SQLite-first Rust admin/runtime framework.
 
 This does not mean adding AI product features. It means making the repository easier for AI coding tools and human maintainers to understand, run, modify, and review.
 
 ## Guardrails
 
-- Do not add PostgreSQL compatibility layers during the V2 first phase.
+- Do not add PostgreSQL compatibility layers during the sqlite-first phase.
 - Do not introduce provider traits such as `DatabaseProvider`, `QueryExecutor`, or `StorageBackend`.
 - Do not add Redis, Kafka, Docker Compose, microservices, plugin markets, desktop runtime, or multi-agent orchestration.
 - Preserve the existing admin capabilities only as simple system capabilities, not as a broader enterprise RBAC narrative.
@@ -21,7 +21,7 @@ This does not mean adding AI product features. It means making the repository ea
 
 **Priority:** P0
 
-**Goal:** Keep the current PostgreSQL-first implementation available before `main` starts accepting breaking V2 changes.
+**Goal:** Keep the current PostgreSQL-first implementation available before `main` starts accepting breaking sqlite-first changes.
 
 **Files:** None required.
 
@@ -56,7 +56,7 @@ Expected: one `refs/heads/legacy/pg-admin` line.
 **Acceptance:**
 
 - `legacy/pg-admin` exists on the remote.
-- `main` remains available for V2 breaking changes.
+- `main` remains available for sqlite-first breaking changes.
 - No source files are changed by this task.
 
 ## Task 2: Normalize legacy router branch naming
@@ -101,11 +101,11 @@ Expected: one `refs/heads/legacy/react-router` line.
 - Old router branch names are no longer used for new work.
 - No source files are changed by this task.
 
-## Task 3: Reposition project documentation for V2
+## Task 3: Reposition project documentation for sqlite-first
 
 **Priority:** P0
 
-**Goal:** Make repository entry documents describe the V2 direction clearly.
+**Goal:** Make repository entry documents describe the sqlite-first direction clearly.
 
 **Files:**
 
@@ -120,7 +120,7 @@ Expected: one `refs/heads/legacy/react-router` line.
 
 **Steps:**
 
-- [x] Replace the old positioning with the V2 positioning.
+- [x] Replace the old positioning with the sqlite-first positioning.
 
 Use this project description in `README.md`:
 
@@ -133,7 +133,7 @@ rustzen-admin is an AI-first and local-first Rust admin/runtime framework, desig
 Required wording:
 
 ```text
-SQLite is the default V2 storage backend.
+SQLite is the default sqlite-first storage backend.
 PostgreSQL-first behavior is archived under legacy/pg-admin.
 ```
 
@@ -142,7 +142,7 @@ PostgreSQL-first behavior is archived under legacy/pg-admin.
 Required wording in `docs/README.md` or `docs/history/README.md`:
 
 ```text
-V2 design records under docs/history/ are historical inputs. Current implementation truth remains source code, docs/architecture.md, and docs/guides/.
+sqlite-first design records under docs/history/ are historical inputs. Current implementation truth remains source code, docs/architecture.md, and docs/guides/.
 ```
 
 - [x] Verify there are no stale first-class PostgreSQL claims in current documentation.
@@ -163,7 +163,7 @@ Expected: no output.
 
 **Acceptance:**
 
-- Entry documentation presents V2 as AI-first, local-first, and SQLite-first.
+- Entry documentation presents sqlite-first as AI-first, local-first, and SQLite-first.
 - Legacy PostgreSQL wording is limited to archive context.
 - Current-truth documents are still separate from historical records.
 
@@ -206,7 +206,7 @@ Expected dependency shape in `zen-server/Cargo.toml`:
 sqlx = { version = "...", features = ["runtime-tokio-rustls", "sqlite", "migrate", "chrono", "uuid"] }
 ```
 
-Do not include PostgreSQL features in V2 first-phase storage dependencies.
+Do not include PostgreSQL features in sqlite-first phase storage dependencies.
 
 - [x] Create SQLite migrations under `zen-server/migrations/sqlite/`.
 
@@ -300,7 +300,7 @@ Expected: the server starts or fails only on an explicit port conflict or invali
 - README startup instructions match executable commands.
 - `justfile` remains the command source of truth.
 
-## Task 6: Introduce the V2 apps and crates layout
+## Task 6: Introduce the sqlite-first apps and crates layout
 
 **Priority:** P1
 
@@ -616,7 +616,7 @@ Expected: no output.
 
 **Priority:** P3
 
-**Goal:** Prevent V2 first-phase work from expanding into unrelated platform features.
+**Goal:** Prevent sqlite-first phase work from expanding into unrelated platform features.
 
 **Files:**
 
@@ -638,13 +638,13 @@ Expected: no matches that describe these as first-phase implementation work.
 Allowed wording:
 
 ```text
-Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment are outside the V2 first-phase scope.
+Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment are outside the sqlite-first phase scope.
 ```
 
 **Acceptance:**
 
 - P3 items do not appear in P0, P1, or P2 implementation branches.
-- V2 first-phase work remains focused on local-first SQLite runtime, structure, and documentation.
+- sqlite-first phase work remains focused on local-first SQLite runtime, structure, and documentation.
 
 ## Task 11: Make config and runtime ownership explicit
 

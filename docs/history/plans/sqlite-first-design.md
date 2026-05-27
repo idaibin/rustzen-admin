@@ -1,8 +1,8 @@
 # 1. 当前结论
 
-rustzen-admin v2 不再继续强化 PostgreSQL-first、Web-first、传统后台模板路线。
+rustzen-admin 当前阶段 不再继续强化 PostgreSQL-first、Web-first、传统后台模板路线。
 
-v2 当前阶段的目标是：
+当前阶段的目标是：
 
 > 让项目变成一个 AI-first、Local-first、SQLite-first、低复杂度、易运行、易维护的 Rust 本地运行框架。
 >
@@ -16,7 +16,7 @@ v2 当前阶段的目标是：
 
 ---
 
-# 2. v2 核心目标
+# 2. 当前阶段 核心目标
 
 ## 2.1 AI-first Engineering
 
@@ -54,7 +54,7 @@ cargo run
 
 ## 2.3 SQLite-first
 
-v2 默认使用 SQLite。
+当前阶段 默认使用 SQLite。
 
 原因：
 
@@ -69,7 +69,7 @@ PostgreSQL 暂时不作为 main 默认路线。
 
 ## 2.4 Low Complexity
 
-v2 不追求大而全。
+当前阶段 不追求大而全。
 
 优先级：
 
@@ -83,7 +83,7 @@ v2 不追求大而全。
 
 # 3. 当前不做什么
 
-v2 当前阶段不做：
+当前阶段不做：
 
 - AI Agent 平台
 - AI OS
@@ -104,7 +104,7 @@ v2 当前阶段不做：
 
 ## 4.1 main
 
-main 代表 v2 新方向：
+main 代表 当前阶段 新方向：
 
 - SQLite-first
 - Local-first
@@ -157,7 +157,7 @@ feature/xxx
 ```
 feature/sqlite-storage
 feature/runtime-layout
-feature/readme-v2
+feature/readme-sqlite-first
 ```
 
 ---
@@ -392,7 +392,7 @@ rustzen-admin 是一个 AI-first、Local-first 的 Rust 管理端 / 运行框架
 
 - 创建 `legacy/pg-admin`
 - 整理旧分支
-- main 确认为 v2 方向
+- main 确认为 当前阶段 方向
 - README 改定位
 - SQLite 作为默认存储
 - 本地启动流程简化
@@ -426,7 +426,7 @@ rustzen-admin 是一个 AI-first、Local-first 的 Rust 管理端 / 运行框架
 
 # 11. 验收标准
 
-v2 第一阶段完成后，应满足：
+当前阶段 第一阶段完成后，应满足：
 
 ## 运行
 

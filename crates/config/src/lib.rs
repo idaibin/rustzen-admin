@@ -1,4 +1,4 @@
-//! Shared runtime configuration helpers for V2-local-first startup.
+//! Shared runtime configuration helpers for sqlite-first runtime startup.
 
 use figment::{Figment, providers::Env};
 use once_cell::sync::Lazy;

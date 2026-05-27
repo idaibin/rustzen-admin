@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Module: Core tables and indexes.
--- SQLite first-phase storage initialization for v2.
+-- SQLite first-phase storage initialization for the sqlite-first runtime.
 -- ============================================================================
 
 CREATE TABLE users (
@@ -126,4 +126,3 @@ CREATE TABLE role_menus (
 
 CREATE INDEX idx_role_menus_role_id ON role_menus(role_id);
 CREATE INDEX idx_role_menus_menu_id ON role_menus(menu_id);
-

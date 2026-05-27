@@ -1,4 +1,4 @@
-//! Runtime layout helpers for V2 local-first startup.
+//! Runtime layout helpers for sqlite-first runtime startup.
 
 use std::path::{Component, Path, PathBuf};
 
