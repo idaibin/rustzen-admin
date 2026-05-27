@@ -6,13 +6,13 @@ This is a short orientation map for current capability ownership. Source code, `
 
 | Capability | Backend owner | Frontend owner |
 | --- | --- | --- |
-| Auth | `zen-server/src/features/auth/` | `zen-web/src/api/auth/`, `zen-web/src/routes/login.tsx`, `zen-web/src/routes/__root.tsx` |
-| Account | `zen-server/src/features/account/` | `zen-web/src/api/account/`, `zen-web/src/routes/profile.tsx`, `zen-web/src/components/base-user/` |
-| Dashboard | `zen-server/src/features/dashboard/` | `zen-web/src/api/dashboard/`, `zen-web/src/routes/index.tsx` |
-| RBAC carriers | `zen-server/src/features/system/menu/`, `system/role/`, access-facing `system/user/` | `zen-web/src/api/system/menu/`, `system/role/`, `system/user/`; `zen-web/src/routes/system/` |
-| Audit carrier | `zen-server/src/features/system/log/` | `zen-web/src/api/system/log/`, `zen-web/src/routes/system/log.tsx` |
-| System dictionary | `zen-server/src/features/system/dict/` | `zen-web/src/api/system/dict/`, `zen-web/src/routes/system/dict.tsx` |
-| Runtime files | `zen-server/src/common/files.rs`, `zen-server/src/infra/config.rs`, `zen-server/src/infra/app.rs` | avatar upload UI under `zen-web/src/components/base-user/` |
+| Auth | `apps/server/src/features/auth/` | `apps/web/src/api/auth/`, `apps/web/src/routes/login.tsx`, `apps/web/src/routes/__root.tsx` |
+| Account | `apps/server/src/features/account/` | `apps/web/src/api/account/`, `apps/web/src/routes/profile.tsx`, `apps/web/src/components/base-user/` |
+| Dashboard | `apps/server/src/features/dashboard/` | `apps/web/src/api/dashboard/`, `apps/web/src/routes/index.tsx` |
+| RBAC carriers | `apps/server/src/features/system/menu/`, `system/role/`, access-facing `system/user/` | `apps/web/src/api/system/menu/`, `system/role/`, `system/user/`; `apps/web/src/routes/system/` |
+| Audit carrier | `apps/server/src/features/system/log/` | `apps/web/src/api/system/log/`, `apps/web/src/routes/system/log.tsx` |
+| System dictionary | `apps/server/src/features/system/dict/` | `apps/web/src/api/system/dict/`, `apps/web/src/routes/system/dict.tsx` |
+| Runtime files | `apps/server/src/common/files.rs`, `apps/server/src/infra/config.rs`, `apps/server/src/infra/app.rs` | avatar upload UI under `apps/web/src/components/base-user/` |
 
 ## Rules
 

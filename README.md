@@ -34,10 +34,12 @@ This layout keeps backend, frontend, and repository rules explicit, making the c
 Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
 
 ```bash
+cp .env.example .env
 cargo run -p server
 ```
 
-The backend can be started locally with SQLite storage defaults (no PostgreSQL required).
+Local startup is SQLite-first and does not require PostgreSQL.
+Set `RUSTZEN_JWT_SECRET` in `.env` before starting the backend.
 
 ## Demo
 

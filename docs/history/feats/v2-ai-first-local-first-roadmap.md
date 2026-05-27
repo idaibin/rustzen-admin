@@ -345,11 +345,12 @@ Expected first-phase layout:
 
 ```text
 crates/auth/
-crates/capability/
 crates/config/
 crates/runtime/
 crates/storage/
 ```
+
+Current note: `crates/capability/` exists only as a directory-level placeholder and is not a workspace crate member in the current implementation.
 
 - [x] Keep the layout intentionally shallow.
 
@@ -371,7 +372,6 @@ Expected `Cargo.toml` member shape:
 members = [
     "apps/server",
     "crates/auth",
-    "crates/capability",
     "crates/config",
     "crates/runtime",
     "crates/storage",

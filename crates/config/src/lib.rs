@@ -33,6 +33,9 @@ const DEFAULT_DB_IDLE_TIMEOUT: u64 = 600;
 /// Default JWT lifetime in seconds.
 const DEFAULT_JWT_EXPIRATION: i64 = 3600;
 
+/// Development-only fallback JWT secret.
+const DEFAULT_DEV_JWT_SECRET: &str = "rustzen-dev-jwt-secret-change-in-production";
+
 /// Default logging file prefix.
 const DEFAULT_LOG_FILE_PREFIX: &str = "server";
 
@@ -57,6 +60,7 @@ pub struct Config {
     pub db_conn_timeout: u64,
     #[serde(default = "default_db_idle_timeout")]
     pub db_idle_timeout: u64,
+    #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
     #[serde(default = "default_jwt_expiration")]
     pub jwt_expiration: i64,
@@ -71,8 +75,11 @@ pub struct Config {
 }
 
 /// Global process configuration loaded from `RUSTZEN_*` env.
-pub static CONFIG: Lazy<Config> =
-    Lazy::new(|| Figment::new().merge(Env::prefixed("RUSTZEN_")).extract().expect("Failed to load configuration"));
+pub static CONFIG: Lazy<Config> = Lazy::new(|| {
+    let config: Config = Figment::new().merge(Env::prefixed("RUSTZEN_")).extract().expect("Failed to load configuration");
+    ensure_production_jwt_secret(&config);
+    config
+});
 
 impl Config {
     pub fn runtime_layout(&self) -> RuntimeLayout {
@@ -156,12 +163,30 @@ fn default_jwt_expiration() -> i64 {
     DEFAULT_JWT_EXPIRATION
 }
 
+fn default_jwt_secret() -> String {
+    DEFAULT_DEV_JWT_SECRET.to_string()
+}
+
 fn default_files_prefix() -> String {
     DEFAULT_FILES_PREFIX.to_string()
 }
 
 fn default_runtime_root() -> String {
     DEFAULT_RUNTIME_ROOT.to_string()
+}
+
+fn ensure_production_jwt_secret(config: &Config) {
+    let env = std::env::var("RUSTZEN_ENV").unwrap_or_else(|_| "development".to_string());
+    let env = env.to_ascii_lowercase();
+    let is_production = env == "production" || env == "prod";
+    let uses_dev_default = config.jwt_secret == DEFAULT_DEV_JWT_SECRET;
+    let uses_placeholder = config.jwt_secret == "replace-me";
+    let is_empty = config.jwt_secret.trim().is_empty();
+
+    assert!(
+        !(is_production && (uses_dev_default || uses_placeholder || is_empty)),
+        "RUSTZEN_JWT_SECRET must be explicitly set in production and cannot use default or placeholder values"
+    );
 }
 
 #[cfg(test)]

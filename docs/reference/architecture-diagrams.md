@@ -10,7 +10,7 @@ flowchart LR
     WebDev --> Backend["zen-server<br/>Axum backend"]
     Browser --> BackendDeploy["zen-server<br/>packaged deployment"]
     BackendDeploy --> StaticFiles["web/dist"]
-    Backend --> Db["PostgreSQL"]
+    Backend --> Db["SQLite (default)"]
     BackendDeploy --> Db
     BackendDeploy --> RuntimeData["data/uploads<br/>data/avatars<br/>logs"]
 ```
@@ -22,7 +22,7 @@ flowchart LR
     Route["route_with_permission"] --> Handler["handler.rs"]
     Handler --> Service["service.rs"]
     Service --> Repo["repo.rs"]
-    Repo --> Db["PostgreSQL"]
+    Repo --> Db["SQLite (default)"]
     Service --> Types["types.rs"]
     Handler --> Response["ApiResponse"]
 ```

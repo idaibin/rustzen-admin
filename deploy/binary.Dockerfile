@@ -21,7 +21,7 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
 RUN rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
-COPY crates/auth crates/auth
+COPY crates crates
 COPY apps/server/Cargo.toml apps/server/Cargo.toml
 COPY apps/server/build.rs apps/server/build.rs
 COPY apps/server/src apps/server/src

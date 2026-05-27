@@ -63,7 +63,8 @@ Environment=RUST_BACKTRACE=1
 Minimum production `config/app.env`:
 
 ```dotenv
-DATABASE_URL=postgres://user:password@127.0.0.1:5432/rustzen_admin
+RUSTZEN_STORAGE=sqlite
+RUSTZEN_SQLITE_PATH=./data/rustzen.db
 RUSTZEN_JWT_SECRET=replace-me
 ```
 
