@@ -180,12 +180,12 @@ Expected: no output.
 - Modify: `zen-server/src/infra/config.rs`
 - Modify: `zen-server/src/infra/db.rs`
 - Modify: `zen-server/src/infra/app.rs`
-- Create: `zen-server/migrations/sqlite/0001_init.sql`
-- Move or replace: `zen-server/migrations/0101_system_table.sql`
-- Move or replace: `zen-server/migrations/0102_system_relation.sql`
-- Move or replace: `zen-server/migrations/0103_system_view.sql`
-- Move or replace: `zen-server/migrations/0104_system_func.sql`
-- Move or replace: `zen-server/migrations/0105_system_seed.sql`
+- Create: `apps/server/migrations/sqlite/0001_system_user.sql`
+- Move or replace: `zen-server/migrations/0001_system_table.sql`
+- Move or replace: `zen-server/migrations/0002_system_relation.sql`
+- Move or replace: `zen-server/migrations/0003_system_view.sql`
+- Move or replace: `zen-server/migrations/0004_system_func.sql`
+- Move or replace: `zen-server/migrations/0005_system_seed.sql`
 
 **Steps:**
 
@@ -194,7 +194,7 @@ Expected: no output.
 Required local defaults:
 
 ```text
-RUSTZEN_STORAGE=sqlite
+RUSTZEN_SQLITE_PATH=./data/rustzen.db
 RUSTZEN_SQLITE_PATH=./data/rustzen.db
 ```
 
@@ -208,14 +208,23 @@ sqlx = { version = "...", features = ["runtime-tokio-rustls", "sqlite", "migrate
 
 Do not include PostgreSQL features in sqlite-first phase storage dependencies.
 
-- [x] Create SQLite migrations under `zen-server/migrations/sqlite/`.
+- [x] Create SQLite migrations under `apps/server/migrations/sqlite/`.
 
 Expected first-phase layout:
 
 ```text
-zen-server/migrations/sqlite/0001_init.sql
-zen-server/migrations/sqlite/0002_auth.sql
-zen-server/migrations/sqlite/0003_workspace.sql
+apps/server/migrations/sqlite/
+├── 0001_init.sql            # legacy bootstrap (kept for continuity)
+├── 0002_auth.sql            # legacy bootstrap (kept for continuity)
+├── 0003_workspace.sql       # legacy bootstrap (kept for continuity)
+├── 0004_system_user.sql
+├── 0005_system_role.sql
+├── 0006_system_menu.sql
+├── 0007_system_dict.sql
+├── 0008_system_log.sql
+├── 0009_system_relation.sql
+├── 0010_system_view.sql
+└── 0011_system_seed.sql
 ```
 
 - [x] Update SQL syntax in repos only where SQLite requires it.
@@ -685,11 +694,11 @@ Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment a
 
 **Files:**
 
-- Move: `apps/server/migrations/0101_system_table.sql`
-- Move: `apps/server/migrations/0102_system_relation.sql`
-- Move: `apps/server/migrations/0103_system_view.sql`
-- Move: `apps/server/migrations/0104_system_func.sql`
-- Move: `apps/server/migrations/0105_system_seed.sql`
+- Move: `apps/server/migrations/0001_system_table.sql`
+- Move: `apps/server/migrations/0002_system_relation.sql`
+- Move: `apps/server/migrations/0003_system_view.sql`
+- Move: `apps/server/migrations/0004_system_func.sql`
+- Move: `apps/server/migrations/0005_system_seed.sql`
 - Create: `apps/server/migrations/postgresql_legacy/README.md`
 
 **Steps:**
@@ -700,7 +709,7 @@ Desktop, plugins, sync, PostgreSQL provider support, and enterprise deployment a
 
 **Acceptance:**
 
-- `rg -n "0101_system_table|0102_system_relation|0103_system_view|0104_system_func|0105_system_seed" apps/server` only matches archival location and historical docs.
+- `rg -n "0001_system_table|0002_system_relation|0003_system_view|0004_system_func|0005_system_seed" apps/server` only matches archival location and historical docs.
 - Migration execution path in `crates/storage/src/migration.rs` stays unchanged.
 - Startup compiles with `cargo check -p server`.
 

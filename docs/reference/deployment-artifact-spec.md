@@ -63,7 +63,6 @@ Environment=RUST_BACKTRACE=1
 Minimum production `config/app.env`:
 
 ```dotenv
-RUSTZEN_STORAGE=sqlite
 RUSTZEN_SQLITE_PATH=./data/rustzen.db
 RUSTZEN_JWT_SECRET=replace-me
 ```

@@ -13,20 +13,30 @@ use sqlx::SqlitePool;
 pub struct LogService;
 
 impl LogService {
-    pub async fn ensure_partitions(pool: &SqlitePool) -> Result<(), ServiceError> {
-        LogRepository::ensure_partitions(pool).await
-    }
-
     /// Retrieves a paginated list of system logs
     pub async fn list_logs(
         pool: &SqlitePool,
         query: LogQuery,
     ) -> Result<(Vec<LogItemResp>, i64), ServiceError> {
-        let LogQuery { current, page_size, username, action, description, ip_address } = query;
+        let LogQuery {
+            current,
+            page_size,
+            search,
+            username,
+            action,
+            description,
+            ip_address,
+        } = query;
         let pagination = Pagination::from_query(PaginationQuery { current, page_size });
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
-        let repo_query = LogListQuery { username, action, description, ip_address };
+        let repo_query = LogListQuery {
+            search,
+            username,
+            action,
+            description,
+            ip_address,
+        };
 
         LogRepository::list_logs(pool, offset, limit, repo_query).await
     }
@@ -43,8 +53,21 @@ impl LogService {
         pool: &SqlitePool,
         query: LogQuery,
     ) -> Result<String, ServiceError> {
-        let LogQuery { username, action, description, ip_address, .. } = query;
-        let repo_query = LogListQuery { username, action, description, ip_address };
+        let LogQuery {
+            search,
+            username,
+            action,
+            description,
+            ip_address,
+            ..
+        } = query;
+        let repo_query = LogListQuery {
+            search,
+            username,
+            action,
+            description,
+            ip_address,
+        };
         Self::create_csv_chunk(LogRepository::list_logs_for_export(pool, repo_query).await?, true)
     }
 

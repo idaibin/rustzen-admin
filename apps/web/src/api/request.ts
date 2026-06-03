@@ -77,7 +77,7 @@ const formatFetchConfig = <T>({ params, url, ...options }: RequestOptions<T>) =>
         ...options,
         headers,
     };
-    if (["PUT", "POST"].includes(options.method || "GET")) {
+    if (["PUT", "POST", "PATCH"].includes(options.method || "GET")) {
         config.body = options.body || JSON.stringify(params);
     } else {
         url += buildQueryString(params);
@@ -125,7 +125,54 @@ const readErrorPayload = async (response: Response): Promise<{ message?: string 
 
 const buildQueryString = <P>(params?: P): string => {
     if (!params) return "";
-    const searchParams = new URLSearchParams(params as Record<string, string>);
+    const searchParams = new URLSearchParams();
+
+    const appendQueryValue = (key: string, value: unknown): void => {
+        if (value === undefined || value === null) return;
+
+        if (Array.isArray(value)) {
+            value.forEach((item) => {
+                appendQueryValue(key, item);
+            });
+            return;
+        }
+
+        if (value instanceof Date) {
+            searchParams.append(key, value.toISOString());
+            return;
+        }
+
+        if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+            searchParams.append(key, `${value}`);
+            return;
+        }
+
+        if (typeof value === "string") {
+            searchParams.append(key, value);
+            return;
+        }
+
+        if (
+            Object.prototype.toString.call(value) === "[object Object]"
+            || value instanceof String
+            || value instanceof Number
+            || value instanceof Boolean
+        ) {
+            searchParams.append(key, JSON.stringify(value));
+            return;
+        }
+
+        if (typeof value === "object") {
+            throw new Error(`Unsupported query param value for "${key}".`);
+        }
+
+        throw new Error(`Unsupported query param value for "${key}".`);
+    };
+
+    Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
+        appendQueryValue(key, value);
+    });
+
     const query = searchParams.toString();
     return query ? `?${query}` : "";
 };

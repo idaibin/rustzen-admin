@@ -4,7 +4,6 @@ use crate::{
         account::account_routes,
         auth::{protected_auth_routes, public_auth_routes},
         dashboard::dashboard_routes,
-        system::log::service::LogService,
         system::system_routes,
     },
     infra::{
@@ -39,11 +38,10 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let pool = create_default_pool().await?;
     run_migrations(&pool).await?;
     test_connection(&pool).await?;
-    LogService::ensure_partitions(&pool).await?;
 
     let cors = CorsLayer::new()
         .allow_origin(HeaderValue::from_static("*"))
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION, ACCEPT]);
 
     let protected_api = Router::new()

@@ -15,8 +15,8 @@ impl AccountRepository {
     ) -> Result<(), ServiceError> {
         sqlx::query("UPDATE users SET avatar_url = ?, updated_at = ? WHERE id = ?")
             .bind(avatar_url)
-            .bind(user_id)
             .bind(Utc::now().naive_utc())
+            .bind(user_id)
             .execute(pool)
             .await
             .map_err(|e| {

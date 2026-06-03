@@ -3,6 +3,8 @@ declare namespace User {
     enum Status {
         Normal = 1,
         Disabled = 2,
+        Pending = 3,
+        Locked = 4,
     }
 
     // 角色信息
@@ -33,7 +35,7 @@ declare namespace User {
         username?: string;
         realName?: string;
         email?: string;
-        status?: string; // "1" | "2" | "all"
+        status?: string; // "1" | "2" | "3" | "4" | "all"
     }
 
     // 创建用户请求
@@ -48,8 +50,8 @@ declare namespace User {
 
     // 更新用户请求
     interface UpdateRequest {
-        email?: string;
-        realName?: string;
-        roleIds?: number[];
+        email: string;
+        realName: string;
+        roleIds: number[];
     }
 }

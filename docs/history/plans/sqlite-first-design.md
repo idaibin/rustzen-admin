@@ -204,7 +204,6 @@ database_url = "data/rustzen.db"
 或环境变量：
 
 ```bash
-RUSTZEN_STORAGE=sqlite
 RUSTZEN_SQLITE_PATH=./data/rustzen.db
 ```
 
@@ -217,7 +216,15 @@ migrations/
 └── sqlite/
     ├── 0001_init.sql
     ├── 0002_auth.sql
-    └── 0003_workspace.sql
+    ├── 0003_workspace.sql
+    ├── 0004_system_user.sql
+    ├── 0005_system_role.sql
+    ├── 0006_system_menu.sql
+    ├── 0007_system_dict.sql
+    ├── 0008_system_log.sql
+    ├── 0009_system_relation.sql
+    ├── 0010_system_view.sql
+    └── 0011_system_seed.sql
 ```
 
 当前不需要：

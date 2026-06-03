@@ -6,9 +6,6 @@ use rustzen_runtime::{DEFAULT_FILES_PREFIX, DEFAULT_RUNTIME_ROOT, RuntimeLayout}
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Default storage backend.
-const DEFAULT_STORAGE: &str = "sqlite";
-
 /// Default path to the local SQLite database file.
 const DEFAULT_SQLITE_PATH: &str = "./data/rustzen.db";
 
@@ -44,8 +41,6 @@ const DEFAULT_LOG_RETENTION_DAYS: u64 = 7;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(default = "default_storage")]
-    pub storage: String,
     #[serde(default = "default_sqlite_path")]
     pub sqlite_path: String,
     #[serde(default = "default_app_port")]
@@ -76,7 +71,10 @@ pub struct Config {
 
 /// Global process configuration loaded from `RUSTZEN_*` env.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let config: Config = Figment::new().merge(Env::prefixed("RUSTZEN_")).extract().expect("Failed to load configuration");
+    let config: Config = Figment::new()
+        .merge(Env::prefixed("RUSTZEN_"))
+        .extract()
+        .expect("Failed to load configuration");
     ensure_production_jwt_secret(&config);
     config
 });
@@ -117,10 +115,6 @@ impl Config {
     pub fn sqlite_database_path(&self) -> PathBuf {
         self.runtime_layout().resolve_runtime_path(&self.sqlite_path)
     }
-}
-
-fn default_storage() -> String {
-    DEFAULT_STORAGE.to_string()
 }
 
 fn default_sqlite_path() -> String {
@@ -192,9 +186,9 @@ fn ensure_production_jwt_secret(config: &Config) {
 #[cfg(test)]
 mod tests {
     use super::{Config, default_runtime_root};
+    use rustzen_runtime::resolve_path_with_runtime_root;
     use std::env;
     use std::path::PathBuf;
-    use rustzen_runtime::resolve_path_with_runtime_root;
 
     #[test]
     fn runtime_root_default_uses_hidden_dev_dir() {
@@ -204,7 +198,6 @@ mod tests {
     #[test]
     fn runtime_root_derives_standard_runtime_paths() {
         let config = Config {
-            storage: "sqlite".to_string(),
             sqlite_path: "./data/rustzen.db".to_string(),
             app_port: 8007,
             app_host: "0.0.0.0".to_string(),
@@ -231,7 +224,6 @@ mod tests {
     fn sqlite_path_is_relative_to_runtime_root_when_not_absolute() {
         let cwd = env::current_dir().expect("cwd");
         let config = Config {
-            storage: "sqlite".to_string(),
             sqlite_path: "./data/rustzen.db".to_string(),
             app_port: 8007,
             app_host: "0.0.0.0".to_string(),

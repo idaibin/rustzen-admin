@@ -75,6 +75,7 @@ impl RoleRepository {
         .bind(description)
         .bind(status)
         .bind(now)
+        .bind(now)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| {
@@ -117,8 +118,8 @@ impl RoleRepository {
         .bind(role_code)
         .bind(description)
         .bind(status)
-        .bind(id)
         .bind(Utc::now().naive_utc())
+        .bind(id)
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| {
@@ -143,6 +144,7 @@ impl RoleRepository {
         let result = sqlx::query(
             "UPDATE roles SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
         .bind(id)
         .execute(pool)

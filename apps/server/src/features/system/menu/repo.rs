@@ -59,6 +59,7 @@ impl MenuRepository {
         .bind(sort_order)
         .bind(status)
         .bind(now)
+        .bind(now)
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -81,7 +82,6 @@ impl MenuRepository {
                  WHERE id = ? AND deleted_at IS NULL
                  RETURNING id",
             )
-            .bind(id)
             .bind(request.parent_id)
             .bind(&request.name)
             .bind(&request.code)
@@ -89,6 +89,7 @@ impl MenuRepository {
             .bind(request.sort_order)
             .bind(request.status)
             .bind(Utc::now().naive_utc())
+            .bind(id)
             .fetch_optional(pool)
             .await
             .map_err(|e| {

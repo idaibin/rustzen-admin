@@ -100,6 +100,8 @@ impl UserService {
         vec![
             UserOptionResp { label: "Normal".to_string(), value: 1 },
             UserOptionResp { label: "Disabled".to_string(), value: 2 },
+            UserOptionResp { label: "Pending".to_string(), value: 3 },
+            UserOptionResp { label: "Locked".to_string(), value: 4 },
         ]
     }
 

@@ -3,7 +3,6 @@ use crate::common::{
     query::{count_with_filters, fetch_with_filters, push_ilike},
 };
 
-use chrono::Utc;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use super::types::{LogItemResp, LogListQuery, LogWriteCommand};
@@ -13,6 +12,23 @@ pub struct LogRepository;
 
 impl LogRepository {
     fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+        if let Some(search_term) = query.search.as_deref() {
+            let search_term = search_term.trim();
+            if !search_term.is_empty() {
+                let pattern = format!("%{}%", search_term.to_lowercase());
+                query_builder
+                    .push(" AND (LOWER(username) LIKE ")
+                    .push_bind(pattern.clone())
+                    .push(" OR LOWER(action) LIKE ")
+                    .push_bind(pattern.clone())
+                    .push(" OR LOWER(description) LIKE ")
+                    .push_bind(pattern.clone())
+                    .push(" OR LOWER(ip_address) LIKE ")
+                    .push_bind(pattern)
+                    .push(")");
+            }
+        }
+
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "action", query.action.as_deref());
         push_ilike(query_builder, "description", query.description.as_deref());
@@ -84,14 +100,6 @@ impl LogRepository {
         })?;
 
         Ok(log_id)
-    }
-
-    /// Ensure the current and near-future monthly partitions exist before request logging begins.
-    pub async fn ensure_partitions(_pool: &SqlitePool) -> Result<(), ServiceError> {
-        let _ = Utc::now();
-        tracing::debug!("Skipping partition creation for SQLite backend");
-
-        Ok(())
     }
 
     pub async fn list_logs_for_export(

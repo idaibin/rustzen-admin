@@ -11,8 +11,8 @@ use crate::infra::config::CONFIG;
 
 /// Configuration for the database connection pool.
 ///
-/// This struct holds all the settings required to establish a connection
-/// pool with the configured storage backend.
+/// This struct holds all the settings required to establish a SQLite
+/// connection pool.
 #[derive(Debug)]
 pub struct DatabaseConfig {
     /// The database connection URL.
@@ -30,12 +30,6 @@ pub struct DatabaseConfig {
 impl Default for DatabaseConfig {
     /// Creates a database configuration from `RUSTZEN_*` runtime config.
     fn default() -> Self {
-        assert!(
-            CONFIG.storage == "sqlite",
-            "Unsupported storage backend `{}`. Current backend currently supports only `sqlite`.",
-            CONFIG.storage
-        );
-
         let path = CONFIG.sqlite_database_path();
         let url = database_url_from_path(path.as_path());
 
@@ -86,6 +80,19 @@ pub async fn create_default_pool() -> Result<SqlitePool, sqlx::Error> {
 
 pub use rustzen_storage::sqlite::test_connection;
 
+/// Runs embedded database migrations on startup.
+///
+/// # Errors
+///
+/// Returns a migration error if applying the embedded migrations fails.
+#[tracing::instrument(name = "run_db_migrations", skip(pool))]
+pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
+    tracing::info!("Running embedded database migrations...");
+    migration::run_migrations(pool).await?;
+    tracing::info!("Embedded database migrations completed successfully.");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::db_idle_timeout;
@@ -100,17 +107,4 @@ mod tests {
     fn db_idle_timeout_uses_seconds_for_positive_values() {
         assert_eq!(db_idle_timeout(600), Some(Duration::from_secs(600)));
     }
-}
-
-/// Runs embedded database migrations on startup.
-///
-/// # Errors
-///
-/// Returns a migration error if applying the embedded migrations fails.
-#[tracing::instrument(name = "run_db_migrations", skip(pool))]
-pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
-    tracing::info!("Running embedded database migrations...");
-    migration::run_migrations(pool).await?;
-    tracing::info!("Embedded database migrations completed successfully.");
-    Ok(())
 }

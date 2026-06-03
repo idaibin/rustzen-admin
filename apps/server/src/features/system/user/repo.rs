@@ -126,6 +126,7 @@ impl UserRepository {
         .bind(cmd.real_name.as_deref())
         .bind(cmd.status.unwrap_or(DEFAULT_USER_STATUS))
         .bind(now)
+        .bind(now)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| Self::map_user_write_error("creating user", e))?;
@@ -161,8 +162,8 @@ impl UserRepository {
         )
         .bind(email)
         .bind(real_name)
-        .bind(id)
         .bind(Utc::now().naive_utc())
+        .bind(id)
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| Self::map_user_write_error("updating user", e))?;
@@ -184,6 +185,7 @@ impl UserRepository {
         let result = sqlx::query(
             "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
         .bind(id)
         .execute(pool)
@@ -267,8 +269,8 @@ impl UserRepository {
     ) -> Result<bool, ServiceError> {
         let result = sqlx::query("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?")
             .bind(password_hash)
-            .bind(id)
             .bind(Utc::now().naive_utc())
+            .bind(id)
             .execute(pool)
             .await
             .map_err(|e| {
@@ -286,8 +288,8 @@ impl UserRepository {
     ) -> Result<bool, ServiceError> {
         let result = sqlx::query("UPDATE users SET status = ?, updated_at = ? WHERE id = ?")
             .bind(status)
-            .bind(id)
             .bind(Utc::now().naive_utc())
+            .bind(id)
             .execute(pool)
             .await
             .map_err(|e| {

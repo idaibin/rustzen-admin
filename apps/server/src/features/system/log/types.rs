@@ -25,6 +25,7 @@ pub struct LogItemResp {
 pub struct LogQuery {
     pub current: Option<i64>,
     pub page_size: Option<i64>,
+    pub search: Option<String>,
     pub username: Option<String>,
     pub action: Option<String>,
     pub description: Option<String>,
@@ -33,6 +34,7 @@ pub struct LogQuery {
 
 #[derive(Debug, Clone)]
 pub struct LogListQuery {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub action: Option<String>,
     pub description: Option<String>,

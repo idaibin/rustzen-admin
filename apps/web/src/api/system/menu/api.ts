@@ -18,14 +18,14 @@ export const menuAPI = {
         };
     },
     create: (data: Menu.CreateRequest) => {
-        return apiRequest<Menu.Item, Menu.CreateRequest>({
+        return apiRequest<number, Menu.CreateRequest>({
             url: "/api/system/menus",
             method: "POST",
             params: data,
         });
     },
     update: (id: number, data: Menu.UpdateRequest) => {
-        return apiRequest<Menu.Item, Menu.UpdateRequest>({
+        return apiRequest<number, Menu.UpdateRequest>({
             url: `/api/system/menus/${id}`,
             method: "PUT",
             params: data,

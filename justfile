@@ -13,6 +13,10 @@ dev-server:
 dev-web:
     cd apps/web && pnpm dev
 
+# Reset local sqlite database and let migrations re-run on next startup.
+reset-db:
+    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; rm -f "${runtime_root}/data/rustzen.db"
+
 # Build all (production)
 build:
     just build-web

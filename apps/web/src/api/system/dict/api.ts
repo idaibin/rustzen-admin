@@ -17,14 +17,14 @@ export const dictAPI = {
         };
     },
     create: (data: Dict.CreateRequest) => {
-        return apiRequest<Dict.Item, Dict.CreateRequest>({
+        return apiRequest<number, Dict.CreateRequest>({
             url: "/api/system/dicts",
             method: "POST",
             params: data,
         });
     },
     update: (id: number, data: Dict.UpdateRequest) => {
-        return apiRequest<Dict.Item, Dict.UpdateRequest>({
+        return apiRequest<number, Dict.UpdateRequest>({
             url: `/api/system/dicts/${id}`,
             method: "PUT",
             params: data,
@@ -39,6 +39,13 @@ export const dictAPI = {
     options: () => {
         return apiRequest<Api.OptionItem<string>[]>({
             url: "/api/system/dicts/options",
+        });
+    },
+    status: (id: number, status: number) => {
+        return apiRequest<void>({
+            url: `/api/system/dicts/${id}/status`,
+            method: "PATCH",
+            params: { status },
         });
     },
     byType: (type: string) => {

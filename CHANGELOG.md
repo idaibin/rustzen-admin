@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `logs` for file logging (with retention controlled by `RUSTZEN_LOG_RETENTION_DAYS`)
 - Separate static route for avatars at `{RUSTZEN_FILES_PREFIX}/avatars` (default `/resources/avatars`).
 - Split Docker build assets: `deploy/binary.Dockerfile`, `deploy/release.Dockerfile`, `deploy/runtime.Dockerfile`.
-- One-time repair script for legacy databases: `deploy/sql/repair_menu_schema.sql` (adds `menus.parent_code` and `menus.is_manual` where missing).
 
 ### Changed
 
@@ -35,5 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Migration notes
 
 - **Fresh installs**: use `.env.example`, run the backend once so embedded migrations apply; no repair script needed.
-- **Existing databases** that predate `parent_code` / `is_manual` on `menus`: run `psql "$DATABASE_URL" -f deploy/sql/repair_menu_schema.sql` once before startup. Details: `docs/guides/deployment.md`, `docs/guides/permission.md`.
 - **Full upgrade steps**: `docs/guides/deployment.md`.

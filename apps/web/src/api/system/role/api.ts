@@ -17,14 +17,14 @@ export const roleAPI = {
         };
     },
     create: (data: Role.CreateRequest) => {
-        return apiRequest<Role.Item, Role.CreateRequest>({
+        return apiRequest<void, Role.CreateRequest>({
             url: "/api/system/roles",
             method: "POST",
             params: data,
         });
     },
     update: (id: number, data: Role.UpdateRequest) => {
-        return apiRequest<Role.Item, Role.UpdateRequest>({
+        return apiRequest<void, Role.UpdateRequest>({
             url: `/api/system/roles/${id}`,
             method: "PUT",
             params: data,

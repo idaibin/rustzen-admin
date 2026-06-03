@@ -41,6 +41,20 @@ cargo run -p server
 Local startup is SQLite-first and does not require PostgreSQL.
 Set `RUSTZEN_JWT_SECRET` in `.env` before starting the backend.
 
+If startup fails with `VersionMismatch`, your local database schema is out-of-date with current migration checksums. Run:
+
+```bash
+cp .env.example .env
+just reset-db
+cargo run -p server
+```
+
+If startup succeeds, the database will be recreated automatically.
+
+Demo login:
+- Username: `superadmin`
+- Password: `rustzen@123`
+
 ## Demo
 
 - Local demo URL: [https://rustzen-admin.idaibin.dev](https://rustzen-admin.idaibin.dev)

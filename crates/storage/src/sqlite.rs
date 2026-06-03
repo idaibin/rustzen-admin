@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{io, path::{Path, PathBuf}};
 
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 pub use sqlx::SqlitePool;
 
@@ -31,10 +31,8 @@ impl Default for DatabaseConnectionOptions {
 
 /// Builds a SQLite URL from a filesystem path.
 pub fn database_url_from_path(path: &Path) -> String {
-    if let Some(path) = path.to_str() {
-        if path == ":memory:" || path.starts_with("sqlite:") {
-            return path.to_string();
-        }
+    if let Some(path) = path.to_str() && (path == ":memory:" || path.starts_with("sqlite:")) {
+        return path.to_string();
     }
 
     let absolute_path = path.to_path_buf();
@@ -47,12 +45,14 @@ pub async fn connect_sqlite_with_options(
     options: DatabaseConnectionOptions,
 ) -> Result<SqlitePool, sqlx::Error> {
     ensure_database_directory(database_url)?;
+    let connect_options: SqliteConnectOptions = database_url.parse()?;
+    let connect_options = connect_options.create_if_missing(true);
     SqlitePoolOptions::new()
         .max_connections(options.max_connections)
         .min_connections(options.min_connections)
         .acquire_timeout(options.connect_timeout)
         .idle_timeout(options.idle_timeout)
-        .connect(database_url)
+        .connect_with(connect_options)
         .await
 }
 
@@ -68,14 +68,26 @@ pub async fn test_connection(pool: &SqlitePool) -> Result<(), sqlx::Error> {
 }
 
 fn ensure_database_directory(database_url: &str) -> Result<(), sqlx::Error> {
-    let db_path =
-        if let Some(path) = database_url.strip_prefix("sqlite://") { path } else { database_url };
+    let db_path = database_url.strip_prefix("sqlite://").unwrap_or(database_url).trim();
+
+    if db_path.is_empty() {
+        return Err(sqlx::Error::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "RUSTZEN_SQLITE_PATH cannot be empty",
+        )));
+    }
 
     if db_path == ":memory:" {
         return Ok(());
     }
 
     let db_path = PathBuf::from(db_path);
+    if db_path.is_dir() {
+        return Err(sqlx::Error::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "RUSTZEN_SQLITE_PATH must be a file path, not a directory",
+        )));
+    }
     if let Some(parent) = db_path.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -87,8 +99,12 @@ fn ensure_database_directory(database_url: &str) -> Result<(), sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::database_url_from_path;
+    use super::{
+        database_url_from_path, ensure_database_directory,
+    };
+    use std::fs;
     use std::path::Path;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn database_url_keeps_explicit_sqlite_memory() {
@@ -99,4 +115,35 @@ mod tests {
     fn database_url_formats_file_path() {
         assert_eq!(database_url_from_path(Path::new("/tmp/data.db")), "sqlite:////tmp/data.db");
     }
+
+    #[test]
+    fn ensure_database_directory_keeps_file_creation_outside_connect() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos();
+        let db_path = std::env::temp_dir().join(format!("rustzen-storage-{}.db", nanos));
+        if db_path.exists() {
+            fs::remove_file(&db_path).ok();
+        }
+        if let Some(parent) = db_path.parent() {
+            fs::create_dir_all(parent).expect("create temp dir");
+        }
+
+        let database_url = format!("sqlite:///{}", db_path.display());
+        let result = ensure_database_directory(&database_url);
+
+        assert!(result.is_ok(), "ensure_database_directory failed: {result:?}");
+        assert!(
+            !db_path.exists(),
+            "ensure_database_directory should not create file; sqlite connection handles creation"
+        );
+    }
+
+    #[test]
+    fn ensure_database_directory_rejects_empty_path() {
+        let result = ensure_database_directory("");
+        assert!(result.is_err());
+    }
+
 }

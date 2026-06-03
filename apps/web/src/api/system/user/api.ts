@@ -17,14 +17,14 @@ export const userAPI = {
         };
     },
     create: (data: User.CreateRequest) => {
-        return apiRequest<User.Item, User.CreateRequest>({
+        return apiRequest<number, User.CreateRequest>({
             url: "/api/system/users",
             method: "POST",
             params: data,
         });
     },
     update: (id: number, data: User.UpdateRequest) => {
-        return apiRequest<User.Item, User.UpdateRequest>({
+        return apiRequest<number, User.UpdateRequest>({
             url: `/api/system/users/${id}`,
             method: "PUT",
             params: data,
@@ -37,15 +37,15 @@ export const userAPI = {
         });
     },
     status: (id: number, status: number) => {
-        return apiRequest<void>({
+        return apiRequest<boolean>({
             url: `/api/system/users/${id}/status`,
             method: "PUT",
             params: { status },
         });
     },
     password: (id: number, password: string) => {
-        return apiRequest<void>({
-            url: `/api/system/users/${id}/reset-password`,
+        return apiRequest<boolean>({
+            url: `/api/system/users/${id}/password`,
             method: "PUT",
             params: { password },
         });

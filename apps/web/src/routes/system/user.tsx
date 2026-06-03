@@ -112,6 +112,8 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
         valueEnum: {
             1: { text: "Enabled", status: "Success" },
             2: { text: "Disabled", status: "Default" },
+            3: { text: "Pending", status: "Warning" },
+            4: { text: "Locked", status: "Error" },
         },
     },
     {

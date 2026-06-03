@@ -47,15 +47,17 @@ pub async fn log_middleware(
     if should_log(&method, &path) {
         if let Err(e) = LogService::record_operation(
             &pool,
-            build_request_log(
-                user_id.unwrap_or(0),
-                username,
-                method_for_log,
-                &uri,
-                status_code,
-                duration,
-                client_ip,
-                user_agent,
+                build_request_log(
+                    RequestLogContext {
+                        user_id: user_id.unwrap_or(0),
+                        username: username.to_string(),
+                        method: method_for_log,
+                        uri: uri.clone(),
+                        status_code,
+                        duration,
+                        ip_address: client_ip,
+                        user_agent,
+                    },
             ),
         )
         .await
@@ -85,27 +87,37 @@ fn request_user_agent(request: &Request) -> String {
         .to_string()
 }
 
-fn build_request_log(
+#[derive(Debug)]
+struct RequestLogContext {
     user_id: i64,
-    username: &str,
-    method: axum::http::Method,
-    uri: &str,
+    username: String,
+    method: Method,
+    uri: String,
     status_code: u16,
     duration: std::time::Duration,
     ip_address: String,
     user_agent: String,
+}
+
+fn build_request_log(
+    context: RequestLogContext,
 ) -> LogWriteCommand {
-    let status = if status_code < 400 { "SUCCESS" } else { "ERROR" };
+    let status = if context.status_code < 400 { "SUCCESS" } else { "ERROR" };
     LogWriteCommand {
-        user_id,
-        username: username.to_string(),
-        action: format!("HTTP_{}", method),
-        description: format!("{} {} - {}", method, uri, status_code),
+        user_id: context.user_id,
+        username: context.username,
+        action: format!("HTTP_{}", context.method),
+        description: format!(
+            "{} {} - {}",
+            context.method,
+            context.uri,
+            context.status_code
+        ),
         data: None,
         status: status.to_string(),
-        duration_ms: duration.as_millis() as i32,
-        ip_address,
-        user_agent,
+        duration_ms: context.duration.as_millis() as i32,
+        ip_address: context.ip_address,
+        user_agent: context.user_agent,
     }
 }
 

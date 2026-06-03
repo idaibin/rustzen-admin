@@ -28,6 +28,7 @@ pub struct SystemInfo {
     pub memory_free: u64,
     pub cpu_total: usize,
     pub cpu_used: f32,
+    pub cpu_free: f32,
     pub disk_total: u64,
     pub disk_used: u64,
     pub disk_free: u64,
@@ -54,13 +55,15 @@ impl SystemUtils {
         sys.refresh_cpu_usage();
 
         let (disk_total, disk_used, disk_free) = Self::get_disk_info();
+        let cpu_used = sys.global_cpu_usage();
 
         let info = SystemInfo {
             memory_total: sys.total_memory(),
             memory_used: sys.used_memory(),
             memory_free: sys.free_memory(),
             cpu_total: sys.cpus().len(),
-            cpu_used: sys.global_cpu_usage(),
+            cpu_used,
+            cpu_free: (100.0 - cpu_used).max(0.0),
             disk_total,
             disk_used,
             disk_free,
@@ -151,6 +154,7 @@ mod tests {
             memory_free: 0,
             cpu_total: 2,
             cpu_used: 10.0,
+            cpu_free: 90.0,
             disk_total: 3,
             disk_used: 1,
             disk_free: 2,

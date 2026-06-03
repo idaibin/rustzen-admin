@@ -139,6 +139,7 @@ impl DictRepository {
         .bind(description)
         .bind(sort_order.unwrap_or(DEFAULT_DICT_SORT_ORDER))
         .bind(now)
+        .bind(now)
         .fetch_one(pool)
         .await
         .map_err(|e| {
@@ -199,6 +200,7 @@ impl DictRepository {
              SET deleted_at = ?, updated_at = ?
              WHERE id = ? AND deleted_at IS NULL",
         )
+        .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
         .bind(id)
         .execute(pool)

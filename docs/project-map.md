@@ -72,4 +72,3 @@ This is a practical path index for task orientation. It maps where to look first
 | Path | Value | Inspect when |
 | --- | --- | --- |
 | `deploy/` | Dockerfiles and service template. | You package or deploy the app. |
-| `deploy/sql/` | One-off SQL repair scripts. | You repair an older deployment. |
