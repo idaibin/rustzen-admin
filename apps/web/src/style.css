@@ -5,3 +5,23 @@
     height: 100vh;
     overflow: hidden;
 }
+
+.ant-pro-sider-collapsed .ant-menu-item > .ant-menu-title-content,
+.ant-pro-sider-collapsed .ant-menu-submenu-title > .ant-menu-title-content {
+    display: flex;
+    flex: 0 0 40px !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px !important;
+    min-width: 40px;
+    overflow: visible !important;
+    opacity: 1 !important;
+}
+
+.ant-pro-sider-collapsed .ant-pro-base-menu-vertical-item-title-collapsed {
+    width: 40px;
+}
+
+.ant-pro-sider-collapsed .ant-pro-base-menu-vertical-item-text {
+    display: none;
+}
