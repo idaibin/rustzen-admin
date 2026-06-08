@@ -7,10 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-08
+
+### Added
+
+- Added SQLite-first embedded migrations and seed data under `apps/server/migrations/sqlite/`.
+- Added shared `crates/config`, `crates/runtime`, and `crates/storage` helpers for runtime configuration, paths, and SQLite startup.
+- Added repository rules and guides for the `apps/server`, `apps/web`, and `crates/*` layout.
+
 ### Changed
 
-- Monorepo directories renamed to `zen-core/`, `zen-server/`, and `zen-web/` (Cargo package names unchanged: `rustzen-core`, `server`). Packaged deployments still place static assets under `<runtime_root>/web/dist`, not under the `zen-web/` source folder name.
-- Older changelog sections below may still name directories as they were at release time (for example `server/` or `web/`); the current tree uses `zen-server/` and `zen-web/` (plus `zen-core/`).
+- **Breaking:** SQLite is now the default runtime storage backend. PostgreSQL-first behavior is preserved on the `legacy/pg-admin` branch and the `pg-admin` tag.
+- Moved source ownership to the current monorepo layout: `apps/server`, `apps/web`, and shared `crates/*`.
+- Moved local development ports to backend `9800` and frontend `9801`.
+- Reworked system permission checks around explicit capability boundaries while keeping existing capability codes.
+- Updated deployment assets, runtime configuration, and documentation for the SQLite-first baseline.
+
+### Fixed
+
+- Fixed collapsed sidebar menu icons so they remain visible when the navigation is minimized.
+
+### Migration notes
+
+- Existing PostgreSQL-first deployments should stay on `legacy/pg-admin` or the `pg-admin` tag.
+- Fresh SQLite-first installs should use `.env.example`, set `RUSTZEN_JWT_SECRET`, and start the backend so embedded migrations apply.
+- If a local development database has stale migration checksums, run `just reset-db` before restarting the backend.
 
 ## [0.3.0] - 2026-04-05
 
