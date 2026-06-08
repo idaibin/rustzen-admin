@@ -2,9 +2,8 @@ use crate::common::error::ServiceError;
 
 use argon2::{
     Argon2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{PasswordHasher, PasswordVerifier, phc::PasswordHash},
 };
-use rand_core::OsRng;
 
 /// Password utilities for secure hashing and verification.
 pub struct PasswordUtils;
@@ -24,10 +23,9 @@ impl PasswordUtils {
     /// * `Ok(String)` - The hashed password as a string
     /// * `Err(ServiceError::PasswordHashingFailed)` - If hashing fails
     pub fn hash_password(password: &str) -> Result<String, ServiceError> {
-        let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
         let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password(password.as_bytes())
             .map_err(|_| ServiceError::PasswordHashingFailed)?
             .to_string();
         Ok(password_hash)

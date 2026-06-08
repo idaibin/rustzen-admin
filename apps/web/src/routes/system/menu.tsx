@@ -1,9 +1,14 @@
-import type { ActionType, ProColumns } from "@ant-design/pro-components";
-import { ProTable } from "@ant-design/pro-components";
-import { ModalForm, ProFormDigit, ProFormSelect, ProFormText } from "@ant-design/pro-components";
+import {
+    ModalForm,
+    ProFormDigit,
+    ProFormSelect,
+    ProFormText,
+    ProTable,
+    type ActionType,
+    type ProColumns,
+} from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Space, Tag } from "antd";
-import { Form } from "antd";
+import { Button, Form, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
@@ -28,7 +33,7 @@ function MenuPage() {
             actionRef={actionRef}
             pagination={false}
             toolBarRender={() => [
-                <AuthWrap code="system:menu:create">
+                <AuthWrap key="create" code="system:menu:create">
                     <MenuModalForm
                         mode={"create"}
                         onSuccess={() => {
@@ -86,7 +91,7 @@ const columns: ProColumns<Menu.Item>[] = [
         dataIndex: "updatedAt",
         valueType: "dateTime",
         width: 160,
-        hideInSearch: true,
+        search: false,
     },
     {
         title: "Actions",
@@ -103,7 +108,9 @@ const columns: ProColumns<Menu.Item>[] = [
                             void action?.reload();
                         }}
                     >
-                        <a>Edit</a>
+                        <Button type="link" size="small">
+                            Edit
+                        </Button>
                     </MenuModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
@@ -126,7 +133,7 @@ const columns: ProColumns<Menu.Item>[] = [
 interface MenuModalFormProps {
     initialValues?: Partial<Menu.Item>;
     mode?: "create" | "edit";
-    children: React.ReactNode;
+    children: React.JSX.Element;
     onSuccess?: () => void;
 }
 

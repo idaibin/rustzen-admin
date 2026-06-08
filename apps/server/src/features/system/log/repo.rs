@@ -11,7 +11,7 @@ use super::types::{LogItemResp, LogListQuery, LogWriteCommand};
 pub struct LogRepository;
 
 impl LogRepository {
-    fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+    fn format_query(query: &LogListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
         if let Some(search_term) = query.search.as_deref() {
             let search_term = search_term.trim();
             if !search_term.is_empty() {

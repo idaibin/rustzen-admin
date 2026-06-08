@@ -12,7 +12,7 @@ use super::types::{MenuListQuery, MenuRow, UpdateMenuPayload};
 pub struct MenuRepository;
 
 impl MenuRepository {
-    fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+    fn format_query(query: &MenuListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
         push_ilike(query_builder, "name", query.name.as_deref());
         push_ilike(query_builder, "code", query.code.as_deref());
         push_eq(query_builder, "status", query.status);

@@ -1,6 +1,11 @@
-import type { ActionType, ProColumns } from "@ant-design/pro-components";
-import { ProTable } from "@ant-design/pro-components";
-import { ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-components";
+import {
+    ModalForm,
+    ProFormSelect,
+    ProFormText,
+    ProTable,
+    type ActionType,
+    type ProColumns,
+} from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Form, Space } from "antd";
@@ -54,7 +59,7 @@ function UserPage() {
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
-                <AuthWrap code="system:user:create">
+                <AuthWrap key="create" code="system:user:create">
                     <UserModalForm
                         mode={"create"}
                         onSuccess={() => {
@@ -151,9 +156,13 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
                         <UserModalForm
                             mode={"edit"}
                             initialValues={entity}
-                            onSuccess={action?.reload}
+                            onSuccess={() => {
+                                void action?.reload();
+                            }}
                         >
-                            <a>Edit</a>
+                            <Button type="link" size="small">
+                                Edit
+                            </Button>
                         </UserModalForm>
                     </AuthWrap>
                     <MoreButton>
@@ -200,7 +209,7 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
 interface UserModalFormProps {
     initialValues?: Partial<User.Item>;
     mode?: "create" | "edit";
-    children: React.ReactNode;
+    children: React.JSX.Element;
     onSuccess?: () => void;
 }
 
@@ -224,7 +233,12 @@ const UserModalForm = ({
             title={mode === "create" ? "Create User" : "Edit User"}
             trigger={children}
             labelCol={{ span: 5 }}
-            modalProps={{ destroyOnHidden: true, maskClosable: false }}
+            modalProps={{
+                destroyOnHidden: true,
+                maskClosable: false,
+                okText: mode === "create" ? "Create" : "Save",
+                cancelText: "Cancel",
+            }}
             onOpenChange={(open) => {
                 if (open) {
                     const roleIds = initialValues?.roles?.map((role) => role.value);
@@ -232,12 +246,9 @@ const UserModalForm = ({
                         ...initialValues,
                         roleIds,
                     });
+                } else {
+                    form.resetFields();
                 }
-            }}
-            submitter={{
-                searchConfig: {
-                    submitText: mode === "create" ? "Create" : "Save",
-                },
             }}
             onFinish={async (values) => {
                 if (mode === "create") {

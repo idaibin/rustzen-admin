@@ -1,5 +1,4 @@
-import type { ProColumns } from "@ant-design/pro-components";
-import { ProTable } from "@ant-design/pro-components";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Segmented, Tag } from "antd";
 
@@ -62,7 +61,7 @@ const columns: ProColumns<Log.Item>[] = [
         title: "ID",
         dataIndex: "id",
         width: 80,
-        hideInSearch: true,
+        search: false,
     },
     {
         title: "User",
@@ -74,7 +73,7 @@ const columns: ProColumns<Log.Item>[] = [
         title: "Action",
         dataIndex: "action",
         width: 150,
-        hideInSearch: true,
+        search: false,
         render: (_, record) => {
             const action = record.action;
             const color = actionColorMap[action];
@@ -94,7 +93,7 @@ const columns: ProColumns<Log.Item>[] = [
         title: "Status",
         dataIndex: "status",
         width: 100,
-        hideInSearch: true,
+        search: false,
         render: (_, record) => {
             const status = record.status;
             const color = status === "SUCCESS" ? "success" : "error";
@@ -115,7 +114,7 @@ const columns: ProColumns<Log.Item>[] = [
         title: "Duration",
         dataIndex: "durationMs",
         width: 80,
-        hideInSearch: true,
+        search: false,
         render: (_, record) => {
             if (!record.durationMs) return "-";
             return `${record.durationMs}ms`;
@@ -126,6 +125,6 @@ const columns: ProColumns<Log.Item>[] = [
         dataIndex: "createdAt",
         width: 180,
         valueType: "dateTime",
-        hideInSearch: true,
+        search: false,
     },
 ];

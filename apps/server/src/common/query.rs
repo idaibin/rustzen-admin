@@ -3,7 +3,7 @@ use crate::common::error::ServiceError;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool, sqlite::SqliteRow};
 
 /// Apply a case-insensitive LIKE filter when the value is present and non-empty.
-pub fn push_ilike(query_builder: &mut QueryBuilder<'_, Sqlite>, column: &str, value: Option<&str>) {
+pub fn push_ilike(query_builder: &mut QueryBuilder<Sqlite>, column: &str, value: Option<&str>) {
     if let Some(value) = value {
         let value = value.trim();
         if !value.is_empty() {
@@ -18,9 +18,9 @@ pub fn push_ilike(query_builder: &mut QueryBuilder<'_, Sqlite>, column: &str, va
 }
 
 /// Apply an equality filter when the value is present.
-pub fn push_eq<'a, T>(query_builder: &mut QueryBuilder<'a, Sqlite>, column: &str, value: Option<T>)
+pub fn push_eq<T>(query_builder: &mut QueryBuilder<Sqlite>, column: &str, value: Option<T>)
 where
-    T: for<'q> sqlx::Encode<'q, Sqlite> + sqlx::Type<Sqlite> + 'a,
+    T: for<'q> sqlx::Encode<'q, Sqlite> + sqlx::Type<Sqlite>,
 {
     if let Some(value) = value {
         query_builder.push(" AND ").push(column).push(" = ").push_bind(value);
@@ -57,9 +57,9 @@ pub async fn count_with_filters<F>(
     apply_filters: F,
 ) -> Result<i64, ServiceError>
 where
-    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Sqlite>),
+    F: FnOnce(&mut QueryBuilder<Sqlite>),
 {
-    let mut query_builder: QueryBuilder<'_, Sqlite> = QueryBuilder::new(base_sql);
+    let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(base_sql);
     apply_filters(&mut query_builder);
 
     let count: (i64,) = query_builder
@@ -81,10 +81,10 @@ pub async fn fetch_with_filters<T, F>(
     offset: Option<i64>,
 ) -> Result<Vec<T>, ServiceError>
 where
-    F: for<'qb> FnOnce(&mut QueryBuilder<'qb, Sqlite>),
+    F: FnOnce(&mut QueryBuilder<Sqlite>),
     T: for<'r> sqlx::FromRow<'r, SqliteRow> + Send + Unpin,
 {
-    let mut query_builder: QueryBuilder<'_, Sqlite> = QueryBuilder::new(base_sql);
+    let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(base_sql);
     apply_filters(&mut query_builder);
 
     if let Some(order_by) = order_by {

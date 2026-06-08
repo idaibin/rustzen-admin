@@ -16,7 +16,7 @@ const DEFAULT_DICT_SORT_ORDER: i32 = 1;
 
 impl DictRepository {
     /// Formats the query for the dictionary items
-    fn format_query(query: &DictListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+    fn format_query(query: &DictListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
         push_ilike(query_builder, "dict_type", query.dict_type.as_deref());
         push_ilike(query_builder, "label", query.label.as_deref());
         push_ilike(query_builder, "value", query.value.as_deref());

@@ -1,15 +1,15 @@
 import {
     ModalForm,
-    ProTable,
     ProFormSelect,
     ProFormText,
     ProFormTextArea,
+    ProTable,
     type ActionType,
     type ProColumns,
 } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Form, Button, Space } from "antd";
+import { Button, Form, Space } from "antd";
 import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
@@ -33,7 +33,7 @@ function RolePage() {
             actionRef={actionRef}
             search={{ span: 6 }}
             toolBarRender={() => [
-                <AuthWrap code="system:role:create">
+                <AuthWrap key="create" code="system:role:create">
                     <RoleModalForm
                         mode={"create"}
                         onSuccess={() => {
@@ -76,7 +76,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "Description",
         dataIndex: "description",
         ellipsis: true,
-        hideInSearch: true,
+        search: false,
     },
     {
         title: "Status",
@@ -92,7 +92,7 @@ const columns: ProColumns<Role.Item>[] = [
         title: "Permissions",
         dataIndex: "menus",
         width: 160,
-        hideInSearch: true,
+        search: false,
         render: (_, record) => {
             if (!record.menus || record.menus.length === 0) {
                 return <span style={{ color: "#999" }}>No permissions</span>;
@@ -109,13 +109,13 @@ const columns: ProColumns<Role.Item>[] = [
         dataIndex: "updatedAt",
         valueType: "dateTime",
         width: 160,
-        hideInSearch: true,
+        search: false,
     },
     {
         title: "Actions",
         key: "action",
         width: 110,
-        hideInSearch: true,
+        search: false,
         render: (_dom: React.ReactNode, entity: Role.Item, _index, action?: ActionType) => {
             return (
                 <Space size="middle">
@@ -127,7 +127,9 @@ const columns: ProColumns<Role.Item>[] = [
                                 void action?.reload();
                             }}
                         >
-                            <a>Edit</a>
+                            <Button type="link" size="small">
+                                Edit
+                            </Button>
                         </RoleModalForm>
                     </AuthWrap>
                     <AuthPopconfirm
@@ -150,7 +152,7 @@ const columns: ProColumns<Role.Item>[] = [
 interface RoleModalFormProps {
     record?: Partial<Role.Item>;
     mode?: "create" | "edit";
-    children: React.ReactNode;
+    children: React.JSX.Element;
     onSuccess?: () => void;
 }
 

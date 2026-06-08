@@ -14,7 +14,7 @@ pub struct UserRepository;
 const DEFAULT_USER_STATUS: i16 = 1;
 
 impl UserRepository {
-    fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+    fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
         push_ilike(query_builder, "username", query.username.as_deref());
         push_ilike(query_builder, "real_name", query.real_name.as_deref());
         push_ilike(query_builder, "email", query.email.as_deref());
@@ -217,7 +217,7 @@ impl UserRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder: QueryBuilder<'_, Sqlite> =
+        let mut query_builder: QueryBuilder<Sqlite> =
             QueryBuilder::new("INSERT INTO user_roles (user_id, role_id, created_at) ");
         query_builder.push_values(role_ids.iter(), |mut builder, role_id| {
             builder.push_bind(user_id).push_bind(role_id).push_bind(now);

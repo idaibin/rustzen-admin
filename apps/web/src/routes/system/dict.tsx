@@ -1,9 +1,13 @@
-import { ModalForm, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
-import type { ActionType, ProColumns } from "@ant-design/pro-components";
-import { ProTable } from "@ant-design/pro-components";
+import {
+    ModalForm,
+    ProFormText,
+    ProFormTextArea,
+    ProTable,
+    type ActionType,
+    type ProColumns,
+} from "@ant-design/pro-components";
 import { createFileRoute } from "@tanstack/react-router";
-import { Form } from "antd";
-import { Button, Space, Tag } from "antd";
+import { Button, Form, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
@@ -26,7 +30,7 @@ function DictPage() {
             request={systemAPI.dict.list}
             actionRef={actionRef}
             toolBarRender={() => [
-                <AuthWrap code="system:dict:create">
+                <AuthWrap key="create" code="system:dict:create">
                     <DictModalForm
                         mode={"create"}
                         onSuccess={() => {
@@ -86,7 +90,9 @@ const columns: ProColumns<Dict.Item>[] = [
                             void action?.reload();
                         }}
                     >
-                        <a>Edit</a>
+                        <Button type="link" size="small">
+                            Edit
+                        </Button>
                     </DictModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
@@ -108,7 +114,7 @@ const columns: ProColumns<Dict.Item>[] = [
 interface DictModalFormProps {
     initialValues?: Partial<Dict.Item>;
     mode?: "create" | "edit";
-    children: React.ReactNode;
+    children: React.JSX.Element;
     onSuccess?: () => void;
 }
 

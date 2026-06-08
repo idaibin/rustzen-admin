@@ -11,7 +11,7 @@ use super::types::{RoleListQuery, RoleWithMenusRow};
 pub struct RoleRepository;
 
 impl RoleRepository {
-    fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<'_, Sqlite>) {
+    fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
         push_ilike(query_builder, "role_name", query.role_name.as_deref());
         push_ilike(query_builder, "role_code", query.role_code.as_deref());
         push_eq(query_builder, "status", query.status);
@@ -189,7 +189,7 @@ impl RoleRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder: QueryBuilder<'_, Sqlite> =
+        let mut query_builder: QueryBuilder<Sqlite> =
             QueryBuilder::new("INSERT INTO role_menus (role_id, menu_id, created_at) ");
         query_builder.push_values(menu_ids.iter(), |mut builder, menu_id| {
             builder.push_bind(role_id).push_bind(menu_id).push_bind(now);
