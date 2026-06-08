@@ -1,16 +1,5 @@
-import { useMemo, type CSSProperties } from "react";
-import {
-    BookOutlined,
-    DashboardOutlined,
-    FileUnknownOutlined,
-    HistoryOutlined,
-    LogoutOutlined,
-    MenuOutlined,
-    SettingOutlined,
-    StopOutlined,
-    TeamOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
@@ -19,16 +8,11 @@ import { Dropdown } from "antd";
 import { appMessage, authAPI } from "@/api";
 import { useAuthStore } from "@/store/useAuthStore";
 
-type AppRouter = {
-    name?: string;
-    icon?: React.ReactNode;
-    path?: string;
-    children?: AppRouter[];
-    requiresPermission?: boolean;
-};
+import { AppSearch } from "./app-search";
+import { getMenuData, getSearchRouteItems, type AppRoutePath } from "./routes";
 
 interface BaseLayoutProps {
-    children: React.ReactNode;
+    children: ReactNode;
     hidden?: boolean;
 }
 
@@ -40,84 +24,13 @@ const layoutContentStyle: CSSProperties = {
     padding: 16,
 };
 
-const systemRoutes: AppRouter = {
-    name: "System",
-    icon: <SettingOutlined />,
-    path: "/system",
-    children: [
-        {
-            path: "/system/user",
-            name: "User",
-            icon: <UserOutlined />,
-        },
-        {
-            path: "/system/role",
-            name: "Role",
-            icon: <TeamOutlined />,
-        },
-        {
-            path: "/system/menu",
-            name: "Menu",
-            icon: <MenuOutlined />,
-        },
-        {
-            path: "/system/dict",
-            name: "Dictionary",
-            icon: <BookOutlined />,
-        },
-        {
-            path: "/system/log",
-            name: "Log",
-            icon: <HistoryOutlined />,
-        },
-    ],
-};
-
-const pageRoutes: AppRouter[] = [
-    {
-        path: "/403",
-        name: "403 Page",
-        icon: <StopOutlined />,
-        requiresPermission: false,
-    },
-    {
-        path: "/404",
-        name: "404 Page",
-        icon: <FileUnknownOutlined />,
-        requiresPermission: false,
-    },
-    systemRoutes,
-];
-
-const getMenuData = (checkMenuPermissions: (path: string) => boolean): AppRouter[] => {
-    const getMenuList = (menuList: AppRouter[]): AppRouter[] => {
-        return menuList
-            .filter((item) => {
-                if (!item.path) return false;
-                if (item.requiresPermission === false) return true;
-                if (item.children) return true;
-                return checkMenuPermissions(item.path);
-            })
-            .map((item) => ({
-                ...item,
-                children: item.children ? getMenuList(item.children) : undefined,
-            }))
-            .filter((item) => {
-                if (item.children?.length === 0) {
-                    return false;
-                }
-                return true;
-            });
-    };
-
-    return getMenuList(pageRoutes);
-};
-
 export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
     const userInfo = useAuthStore((state) => state.userInfo);
     const clearAuth = useAuthStore((state) => state.clearAuth);
     const checkMenuPermissions = useAuthStore((state) => state.checkMenuPermissions);
-    const menuPermissionSignature = useAuthStore((state) => state.userInfo?.permissions?.join("|") || "");
+    const menuPermissionSignature = useAuthStore(
+        (state) => state.userInfo?.permissions?.join("|") || "",
+    );
     const router = useRouter();
     const currentPath = useLocation().pathname;
 
@@ -125,6 +38,15 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
         () => getMenuData(checkMenuPermissions),
         [checkMenuPermissions, menuPermissionSignature],
     );
+
+    const searchRoutes = useMemo(
+        () => getSearchRouteItems(checkMenuPermissions),
+        [checkMenuPermissions, menuPermissionSignature],
+    );
+
+    const handleSearchSelect = (path: AppRoutePath) => {
+        void router.navigate({ to: path });
+    };
 
     if (hidden) {
         return children;
@@ -168,15 +90,15 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
             )}
             route={{
                 path: "/",
-                children: [
-                    {
-                        path: "/",
-                        name: "Dashboard",
-                        icon: <DashboardOutlined />,
-                    },
-                    ...menuData,
-                ],
+                children: menuData,
             }}
+            actionsRender={() => [
+                <AppSearch
+                    key="page-search"
+                    routes={searchRoutes}
+                    onSelect={handleSearchSelect}
+                />,
+            ]}
             avatarProps={{
                 src: userInfo?.avatarUrl,
                 size: "small",
