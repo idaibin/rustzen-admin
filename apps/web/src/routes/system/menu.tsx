@@ -1,3 +1,4 @@
+import { EditOutlined, StopOutlined } from "@ant-design/icons";
 import {
     ModalForm,
     ProFormDigit,
@@ -13,6 +14,7 @@ import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
+import { TableActionButton, tableActionColumnWidth } from "@/components/base-button";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
 export const Route = createFileRoute("/system/menu")({
@@ -91,15 +93,18 @@ const columns: ProColumns<Menu.Item>[] = [
         dataIndex: "updatedAt",
         valueType: "dateTime",
         width: 160,
+        ellipsis: true,
+        className: "whitespace-nowrap",
         search: false,
     },
     {
         title: "Actions",
         key: "action",
-        width: 120,
+        width: tableActionColumnWidth(2),
+        align: "left",
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
-            <Space size="middle">
+            <Space size={8} align="center">
                 <AuthWrap code="system:menu:update">
                     <MenuModalForm
                         mode={"edit"}
@@ -108,9 +113,7 @@ const columns: ProColumns<Menu.Item>[] = [
                             void action?.reload();
                         }}
                     >
-                        <Button type="link" size="small">
-                            Edit
-                        </Button>
+                        <TableActionButton color="blue" label="Edit" icon={<EditOutlined />} />
                     </MenuModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
@@ -123,7 +126,11 @@ const columns: ProColumns<Menu.Item>[] = [
                         void action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-yellow-600">Disable</span>
+                    <TableActionButton
+                        color="orange"
+                        label="Disable"
+                        icon={<StopOutlined />}
+                    />
                 </AuthPopconfirm>
             </Space>
         ),

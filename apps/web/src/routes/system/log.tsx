@@ -123,8 +123,10 @@ const columns: ProColumns<Log.Item>[] = [
     {
         title: "Created At",
         dataIndex: "createdAt",
-        width: 180,
         valueType: "dateTime",
+        width: 160,
+        ellipsis: true,
+        className: "whitespace-nowrap",
         search: false,
     },
 ];

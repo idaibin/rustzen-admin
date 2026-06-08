@@ -14,16 +14,18 @@ import { Card, Progress, Statistic } from "antd";
 import { dashboardAPI } from "@/api";
 import { calculatePercent, convertUnit } from "@/util";
 
+const DASHBOARD_CHART_HEIGHT = 220;
+
 export const Route = createFileRoute("/")({
     component: DashboardPage,
 });
 
 function DashboardPage() {
     return (
-        <div className="flex flex-col gap-4">
+        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 overflow-hidden">
             <StatsCard />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid min-h-0 grid-cols-2 gap-4">
                 <HealthCard />
                 <MetricsCard />
             </div>
@@ -95,7 +97,14 @@ const HealthCard = () => {
     const diskUsage = calculatePercent(health?.diskUsed, health?.diskTotal);
 
     return (
-        <Card title="System health status" extra={<ExclamationCircleOutlined />}>
+        <Card
+            title="System health status"
+            extra={<ExclamationCircleOutlined />}
+            rootClassName="flex min-h-0 flex-col"
+            classNames={{
+                body: "flex-1 overflow-hidden",
+            }}
+        >
             <div className="flex flex-col gap-5">
                 <div>
                     <div className="mb-2 flex justify-between">
@@ -143,7 +152,7 @@ const MetricsCard = () => {
     return (
         <Card
             title="7 days performance metrics"
-            rootClassName="flex flex-col"
+            rootClassName="flex min-h-0 flex-col"
             classNames={{
                 body: "flex-1 place-content-center",
             }}
@@ -178,13 +187,19 @@ const UserActivityTrendCard = () => {
         queryFn: dashboardAPI.trends,
     });
     return (
-        <div className="grid grid-cols-2 gap-4">
-            <Card title="30 days user login trend">
+        <div className="grid min-h-0 grid-cols-2 gap-4">
+            <Card
+                title="30 days user login trend"
+                rootClassName="flex min-h-0 flex-col"
+                classNames={{
+                    body: "min-h-0 flex-1 overflow-hidden",
+                }}
+            >
                 <Line
                     data={data?.dailyLogins || []}
                     xField="date"
                     yField="count"
-                    height={300}
+                    height={DASHBOARD_CHART_HEIGHT}
                     axis={{
                         y: {
                             labelFormatter: (v: number) => Math.round(v),
@@ -192,12 +207,18 @@ const UserActivityTrendCard = () => {
                     }}
                 />
             </Card>
-            <Card title="24 hours active users">
+            <Card
+                title="24 hours active users"
+                rootClassName="flex min-h-0 flex-col"
+                classNames={{
+                    body: "min-h-0 flex-1 overflow-hidden",
+                }}
+            >
                 <Column
                     data={data?.hourlyActive || []}
                     xField="date"
                     yField="count"
-                    height={300}
+                    height={DASHBOARD_CHART_HEIGHT}
                     axis={{
                         y: {
                             labelFormatter: (v: number) => Math.round(v),

@@ -1,11 +1,13 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import {
     BookOutlined,
     DashboardOutlined,
+    FileUnknownOutlined,
     HistoryOutlined,
     LogoutOutlined,
     MenuOutlined,
     SettingOutlined,
+    StopOutlined,
     TeamOutlined,
     UserOutlined,
 } from "@ant-design/icons";
@@ -22,12 +24,21 @@ type AppRouter = {
     icon?: React.ReactNode;
     path?: string;
     children?: AppRouter[];
+    requiresPermission?: boolean;
 };
 
 interface BaseLayoutProps {
     children: React.ReactNode;
     hidden?: boolean;
 }
+
+const layoutContentStyle: CSSProperties = {
+    flex: 1,
+    height: "100%",
+    minHeight: "0",
+    overflow: "hidden",
+    padding: 16,
+};
 
 const systemRoutes: AppRouter = {
     name: "System",
@@ -62,13 +73,28 @@ const systemRoutes: AppRouter = {
     ],
 };
 
-const pageRoutes: AppRouter[] = [systemRoutes];
+const pageRoutes: AppRouter[] = [
+    {
+        path: "/403",
+        name: "403 Page",
+        icon: <StopOutlined />,
+        requiresPermission: false,
+    },
+    {
+        path: "/404",
+        name: "404 Page",
+        icon: <FileUnknownOutlined />,
+        requiresPermission: false,
+    },
+    systemRoutes,
+];
 
 const getMenuData = (checkMenuPermissions: (path: string) => boolean): AppRouter[] => {
     const getMenuList = (menuList: AppRouter[]): AppRouter[] => {
         return menuList
             .filter((item) => {
                 if (!item.path) return false;
+                if (item.requiresPermission === false) return true;
                 if (item.children) return true;
                 return checkMenuPermissions(item.path);
             })
@@ -133,6 +159,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
             logo="/rustzen.png"
             location={{ pathname: currentPath }}
             layout="mix"
+            contentStyle={layoutContentStyle}
             onMenuHeaderClick={() => void router.navigate({ to: "/" })}
             menuItemRender={(item, dom) => (
                 <Link to={item.path || "/"} className="block">

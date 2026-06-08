@@ -9,6 +9,8 @@ import { MessageContent, authAPI } from "@/api";
 import { BaseLayout } from "@/components/base-layout";
 import { useAuthStore } from "@/store/useAuthStore";
 
+const permissionFreePaths = new Set(["/", "/profile", "/403", "/404"]);
+
 export const Route = createRootRoute({
     beforeLoad: (ctx) => {
         const curPath = ctx.location.pathname;
@@ -28,7 +30,7 @@ export const Route = createRootRoute({
         }
 
         // Redirect to home skip permissions check
-        if (curPath === "/" || curPath === "/profile") {
+        if (permissionFreePaths.has(curPath)) {
             return null;
         }
         const isPermission = checkMenuPermissions(curPath);

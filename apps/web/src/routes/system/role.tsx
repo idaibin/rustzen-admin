@@ -1,3 +1,4 @@
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import {
     ModalForm,
     ProFormSelect,
@@ -14,6 +15,7 @@ import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
+import { TableActionButton, tableActionColumnWidth } from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
 
 export const Route = createFileRoute("/system/role")({
@@ -109,16 +111,19 @@ const columns: ProColumns<Role.Item>[] = [
         dataIndex: "updatedAt",
         valueType: "dateTime",
         width: 160,
+        ellipsis: true,
+        className: "whitespace-nowrap",
         search: false,
     },
     {
         title: "Actions",
         key: "action",
-        width: 110,
+        width: tableActionColumnWidth(2),
+        align: "left",
         search: false,
         render: (_dom: React.ReactNode, entity: Role.Item, _index, action?: ActionType) => {
             return (
-                <Space size="middle">
+                <Space size={8} align="center">
                     <AuthWrap code="system:role:update">
                         <RoleModalForm
                             mode={"edit"}
@@ -127,9 +132,7 @@ const columns: ProColumns<Role.Item>[] = [
                                 void action?.reload();
                             }}
                         >
-                            <Button type="link" size="small">
-                                Edit
-                            </Button>
+                            <TableActionButton color="blue" label="Edit" icon={<EditOutlined />} />
                         </RoleModalForm>
                     </AuthWrap>
                     <AuthPopconfirm
@@ -141,7 +144,7 @@ const columns: ProColumns<Role.Item>[] = [
                             void action?.reload();
                         }}
                     >
-                        <span className="cursor-pointer text-red-500">Delete</span>
+                        <TableActionButton color="danger" label="Delete" icon={<DeleteOutlined />} />
                     </AuthPopconfirm>
                 </Space>
             );

@@ -1,3 +1,4 @@
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import {
     ModalForm,
     ProFormText,
@@ -12,6 +13,7 @@ import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
+import { TableActionButton, tableActionColumnWidth } from "@/components/base-button";
 
 export const Route = createFileRoute("/system/dict")({
     component: DictPage,
@@ -78,10 +80,11 @@ const columns: ProColumns<Dict.Item>[] = [
     {
         title: "Actions",
         key: "action",
-        width: 110,
+        width: tableActionColumnWidth(2),
+        align: "left",
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
-            <Space size="middle">
+            <Space size={8} align="center">
                 <AuthWrap code="system:dict:update">
                     <DictModalForm
                         mode={"edit"}
@@ -90,9 +93,7 @@ const columns: ProColumns<Dict.Item>[] = [
                             void action?.reload();
                         }}
                     >
-                        <Button type="link" size="small">
-                            Edit
-                        </Button>
+                        <TableActionButton color="blue" label="Edit" icon={<EditOutlined />} />
                     </DictModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
@@ -104,7 +105,7 @@ const columns: ProColumns<Dict.Item>[] = [
                         void action?.reload();
                     }}
                 >
-                    <span className="cursor-pointer text-red-500">Delete</span>
+                    <TableActionButton color="danger" label="Delete" icon={<DeleteOutlined />} />
                 </AuthPopconfirm>
             </Space>
         ),

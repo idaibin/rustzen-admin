@@ -1,3 +1,4 @@
+import { EditOutlined } from "@ant-design/icons";
 import {
     ModalForm,
     ProFormSelect,
@@ -13,7 +14,7 @@ import React, { useMemo, useRef } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthConfirm, AuthWrap } from "@/components/base-auth";
-import { MoreButton } from "@/components/base-button";
+import { MoreButton, TableActionButton, tableActionColumnWidth } from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -132,18 +133,25 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
         title: "Last Login",
         dataIndex: "lastLoginAt",
         valueType: "dateTime",
+        width: 160,
+        ellipsis: true,
+        className: "whitespace-nowrap",
         search: false,
     },
     {
         title: "Updated At",
         dataIndex: "updatedAt",
         valueType: "dateTime",
+        width: 160,
+        ellipsis: true,
+        className: "whitespace-nowrap",
         search: false,
     },
     {
         title: "Actions",
         key: "action",
-        width: 110,
+        width: tableActionColumnWidth(2),
+        align: "left",
         search: false,
         render: (_dom: React.ReactNode, entity: User.Item, _index, action?: ActionType) => {
             if (entity.id === currentUserId || entity.id === 1) {
@@ -151,7 +159,7 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
             }
             const status = entity.status === 1 ? "Disable" : "Enable";
             return (
-                <Space size="middle">
+                <Space size={8} align="center">
                     <AuthWrap code="system:user:update">
                         <UserModalForm
                             mode={"edit"}
@@ -160,9 +168,7 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
                                 void action?.reload();
                             }}
                         >
-                            <Button type="link" size="small">
-                                Edit
-                            </Button>
+                            <TableActionButton color="blue" label="Edit" icon={<EditOutlined />} />
                         </UserModalForm>
                     </AuthWrap>
                     <MoreButton>

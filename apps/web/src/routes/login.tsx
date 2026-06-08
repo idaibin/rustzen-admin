@@ -1,7 +1,7 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
-import { Button, Checkbox, Form, Input } from "antd";
+import { Button, Form, Input } from "antd";
 import { useState } from "react";
 
 import { authAPI } from "@/api";
@@ -13,16 +13,12 @@ export const Route = createFileRoute("/login")({
     component: () => <LoginPage />,
 });
 
-type LoginFormValues = Auth.LoginRequest & {
-    remember?: boolean;
-};
-
 function LoginPage() {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { handleLogin } = useAuthStore();
     const currentYear = new Date().getFullYear();
-    const onLogin = async (values: LoginFormValues) => {
+    const onLogin = async (values: Auth.LoginRequest) => {
         setIsSubmitting(true);
         try {
             const res = await authAPI.login({
@@ -96,7 +92,7 @@ function LoginPage() {
                             </p>
                         </div>
 
-                        <Form<LoginFormValues>
+                        <Form<Auth.LoginRequest>
                             name="login"
                             onFinish={onLogin}
                             autoComplete="off"
@@ -123,7 +119,7 @@ function LoginPage() {
                                     },
                                 ]}
                             >
-                                    <Input
+                                <Input
                                     prefix={<UserOutlined className="text-[#8a9ab5]" />}
                                     placeholder="Enter username"
                                     autoComplete="username"
@@ -131,14 +127,21 @@ function LoginPage() {
                                 />
                             </Form.Item>
 
+                            <div className="mb-3 flex items-center justify-between text-base leading-none">
+                                <label
+                                    htmlFor="login_password"
+                                    className="font-semibold text-[#10213d]"
+                                >
+                                    Password
+                                </label>
+                                <span className="text-sm font-medium text-[#8b98ae]">
+                                    Forgot password?
+                                </span>
+                            </div>
+
                             <Form.Item
                                 name="password"
                                 className="mb-7"
-                                label={
-                                    <span className="text-base font-semibold text-[#10213d]">
-                                        Password
-                                    </span>
-                                }
                                 rules={[
                                     {
                                         required: true,
@@ -151,19 +154,13 @@ function LoginPage() {
                                 ]}
                             >
                                 <Input.Password
+                                    id="login_password"
                                     prefix={<LockOutlined className="text-[#8a9ab5]" />}
                                     placeholder="Enter password"
                                     autoComplete="current-password"
                                     className="h-[60px] rounded-[10px] border-[#dce4f1] px-4 text-base shadow-none hover:border-[#1677ff] focus:border-[#1677ff]"
                                 />
                             </Form.Item>
-
-                            <div className="mb-8 flex items-center justify-between text-base leading-none">
-                                <Form.Item name="remember" valuePropName="checked" noStyle>
-                                    <Checkbox className="text-[#22324d]">Remember me</Checkbox>
-                                </Form.Item>
-                                <span className="font-medium text-[#1677ff]">Forgot password?</span>
-                            </div>
 
                             <Button
                                 type="primary"
