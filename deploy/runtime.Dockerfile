@@ -60,6 +60,6 @@ COPY --from=web-builder /app/apps/web/dist ./web/dist
 RUN mkdir -p ./data/uploads ./data/avatars ./logs \
     && chmod +x ./bin/rustzen-admin
 
-EXPOSE 8007
+EXPOSE 9800
 
 ENTRYPOINT ["/opt/rustzen-admin/bin/rustzen-admin"]

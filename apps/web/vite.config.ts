@@ -19,15 +19,15 @@ export default defineConfig({
         tsconfigPaths: true,
     },
     server: {
-        port: 8008,
+        port: 9801,
         open: false,
         proxy: {
             "/api": {
-                target: "http://localhost:8007",
+                target: "http://localhost:9800",
                 changeOrigin: true,
             },
             "/uploads": {
-                target: "http://localhost:8007",
+                target: "http://localhost:9800",
                 changeOrigin: true,
             },
         },
