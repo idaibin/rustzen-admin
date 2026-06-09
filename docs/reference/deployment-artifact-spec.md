@@ -4,49 +4,26 @@ This is a reference appendix for the deployment guide.
 
 ## Naming
 
-- `binary` means the standalone Linux x86_64 backend executable.
-- `release` means the deployable directory tree plus zip archive.
-- `runtime` means the Docker image that runs the full application.
-- All exported build outputs live under `target/dist/`.
+- `server` means the standalone Linux x86_64 backend executable.
+- `web` means the frontend dist zip archive.
+- All exported build outputs live under `target/rustzen-admin/`.
 
 ## Build Outputs
 
 ```txt
-target/dist/
-├── bin/
-│   └── rustzen-admin
-├── rustzen-admin/
-│   ├── bin/
-│   ├── config/
-│   ├── data/
-│   │   ├── uploads/
-│   │   └── avatars/
-│   ├── logs/
-│   ├── install.sh
-│   ├── systemd/
-│   └── web/
-│       └── dist/
-└── rustzen-admin.zip
+target/rustzen-admin/
+├── rustzen-admin-<version>
+└── dist-<version>.zip
 ```
 
 ## Dockerfiles
 
-- `deploy/binary.Dockerfile` exports the standalone backend binary.
-- `deploy/release.Dockerfile` builds frontend and backend artifacts, assembles the release tree, and writes `rustzen-admin.zip`.
-- `deploy/runtime.Dockerfile` builds the runtime image.
+- Root `Dockerfile` exports the standalone backend binary used by `just build-server`.
+- `just build` writes the versioned server binary and web dist zip.
 
 On Apple Silicon, these builds target `linux/amd64`.
 
 Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
-
-## Release Tree Rules
-
-- `bin/rustzen-admin` is the backend executable.
-- `config/app.env` is generated from `.env.example` and rewritten with `RUSTZEN_RUNTIME_ROOT=.`.
-- `web/dist/` contains the frontend production bundle.
-- `data/uploads/`, `data/avatars/`, and `logs/` are runtime directories.
-- `install.sh` is the packaged installer used when installing the release tree.
-- `systemd/rustzen-admin.service` is the packaged service template.
 
 ## Deploy Versions
 
@@ -76,6 +53,8 @@ Use the root `justfile` as the command source of truth; inspect the relevant tar
 
 ## systemd Shape
 
+The service template lives at `deploy/rustzen-admin.service`.
+
 ```ini
 [Service]
 WorkingDirectory=/opt/rustzen-admin
@@ -86,13 +65,11 @@ Environment=RUST_LOG=info
 Environment=RUST_BACKTRACE=1
 ```
 
-## Config Template
-
-Minimum production `config/app.env`:
+## Config
 
 ```dotenv
 RUSTZEN_SQLITE_PATH=./data/rustzen.db
-RUSTZEN_JWT_SECRET=rustzen-admin-release-{version}
+RUSTZEN_JWT_SECRET=<production-secret>
 ```
 
 `.env.example` is the canonical complete field list for self-contained deployments.

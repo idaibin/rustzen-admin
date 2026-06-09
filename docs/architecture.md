@@ -35,7 +35,6 @@ Packaged deployment runs the backend as the serving process:
 - uploads: `<runtime_root>/data/uploads`
 - avatars: `<runtime_root>/data/avatars`
 - logs: `<runtime_root>/logs`
-- installer: `<runtime_root>/install.sh` in release packages
 - process env: `<runtime_root>/config/app.env`
 
 `RUSTZEN_RUNTIME_ROOT` is the single runtime root. Production uses `.` from the deploy root. Local development defaults to `.rustzen-admin`.

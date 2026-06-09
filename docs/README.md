@@ -20,12 +20,12 @@ This is the documentation entrypoint for `rustzen-admin`.
 | [project-map.md](./project-map.md) | Current fact | Maps important directories without implementation detail. |
 | [guides/backend.md](./guides/backend.md) | Current rule | Gives backend layering, naming, config, SQL, and prohibited-change rules. |
 | [guides/frontend.md](./guides/frontend.md) | Current rule | Gives route, API, state, UI, and generated-file rules. |
-| [guides/deployment.md](./guides/deployment.md) | Current rule | Gives runtime layout, config, deploy-path, and release-package rules. |
+| [guides/deployment.md](./guides/deployment.md) | Current rule | Gives runtime layout, config, deploy-path, and build-output rules. |
 | [guides/permission.md](./guides/permission.md) | Current rule | Gives permission ownership, route-check, menu-sync, and authorization rules. |
 | [reference/README.md](./reference/README.md) | Appendix index | Lists optional deep-context files. |
 | [reference/architecture-diagrams.md](./reference/architecture-diagrams.md) | Appendix | Visualizes topology and request flows. |
 | [reference/capability-map.md](./reference/capability-map.md) | Appendix | Maps current capabilities to real backend and frontend owners. |
-| [reference/deployment-artifact-spec.md](./reference/deployment-artifact-spec.md) | Appendix | Documents release artifact shape and package contents. |
+| [reference/deployment-artifact-spec.md](./reference/deployment-artifact-spec.md) | Appendix | Documents versioned server and web build outputs. |
 | [reference/api-camelcase-audit.md](./reference/api-camelcase-audit.md) | Appendix | Audits API casing boundaries. |
 | [reference/workspace-root-impl.md](./reference/workspace-root-impl.md) | Appendix | Explains runtime-root path derivation. |
 | [reference/code-review-checklist.md](./reference/code-review-checklist.md) | Appendix | Provides a compact review checklist. |

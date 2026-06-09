@@ -19,24 +19,30 @@ jobs:
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: pnpm
-                  cache-dependency-path: zen-web/pnpm-lock.yaml
+                  cache-dependency-path: apps/web/pnpm-lock.yaml
 
             - name: Enable pnpm
               run: |
                   corepack enable
-                  corepack prepare pnpm@10.32.1 --activate
+                  corepack prepare pnpm@11.2.2 --activate
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
-              working-directory: zen-web
+              working-directory: apps/web
 
             - name: Build frontend
               run: pnpm build
-              working-directory: zen-web
+              working-directory: apps/web
+
+            - name: Collect artifact
+              run: |
+                  VERSION=$(awk -F '"' '/^version = / { print $2; exit }' apps/server/Cargo.toml)
+                  mkdir -p target/rustzen-admin
+                  mv apps/web/dist-rustzen-admin-*.zip target/rustzen-admin/dist-$VERSION.zip
 
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
                   name: frontend-dist
-                  path: zen-web/dist/
+                  path: target/rustzen-admin/dist-*.zip
                   retention-days: 30

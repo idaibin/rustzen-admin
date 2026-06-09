@@ -1,17 +1,18 @@
-# justfile - monorepo command entry
+# @formatter:off
+# prettier-ignore
+# justfile - Project unified command entry
 
-# check
-check:
-    cargo check -p server
-    cd apps/web && vp lint
-
-# Start Rust backend (with hot reload)
+# development
 dev-server:
     cargo watch -x 'run -p server'
 
-# Start web (Vite dev mode)
 dev-web:
     cd apps/web && pnpm dev
+
+# check
+check:
+    cargo check --workspace
+    cd apps/web && pnpm exec vp lint
 
 # Reset local sqlite database and let migrations re-run on next startup.
 reset-db:
@@ -19,32 +20,31 @@ reset-db:
 
 # Build all (production)
 build:
+    just build-server
     just build-web
-    just build-backend
 
-# Build Rust backend release
-build-backend:
-    cargo build -p server --release
-
-# Build Linux x86_64 backend binary
-build-binary:
-    rm -rf target/dist/bin
-    mkdir -p target/dist/bin
-    docker buildx build --platform linux/amd64 --target binary --output type=local,dest=target/dist/bin -f deploy/binary.Dockerfile .
-
-# Build Linux x86_64 release tree and zip
-build-release:
-    rm -rf target/dist/rustzen-admin target/dist/rustzen-admin.zip
-    mkdir -p target/dist
-    docker buildx build --platform linux/amd64 --target release --output type=local,dest=target/dist -f deploy/release.Dockerfile .
-
-# Build Linux x86_64 runtime Docker image
-build-image:
-    docker buildx build --platform linux/amd64 --target runtime --load -t rustzen-admin:runtime -f deploy/runtime.Dockerfile .
+# Build x86_64 Linux musl server deployment binary
+build-server:
+    just _build-binary server x86_64-unknown-linux-musl linux/amd64
 
 # Build web production bundle
 build-web:
+    rm -f apps/web/dist-rustzen-admin-*.zip
     cd apps/web && pnpm build
+    VERSION=$(awk -F '"' '/^version = / { print $2; exit }' apps/server/Cargo.toml) && mkdir -p target/rustzen-admin && mv apps/web/dist-rustzen-admin-*.zip target/rustzen-admin/dist-$VERSION.zip
+
+_build-binary PACKAGE_NAME TARGET_TRIPLE PLATFORM:
+    mkdir -p target/rustzen-admin
+    docker buildx build --platform {{PLATFORM}} --build-arg PACKAGE_NAME={{PACKAGE_NAME}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --target export --output type=local,dest=target/rustzen-admin .
+
+# Update project version.
+bump-version VERSION:
+    @sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' apps/server/Cargo.toml
+    @sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' crates/auth/Cargo.toml
+    @sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' crates/config/Cargo.toml
+    @sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' crates/runtime/Cargo.toml
+    @sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' crates/storage/Cargo.toml
+    @sed -i '' 's/"version": ".*"/"version": "{{VERSION}}"/' apps/web/package.json
 
 # Clean build outputs
 clean:

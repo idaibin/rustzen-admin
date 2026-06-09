@@ -13,8 +13,6 @@ Current deployment rules.
 │   └── avatars/
 ├── logs/
 ├── versions/
-├── install.sh
-├── systemd/
 └── web/
     └── dist/
 ```
@@ -27,19 +25,20 @@ Current deployment rules.
 - Runtime config comes from `RUSTZEN_SQLITE_PATH` and `RUSTZEN_*`.
 - Production must provide `RUSTZEN_SQLITE_PATH` and `RUSTZEN_JWT_SECRET`.
 - `config/app.env` is only an environment-variable carrier.
-- Release builds replace `rustzen-admin-release-{version}` with the release version placeholder; production must replace that placeholder with a real secret.
 - Backend static files are served from `<runtime_root>/web/dist`.
 - Uploads live under `<runtime_root>/data/uploads`.
 - Avatars live under `<runtime_root>/data/avatars`.
 - Logs live under `<runtime_root>/logs`.
 - Uploaded server versions live under `<runtime_root>/versions`.
 - Build and deploy targets are defined in the root `justfile`.
+- `just build` writes versioned deployment outputs under `target/rustzen-admin/`.
+- Build outputs are flat files: `rustzen-admin-<version>` and `dist-<version>.zip`.
 - Frontend release builds use pnpm with `apps/web/pnpm-lock.yaml`.
-The sqlite-first phase uses SQLite by default and does not require PostgreSQL for local startup.
+- The sqlite-first phase uses SQLite by default and does not require PostgreSQL for local startup.
 - Deploy version management accepts only `server` and `web` components.
 - `server` uploads are executable binary files with a `RUSTZEN_ADMIN_MARKER` marker and matching `x86_64` or `aarch64` arch.
 - `web` uploads are zip files containing `dist/index.html`, `dist/assets/*.js` or `*.css`, and `dist/__rustzen_admin_marker__.json`.
-- Deploying `server` switches `<runtime_root>/bin/rustzen-admin` to the uploaded version and triggers `rustzen-admin.service` restart.
+- Deploying `server` switches `<runtime_root>/bin/rustzen-admin` to the uploaded version and triggers `rustzen-admin.service` restart. The service template lives at `deploy/rustzen-admin.service`.
 - Server deploy records are marked current only after the restart trigger is accepted.
 - Deploying `web` replaces `<runtime_root>/web/dist` from the uploaded zip.
 - Web deploy restores the previous `web/dist` when the database current-version update fails.
@@ -59,12 +58,14 @@ The sqlite-first phase uses SQLite by default and does not require PostgreSQL fo
 cargo run -p server
 ```
 
-## Checks
+## Build Output Checks
 
-- `bin/rustzen-admin` exists.
-- `web/dist/index.html` exists.
-- `config/app.env` exists.
-- `install.sh` exists and is executable.
-- Runtime data and log directories are writable.
-- `systemd/rustzen-admin.service` exists in release packages.
+- `target/rustzen-admin/rustzen-admin-<version>` exists and is executable.
+- `target/rustzen-admin/dist-<version>.zip` exists.
+- The web zip contains `dist/index.html`.
+- The web zip contains at least one `dist/assets/*.js` or `dist/assets/*.css` file.
+- The web zip contains `dist/__rustzen_admin_marker__.json`.
+
+## Deploy Checks
+
 - Uploaded deploy file SHA-256 matches the stored database record before deployment.

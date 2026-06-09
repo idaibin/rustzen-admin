@@ -1,8 +1,11 @@
 .git
+.codex
+.rustzen-admin
 .DS_Store
+
 target
-zen-web/node_modules
-zen-web/dist
+apps/web/node_modules
+apps/web/dist
+apps/web/dist-*.zip
 logs
 uploads
-.rustzen-admin
