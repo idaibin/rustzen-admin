@@ -13,20 +13,21 @@ This audit records the current JSON naming boundary. Source code takes precedenc
 
 Current backend files with `#[serde(rename_all = "camelCase")]` include:
 
-- `zen-server/src/features/auth/types.rs`
-- `zen-server/src/features/account/types.rs`
-- `zen-server/src/features/dashboard/types.rs`
-- `zen-server/src/features/system/dict/types.rs`
-- `zen-server/src/features/system/log/types.rs`
-- `zen-server/src/features/system/menu/types.rs`
-- `zen-server/src/features/system/role/types.rs`
-- `zen-server/src/features/system/user/types.rs`
-- `zen-server/src/infra/system_info.rs`
+- `apps/server/src/features/auth/types.rs`
+- `apps/server/src/features/account/types.rs`
+- `apps/server/src/features/dashboard/types.rs`
+- `apps/server/src/features/manage/deploy/types.rs`
+- `apps/server/src/features/manage/dict/types.rs`
+- `apps/server/src/features/manage/log/types.rs`
+- `apps/server/src/features/manage/task/types.rs`
+- `apps/server/src/features/system/menu/types.rs`
+- `apps/server/src/features/system/role/types.rs`
+- `apps/server/src/features/system/user/types.rs`
 
 ## Current Frontend Boundary
 
-- API modules live under `zen-web/src/api/`.
-- Shared request behavior lives in `zen-web/src/api/request.ts`.
+- API modules live under `apps/web/src/api/`.
+- Shared request behavior lives in `apps/web/src/api/request.ts`.
 - Domain types live in `types.d.ts` beside their owning API module.
 
 ## Review Checklist

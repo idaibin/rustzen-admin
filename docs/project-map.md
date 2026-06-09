@@ -45,8 +45,10 @@ This is a practical path index for task orientation. It maps where to look first
 | `apps/server/src/features/auth/` | Login, logout, and current-session bootstrap. | You touch session, token, login info, or logout behavior. |
 | `apps/server/src/features/account/` | Current-account profile, avatar, and password flows. | You touch self-service account behavior. |
 | `apps/server/src/features/dashboard/` | Dashboard summary APIs. | You touch dashboard cards or summary stats. |
-| `apps/server/src/features/system/dict/` | Dictionary management. | You touch dictionary data or option sources. |
-| `apps/server/src/features/system/log/` | System log management and current audit carrier. | You touch operation or login logs. |
+| `apps/server/src/features/manage/dict/` | Dictionary management. | You touch dictionary data or option sources. |
+| `apps/server/src/features/manage/log/` | Operation log management and current audit carrier. | You touch operation or login logs. |
+| `apps/server/src/features/manage/task/` | Fixed scheduled tasks and task run history. | You touch scheduler startup, cron jobs, or retention cleanup. |
+| `apps/server/src/features/manage/deploy/` | Uploaded `server`/`web` deploy versions, file validation, and local activation. | You touch deploy version behavior. |
 | `apps/server/src/features/system/menu/` | Menu and permission menu management. | You touch menu trees or permission-code menu rows. |
 | `apps/server/src/features/system/role/` | Role management. | You touch roles or role-menu assignment. |
 | `apps/server/src/features/system/user/` | User management and access-facing user-role behavior. | You touch admin user CRUD, status, password reset, or user-role assignment. |
@@ -71,4 +73,4 @@ This is a practical path index for task orientation. It maps where to look first
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `deploy/` | Dockerfiles and service template. | You package or deploy the app. |
+| `deploy/` | Dockerfiles, package installer, and service template. | You package or deploy the app. |

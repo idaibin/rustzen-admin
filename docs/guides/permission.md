@@ -15,11 +15,12 @@ Current capability model and usage rules.
 - Use `Any(...)` or `All(...)` only for a concrete feature need.
 - Capability strings use `domain:resource:action` today.
 - This project keeps the same capability format while describing behavior as boundary checks.
-- Stable actions: `list`, `create`, `update`, `delete`, `options`, `status`, `password`.
-- `*` is the only full-authorization grant.
+- Stable actions: `list`, `create`, `update`, `delete`, `options`, `status`, `password`, `run`.
+- `*` is the full-authorization grant.
+- Prefix wildcard grants such as `manage:task:*` authorize matching colon-separated child capabilities such as `manage:task:list` and `manage:task:run:status`.
 - `users.is_system`, `roles.is_system`, and `menus.is_system` are built-in record flags, not grants.
 - Protect built-in records by checking whether the current user has `*`.
-- Missing or expired permission cache requires re-authentication.
+- Missing or expired permission cache is rebuilt from the database on demand to avoid unnecessary re-authentication.
 
 ## Capability Naming
 
@@ -28,6 +29,8 @@ Current capability model and usage rules.
   - roles
   - permissions
   - menus
+  - manage tasks
+  - manage deploy versions
 - New checks should describe capabilities with intent. For example:
   - `system:user:list` (read users)
   - `system:role:create` (manage roles)

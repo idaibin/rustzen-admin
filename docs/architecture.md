@@ -16,7 +16,7 @@ SQLite is the default storage backend. PostgreSQL-first behavior is archived und
 - `deploy/` owns deployment assets.
 - `docs/` owns repository documentation.
 
-Backend feature code lives under `apps/server/src/features/<feature>/` with `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` unless the feature is intentionally smaller.
+Backend feature code lives under `apps/server/src/features/<feature>/` with `mod.rs`, `handler.rs`, `service.rs`, `repo.rs`, and `types.rs` unless the feature is intentionally smaller. System user/role/menu stay under `features/system/`; dictionary, logs, scheduled tasks, and deploy version management live under `features/manage/`.
 
 Frontend pages live under `apps/web/src/routes/`. Frontend API modules live under `apps/web/src/api/`.
 
@@ -30,10 +30,12 @@ Local development runs backend and frontend separately:
 Packaged deployment runs the backend as the serving process:
 
 - backend binary: `<runtime_root>/bin/rustzen-admin`
+- deploy versions: `<runtime_root>/versions` for server files and `<runtime_root>/web/web-<version>.zip` for web files
 - frontend static files: `<runtime_root>/web/dist`
 - uploads: `<runtime_root>/data/uploads`
 - avatars: `<runtime_root>/data/avatars`
 - logs: `<runtime_root>/logs`
+- installer: `<runtime_root>/install.sh` in release packages
 - process env: `<runtime_root>/config/app.env`
 
 `RUSTZEN_RUNTIME_ROOT` is the single runtime root. Production uses `.` from the deploy root. Local development defaults to `.rustzen-admin`.
@@ -45,6 +47,8 @@ Packaged deployment runs the backend as the serving process:
 - Backend handlers parse requests and return responses.
 - Backend services coordinate validation, transactions, permission-aware behavior, and repo calls.
 - Backend repos run SQL against SQLite by default.
+- The built-in task scheduler starts with the backend and registers fixed manage tasks from source.
+- Deploy version management stores uploaded `server` binaries and `web` dist zip files with version, arch, file size, and SHA-256. Deploying `server` switches the runtime binary symlink and triggers a service restart; deploying `web` extracts the zip into `<runtime_root>/web/dist`.
 - Static files and uploaded resources are served from paths derived from `RUSTZEN_RUNTIME_ROOT`.
 
 ## Permissions

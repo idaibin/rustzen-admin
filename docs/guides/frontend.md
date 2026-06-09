@@ -28,7 +28,18 @@ Rules for frontend work under `apps/web/`.
 - Keep page-local tables, forms, and action handlers in the route file until reuse is real.
 - Keep layout-only concerns in `apps/web/src/components/base-layout/`.
 - Use existing design-system primitives before adding wrappers.
+- Prefer plain function components. Use `forwardRef`, `memo`, `useCallback`, or similar React wrappers only when a real caller needs the ref identity or memoized identity.
+- Do not add small calculation helpers or generic abstractions for values that are clearer as local constants or fixed props.
 - Use root `justfile` as the command source of truth.
+
+## Tables
+
+- Use `ProTable` for admin list pages unless the page has a reason to use lower-level `Table`.
+- Keep table column definitions close to the owning route until reuse is real.
+- For icon-only action columns, use `TableActionButton` and `TABLE_ACTION_SPACE_SIZE`.
+- Set action column `width` to the smallest fixed value that keeps actions on one line. If a page has more actions, calculate the value once while designing the column and write the fixed number directly.
+- Do not add a helper such as `tableActionColumnWidth(count)` for simple one-line width math.
+- Do not override `.ant-table-cell` padding for a single page. If table density needs to change globally, use Ant Design table size or theme tokens as a product-wide decision.
 
 ## Package Manager
 
