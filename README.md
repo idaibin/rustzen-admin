@@ -21,6 +21,16 @@ The repository is organized as a monorepo:
 
 This layout keeps backend, frontend, and repository rules explicit, making the codebase easier to understand, review, and evolve.
 
+## Screenshots
+
+| Dashboard | Scheduled Tasks |
+| --- | --- |
+| ![Dashboard](./docs/assets/screenshots/dashboard.jpg) | ![Scheduled Tasks](./docs/assets/screenshots/scheduled-tasks.jpg) |
+
+| Deploy Versions | Operation Logs |
+| --- | --- |
+| ![Deploy Versions](./docs/assets/screenshots/deploy-versions.jpg) | ![Operation Logs](./docs/assets/screenshots/operation-logs.jpg) |
+
 ## Repository Layout
 
 → Architecture summary: [docs/architecture.md](./docs/architecture.md)
