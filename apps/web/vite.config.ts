@@ -3,8 +3,8 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
-const BACKEND_PORT = 9800;
-const WEB_DEV_PORT = 9801;
+const WEB_DEV_PORT = 9800;
+const BACKEND_PORT = 9801;
 
 // https://vite.dev/config/
 export default defineConfig({

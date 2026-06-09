@@ -13,7 +13,7 @@ const DEFAULT_SQLITE_PATH: &str = "./data/rustzen.db";
 const DEFAULT_APP_HOST: &str = "0.0.0.0";
 
 /// Default port for the HTTP service.
-const DEFAULT_APP_PORT: u16 = 9800;
+const DEFAULT_APP_PORT: u16 = 9801;
 
 /// Default maximum database pool size.
 const DEFAULT_DB_MAX_CONN: u32 = 4;
@@ -221,7 +221,7 @@ mod tests {
     fn test_config(jwt_secret: &str, runtime_root: &str) -> Config {
         Config {
             sqlite_path: "./data/rustzen.db".to_string(),
-            app_port: 9800,
+            app_port: 9801,
             app_host: "0.0.0.0".to_string(),
             db_max_conn: 4,
             db_min_conn: 1,
@@ -247,7 +247,7 @@ mod tests {
     fn runtime_root_derives_standard_runtime_paths() {
         let config = Config {
             sqlite_path: "./data/rustzen.db".to_string(),
-            app_port: 9800,
+            app_port: 9801,
             app_host: "0.0.0.0".to_string(),
             db_max_conn: 4,
             db_min_conn: 1,
@@ -275,7 +275,7 @@ mod tests {
         let cwd = env::current_dir().expect("cwd");
         let config = Config {
             sqlite_path: "./data/rustzen.db".to_string(),
-            app_port: 9800,
+            app_port: 9801,
             app_host: "0.0.0.0".to_string(),
             db_max_conn: 4,
             db_min_conn: 1,
