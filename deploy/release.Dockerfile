@@ -44,6 +44,7 @@ RUN cargo build -p server --release --target x86_64-unknown-linux-musl
 FROM ubuntu:24.04 AS release-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
+ARG RELEASE_VERSION
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -56,10 +57,14 @@ WORKDIR /out
 COPY --from=server-builder /app/target/x86_64-unknown-linux-musl/release/rustzen-admin /out/rustzen-admin/bin/rustzen-admin
 COPY --from=web-builder /app/apps/web/dist /out/rustzen-admin/web/dist
 COPY .env.example /out/rustzen-admin/config/app.env
+COPY apps/server/Cargo.toml /tmp/server-Cargo.toml
 COPY deploy/rustzen-admin.service /out/rustzen-admin/systemd/rustzen-admin.service
+COPY deploy/install.sh /out/rustzen-admin/install.sh
 
-RUN mkdir -p /out/rustzen-admin/data/uploads /out/rustzen-admin/data/avatars /out/rustzen-admin/logs \
-    && chmod +x /out/rustzen-admin/bin/rustzen-admin \
+RUN mkdir -p /out/rustzen-admin/data/uploads /out/rustzen-admin/data/avatars /out/rustzen-admin/logs /out/rustzen-admin/versions \
+    && chmod +x /out/rustzen-admin/bin/rustzen-admin /out/rustzen-admin/install.sh \
+    && version="${RELEASE_VERSION:-v$(grep -m1 '^version = ' /tmp/server-Cargo.toml | cut -d '"' -f2)}" \
+    && sed -i "s#^RUSTZEN_JWT_SECRET=.*#RUSTZEN_JWT_SECRET=rustzen-admin-release-${version}#" /out/rustzen-admin/config/app.env \
     && sed -i 's#^RUSTZEN_RUNTIME_ROOT=.*#RUSTZEN_RUNTIME_ROOT=.#' /out/rustzen-admin/config/app.env \
     && cd /out \
     && zip -qr rustzen-admin.zip rustzen-admin

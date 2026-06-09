@@ -57,7 +57,7 @@ RUN apt-get update \
 COPY --from=server-builder /app/target/x86_64-unknown-linux-musl/release/rustzen-admin ./bin/rustzen-admin
 COPY --from=web-builder /app/apps/web/dist ./web/dist
 
-RUN mkdir -p ./data/uploads ./data/avatars ./logs \
+RUN mkdir -p ./data/uploads ./data/avatars ./logs ./versions \
     && chmod +x ./bin/rustzen-admin
 
 EXPOSE 9800
