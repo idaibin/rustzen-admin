@@ -27,17 +27,29 @@ const DEFAULT_DB_CONN_TIMEOUT: u64 = 10;
 /// Default database idle timeout in seconds.
 const DEFAULT_DB_IDLE_TIMEOUT: u64 = 600;
 
-/// Default JWT lifetime in seconds.
-const DEFAULT_JWT_EXPIRATION: i64 = 3600;
+/// Default JWT lifetime in seconds (2 hours).
+const DEFAULT_JWT_EXPIRATION: i64 = 7200;
 
 /// Development-only fallback JWT secret.
 const DEFAULT_DEV_JWT_SECRET: &str = "rustzen-dev-jwt-secret-change-in-production";
+
+/// Release-package placeholder JWT secret.
+const RELEASE_JWT_SECRET_PLACEHOLDER: &str = "rustzen-admin-release-{version}";
+
+/// Release-package generated JWT secret prefix.
+const RELEASE_JWT_SECRET_PREFIX: &str = "rustzen-admin-release-";
 
 /// Default logging file prefix.
 const DEFAULT_LOG_FILE_PREFIX: &str = "server";
 
 /// Default log retention days.
-const DEFAULT_LOG_RETENTION_DAYS: u64 = 7;
+const DEFAULT_LOG_RETENTION_DAYS: u64 = 30;
+
+/// Default process and business timezone.
+const DEFAULT_TIMEZONE: &str = "Asia/Shanghai";
+
+/// Default task run retention days.
+const DEFAULT_TASK_RUN_RETENTION_DAYS: i64 = 30;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -67,6 +79,10 @@ pub struct Config {
     pub log_file_prefix: String,
     #[serde(default = "default_log_retention_days")]
     pub log_retention_days: u64,
+    #[serde(default = "default_timezone")]
+    pub timezone: String,
+    #[serde(default = "default_task_run_retention_days")]
+    pub task_run_retention_days: i64,
 }
 
 /// Global process configuration loaded from `RUSTZEN_*` env.
@@ -129,6 +145,14 @@ fn default_log_retention_days() -> u64 {
     DEFAULT_LOG_RETENTION_DAYS
 }
 
+fn default_timezone() -> String {
+    DEFAULT_TIMEZONE.to_string()
+}
+
+fn default_task_run_retention_days() -> i64 {
+    DEFAULT_TASK_RUN_RETENTION_DAYS
+}
+
 fn default_app_port() -> u16 {
     DEFAULT_APP_PORT
 }
@@ -173,22 +197,46 @@ fn ensure_production_jwt_secret(config: &Config) {
     let env = std::env::var("RUSTZEN_ENV").unwrap_or_else(|_| "development".to_string());
     let env = env.to_ascii_lowercase();
     let is_production = env == "production" || env == "prod";
+    let is_release_layout = config.runtime_root.trim() == ".";
     let uses_dev_default = config.jwt_secret == DEFAULT_DEV_JWT_SECRET;
-    let uses_placeholder = config.jwt_secret == "replace-me";
+    let uses_placeholder =
+        config.jwt_secret == "replace-me"
+            || config.jwt_secret == RELEASE_JWT_SECRET_PLACEHOLDER
+            || config.jwt_secret.starts_with(RELEASE_JWT_SECRET_PREFIX);
     let is_empty = config.jwt_secret.trim().is_empty();
 
     assert!(
-        !(is_production && (uses_dev_default || uses_placeholder || is_empty)),
-        "RUSTZEN_JWT_SECRET must be explicitly set in production and cannot use default or placeholder values"
+        !((is_production || is_release_layout) && (uses_dev_default || uses_placeholder || is_empty)),
+        "RUSTZEN_JWT_SECRET must be explicitly set for release/production and cannot use default or placeholder values"
     );
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, default_runtime_root};
+    use super::{Config, default_runtime_root, ensure_production_jwt_secret};
     use rustzen_runtime::resolve_path_with_runtime_root;
     use std::env;
     use std::path::PathBuf;
+
+    fn test_config(jwt_secret: &str, runtime_root: &str) -> Config {
+        Config {
+            sqlite_path: "./data/rustzen.db".to_string(),
+            app_port: 9800,
+            app_host: "0.0.0.0".to_string(),
+            db_max_conn: 4,
+            db_min_conn: 1,
+            db_conn_timeout: 10,
+            db_idle_timeout: 600,
+            jwt_secret: jwt_secret.to_string(),
+            jwt_expiration: 3600,
+            runtime_root: runtime_root.to_string(),
+            files_prefix: "/resources".to_string(),
+            log_file_prefix: "server".to_string(),
+            log_retention_days: 30,
+            timezone: "Asia/Shanghai".to_string(),
+            task_run_retention_days: 30,
+        }
+    }
 
     #[test]
     fn runtime_root_default_uses_hidden_dev_dir() {
@@ -210,7 +258,9 @@ mod tests {
             runtime_root: ".rustzen-admin".to_string(),
             files_prefix: "/resources".to_string(),
             log_file_prefix: "server".to_string(),
-            log_retention_days: 7,
+            log_retention_days: 30,
+            timezone: "Asia/Shanghai".to_string(),
+            task_run_retention_days: 30,
         };
 
         assert_eq!(config.web_dist_dir(), PathBuf::from(".rustzen-admin/web/dist"));
@@ -236,12 +286,35 @@ mod tests {
             runtime_root: ".rustzen-admin".to_string(),
             files_prefix: "/resources".to_string(),
             log_file_prefix: "server".to_string(),
-            log_retention_days: 7,
+            log_retention_days: 30,
+            timezone: "Asia/Shanghai".to_string(),
+            task_run_retention_days: 30,
         };
 
         let expected = resolve_path_with_runtime_root(".rustzen-admin", "./data/rustzen.db");
         assert_eq!(config.sqlite_database_path(), expected);
         assert!(config.sqlite_database_path().is_absolute());
         assert_eq!(config.sqlite_database_path(), cwd.join(".rustzen-admin/data/rustzen.db"));
+    }
+
+    #[test]
+    fn release_layout_rejects_release_jwt_placeholder() {
+        let config = test_config("rustzen-admin-release-{version}", ".");
+
+        assert!(std::panic::catch_unwind(|| ensure_production_jwt_secret(&config)).is_err());
+    }
+
+    #[test]
+    fn release_layout_rejects_generated_release_jwt_placeholder() {
+        let config = test_config("rustzen-admin-release-v0.2.3", ".");
+
+        assert!(std::panic::catch_unwind(|| ensure_production_jwt_secret(&config)).is_err());
+    }
+
+    #[test]
+    fn release_layout_rejects_legacy_jwt_placeholder() {
+        let config = test_config("replace-me", ".");
+
+        assert!(std::panic::catch_unwind(|| ensure_production_jwt_secret(&config)).is_err());
     }
 }

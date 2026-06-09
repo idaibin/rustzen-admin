@@ -1,46 +1,43 @@
 import { EllipsisOutlined } from "@ant-design/icons";
-import { forwardRef, useMemo, type ReactElement, type ReactNode } from "react";
+import { useMemo, type ReactElement, type ReactNode } from "react";
 import { Button, Dropdown, Tooltip, type ButtonProps, type DropdownProps } from "antd";
 
 import { useAuthStore } from "@/store/useAuthStore";
 
-const TABLE_ACTION_MIN_CONTENT_WIDTH = 32;
-const TABLE_ACTION_CELL_PADDING = 32;
-const TABLE_ACTION_ICON_WIDTH = 24;
-const TABLE_ACTION_ICON_GAP = 8;
-
-export const tableActionColumnWidth = (iconCount: number) => {
-    const normalizedIconCount = Math.max(1, iconCount);
-    const iconWidth =
-        normalizedIconCount * TABLE_ACTION_ICON_WIDTH +
-        (normalizedIconCount - 1) * TABLE_ACTION_ICON_GAP;
-
-    return Math.max(TABLE_ACTION_MIN_CONTENT_WIDTH, iconWidth + TABLE_ACTION_CELL_PADDING);
-};
+const TABLE_ACTION_ICON_SIZE = 24;
+export const TABLE_ACTION_SPACE_SIZE = 4;
 
 interface TableActionButtonProps extends Omit<ButtonProps, "children" | "icon"> {
     label: string;
     icon: ReactNode;
 }
 
-export const TableActionButton = forwardRef<
-    HTMLAnchorElement | HTMLButtonElement,
-    TableActionButtonProps
->(({ label, icon, size = "small", variant = "text", htmlType = "button", ...props }, ref) => (
+export const TableActionButton = ({
+    label,
+    icon,
+    size = "small",
+    variant = "text",
+    htmlType = "button",
+    style,
+    ...props
+}: TableActionButtonProps) => (
     <Tooltip title={label}>
         <Button
-            ref={ref}
             aria-label={label}
             icon={icon}
             size={size}
             variant={variant}
             htmlType={htmlType}
+            style={{
+                minWidth: TABLE_ACTION_ICON_SIZE,
+                width: TABLE_ACTION_ICON_SIZE,
+                paddingInline: 0,
+                ...style,
+            }}
             {...props}
         />
     </Tooltip>
-));
-
-TableActionButton.displayName = "TableActionButton";
+);
 
 interface MoreButtonProps {
     children: ReactElement[];

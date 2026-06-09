@@ -19,10 +19,6 @@ impl LogRepository {
                 query_builder
                     .push(" AND (LOWER(username) LIKE ")
                     .push_bind(pattern.clone())
-                    .push(" OR LOWER(action) LIKE ")
-                    .push_bind(pattern.clone())
-                    .push(" OR LOWER(description) LIKE ")
-                    .push_bind(pattern.clone())
                     .push(" OR LOWER(ip_address) LIKE ")
                     .push_bind(pattern)
                     .push(")");

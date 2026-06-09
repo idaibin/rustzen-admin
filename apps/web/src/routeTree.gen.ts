@@ -17,8 +17,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SystemUserRouteImport } from './routes/system/user'
 import { Route as SystemRoleRouteImport } from './routes/system/role'
 import { Route as SystemMenuRouteImport } from './routes/system/menu'
-import { Route as SystemLogRouteImport } from './routes/system/log'
-import { Route as SystemDictRouteImport } from './routes/system/dict'
+import { Route as ManageTaskRouteImport } from './routes/manage/task'
+import { Route as ManageLogRouteImport } from './routes/manage/log'
+import { Route as ManageDictRouteImport } from './routes/manage/dict'
+import { Route as ManageDeployRouteImport } from './routes/manage/deploy'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -60,14 +62,24 @@ const SystemMenuRoute = SystemMenuRouteImport.update({
   path: '/system/menu',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SystemLogRoute = SystemLogRouteImport.update({
-  id: '/system/log',
-  path: '/system/log',
+const ManageTaskRoute = ManageTaskRouteImport.update({
+  id: '/manage/task',
+  path: '/manage/task',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SystemDictRoute = SystemDictRouteImport.update({
-  id: '/system/dict',
-  path: '/system/dict',
+const ManageLogRoute = ManageLogRouteImport.update({
+  id: '/manage/log',
+  path: '/manage/log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManageDictRoute = ManageDictRouteImport.update({
+  id: '/manage/dict',
+  path: '/manage/dict',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManageDeployRoute = ManageDeployRouteImport.update({
+  id: '/manage/deploy',
+  path: '/manage/deploy',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -77,8 +89,10 @@ export interface FileRoutesByFullPath {
   '/404': typeof R404Route
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
-  '/system/dict': typeof SystemDictRoute
-  '/system/log': typeof SystemLogRoute
+  '/manage/deploy': typeof ManageDeployRoute
+  '/manage/dict': typeof ManageDictRoute
+  '/manage/log': typeof ManageLogRoute
+  '/manage/task': typeof ManageTaskRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
   '/system/user': typeof SystemUserRoute
@@ -89,8 +103,10 @@ export interface FileRoutesByTo {
   '/404': typeof R404Route
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
-  '/system/dict': typeof SystemDictRoute
-  '/system/log': typeof SystemLogRoute
+  '/manage/deploy': typeof ManageDeployRoute
+  '/manage/dict': typeof ManageDictRoute
+  '/manage/log': typeof ManageLogRoute
+  '/manage/task': typeof ManageTaskRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
   '/system/user': typeof SystemUserRoute
@@ -102,8 +118,10 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
-  '/system/dict': typeof SystemDictRoute
-  '/system/log': typeof SystemLogRoute
+  '/manage/deploy': typeof ManageDeployRoute
+  '/manage/dict': typeof ManageDictRoute
+  '/manage/log': typeof ManageLogRoute
+  '/manage/task': typeof ManageTaskRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/role': typeof SystemRoleRoute
   '/system/user': typeof SystemUserRoute
@@ -116,8 +134,10 @@ export interface FileRouteTypes {
     | '/404'
     | '/login'
     | '/profile'
-    | '/system/dict'
-    | '/system/log'
+    | '/manage/deploy'
+    | '/manage/dict'
+    | '/manage/log'
+    | '/manage/task'
     | '/system/menu'
     | '/system/role'
     | '/system/user'
@@ -128,8 +148,10 @@ export interface FileRouteTypes {
     | '/404'
     | '/login'
     | '/profile'
-    | '/system/dict'
-    | '/system/log'
+    | '/manage/deploy'
+    | '/manage/dict'
+    | '/manage/log'
+    | '/manage/task'
     | '/system/menu'
     | '/system/role'
     | '/system/user'
@@ -140,8 +162,10 @@ export interface FileRouteTypes {
     | '/404'
     | '/login'
     | '/profile'
-    | '/system/dict'
-    | '/system/log'
+    | '/manage/deploy'
+    | '/manage/dict'
+    | '/manage/log'
+    | '/manage/task'
     | '/system/menu'
     | '/system/role'
     | '/system/user'
@@ -153,8 +177,10 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
-  SystemDictRoute: typeof SystemDictRoute
-  SystemLogRoute: typeof SystemLogRoute
+  ManageDeployRoute: typeof ManageDeployRoute
+  ManageDictRoute: typeof ManageDictRoute
+  ManageLogRoute: typeof ManageLogRoute
+  ManageTaskRoute: typeof ManageTaskRoute
   SystemMenuRoute: typeof SystemMenuRoute
   SystemRoleRoute: typeof SystemRoleRoute
   SystemUserRoute: typeof SystemUserRoute
@@ -218,18 +244,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemMenuRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/system/log': {
-      id: '/system/log'
-      path: '/system/log'
-      fullPath: '/system/log'
-      preLoaderRoute: typeof SystemLogRouteImport
+    '/manage/task': {
+      id: '/manage/task'
+      path: '/manage/task'
+      fullPath: '/manage/task'
+      preLoaderRoute: typeof ManageTaskRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/system/dict': {
-      id: '/system/dict'
-      path: '/system/dict'
-      fullPath: '/system/dict'
-      preLoaderRoute: typeof SystemDictRouteImport
+    '/manage/log': {
+      id: '/manage/log'
+      path: '/manage/log'
+      fullPath: '/manage/log'
+      preLoaderRoute: typeof ManageLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manage/dict': {
+      id: '/manage/dict'
+      path: '/manage/dict'
+      fullPath: '/manage/dict'
+      preLoaderRoute: typeof ManageDictRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manage/deploy': {
+      id: '/manage/deploy'
+      path: '/manage/deploy'
+      fullPath: '/manage/deploy'
+      preLoaderRoute: typeof ManageDeployRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -241,8 +281,10 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
-  SystemDictRoute: SystemDictRoute,
-  SystemLogRoute: SystemLogRoute,
+  ManageDeployRoute: ManageDeployRoute,
+  ManageDictRoute: ManageDictRoute,
+  ManageLogRoute: ManageLogRoute,
+  ManageTaskRoute: ManageTaskRoute,
   SystemMenuRoute: SystemMenuRoute,
   SystemRoleRoute: SystemRoleRoute,
   SystemUserRoute: SystemUserRoute,

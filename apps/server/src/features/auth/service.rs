@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     common::error::ServiceError,
-    features::system::log::{service::LogService, types::LogWriteCommand},
+    features::manage::log::{service::LogService, types::LogWriteCommand},
     infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 

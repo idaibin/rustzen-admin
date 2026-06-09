@@ -1,9 +1,9 @@
-import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
 import { Dropdown } from "antd";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 
 import { appMessage, authAPI } from "@/api";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -93,11 +93,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
                 children: menuData,
             }}
             actionsRender={() => [
-                <AppSearch
-                    key="page-search"
-                    routes={searchRoutes}
-                    onSelect={handleSearchSelect}
-                />,
+                <AppSearch key="page-search" routes={searchRoutes} onSelect={handleSearchSelect} />,
             ]}
             avatarProps={{
                 src: userInfo?.avatarUrl,

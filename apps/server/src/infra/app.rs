@@ -4,6 +4,9 @@ use crate::{
         account::account_routes,
         auth::{protected_auth_routes, public_auth_routes},
         dashboard::dashboard_routes,
+        manage::{
+            deploy::service::DeployService, manage_routes, task::service::TaskService,
+        },
         system::system_routes,
     },
     infra::{
@@ -16,6 +19,7 @@ use crate::{
 };
 
 use axum::{
+    Extension,
     Router,
     http::{
         HeaderValue, Method,
@@ -38,6 +42,9 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let pool = create_default_pool().await?;
     run_migrations(&pool).await?;
     test_connection(&pool).await?;
+    let task_service = std::sync::Arc::new(TaskService::new(pool.clone())?);
+    task_service.bootstrap().await?;
+    let deploy_service = std::sync::Arc::new(DeployService::new(pool.clone()));
 
     let cors = CorsLayer::new()
         .allow_origin(HeaderValue::from_static("*"))
@@ -48,10 +55,13 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/account", account_routes())
         .nest("/auth", protected_auth_routes())
         .nest("/dashboard", dashboard_routes())
+        .nest("/manage", manage_routes())
         .nest("/system", system_routes())
+        .layer(Extension(task_service))
+        .layer(Extension(deploy_service))
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
         .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader),
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
         ));
 

@@ -11,11 +11,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Form, Space, Tag } from "antd";
 import React, { useRef } from "react";
 
-import { systemAPI } from "@/api";
+import { manageAPI } from "@/api";
 import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
-import { TableActionButton, tableActionColumnWidth } from "@/components/base-button";
+import {
+    TABLE_ACTION_SPACE_SIZE,
+    TableActionButton,
+} from "@/components/base-button";
 
-export const Route = createFileRoute("/system/dict")({
+export const Route = createFileRoute("/manage/dict")({
     component: DictPage,
 });
 
@@ -29,10 +32,10 @@ function DictPage() {
             scroll={{ y: "calc(100vh - 287px)" }}
             headerTitle="Dictionary Management"
             columns={columns}
-            request={systemAPI.dict.list}
+            request={manageAPI.dict.list}
             actionRef={actionRef}
             toolBarRender={() => [
-                <AuthWrap key="create" code="system:dict:create">
+                <AuthWrap key="create" code="manage:dict:create">
                     <DictModalForm
                         mode={"create"}
                         onSuccess={() => {
@@ -80,12 +83,12 @@ const columns: ProColumns<Dict.Item>[] = [
     {
         title: "Actions",
         key: "action",
-        width: tableActionColumnWidth(2),
+        width: 68,
         align: "left",
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Dict.Item, _index, action?: ActionType) => (
-            <Space size={8} align="center">
-                <AuthWrap code="system:dict:update">
+            <Space size={TABLE_ACTION_SPACE_SIZE} align="center">
+                <AuthWrap code="manage:dict:update">
                     <DictModalForm
                         mode={"edit"}
                         initialValues={entity}
@@ -97,11 +100,11 @@ const columns: ProColumns<Dict.Item>[] = [
                     </DictModalForm>
                 </AuthWrap>
                 <AuthPopconfirm
-                    code="system:dict:delete"
+                    code="manage:dict:delete"
                     title="Are you sure you want to delete this dictionary?"
                     description="This action cannot be undone."
                     onConfirm={async () => {
-                        await systemAPI.dict.delete(entity.id);
+                        await manageAPI.dict.delete(entity.id);
                         void action?.reload();
                     }}
                 >
@@ -151,9 +154,9 @@ const DictModalForm = ({
             }}
             onFinish={async (values) => {
                 if (mode === "create") {
-                    await systemAPI.dict.create(values as Dict.CreateRequest);
+                    await manageAPI.dict.create(values as Dict.CreateRequest);
                 } else if (mode === "edit" && initialValues?.id) {
-                    await systemAPI.dict.update(initialValues.id, values as Dict.UpdateRequest);
+                    await manageAPI.dict.update(initialValues.id, values as Dict.UpdateRequest);
                 }
                 onSuccess?.();
                 return true;

@@ -118,6 +118,8 @@ impl PermissionService {
             ServiceError::DatabaseQueryFailed
         })?;
 
+        canonicalize_legacy_manage_permissions(&mut tx).await?;
+
         for record in &seed_records {
             upsert_menu_seed_record(&mut tx, record).await?;
         }
@@ -191,6 +193,57 @@ impl PermissionService {
             cache.permissions.contains(SYSTEM_SUPER_ADMIN_CODE),
         ))
     }
+}
+
+async fn canonicalize_legacy_manage_permissions(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+) -> Result<(), ServiceError> {
+    canonicalize_menu_code_prefix(tx, "system:dict:", "manage:dict:").await?;
+    canonicalize_menu_code_prefix(tx, "system:log:", "manage:log:").await?;
+
+    Ok(())
+}
+
+async fn canonicalize_menu_code_prefix(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    legacy_prefix: &str,
+    current_prefix: &str,
+) -> Result<(), ServiceError> {
+    let like_pattern = format!("{}%", legacy_prefix);
+    let now = Utc::now().naive_utc();
+
+    sqlx::query(
+        "UPDATE menus
+         SET code = REPLACE(code, ?, ?),
+             parent_code = CASE
+                 WHEN parent_code LIKE ? THEN REPLACE(parent_code, ?, ?)
+                 ELSE parent_code
+             END,
+             updated_at = ?
+         WHERE is_manual = FALSE
+           AND deleted_at IS NULL
+           AND code LIKE ?",
+    )
+    .bind(legacy_prefix)
+    .bind(current_prefix)
+    .bind(&like_pattern)
+    .bind(legacy_prefix)
+    .bind(current_prefix)
+    .bind(now)
+    .bind(&like_pattern)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!(
+            "Database error normalizing legacy permission menu code {} -> {}: {:?}",
+            legacy_prefix,
+            current_prefix,
+            e
+        );
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    Ok(())
 }
 
 fn build_menu_seed_records(raw_codes: &[String]) -> Vec<MenuSeedRecord> {
@@ -425,7 +478,7 @@ mod tests {
             "system:user:*".to_string(),
             "system:user:list".to_string(),
             "report:view".to_string(),
-            "system:log:export".to_string(),
+            "manage:log:export".to_string(),
         ];
 
         let records = build_menu_seed_records(&codes);
@@ -472,11 +525,11 @@ mod tests {
 
         let log_export = records
             .iter()
-            .find(|record| record.permission_code == "system:log:export")
+            .find(|record| record.permission_code == "manage:log:export")
             .expect("log export");
-        assert_eq!(log_export.title, "System Log Export");
+        assert_eq!(log_export.title, "Manage Log Export");
         assert_eq!(log_export.menu_type, MENU_TYPE_BUTTON);
-        assert_eq!(log_export.parent_code.as_deref(), Some("system:log:*"));
+        assert_eq!(log_export.parent_code.as_deref(), Some("manage:log:*"));
     }
 
     #[test]

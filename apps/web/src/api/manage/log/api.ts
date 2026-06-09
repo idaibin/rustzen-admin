@@ -6,7 +6,7 @@ import { apiDownload, apiRequest } from "@/api/request";
 export const logAPI = {
     list: async (params: Log.QueryParams) => {
         const res = await apiRequest<Log.Item[], Log.QueryParams>({
-            url: "/api/system/logs",
+            url: "/api/manage/logs",
             params,
             raw: true,
         });
@@ -17,6 +17,6 @@ export const logAPI = {
         };
     },
     export: () => {
-        return apiDownload({ url: "/api/system/logs/export" });
+        return apiDownload({ url: "/api/manage/logs/export" });
     },
 };

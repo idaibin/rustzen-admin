@@ -3,6 +3,9 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
+const BACKEND_PORT = 9800;
+const WEB_DEV_PORT = 9801;
+
 // https://vite.dev/config/
 export default defineConfig({
     lint: { options: { typeAware: true, typeCheck: true } },
@@ -19,15 +22,16 @@ export default defineConfig({
         tsconfigPaths: true,
     },
     server: {
-        port: 9801,
+        host: "127.0.0.1",
+        port: WEB_DEV_PORT,
         open: false,
         proxy: {
             "/api": {
-                target: "http://localhost:9800",
+                target: `http://127.0.0.1:${BACKEND_PORT}`,
                 changeOrigin: true,
             },
             "/uploads": {
-                target: "http://localhost:9800",
+                target: `http://127.0.0.1:${BACKEND_PORT}`,
                 changeOrigin: true,
             },
         },

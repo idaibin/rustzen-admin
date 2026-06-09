@@ -37,16 +37,31 @@ pub mod system_menu {
 }
 
 /// Dictionary management capability boundaries.
-pub mod system_dict {
-    pub const LIST: &str = "system:dict:list";
-    pub const CREATE: &str = "system:dict:create";
-    pub const UPDATE: &str = "system:dict:update";
-    pub const DELETE: &str = "system:dict:delete";
-    pub const OPTIONS: &str = "system:dict:options";
+pub mod manage_dict {
+    pub const LIST: &str = "manage:dict:list";
+    pub const CREATE: &str = "manage:dict:create";
+    pub const UPDATE: &str = "manage:dict:update";
+    pub const DELETE: &str = "manage:dict:delete";
+    pub const OPTIONS: &str = "manage:dict:options";
 }
 
 /// Log management capability boundaries.
-pub mod system_log {
-    pub const LIST: &str = "system:log:list";
-    pub const EXPORT: &str = "system:log:export";
+pub mod manage_log {
+    pub const LIST: &str = "manage:log:list";
+    pub const EXPORT: &str = "manage:log:export";
+}
+
+/// Scheduled task capability boundaries.
+pub mod manage_task {
+    pub const LIST: &str = "manage:task:list";
+    pub const RUN: &str = "manage:task:run";
+}
+
+/// Deploy version capability boundaries.
+pub mod manage_deploy {
+    pub const LIST: &str = "manage:deploy:list";
+    pub const CREATE: &str = "manage:deploy:create";
+    pub const UPDATE: &str = "manage:deploy:update";
+    pub const DELETE: &str = "manage:deploy:delete";
+    pub const RUN: &str = "manage:deploy:run";
 }

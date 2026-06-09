@@ -25,3 +25,25 @@
 .ant-pro-sider-collapsed .ant-pro-base-menu-vertical-item-text {
     display: none;
 }
+
+.manage-log-page .ant-pro-table-list-toolbar-right,
+.manage-log-page .ant-pro-table-list-toolbar-right > div:first-child {
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .manage-log-page .ant-pro-table-list-toolbar-right,
+    .manage-log-page .ant-pro-table-list-toolbar-right > div:first-child {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .manage-log-page .ant-pro-table-list-toolbar-right .ant-segmented {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .manage-log-page .ant-pro-table-list-toolbar-right .ant-input-search {
+        width: min(240px, 100%) !important;
+    }
+}

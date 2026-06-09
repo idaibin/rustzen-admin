@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
 import {
     BookOutlined,
+    ClockCircleOutlined,
+    CloudUploadOutlined,
     DashboardOutlined,
     FileUnknownOutlined,
     HistoryOutlined,
@@ -10,6 +11,7 @@ import {
     TeamOutlined,
     UserOutlined,
 } from "@ant-design/icons";
+import type { ReactNode } from "react";
 
 export type AppRoutePath =
     | "/"
@@ -19,10 +21,12 @@ export type AppRoutePath =
     | "/system/user"
     | "/system/role"
     | "/system/menu"
-    | "/system/dict"
-    | "/system/log";
+    | "/manage/dict"
+    | "/manage/log"
+    | "/manage/task"
+    | "/manage/deploy";
 
-type AppRouteGroupPath = "/system";
+type AppRouteGroupPath = "/system" | "/manage";
 
 export type AppRouteItem = {
     name: string;
@@ -88,15 +92,33 @@ const systemRoutes: AppRouteItem = {
             name: "Menu",
             icon: <MenuOutlined />,
         },
+    ],
+};
+
+const manageRoutes: AppRouteItem = {
+    name: "Manage",
+    icon: <CloudUploadOutlined />,
+    path: "/manage",
+    children: [
         {
-            path: "/system/dict",
+            path: "/manage/dict",
             name: "Dictionary",
             icon: <BookOutlined />,
         },
         {
-            path: "/system/log",
+            path: "/manage/log",
             name: "Log",
             icon: <HistoryOutlined />,
+        },
+        {
+            path: "/manage/task",
+            name: "Scheduled Task",
+            icon: <ClockCircleOutlined />,
+        },
+        {
+            path: "/manage/deploy",
+            name: "Deploy Versions",
+            icon: <CloudUploadOutlined />,
         },
     ],
 };
@@ -109,8 +131,10 @@ const appRoutePaths = new Set<string>([
     "/system/user",
     "/system/role",
     "/system/menu",
-    "/system/dict",
-    "/system/log",
+    "/manage/dict",
+    "/manage/log",
+    "/manage/task",
+    "/manage/deploy",
 ]);
 
 export const layoutMenuRoutes: AppRouteItem[] = [
@@ -118,6 +142,7 @@ export const layoutMenuRoutes: AppRouteItem[] = [
     forbiddenRoute,
     notFoundRoute,
     systemRoutes,
+    manageRoutes,
 ];
 
 export const layoutSearchRoutes: AppRouteItem[] = [
@@ -126,6 +151,7 @@ export const layoutSearchRoutes: AppRouteItem[] = [
     forbiddenRoute,
     notFoundRoute,
     systemRoutes,
+    manageRoutes,
 ];
 
 export const getMenuData = (checkMenuPermissions: (path: string) => boolean): AppRouteItem[] => {

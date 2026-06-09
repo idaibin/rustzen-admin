@@ -14,7 +14,10 @@ import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthPopconfirm, AuthWrap } from "@/components/base-auth";
-import { TableActionButton, tableActionColumnWidth } from "@/components/base-button";
+import {
+    TABLE_ACTION_SPACE_SIZE,
+    TableActionButton,
+} from "@/components/base-button";
 import { ENABLE_OPTIONS, MENU_TYPE_OPTIONS } from "@/constant/options";
 
 export const Route = createFileRoute("/system/menu")({
@@ -100,11 +103,11 @@ const columns: ProColumns<Menu.Item>[] = [
     {
         title: "Actions",
         key: "action",
-        width: tableActionColumnWidth(2),
+        width: 68,
         align: "left",
         fixed: "right",
         render: (_dom: React.ReactNode, entity: Menu.Item, _index, action?: ActionType) => (
-            <Space size={8} align="center">
+            <Space size={TABLE_ACTION_SPACE_SIZE} align="center">
                 <AuthWrap code="system:menu:update">
                     <MenuModalForm
                         mode={"edit"}

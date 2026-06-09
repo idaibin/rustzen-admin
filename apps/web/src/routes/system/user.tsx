@@ -14,7 +14,11 @@ import React, { useMemo, useRef } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthConfirm, AuthWrap } from "@/components/base-auth";
-import { MoreButton, TableActionButton, tableActionColumnWidth } from "@/components/base-button";
+import {
+    MoreButton,
+    TABLE_ACTION_SPACE_SIZE,
+    TableActionButton,
+} from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -150,7 +154,7 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
     {
         title: "Actions",
         key: "action",
-        width: tableActionColumnWidth(2),
+        width: 68,
         align: "left",
         search: false,
         render: (_dom: React.ReactNode, entity: User.Item, _index, action?: ActionType) => {
@@ -159,7 +163,7 @@ const buildColumns = (currentUserId?: number): ProColumns<User.Item>[] => [
             }
             const status = entity.status === 1 ? "Disable" : "Enable";
             return (
-                <Space size={8} align="center">
+                <Space size={TABLE_ACTION_SPACE_SIZE} align="center">
                     <AuthWrap code="system:user:update">
                         <UserModalForm
                             mode={"edit"}

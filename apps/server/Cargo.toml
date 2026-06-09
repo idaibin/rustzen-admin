@@ -15,6 +15,8 @@ axum-extra = { version = "0.12.6", features = ["typed-header"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
+zip = { version = "7.0.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 rustzen-core = { path = "../../crates/auth" }
 rustzen-config = { path = "../../crates/config" }
 rustzen-storage = { path = "../../crates/storage" }
@@ -36,8 +38,10 @@ sqlx = { version = "0.9.0", features = [
 dotenvy = "0.15"
 thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
 uuid = { version = "1.17", features = ["v4", "serde"] }
 async-trait = "0.1"
+tokio-cron-scheduler = "0.15.1"
 
 # password hashing
 argon2 = "0.6.0-rc.8"

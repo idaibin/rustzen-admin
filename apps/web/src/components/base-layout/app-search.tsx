@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRightOutlined, CloseOutlined, SearchOutlined } from "@ant-design/icons";
 import { Button, Empty, Input, Modal, theme } from "antd";
 import type { InputRef } from "antd/es/input";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import type { AppRoutePath, SearchRouteItem } from "./routes";
 
@@ -136,11 +136,11 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
         <>
             <button
                 type="button"
-                className="flex h-9 w-56 items-center gap-2 rounded-md border border-solid px-3 text-left text-sm shadow-sm transition"
+                className="flex h-8 w-44 items-center gap-2 rounded-md border border-solid px-2.5 text-left text-sm shadow-none transition"
                 style={{
-                    background: token.colorBgContainer,
-                    borderColor: token.colorBorder,
-                    color: token.colorTextSecondary,
+                    background: token.colorFillQuaternary,
+                    borderColor: "transparent",
+                    color: token.colorTextTertiary,
                 }}
                 onClick={() => setOpen(true)}
                 aria-label="Open page search"
@@ -150,8 +150,8 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                 <kbd
                     className="rounded border border-solid px-1.5 py-0.5 text-xs leading-none"
                     style={{
-                        borderColor: token.colorBorderSecondary,
-                        background: token.colorFillTertiary,
+                        borderColor: "transparent",
+                        background: token.colorFillSecondary,
                         color: token.colorTextTertiary,
                     }}
                 >
@@ -239,7 +239,9 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                                                 {route.icon}
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block truncate">{route.label}</span>
+                                                <span className="block truncate">
+                                                    {route.label}
+                                                </span>
                                                 <span
                                                     className="block truncate text-xs"
                                                     style={{ color: token.colorTextTertiary }}

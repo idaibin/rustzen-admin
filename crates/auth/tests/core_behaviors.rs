@@ -43,6 +43,35 @@ async fn permission_check_respects_super_flag() {
     assert!(PermissionsCheck::Require("system:user:list").check(&user));
 }
 
+#[tokio::test]
+async fn permission_check_accepts_exact_global_and_prefix_wildcards() {
+    let wildcard_user = CurrentUser::new(
+        2,
+        "manager",
+        [
+            "system:user:list".to_string(),
+            "manage:task:*".to_string(),
+            "dashboard:*".to_string(),
+        ],
+        false,
+    );
+    let root_user = CurrentUser::new(3, "root", ["*".to_string()], false);
+
+    assert!(PermissionsCheck::Require("system:user:list").check(&wildcard_user));
+    assert!(PermissionsCheck::Require("manage:task:update").check(&wildcard_user));
+    assert!(PermissionsCheck::Require("manage:task:run:status").check(&wildcard_user));
+    assert!(PermissionsCheck::Require("dashboard:view").check(&wildcard_user));
+    assert!(PermissionsCheck::Require("anything:anywhere").check(&root_user));
+}
+
+#[tokio::test]
+async fn permission_check_rejects_unrelated_wildcards() {
+    let user = CurrentUser::new(4, "viewer", ["manage:task:*".to_string()], false);
+
+    assert!(!PermissionsCheck::Require("manage:deploy:list").check(&user));
+    assert!(!PermissionsCheck::Require("system:user:list").check(&user));
+}
+
 #[test]
 fn registry_collects_and_clears_codes() {
     let _ = take_registered_permission_codes();

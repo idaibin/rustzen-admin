@@ -6,7 +6,7 @@ import { apiRequest } from "@/api/request";
 export const dictAPI = {
     list: async (params: Dict.QueryParams) => {
         const res = await apiRequest<Dict.Item[], Dict.QueryParams>({
-            url: "/api/system/dicts",
+            url: "/api/manage/dicts",
             params,
             raw: true,
         });
@@ -18,39 +18,39 @@ export const dictAPI = {
     },
     create: (data: Dict.CreateRequest) => {
         return apiRequest<number, Dict.CreateRequest>({
-            url: "/api/system/dicts",
+            url: "/api/manage/dicts",
             method: "POST",
             params: data,
         });
     },
     update: (id: number, data: Dict.UpdateRequest) => {
         return apiRequest<number, Dict.UpdateRequest>({
-            url: `/api/system/dicts/${id}`,
+            url: `/api/manage/dicts/${id}`,
             method: "PUT",
             params: data,
         });
     },
     delete: (id: number) => {
         return apiRequest<void>({
-            url: `/api/system/dicts/${id}`,
+            url: `/api/manage/dicts/${id}`,
             method: "DELETE",
         });
     },
     options: () => {
         return apiRequest<Api.OptionItem<string>[]>({
-            url: "/api/system/dicts/options",
+            url: "/api/manage/dicts/options",
         });
     },
     status: (id: number, status: number) => {
         return apiRequest<void>({
-            url: `/api/system/dicts/${id}/status`,
+            url: `/api/manage/dicts/${id}/status`,
             method: "PATCH",
             params: { status },
         });
     },
     byType: (type: string) => {
         return apiRequest<Api.OptionItem<string>[]>({
-            url: `/api/system/dicts/type/${type}`,
+            url: `/api/manage/dicts/type/${type}`,
         });
     },
 };

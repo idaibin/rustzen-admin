@@ -54,6 +54,24 @@ const getAuthHeaders = (): Record<string, string> => {
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+export const apiUpload = async <T>(url: string, formData: FormData): Promise<T> => {
+    const response = await fetch(url, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData,
+    });
+    if (!response.ok) {
+        return handleError(response);
+    }
+
+    const result = (await response.json()) as Api.ApiResponse<T>;
+    if (result.code !== 0) {
+        appMessage.error(result.message || response.statusText || "Upload failed");
+        return Promise.reject(new Error(result.message || response.statusText));
+    }
+    return result.data;
+};
+
 const defaultHeaders = {
     "Content-Type": "application/json",
 };
@@ -108,6 +126,15 @@ const handleError = async (error: unknown) => {
         if (window.location.pathname !== "/login") {
             window.location.replace("/login");
         }
+        return Promise.reject(error);
+    }
+
+    if (error.status >= 500 && requestUrl.includes("/api/auth/")) {
+        useAuthStore.getState().clearAuth();
+        if (window.location.pathname !== "/login") {
+            window.location.replace("/login");
+        }
+        appMessage.error(message);
         return Promise.reject(error);
     }
 

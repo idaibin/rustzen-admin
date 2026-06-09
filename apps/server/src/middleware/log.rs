@@ -1,4 +1,4 @@
-use crate::features::system::log::{service::LogService, types::LogWriteCommand};
+use crate::features::manage::log::{service::LogService, types::LogWriteCommand};
 
 use axum::{
     extract::{ConnectInfo, Request, State},
