@@ -10,7 +10,8 @@ import {
 } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Space } from "antd";
+import { Button, Form, Space, Transfer } from "antd";
+import type { TransferKey } from "antd/es/transfer/interface";
 import React, { useRef } from "react";
 
 import { systemAPI } from "@/api";
@@ -20,6 +21,9 @@ import {
     TableActionButton,
 } from "@/components/base-button";
 import { ENABLE_OPTIONS } from "@/constant/options";
+
+const OWNER_ROLE_CODE = "owner";
+const BUILTIN_ROLE_CODES = new Set([OWNER_ROLE_CODE, "admin", "viewer"]);
 
 export const Route = createFileRoute("/system/role")({
     component: RolePage,
@@ -125,6 +129,10 @@ const columns: ProColumns<Role.Item>[] = [
         align: "left",
         search: false,
         render: (_dom: React.ReactNode, entity: Role.Item, _index, action?: ActionType) => {
+            if (isBuiltInRoleCode(entity.code)) {
+                return null;
+            }
+
             return (
                 <Space size={TABLE_ACTION_SPACE_SIZE} align="center">
                     <AuthWrap code="system:role:update">
@@ -167,7 +175,13 @@ type RoleFormValues = {
     code: string;
     status: number;
     description?: string;
-    menus: Api.OptionItem<number>[];
+    menuIds: TransferKey[];
+};
+
+type PermissionTransferItem = {
+    key: number;
+    title: string;
+    code: string;
 };
 
 const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleModalFormProps) => {
@@ -176,15 +190,22 @@ const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleMod
         queryKey: ["system", "menus", "options"],
         queryFn: systemAPI.menu.options,
     });
-    const menuSelectOptions = React.useMemo(
-        () => menuOptions.filter((option) => option.value !== 0),
+    const permissionOptions = React.useMemo<PermissionTransferItem[]>(
+        () =>
+            menuOptions
+                .filter((option) => option.value !== 0 && isAssignableRolePermission(option.code))
+                .map((option) => ({
+                    key: option.value,
+                    title: option.label,
+                    code: option.code,
+                })),
         [menuOptions],
     );
 
     return (
         <ModalForm<RoleFormValues>
             form={form}
-            width={600}
+            width={760}
             layout="horizontal"
             title={mode === "create" ? "Create Role" : "Edit Role"}
             trigger={children}
@@ -203,17 +224,17 @@ const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleMod
                         code: record?.code,
                         status: record?.status,
                         description: record?.description,
-                        menus: record?.menus ?? [],
+                        menuIds: record?.menus?.map((menu) => menu.value) ?? [],
                     });
                 } else {
                     form.resetFields();
                 }
             }}
             onFinish={async (values) => {
-                const { menus, ...payload } = values;
+                const { menuIds, ...payload } = values;
                 const submitData = {
                     ...payload,
-                    menuIds: menus.map((item) => item.value),
+                    menuIds: (menuIds ?? []).map(Number),
                 };
 
                 if (mode === "create") {
@@ -250,8 +271,8 @@ const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleMod
                         message: "Role code must be 2-50 characters",
                     },
                     {
-                        pattern: /^[A-Z_]+$/,
-                        message: "Role code can only contain uppercase letters and underscores",
+                        pattern: /^[a-zA-Z_]+$/,
+                        message: "Role code can only contain letters and underscores",
                     },
                 ]}
             />
@@ -263,22 +284,34 @@ const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleMod
                 options={ENABLE_OPTIONS}
                 rules={[{ required: true, message: "Please select status" }]}
             />
-            <ProFormSelect
-                name="menus"
+            <Form.Item
+                name="menuIds"
                 label="Permissions"
-                placeholder="Select permissions"
-                options={menuSelectOptions}
-                mode="multiple"
-                fieldProps={{
-                    labelInValue: true,
-                }}
+                valuePropName="targetKeys"
                 rules={[
                     {
                         required: true,
                         message: "Please select at least one permission",
                     },
                 ]}
-            />
+            >
+                <Transfer<PermissionTransferItem>
+                    dataSource={permissionOptions}
+                    titles={["All Permissions", "Allowed"]}
+                    showSearch
+                    pagination={{ pageSize: 10, simple: true }}
+                    render={(item) => item.title}
+                    filterOption={(inputValue, item) =>
+                        item.title.toLowerCase().includes(inputValue.toLowerCase())
+                    }
+                    styles={{
+                        section: {
+                            width: 240,
+                            height: 340,
+                        },
+                    }}
+                />
+            </Form.Item>
             <ProFormTextArea
                 name="description"
                 label="Description"
@@ -291,3 +324,23 @@ const RoleModalForm = ({ children, record, mode = "create", onSuccess }: RoleMod
         </ModalForm>
     );
 };
+
+function isBuiltInRoleCode(code: string) {
+    return BUILTIN_ROLE_CODES.has(code);
+}
+
+function isAssignableRolePermission(code: string) {
+    return code !== "*" && !isDeployPermission(code) && !wildcardCoversDeploy(code);
+}
+
+function isDeployPermission(code: string) {
+    return code === "manage:deploy:*" || code.startsWith("manage:deploy:");
+}
+
+function wildcardCoversDeploy(code: string) {
+    if (!code.endsWith(":*")) {
+        return false;
+    }
+
+    return "manage:deploy:".startsWith(code.slice(0, -1));
+}

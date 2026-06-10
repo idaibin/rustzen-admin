@@ -1,6 +1,6 @@
 use super::{
     service::MenuService,
-    types::{CreateMenuRequest, MenuItemResp, MenuQuery, UpdateMenuPayload},
+    types::{CreateMenuRequest, MenuItemResp, MenuOptionResp, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
@@ -58,6 +58,6 @@ pub async fn delete_menu(
 pub async fn get_menu_options(
     State(pool): State<SqlitePool>,
     Query(query): Query<OptionsQuery>,
-) -> AppResult<Vec<crate::common::api::OptionItem<i64>>> {
+) -> AppResult<Vec<MenuOptionResp>> {
     Ok(ApiResponse::success(MenuService::get_menu_options(&pool, query).await?))
 }

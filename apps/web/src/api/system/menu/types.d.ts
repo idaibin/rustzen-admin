@@ -48,4 +48,8 @@ declare namespace Menu {
         sortOrder: number;
         status: number;
     }
+
+    interface OptionItem extends Api.OptionItem<number> {
+        code: string;
+    }
 }

@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 const permissionFreePaths = new Set(["/", "/profile", "/403", "/404"]);
 
 export const Route = createRootRoute({
-    beforeLoad: (ctx) => {
+    beforeLoad: (ctx: { location: { pathname: string } }) => {
         const curPath = ctx.location.pathname;
         const { token, checkMenuPermissions } = useAuthStore.getState();
 

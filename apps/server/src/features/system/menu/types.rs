@@ -42,6 +42,14 @@ pub struct UpdateMenuPayload {
     pub status: i16,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuOptionResp {
+    pub label: String,
+    pub value: i64,
+    pub code: String,
+}
+
 /// Menu item for tree list display
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

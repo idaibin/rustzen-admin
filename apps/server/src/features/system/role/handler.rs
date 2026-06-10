@@ -22,10 +22,11 @@ pub async fn list_roles(
 
 /// Create new role
 pub async fn create_role(
+    current_user: CurrentUser,
     State(pool): State<SqlitePool>,
     Json(request): Json<CreateRoleRequest>,
 ) -> AppResult<()> {
-    RoleService::create_role(&pool, request).await?;
+    RoleService::create_role(&pool, current_user.user_id, request).await?;
     Ok(ApiResponse::success(()))
 }
 

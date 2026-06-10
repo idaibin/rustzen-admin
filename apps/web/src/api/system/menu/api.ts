@@ -38,10 +38,10 @@ export const menuAPI = {
         });
     },
     options: async () => {
-        const res = await apiRequest<Api.OptionItem<number>[]>({
+        const res = await apiRequest<Menu.OptionItem[]>({
             url: "/api/system/menus/options",
         });
-        return [{ label: "Root", value: 0 }, ...res];
+        return [{ label: "Root", value: 0, code: "" }, ...res];
     },
 };
 

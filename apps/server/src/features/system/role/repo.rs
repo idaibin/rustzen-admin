@@ -157,16 +157,18 @@ impl RoleRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Returns whether the role is a system built-in role.
-    pub async fn is_system_role(pool: &SqlitePool, id: i64) -> Result<Option<bool>, ServiceError> {
-        sqlx::query_scalar::<_, bool>(
-            "SELECT is_system FROM roles WHERE id = ? AND deleted_at IS NULL",
+    pub async fn get_role_identity(
+        pool: &SqlitePool,
+        id: i64,
+    ) -> Result<Option<(String, bool)>, ServiceError> {
+        sqlx::query_as::<_, (String, bool)>(
+            "SELECT code, is_system FROM roles WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(id)
         .fetch_optional(pool)
         .await
         .map_err(|e| {
-            tracing::error!("Database error fetching role {} system flag: {:?}", id, e);
+            tracing::error!("Database error fetching role {} identity: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })
     }
@@ -232,5 +234,27 @@ impl RoleRepository {
                     ServiceError::DatabaseQueryFailed
                 })?;
         Ok(result)
+    }
+
+    pub async fn list_menu_codes_by_ids(
+        pool: &SqlitePool,
+        menu_ids: &[i64],
+    ) -> Result<Vec<String>, ServiceError> {
+        if menu_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut query_builder: QueryBuilder<Sqlite> =
+            QueryBuilder::new("SELECT code FROM menus WHERE deleted_at IS NULL AND id IN (");
+        let mut separated = query_builder.separated(", ");
+        for menu_id in menu_ids {
+            separated.push_bind(menu_id);
+        }
+        separated.push_unseparated(")");
+
+        query_builder.build_query_scalar().fetch_all(pool).await.map_err(|e| {
+            tracing::error!("Database error listing menu codes by ids: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })
     }
 }

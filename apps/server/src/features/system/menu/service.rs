@@ -1,12 +1,11 @@
 use super::{
     repo::MenuRepository,
-    types::{CreateMenuRequest, MenuItemResp, MenuListQuery, MenuQuery, UpdateMenuPayload},
+    types::{
+        CreateMenuRequest, MenuItemResp, MenuListQuery, MenuOptionResp, MenuQuery,
+        UpdateMenuPayload,
+    },
 };
-use crate::common::{
-    api::{OptionItem, OptionsQuery},
-    error::ServiceError,
-    query::parse_optional_i16_filter,
-};
+use crate::common::{api::OptionsQuery, error::ServiceError, query::parse_optional_i16_filter};
 use crate::infra::permission::PermissionService;
 use rustzen_core::capability::SYSTEM_WILDCARD;
 
@@ -100,12 +99,12 @@ impl MenuService {
     pub async fn get_menu_options(
         pool: &SqlitePool,
         query: OptionsQuery,
-    ) -> Result<Vec<OptionItem<i64>>, ServiceError> {
+    ) -> Result<Vec<MenuOptionResp>, ServiceError> {
         tracing::info!("Fetching menu options: {:?}", query);
         Ok(MenuRepository::list_menu_options(pool, query.q.as_deref(), query.limit)
             .await?
             .into_iter()
-            .map(|(id, name)| OptionItem { label: name, value: id })
+            .map(|(id, name, code)| MenuOptionResp { label: name, value: id, code })
             .collect())
     }
 }
