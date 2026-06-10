@@ -83,7 +83,7 @@ impl AuthService {
 
         tracing::debug!("JWT token generated successfully for user_id={}", user.id);
 
-        Self::cache_user_permissions(pool, user.id, user.is_system).await.map_err(|e| {
+        Self::cache_user_permissions(pool, user.id).await.map_err(|e| {
             tracing::error!(
                 "Failed to cache permissions during login for user_id={}: {:?}",
                 user.id,
@@ -135,7 +135,7 @@ impl AuthService {
 
         tracing::debug!("User basic info retrieved for user_id={}, username={}", user_id, username);
 
-        let permissions = Self::load_permissions(pool, user_id, is_system).await?;
+        let permissions = Self::load_permissions(pool, user_id).await?;
 
         PermissionService::cache_user_permissions(user_id, &permissions);
 
@@ -224,11 +224,10 @@ impl AuthService {
     pub async fn cache_user_permissions(
         pool: &SqlitePool,
         user_id: i64,
-        is_system: bool,
     ) -> Result<(), ServiceError> {
         tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
 
-        let permissions = Self::load_permissions(pool, user_id, is_system).await?;
+        let permissions = Self::load_permissions(pool, user_id).await?;
         PermissionService::cache_user_permissions(user_id, &permissions);
         tracing::info!(
             "Successfully refreshed {} permissions cache for user_id={}",
@@ -241,12 +240,7 @@ impl AuthService {
     async fn load_permissions(
         pool: &SqlitePool,
         user_id: i64,
-        is_system: bool,
     ) -> Result<Vec<String>, ServiceError> {
-        if is_system {
-            AuthRepository::get_all_permissions(pool).await
-        } else {
-            AuthRepository::get_user_permissions(pool, user_id).await
-        }
+        AuthRepository::get_user_permissions(pool, user_id).await
     }
 }

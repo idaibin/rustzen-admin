@@ -2,6 +2,10 @@
 
 pub const SYSTEM_WILDCARD: &str = "*";
 
+pub fn is_deploy_capability_code(code: &str) -> bool {
+    code == "manage:deploy:*" || code.starts_with("manage:deploy:")
+}
+
 /// Dashboard capability boundary.
 pub mod dashboard {
     pub const VIEW: &str = "dashboard:view";

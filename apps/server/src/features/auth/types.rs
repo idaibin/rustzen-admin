@@ -8,7 +8,6 @@ pub struct LoginCredentialsRow {
     pub id: i64,
     pub password_hash: String,
     pub status: i16,
-    pub is_system: bool,
 }
 
 /// Basic user info for session/profile.

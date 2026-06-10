@@ -14,7 +14,7 @@ impl AuthRepository {
         username: &str,
     ) -> Result<Option<LoginCredentialsRow>, ServiceError> {
         sqlx::query_as::<_, LoginCredentialsRow>(
-            "SELECT id, password_hash, status, is_system FROM users WHERE username = ? AND deleted_at IS NULL",
+            "SELECT id, password_hash, status FROM users WHERE username = ? AND deleted_at IS NULL",
         )
         .bind(username)
         .fetch_optional(pool)
@@ -76,17 +76,6 @@ impl AuthRepository {
                     user_id,
                     e
                 );
-                ServiceError::DatabaseQueryFailed
-            })
-    }
-
-    /// Get all permission keys managed by the menu table.
-    pub async fn get_all_permissions(pool: &SqlitePool) -> Result<Vec<String>, ServiceError> {
-        sqlx::query_scalar("SELECT code FROM menus WHERE deleted_at IS NULL ORDER BY id")
-            .fetch_all(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error in get_all_permissions: {:?}", e);
                 ServiceError::DatabaseQueryFailed
             })
     }

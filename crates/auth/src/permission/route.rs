@@ -26,7 +26,7 @@ where
         permissions_check: PermissionsCheck,
     ) -> Self {
         let codes = permissions_check.codes();
-        tracing::info!("route_with_permission called for path='{:?}', codes={:?}", path, codes);
+        tracing::debug!("route_with_permission called for path='{:?}', codes={:?}", path, codes);
         register_permission_codes(codes);
         self.route(
             path,

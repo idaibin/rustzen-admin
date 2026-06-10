@@ -1,7 +1,7 @@
 use std::sync::RwLock;
 
 use once_cell::sync::Lazy;
-use tracing::info;
+use tracing::debug;
 
 static ROUTE_PERMISSION_CODES: Lazy<RwLock<Vec<String>>> = Lazy::new(|| RwLock::new(Vec::new()));
 
@@ -12,12 +12,12 @@ where
     let mut registry = ROUTE_PERMISSION_CODES.write().expect("permission registry lock poisoned");
     let count = registry.len();
     registry.extend(codes.into_iter().map(ToString::to_string));
-    info!("Registered {} capability codes (total: {})", registry.len() - count, registry.len());
+    debug!("Registered {} capability codes (total: {})", registry.len() - count, registry.len());
 }
 
 pub fn take_registered_permission_codes() -> Vec<String> {
     let mut registry = ROUTE_PERMISSION_CODES.write().expect("permission registry lock poisoned");
     let codes = std::mem::take(&mut *registry);
-    info!("Took {} registered capability codes", codes.len());
+    debug!("Took {} registered capability codes", codes.len());
     codes
 }

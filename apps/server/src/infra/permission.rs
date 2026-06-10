@@ -4,6 +4,7 @@ use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::Lazy;
 use rustzen_core::{
     auth::CurrentUser,
+    capability::{SYSTEM_WILDCARD, is_deploy_capability_code},
     permission::{PermissionsCheck, take_registered_permission_codes},
 };
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,40 @@ const MENU_STATUS_VISIBLE: i16 = 1;
 const MENU_TYPE_DIRECTORY: i16 = 1;
 const MENU_TYPE_MENU: i16 = 2;
 const MENU_TYPE_BUTTON: i16 = 3;
-const SYSTEM_SUPER_ADMIN_CODE: &str = "*";
+const BUILTIN_OWNER_ROLE_CODE: &str = "owner";
+const BUILTIN_ADMIN_ROLE_CODE: &str = "admin";
+const BUILTIN_VIEWER_ROLE_CODE: &str = "viewer";
+const LEGACY_SYSTEM_ADMIN_ROLE_CODE: &str = "SYSTEM_ADMIN";
+const DEFAULT_OWNER_USERNAME: &str = "superadmin";
+const VIEWER_ACTIONS: &[&str] = &["list", "view", "options"];
+
+struct BuiltinRoleSeed {
+    code: &'static str,
+    name: &'static str,
+    description: &'static str,
+    sort_order: i32,
+}
+
+const BUILTIN_ROLE_SEEDS: &[BuiltinRoleSeed] = &[
+    BuiltinRoleSeed {
+        code: BUILTIN_OWNER_ROLE_CODE,
+        name: "Owner",
+        description: "Built-in owner role with the full wildcard grant.",
+        sort_order: 1,
+    },
+    BuiltinRoleSeed {
+        code: BUILTIN_ADMIN_ROLE_CODE,
+        name: "Admin",
+        description: "Built-in administrator role without deploy capabilities.",
+        sort_order: 2,
+    },
+    BuiltinRoleSeed {
+        code: BUILTIN_VIEWER_ROLE_CODE,
+        name: "Viewer",
+        description: "Built-in viewer role with read-only capabilities outside deploy.",
+        sort_order: 3,
+    },
+];
 
 /// Seed record derived from route-level capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,10 +142,12 @@ impl PermissionService {
 
         if seed_records.is_empty() {
             tracing::info!("No route permissions collected for menu sync");
-            return Ok(());
+        } else {
+            tracing::info!(
+                count = seed_records.len(),
+                "Synchronizing route permissions into menus"
+            );
         }
-
-        tracing::info!(count = seed_records.len(), "Synchronizing route permissions into menus");
 
         let mut tx = pool.begin().await.map_err(|e| {
             tracing::error!("Database error starting permission sync transaction: {:?}", e);
@@ -127,6 +163,8 @@ impl PermissionService {
         for record in &seed_records {
             refresh_menu_parent_id(&mut tx, &record.permission_code).await?;
         }
+
+        sync_builtin_roles(&mut tx).await?;
 
         tx.commit().await.map_err(|e| {
             tracing::error!("Database error committing permission sync transaction: {:?}", e);
@@ -190,7 +228,7 @@ impl PermissionService {
             user_id,
             username,
             cache.permissions.iter().cloned(),
-            cache.permissions.contains(SYSTEM_SUPER_ADMIN_CODE),
+            cache.permissions.contains(SYSTEM_WILDCARD),
         ))
     }
 }
@@ -249,7 +287,7 @@ async fn canonicalize_menu_code_prefix(
 fn build_menu_seed_records(raw_codes: &[String]) -> Vec<MenuSeedRecord> {
     expand_permission_codes(raw_codes)
         .into_iter()
-        .filter(|code| code != SYSTEM_SUPER_ADMIN_CODE)
+        .filter(|code| code != SYSTEM_WILDCARD)
         .map(|permission_code| menu_seed_record(&permission_code))
         .collect()
 }
@@ -280,7 +318,7 @@ fn expand_permission_code(raw_code: &str, expanded: &mut BTreeSet<String>) {
 }
 
 fn parent_permission_code(permission_code: &str) -> Option<String> {
-    if permission_code == SYSTEM_SUPER_ADMIN_CODE {
+    if permission_code == SYSTEM_WILDCARD {
         return None;
     }
 
@@ -325,7 +363,7 @@ fn menu_type(permission_code: &str) -> i16 {
 }
 
 fn permission_title(permission_code: &str) -> String {
-    if permission_code == SYSTEM_SUPER_ADMIN_CODE {
+    if permission_code == SYSTEM_WILDCARD {
         return "All Capabilities".to_string();
     }
 
@@ -438,6 +476,261 @@ async fn refresh_menu_parent_id(
     Ok(())
 }
 
+async fn sync_builtin_roles(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<(), ServiceError> {
+    upsert_all_capabilities_menu(tx).await?;
+    canonicalize_legacy_owner_role(tx).await?;
+
+    let menu_code_rows = list_menu_code_rows(tx).await?;
+    let menu_codes = menu_code_rows.iter().map(|(_, code)| code.clone()).collect::<Vec<_>>();
+
+    for role in BUILTIN_ROLE_SEEDS {
+        let role_id = upsert_builtin_role(tx, role).await?;
+        let role_codes = builtin_role_permission_codes(role.code, &menu_codes);
+        let menu_ids = menu_code_rows
+            .iter()
+            .filter_map(|(id, code)| role_codes.contains(code).then_some(*id))
+            .collect::<Vec<_>>();
+        replace_builtin_role_menus(tx, role_id, &menu_ids).await?;
+    }
+
+    bind_default_owner_user(tx).await?;
+
+    Ok(())
+}
+
+async fn upsert_all_capabilities_menu(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+) -> Result<(), ServiceError> {
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, is_system, is_manual, created_at, updated_at)
+         VALUES (0, 'All Capabilities', ?, ?, 1, ?, TRUE, FALSE, ?, ?)
+         ON CONFLICT DO UPDATE
+         SET name = EXCLUDED.name,
+             menu_type = EXCLUDED.menu_type,
+             is_system = EXCLUDED.is_system,
+             is_manual = EXCLUDED.is_manual,
+             updated_at = EXCLUDED.updated_at
+         WHERE menus.is_manual = FALSE",
+    )
+    .bind(SYSTEM_WILDCARD)
+    .bind(MENU_TYPE_DIRECTORY)
+    .bind(MENU_STATUS_VISIBLE)
+    .bind(now)
+    .bind(now)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error upserting owner wildcard menu: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    Ok(())
+}
+
+async fn canonicalize_legacy_owner_role(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+) -> Result<(), ServiceError> {
+    let now = Utc::now().naive_utc();
+
+    sqlx::query(
+        "UPDATE roles
+         SET name = 'Owner',
+             code = ?,
+             description = 'Built-in owner role with the full wildcard grant.',
+             status = 1,
+             is_system = TRUE,
+             sort_order = 1,
+             updated_at = ?
+         WHERE code = ?
+           AND deleted_at IS NULL
+           AND NOT EXISTS (
+               SELECT 1 FROM roles owner_role
+               WHERE owner_role.code = ? AND owner_role.deleted_at IS NULL
+           )",
+    )
+    .bind(BUILTIN_OWNER_ROLE_CODE)
+    .bind(now)
+    .bind(LEGACY_SYSTEM_ADMIN_ROLE_CODE)
+    .bind(BUILTIN_OWNER_ROLE_CODE)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error canonicalizing legacy owner role: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    sqlx::query(
+        "INSERT OR IGNORE INTO user_roles (user_id, role_id, created_at)
+         SELECT ur.user_id, owner_role.id, ?
+         FROM user_roles ur
+         INNER JOIN roles legacy_role ON legacy_role.id = ur.role_id
+         INNER JOIN roles owner_role ON owner_role.code = ? AND owner_role.deleted_at IS NULL
+         WHERE legacy_role.code = ?
+           AND legacy_role.deleted_at IS NULL",
+    )
+    .bind(now)
+    .bind(BUILTIN_OWNER_ROLE_CODE)
+    .bind(LEGACY_SYSTEM_ADMIN_ROLE_CODE)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error moving legacy owner user bindings: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    sqlx::query(
+        "UPDATE roles
+         SET deleted_at = ?,
+             updated_at = ?
+         WHERE code = ?
+           AND deleted_at IS NULL
+           AND EXISTS (
+               SELECT 1 FROM roles owner_role
+               WHERE owner_role.code = ? AND owner_role.deleted_at IS NULL
+           )",
+    )
+    .bind(now)
+    .bind(now)
+    .bind(LEGACY_SYSTEM_ADMIN_ROLE_CODE)
+    .bind(BUILTIN_OWNER_ROLE_CODE)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error disabling duplicate legacy owner role: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    Ok(())
+}
+
+async fn list_menu_code_rows(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+) -> Result<Vec<(i64, String)>, ServiceError> {
+    sqlx::query_as::<_, (i64, String)>(
+        "SELECT id, code
+         FROM menus
+         WHERE deleted_at IS NULL
+           AND code IS NOT NULL
+         ORDER BY id",
+    )
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error listing menu codes for built-in role sync: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })
+}
+
+fn builtin_role_permission_codes(role_code: &str, menu_codes: &[String]) -> Vec<String> {
+    menu_codes.iter().filter(|code| builtin_role_allows_code(role_code, code)).cloned().collect()
+}
+
+fn builtin_role_allows_code(role_code: &str, code: &str) -> bool {
+    match role_code {
+        BUILTIN_OWNER_ROLE_CODE => code == SYSTEM_WILDCARD,
+        BUILTIN_ADMIN_ROLE_CODE => is_assignable_leaf_capability(code),
+        BUILTIN_VIEWER_ROLE_CODE => is_assignable_leaf_capability(code) && is_view_capability(code),
+        _ => false,
+    }
+}
+
+fn is_assignable_leaf_capability(code: &str) -> bool {
+    code != SYSTEM_WILDCARD && !code.ends_with(":*") && !is_deploy_capability_code(code)
+}
+
+fn is_view_capability(code: &str) -> bool {
+    code.rsplit(':').next().is_some_and(|action| VIEWER_ACTIONS.contains(&action))
+}
+
+async fn upsert_builtin_role(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    role: &BuiltinRoleSeed,
+) -> Result<i64, ServiceError> {
+    let now = Utc::now().naive_utc();
+    sqlx::query_scalar::<_, i64>(
+        "INSERT INTO roles (name, code, description, status, is_system, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, 1, TRUE, ?, ?, ?)
+         ON CONFLICT DO UPDATE
+         SET name = EXCLUDED.name,
+             description = EXCLUDED.description,
+             status = EXCLUDED.status,
+             is_system = EXCLUDED.is_system,
+             sort_order = EXCLUDED.sort_order,
+             updated_at = EXCLUDED.updated_at
+         RETURNING id",
+    )
+    .bind(role.name)
+    .bind(role.code)
+    .bind(role.description)
+    .bind(role.sort_order)
+    .bind(now)
+    .bind(now)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error upserting built-in role {}: {:?}", role.code, e);
+        ServiceError::DatabaseQueryFailed
+    })
+}
+
+async fn replace_builtin_role_menus(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    role_id: i64,
+    menu_ids: &[i64],
+) -> Result<(), ServiceError> {
+    sqlx::query("DELETE FROM role_menus WHERE role_id = ?")
+        .bind(role_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error clearing built-in role menus: {:?}", e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+
+    if menu_ids.is_empty() {
+        return Ok(());
+    }
+
+    let now = Utc::now().naive_utc();
+    let mut query_builder: sqlx::QueryBuilder<Sqlite> =
+        sqlx::QueryBuilder::new("INSERT INTO role_menus (role_id, menu_id, created_at) ");
+    query_builder.push_values(menu_ids.iter(), |mut builder, menu_id| {
+        builder.push_bind(role_id).push_bind(menu_id).push_bind(now);
+    });
+
+    query_builder.build().execute(&mut **tx).await.map_err(|e| {
+        tracing::error!("Database error inserting built-in role menus: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    Ok(())
+}
+
+async fn bind_default_owner_user(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+) -> Result<(), ServiceError> {
+    sqlx::query(
+        "INSERT OR IGNORE INTO user_roles (user_id, role_id, created_at)
+         SELECT u.id, r.id, ?
+         FROM users u
+         INNER JOIN roles r ON r.code = ? AND r.deleted_at IS NULL
+         WHERE u.username = ?
+           AND u.deleted_at IS NULL",
+    )
+    .bind(Utc::now().naive_utc())
+    .bind(BUILTIN_OWNER_ROLE_CODE)
+    .bind(DEFAULT_OWNER_USERNAME)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error binding default owner user: {:?}", e);
+        ServiceError::DatabaseQueryFailed
+    })?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -538,6 +831,118 @@ mod tests {
 
         assert!(!record.is_manual);
         assert!(record.is_system);
+    }
+
+    #[test]
+    fn builtin_role_policy_keeps_owner_as_only_wildcard_grant() {
+        let menu_codes = vec![
+            "*".to_string(),
+            "system:*".to_string(),
+            "system:user:*".to_string(),
+            "system:user:list".to_string(),
+            "system:user:create".to_string(),
+            "dashboard:*".to_string(),
+            "dashboard:view".to_string(),
+            "manage:*".to_string(),
+            "manage:task:*".to_string(),
+            "manage:task:list".to_string(),
+            "manage:task:run".to_string(),
+            "manage:deploy:*".to_string(),
+            "manage:deploy:list".to_string(),
+            "manage:log:export".to_string(),
+            "manage:dict:options".to_string(),
+        ];
+
+        let owner_codes = builtin_role_permission_codes(BUILTIN_OWNER_ROLE_CODE, &menu_codes);
+        let admin_codes = builtin_role_permission_codes(BUILTIN_ADMIN_ROLE_CODE, &menu_codes);
+        let viewer_codes = builtin_role_permission_codes(BUILTIN_VIEWER_ROLE_CODE, &menu_codes);
+
+        assert_eq!(owner_codes, vec!["*".to_string()]);
+
+        assert!(admin_codes.contains(&"system:user:create".to_string()));
+        assert!(admin_codes.contains(&"manage:task:run".to_string()));
+        assert!(admin_codes.contains(&"manage:log:export".to_string()));
+        assert!(!admin_codes.iter().any(|code| code == "*" || code.ends_with(":*")));
+        assert!(!admin_codes.iter().any(|code| is_deploy_capability_code(code)));
+
+        assert!(viewer_codes.contains(&"system:user:list".to_string()));
+        assert!(viewer_codes.contains(&"dashboard:view".to_string()));
+        assert!(viewer_codes.contains(&"manage:dict:options".to_string()));
+        assert!(!viewer_codes.contains(&"system:user:create".to_string()));
+        assert!(!viewer_codes.contains(&"manage:task:run".to_string()));
+        assert!(!viewer_codes.contains(&"manage:log:export".to_string()));
+        assert!(!viewer_codes.iter().any(|code| code == "*" || code.ends_with(":*")));
+        assert!(!viewer_codes.iter().any(|code| is_deploy_capability_code(code)));
+    }
+
+    #[tokio::test]
+    async fn sync_permissions_persists_builtin_roles_and_default_owner() {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("in-memory sqlite pool");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+
+        rustzen_core::permission::register_permission_codes([
+            "dashboard:view",
+            "system:user:list",
+            "system:user:create",
+            "manage:task:list",
+            "manage:task:run",
+            "manage:deploy:list",
+            "manage:deploy:run",
+            "manage:dict:options",
+        ]);
+
+        PermissionService::sync_permissions(&pool).await.expect("permission sync");
+
+        let owner_permissions = role_permission_codes(&pool, BUILTIN_OWNER_ROLE_CODE).await;
+        let admin_permissions = role_permission_codes(&pool, BUILTIN_ADMIN_ROLE_CODE).await;
+        let viewer_permissions = role_permission_codes(&pool, BUILTIN_VIEWER_ROLE_CODE).await;
+
+        assert_eq!(owner_permissions, vec!["*".to_string()]);
+        assert!(admin_permissions.contains(&"system:user:create".to_string()));
+        assert!(admin_permissions.contains(&"manage:task:run".to_string()));
+        assert!(!admin_permissions.iter().any(|code| is_deploy_capability_code(code)));
+        assert!(!admin_permissions.iter().any(|code| code == "*" || code.ends_with(":*")));
+
+        assert!(viewer_permissions.contains(&"dashboard:view".to_string()));
+        assert!(viewer_permissions.contains(&"system:user:list".to_string()));
+        assert!(viewer_permissions.contains(&"manage:dict:options".to_string()));
+        assert!(!viewer_permissions.contains(&"system:user:create".to_string()));
+        assert!(!viewer_permissions.contains(&"manage:task:run".to_string()));
+        assert!(!viewer_permissions.iter().any(|code| is_deploy_capability_code(code)));
+        assert!(!viewer_permissions.iter().any(|code| code == "*" || code.ends_with(":*")));
+
+        let superadmin_wildcard_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*)
+             FROM user_permissions
+             WHERE username = ? AND menu_code = ?",
+        )
+        .bind(DEFAULT_OWNER_USERNAME)
+        .bind(SYSTEM_WILDCARD)
+        .fetch_one(&pool)
+        .await
+        .expect("superadmin permissions");
+        assert_eq!(superadmin_wildcard_count, 1);
+    }
+
+    async fn role_permission_codes(pool: &SqlitePool, role_code: &str) -> Vec<String> {
+        sqlx::query_scalar::<_, String>(
+            "SELECT m.code
+             FROM roles r
+             INNER JOIN role_menus rm ON rm.role_id = r.id
+             INNER JOIN menus m ON m.id = rm.menu_id
+             WHERE r.code = ?
+               AND r.deleted_at IS NULL
+               AND m.deleted_at IS NULL
+             ORDER BY m.code",
+        )
+        .bind(role_code)
+        .fetch_all(pool)
+        .await
+        .expect("role permission codes")
     }
 
     #[test]
