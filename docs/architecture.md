@@ -58,6 +58,9 @@ Packaged deployment runs the backend as the serving process:
 - Backend capability cache and menu synchronization live in `apps/server/src/infra/`.
 - New protected backend routes use `PermissionsCheck::Require(...)` by default.
 - `*` is the only full-authorization grant.
+- `owner`, `admin`, and `viewer` are built-in roles synchronized from the menu capability catalog.
+- Built-in roles are immutable in role management.
+- `users.is_system`, `roles.is_system`, and `menus.is_system` mark protected built-in records only; they do not grant permissions.
 
 ## Change Sync
 

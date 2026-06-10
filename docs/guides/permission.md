@@ -20,7 +20,18 @@ Current capability model and usage rules.
 - Prefix wildcard grants such as `manage:task:*` authorize matching colon-separated child capabilities such as `manage:task:list` and `manage:task:run:status`.
 - `users.is_system`, `roles.is_system`, and `menus.is_system` are built-in record flags, not grants.
 - Protect built-in records by checking whether the current user has `*`.
+- User permissions are loaded from role-menu relations only; `users.is_system` never expands permissions.
 - Missing or expired permission cache is rebuilt from the database on demand to avoid unnecessary re-authentication.
+
+## Built-In Roles
+
+- `owner` is the only built-in role that receives `*`.
+- Built-in roles cannot be edited or deleted through role management.
+- `admin` receives concrete leaf capabilities outside deploy management.
+- `viewer` receives concrete read-only leaf capabilities outside deploy management.
+- Built-in role permission sets are synchronized by the server from the current menu capability catalog.
+- Ordinary role creation and updates save explicit menu selections only; they do not apply `admin` or `viewer` policy rules.
+- Generic role creation and updates cannot assign `*` or deploy capabilities.
 
 ## Capability Naming
 
@@ -48,5 +59,6 @@ Current capability model and usage rules.
 
 - Super-admin fallback logic.
 - Treating `is_system` as authorization.
+- Applying built-in role policy rules to ordinary role creation or updates.
 - Silent permission-sync failure.
 - Promoting reserved permission modes as defaults.
