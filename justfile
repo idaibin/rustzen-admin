@@ -38,9 +38,9 @@ build-web:
 build-config:
     mkdir -p target/rustzen-admin/config target/rustzen-admin/systemd
     cp .env.example target/rustzen-admin/config/app.env
-    sed -i '' 's#^RUSTZEN_RUNTIME_ROOT=.*#RUSTZEN_RUNTIME_ROOT=.#' target/rustzen-admin/config/app.env
-    sed -i '' 's#^RUSTZEN_APP_PORT=.*#RUSTZEN_APP_PORT=9880#' target/rustzen-admin/config/app.env
-    sed -i '' 's#^RUSTZEN_SQLITE_PATH=.*#RUSTZEN_SQLITE_PATH=./data/db/rustzen.db#' target/rustzen-admin/config/app.env
+    perl -pi -e 's#^RUSTZEN_RUNTIME_ROOT=.*#RUSTZEN_RUNTIME_ROOT=.#' target/rustzen-admin/config/app.env
+    perl -pi -e 's#^RUSTZEN_APP_PORT=.*#RUSTZEN_APP_PORT=9880#' target/rustzen-admin/config/app.env
+    perl -pi -e 's#^RUSTZEN_SQLITE_PATH=.*#RUSTZEN_SQLITE_PATH=./data/db/rustzen.db#' target/rustzen-admin/config/app.env
     cp deploy/rustzen-admin.service target/rustzen-admin/systemd/rustzen-admin.service
     cp deploy/setup-layout.sh target/rustzen-admin/setup-layout.sh
     chmod +x target/rustzen-admin/setup-layout.sh
