@@ -31,15 +31,17 @@ Local development runs backend and frontend separately:
 
 Packaged deployment runs the backend as the serving process:
 
-- backend binary: `<runtime_root>/bin/rustzen-admin`
-- deploy versions: `<runtime_root>/versions` for server files and `<runtime_root>/web/web-<version>.zip` for web files
+- backend binary: `<runtime_root>/bin/rustzen-admin` symlinked to a versioned file
+- deploy versions: `<runtime_root>/versions/server-<version>-<arch>` for server files and `<runtime_root>/web/web-<version>.zip` for web files
 - frontend static files: `<runtime_root>/web/dist`
+- database: `<runtime_root>/data/db/rustzen.db`
 - uploads: `<runtime_root>/data/uploads`
 - avatars: `<runtime_root>/data/avatars`
 - logs: `<runtime_root>/logs`
 - process env: `<runtime_root>/config/app.env`
 
 `RUSTZEN_RUNTIME_ROOT` is the single runtime root. Production uses `.` from the deploy root. Local development defaults to `.rustzen-admin`.
+Deployment packages set `RUSTZEN_APP_PORT=9880`.
 
 ## Data Flow
 

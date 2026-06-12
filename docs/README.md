@@ -25,7 +25,6 @@ This is the documentation entrypoint for `rustzen-admin`.
 | [reference/README.md](./reference/README.md) | Appendix index | Lists optional deep-context files. |
 | [reference/architecture-diagrams.md](./reference/architecture-diagrams.md) | Appendix | Visualizes topology and request flows. |
 | [reference/capability-map.md](./reference/capability-map.md) | Appendix | Maps current capabilities to real backend and frontend owners. |
-| [reference/deployment-artifact-spec.md](./reference/deployment-artifact-spec.md) | Appendix | Documents versioned server and web build outputs. |
 | [reference/api-camelcase-audit.md](./reference/api-camelcase-audit.md) | Appendix | Audits API casing boundaries. |
 | [reference/workspace-root-impl.md](./reference/workspace-root-impl.md) | Appendix | Explains runtime-root path derivation. |
 | [reference/code-review-checklist.md](./reference/code-review-checklist.md) | Appendix | Provides a compact review checklist. |

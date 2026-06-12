@@ -10,7 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RUST_VERSION=1.95.0 \
     CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
-    PATH=/root/.cargo/bin:${PATH}
+    PATH=/root/.cargo/bin:${PATH} \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
 
 RUN sed -i "s|archive.ubuntu.com|mirrors.aliyun.com|g; s|ports.ubuntu.com|mirrors.aliyun.com|g" /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get update && \

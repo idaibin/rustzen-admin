@@ -73,4 +73,4 @@ This is a practical path index for task orientation. It maps where to look first
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `deploy/` | Dockerfiles, package installer, and service template. | You package or deploy the app. |
+| `deploy/` | Package installer and service template. | You package or deploy the app. |

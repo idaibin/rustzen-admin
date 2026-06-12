@@ -29,8 +29,8 @@ Use this checklist for repository changes. It is a review aid, not a replacement
 ## Deployment
 
 - Runtime paths derive from `RUSTZEN_RUNTIME_ROOT`.
-- Production config uses `DATABASE_URL` and `RUSTZEN_*`.
-- Release output still matches `docs/reference/deployment-artifact-spec.md`.
+- Production config uses `RUSTZEN_SQLITE_PATH` and `RUSTZEN_*`.
+- Release output still matches `docs/guides/deployment.md`.
 
 ## Docs
 

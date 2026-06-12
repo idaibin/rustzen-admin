@@ -46,7 +46,7 @@ const DEFAULT_LOG_FILE_PREFIX: &str = "server";
 const DEFAULT_LOG_RETENTION_DAYS: u64 = 30;
 
 /// Default process and business timezone.
-const DEFAULT_TIMEZONE: &str = "Asia/Shanghai";
+const DEFAULT_TIMEZONE: &str = "UTC";
 
 /// Default task run retention days.
 const DEFAULT_TASK_RUN_RETENTION_DAYS: i64 = 30;
@@ -233,7 +233,7 @@ mod tests {
             files_prefix: "/resources".to_string(),
             log_file_prefix: "server".to_string(),
             log_retention_days: 30,
-            timezone: "Asia/Shanghai".to_string(),
+            timezone: "UTC".to_string(),
             task_run_retention_days: 30,
         }
     }
@@ -259,7 +259,7 @@ mod tests {
             files_prefix: "/resources".to_string(),
             log_file_prefix: "server".to_string(),
             log_retention_days: 30,
-            timezone: "Asia/Shanghai".to_string(),
+            timezone: "UTC".to_string(),
             task_run_retention_days: 30,
         };
 
@@ -287,7 +287,7 @@ mod tests {
             files_prefix: "/resources".to_string(),
             log_file_prefix: "server".to_string(),
             log_retention_days: 30,
-            timezone: "Asia/Shanghai".to_string(),
+            timezone: "UTC".to_string(),
             task_run_retention_days: 30,
         };
 
