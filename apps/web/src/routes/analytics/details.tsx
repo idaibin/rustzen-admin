@@ -1,27 +1,20 @@
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Button, Input, Tag } from "antd";
 import { useState } from "react";
 
 import { insightsAPI } from "@/api";
-import { DataTableState } from "@/components/feedback/data-state";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
-import { DataTableShell } from "@/components/table/data-table-shell";
-import { TablePagination } from "@/components/table/table-pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
-export const Route = createFileRoute("/analytics/details")({ component: AnalyticsEventsPage });
+type EventRow = Insights.Event;
+
+export const Route = createFileRoute("/analytics/details")({
+    component: AnalyticsEventsPage,
+});
 const pageSize = 20;
 
 function AnalyticsEventsPage() {
@@ -32,6 +25,92 @@ function AnalyticsEventsPage() {
         queryKey: ["insights", "events", query],
         queryFn: () => insightsAPI.events(query),
     });
+
+    const eventRows: EventRow[] = data?.data ?? [];
+
+    if (!data && isPending) {
+        return (
+            <PageCard
+                title={t("分析明细", "Analytics details")}
+                description={t(
+                    "查看当前实例的页面、接口、用户和业务原始事件。",
+                    "View raw page, API, user, and business events for the current instance.",
+                )}
+            >
+                <DataState kind="loading" title={t("正在加载事件", "Loading events")} />
+            </PageCard>
+        );
+    }
+
+    if (!data && error) {
+        return (
+            <PageCard
+                title={t("分析明细", "Analytics details")}
+                description={t(
+                    "查看当前实例的页面、接口、用户和业务原始事件。",
+                    "View raw page, API, user, and business events for the current instance.",
+                )}
+            >
+                <DataState
+                    kind="error"
+                    title={t("事件加载失败", "Failed to load events")}
+                    description={t(
+                        "无法读取分析明细，请检查 Insights 服务后重试。",
+                        "Unable to read analytics data. Check the Insights service and try again.",
+                    )}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
+    const columns: ProColumns<EventRow>[] = [
+        {
+            title: t("事件", "Event"),
+            key: "eventName",
+            render: (_: unknown, row: EventRow) => (
+                <Tag color={row.isError ? "error" : "blue"}>{row.eventName}</Tag>
+            ),
+        },
+        {
+            title: t("访客 / 用户", "Visitor / User"),
+            key: "user",
+            render: (_: unknown, row: EventRow) => (
+                <div>
+                    <div>{row.visitorId}</div>
+                    <div className="text-xs text-muted-foreground">
+                        {row.userId || t("匿名", "Anonymous")}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            title: t("位置", "Location"),
+            key: "location",
+            render: (_: unknown, row: EventRow) => (
+                <div className="font-mono text-xs">{row.pagePath || row.apiPath || "-"}</div>
+            ),
+        },
+        {
+            title: t("平台", "Platform"),
+            key: "platform",
+            render: (_: unknown, row: EventRow) => row.platform || "-",
+        },
+        {
+            title: t("耗时", "Duration"),
+            key: "durationMs",
+            render: (_: unknown, row: EventRow) =>
+                row.durationMs == null ? "-" : `${row.durationMs} ms`,
+        },
+        {
+            title: t("发生时间", "Occurred at"),
+            key: "occurredAt",
+            render: (_: unknown, row: EventRow) => formatDateTime(row.occurredAt),
+        },
+    ];
+
     return (
         <PageCard
             title={t("分析明细", "Analytics details")}
@@ -53,95 +132,43 @@ function AnalyticsEventsPage() {
                 </div>
             }
         >
-            <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>{t("事件", "Event")}</TableHead>
-                            <TableHead>{t("访客 / 用户", "Visitor / User")}</TableHead>
-                            <TableHead>{t("位置", "Location")}</TableHead>
-                            <TableHead>{t("平台", "Platform")}</TableHead>
-                            <TableHead>{t("耗时", "Duration")}</TableHead>
-                            <TableHead>{t("发生时间", "Occurred at")}</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {(data?.data ?? []).map((row) => (
-                            <TableRow key={row.id}>
-                                <TableCell>
-                                    <Badge variant={row.isError ? "destructive" : "outline"}>
-                                        {row.eventName}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div>{row.visitorId}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {row.userId || t("匿名", "Anonymous")}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="font-mono text-xs">
-                                    {row.pagePath || row.apiPath || "-"}
-                                </TableCell>
-                                <TableCell>{row.platform || "-"}</TableCell>
-                                <TableCell>
-                                    {row.durationMs == null ? "-" : `${row.durationMs} ms`}
-                                </TableCell>
-                                <TableCell>{formatDateTime(row.occurredAt)}</TableCell>
-                            </TableRow>
-                        ))}
-                        {!data?.data.length &&
-                            (isPending ? (
-                                <DataTableState
-                                    colSpan={6}
-                                    kind="loading"
-                                    title={t("正在加载事件", "Loading events")}
-                                />
-                            ) : error ? (
-                                <DataTableState
-                                    colSpan={6}
-                                    kind="error"
-                                    title={t("事件加载失败", "Failed to load events")}
-                                    description={t(
-                                        "无法读取分析明细，请检查 Insights 服务后重试。",
-                                        "Unable to read analytics details. Check the Insights service and try again.",
-                                    )}
-                                    action={
-                                        <Button onClick={() => void refetch()}>
-                                            {t("重新加载", "Reload")}
-                                        </Button>
-                                    }
-                                />
-                            ) : (
-                                <DataTableState
-                                    colSpan={6}
-                                    kind="empty"
-                                    title={
-                                        eventName
-                                            ? t("没有匹配的事件", "No matching events")
-                                            : t("暂无分析事件", "No analytics events")
-                                    }
-                                    description={
-                                        eventName
-                                            ? t(
-                                                  "请检查完整事件名称或清除筛选条件。",
-                                                  "Check the full event name or clear the filter.",
-                                              )
-                                            : t(
-                                                  "接收到埋点数据后，原始事件会显示在这里。",
-                                                  "Raw events will appear here after tracking data is received.",
-                                              )
-                                    }
-                                />
-                            ))}
-                    </TableBody>
-                </Table>
-            </DataTableShell>
-            <TablePagination
-                currentPage={current}
-                totalPages={Math.max(1, Math.ceil((data?.total ?? 0) / pageSize))}
-                total={data?.total ?? 0}
-                disabled={isFetching}
-                onPageChange={setCurrent}
+            <ProTable<EventRow>
+                rowKey="id"
+                dataSource={eventRows}
+                columns={columns}
+                loading={isFetching}
+                search={false}
+                options={false}
+                pagination={{
+                    current,
+                    pageSize,
+                    total: data?.total ?? 0,
+                    onChange: (page) => setCurrent(page),
+                    showSizeChanger: false,
+                }}
+                locale={{
+                    emptyText: !eventRows.length ? (
+                        <DataState
+                            kind="empty"
+                            title={
+                                eventName
+                                    ? t("没有匹配的事件", "No matching events")
+                                    : t("暂无分析事件", "No analytics events")
+                            }
+                            description={
+                                eventName
+                                    ? t(
+                                          "请检查完整事件名称或清除筛选条件。",
+                                          "Check the full event name or clear the filter.",
+                                      )
+                                    : t(
+                                          "接收到埋点数据后，原始事件会显示在这里。",
+                                          "Raw events will appear here after tracking data is received.",
+                                      )
+                            }
+                        />
+                    ) : undefined,
+                }}
             />
         </PageCard>
     );

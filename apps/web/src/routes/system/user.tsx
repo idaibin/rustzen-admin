@@ -1,57 +1,30 @@
+import { EditOutlined, MoreOutlined, PlusOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { EditIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import {
+    Avatar,
+    Button,
+    Checkbox,
+    Dropdown,
+    Form,
+    Input,
+    Modal,
+    Select,
+    Tag,
+    type FormProps,
+    type MenuProps,
+} from "antd";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
-import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
-import { DataState, DataTableState } from "@/components/feedback/data-state";
-import { TextField } from "@/components/form/text-field";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
-import { DataTableShell } from "@/components/table/data-table-shell";
-import { TablePagination } from "@/components/table/table-pagination";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { getEnableOptions } from "@/constant/options";
 import { localizeBuiltInRoleName, localizeBuiltInUserName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createFileRoute("/system/user")({
@@ -60,7 +33,7 @@ export const Route = createFileRoute("/system/user")({
 
 const PAGE_SIZE = 20;
 
-const formatResetDateSuffix = (date: Date) => {
+const formatResetPassword = (date = new Date()) => {
     const year = date.getFullYear() % 100;
     const month = date.getMonth() + 1;
     const day = date.getDate();
@@ -70,14 +43,23 @@ const formatResetDateSuffix = (date: Date) => {
     )}`;
 };
 
-const buildResetPassword = (username: string, date = new Date()) => {
+function getResetPassword(username: string) {
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
-        return `User@${formatResetDateSuffix(date)}`;
+        return `User@${formatResetPassword(new Date())}`;
     }
     const normalized = trimmedUsername.charAt(0).toUpperCase() + trimmedUsername.slice(1);
-    return `${normalized}@${formatResetDateSuffix(date)}`;
-};
+    return `${normalized}@${formatResetPassword(new Date())}`;
+}
+
+interface UserDialogValues {
+    username: string;
+    email: string;
+    realName: string;
+    password: string;
+    status: string;
+    roleIds: number[];
+}
 
 function UserPage() {
     const currentUserId = useAuthStore((state) => state.userInfo?.id);
@@ -103,13 +85,15 @@ function UserPage() {
         }),
         [currentPage, filters],
     );
+
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "user", params],
         queryFn: () => systemAPI.user.list(params),
     });
+
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const hasData = data !== undefined;
 
     const search = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -135,6 +119,136 @@ function UserPage() {
         void refetch();
     };
 
+    const columns: ProColumns<User.Item>[] = [
+        {
+            title: t("ID", "ID"),
+            dataIndex: "id",
+            key: "id",
+            width: 80,
+            render: (_: unknown, row: User.Item) => <span className="font-medium">{row.id}</span>,
+        },
+        {
+            title: t("头像", "Avatar"),
+            key: "avatar",
+            width: 96,
+            render: (_: unknown, row: User.Item) => (
+                <Avatar size={32} src={row.avatarUrl ?? undefined} alt={row.username}>
+                    {getUserInitial(row)}
+                </Avatar>
+            ),
+        },
+        {
+            title: t("用户名", "Username"),
+            dataIndex: "username",
+            key: "username",
+            width: 160,
+        },
+        {
+            title: t("邮箱", "Email"),
+            dataIndex: "email",
+            key: "email",
+            width: 240,
+            ellipsis: true,
+        },
+        {
+            title: t("真实姓名", "Real name"),
+            key: "realName",
+            width: 180,
+            render: (_: unknown, row: User.Item) =>
+                row.isSystem
+                    ? localizeBuiltInUserName(row.username, row.realName)
+                    : row.realName || "-",
+        },
+        {
+            title: t("状态", "Status"),
+            key: "status",
+            width: 110,
+            render: (_: unknown, row: User.Item) => <UserStatusBadge status={row.status} />,
+        },
+        {
+            title: t("角色", "Roles"),
+            key: "roles",
+            width: 240,
+            ellipsis: true,
+            render: (_: unknown, row: User.Item) =>
+                row.roles
+                    .map((role) =>
+                        role.isSystem ? localizeBuiltInRoleName(role.code, role.label) : role.label,
+                    )
+                    .join(", ") || t("-", "-"),
+        },
+        {
+            title: t("最后登录", "Last sign-in"),
+            key: "lastLoginAt",
+            width: 210,
+            render: (_: unknown, row: User.Item) => formatDateTime(row.lastLoginAt),
+        },
+        {
+            title: t("更新时间", "Updated at"),
+            key: "updatedAt",
+            width: 210,
+            render: (_: unknown, row: User.Item) => formatDateTime(row.updatedAt),
+        },
+        {
+            title: t("操作", "Actions"),
+            key: "actions",
+            fixed: "right",
+            width: 128,
+            align: "right",
+            render: (_: unknown, row: User.Item) => (
+                <UserActions record={row} currentUserId={currentUserId} onSuccess={refresh} />
+            ),
+        },
+    ];
+
+    if (!data && isPending) {
+        return (
+            <PageCard
+                title={t("用户列表", "Users")}
+                description={t(
+                    "管理账号、角色和账号状态。",
+                    "Manage accounts, roles, and account status.",
+                )}
+            >
+                <DataState kind="loading" title={t("正在加载用户", "Loading users")} />
+            </PageCard>
+        );
+    }
+
+    if (!data && error) {
+        return (
+            <PageCard
+                title={t("用户列表", "Users")}
+                description={t(
+                    "管理账号、角色和账号状态。",
+                    "Manage accounts, roles, and account status.",
+                )}
+                actions={
+                    <AuthWrap code="system:user:create">
+                        <UserDialog mode="create" onSuccess={refresh}>
+                            <Button type="primary" icon={<PlusOutlined />}>
+                                {t("新建用户", "New user")}
+                            </Button>
+                        </UserDialog>
+                    </AuthWrap>
+                }
+            >
+                <DataState
+                    kind="error"
+                    title={t("用户加载失败", "Failed to load users")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
     return (
         <PageCard
             title={t("用户列表", "Users")}
@@ -145,8 +259,7 @@ function UserPage() {
             actions={
                 <AuthWrap code="system:user:create">
                     <UserDialog mode="create" onSuccess={refresh}>
-                        <Button>
-                            <PlusIcon data-icon="inline-start" />
+                        <Button type="primary" icon={<PlusOutlined />}>
                             {t("新建用户", "New user")}
                         </Button>
                     </UserDialog>
@@ -172,149 +285,65 @@ function UserPage() {
                         placeholder={t("真实姓名", "Real name")}
                         onChange={(event) => setRealName(event.target.value)}
                     />
-                    <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger
-                            className="w-full"
-                            aria-label={t("账号状态", "Account status")}
-                        >
-                            <SelectValue placeholder={t("状态", "Status")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectGroup>
-                                <SelectItem value="all">{t("全部状态", "All statuses")}</SelectItem>
-                                {getEnableOptions().map((item) => (
-                                    <SelectItem key={item.value} value={String(item.value)}>
-                                        {item.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
+                    <Select
+                        className="w-full"
+                        aria-label={t("账号状态", "Account status")}
+                        value={status}
+                        onChange={setStatus}
+                        options={[
+                            { value: "all", label: t("全部状态", "All statuses") },
+                            ...getEnableOptions().map((item) => ({
+                                value: String(item.value),
+                                label: item.label,
+                            })),
+                        ]}
+                    />
                     <div className="flex gap-2">
-                        <Button type="submit" disabled={isFetching}>
+                        <Button type="primary" htmlType="submit" disabled={isFetching}>
                             {t("查询", "Search")}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={isFetching}
-                            onClick={reset}
-                        >
+                        <Button type="default" disabled={isFetching} onClick={reset}>
                             {t("重置", "Reset")}
                         </Button>
                     </div>
                 </form>
             }
         >
-            <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-16">ID</TableHead>
-                            <TableHead className="w-20">{t("头像", "Avatar")}</TableHead>
-                            <TableHead className="min-w-36">{t("用户名", "Username")}</TableHead>
-                            <TableHead className="min-w-48">{t("邮箱", "Email")}</TableHead>
-                            <TableHead className="min-w-36">{t("真实姓名", "Real name")}</TableHead>
-                            <TableHead className="min-w-28">{t("状态", "Status")}</TableHead>
-                            <TableHead className="min-w-48">{t("角色", "Roles")}</TableHead>
-                            <TableHead className="min-w-44">
-                                {t("最后登录", "Last sign-in")}
-                            </TableHead>
-                            <TableHead className="min-w-44">
-                                {t("更新时间", "Updated at")}
-                            </TableHead>
-                            <TableHead className="w-20 text-right">
-                                {t("操作", "Actions")}
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {rows.length > 0 ? (
-                            rows.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell className="font-medium">{record.id}</TableCell>
-                                    <TableCell>
-                                        <Avatar className="size-8">
-                                            <AvatarImage
-                                                src={record.avatarUrl ?? undefined}
-                                                alt={record.username}
-                                            />
-                                            <AvatarFallback>
-                                                {getUserInitial(record)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    </TableCell>
-                                    <TableCell>{record.username}</TableCell>
-                                    <TableCell>{record.email}</TableCell>
-                                    <TableCell>
-                                        {record.isSystem
-                                            ? localizeBuiltInUserName(
-                                                  record.username,
-                                                  record.realName,
-                                              )
-                                            : record.realName || "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                        <UserStatusBadge status={record.status} />
-                                    </TableCell>
-                                    <TableCell className="max-w-64 truncate">
-                                        {record.roles
-                                            .map((role) =>
-                                                role.isSystem
-                                                    ? localizeBuiltInRoleName(role.code, role.label)
-                                                    : role.label,
-                                            )
-                                            .join(", ") || "-"}
-                                    </TableCell>
-                                    <TableCell>{formatDateTime(record.lastLoginAt)}</TableCell>
-                                    <TableCell>{formatDateTime(record.updatedAt)}</TableCell>
-                                    <TableCell>
-                                        <UserActions
-                                            record={record}
-                                            currentUserId={currentUserId}
-                                            onSuccess={refresh}
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : isPending ? (
-                            <DataTableState
-                                colSpan={10}
-                                kind="loading"
-                                title={t("正在加载用户", "Loading users")}
-                            />
-                        ) : error ? (
-                            <DataTableState
-                                colSpan={10}
-                                kind="error"
-                                title={t("用户加载失败", "Failed to load users")}
-                                description={
-                                    error instanceof Error
-                                        ? error.message
-                                        : t("请稍后重试。", "Please try again later.")
-                                }
-                                action={
-                                    <Button onClick={() => void refetch()}>
-                                        {t("重新加载", "Reload")}
-                                    </Button>
-                                }
-                            />
-                        ) : (
-                            <DataTableState
-                                colSpan={10}
-                                kind="empty"
-                                title={t("暂无用户", "No users")}
-                            />
-                        )}
-                    </TableBody>
-                </Table>
-            </DataTableShell>
-            <TablePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                total={total}
-                disabled={isFetching}
-                onPageChange={setCurrentPage}
+            {hasData && error && !isFetching ? (
+                <DataState
+                    compact
+                    kind="error"
+                    title={t("用户加载失败", "Failed to load users")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            ) : null}
+            <ProTable<User.Item>
+                rowKey="id"
+                columns={columns}
+                dataSource={rows}
+                loading={isPending || isFetching}
+                search={false}
+                options={false}
+                pagination={{
+                    current: currentPage,
+                    pageSize: PAGE_SIZE,
+                    total,
+                    showSizeChanger: false,
+                    onChange: (page) => setCurrentPage(page),
+                }}
+                locale={{
+                    emptyText:
+                        rows.length === 0 ? (
+                            <DataState kind="empty" title={t("暂无用户", "No users")} />
+                        ) : undefined,
+                }}
             />
         </PageCard>
     );
@@ -329,6 +358,105 @@ function UserActions({
     currentUserId?: number;
     onSuccess: () => void;
 }) {
+    const locale = useLocale();
+    const hasStatusPermission = useAuthStore((state) =>
+        state.checkPermissions("system:user:status"),
+    );
+    const hasPasswordPermission = useAuthStore((state) =>
+        state.checkPermissions("system:user:password"),
+    );
+    const hasDeletePermission = useAuthStore((state) =>
+        state.checkPermissions("system:user:delete"),
+    );
+    const [pendingAction, setPendingAction] = useState<UserActionType | null>(null);
+    const [confirmingAction, setConfirmingAction] = useState(false);
+    const actionItems = useMemo<NonNullable<MenuProps["items"]>>(
+        () =>
+            getUserActionItems(
+                record,
+                hasStatusPermission,
+                hasPasswordPermission,
+                hasDeletePermission,
+            ),
+        [
+            record.status,
+            record.username,
+            hasStatusPermission,
+            hasPasswordPermission,
+            hasDeletePermission,
+            locale,
+        ],
+    );
+    const actionConfig = useMemo<UserActionConfig | null>(() => {
+        if (!pendingAction) return null;
+
+        if (pendingAction === "status") {
+            return {
+                title:
+                    record.status === 1
+                        ? t("禁用用户", "Disable user")
+                        : t("启用用户", "Enable user"),
+                description:
+                    record.status === 1
+                        ? t(`确定禁用用户 ${record.username}？`, `Disable user ${record.username}?`)
+                        : t(`确定启用用户 ${record.username}？`, `Enable user ${record.username}?`),
+                actionLabel: record.status === 1 ? t("禁用", "Disable") : t("启用", "Enable"),
+                onConfirm: async () => {
+                    await systemAPI.user.status(record.id, record.status === 1 ? 2 : 1);
+                },
+            };
+        }
+
+        if (pendingAction === "password") {
+            return {
+                title: t("重置密码", "Reset password"),
+                description: t(
+                    `确定重置用户 ${record.username} 的密码吗？`,
+                    `Reset the password for user ${record.username}?`,
+                ),
+                actionLabel: t("重置密码", "Reset password"),
+                onConfirm: async () => {
+                    const password = getResetPassword(record.username);
+                    await systemAPI.user.password(record.id, password);
+                    appMessage.success(
+                        t(`密码已重置为 ${password}`, `Password reset to ${password}`),
+                    );
+                },
+            };
+        }
+
+        return {
+            title: t("删除用户", "Delete user"),
+            description: t(
+                `确定删除用户 ${record.username}？此操作无法撤销。`,
+                `Delete user ${record.username}? This action cannot be undone.`,
+            ),
+            actionLabel: t("删除用户", "Delete user"),
+            destructive: true,
+            onConfirm: async () => {
+                await systemAPI.user.delete(record.id);
+            },
+        };
+    }, [pendingAction, record.id, record.status, record.username, locale]);
+
+    const executeAction = async () => {
+        if (!actionConfig || confirmingAction) return;
+
+        setConfirmingAction(true);
+        try {
+            await actionConfig.onConfirm();
+            onSuccess();
+            setPendingAction(null);
+        } finally {
+            setConfirmingAction(false);
+        }
+    };
+
+    const hideActionDialog = () => {
+        if (confirmingAction) return;
+        setPendingAction(null);
+    };
+
     if (record.id === currentUserId || record.isSystem) {
         return null;
     }
@@ -338,109 +466,113 @@ function UserActions({
             <AuthWrap code="system:user:update">
                 <UserDialog mode="edit" initialValues={record} onSuccess={onSuccess}>
                     <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
+                        type="text"
+                        size="small"
                         aria-label={t("编辑用户", "Edit user")}
-                    >
-                        <EditIcon />
-                    </Button>
+                        icon={<EditOutlined />}
+                    />
                 </UserDialog>
             </AuthWrap>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+            {actionItems.length > 0 ? (
+                <Dropdown
+                    menu={{
+                        items: actionItems,
+                        onClick: (event) => {
+                            setPendingAction(event.key as UserActionType);
+                        },
+                    }}
+                    trigger={["click"]}
+                >
                     <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
+                        type="text"
+                        size="small"
                         aria-label={t("更多用户操作", "More user actions")}
-                    >
-                        <MoreHorizontalIcon />
+                        icon={<MoreOutlined />}
+                    />
+                </Dropdown>
+            ) : null}
+            <Modal
+                open={pendingAction !== null}
+                onCancel={hideActionDialog}
+                footer={null}
+                title={actionConfig?.title}
+                destroyOnHidden
+            >
+                <p>{actionConfig?.description}</p>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                    <Button type="default" onClick={hideActionDialog}>
+                        {t("取消", "Cancel")}
                     </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <AuthWrap code="system:user:status">
-                        <UserActionDialog
-                            title={
-                                record.status === 1
-                                    ? t("禁用用户", "Disable user")
-                                    : t("启用用户", "Enable user")
-                            }
-                            description={
-                                record.status === 1
-                                    ? t(
-                                          `确定禁用用户 ${record.username}？`,
-                                          `Disable user ${record.username}?`,
-                                      )
-                                    : t(
-                                          `确定启用用户 ${record.username}？`,
-                                          `Enable user ${record.username}?`,
-                                      )
-                            }
-                            actionLabel={
-                                record.status === 1 ? t("禁用", "Disable") : t("启用", "Enable")
-                            }
-                            onConfirm={async () => {
-                                await systemAPI.user.status(record.id, record.status === 1 ? 2 : 1);
-                                onSuccess();
-                            }}
-                        />
-                    </AuthWrap>
-                    <AuthWrap code="system:user:password">
-                        <UserActionDialog
-                            title={t("重置密码", "Reset password")}
-                            description={t(
-                                `确定重置用户 ${record.username} 的密码吗？`,
-                                `Reset the password for user ${record.username}?`,
-                            )}
-                            actionLabel={t("重置密码", "Reset password")}
-                            onConfirm={async () => {
-                                const password = buildResetPassword(record.username);
-                                await systemAPI.user.password(record.id, password);
-                                appMessage.success(
-                                    t(`密码已重置为 ${password}`, `Password reset to ${password}`),
-                                );
-                                onSuccess();
-                            }}
-                        />
-                    </AuthWrap>
-                    <AuthWrap code="system:user:delete">
-                        <UserActionDialog
-                            title={t("删除用户", "Delete user")}
-                            description={t(
-                                `确定删除用户 ${record.username}？此操作无法撤销。`,
-                                `Delete user ${record.username}? This action cannot be undone.`,
-                            )}
-                            actionLabel={t("删除用户", "Delete user")}
-                            destructive
-                            onConfirm={async () => {
-                                await systemAPI.user.delete(record.id);
-                                onSuccess();
-                            }}
-                        />
-                    </AuthWrap>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                    <Button
+                        type="primary"
+                        danger={actionConfig?.destructive}
+                        loading={confirmingAction}
+                        onClick={() => void executeAction()}
+                    >
+                        {actionConfig?.actionLabel ?? t("确定", "Confirm")}
+                    </Button>
+                </div>
+            </Modal>
         </div>
     );
 }
 
-interface UserDialogProps {
+type UserActionType = "status" | "password" | "delete";
+type UserActionConfig = {
+    title: string;
+    description: string;
+    actionLabel: string;
+    destructive?: boolean;
+    onConfirm: () => Promise<void>;
+};
+
+function getUserActionItems(
+    record: User.Item,
+    hasStatusPermission: boolean,
+    hasPasswordPermission: boolean,
+    hasDeletePermission: boolean,
+): NonNullable<MenuProps["items"]> {
+    const items: NonNullable<MenuProps["items"]> = [];
+
+    if (hasStatusPermission) {
+        items.push({
+            key: "status",
+            label: <span>{record.status === 1 ? t("禁用", "Disable") : t("启用", "Enable")}</span>,
+        });
+    }
+
+    if (hasPasswordPermission) {
+        items.push({
+            key: "password",
+            label: <span>{t("重置密码", "Reset password")}</span>,
+        });
+    }
+
+    if (hasDeletePermission) {
+        items.push({
+            key: "delete",
+            label: <span>{t("删除用户", "Delete user")}</span>,
+        });
+    }
+
+    return items;
+}
+
+const UserDialog = ({
+    children,
+    initialValues,
+    mode = "create",
+    onSuccess,
+}: {
     initialValues?: Partial<User.Item>;
     mode?: "create" | "edit";
     children: ReactNode;
     onSuccess?: () => void;
-}
-
-const UserDialog = ({ children, initialValues, mode = "create", onSuccess }: UserDialogProps) => {
+}) => {
     const [open, setOpen] = useState(false);
-    const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
-    const [realName, setRealName] = useState("");
-    const [password, setPassword] = useState("");
-    const [status, setStatus] = useState("1");
-    const [roleIds, setRoleIds] = useState<number[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [form] = Form.useForm<UserDialogValues>();
+
     const {
         data: roleOptions,
         error: roleError,
@@ -453,30 +585,36 @@ const UserDialog = ({ children, initialValues, mode = "create", onSuccess }: Use
         queryFn: systemAPI.role.options,
         enabled: open,
     });
+
     const roleInitialError = roleLoadFailed && roleOptions === undefined ? roleError : null;
     const rolePermissionDenied =
         roleInitialError instanceof Response &&
         (roleInitialError.status === 401 || roleInitialError.status === 403);
+
     const roleReady = roleOptions !== undefined && roleOptions.length > 0;
-    const submitDisabled = submitting || !roleReady || roleIds.length === 0;
+    const submitDisabled = submitting || !roleReady;
 
     useEffect(() => {
-        if (open) {
-            setUsername(initialValues?.username ?? "");
-            setEmail(initialValues?.email ?? "");
-            setRealName(initialValues?.realName ?? "");
-            setPassword("");
-            setStatus(String(initialValues?.status ?? 1));
-            setRoleIds(initialValues?.roles?.map((role) => role.value) ?? []);
+        if (!open) {
+            return;
         }
-    }, [initialValues, open]);
 
-    const submit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const trimmedUsername = username.trim();
-        const trimmedEmail = email.trim();
-        const trimmedRealName = realName.trim();
-        const trimmedPassword = password.trim();
+        form.setFieldsValue({
+            username: initialValues?.username ?? "",
+            email: initialValues?.email ?? "",
+            realName: initialValues?.realName ?? "",
+            password: "",
+            status: String(initialValues?.status ?? 1),
+            roleIds: initialValues?.roles?.map((role) => role.value) ?? [],
+        });
+    }, [initialValues, open, form]);
+
+    const submit: FormProps<UserDialogValues>["onFinish"] = async (values) => {
+        const trimmedUsername = values.username.trim();
+        const trimmedEmail = values.email.trim();
+        const trimmedRealName = values.realName.trim();
+        const trimmedPassword = (values.password ?? "").trim();
+        const roleIds = (values.roleIds ?? []).map((item) => Number(item));
 
         if (mode === "create" && trimmedUsername.length < 3) {
             appMessage.error(
@@ -511,7 +649,7 @@ const UserDialog = ({ children, initialValues, mode = "create", onSuccess }: Use
                     email: trimmedEmail,
                     password: trimmedPassword,
                     realName: trimmedRealName,
-                    status: Number(status),
+                    status: Number(values.status ?? 1),
                     roleIds,
                 });
                 appMessage.success(t("用户已创建", "User created."));
@@ -524,6 +662,7 @@ const UserDialog = ({ children, initialValues, mode = "create", onSuccess }: Use
                 appMessage.success(t("用户已更新", "User updated."));
             }
             onSuccess?.();
+            form.resetFields();
             setOpen(false);
         } finally {
             setSubmitting(false);
@@ -531,260 +670,225 @@ const UserDialog = ({ children, initialValues, mode = "create", onSuccess }: Use
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>
-                        {mode === "create"
-                            ? t("创建用户", "Create user")
-                            : t("编辑用户", "Edit user")}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {mode === "create"
-                            ? t("创建账号并分配角色。", "Create an account and assign roles.")
-                            : t("更新账号信息和角色。", "Update account details and roles.")}
-                    </DialogDescription>
-                </DialogHeader>
-                <form className="grid gap-4" onSubmit={submit}>
-                    <TextField
-                        id="user-username"
+        <>
+            <span className="inline-flex" onClick={() => setOpen(true)}>
+                {children}
+            </span>
+            <Modal
+                open={open}
+                destroyOnHidden
+                onCancel={() => {
+                    form.resetFields();
+                    setOpen(false);
+                }}
+                title={
+                    mode === "create" ? t("创建用户", "Create user") : t("编辑用户", "Edit user")
+                }
+                footer={null}
+            >
+                <Form
+                    form={form}
+                    layout="vertical"
+                    requiredMark={false}
+                    onFinish={submit}
+                    initialValues={{
+                        username: initialValues?.username ?? "",
+                        email: initialValues?.email ?? "",
+                        realName: initialValues?.realName ?? "",
+                        status: String(initialValues?.status ?? 1),
+                        roleIds: initialValues?.roles?.map((role) => role.value) ?? [],
+                    }}
+                >
+                    <Form.Item
+                        name="username"
                         label={t("用户名", "Username")}
-                        value={username}
-                        placeholder={t("请输入用户名", "Enter a username")}
-                        disabled={mode === "edit"}
-                        onChange={setUsername}
-                    />
-                    <TextField
-                        id="user-email"
-                        label={t("邮箱", "Email")}
-                        value={email}
-                        placeholder={t("请输入邮箱", "Enter an email address")}
-                        onChange={setEmail}
-                    />
-                    <TextField
-                        id="user-real-name"
-                        label={t("真实姓名", "Real name")}
-                        value={realName}
-                        placeholder={t("请输入真实姓名", "Enter the real name")}
-                        onChange={setRealName}
-                    />
-                    {mode === "create" && (
-                        <TextField
-                            id="user-password"
-                            label={t("密码", "Password")}
-                            value={password}
-                            type="password"
-                            placeholder={t("请输入密码", "Enter a password")}
-                            onChange={setPassword}
+                        rules={[{ required: true, message: t("请输入用户名", "Enter a username") }]}
+                    >
+                        <Input
+                            placeholder={t("请输入用户名", "Enter a username")}
+                            disabled={mode === "edit"}
                         />
+                    </Form.Item>
+                    <Form.Item
+                        name="email"
+                        label={t("邮箱", "Email")}
+                        rules={[
+                            { required: true, message: t("请输入邮箱", "Enter an email address") },
+                        ]}
+                    >
+                        <Input placeholder={t("请输入邮箱", "Enter an email address")} />
+                    </Form.Item>
+                    <Form.Item
+                        name="realName"
+                        label={t("真实姓名", "Real name")}
+                        rules={[
+                            { required: true, message: t("请输入真实姓名", "Enter the real name") },
+                        ]}
+                    >
+                        <Input placeholder={t("请输入真实姓名", "Enter the real name")} />
+                    </Form.Item>
+                    {mode === "create" && (
+                        <Form.Item
+                            name="password"
+                            label={t("密码", "Password")}
+                            rules={[
+                                { required: true, message: t("请输入密码", "Enter a password") },
+                            ]}
+                        >
+                            <Input.Password placeholder={t("请输入密码", "Enter a password")} />
+                        </Form.Item>
                     )}
                     {mode === "create" && (
-                        <div className="grid gap-2">
-                            <Label htmlFor="user-status">{t("状态", "Status")}</Label>
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger id="user-status" className="w-full">
-                                    <SelectValue placeholder={t("请选择状态", "Select a status")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {getEnableOptions().map((item) => (
-                                            <SelectItem key={item.value} value={String(item.value)}>
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <Form.Item name="status" label={t("状态", "Status")}>
+                            <Select
+                                options={getEnableOptions().map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                }))}
+                            />
+                        </Form.Item>
                     )}
-                    <RolePicker
-                        options={roleOptions ?? []}
-                        value={roleIds}
-                        onChange={setRoleIds}
-                        loading={roleLoading && roleOptions === undefined}
-                        error={roleInitialError}
-                        permissionDenied={rolePermissionDenied}
-                        onRetry={async () => {
-                            await refetchRoles();
-                        }}
-                        retrying={roleRefreshing}
-                    />
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button type="submit" disabled={submitDisabled}>
-                            {submitting
-                                ? mode === "create"
-                                    ? t("创建中", "Creating")
-                                    : t("保存中", "Saving")
-                                : mode === "create"
-                                  ? t("创建", "Create")
-                                  : t("保存", "Save")}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                    <Form.Item
+                        name="roleIds"
+                        label={t("角色", "Roles")}
+                        rules={[
+                            {
+                                required: true,
+                                type: "array",
+                                min: 1,
+                                message: t("请至少选择一个角色", "Select at least one role."),
+                            },
+                        ]}
+                    >
+                        <RolePicker
+                            options={roleOptions ?? []}
+                            loading={roleLoading && roleOptions === undefined}
+                            error={roleInitialError}
+                            permissionDenied={rolePermissionDenied}
+                            onRetry={async () => {
+                                await refetchRoles();
+                            }}
+                            retrying={roleRefreshing}
+                        />
+                    </Form.Item>
+                    <Form.Item className="!mb-0">
+                        <div className="flex items-center justify-end gap-2">
+                            <Button
+                                onClick={() => {
+                                    form.resetFields();
+                                    setOpen(false);
+                                }}
+                            >
+                                {t("取消", "Cancel")}
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={submitting}
+                                disabled={submitDisabled}
+                            >
+                                {submitting
+                                    ? mode === "create"
+                                        ? t("创建中", "Creating")
+                                        : t("保存中", "Saving")
+                                    : mode === "create"
+                                      ? t("创建", "Create")
+                                      : t("保存", "Save")}
+                            </Button>
+                        </div>
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </>
     );
 };
 
 function RolePicker({
     options,
-    value,
-    onChange,
     loading,
     error,
     permissionDenied,
     onRetry,
     retrying,
+    value,
+    onChange,
 }: {
     options: Role.OptionItem[];
-    value: number[];
-    onChange: (value: number[]) => void;
     loading: boolean;
     error: unknown;
     permissionDenied: boolean;
     onRetry?: () => Promise<void> | void;
     retrying: boolean;
+    value?: Array<number | string>;
+    onChange?: (value: Array<number | string>) => void;
 }) {
-    const toggleRole = (roleId: number, checked: boolean) => {
-        if (checked) {
-            onChange([...value, roleId]);
-            return;
-        }
-        onChange(value.filter((item) => item !== roleId));
-    };
+    const normalizeRoleIds = (rawValues: Array<number | string>) =>
+        rawValues.map((item) => Number(item)).filter((item) => Number.isFinite(item));
 
     if (loading) {
-        return (
-            <div className="grid gap-2">
-                <Label>{t("角色", "Roles")}</Label>
-                <div className="max-h-40 overflow-auto rounded-md border p-3">
-                    <DataState compact kind="loading" title={t("正在加载角色", "Loading roles")} />
-                </div>
-            </div>
-        );
+        return <DataState compact kind="loading" title={t("正在加载角色", "Loading roles")} />;
     }
 
     if (error) {
         return (
-            <div className="grid gap-2">
-                <Label>{t("角色", "Roles")}</Label>
-                <div className="max-h-40 overflow-auto rounded-md border p-3">
-                    <DataState
-                        compact
-                        kind={permissionDenied ? "permission" : "error"}
-                        title={t(
-                            permissionDenied ? "角色加载失败或无权限" : "角色加载失败",
-                            permissionDenied
-                                ? "Failed to load roles or insufficient permission"
-                                : "Failed to load roles",
-                        )}
-                        description={t(
-                            "角色加载失败，请重试；若仍无权限，请联系管理员。",
-                            "Failed to load roles. Retry, or contact an owner if access is still unavailable.",
-                        )}
-                        action={
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => void onRetry?.()}
-                                disabled={retrying}
-                            >
-                                {t("重新加载", "Reload")}
-                            </Button>
-                        }
-                    />
-                </div>
-            </div>
+            <DataState
+                compact
+                kind={permissionDenied ? "permission" : "error"}
+                title={
+                    permissionDenied
+                        ? t(
+                              "角色加载失败或无权限",
+                              "Failed to load roles or insufficient permission",
+                          )
+                        : t("角色加载失败", "Failed to load roles")
+                }
+                description={t(
+                    "角色加载失败，请重试；若仍无权限，请联系管理员。",
+                    "Failed to load roles. Retry, or contact an owner if access is still unavailable.",
+                )}
+                action={
+                    <Button type="default" onClick={() => void onRetry?.()} disabled={retrying}>
+                        {t("重新加载", "Reload")}
+                    </Button>
+                }
+            />
         );
     }
 
     if (options.length === 0) {
         return (
-            <div className="grid gap-2">
-                <Label>{t("角色", "Roles")}</Label>
-                <div className="max-h-40 overflow-auto rounded-md border p-3">
-                    <DataState
-                        compact
-                        kind="empty"
-                        title={t("暂无可分配角色", "No roles available to assign")}
-                    />
-                </div>
-            </div>
+            <DataState
+                compact
+                kind="empty"
+                title={t("暂无可分配角色", "No roles available to assign")}
+            />
         );
     }
 
     return (
-        <div className="grid gap-2">
-            <Label>{t("角色", "Roles")}</Label>
-            <div className="max-h-40 overflow-auto rounded-md border p-3">
-                <div className="grid gap-3">
-                    {options.map((role) => (
-                        <Label key={role.value} className="justify-start">
-                            <Checkbox
-                                checked={value.includes(role.value)}
-                                onCheckedChange={(checked) =>
-                                    toggleRole(role.value, checked === true)
-                                }
-                            />
-                            {role.isSystem
-                                ? localizeBuiltInRoleName(role.code, role.label)
-                                : role.label}
-                        </Label>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function UserActionDialog({
-    title,
-    description,
-    actionLabel,
-    destructive = false,
-    onConfirm,
-}: {
-    title: string;
-    description: string;
-    actionLabel: string;
-    destructive?: boolean;
-    onConfirm: () => Promise<void>;
-}) {
-    return (
-        <ConfirmDialog
-            trigger={
-                <DropdownMenuItem
-                    className={destructive ? "text-destructive" : undefined}
-                    onSelect={(event) => event.preventDefault()}
-                >
-                    {actionLabel}
-                </DropdownMenuItem>
-            }
-            title={title}
-            description={description}
-            confirmLabel={actionLabel}
-            destructive={destructive}
-            onConfirm={onConfirm}
+        <Checkbox.Group
+            value={normalizeRoleIds(value ?? [])}
+            options={options.map((role) => ({
+                value: role.value,
+                label: role.isSystem ? localizeBuiltInRoleName(role.code, role.label) : role.label,
+            }))}
+            onChange={(values) => onChange?.(normalizeRoleIds(values as Array<number | string>))}
         />
     );
 }
 
 function UserStatusBadge({ status }: { status: number }) {
     const statusMeta = {
-        1: { label: t("启用", "Enabled"), variant: "secondary" as const },
-        2: { label: t("禁用", "Disabled"), variant: "outline" as const },
-        3: { label: t("待审核", "Pending"), variant: "default" as const },
-        4: { label: t("已锁定", "Locked"), variant: "destructive" as const },
+        1: { label: t("启用", "Enabled"), color: "blue" as const },
+        2: { label: t("禁用", "Disabled"), color: "default" as const },
+        3: { label: t("待审核", "Pending"), color: "gold" as const },
+        4: { label: t("已锁定", "Locked"), color: "red" as const },
     };
     const meta = statusMeta[status as keyof typeof statusMeta] ?? {
         label: t("未知", "Unknown"),
-        variant: "outline" as const,
+        color: "default" as const,
     };
-    return <Badge variant={meta.variant}>{meta.label}</Badge>;
+    return <Tag color={meta.color}>{meta.label}</Tag>;
 }
 
 function getUserInitial(record: User.Item) {

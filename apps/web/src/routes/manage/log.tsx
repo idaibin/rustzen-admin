@@ -1,26 +1,15 @@
+import { DownloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { DownloadIcon, SearchIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Button, Input, Tabs, Tag, type TabsProps } from "antd";
+import { useEffect, useMemo, useState } from "react";
 
 import { manageAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
-import { DataTableState } from "@/components/feedback/data-state";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { TablePagination } from "@/components/table/table-pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { t } from "@/lib/i18n";
 import { useLocalStore } from "@/store/useLocalStore";
 
@@ -48,6 +37,12 @@ function LogPage() {
     const [searchInput, setSearchInput] = useState("");
     const [searchKeyword, setSearchKeyword] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+
+    const actionItems: TabsProps["items"] = actionOptions.map((item) => ({
+        key: item.value,
+        label: item.label,
+    }));
+
     const params = useMemo<Log.QueryParams>(
         () => ({
             current: currentPage,
@@ -63,7 +58,16 @@ function LogPage() {
     });
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    useEffect(() => {
+        if (data === undefined || isFetching) {
+            return;
+        }
+        const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > lastPage) {
+            setCurrentPage(lastPage);
+        }
+    }, [currentPage, data, isFetching, total]);
 
     const updateAction = (value: string) => {
         setActionType(value);
@@ -81,6 +85,164 @@ function LogPage() {
         setCurrentPage(1);
     };
 
+    const exportButton = (
+        <AuthWrap code="manage:log:export">
+            <Button
+                icon={<DownloadOutlined />}
+                onClick={() => {
+                    void manageAPI.log.export(params);
+                }}
+            >
+                {t("导出", "Export")}
+            </Button>
+        </AuthWrap>
+    );
+
+    const logToolbar = (
+        <div className="flex flex-wrap items-center gap-3">
+            <Tabs items={actionItems} activeKey={actionType} onChange={updateAction} />
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Input.Search
+                    prefix={<SearchOutlined />}
+                    aria-label={t("搜索用户或 IP", "Search by user or IP")}
+                    value={searchInput}
+                    placeholder={t("搜索用户或 IP", "Search by user or IP")}
+                    style={{ width: "100%", minWidth: 220 }}
+                    onChange={(event) => {
+                        const value = event.target.value;
+                        setSearchInput(value);
+                        if (!value) {
+                            setSearchKeyword("");
+                            setCurrentPage(1);
+                        }
+                    }}
+                    onSearch={submitSearch}
+                />
+                <Button type="default" onClick={submitSearch}>
+                    {t("查询", "Search")}
+                </Button>
+                {searchKeyword ? (
+                    <Button type="default" onClick={clearSearch}>
+                        {t("清除", "Clear")}
+                    </Button>
+                ) : null}
+            </div>
+        </div>
+    );
+
+    const columns: ProColumns<Log.Item>[] = [
+        {
+            title: "ID",
+            dataIndex: "id",
+            key: "id",
+            width: 70,
+        },
+        {
+            title: t("用户", "User"),
+            dataIndex: "username",
+            key: "username",
+            render: (_: unknown, row: Log.Item) => row.username || t("匿名用户", "Anonymous user"),
+        },
+        {
+            title: t("操作", "Action"),
+            key: "action",
+            render: (_: unknown, row: Log.Item) => <ActionBadge action={row.action} />,
+            width: 100,
+        },
+        {
+            title: t("描述", "Description"),
+            key: "description",
+            ellipsis: true,
+            render: (_: unknown, row: Log.Item) => operationDescription(row.description),
+        },
+        {
+            title: t("状态", "Status"),
+            key: "status",
+            render: (_: unknown, row: Log.Item) => <StatusBadge status={row.status} />,
+            width: 90,
+        },
+        {
+            title: t("IP 地址", "IP address"),
+            dataIndex: "ipAddress",
+            key: "ipAddress",
+            width: 150,
+            render: (_: unknown, row: Log.Item) => row.ipAddress || "-",
+        },
+        {
+            title: t("耗时", "Duration"),
+            key: "durationMs",
+            width: 96,
+            render: (_: unknown, row: Log.Item) => formatDuration(row.durationMs),
+        },
+        {
+            title: t("创建时间", "Created at"),
+            dataIndex: "createdAt",
+            key: "createdAt",
+            width: 180,
+        },
+    ];
+
+    if (!rows.length && isPending) {
+        return (
+            <PageCard
+                title={t("日志", "Logs")}
+                description={t(
+                    "审计管理服务中的登录和 HTTP 操作记录。",
+                    "Audit sign-in and HTTP operations in the admin service.",
+                )}
+                actions={exportButton}
+                toolbar={logToolbar}
+            >
+                <DataState kind="loading" title={t("正在加载日志", "Loading logs")} />
+            </PageCard>
+        );
+    }
+
+    if (!rows.length && error) {
+        return (
+            <PageCard
+                title={t("日志", "Logs")}
+                description={t(
+                    "审计管理服务中的登录和 HTTP 操作记录。",
+                    "Audit sign-in and HTTP operations in the admin service.",
+                )}
+                actions={exportButton}
+                toolbar={logToolbar}
+            >
+                <DataState
+                    kind="error"
+                    title={t("日志加载失败", "Failed to load logs")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
+    if (total === 0) {
+        return (
+            <PageCard
+                title={t("日志", "Logs")}
+                description={t(
+                    "审计管理服务中的登录和 HTTP 操作记录。",
+                    "Audit sign-in and HTTP operations in the admin service.",
+                )}
+                actions={exportButton}
+                toolbar={logToolbar}
+            >
+                <DataState kind="empty" title={t("暂无日志", "No logs")} />
+            </PageCard>
+        );
+    }
+
     return (
         <PageCard
             title={t("日志", "Logs")}
@@ -88,155 +250,66 @@ function LogPage() {
                 "审计管理服务中的登录和 HTTP 操作记录。",
                 "Audit sign-in and HTTP operations in the admin service.",
             )}
-            actions={
-                <AuthWrap code="manage:log:export">
-                    <Button
-                        onClick={() => {
-                            void manageAPI.log.export(params);
-                        }}
-                    >
-                        <DownloadIcon data-icon="inline-start" />
-                        {t("导出", "Export")}
-                    </Button>
-                </AuthWrap>
-            }
-            toolbar={
-                <div className="flex flex-wrap items-center gap-3">
-                    <Tabs value={actionType} onValueChange={updateAction}>
-                        <TabsList className="w-full overflow-x-auto sm:w-auto">
-                            {actionOptions.map((item) => (
-                                <TabsTrigger key={item.value} value={item.value}>
-                                    {item.label}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                    </Tabs>
-                    <div className="flex w-full items-center gap-2 sm:w-auto">
-                        <div className="relative min-w-0 flex-1 sm:w-64">
-                            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                aria-label={t("搜索用户或 IP", "Search by user or IP")}
-                                value={searchInput}
-                                placeholder={t("搜索用户或 IP", "Search by user or IP")}
-                                className="pl-9"
-                                onChange={(event) => {
-                                    const value = event.target.value;
-                                    setSearchInput(value);
-                                    if (!value) {
-                                        setSearchKeyword("");
-                                    }
-                                }}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        submitSearch();
-                                    }
-                                }}
-                            />
-                        </div>
-                        <Button type="button" variant="outline" onClick={submitSearch}>
-                            {t("查询", "Search")}
-                        </Button>
-                        {searchKeyword ? (
-                            <Button type="button" variant="ghost" onClick={clearSearch}>
-                                {t("清除", "Clear")}
-                            </Button>
-                        ) : null}
-                    </div>
-                </div>
-            }
+            actions={exportButton}
+            toolbar={logToolbar}
         >
             <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-20">ID</TableHead>
-                            <TableHead className="w-36">{t("用户", "User")}</TableHead>
-                            <TableHead className="w-36">{t("操作", "Action")}</TableHead>
-                            <TableHead>{t("描述", "Description")}</TableHead>
-                            <TableHead className="w-28">{t("状态", "Status")}</TableHead>
-                            <TableHead className="w-36">{t("IP 地址", "IP address")}</TableHead>
-                            <TableHead className="w-28">{t("耗时", "Duration")}</TableHead>
-                            <TableHead className="w-44">{t("创建时间", "Created at")}</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {rows.length > 0 ? (
-                            rows.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell className="font-medium">{record.id}</TableCell>
-                                    <TableCell>
-                                        {record.username || t("匿名用户", "Anonymous user")}
-                                    </TableCell>
-                                    <TableCell>
-                                        <ActionBadge action={record.action} />
-                                    </TableCell>
-                                    <TableCell className="max-w-80 truncate">
-                                        {operationDescription(record.description)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatusBadge status={record.status} />
-                                    </TableCell>
-                                    <TableCell>{record.ipAddress || "-"}</TableCell>
-                                    <TableCell>{formatDuration(record.durationMs)}</TableCell>
-                                    <TableCell className="whitespace-nowrap">
-                                        {record.createdAt}
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : isPending ? (
-                            <DataTableState
-                                colSpan={8}
-                                kind="loading"
-                                title={t("正在加载日志", "Loading logs")}
-                            />
-                        ) : error ? (
-                            <DataTableState
-                                colSpan={8}
-                                kind="error"
-                                title={t("日志加载失败", "Failed to load logs")}
-                                description={
-                                    error instanceof Error
-                                        ? error.message
-                                        : t("请稍后重试。", "Please try again later.")
-                                }
-                                action={
-                                    <Button onClick={() => void refetch()}>
-                                        {t("重新加载", "Reload")}
-                                    </Button>
-                                }
-                            />
-                        ) : (
-                            <DataTableState
-                                colSpan={8}
-                                kind="empty"
-                                title={t("暂无日志", "No logs")}
-                            />
-                        )}
-                    </TableBody>
-                </Table>
+                {error ? (
+                    <DataState
+                        kind="error"
+                        title={t("日志刷新失败", "Failed to refresh logs")}
+                        description={
+                            error instanceof Error
+                                ? error.message
+                                : t("请稍后重试。", "Please try again later.")
+                        }
+                        action={
+                            <Button type="primary" onClick={() => void refetch()}>
+                                {t("重新加载", "Reload")}
+                            </Button>
+                        }
+                        compact
+                    />
+                ) : null}
+                <ProTable<Log.Item>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={rows}
+                    loading={isFetching}
+                    search={false}
+                    options={false}
+                    pagination={{
+                        current: currentPage,
+                        pageSize: PAGE_SIZE,
+                        total,
+                        showSizeChanger: false,
+                        onChange: (page) => {
+                            setCurrentPage(page);
+                        },
+                    }}
+                    locale={{
+                        emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
+                    }}
+                    toolBarRender={false}
+                    tableAlertOptionRender={false}
+                    rowSelection={false}
+                />
             </DataTableShell>
-            <TablePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                total={total}
-                disabled={isFetching}
-                onPageChange={setCurrentPage}
-            />
         </PageCard>
     );
 }
 
 const ActionBadge = ({ action }: { action: string }) => {
-    const variant = action === "AUTH_LOGIN" ? "default" : "secondary";
-    return <Badge variant={variant}>{action}</Badge>;
+    const color = action === "AUTH_LOGIN" ? "blue" : "gold";
+    return <Tag color={color}>{action}</Tag>;
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
     const isSuccess = status === "SUCCESS";
     return (
-        <Badge variant={isSuccess ? "default" : "destructive"}>
+        <Tag color={isSuccess ? "green" : "red"}>
             {isSuccess ? t("成功", "Success") : t("失败", "Failed")}
-        </Badge>
+        </Tag>
     );
 };
 

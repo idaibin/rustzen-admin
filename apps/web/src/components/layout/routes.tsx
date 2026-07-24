@@ -1,17 +1,16 @@
 import {
-    BoxesIcon,
-    ChartNoAxesCombinedIcon,
-    ClockIcon,
-    CloudUploadIcon,
-    HistoryIcon,
-    LayoutDashboardIcon,
-    MenuIcon,
-    MonitorIcon,
-    FileTextIcon,
-    SettingsIcon,
-    UserIcon,
-    UsersIcon,
-} from "lucide-react";
+    AppstoreOutlined,
+    ClockCircleOutlined,
+    CloudUploadOutlined,
+    DashboardOutlined,
+    FileTextOutlined,
+    HistoryOutlined,
+    MenuOutlined,
+    MonitorOutlined,
+    SettingOutlined,
+    TeamOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
 import type { ReactNode } from "react";
 
 import { localizeModuleMenuName, localizeModuleName } from "@/lib/builtin-i18n";
@@ -53,13 +52,13 @@ export type SearchRouteItem = {
 const dashboardRoute = (): AppRouteItem => ({
     path: "/",
     name: t("仪表盘", "Dashboard"),
-    icon: <LayoutDashboardIcon />,
+    icon: <DashboardOutlined />,
 });
 
 const profileRoute = (): AppRouteItem => ({
     path: "/profile",
     name: t("个人资料", "Profile"),
-    icon: <UserIcon />,
+    icon: <UserOutlined />,
     requiresPermission: false,
 });
 
@@ -70,9 +69,9 @@ const moduleGroupPaths: Record<SystemModule.Id, AppRouteGroupPath> = {
 };
 
 const moduleIcons: Record<SystemModule.Icon, ReactNode> = {
-    monitor: <MonitorIcon />,
-    "chart-no-axes-combined": <ChartNoAxesCombinedIcon />,
-    "file-text": <FileTextIcon />,
+    monitor: <MonitorOutlined />,
+    "chart-no-axes-combined": <AppstoreOutlined />,
+    "file-text": <FileTextOutlined />,
 };
 
 const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteItem[] => {
@@ -101,56 +100,56 @@ const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteIte
 
 const systemRoutes = (): AppRouteItem => ({
     name: t("系统", "System"),
-    icon: <SettingsIcon />,
+    icon: <SettingOutlined />,
     path: "/system",
     children: [
         {
             path: "/system/user",
             name: t("用户", "Users"),
-            icon: <UserIcon />,
+            icon: <UserOutlined />,
         },
         {
             path: "/system/role",
             name: t("角色", "Roles"),
-            icon: <UsersIcon />,
+            icon: <TeamOutlined />,
         },
         {
             path: "/system/menu",
             name: t("菜单", "Menus"),
-            icon: <MenuIcon />,
+            icon: <MenuOutlined />,
         },
         {
             path: "/manage/log",
             name: t("日志", "Logs"),
-            icon: <HistoryIcon />,
+            icon: <HistoryOutlined />,
         },
     ],
 });
 
 const manageRoutes = (): AppRouteItem => ({
     name: t("管理", "Management"),
-    icon: <CloudUploadIcon />,
+    icon: <CloudUploadOutlined />,
     path: "/manage",
     children: [
         {
             path: "/system/module",
             name: t("系统模块", "System modules"),
-            icon: <BoxesIcon />,
+            icon: <AppstoreOutlined />,
         },
         {
             path: "/system/status",
             name: t("系统状态", "System status"),
-            icon: <MonitorIcon />,
+            icon: <MonitorOutlined />,
         },
         {
             path: "/manage/task",
             name: t("定时任务", "Scheduled tasks"),
-            icon: <ClockIcon />,
+            icon: <ClockCircleOutlined />,
         },
         {
             path: "/manage/deploy",
             name: t("部署版本", "Deploy versions"),
-            icon: <CloudUploadIcon />,
+            icon: <CloudUploadOutlined />,
         },
     ],
 });

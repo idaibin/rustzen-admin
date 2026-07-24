@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Button, Card } from "antd";
 import {
     CartesianGrid,
     Line,
@@ -14,11 +15,11 @@ import { insightsAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageCard } from "@/components/page/page-card";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { t } from "@/lib/i18n";
 
-export const Route = createFileRoute("/analytics/overview")({ component: AnalyticsOverviewPage });
+export const Route = createFileRoute("/analytics/overview")({
+    component: AnalyticsOverviewPage,
+});
 
 function AnalyticsOverviewPage() {
     const {
@@ -104,37 +105,36 @@ function AnalyticsOverviewPage() {
                     />
                 </div>
                 <Card>
-                    <CardHeader>
-                        <CardTitle>{t("每日活动", "Daily activity")}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={overview.trend}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="date" />
-                                <YAxis allowDecimals={false} />
-                                <Tooltip />
-                                <Line
-                                    type="monotone"
-                                    dataKey="pv"
-                                    name="PV"
-                                    stroke="var(--chart-1)"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="uv"
-                                    name="UV"
-                                    stroke="var(--chart-2)"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="requestCount"
-                                    name={t("请求数", "Requests")}
-                                    stroke="var(--chart-3)"
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </CardContent>
+                    <Card title={t("每日活动", "Daily activity")} className="h-72">
+                        <div className="h-60">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={overview.trend}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="date" />
+                                    <YAxis allowDecimals={false} />
+                                    <Tooltip />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="pv"
+                                        name="PV"
+                                        stroke="var(--chart-1)"
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="uv"
+                                        name="UV"
+                                        stroke="var(--chart-2)"
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="requestCount"
+                                        name={t("请求数", "Requests")}
+                                        stroke="var(--chart-3)"
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </Card>
                 </Card>
             </>
         </PageCard>

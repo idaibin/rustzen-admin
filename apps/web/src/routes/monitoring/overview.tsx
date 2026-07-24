@@ -1,12 +1,18 @@
+import {
+    AlertOutlined,
+    CloudServerOutlined,
+    CloudSyncOutlined,
+    ExclamationCircleOutlined,
+    LineChartOutlined,
+    SignalFilled,
+} from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ActivityIcon, ClockAlertIcon, ServerIcon, ShieldAlertIcon } from "lucide-react";
+import { Button, Card, Col, Row, Statistic } from "antd";
 
 import { monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
-import { MetricCard } from "@/components/page/metric-card";
 import { PageCard } from "@/components/page/page-card";
-import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
@@ -18,7 +24,7 @@ function MonitoringOverviewPage() {
         refetchInterval: 30_000,
     });
 
-    if (isPending) {
+    if (isPending && !data) {
         return (
             <PageCard
                 title={t("监控概览", "Monitoring overview")}
@@ -53,12 +59,47 @@ function MonitoringOverviewPage() {
                         "Unable to read node and service status. Check the Monitor service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </PageCard>
         );
     }
+
+    const cards = [
+        {
+            label: t("已注册节点", "Registered nodes"),
+            value: data.registeredNodes,
+            icon: <CloudServerOutlined />,
+            color: "var(--primary)",
+        },
+        {
+            label: t("在线节点", "Online nodes"),
+            value: data.onlineNodes,
+            icon: <SignalFilled />,
+            color: "#52c41a",
+        },
+        {
+            label: t("离线节点", "Offline nodes"),
+            value: data.offlineNodes,
+            icon: <CloudSyncOutlined />,
+            color: "#faad14",
+        },
+        {
+            label: t("异常检查", "Unhealthy checks"),
+            value: data.unhealthyChecks,
+            icon: <AlertOutlined />,
+            color: "#ff4d4f",
+        },
+        {
+            label: t("活动事件", "Active incidents"),
+            value: data.activeIncidents,
+            icon: <ExclamationCircleOutlined />,
+            color: "#722ed1",
+        },
+    ];
 
     return (
         <PageCard
@@ -68,32 +109,31 @@ function MonitoringOverviewPage() {
                 "View current node availability and the latest infrastructure heartbeats.",
             )}
         >
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <MetricCard
-                    label={t("已注册节点", "Registered nodes")}
-                    value={data.registeredNodes}
-                    icon={<ServerIcon />}
-                />
-                <MetricCard
-                    label={t("在线节点", "Online nodes")}
-                    value={data.onlineNodes}
-                    icon={<ActivityIcon />}
-                />
-                <MetricCard
-                    label={t("离线节点", "Offline nodes")}
-                    value={data.offlineNodes}
-                    icon={<ClockAlertIcon />}
-                />
-                <MetricCard
-                    label={t("异常检查", "Unhealthy checks")}
-                    value={data.unhealthyChecks}
-                    icon={<ActivityIcon />}
-                />
-                <MetricCard
-                    label={t("活动事件", "Active incidents")}
-                    value={data.activeIncidents}
-                    icon={<ShieldAlertIcon />}
-                />
+            <Row gutter={[12, 12]}>
+                {cards.map((item) => (
+                    <Col key={item.label} xs={24} sm={12} xl={5}>
+                        <Card size="small">
+                            <Statistic
+                                title={item.label}
+                                value={item.value}
+                                prefix={
+                                    <span
+                                        className="inline-flex items-center justify-center"
+                                        style={{ color: item.color }}
+                                    >
+                                        {item.icon}
+                                    </span>
+                                }
+                            />
+                        </Card>
+                    </Col>
+                ))}
+            </Row>
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <LineChartOutlined />
+                <span>
+                    {t("监控数据每 30 秒自动刷新。", "Monitoring data refreshes every 30 seconds.")}
+                </span>
             </div>
             {data.registeredNodes === 0 ? (
                 <DataState

@@ -1,15 +1,6 @@
+import { Button, Modal } from "antd";
 import { useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
 import { t } from "@/lib/i18n";
 
 interface ConfirmDialogProps {
@@ -34,7 +25,24 @@ export function ConfirmDialog({
     const [open, setOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    const showDialog = () => {
+        if (disabled || submitting) {
+            return;
+        }
+        setOpen(true);
+    };
+
+    const hideDialog = () => {
+        if (submitting) {
+            return;
+        }
+        setOpen(false);
+    };
+
     const submit = async () => {
+        if (submitting) {
+            return;
+        }
         setSubmitting(true);
         try {
             await onConfirm();
@@ -45,27 +53,32 @@ export function ConfirmDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={(nextOpen) => !disabled && setOpen(nextOpen)}>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        <>
+            <span onClick={showDialog}>{trigger}</span>
+            <Modal
+                open={open}
+                closable={!disabled}
+                confirmLoading={submitting}
+                onCancel={hideDialog}
+                title={title}
+                footer={[
+                    <Button key="cancel" type="default" onClick={hideDialog}>
                         {t("取消", "Cancel")}
-                    </Button>
+                    </Button>,
                     <Button
-                        type="button"
-                        variant={destructive ? "destructive" : "default"}
-                        disabled={submitting || disabled}
+                        key="confirm"
+                        type="primary"
+                        danger={destructive}
+                        loading={submitting}
+                        disabled={disabled}
                         onClick={submit}
                     >
                         {confirmLabel}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    </Button>,
+                ]}
+            >
+                <div>{description}</div>
+            </Modal>
+        </>
     );
 }

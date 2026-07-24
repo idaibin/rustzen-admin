@@ -1,13 +1,17 @@
+import {
+    CloudServerOutlined,
+    DatabaseOutlined,
+    HddOutlined,
+    ReloadOutlined,
+} from "@ant-design/icons";
+import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CpuIcon, DatabaseIcon, HardDriveIcon, MemoryStickIcon } from "lucide-react";
+import { Button, Progress, Statistic, Tag } from "antd";
 
 import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { PageHeader } from "@/components/page/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/system/status")({
@@ -55,7 +59,9 @@ function SystemStatusPage() {
                         "Check the Admin service logs and local resource permissions, then try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button icon={<ReloadOutlined />} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             ) : null}
@@ -67,30 +73,29 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
     const maxDirectoryBytes = Math.max(...storage.directories.map((item) => item.sizeBytes), 1);
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{t("存储", "Storage")}</CardTitle>
-                <CardDescription>
-                    {t(
-                        "SQLite 存储及运行目录分布。",
-                        "SQLite storage and runtime directory distribution.",
-                    )}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
-                    <div className="rounded-lg border bg-muted/40 p-5">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <DatabaseIcon />
-                            <span>{t("SQLite 总计", "SQLite total")}</span>
+        <ProCard split="vertical" ghost={false}>
+            <ProCard
+                title={t("存储", "Storage")}
+                subTitle={t(
+                    "SQLite 存储及运行目录分布。",
+                    "SQLite storage and runtime directory distribution.",
+                )}
+                colSpan={1}
+            >
+                <div className="space-y-6">
+                    <div>
+                        <div className="mb-3 text-sm text-muted-foreground">
+                            <DatabaseOutlined className="mr-2" />
+                            {t("SQLite 总计", "SQLite total")}
                         </div>
-                        <div className="mt-3 text-4xl font-semibold">
-                            {formatBytes(storage.database.totalBytes)}
-                        </div>
-                        <div className="mt-5 inline-flex rounded-md border bg-background px-3 py-1 text-sm text-muted-foreground">
+                        <Statistic
+                            value={formatBytes(storage.database.totalBytes)}
+                            valueStyle={{ fontSize: 28 }}
+                        />
+                        <div className="mt-4 inline-block rounded-md border bg-muted/40 px-3 py-1 text-sm text-muted-foreground">
                             {t("SQLite 数据库", "SQLite database")}
                         </div>
-                        <Progress className="mt-5" value={100} />
+                        <Progress className="mt-5" percent={100} showInfo={false} />
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
                             <span>
                                 {t("主库", "Main database")}{" "}
@@ -102,7 +107,7 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                         </div>
                     </div>
 
-                    <div>
+                    <div className="rounded-lg border p-4">
                         <div className="mb-5 flex items-start justify-between gap-4">
                             <div>
                                 <div className="text-base font-semibold">
@@ -128,9 +133,7 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                                                 {item.label}
                                             </span>
                                             {item.errorMessage ? (
-                                                <span className="shrink-0 text-xs text-destructive">
-                                                    {item.errorMessage}
-                                                </span>
+                                                <Tag color="red">{item.errorMessage}</Tag>
                                             ) : null}
                                         </div>
                                         <div className="shrink-0 font-semibold">
@@ -138,17 +141,28 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                                         </div>
                                     </div>
                                     <Progress
-                                        value={Math.round(
+                                        percent={Math.round(
                                             (item.sizeBytes / maxDirectoryBytes) * 100,
                                         )}
+                                        showInfo={false}
                                     />
                                 </div>
                             ))}
                         </div>
                     </div>
                 </div>
+            </ProCard>
 
-                <div className="grid grid-cols-1 gap-5 border-t pt-5 md:grid-cols-3">
+            <ProCard
+                title={t("目录占用", "Directory usage")}
+                className="min-w-[240px]"
+                extra={
+                    <span className="text-xs text-muted-foreground">
+                        {t("主服务 / WAL / SHM", "Main / WAL / SHM")}
+                    </span>
+                }
+            >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
                     <StorageBreakdownItem
                         label={t("主服务", "Main service")}
                         value={storage.database.mainBytes}
@@ -165,8 +179,8 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                         total={storage.database.totalBytes}
                     />
                 </div>
-            </CardContent>
-        </Card>
+            </ProCard>
+        </ProCard>
     );
 }
 
@@ -187,70 +201,89 @@ function StorageBreakdownItem({
                 <span className="font-medium text-muted-foreground">{label}</span>
                 <span className="font-semibold">{formatBytes(value)}</span>
             </div>
-            <Progress value={percent} />
+            <Progress percent={percent} showInfo={false} />
         </div>
     );
 }
 
 function ResourceCard({ resource }: { resource: SystemStatus.LocalResourceStatus }) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{t("本地资源", "Local resources")}</CardTitle>
-                <CardDescription>
-                    {t(
-                        "当前主机的 CPU、内存和磁盘使用情况。",
-                        "CPU, memory, and disk usage on the current host.",
-                    )}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-7 lg:grid-cols-3">
+        <ProCard
+            title={t("本地资源", "Local resources")}
+            subTitle={t("CPU、内存和磁盘使用情况。", "CPU, memory, and disk usage.")}
+        >
+            <div className="grid grid-cols-1 gap-7 lg:grid-cols-3">
                 <ResourceMetric
-                    icon={CpuIcon}
+                    icon={<CloudServerOutlined />}
                     title="CPU"
                     detail={t(`${resource.cpu.cores} 核`, `${resource.cpu.cores} cores`)}
                     percent={resource.cpu.usagePercent}
+                    status={getTagStatus(resource.cpu.usagePercent)}
                 />
                 <ResourceMetric
-                    icon={MemoryStickIcon}
+                    icon={<DatabaseOutlined />}
                     title={t("内存", "Memory")}
                     detail={`${formatBytes(resource.memory.usedBytes)} / ${formatBytes(resource.memory.totalBytes)}`}
                     percent={resource.memory.usagePercent}
+                    status={getTagStatus(resource.memory.usagePercent)}
                 />
                 <ResourceMetric
-                    icon={HardDriveIcon}
+                    icon={<HddOutlined />}
                     title={t("磁盘", "Disk")}
                     detail={`${formatBytes(resource.disk.usedBytes)} / ${formatBytes(resource.disk.totalBytes)}`}
                     percent={resource.disk.usagePercent}
+                    status={getTagStatus(resource.disk.usagePercent)}
                 />
-            </CardContent>
-        </Card>
+            </div>
+        </ProCard>
     );
 }
 
+function getTagStatus(percent: number) {
+    if (percent >= 90) {
+        return { color: "red", text: t("高", "High") };
+    }
+    if (percent >= 70) {
+        return { color: "orange", text: t("中", "Medium") };
+    }
+    return { color: "green", text: t("正常", "Normal") };
+}
+
 function ResourceMetric({
-    icon: Icon,
+    icon,
     title,
     detail,
     percent,
+    status,
 }: {
-    icon: typeof CpuIcon;
+    icon: React.ReactNode;
     title: string;
     detail: string;
     percent: number;
+    status: { color: string; text: string };
 }) {
     return (
         <div>
             <div className="mb-3 flex items-start justify-between gap-4">
-                <div className="flex items-center gap-2 font-semibold">
-                    <Icon className="text-muted-foreground" />
+                <div className="mb-3 flex items-center gap-2 font-semibold">
+                    <span className="text-muted-foreground">{icon}</span>
                     <span>{title}</span>
                 </div>
                 <div className="text-right text-muted-foreground">{detail}</div>
             </div>
-            <div className="flex w-full items-center gap-3">
-                <Progress className="min-w-0 flex-1" value={clampPercent(percent)} />
-                <span className="w-14 text-right tabular-nums">{formatPercent(percent)}</span>
+            <Statistic
+                value={formatPercent(percent)}
+                suffix="%"
+                precision={1}
+                valueStyle={{ fontSize: 20 }}
+            />
+            <div className="mt-3 flex w-full items-center gap-3">
+                <Progress
+                    className="min-w-0 flex-1"
+                    percent={clampPercent(percent)}
+                    showInfo={false}
+                />
+                <Tag color={status.color}>{status.text}</Tag>
             </div>
         </div>
     );
@@ -261,7 +294,7 @@ function clampPercent(value: number) {
 }
 
 function formatPercent(value: number) {
-    return `${Number(value.toFixed(1))}%`;
+    return `${Number(value.toFixed(1))}`;
 }
 
 function formatBytes(bytes: number) {

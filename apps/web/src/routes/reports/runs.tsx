@@ -1,80 +1,45 @@
+import { EyeOutlined, PlayCircleOutlined, StopOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { BanIcon, EyeIcon, PlayIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Button, Form, Input, Modal, Select, Tag } from "antd";
+import { useEffect, useMemo, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { reportsQueryOptions } from "@/api/reports/query-options";
 import { AuthWrap } from "@/components/auth";
-import { DataState, DataTableState } from "@/components/feedback/data-state";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { TablePagination } from "@/components/table/table-pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format-date-time";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
+
 export const Route = createFileRoute("/reports/runs")({ component: RunsPage });
+
 const size = 20;
-const variants: Record<Reports.Run["status"], "default" | "secondary" | "destructive" | "outline"> =
-    {
-        queued: "outline",
-        running: "default",
-        succeeded: "secondary",
-        failed: "destructive",
-        cancelled: "outline",
-    };
-const runStatusLabel = (status: Reports.Run["status"]) =>
+
+const getRunStatusMeta = () =>
     ({
-        queued: t("排队中", "Queued"),
-        running: t("执行中", "Running"),
-        succeeded: t("已成功", "Succeeded"),
-        failed: t("失败", "Failed"),
-        cancelled: t("已取消", "Cancelled"),
-    })[status];
-const stepStatusLabel = (status: Reports.RunStep["status"]) =>
+        queued: { label: t("排队中", "Queued"), color: "default" },
+        running: { label: t("执行中", "Running"), color: "processing" },
+        succeeded: { label: t("已成功", "Succeeded"), color: "success" },
+        failed: { label: t("失败", "Failed"), color: "error" },
+        cancelled: { label: t("已取消", "Cancelled"), color: "warning" },
+    }) satisfies Record<Reports.Run["status"], { label: string; color: string }>;
+
+const getStepStatusMeta = () =>
     ({
-        running: t("执行中", "Running"),
-        succeeded: t("已成功", "Succeeded"),
-        failed: t("失败", "Failed"),
-    })[status];
+        running: { label: t("执行中", "Running"), color: "processing" },
+        succeeded: { label: t("已成功", "Succeeded"), color: "success" },
+        failed: { label: t("失败", "Failed"), color: "error" },
+    }) satisfies Record<Reports.RunStep["status"], { label: string; color: string }>;
+
 const defaultRunInput = JSON.stringify({ username: "", password: "" }, null, 2);
+
 function RunsPage() {
-    const [current, setCurrent] = useState(1),
-        [selected, setSelected] = useState<Reports.Run>();
+    const locale = useLocale();
+    const [current, setCurrent] = useState(1);
+    const [selected, setSelected] = useState<Reports.Run>();
     const client = useQueryClient();
     const { data: flows = [] } = useQuery(reportsQueryOptions.flows());
     const { data, error, isFetching, isPending, refetch } = useQuery({
@@ -85,6 +50,18 @@ function RunsPage() {
                 ? 1000
                 : false,
     });
+    const total = data?.total ?? 0;
+
+    useEffect(() => {
+        if (data === undefined || isFetching) {
+            return;
+        }
+        const lastPage = Math.max(1, Math.ceil(total / size));
+        if (current > lastPage) {
+            setCurrent(lastPage);
+        }
+    }, [current, data, isFetching, total]);
+
     const cancel = useMutation({
         mutationFn: reportsAPI.cancelRun,
         onSuccess: async () => {
@@ -92,7 +69,154 @@ function RunsPage() {
             appMessage.success(t("填报执行已取消", "Report run cancelled"));
         },
     });
-    const runs = data?.data ?? [];
+    const runStatusMeta = useMemo(() => getRunStatusMeta(), [locale]);
+
+    const columns: ProColumns<Reports.Run>[] = useMemo(
+        () => [
+            {
+                title: t("执行", "Run"),
+                dataIndex: "id",
+                key: "id",
+                width: 150,
+                render: (_: unknown, row: Reports.Run) => (
+                    <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
+                ),
+            },
+            {
+                title: t("流程", "Template"),
+                dataIndex: "flowId",
+                key: "flow",
+                width: 260,
+                render: (_: unknown, row: Reports.Run) =>
+                    flows.find((f) => f.id === row.flowId)?.name ?? row.flowId,
+            },
+            {
+                title: t("状态", "Status"),
+                dataIndex: "status",
+                key: "status",
+                width: 130,
+                render: (_: unknown, row: Reports.Run) => {
+                    const meta = runStatusMeta[row.status];
+                    return <Tag color={meta.color}>{meta.label}</Tag>;
+                },
+            },
+            {
+                title: t("创建时间", "Created at"),
+                dataIndex: "createdAt",
+                key: "createdAt",
+                width: 180,
+                render: (_: unknown, row: Reports.Run) => formatDateTime(row.createdAt),
+            },
+            {
+                title: t("错误", "Error"),
+                dataIndex: "error",
+                key: "error",
+                ellipsis: true,
+                render: (_: unknown, row: Reports.Run) => row.error ?? "-",
+            },
+            {
+                title: t("操作", "Actions"),
+                key: "actions",
+                fixed: "right",
+                width: 150,
+                render: (_: unknown, row: Reports.Run) => (
+                    <div className="flex items-center justify-end gap-1">
+                        <Button
+                            type="text"
+                            icon={<EyeOutlined />}
+                            aria-label={t("查看执行", "View run")}
+                            onClick={() => setSelected(row)}
+                        />
+                        <AuthWrap code="reports:run:manage">
+                            <Button
+                                type="text"
+                                icon={<StopOutlined />}
+                                danger
+                                aria-label={t("取消执行", "Cancel run")}
+                                disabled={!(row.status === "queued" || row.status === "running")}
+                                onClick={() => cancel.mutate(row.id)}
+                            />
+                        </AuthWrap>
+                    </div>
+                ),
+            },
+        ],
+        [flows, cancel, locale],
+    );
+
+    if (!data?.data.length && isPending) {
+        return (
+            <PageCard
+                title={t("填报执行", "Report runs")}
+                description={t(
+                    "通过报表模板写入所选数据，并实时查看执行过程。",
+                    "Write selected data through a report template and monitor the run in real time.",
+                )}
+                actions={
+                    <AuthWrap code="reports:run:manage">
+                        <RunDialog flows={flows} />
+                    </AuthWrap>
+                }
+            >
+                <DataState kind="loading" title={t("正在加载填报执行", "Loading report runs")} />
+            </PageCard>
+        );
+    }
+
+    if (!data?.data.length && error) {
+        return (
+            <PageCard
+                title={t("填报执行", "Report runs")}
+                description={t(
+                    "通过报表模板写入所选数据，并实时查看执行过程。",
+                    "Write selected data through a report template and monitor the run in real time.",
+                )}
+                actions={
+                    <AuthWrap code="reports:run:manage">
+                        <RunDialog flows={flows} />
+                    </AuthWrap>
+                }
+            >
+                <DataState
+                    kind="error"
+                    title={t("填报执行加载失败", "Failed to load report runs")}
+                    description={t(
+                        "无法读取执行记录，请检查 Reports 服务后重试。",
+                        "Unable to read run records. Check the Reports service and try again.",
+                    )}
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
+    if (total === 0) {
+        return (
+            <PageCard
+                title={t("填报执行", "Report runs")}
+                description={t(
+                    "通过报表模板写入所选数据，并实时查看执行过程。",
+                    "Write selected data through a report template and monitor the run in real time.",
+                )}
+                actions={
+                    <AuthWrap code="reports:run:manage">
+                        <RunDialog flows={flows} />
+                    </AuthWrap>
+                }
+            >
+                <DataState
+                    kind="empty"
+                    title={t("暂无填报执行", "No report runs")}
+                    description={""}
+                />
+            </PageCard>
+        );
+    }
+
     return (
         <PageCard
             title={t("填报执行", "Report runs")}
@@ -106,117 +230,58 @@ function RunsPage() {
                 </AuthWrap>
             }
         >
+            {error ? (
+                <DataState
+                    kind="error"
+                    title={t("填报执行刷新失败", "Failed to refresh report runs")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    compact
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            ) : null}
             <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>{t("执行", "Run")}</TableHead>
-                            <TableHead>{t("流程", "Template")}</TableHead>
-                            <TableHead>{t("状态", "Status")}</TableHead>
-                            <TableHead>{t("创建时间", "Created at")}</TableHead>
-                            <TableHead>{t("错误", "Error")}</TableHead>
-                            <TableHead className="text-right">{t("操作", "Actions")}</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {runs.length ? (
-                            runs.map((run) => (
-                                <TableRow key={run.id}>
-                                    <TableCell className="font-mono text-xs">
-                                        {run.id.slice(0, 8)}
-                                    </TableCell>
-                                    <TableCell>
-                                        {flows.find((f) => f.id === run.flowId)?.name ?? run.flowId}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={variants[run.status]}>
-                                            {runStatusLabel(run.status)}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{formatDateTime(run.createdAt)}</TableCell>
-                                    <TableCell className="max-w-80 truncate text-muted-foreground">
-                                        {run.error ?? "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex justify-end gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={t("查看执行", "View run")}
-                                                onClick={() => setSelected(run)}
-                                            >
-                                                <EyeIcon />
-                                            </Button>
-                                            <AuthWrap code="reports:run:manage">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    aria-label={t("取消执行", "Cancel run")}
-                                                    disabled={
-                                                        !(
-                                                            ["queued", "running"] as string[]
-                                                        ).includes(run.status)
-                                                    }
-                                                    onClick={() => cancel.mutate(run.id)}
-                                                >
-                                                    <BanIcon />
-                                                </Button>
-                                            </AuthWrap>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : isPending ? (
-                            <DataTableState
-                                colSpan={6}
-                                kind="loading"
-                                title={t("正在加载填报执行", "Loading report runs")}
-                            />
-                        ) : error ? (
-                            <DataTableState
-                                colSpan={6}
-                                kind="error"
-                                title={t("填报执行加载失败", "Failed to load report runs")}
-                                description={t(
-                                    "无法读取执行记录，请检查 Reports 服务后重试。",
-                                    "Unable to read run records. Check the Reports service and try again.",
-                                )}
-                                action={
-                                    <Button onClick={() => void refetch()}>
-                                        {t("重新加载", "Reload")}
-                                    </Button>
-                                }
-                            />
-                        ) : (
-                            <DataTableState
-                                colSpan={6}
-                                kind="empty"
-                                title={t("暂无填报执行", "No report runs")}
-                                description={t(
-                                    "选择一个报表模板并提交输入数据后，执行过程会显示在这里。",
-                                    "Select a report template and submit input data to see the run here.",
-                                )}
-                            />
-                        )}
-                    </TableBody>
-                </Table>
+                <ProTable<Reports.Run>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={data?.data ?? []}
+                    loading={isFetching}
+                    search={false}
+                    options={false}
+                    pagination={{
+                        current,
+                        pageSize: size,
+                        total,
+                        showSizeChanger: false,
+                        onChange: (page) => setCurrent(page),
+                    }}
+                    toolBarRender={false}
+                    tableAlertOptionRender={false}
+                    rowSelection={false}
+                    locale={{
+                        emptyText: (
+                            <DataState kind="empty" title={t("暂无填报执行", "No report runs")} />
+                        ),
+                    }}
+                />
             </DataTableShell>
-            <TablePagination
-                currentPage={current}
-                totalPages={Math.max(1, Math.ceil((data?.total ?? 0) / size))}
-                total={data?.total ?? 0}
-                disabled={isFetching}
-                onPageChange={setCurrent}
-            />
             <RunDetails run={selected} onClose={() => setSelected(undefined)} />
         </PageCard>
     );
 }
+
 function RunDialog({ flows }: { flows: Reports.Flow[] }) {
     const client = useQueryClient();
-    const [open, setOpen] = useState(false),
-        [flowId, setFlowId] = useState(""),
-        [json, setJson] = useState(defaultRunInput);
+    const [open, setOpen] = useState(false);
+    const [flowId, setFlowId] = useState("");
+    const [inputJson, setInputJson] = useState(defaultRunInput);
     const mutation = useMutation({
         mutationFn: reportsAPI.createRun,
         onSuccess: async () => {
@@ -225,58 +290,89 @@ function RunDialog({ flows }: { flows: Reports.Flow[] }) {
             setOpen(false);
         },
     });
+
     const save = () => {
         try {
-            const input = JSON.parse(json) as Record<string, unknown>;
+            const input = JSON.parse(inputJson) as Record<string, unknown>;
             mutation.mutate({ flowId, input });
         } catch {
             appMessage.error(t("输入内容必须是有效的 JSON", "Input must be valid JSON"));
         }
     };
+
+    const flowOptions = flows.map((f) => ({
+        value: f.id,
+        label: f.name,
+    }));
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+        if (!flows.length) {
+            setFlowId("");
+            return;
+        }
+        setFlowId((prev) => prev || flows[0]?.id || "");
+    }, [open, flows]);
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button disabled={!flows.length}>
-                    <PlayIcon />
-                    {t("新建填报", "New report run")}
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{t("开始填报", "Start report run")}</DialogTitle>
-                    <DialogDescription>
-                        {t(
-                            "选择已校验的流程，并填写本次写入使用的输入数据。",
-                            "Select a verified template and enter the input data for this run.",
-                        )}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4">
-                    <Choice
-                        label={t("流程", "Template")}
-                        value={flowId}
-                        onChange={setFlowId}
-                        items={flows.map((f) => ({ id: f.id, name: f.name }))}
-                    />
-                    <div className="grid gap-2">
-                        <Label>{t("输入 JSON", "Input JSON")}</Label>
-                        <Textarea
-                            className="min-h-40 font-mono"
-                            value={json}
-                            onChange={(e) => setJson(e.target.value)}
+        <>
+            <Button
+                type="primary"
+                disabled={!flows.length}
+                icon={<PlayCircleOutlined />}
+                onClick={() => setOpen(true)}
+            >
+                {t("新建填报", "New report run")}
+            </Button>
+            <Modal
+                open={open}
+                onCancel={() => setOpen(false)}
+                footer={null}
+                title={t("开始填报", "Start report run")}
+                width={760}
+                destroyOnHidden
+            >
+                <p className="mb-4 text-sm text-muted-foreground">
+                    {t(
+                        "选择已校验的流程，并填写本次写入使用的输入数据。",
+                        "Select a verified template and enter the input data for this run.",
+                    )}
+                </p>
+                <Form layout="vertical">
+                    <Form.Item label={t("流程", "Template")}>
+                        <Select
+                            value={flowId || undefined}
+                            onChange={(value) => setFlowId(value)}
+                            options={flowOptions}
+                            placeholder={t("选择模板", "Select template")}
                         />
+                    </Form.Item>
+                    <Form.Item label={t("输入 JSON", "Input JSON")}>
+                        <Input.TextArea
+                            className="font-mono"
+                            rows={10}
+                            value={inputJson}
+                            onChange={(event) => setInputJson(event.target.value)}
+                        />
+                    </Form.Item>
+                    <div className="flex justify-end gap-2">
+                        <Button type="default" onClick={() => setOpen(false)}>
+                            {t("取消", "Cancel")}
+                        </Button>
+                        <Button type="primary" loading={mutation.isPending} onClick={save}>
+                            {t("提交执行", "Submit run")}
+                        </Button>
                     </div>
-                </div>
-                <DialogFooter>
-                    <Button disabled={!flowId || mutation.isPending} onClick={save}>
-                        {t("提交执行", "Submit run")}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                </Form>
+            </Modal>
+        </>
     );
 }
+
 function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }) {
+    const locale = useLocale();
     const {
         data: currentRun = run,
         error: runError,
@@ -291,6 +387,7 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
             return status === "queued" || status === "running" ? 1000 : false;
         },
     });
+
     const { data: steps = [] } = useQuery({
         queryKey: ["reports", "run-steps", run?.id],
         queryFn: () => reportsAPI.runSteps(run!.id),
@@ -298,6 +395,7 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
         refetchInterval:
             currentRun?.status === "queued" || currentRun?.status === "running" ? 1000 : false,
     });
+
     const { data: artifacts = [] } = useQuery({
         queryKey: ["reports", "run-artifacts", run?.id],
         queryFn: () => reportsAPI.runArtifacts(run!.id),
@@ -305,124 +403,184 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
         refetchInterval:
             currentRun?.status === "queued" || currentRun?.status === "running" ? 1000 : false,
     });
+
+    const runStatusMeta = useMemo(() => getRunStatusMeta(), [locale]);
+    const stepStatusMeta = useMemo(() => getStepStatusMeta(), [locale]);
+
+    const stepColumns: ProColumns<Reports.RunStep>[] = [
+        {
+            title: t("步骤", "Step"),
+            dataIndex: "stepIndex",
+            key: "stepIndex",
+            width: 88,
+            render: (_: unknown, row: Reports.RunStep) => `${row.stepIndex + 1}. ${row.action}`,
+        },
+        {
+            title: t("状态", "Status"),
+            key: "status",
+            width: 120,
+            render: (_: unknown, row: Reports.RunStep) => {
+                const meta = stepStatusMeta[row.status as keyof typeof stepStatusMeta];
+                return <Tag color={meta?.color ?? "default"}>{meta?.label ?? row.status}</Tag>;
+            },
+        },
+        {
+            title: t("耗时", "Duration"),
+            key: "durationMs",
+            width: 110,
+            render: (_: unknown, row: Reports.RunStep) => `${row.durationMs ?? 0} ms`,
+        },
+        {
+            title: t("消息", "Message"),
+            dataIndex: "message",
+            key: "message",
+            render: (_: unknown, row: Reports.RunStep) => row.message || "-",
+        },
+    ];
+
+    const artifactColumns: ProColumns<Reports.Artifact>[] = [
+        {
+            title: t("文件", "File"),
+            dataIndex: "fileName",
+            key: "fileName",
+            render: (_: unknown, row: Reports.Artifact) => (
+                <Button
+                    type="link"
+                    onClick={() => {
+                        void reportsAPI.downloadArtifact(row.runId, row.id, row.fileName);
+                    }}
+                >
+                    {row.fileName}
+                </Button>
+            ),
+        },
+        {
+            title: t("类型", "Kind"),
+            dataIndex: "kind",
+            key: "kind",
+        },
+        {
+            title: t("创建时间", "Created at"),
+            dataIndex: "createdAt",
+            key: "createdAt",
+            render: (_: unknown, row: Reports.Artifact) => formatDateTime(row.createdAt),
+        },
+    ];
+
+    const liveFrame = <LiveFrame run={currentRun} />;
+
     return (
-        <Sheet open={Boolean(run)} onOpenChange={(open) => !open && onClose()}>
-            <SheetContent className="overflow-y-auto sm:max-w-xl">
-                <SheetHeader>
-                    <SheetTitle>{t("执行审计", "Run audit")}</SheetTitle>
-                    <SheetDescription>{run?.id}</SheetDescription>
-                </SheetHeader>
-                <div className="space-y-5 p-4">
-                    {runError ? (
-                        <DataState
-                            kind="error"
-                            title={t("执行状态加载失败", "Failed to load run status")}
-                            description={t(
-                                "实时刷新已暂停，请重新加载当前执行。",
-                                "Live refresh is paused. Reload the current run.",
-                            )}
-                            action={
-                                <Button onClick={() => void refetchRun()}>
-                                    {t("重新加载", "Reload")}
-                                </Button>
-                            }
-                            compact
-                        />
-                    ) : currentRun?.status === "queued" || currentRun?.status === "running" ? (
-                        <DataState
-                            kind="processing"
-                            title={
-                                currentRun.status === "queued"
-                                    ? t("执行正在排队", "Run is queued")
-                                    : t("填报正在执行", "Report run in progress")
-                            }
-                            description={t(
-                                "页面会每秒刷新步骤、产物和实时画面。",
-                                "Steps, artifacts, and the live view refresh every second.",
-                            )}
-                            compact
-                        />
-                    ) : null}
-                    {run && (
-                        <div className="rounded-md border p-3 text-sm">
-                            <p>
-                                {t("状态：", "Status: ")}
-                                {currentRun ? runStatusLabel(currentRun.status) : "-"}
-                            </p>
-                            <p>
-                                {t("开始时间：", "Started at: ")}
-                                {formatDateTime(currentRun?.startedAt)}
-                            </p>
-                            <p>
-                                {t("完成时间：", "Finished at: ")}
-                                {formatDateTime(currentRun?.finishedAt)}
-                            </p>
-                            {currentRun?.error && (
-                                <p className="mt-2 text-destructive">{currentRun.error}</p>
-                            )}
-                        </div>
+        <Modal
+            open={Boolean(run)}
+            onCancel={() => onClose()}
+            footer={null}
+            width={900}
+            title={t("执行审计", "Run audit")}
+        >
+            {runError ? (
+                <DataState
+                    kind="error"
+                    title={t("执行状态加载失败", "Failed to load run status")}
+                    description={t(
+                        "实时刷新已暂停，请重新加载当前执行。",
+                        "Live refresh is paused. Reload the current run.",
                     )}
-                    <LiveFrame run={currentRun} />
-                    <div>
-                        <h3 className="mb-2 font-medium">{t("步骤", "Steps")}</h3>
-                        {steps.map((step) => (
-                            <div key={step.id} className="mb-2 rounded-md border p-3 text-sm">
-                                <div className="flex justify-between">
-                                    <span>
-                                        {step.stepIndex + 1}. {step.action}
-                                    </span>
-                                    <Badge
-                                        variant={
-                                            step.status === "succeeded"
-                                                ? "secondary"
-                                                : "destructive"
-                                        }
-                                    >
-                                        {stepStatusLabel(step.status)}
-                                    </Badge>
-                                </div>
-                                <p className="text-muted-foreground">
-                                    {step.durationMs ?? 0} ms{" "}
-                                    {step.message ? `· ${step.message}` : ""}
-                                </p>
-                            </div>
-                        ))}
-                        {!steps.length &&
-                            (currentRun?.status === "queued" || currentRun?.status === "running" ? (
-                                <DataState
-                                    kind="processing"
-                                    title={t("正在等待步骤结果", "Waiting for step results")}
-                                    compact
-                                />
-                            ) : (
-                                <DataState
-                                    kind="empty"
-                                    title={t("暂无步骤记录", "No step records")}
-                                    compact
-                                />
-                            ))}
-                    </div>
-                    {artifacts.length > 0 && (
-                        <div>
-                            <h3 className="mb-2 font-medium">{t("产物", "Artifacts")}</h3>
-                            {artifacts.map((a) => (
-                                <Button
-                                    key={a.id}
-                                    type="button"
-                                    variant="link"
-                                    className="block h-auto p-0 text-sm"
-                                    onClick={() => {
-                                        void reportsAPI.downloadArtifact(a.runId, a.id, a.fileName);
-                                    }}
-                                >
-                                    {a.fileName}
-                                </Button>
-                            ))}
-                        </div>
+                    action={
+                        <Button type="primary" onClick={() => void refetchRun()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                    compact
+                />
+            ) : currentRun?.status === "queued" || currentRun?.status === "running" ? (
+                <DataState
+                    kind="processing"
+                    title={
+                        currentRun.status === "queued"
+                            ? t("执行正在排队", "Run is queued")
+                            : t("填报正在执行", "Report run in progress")
+                    }
+                    description={t(
+                        "页面会每秒刷新步骤、产物和实时画面。",
+                        "Steps, artifacts, and the live view refresh every second.",
                     )}
+                    compact
+                />
+            ) : null}
+            {run && (
+                <div className="mb-4 space-y-1 text-sm">
+                    <p>
+                        {t("状态：", "Status: ")}
+                        {currentRun ? runStatusMeta[currentRun.status]?.label : "-"}
+                    </p>
+                    <p>
+                        {t("开始时间：", "Started at: ")}
+                        {formatDateTime(currentRun?.startedAt)}
+                    </p>
+                    <p>
+                        {t("完成时间：", "Finished at: ")}
+                        {formatDateTime(currentRun?.finishedAt)}
+                    </p>
+                    {currentRun?.error ? <p className="text-red-600">{currentRun.error}</p> : null}
                 </div>
-            </SheetContent>
-        </Sheet>
+            )}
+
+            <div className="mb-5">{liveFrame}</div>
+
+            <div className="mb-4">
+                <h3 className="mb-2 font-medium">{t("步骤", "Steps")}</h3>
+                <ProTable<Reports.RunStep>
+                    rowKey="id"
+                    columns={stepColumns}
+                    dataSource={steps}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    toolBarRender={false}
+                    tableAlertOptionRender={false}
+                    rowSelection={false}
+                    locale={{
+                        emptyText:
+                            steps.length === 0 ? (
+                                <DataState
+                                    kind={
+                                        currentRun?.status === "queued" ||
+                                        currentRun?.status === "running"
+                                            ? "processing"
+                                            : "empty"
+                                    }
+                                    title={
+                                        currentRun?.status === "queued" ||
+                                        currentRun?.status === "running"
+                                            ? t("正在等待步骤结果", "Waiting for step results")
+                                            : t("暂无步骤记录", "No step records")
+                                    }
+                                    compact
+                                />
+                            ) : undefined,
+                    }}
+                />
+            </div>
+            <div>
+                <h3 className="mb-2 font-medium">{t("产物", "Artifacts")}</h3>
+                <ProTable<Reports.Artifact>
+                    rowKey="id"
+                    columns={artifactColumns}
+                    dataSource={artifacts}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    toolBarRender={false}
+                    tableAlertOptionRender={false}
+                    rowSelection={false}
+                    locale={{
+                        emptyText: (
+                            <DataState kind="empty" title={t("暂无产物", "No artifacts")} compact />
+                        ),
+                    }}
+                />
+            </div>
+        </Modal>
     );
 }
 
@@ -434,7 +592,11 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
         refetchInterval: run?.status === "queued" || run?.status === "running" ? 1000 : false,
     });
     const [source, setSource] = useState<string>();
-    useEffect(() => setSource(undefined), [run?.id]);
+
+    useEffect(() => {
+        setSource(undefined);
+    }, [run?.id]);
+
     useEffect(() => {
         if (!data) {
             return;
@@ -443,10 +605,11 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
         setSource(url);
         return () => URL.revokeObjectURL(url);
     }, [data]);
+
     return (
         <div>
             <h3 className="mb-2 font-medium">{t("实时画面", "Live view")}</h3>
-            <div className="flex h-80 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+            <div className="relative flex h-80 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
                 {source ? (
                     <img
                         src={source}
@@ -458,12 +621,12 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
                         kind="error"
                         title={t("实时画面加载失败", "Failed to load live view")}
                         action={
-                            <Button onClick={() => void refetch()}>
+                            <Button type="primary" onClick={() => void refetch()}>
                                 {t("重新加载", "Reload")}
                             </Button>
                         }
                         compact
-                        className="h-full min-h-0"
+                        className="h-full"
                     />
                 ) : (
                     <DataState
@@ -478,39 +641,10 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
                                 : t("暂无实时画面", "No live view")
                         }
                         compact
-                        className="h-full min-h-0"
+                        className="h-full"
                     />
                 )}
             </div>
-        </div>
-    );
-}
-function Choice({
-    label,
-    value,
-    onChange,
-    items,
-}: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    items: { id: string; name: string }[];
-}) {
-    return (
-        <div className="grid gap-2">
-            <Label>{label}</Label>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t(`请选择${label}`, `Select ${label}`)} />
-                </SelectTrigger>
-                <SelectContent>
-                    {items.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                            {i.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
         </div>
     );
 }

@@ -1,46 +1,21 @@
+import {
+    MenuFoldOutlined,
+    MenuUnfoldOutlined,
+    SettingOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
+import { ProLayout } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { LogOutIcon, UserIcon } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { Avatar, Button, Dropdown, type MenuProps } from "antd";
+import { useMemo, type ReactNode, useState } from "react";
 
 import { appMessage, authAPI, systemAPI } from "@/api";
 import { LanguageSwitch } from "@/components/language-switch";
 import { ThemeSwitch } from "@/components/theme-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarInset,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarMenuSub,
-    SidebarMenuSubButton,
-    SidebarMenuSubItem,
-    SidebarProvider,
-    SidebarRail,
-    SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { APP_BRAND_NAME } from "@/constant/brand";
 import { localizeBuiltInUserName } from "@/lib/builtin-i18n";
 import { t, useLocale } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 
 import { AppSearch } from "./app-search";
@@ -51,7 +26,19 @@ interface BaseLayoutProps {
     hidden?: boolean;
 }
 
+type ProRouteItem = {
+    name: string;
+    path?: string;
+    icon?: ReactNode;
+    routes?: ProRouteItem[];
+    children?: ProRouteItem[];
+    isMenu?: boolean;
+    target?: "_blank" | "_self";
+    disabled?: boolean;
+};
+
 export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
+    const [collapsed, setCollapsed] = useState(false);
     const userInfo = useAuthStore((state) => state.userInfo);
     const clearAuth = useAuthStore((state) => state.clearAuth);
     const checkMenuPermissions = useAuthStore((state) => state.checkMenuPermissions);
@@ -78,6 +65,16 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
         [checkMenuPermissions, menuPermissionSignature, moduleNavigation, locale],
     );
 
+    const proMenuData = useMemo(() => convertToProRoutes(menuData), [menuData]);
+
+    const pageTitle = useMemo(
+        () =>
+            currentPath === "/profile"
+                ? t("个人资料", "Profile")
+                : (currentPageTitle(menuData, currentPath) ?? APP_BRAND_NAME),
+        [menuData, currentPath],
+    );
+
     const handleSearchSelect = (path: AppRoutePath) => {
         void router.navigate({ to: path });
     };
@@ -94,118 +91,69 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
     }
 
     return (
-        <SidebarProvider className="rz-shell">
-            <Sidebar className="rz-sidebar" collapsible="icon">
-                <SidebarHeader>
-                    <Link
-                        to="/"
-                        className="flex h-12 items-center gap-2 rounded-md px-2 text-sidebar-foreground"
-                    >
-                        <img src="/rustzen.png" alt="" className="size-8 rounded-md" />
-                        <div className="grid min-w-0 text-left leading-tight group-data-[collapsible=icon]:hidden">
-                            <span className="truncate text-sm font-semibold">{APP_BRAND_NAME}</span>
-                            <span className="truncate text-xs text-muted-foreground">
-                                {t("管理控制台", "Admin console")}
-                            </span>
-                        </div>
-                    </Link>
-                </SidebarHeader>
+        <ProLayout
+            className="rz-shell"
+            title={APP_BRAND_NAME}
+            logo={<img src="/rustzen.png" alt="" className="h-8 w-8 rounded-md" />}
+            route={{ path: "/", routes: proMenuData }}
+            location={{ pathname: currentPath }}
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
+            menu={{
+                locale: false,
+            }}
+            menuItemRender={(item, dom) => {
+                if (!item.path || item.children?.length) {
+                    return <span>{dom}</span>;
+                }
+                return <Link to={item.path as AppRoutePath}>{dom}</Link>;
+            }}
+            contentStyle={{
+                padding: 0,
+            }}
+        >
+            <header className="rz-topbar flex h-14 shrink-0 items-center gap-3 border-b px-4">
+                <Button
+                    size="middle"
+                    type="text"
+                    icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    onClick={() => setCollapsed((value) => !value)}
+                    aria-label={t("折叠导航", "Toggle sidebar")}
+                />
+                <div className="w-px border-r border-border/60" />
+                <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{pageTitle}</div>
+                </div>
+                <AppSearch routes={searchRoutes} onSelect={handleSearchSelect} />
+                <LanguageSwitch />
+                <ThemeSwitch />
+                <Button
+                    type="text"
+                    icon={<SettingOutlined />}
+                    aria-label={t("偏好设置", "Preferences")}
+                />
+                <UserMenu userInfo={userInfo} onLogout={handleLogout} />
+            </header>
 
-                <SidebarContent className="gap-1">
-                    <AppSidebarMenu items={menuData} currentPath={currentPath} />
-                </SidebarContent>
-
-                <SidebarFooter className="pb-3 pt-2">
-                    <UserMenu userInfo={userInfo} onLogout={handleLogout} />
-                </SidebarFooter>
-                <SidebarRail />
-            </Sidebar>
-
-            <SidebarInset className="h-screen w-auto min-w-0 overflow-hidden bg-transparent">
-                <header className="rz-topbar flex h-14 shrink-0 items-center gap-3 border-b px-4">
-                    <SidebarTrigger variant="outline" />
-                    <Separator orientation="vertical" className="h-6" />
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">
-                            {currentPath === "/profile"
-                                ? t("个人资料", "Profile")
-                                : (currentPageTitle(menuData, currentPath) ?? APP_BRAND_NAME)}
-                        </div>
-                    </div>
-                    <AppSearch routes={searchRoutes} onSelect={handleSearchSelect} />
-                    <LanguageSwitch />
-                    <ThemeSwitch />
-                    <UserMenuTrigger userInfo={userInfo} onLogout={handleLogout} />
-                </header>
-
-                <main className="rz-content min-h-0 min-w-0 flex-1 overflow-hidden p-4 xl:p-5">
-                    <div className="rz-page mx-auto h-full min-h-0 w-full max-w-400 overflow-hidden">
-                        {children}
-                    </div>
-                </main>
-            </SidebarInset>
-        </SidebarProvider>
+            <main className="rz-content min-h-0 min-w-0 flex-1 overflow-hidden p-4 xl:p-5">
+                <div className="rz-page mx-auto h-full min-h-0 w-full max-w-400 overflow-hidden">
+                    {children}
+                </div>
+            </main>
+        </ProLayout>
     );
 };
 
-const AppSidebarMenu = ({ items, currentPath }: { items: AppRouteItem[]; currentPath: string }) => (
-    <>
-        {items.map((group) => {
-            if (!group.children?.length) {
-                return (
-                    <SidebarGroup key={group.path ?? group.name} className="px-2 py-0">
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={group.path === currentPath}
-                                        tooltip={group.name}
-                                    >
-                                        <Link to={group.path as AppRoutePath}>
-                                            {group.icon}
-                                            <span>{group.name}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-                );
-            }
-
-            return (
-                <SidebarGroup key={group.name} className="px-2 py-1">
-                    <SidebarGroupLabel className="gap-2">
-                        {group.icon}
-                        <span>{group.name}</span>
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuSub>
-                                    {group.children.map((item) => (
-                                        <SidebarMenuSubItem key={item.path ?? item.name}>
-                                            <SidebarMenuSubButton
-                                                asChild
-                                                isActive={item.path === currentPath}
-                                            >
-                                                <Link to={item.path as AppRoutePath}>
-                                                    {item.icon}
-                                                    <span>{item.name}</span>
-                                                </Link>
-                                            </SidebarMenuSubButton>
-                                        </SidebarMenuSubItem>
-                                    ))}
-                                </SidebarMenuSub>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            );
-        })}
-    </>
-);
+const convertToProRoutes = (items: AppRouteItem[]): ProRouteItem[] =>
+    items
+        .map((item) => ({
+            name: item.name,
+            path: item.path,
+            icon: item.icon,
+            children: item.children?.length ? convertToProRoutes(item.children) : undefined,
+            routes: item.children?.length ? convertToProRoutes(item.children) : undefined,
+        }))
+        .filter((item) => item.path || (item.children?.length ?? 0) > 0);
 
 const UserMenu = ({
     userInfo,
@@ -213,107 +161,74 @@ const UserMenu = ({
 }: {
     userInfo: Auth.UserInfoResponse | null;
     onLogout: () => void;
-}) => (
-    <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
-                        <UserAvatar userInfo={userInfo} />
-                        <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-medium">
-                                {userInfo?.isSystem
-                                    ? localizeBuiltInUserName(userInfo.username, userInfo.realName)
-                                    : userInfo?.realName ||
-                                      userInfo?.username ||
-                                      t("账号", "Account")}
-                            </span>
-                            <span className="truncate text-xs text-muted-foreground">
-                                {userInfo?.username || t("个人资料", "Profile")}
-                            </span>
-                        </div>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </DropdownMenuTrigger>
-        <UserMenuContent userInfo={userInfo} onLogout={onLogout} />
-    </DropdownMenu>
-);
+}) => {
+    const menuItems: MenuProps["items"] = [
+        {
+            key: "username",
+            label: (
+                <div className="max-w-44">
+                    <div className="truncate text-sm font-medium">
+                        {userInfo?.isSystem
+                            ? localizeBuiltInUserName(userInfo.username, userInfo.realName)
+                            : userInfo?.realName || userInfo?.username || t("账号", "Account")}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                        {userInfo?.username || t("个人资料", "Profile")}
+                    </div>
+                </div>
+            ),
+            disabled: true,
+        },
+        {
+            type: "divider",
+        },
+        {
+            key: "profile",
+            icon: <UserOutlined />,
+            label: (
+                <Link to="/profile" className="block w-full">
+                    {t("个人资料", "Profile")}
+                </Link>
+            ),
+        },
+        {
+            type: "divider",
+        },
+        {
+            key: "logout",
+            icon: <UserOutlined />,
+            danger: true,
+            label: t("退出登录", "Sign out"),
+        },
+    ];
 
-const UserMenuTrigger = ({
-    userInfo,
-    onLogout,
-}: {
-    userInfo: Auth.UserInfoResponse | null;
-    onLogout: () => void;
-}) => (
-    <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="size-9 rounded-full p-0">
+    return (
+        <Dropdown
+            menu={{
+                items: menuItems,
+                onClick: ({ key }) => {
+                    if (key === "logout") {
+                        onLogout();
+                    }
+                },
+            }}
+            trigger={["click"]}
+        >
+            <Button type="text" className="h-9 rounded-full p-0">
                 <UserAvatar userInfo={userInfo} />
                 <span className="sr-only">{t("打开账号菜单", "Open account menu")}</span>
             </Button>
-        </DropdownMenuTrigger>
-        <UserMenuContent userInfo={userInfo} onLogout={onLogout} />
-    </DropdownMenu>
-);
+        </Dropdown>
+    );
+};
 
-const UserMenuContent = ({
-    userInfo,
-    onLogout,
-}: {
-    userInfo: Auth.UserInfoResponse | null;
-    onLogout: () => void;
-}) => (
-    <DropdownMenuContent className="w-56" align="end">
-        <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium leading-none">
-                    {userInfo?.isSystem
-                        ? localizeBuiltInUserName(userInfo.username, userInfo.realName)
-                        : userInfo?.realName || userInfo?.username || t("账号", "Account")}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                    {userInfo?.username || t("个人资料", "Profile")}
-                </p>
-            </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-            <DropdownMenuItem asChild>
-                <Link to="/profile">
-                    <UserIcon />
-                    {t("个人资料", "Profile")}
-                </Link>
-            </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onLogout} variant="destructive">
-            <LogOutIcon />
-            {t("退出登录", "Sign out")}
-        </DropdownMenuItem>
-    </DropdownMenuContent>
-);
-
-const UserAvatar = ({
-    userInfo,
-    className,
-}: {
-    userInfo: Auth.UserInfoResponse | null;
-    className?: string;
-}) => (
-    <Avatar className={cn("size-8 rounded-lg", className)}>
-        <AvatarImage
-            src={userInfo?.avatarUrl ?? undefined}
-            alt={userInfo?.realName || userInfo?.username || ""}
-        />
-        <AvatarFallback className="rounded-lg">{avatarFallback(userInfo)}</AvatarFallback>
-    </Avatar>
-);
-
-const avatarFallback = (userInfo: Auth.UserInfoResponse | null) => {
+const UserAvatar = ({ userInfo }: { userInfo: Auth.UserInfoResponse | null }) => {
     const displayName = userInfo?.realName || userInfo?.username || "RA";
-    return displayName.slice(0, 2).toUpperCase();
+    return (
+        <Avatar size={32} src={userInfo?.avatarUrl ?? undefined} icon={<UserOutlined />}>
+            {displayName.slice(0, 2).toUpperCase()}
+        </Avatar>
+    );
 };
 
 const currentPageTitle = (items: AppRouteItem[], currentPath: string): string | undefined => {

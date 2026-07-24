@@ -1,3 +1,4 @@
+import { PageHeader as ProPageHeader } from "@ant-design/pro-components";
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -8,14 +9,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
     return (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-1">
-            <div className="min-w-0">
-                <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-                {description ? (
-                    <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                ) : null}
-            </div>
-            {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
-        </header>
+        <ProPageHeader
+            className="px-1"
+            title={<span className="text-xl font-semibold tracking-tight">{title}</span>}
+            subTitle={
+                description ? (
+                    <span className="text-sm text-muted-foreground">{description}</span>
+                ) : null
+            }
+            extra={actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+        />
     );
 }

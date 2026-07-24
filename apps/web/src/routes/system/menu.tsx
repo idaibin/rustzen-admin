@@ -1,49 +1,21 @@
+import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { EditIcon, PlusIcon, StopCircleIcon } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Button, Form, Input, Modal, Select, Tag } from "antd";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { menuQueryOptions } from "@/api/system/menu/query-options";
 import { AuthWrap } from "@/components/auth";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
-import { DataTableState } from "@/components/feedback/data-state";
-import { TextField } from "@/components/form/text-field";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { getEnableOptions, getMenuTypeOptions, getModuleIconOptions } from "@/constant/options";
 import { localizeBuiltInMenuName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 
 export const Route = createFileRoute("/system/menu")({
     component: MenuPage,
@@ -51,18 +23,243 @@ export const Route = createFileRoute("/system/menu")({
 
 type FlatMenuItem = Menu.Item & {
     depth: number;
+    children?: Menu.Item[];
 };
 
 function MenuPage() {
-    const { data, error, isPending, refetch } = useQuery({
+    const locale = useLocale();
+    const [current, setCurrent] = useState(1);
+    const [nameFilter, setNameFilter] = useState("");
+    const [codeFilter, setCodeFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const { data, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["system", "menu"],
         queryFn: () => systemAPI.menu.list({}),
     });
     const rows = useMemo(() => flattenMenuTree(data?.data ?? []), [data?.data]);
 
+    const tableRows = useMemo(() => {
+        const nameQuery = nameFilter.trim().toLowerCase();
+        const codeQuery = codeFilter.trim().toLowerCase();
+        return rows.filter((item) => {
+            if (nameQuery && !item.name.toLowerCase().includes(nameQuery)) {
+                return false;
+            }
+            if (codeQuery && !item.code.toLowerCase().includes(codeQuery)) {
+                return false;
+            }
+            if (statusFilter !== "all" && String(item.status) !== statusFilter) {
+                return false;
+            }
+            return true;
+        });
+    }, [codeFilter, nameFilter, rows, statusFilter]);
+
+    const resetFilters = () => {
+        setNameFilter("");
+        setCodeFilter("");
+        setStatusFilter("all");
+        setCurrent(1);
+    };
+
+    const columns: ProColumns<FlatMenuItem>[] = useMemo(
+        () => [
+            {
+                title: t("名称", "Name"),
+                dataIndex: "name",
+                key: "name",
+                width: 260,
+                render: (_: unknown, row: FlatMenuItem) => (
+                    <span className="font-medium" style={{ paddingLeft: `${row.depth * 18}px` }}>
+                        {row.depth > 0 ? (
+                            <span className="mr-2 text-muted-foreground">└</span>
+                        ) : null}
+                        {localizeBuiltInMenuName(row)}
+                    </span>
+                ),
+            },
+            {
+                title: t("路径", "Path"),
+                dataIndex: "path",
+                key: "path",
+                width: 220,
+                render: (_: unknown, row: FlatMenuItem) => <span>{row.path || "-"}</span>,
+            },
+            {
+                title: t("权限编码", "Permission code"),
+                dataIndex: "code",
+                key: "code",
+                width: 220,
+                render: (_: unknown, row: FlatMenuItem) => <Tag bordered>{row.code}</Tag>,
+            },
+            {
+                title: t("菜单类型", "Menu type"),
+                dataIndex: "menuType",
+                key: "menuType",
+                width: 110,
+                render: (_: unknown, row: FlatMenuItem) => (
+                    <MenuTypeBadge menuType={row.menuType} />
+                ),
+            },
+            {
+                title: t("状态", "Status"),
+                dataIndex: "status",
+                key: "status",
+                width: 110,
+                render: (_: unknown, row: FlatMenuItem) => <MenuStatusBadge status={row.status} />,
+            },
+            {
+                title: t("排序", "Sort order"),
+                dataIndex: "sortOrder",
+                key: "sortOrder",
+                width: 88,
+            },
+            {
+                title: t("更新时间", "Updated at"),
+                dataIndex: "updatedAt",
+                key: "updatedAt",
+                width: 180,
+                render: (_: unknown, row: FlatMenuItem) => formatDateTime(row.updatedAt),
+            },
+            {
+                title: t("操作", "Actions"),
+                key: "actions",
+                width: 128,
+                fixed: "right",
+                render: (_: unknown, row: FlatMenuItem) => (
+                    <MenuActions record={row} onSuccess={refresh} />
+                ),
+            },
+        ],
+        [locale],
+    );
+
     const refresh = () => {
         void refetch();
     };
+
+    if (!rows.length && isPending) {
+        return (
+            <PageCard
+                title={t("菜单管理", "Menu management")}
+                description={t(
+                    "管理路由菜单、权限编码和按钮操作。",
+                    "Manage route menus, permission codes, and button actions.",
+                )}
+                actions={
+                    <AuthWrap code="system:menu:create">
+                        <MenuDialog mode="create" onSuccess={refresh}>
+                            <Button type="primary" icon={<PlusOutlined />}>
+                                {t("新建菜单", "New menu")}
+                            </Button>
+                        </MenuDialog>
+                    </AuthWrap>
+                }
+                toolbar={
+                    <div className="grid gap-3 md:grid-cols-4">
+                        <Input
+                            aria-label={t("菜单名称", "Menu name")}
+                            value={nameFilter}
+                            onChange={(event) => setNameFilter(event.target.value)}
+                            placeholder={t("菜单名称", "Menu name")}
+                        />
+                        <Input
+                            aria-label={t("权限编码", "Permission code")}
+                            value={codeFilter}
+                            onChange={(event) => setCodeFilter(event.target.value)}
+                            placeholder={t("权限编码", "Permission code")}
+                        />
+                        <Select
+                            value={statusFilter}
+                            className="w-full"
+                            onChange={setStatusFilter}
+                            options={[
+                                { value: "all", label: t("全部", "All") },
+                                ...getEnableOptions().map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                })),
+                            ]}
+                            aria-label={t("状态", "Status")}
+                        />
+                        <Button type="default" onClick={resetFilters}>
+                            {t("重置", "Reset")}
+                        </Button>
+                    </div>
+                }
+            >
+                <DataState kind="loading" title={t("正在加载菜单", "Loading menus")} />
+            </PageCard>
+        );
+    }
+
+    if (!rows.length && error) {
+        return (
+            <PageCard
+                title={t("菜单管理", "Menu management")}
+                description={t(
+                    "管理路由菜单、权限编码和按钮操作。",
+                    "Manage route menus, permission codes, and button actions.",
+                )}
+                actions={
+                    <AuthWrap code="system:menu:create">
+                        <MenuDialog mode="create" onSuccess={refresh}>
+                            <Button type="primary" icon={<PlusOutlined />}>
+                                {t("新建菜单", "New menu")}
+                            </Button>
+                        </MenuDialog>
+                    </AuthWrap>
+                }
+                toolbar={
+                    <div className="grid gap-3 md:grid-cols-4">
+                        <Input
+                            aria-label={t("菜单名称", "Menu name")}
+                            value={nameFilter}
+                            onChange={(event) => setNameFilter(event.target.value)}
+                            placeholder={t("菜单名称", "Menu name")}
+                        />
+                        <Input
+                            aria-label={t("权限编码", "Permission code")}
+                            value={codeFilter}
+                            onChange={(event) => setCodeFilter(event.target.value)}
+                            placeholder={t("权限编码", "Permission code")}
+                        />
+                        <Select
+                            value={statusFilter}
+                            className="w-full"
+                            onChange={setStatusFilter}
+                            options={[
+                                { value: "all", label: t("全部", "All") },
+                                ...getEnableOptions().map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                })),
+                            ]}
+                            aria-label={t("状态", "Status")}
+                        />
+                        <Button type="default" onClick={resetFilters}>
+                            {t("重置", "Reset")}
+                        </Button>
+                    </div>
+                }
+            >
+                <DataState
+                    kind="error"
+                    title={t("菜单加载失败", "Failed to load menus")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
 
     return (
         <PageCard
@@ -74,95 +271,97 @@ function MenuPage() {
             actions={
                 <AuthWrap code="system:menu:create">
                     <MenuDialog mode="create" onSuccess={refresh}>
-                        <Button>
-                            <PlusIcon data-icon="inline-start" />
+                        <Button type="primary" icon={<PlusOutlined />}>
                             {t("新建菜单", "New menu")}
                         </Button>
                     </MenuDialog>
                 </AuthWrap>
             }
+            toolbar={
+                <form
+                    className="grid gap-3 md:grid-cols-4"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        setCurrent(1);
+                    }}
+                >
+                    <Input
+                        aria-label={t("菜单名称", "Menu name")}
+                        value={nameFilter}
+                        onChange={(event) => setNameFilter(event.target.value)}
+                        placeholder={t("菜单名称", "Menu name")}
+                    />
+                    <Input
+                        aria-label={t("权限编码", "Permission code")}
+                        value={codeFilter}
+                        onChange={(event) => setCodeFilter(event.target.value)}
+                        placeholder={t("权限编码", "Permission code")}
+                    />
+                    <Select
+                        value={statusFilter}
+                        className="w-full"
+                        onChange={setStatusFilter}
+                        options={[
+                            { value: "all", label: t("全部", "All") },
+                            ...getEnableOptions().map((item) => ({
+                                value: String(item.value),
+                                label: item.label,
+                            })),
+                        ]}
+                        aria-label={t("状态", "Status")}
+                    />
+                    <div className="flex gap-2">
+                        <Button type="default" onClick={resetFilters} disabled={isFetching}>
+                            {t("重置", "Reset")}
+                        </Button>
+                        <Button type="primary" htmlType="submit" disabled={isFetching}>
+                            {t("查询", "Search")}
+                        </Button>
+                    </div>
+                </form>
+            }
         >
+            {error ? (
+                <DataState
+                    kind="error"
+                    title={t("菜单加载失败", "Failed to load menus")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            ) : null}
             <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="min-w-64">{t("名称", "Name")}</TableHead>
-                            <TableHead className="min-w-64">{t("编码", "Code")}</TableHead>
-                            <TableHead className="min-w-32">{t("菜单类型", "Menu type")}</TableHead>
-                            <TableHead className="min-w-28">{t("状态", "Status")}</TableHead>
-                            <TableHead className="min-w-28">{t("排序", "Sort order")}</TableHead>
-                            <TableHead className="min-w-44">
-                                {t("更新时间", "Updated at")}
-                            </TableHead>
-                            <TableHead className="w-24 text-right">
-                                {t("操作", "Actions")}
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {rows.length > 0 ? (
-                            rows.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell className="font-medium">
-                                        <span
-                                            className="inline-flex items-center"
-                                            style={{ paddingLeft: `${record.depth * 24}px` }}
-                                        >
-                                            {record.depth > 0 ? (
-                                                <span className="mr-2 text-muted-foreground">
-                                                    └
-                                                </span>
-                                            ) : null}
-                                            {localizeBuiltInMenuName(record)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{record.code}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <MenuTypeBadge menuType={record.menuType} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <MenuStatusBadge status={record.status} />
-                                    </TableCell>
-                                    <TableCell>{record.sortOrder}</TableCell>
-                                    <TableCell>{formatDateTime(record.updatedAt)}</TableCell>
-                                    <TableCell>
-                                        <MenuActions record={record} onSuccess={refresh} />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : isPending ? (
-                            <DataTableState
-                                colSpan={7}
-                                kind="loading"
-                                title={t("正在加载菜单", "Loading menus")}
-                            />
-                        ) : error ? (
-                            <DataTableState
-                                colSpan={7}
-                                kind="error"
-                                title={t("菜单加载失败", "Failed to load menus")}
-                                description={
-                                    error instanceof Error
-                                        ? error.message
-                                        : t("请稍后重试。", "Please try again later.")
-                                }
-                                action={
-                                    <Button onClick={() => void refetch()}>
-                                        {t("重新加载", "Reload")}
-                                    </Button>
-                                }
-                            />
-                        ) : (
-                            <DataTableState
-                                colSpan={7}
-                                kind="empty"
-                                title={t("暂无菜单", "No menus")}
-                            />
-                        )}
-                    </TableBody>
-                </Table>
+                <ProTable<FlatMenuItem>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={tableRows}
+                    search={false}
+                    loading={isFetching}
+                    options={false}
+                    pagination={{
+                        current,
+                        pageSize: 20,
+                        total: tableRows.length,
+                        showSizeChanger: false,
+                        onChange: (page) => setCurrent(page),
+                    }}
+                    toolBarRender={false}
+                    tableAlertOptionRender={false}
+                    rowSelection={false}
+                    locale={{
+                        emptyText:
+                            tableRows.length === 0 ? (
+                                <DataState kind="empty" title={t("暂无菜单", "No menus")} compact />
+                            ) : undefined,
+                    }}
+                />
             </DataTableShell>
         </PageCard>
     );
@@ -177,13 +376,10 @@ function MenuActions({ record, onSuccess }: { record: Menu.Item; onSuccess: () =
                 <AuthWrap code="system:menu:update">
                     <MenuDialog mode="edit" initialValues={record} onSuccess={onSuccess}>
                         <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
+                            type="text"
+                            icon={<EditOutlined />}
                             aria-label={t("编辑菜单", "Edit menu")}
-                        >
-                            <EditIcon />
-                        </Button>
+                        />
                     </MenuDialog>
                 </AuthWrap>
             ) : null}
@@ -236,8 +432,7 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
         }
     }, [initialValues, open]);
 
-    const submit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    const submit = async () => {
         const trimmedName = name.trim();
         const trimmedCode = code.trim();
         const parsedSortOrder = Number(sortOrder);
@@ -289,159 +484,153 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>
-                        {mode === "create"
-                            ? t("创建菜单", "Create menu")
-                            : t("编辑菜单", "Edit menu")}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {isModuleOwned
-                            ? t(
-                                  "覆盖标题、图标、排序和可见性。模块标识仍与清单保持同步。",
-                                  "Override the title, icon, sort order, and visibility. The module identifier remains synchronized with the manifest.",
-                              )
-                            : t(
-                                  "配置菜单层级、权限编码和显示顺序。",
-                                  "Configure the menu hierarchy, permission code, and display order.",
-                              )}
-                    </DialogDescription>
-                </DialogHeader>
-                <form className="grid gap-4" onSubmit={submit}>
+        <>
+            <span
+                onClick={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    setOpen(true);
+                }}
+            >
+                {children}
+            </span>
+            <Modal
+                open={open}
+                onCancel={() => setOpen(false)}
+                destroyOnHidden
+                footer={null}
+                title={
+                    mode === "create" ? t("创建菜单", "Create menu") : t("编辑菜单", "Edit menu")
+                }
+                width={760}
+            >
+                <p className="mb-4 text-sm text-muted-foreground">
+                    {isModuleOwned
+                        ? t(
+                              "覆盖标题、图标、排序和可见性。模块标识仍与清单保持同步。",
+                              "Override the title, icon, sort order, and visibility. The module identifier remains synchronized with the manifest.",
+                          )
+                        : t(
+                              "配置菜单层级、权限编码和显示顺序。",
+                              "Configure the menu hierarchy, permission code, and display order.",
+                          )}
+                </p>
+                <Form layout="vertical" onFinish={submit}>
                     <div className="grid gap-2">
-                        <Label htmlFor="menu-parent">{t("上级菜单", "Parent menu")}</Label>
+                        <label htmlFor="menu-parent">{t("上级菜单", "Parent menu")}</label>
                         <Select
+                            id="menu-parent"
                             value={parentId}
-                            onValueChange={setParentId}
+                            onChange={setParentId}
                             disabled={isModuleOwned}
-                        >
-                            <SelectTrigger id="menu-parent" className="w-full">
-                                <SelectValue
-                                    placeholder={t("请选择上级菜单", "Select a parent menu")}
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    {selectableParents.map((item) => (
-                                        <SelectItem key={item.value} value={String(item.value)}>
-                                            {item.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            style={{ width: "100%" }}
+                            options={[
+                                { value: "0", label: t("顶级菜单", "Top menu") },
+                                ...selectableParents.map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                })),
+                            ]}
+                        />
                     </div>
-                    <TextField
-                        id="menu-name"
-                        label={
-                            isModuleOwned ? t("菜单标题", "Menu title") : t("菜单名称", "Menu name")
-                        }
-                        value={name}
-                        placeholder={t("请输入菜单名称", "Enter a menu name")}
-                        onChange={setName}
-                    />
-                    <TextField
-                        id="menu-code"
-                        label={t("权限编码", "Permission code")}
-                        value={code}
-                        placeholder={t(
-                            "请输入权限编码（如 system:menu:list）",
-                            "Enter a permission code (for example, system:menu:list)",
-                        )}
-                        onChange={setCode}
-                        disabled={isModuleOwned}
-                    />
-                    {isModuleOwned && initialValues?.path ? (
-                        <div className="grid gap-2">
-                            <Label htmlFor="menu-path">{t("路由路径", "Route path")}</Label>
-                            <Input id="menu-path" value={initialValues.path} disabled />
-                        </div>
-                    ) : null}
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="menu-type">{t("类型", "Type")}</Label>
-                            <Select
-                                value={menuType}
-                                onValueChange={setMenuType}
+                    <div className="grid gap-2 md:grid-cols-2">
+                        <Form.Item label={t("菜单名称", "Menu name")} required>
+                            <Input
+                                id="menu-name"
+                                value={name}
+                                placeholder={t("请输入菜单名称", "Enter a menu name")}
+                                onChange={(event) => setName(event.target.value)}
+                                disabled={false}
+                            />
+                        </Form.Item>
+                        <Form.Item label={t("权限编码", "Permission code")} required>
+                            <Input
+                                id="menu-code"
+                                value={code}
+                                placeholder={t(
+                                    "请输入权限编码（如 system:menu:list）",
+                                    "Enter a permission code (for example, system:menu:list)",
+                                )}
+                                onChange={(event) => setCode(event.target.value)}
                                 disabled={isModuleOwned}
-                            >
-                                <SelectTrigger id="menu-type" className="w-full">
-                                    <SelectValue
-                                        placeholder={t("请选择菜单类型", "Select a menu type")}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {getMenuTypeOptions().map((item) => (
-                                            <SelectItem key={item.value} value={String(item.value)}>
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            />
+                        </Form.Item>
+                    </div>
+                    {isModuleOwned && initialValues?.path ? (
+                        <Form.Item label={t("路由路径", "Route path")}>
+                            <Input id="menu-path" value={initialValues.path} disabled />
+                        </Form.Item>
+                    ) : null}
+                    <div className="grid gap-2 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <label htmlFor="menu-type">{t("类型", "Type")}</label>
+                            <Select
+                                id="menu-type"
+                                value={menuType}
+                                onChange={setMenuType}
+                                disabled={isModuleOwned}
+                                style={{ width: "100%" }}
+                                options={getMenuTypeOptions().map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                }))}
+                            />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="menu-status">{t("状态", "Status")}</Label>
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger id="menu-status" className="w-full">
-                                    <SelectValue placeholder={t("请选择状态", "Select a status")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {getEnableOptions().map((item) => (
-                                            <SelectItem key={item.value} value={String(item.value)}>
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            <label htmlFor="menu-status">{t("状态", "Status")}</label>
+                            <Select
+                                id="menu-status"
+                                value={status}
+                                onChange={setStatus}
+                                style={{ width: "100%" }}
+                                options={getEnableOptions().map((item) => ({
+                                    value: String(item.value),
+                                    label: item.label,
+                                }))}
+                            />
                         </div>
                     </div>
                     {isModuleOwned ? (
                         <div className="grid gap-2">
-                            <Label htmlFor="menu-icon">{t("图标", "Icon")}</Label>
-                            <Select value={icon || undefined} onValueChange={setIcon}>
-                                <SelectTrigger id="menu-icon" className="w-full">
-                                    <SelectValue placeholder={t("请选择图标", "Select an icon")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {getModuleIconOptions().map((item) => (
-                                            <SelectItem key={item.value} value={item.value}>
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            <label htmlFor="menu-icon">{t("图标", "Icon")}</label>
+                            <Select
+                                id="menu-icon"
+                                value={icon || undefined}
+                                onChange={setIcon}
+                                allowClear
+                                style={{ width: "100%" }}
+                                options={getModuleIconOptions().map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                }))}
+                                placeholder={t("请选择图标", "Select an icon")}
+                            />
                         </div>
                     ) : null}
-                    <TextField
-                        id="menu-sort-order"
-                        label={t("排序", "Sort order")}
-                        value={sortOrder}
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder={t("请输入排序", "Enter a sort order")}
-                        onChange={setSortOrder}
-                    />
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    <div className="grid gap-2">
+                        <Form.Item label={t("排序", "Sort order")}>
+                            <Input
+                                id="menu-sort-order"
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={sortOrder}
+                                placeholder={t("请输入排序", "Enter a sort order")}
+                                onChange={(event) => setSortOrder(event.target.value)}
+                            />
+                        </Form.Item>
+                    </div>
+                    <div className="mt-4 flex justify-end gap-2">
+                        <Button type="default" onClick={() => setOpen(false)}>
                             {t("取消", "Cancel")}
                         </Button>
-                        <Button type="submit" disabled={submitting}>
+                        <Button type="primary" htmlType="submit" loading={submitting}>
                             {mode === "create" ? t("创建", "Create") : t("保存", "Save")}
                         </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                    </div>
+                </Form>
+            </Modal>
+        </>
     );
 };
 
@@ -456,13 +645,10 @@ function DisableMenuDialog({ record, onSuccess }: { record: Menu.Item; onSuccess
         <ConfirmDialog
             trigger={
                 <Button
-                    type="button"
-                    variant="ghost-destructive"
-                    size="icon-sm"
+                    type="text"
+                    icon={<StopOutlined />}
                     aria-label={t("禁用菜单", "Disable menu")}
-                >
-                    <StopCircleIcon />
-                </Button>
+                />
             }
             title={t("禁用菜单", "Disable menu")}
             description={t(
@@ -478,32 +664,34 @@ function DisableMenuDialog({ record, onSuccess }: { record: Menu.Item; onSuccess
 
 function MenuTypeBadge({ menuType }: { menuType: number }) {
     const menuTypeMeta = {
-        1: { label: t("目录", "Directory"), variant: "secondary" as const },
-        2: { label: t("菜单", "Menu"), variant: "default" as const },
-        3: { label: t("按钮", "Button"), variant: "outline" as const },
+        1: { label: t("目录", "Directory"), color: "default" as const },
+        2: { label: t("菜单", "Menu"), color: "blue" as const },
+        3: { label: t("按钮", "Button"), color: "green" as const },
     };
     const meta = menuTypeMeta[menuType as keyof typeof menuTypeMeta] ?? {
         label: t("未知", "Unknown"),
-        variant: "outline" as const,
+        color: "default" as const,
     };
-    return <Badge variant={meta.variant}>{meta.label}</Badge>;
+
+    return <Tag color={meta.color}>{meta.label}</Tag>;
 }
 
 function MenuStatusBadge({ status }: { status: number }) {
     const statusMeta = {
-        1: { label: t("启用", "Enabled"), variant: "secondary" as const },
-        2: { label: t("禁用", "Disabled"), variant: "outline" as const },
+        1: { label: t("启用", "Enabled"), color: "green" as const },
+        2: { label: t("禁用", "Disabled"), color: "default" as const },
     };
     const meta = statusMeta[status as keyof typeof statusMeta] ?? {
         label: t("未知", "Unknown"),
-        variant: "outline" as const,
+        color: "default" as const,
     };
-    return <Badge variant={meta.variant}>{meta.label}</Badge>;
+
+    return <Tag color={meta.color}>{meta.label}</Tag>;
 }
 
 function flattenMenuTree(items: Menu.Item[], depth = 0): FlatMenuItem[] {
-    return items.flatMap((item) => [
-        { ...item, depth },
-        ...flattenMenuTree(item.children ?? [], depth + 1),
-    ]);
+    return items.flatMap((item) => {
+        const { children, ...rest } = item;
+        return [{ ...rest, depth }, ...flattenMenuTree(children ?? [], depth + 1)];
+    });
 }

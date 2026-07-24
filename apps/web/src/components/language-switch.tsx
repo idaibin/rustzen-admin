@@ -1,6 +1,6 @@
-import { LanguagesIcon } from "lucide-react";
+import { GlobalOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 
-import { Button } from "@/components/ui/button";
 import { setLocale, t, useLocale } from "@/lib/i18n";
 
 export function LanguageSwitch() {
@@ -9,14 +9,12 @@ export function LanguageSwitch() {
 
     return (
         <Button
-            type="button"
-            variant="ghost"
-            size="icon"
+            type="text"
+            shape="circle"
             aria-label={t("切换为英文", "Switch to Chinese")}
             title={nextLocale === "en-US" ? "English" : "简体中文"}
             onClick={() => setLocale(nextLocale)}
-        >
-            <LanguagesIcon />
-        </Button>
+            icon={<GlobalOutlined />}
+        ></Button>
     );
 }

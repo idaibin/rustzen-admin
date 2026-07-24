@@ -1,48 +1,26 @@
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { EditIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+    Button,
+    Checkbox,
+    Form,
+    Input,
+    Modal,
+    Popconfirm,
+    Select,
+    Tag,
+    Tree,
+    type FormProps,
+} from "antd";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { menuQueryOptions } from "@/api/system/menu/query-options";
 import { AuthWrap } from "@/components/auth";
-import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
-import { DataState, DataTableState } from "@/components/feedback/data-state";
-import { TextField } from "@/components/form/text-field";
-import { TextareaField } from "@/components/form/textarea-field";
+import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
-import { DataTableShell } from "@/components/table/data-table-shell";
-import { TablePagination } from "@/components/table/table-pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { getEnableOptions } from "@/constant/options";
 import {
     localizeBuiltInMenuName,
@@ -59,6 +37,13 @@ const PAGE_SIZE = 20;
 export const Route = createFileRoute("/system/role")({
     component: RolePage,
 });
+
+interface RoleFormValues {
+    name: string;
+    code: string;
+    status: string;
+    description: string;
+}
 
 function RolePage() {
     const [currentPage, setCurrentPage] = useState(1);
@@ -80,15 +65,16 @@ function RolePage() {
         }),
         [currentPage, filters],
     );
+
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "role", params],
         queryFn: () => systemAPI.role.list(params),
     });
+
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    const search = (event: FormEvent<HTMLFormElement>) => {
+    const search = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCurrentPage(1);
         setFilters({
@@ -110,6 +96,134 @@ function RolePage() {
         void refetch();
     };
 
+    const columns: ProColumns<Role.Item>[] = [
+        {
+            title: t("ID", "ID"),
+            dataIndex: "id",
+            key: "id",
+            width: 70,
+            render: (_: unknown, row: Role.Item) => <span className="font-medium">{row.id}</span>,
+        },
+        {
+            title: t("角色名称", "Role name"),
+            key: "name",
+            width: 170,
+            render: (_: unknown, row: Role.Item) => (
+                <span>{localizeBuiltInRoleName(row.code, row.name)}</span>
+            ),
+        },
+        {
+            title: t("角色编码", "Role code"),
+            dataIndex: "code",
+            key: "code",
+            width: 170,
+            render: (_: unknown, row: Role.Item) => <Tag color="blue">{row.code}</Tag>,
+        },
+        {
+            title: t("描述", "Description"),
+            key: "description",
+            width: 260,
+            ellipsis: true,
+            render: (_: unknown, row: Role.Item) =>
+                localizeBuiltInRoleDescription(row.code, row.description) || "-",
+        },
+        {
+            title: t("状态", "Status"),
+            key: "status",
+            width: 120,
+            render: (_: unknown, row: Role.Item) => <RoleStatusBadge status={row.status} />,
+        },
+        {
+            title: t("权限", "Permissions"),
+            key: "permissions",
+            width: 160,
+            render: (_: unknown, row: Role.Item) =>
+                row.menus?.length ? (
+                    <span
+                        title={row.menus
+                            .map((menu) =>
+                                localizeBuiltInMenuName({
+                                    name: menu.label,
+                                    code: String(menu.value),
+                                    isSystem: false,
+                                    moduleId: null,
+                                    moduleMenuCode: null,
+                                }),
+                            )
+                            .join(", ")}
+                    >
+                        {t(`${row.menus.length} 项权限`, `${row.menus.length} permissions`)}
+                    </span>
+                ) : (
+                    <span className="text-muted-foreground">{t("暂无权限", "No permissions")}</span>
+                ),
+        },
+        {
+            title: t("更新时间", "Updated at"),
+            key: "updatedAt",
+            width: 220,
+            render: (_: unknown, row: Role.Item) => formatDateTime(row.updatedAt),
+        },
+        {
+            title: t("操作", "Actions"),
+            key: "actions",
+            fixed: "right",
+            width: 160,
+            align: "right",
+            render: (_: unknown, row: Role.Item) => (
+                <RoleActions record={row} onSuccess={refresh} />
+            ),
+        },
+    ];
+
+    if (!data && isPending) {
+        return (
+            <PageCard
+                title={t("角色管理", "Role management")}
+                description={t(
+                    "管理角色定义和权限分配。",
+                    "Manage role definitions and permission assignments.",
+                )}
+            >
+                <DataState kind="loading" title={t("正在加载角色", "Loading roles")} />
+            </PageCard>
+        );
+    }
+
+    if (!data && error) {
+        return (
+            <PageCard
+                title={t("角色管理", "Role management")}
+                description={t(
+                    "管理角色定义和权限分配。",
+                    "Manage role definitions and permission assignments.",
+                )}
+                actions={
+                    <AuthWrap code="system:role:create">
+                        <RoleDialog mode="create" onSuccess={refresh}>
+                            <Button type="primary" icon={<PlusOutlined />}>
+                                {t("新建角色", "New role")}
+                            </Button>
+                        </RoleDialog>
+                    </AuthWrap>
+                }
+            >
+                <DataState
+                    kind="error"
+                    title={t("角色加载失败", "Failed to load roles")}
+                    description={
+                        error instanceof Error
+                            ? error.message
+                            : t("请稍后重试。", "Please try again later.")
+                    }
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
     return (
         <PageCard
             title={t("角色管理", "Role management")}
@@ -120,8 +234,7 @@ function RolePage() {
             actions={
                 <AuthWrap code="system:role:create">
                     <RoleDialog mode="create" onSuccess={refresh}>
-                        <Button>
-                            <PlusIcon data-icon="inline-start" />
+                        <Button type="primary" icon={<PlusOutlined />}>
                             {t("新建角色", "New role")}
                         </Button>
                     </RoleDialog>
@@ -141,137 +254,50 @@ function RolePage() {
                         placeholder={t("角色编码", "Role code")}
                         onChange={(event) => setRoleCode(event.target.value)}
                     />
-                    <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="w-full" aria-label={t("角色状态", "Role status")}>
-                            <SelectValue placeholder={t("状态", "Status")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectGroup>
-                                <SelectItem value="all">{t("全部状态", "All statuses")}</SelectItem>
-                                {getEnableOptions().map((item) => (
-                                    <SelectItem key={item.value} value={String(item.value)}>
-                                        {item.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
+                    <Select
+                        className="w-full"
+                        aria-label={t("角色状态", "Role status")}
+                        value={status}
+                        onChange={setStatus}
+                        options={[
+                            { value: "all", label: t("全部状态", "All statuses") },
+                            ...getEnableOptions().map((item) => ({
+                                value: String(item.value),
+                                label: item.label,
+                            })),
+                        ]}
+                    />
                     <div className="flex gap-2">
-                        <Button type="submit" disabled={isFetching}>
+                        <Button type="primary" htmlType="submit" disabled={isFetching}>
                             {t("查询", "Search")}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={isFetching}
-                            onClick={reset}
-                        >
+                        <Button type="default" onClick={reset} disabled={isFetching}>
                             {t("重置", "Reset")}
                         </Button>
                     </div>
                 </form>
             }
         >
-            <DataTableShell>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-16">ID</TableHead>
-                            <TableHead className="min-w-48">{t("角色名称", "Role name")}</TableHead>
-                            <TableHead className="min-w-48">{t("角色编码", "Role code")}</TableHead>
-                            <TableHead className="min-w-64">{t("描述", "Description")}</TableHead>
-                            <TableHead className="min-w-28">{t("状态", "Status")}</TableHead>
-                            <TableHead className="min-w-40">{t("权限", "Permissions")}</TableHead>
-                            <TableHead className="min-w-44">
-                                {t("更新时间", "Updated at")}
-                            </TableHead>
-                            <TableHead className="w-24 text-right">
-                                {t("操作", "Actions")}
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {rows.length > 0 ? (
-                            rows.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell className="font-medium">{record.id}</TableCell>
-                                    <TableCell>
-                                        {localizeBuiltInRoleName(record.code, record.name)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{record.code}</Badge>
-                                    </TableCell>
-                                    <TableCell className="max-w-72 truncate">
-                                        {localizeBuiltInRoleDescription(
-                                            record.code,
-                                            record.description,
-                                        ) || "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                        <RoleStatusBadge status={record.status} />
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.menus?.length ? (
-                                            <span
-                                                title={record.menus
-                                                    .map((menu) => menu.label)
-                                                    .join(", ")}
-                                            >
-                                                {t(
-                                                    `${record.menus.length} 项权限`,
-                                                    `${record.menus.length} permissions`,
-                                                )}
-                                            </span>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                {t("暂无权限", "No permissions")}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>{formatDateTime(record.updatedAt)}</TableCell>
-                                    <TableCell>
-                                        <RoleActions record={record} onSuccess={refresh} />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : isPending ? (
-                            <DataTableState
-                                colSpan={8}
-                                kind="loading"
-                                title={t("正在加载角色", "Loading roles")}
-                            />
-                        ) : error ? (
-                            <DataTableState
-                                colSpan={8}
-                                kind="error"
-                                title={t("角色加载失败", "Failed to load roles")}
-                                description={
-                                    error instanceof Error
-                                        ? error.message
-                                        : t("请稍后重试。", "Please try again later.")
-                                }
-                                action={
-                                    <Button onClick={() => void refetch()}>
-                                        {t("重新加载", "Reload")}
-                                    </Button>
-                                }
-                            />
-                        ) : (
-                            <DataTableState
-                                colSpan={8}
-                                kind="empty"
-                                title={t("暂无角色", "No roles")}
-                            />
-                        )}
-                    </TableBody>
-                </Table>
-            </DataTableShell>
-            <TablePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                total={total}
-                disabled={isFetching}
-                onPageChange={setCurrentPage}
+            <ProTable<Role.Item>
+                rowKey="id"
+                columns={columns}
+                dataSource={rows}
+                loading={isPending || isFetching}
+                search={false}
+                options={false}
+                pagination={{
+                    current: currentPage,
+                    pageSize: PAGE_SIZE,
+                    total,
+                    showSizeChanger: false,
+                    onChange: (page) => setCurrentPage(page),
+                }}
+                locale={{
+                    emptyText:
+                        rows.length === 0 ? (
+                            <DataState kind="empty" title={t("暂无角色", "No roles")} />
+                        ) : undefined,
+                }}
             />
         </PageCard>
     );
@@ -287,20 +313,39 @@ function RoleActions({ record, onSuccess }: { record: Role.Item; onSuccess: () =
             <AuthWrap code="system:role:update">
                 <RoleDialog mode="edit" record={record} onSuccess={onSuccess}>
                     <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
+                        type="text"
+                        size="small"
                         aria-label={t("编辑角色", "Edit role")}
-                    >
-                        <EditIcon />
-                    </Button>
+                        icon={<EditOutlined />}
+                    />
                 </RoleDialog>
             </AuthWrap>
             <AuthWrap code="system:role:delete">
-                <DeleteRoleDialog record={record} onSuccess={onSuccess} />
+                <Popconfirm
+                    title={t("删除角色", "Delete role")}
+                    description={
+                        <span>
+                            {t(
+                                `此操作无法撤销。确定删除角色 ${record.name}？`,
+                                `This action cannot be undone. Delete role ${record.name}?`,
+                            )}
+                        </span>
+                    }
+                    okText={t("删除", "Delete")}
+                    cancelText={t("取消", "Cancel")}
+                    onConfirm={() => onSuccessDelete(record.id, onSuccess)}
+                >
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
             </AuthWrap>
         </div>
     );
+}
+
+async function onSuccessDelete(id: number, onSuccess: () => void) {
+    await systemAPI.role.delete(id);
+    appMessage.success(t("角色已删除", "Role deleted."));
+    onSuccess();
 }
 
 interface RoleDialogProps {
@@ -310,15 +355,18 @@ interface RoleDialogProps {
     onSuccess?: () => void;
 }
 
-const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialogProps) => {
+function RoleDialog({ children, record, mode = "create", onSuccess }: RoleDialogProps) {
     const [open, setOpen] = useState(false);
-    const [name, setName] = useState("");
-    const [code, setCode] = useState("");
-    const [status, setStatus] = useState("1");
-    const [description, setDescription] = useState("");
+    const [submitting, setSubmitting] = useState(false);
     const [menuIds, setMenuIds] = useState<number[]>([]);
     const [permissionSearch, setPermissionSearch] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const [form] = Form.useForm<RoleFormValues>();
+    const watchedName = Form.useWatch("name", form) ?? "";
+    const watchedCode = Form.useWatch("code", form) ?? "";
+
+    const trimmedName = String(watchedName).trim();
+    const trimmedCode = String(watchedCode).trim();
+
     const {
         data: menuOptions,
         error: permissionError,
@@ -330,6 +378,7 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
         ...menuQueryOptions.options(),
         enabled: open,
     });
+
     const permissionInitialError =
         permissionLoadFailed && menuOptions === undefined ? permissionError : null;
     const permissionOptions = useMemo(
@@ -337,7 +386,7 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
             (menuOptions ?? [])
                 .filter((option) => option.value !== 0 && isAssignableRolePermission(option.code))
                 .map((option) => ({
-                    key: option.value,
+                    value: option.value,
                     title: localizeBuiltInMenuName({
                         name: option.label,
                         code: option.code,
@@ -349,17 +398,8 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
                 })),
         [menuOptions],
     );
+
     const permissionReady = menuOptions !== undefined && permissionOptions.length > 0;
-    const trimmedName = name.trim();
-    const trimmedCode = code.trim();
-    const roleFieldsReady =
-        trimmedName.length >= 2 &&
-        trimmedName.length <= 50 &&
-        trimmedCode.length >= 2 &&
-        trimmedCode.length <= 50 &&
-        /^[a-zA-Z_]+$/.test(trimmedCode);
-    const submitDisabled =
-        submitting || !permissionReady || !roleFieldsReady || menuIds.length === 0;
     const filteredPermissions = useMemo(() => {
         const query = permissionSearch.trim().toLowerCase();
         if (!query) {
@@ -371,41 +411,66 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
                 option.code.toLowerCase().includes(query),
         );
     }, [permissionOptions, permissionSearch]);
+    const filteredPermissionKeys = useMemo(
+        () => filteredPermissions.map((item) => String(item.value)),
+        [filteredPermissions],
+    );
+    const selectedPermissionKeys = useMemo(() => new Set(menuIds.map(String)), [menuIds]);
+    const isAllChecked =
+        permissionReady &&
+        permissionOptions.length > 0 &&
+        filteredPermissionKeys.length > 0 &&
+        filteredPermissionKeys.every((key) => selectedPermissionKeys.has(key));
+
+    const submitDisabled =
+        submitting ||
+        !permissionReady ||
+        trimmedName.length < 2 ||
+        trimmedName.length > 50 ||
+        trimmedCode.length < 2 ||
+        trimmedCode.length > 50 ||
+        !/^[a-zA-Z_]+$/.test(trimmedCode) ||
+        menuIds.length === 0;
 
     useEffect(() => {
-        if (open) {
-            setName(record?.name ?? "");
-            setCode(record?.code ?? "");
-            setStatus(String(record?.status ?? 1));
-            setDescription(record?.description ?? "");
-            setMenuIds(record?.menus?.map((menu) => menu.value) ?? []);
-            setPermissionSearch("");
+        if (!open) {
+            return;
         }
-    }, [record, open]);
 
-    const submit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const payload = {
-            name: name.trim(),
-            code: code.trim(),
-            status: Number(status),
-            description: description.trim() || undefined,
-            menuIds,
-        };
+        const name = record?.name ?? "";
+        const code = record?.code ?? "";
+        const description = record?.description ?? "";
+        const status = String(record?.status ?? 1);
+        const nextMenuIds = record?.menus?.map((menu) => Number(menu.value)) ?? [];
 
-        if (payload.name.length < 2 || payload.name.length > 50) {
+        setMenuIds(nextMenuIds);
+        setPermissionSearch("");
+        form.setFieldsValue({
+            name,
+            code,
+            status,
+            description,
+        });
+    }, [record, open, form]);
+
+    const submit: FormProps<RoleFormValues>["onFinish"] = async (values) => {
+        const trimmedName = values.name.trim();
+        const trimmedCode = values.code.trim();
+        const trimmedDescription = values.description?.trim() ?? "";
+
+        if (trimmedName.length < 2 || trimmedName.length > 50) {
             appMessage.error(
                 t("角色名称必须为 2-50 个字符", "The role name must be 2–50 characters."),
             );
             return;
         }
-        if (payload.code.length < 2 || payload.code.length > 50) {
+        if (trimmedCode.length < 2 || trimmedCode.length > 50) {
             appMessage.error(
                 t("角色编码必须为 2-50 个字符", "The role code must be 2–50 characters."),
             );
             return;
         }
-        if (!/^[a-zA-Z_]+$/.test(payload.code)) {
+        if (!/^[a-zA-Z_]+$/.test(trimmedCode)) {
             appMessage.error(
                 t(
                     "角色编码只能包含字母和下划线",
@@ -414,7 +479,7 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
             );
             return;
         }
-        if (payload.menuIds.length === 0) {
+        if (menuIds.length === 0) {
             appMessage.error(t("请至少选择一个权限", "Select at least one permission."));
             return;
         }
@@ -422,103 +487,167 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
         setSubmitting(true);
         try {
             if (mode === "create") {
-                await systemAPI.role.create(payload);
+                await systemAPI.role.create({
+                    name: trimmedName,
+                    code: trimmedCode,
+                    status: Number(values.status ?? 1),
+                    description: trimmedDescription || undefined,
+                    menuIds,
+                });
                 appMessage.success(t("角色已创建", "Role created."));
             } else if (record?.id) {
-                await systemAPI.role.update(record.id, payload);
+                await systemAPI.role.update(record.id, {
+                    name: trimmedName,
+                    code: trimmedCode,
+                    status: Number(values.status ?? 1),
+                    description: trimmedDescription || undefined,
+                    menuIds,
+                });
                 appMessage.success(t("角色已更新", "Role updated."));
             }
             onSuccess?.();
+            form.resetFields();
             setOpen(false);
+            setMenuIds([]);
         } finally {
             setSubmitting(false);
         }
     };
 
+    const selectedMenuKeys = useMemo(() => menuIds.map(String), [menuIds]);
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle>
-                        {mode === "create"
-                            ? t("创建角色", "Create role")
-                            : t("编辑角色", "Edit role")}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {t(
-                            "配置角色标识、状态和可分配权限。",
-                            "Configure the role identifier, status, and assignable permissions.",
-                        )}
-                    </DialogDescription>
-                </DialogHeader>
-                <form className="grid gap-4" onSubmit={submit}>
+        <>
+            <span className="inline-flex" onClick={() => setOpen(true)}>
+                {children}
+            </span>
+            <Modal
+                open={open}
+                destroyOnHidden
+                onCancel={() => {
+                    form.resetFields();
+                    setMenuIds([]);
+                    setOpen(false);
+                }}
+                title={
+                    mode === "create" ? t("创建角色", "Create role") : t("编辑角色", "Edit role")
+                }
+                footer={null}
+                width={900}
+            >
+                <Form
+                    form={form}
+                    layout="vertical"
+                    requiredMark={false}
+                    initialValues={{
+                        name: record?.name ?? "",
+                        code: record?.code ?? "",
+                        status: String(record?.status ?? 1),
+                        description: record?.description ?? "",
+                    }}
+                    onFinish={submit}
+                >
                     <div className="grid gap-4 md:grid-cols-2">
-                        <TextField
-                            id="role-name"
+                        <Form.Item
+                            name="name"
                             label={t("角色名称", "Role name")}
-                            value={name}
-                            placeholder={t("请输入角色名称", "Enter a role name")}
-                            onChange={setName}
-                        />
-                        <TextField
-                            id="role-code"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: t("请输入角色名称", "Enter a role name"),
+                                },
+                            ]}
+                        >
+                            <Input placeholder={t("请输入角色名称", "Enter a role name")} />
+                        </Form.Item>
+                        <Form.Item
+                            name="code"
                             label={t("角色编码", "Role code")}
-                            value={code}
-                            placeholder={t("请输入角色编码", "Enter a role code")}
-                            onChange={setCode}
+                            rules={[
+                                {
+                                    required: true,
+                                    message: t("请输入角色编码", "Enter a role code"),
+                                },
+                            ]}
+                        >
+                            <Input placeholder={t("请输入角色编码", "Enter a role code")} />
+                        </Form.Item>
+                    </div>
+                    <Form.Item name="status" label={t("状态", "Status")}>
+                        <Select
+                            options={getEnableOptions().map((item) => ({
+                                value: String(item.value),
+                                label: item.label,
+                            }))}
                         />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="role-status">{t("状态", "Status")}</Label>
-                        <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger id="role-status" className="w-full">
-                                <SelectValue placeholder={t("请选择状态", "Select a status")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    {getEnableOptions().map((item) => (
-                                        <SelectItem key={item.value} value={String(item.value)}>
-                                            {item.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    </Form.Item>
                     <PermissionPicker
-                        options={filteredPermissions}
-                        hasAssignablePermissions={permissionOptions.length > 0}
-                        selectedCount={menuIds.length}
-                        search={permissionSearch}
-                        value={menuIds}
+                        permissions={filteredPermissions}
+                        checkedValues={selectedMenuKeys}
                         loading={permissionLoading && menuOptions === undefined}
                         error={permissionInitialError}
-                        retrying={permissionRefreshing}
+                        permissionReady={permissionReady}
+                        permissionRefreshing={permissionRefreshing}
+                        permissionSearch={permissionSearch}
+                        isAllChecked={isAllChecked}
+                        onCheck={(keys) => {
+                            const checkedKeys = new Set(keys);
+                            const nextChecked = new Set(selectedPermissionKeys);
+                            for (const key of filteredPermissionKeys) {
+                                if (checkedKeys.has(key)) {
+                                    nextChecked.add(key);
+                                } else {
+                                    nextChecked.delete(key);
+                                }
+                            }
+                            setMenuIds(Array.from(nextChecked).map((item) => Number(item)));
+                        }}
                         onSearchChange={setPermissionSearch}
-                        onChange={setMenuIds}
+                        onSelectAllChange={(checked) => {
+                            const nextChecked = new Set(selectedPermissionKeys);
+                            if (checked) {
+                                for (const key of filteredPermissionKeys) {
+                                    nextChecked.add(key);
+                                }
+                            } else {
+                                for (const key of filteredPermissionKeys) {
+                                    nextChecked.delete(key);
+                                }
+                            }
+                            setMenuIds(Array.from(nextChecked).map((item) => Number(item)));
+                        }}
                         onRetry={async () => {
                             await refetchPermissions();
                         }}
                     />
-                    <div className="grid gap-1">
-                        <TextareaField
-                            id="role-description"
-                            label={t("描述", "Description")}
-                            value={description}
+                    <Form.Item
+                        name="description"
+                        label={t("描述", "Description")}
+                        className="!mb-1"
+                    >
+                        <Input.TextArea
                             maxLength={200}
                             placeholder={t("请输入角色描述", "Enter a role description")}
-                            onChange={setDescription}
+                            showCount
+                            rows={4}
                         />
-                        <div className="text-xs text-muted-foreground">
-                            {description.length}/200
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    </Form.Item>
+                    <div className="flex items-center justify-end gap-2">
+                        <Button
+                            onClick={() => {
+                                form.resetFields();
+                                setMenuIds([]);
+                                setOpen(false);
+                            }}
+                        >
                             {t("取消", "Cancel")}
                         </Button>
-                        <Button type="submit" disabled={submitDisabled}>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={submitting}
+                            disabled={submitDisabled}
+                        >
                             {submitting
                                 ? mode === "create"
                                     ? t("创建中", "Creating")
@@ -527,55 +656,77 @@ const RoleDialog = ({ children, record, mode = "create", onSuccess }: RoleDialog
                                   ? t("创建", "Create")
                                   : t("保存", "Save")}
                         </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                    </div>
+                </Form>
+            </Modal>
+        </>
     );
-};
+}
 
 function PermissionPicker({
-    options,
-    hasAssignablePermissions,
-    selectedCount,
-    search,
-    value,
+    permissions,
+    checkedValues,
     loading,
     error,
-    retrying,
+    permissionReady,
+    permissionRefreshing,
+    permissionSearch,
+    isAllChecked,
+    onCheck,
     onSearchChange,
-    onChange,
+    onSelectAllChange,
     onRetry,
 }: {
-    options: { key: number; title: string; code: string }[];
-    hasAssignablePermissions: boolean;
-    selectedCount: number;
-    search: string;
-    value: number[];
+    permissions: { value: number; title: string; code: string }[];
+    checkedValues: string[];
     loading: boolean;
     error: unknown;
-    retrying: boolean;
+    permissionReady: boolean;
+    permissionRefreshing: boolean;
+    permissionSearch: string;
+    isAllChecked: boolean;
+    onCheck: (checkedValues: string[]) => void;
     onSearchChange: (value: string) => void;
-    onChange: (value: number[]) => void;
+    onSelectAllChange: (checked: boolean) => void;
     onRetry?: () => Promise<void> | void;
 }) {
-    const togglePermission = (permissionId: number, checked: boolean) => {
-        if (checked) {
-            onChange([...value, permissionId]);
-            return;
-        }
-        onChange(value.filter((item) => item !== permissionId));
-    };
+    const treeData = useMemo(
+        () =>
+            permissions.map((item) => ({
+                title: (
+                    <div className="grid gap-0.5">
+                        <span>{item.title}</span>
+                        <span className="text-xs text-muted-foreground">{item.code}</span>
+                    </div>
+                ),
+                key: String(item.value),
+                isLeaf: true,
+            })),
+        [permissions],
+    );
+    const permissionSet = useMemo(
+        () => new Set(permissions.map((item) => String(item.value))),
+        [permissions],
+    );
+    const visibleCheckedValues = checkedValues.filter((key) => permissionSet.has(key));
 
     return (
         <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <Label>{t("权限", "Permissions")}</Label>
+                <span className="font-medium">{t("权限", "Permissions")}</span>
+                {permissionReady ? (
+                    <Checkbox
+                        checked={isAllChecked}
+                        onChange={(event) => onSelectAllChange(event.target.checked)}
+                    >
+                        {t("全选当前", "Select all")}
+                    </Checkbox>
+                ) : null}
                 <span className="text-sm text-muted-foreground">
-                    {t(`已选择 ${selectedCount} 项`, `${selectedCount} selected`)}
+                    {t(`已选择 ${checkedValues.length} 项`, `${checkedValues.length} selected`)}
                 </span>
             </div>
-            <div className="max-h-72 overflow-auto rounded-md border p-3">
+            <div className="h-72 overflow-auto rounded-md border p-3">
                 {loading ? (
                     <DataState
                         compact
@@ -593,16 +744,15 @@ function PermissionPicker({
                         )}
                         action={
                             <Button
-                                type="button"
-                                size="sm"
+                                type="default"
                                 onClick={() => void onRetry?.()}
-                                disabled={retrying}
+                                disabled={permissionRefreshing}
                             >
                                 {t("重新加载", "Reload")}
                             </Button>
                         }
                     />
-                ) : !hasAssignablePermissions ? (
+                ) : !permissionReady ? (
                     <DataState
                         compact
                         kind="empty"
@@ -611,33 +761,28 @@ function PermissionPicker({
                 ) : (
                     <div className="grid gap-3">
                         <Input
-                            value={search}
+                            value={permissionSearch}
                             placeholder={t("搜索权限", "Search permissions")}
                             onChange={(event) => onSearchChange(event.target.value)}
                         />
-                        {options.length > 0 ? (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {options.map((option) => (
-                                    <Label key={option.key} className="items-start justify-start">
-                                        <Checkbox
-                                            checked={value.includes(option.key)}
-                                            onCheckedChange={(checked) =>
-                                                togglePermission(option.key, checked === true)
-                                            }
-                                        />
-                                        <span className="grid gap-1">
-                                            <span>{option.title}</span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {option.code}
-                                            </span>
-                                        </span>
-                                    </Label>
-                                ))}
-                            </div>
-                        ) : (
+                        {permissions.length === 0 ? (
                             <div className="text-sm text-muted-foreground">
                                 {t("未找到匹配权限。", "No matching permissions found.")}
                             </div>
+                        ) : (
+                            <Tree
+                                checkable
+                                checkedKeys={visibleCheckedValues}
+                                treeData={treeData}
+                                onCheck={(keys) => {
+                                    const checked = Array.isArray(keys)
+                                        ? keys
+                                        : "checked" in keys
+                                          ? keys.checked
+                                          : [];
+                                    onCheck(checked.map((item) => String(item)));
+                                }}
+                            />
                         )}
                     </div>
                 )}
@@ -646,47 +791,16 @@ function PermissionPicker({
     );
 }
 
-function DeleteRoleDialog({ record, onSuccess }: { record: Role.Item; onSuccess: () => void }) {
-    const submit = async () => {
-        await systemAPI.role.delete(record.id);
-        appMessage.success(t("角色已删除", "Role deleted."));
-        onSuccess();
-    };
-
-    return (
-        <ConfirmDialog
-            trigger={
-                <Button
-                    type="button"
-                    variant="ghost-destructive"
-                    size="icon-sm"
-                    aria-label={t("删除角色", "Delete role")}
-                >
-                    <TrashIcon />
-                </Button>
-            }
-            title={t("删除角色", "Delete role")}
-            description={t(
-                `此操作无法撤销。确定删除角色 ${record.name}？`,
-                `This action cannot be undone. Delete role ${record.name}?`,
-            )}
-            confirmLabel={t("删除", "Delete")}
-            destructive
-            onConfirm={submit}
-        />
-    );
-}
-
 function RoleStatusBadge({ status }: { status: number }) {
     const statusMeta = {
-        1: { label: t("启用", "Enabled"), variant: "secondary" as const },
-        2: { label: t("禁用", "Disabled"), variant: "outline" as const },
+        1: { label: t("启用", "Enabled"), color: "blue" as const },
+        2: { label: t("禁用", "Disabled"), color: "default" as const },
     };
     const meta = statusMeta[status as keyof typeof statusMeta] ?? {
         label: t("未知", "Unknown"),
-        variant: "outline" as const,
+        color: "default" as const,
     };
-    return <Badge variant={meta.variant}>{meta.label}</Badge>;
+    return <Tag color={meta.color}>{meta.label}</Tag>;
 }
 
 function isBuiltInRoleCode(code: string) {

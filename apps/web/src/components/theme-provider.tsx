@@ -1,8 +1,10 @@
-import { MoonIcon, SunIcon } from "lucide-react";
+import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { App as AntdApp, Button, ConfigProvider, theme as antdTheme } from "antd";
+import enUS from "antd/locale/en_US";
+import zhCN from "antd/locale/zh_CN";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 
 export type Theme = "light" | "dark";
 
@@ -27,6 +29,10 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>(readStoredTheme);
+    const locale = useLocale();
+
+    const antdLocale = locale === "en-US" ? enUS : zhCN;
+    const algorithm = theme === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm;
 
     useEffect(() => {
         document.documentElement.classList.remove("white");
@@ -38,7 +44,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
     }, [theme]);
 
-    return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>;
+    return (
+        <ThemeContext value={{ theme, setTheme }}>
+            <ConfigProvider
+                locale={antdLocale}
+                theme={{
+                    algorithm,
+                }}
+            >
+                <AntdApp>{children}</AntdApp>
+            </ConfigProvider>
+        </ThemeContext>
+    );
 }
 
 export function ThemeSwitch() {
@@ -48,21 +65,19 @@ export function ThemeSwitch() {
         light: t("亮色", "Light"),
         dark: t("暗色", "Dark"),
     };
-    const icon = context.theme === "light" ? <MoonIcon /> : <SunIcon />;
+    const icon = context.theme === "light" ? <MoonOutlined /> : <SunOutlined />;
 
     return (
         <Button
-            type="button"
-            variant="ghost"
-            size="icon"
+            shape="circle"
+            type="text"
             aria-label={t(
                 `当前主题：${labels[context.theme]}。切换到${labels[nextTheme]}主题`,
                 `Current theme: ${labels[context.theme]}. Switch to ${labels[nextTheme]} theme`,
             )}
             onClick={() => context.setTheme(nextTheme)}
-        >
-            {icon}
-        </Button>
+            icon={icon}
+        ></Button>
     );
 }
 
