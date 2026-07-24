@@ -1,5 +1,5 @@
 version: 2
-revision: 7
+revision: 8
 status: pending-human-approval
 deterministic:
   results:
@@ -9,16 +9,12 @@ deterministic:
       result: pass
     - check: web-typecheck-and-lint
       result: pass
-    - check: light-dark-core-browser-review-1920x1080
-      result: pass-no-page-horizontal-overflow
-    - check: light-dark-core-browser-review-narrow
-      result: pass-390x844-and-390x667
-    - check: authenticated-browser-console
-      result: pass-no-warnings-or-errors
-    - check: text-and-control-contrast
-      result: pass-minimum-observed-ratio-6.25
-    - check: keyboard-focus
-      result: pass-visible-focus-ring
+    - check: browser-review-login-dashboard
+      result: pass-desktop-and-mobile-checks
+    - check: browser-review-system-user-role-manage-deploy
+      result: pass-desktop-390x844-with-no-horizontal-overflow
+    - check: authenticated-browser-console-on-core-routes
+      result: pass-empty-console-warn-error-on-checked-routes
 hard_blockers: []
 scores:
   product_truth: 15
@@ -33,8 +29,8 @@ total: 97
 decision: pending
 reviewer: codex-design-qa
 gaps:
-  - representative-core-surfaces-verified-after-theme-convergence-not-all-twenty-routes-after-branch-integration
+  - representative-core-surfaces-verified-after-antd-migration-not-all-24-routes
+  - human-approval-not-recorded-for-integrated-antd-migration
   - legacy-storage-fallback-source-verified-not-directly-inspected-in-browser-storage
-  - human-approval-not-recorded-for-integrated-twenty-route-basis
   - historical-global-package-does-not-contain-independent-contracts-for-every-domain
 promotion_approvals: []

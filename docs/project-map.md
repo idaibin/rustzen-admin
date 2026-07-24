@@ -96,8 +96,11 @@ Rust route registration, not in `module.toml`.
 | `apps/web/src/store/` | Shared frontend state. | You change auth or persisted cross-page state. |
 
 The frontend uses React 19, TanStack Router, React Query, Zustand, Tailwind CSS,
-and the repository's shadcn-compatible primitives. `apps/web/package.json` pins
-Bun 1.3.14, Vite 8.1.3, and Vite+ 0.2.4; `apps/web/bun.lock` is its only lockfile.
+and Ant Design (antd) + @ant-design/pro-components as the only UI library.
+Tailwind is reserved for layout spacing and composition utilities,
+not component behavior.
+`apps/web/package.json` pins Bun 1.3.14, Vite 8.1.3, and Vite+ 0.2.4;
+`apps/web/bun.lock` is its only lockfile.
 
 ### Reuse entry points
 
@@ -106,9 +109,9 @@ Bun 1.3.14, Vite 8.1.3, and Vite+ 0.2.4; `apps/web/bun.lock` is its only lockfil
 | Authenticated application shell | `apps/web/src/components/layout/index.tsx` | `apps/web/src/routes/__root.tsx` | Adapt the existing route, permission, locale, theme, and account owner; do not create another shell. |
 | Page heading and actions | `apps/web/src/components/page/page-header.tsx` (`PageHeader`) | dashboard, profile, system status | Reuse for overview/detail surfaces; list and management pages use `PageCard`. |
 | List and management page surface | `apps/web/src/components/page/page-card.tsx` (`PageCard`) | Monitoring, Analytics, Reports, Admin lists | Reuse title, toolbar, action, and content hierarchy without nesting a second page title. |
-| Query state vocabulary | `apps/web/src/components/feedback/data-state.tsx` (`DataState`, `DataTableState`) | Monitoring, Analytics, Reports, Admin tables | Reuse loading, empty, error, permission, and processing states; retry calls the owning query. |
+| Query state vocabulary | `apps/web/src/components/feedback/data-state.tsx` (`DataState`) | Monitoring, Analytics, Reports, Admin tables | Reuse loading, empty, error, permission, and processing states; retry calls the owning query. |
 | Operational metric | `apps/web/src/components/page/metric-card.tsx` (`MetricCard`) | Monitoring and Analytics overviews | Reuse for factual compact metrics; do not turn it into decorative KPI cards. |
-| Table surface and pagination | `apps/web/src/components/table/` | module and Admin list routes | Reuse `DataTableShell` and `TablePagination`; keep columns and page-local actions with the route. |
+| Table surface and pagination | `apps/web/src/components/table/`, `@ant-design/pro-components` | module and Admin list routes | Reuse `DataTableShell` and route-local `ProTable`; keep columns and page-local actions with the route and Pro components pagination behavior. |
 
 `docs/ui/component-map.json` records the current reuse candidates and
 `docs/ui/design-tokens.json` records the current token-owner mapping. Their shared
@@ -141,7 +144,7 @@ authority unless an existing generated pipeline or an explicit task introduces o
 | SQLite connection and maintenance | `crates/storage/src/{sqlite,maintenance}.rs`, exported by `crates/storage/src/lib.rs` | Four databases and retention jobs | Reuse mechanics; schemas, SQL, and retention selection stay application-owned. |
 | HTTP transport | `apiRequest`, `apiUpload`, `apiDownload` in `apps/web/src/api/request.ts` | Admin and module API packages | Reuse transport; keep URLs, DTOs, and shaping in the domain API module. |
 | Page hierarchy | `PageHeader`, `PageCard` in `apps/web/src/components/page/` | Dashboard/status and list/management routes | Reuse the mapped semantics and check current approval in `docs/ui/evaluation.yaml`. |
-| Query feedback and table surface | `DataState`, `DataTableState`, `DataTableShell`, `TablePagination` | System, management, and module lists | Reuse states and surface; keep filters and columns route-local until semantics repeat. |
+| Query feedback and table surface | `DataState`, `DataTableShell` | System, management, and module lists | Reuse states and surface; keep filters and columns route-local until semantics repeat. |
 | Operational metrics | `MetricCard` in `apps/web/src/components/page/metric-card.tsx` | Monitoring and Analytics overviews | Reuse factual metrics; do not create module copies. |
 | Nullable locale date-time | `formatDateTime` in `apps/web/src/lib/format-date-time.ts` | Management and system tables | Reuse only for the same `null`/empty to `-` and locale-display contract. |
 | Module API envelope and page | `ApiResponse<T>`, `Page<T>`, and bounded pagination in `crates/ipc/src/response.rs` | Monitor, Insights, and Reports HTTP boundaries | Reuse only for the shared `{code,message,data}` and `{data,total,success}` wire contracts; Admin's historical top-level `total` stays local. |

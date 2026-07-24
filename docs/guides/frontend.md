@@ -7,6 +7,11 @@ build all pass on a newer pair.
 
 Rules for frontend work under `apps/web/`.
 
+The UI stack is `antd` + `@ant-design/pro-components` as the single component
+library in this application, with `@ant-design/icons` for icon usage.
+Tailwind CSS is used for layout and spacing only; it must not be treated as a UI
+component system.
+
 ## Routes
 
 - Use file-based routes that match the final pathname.
@@ -34,17 +39,19 @@ Rules for frontend work under `apps/web/`.
 
 - React Query owns read-side server state.
 - Zustand stays limited to shared auth state and small persisted UI filters.
-- Use `DataState` and `DataTableState` for the shared loading, empty, error,
-  permission, and long-running processing states. Initial request failures must
+- Use `DataState` for shared loading, empty, error, permission, and long-running
+  processing states. Initial request failures must
   not be rendered as valid zero or empty data. Retry actions call the owning
   query's `refetch`; background refreshes keep the last successful data visible.
 - Keep page-local tables, forms, and action handlers in the route file until reuse is real.
 - Keep layout-only concerns in `apps/web/src/components/layout/`.
+- Theme and app-level feedback must come from the existing `ConfigProvider` and
+  `App` context in `apps/web/src/components/theme-provider.tsx`.
 - Group shared components by stable responsibility: `page/` owns page shells and
   route status, `table/` owns table containers and pagination, `feedback/` owns
   confirmations and data states, while `auth/`, `layout/`, `user/`, and `form/`
   own their named application capabilities. Keep uncomposed primitives in
-  `ui/`; do not recreate a generic `app/`, `base-*`, or catch-all `shared/`
+  existing owner directories; do not recreate a generic `ui/`, `app/`, `base-*`, or catch-all `shared/`
   directory.
 - Use existing design-system primitives before adding wrappers.
 - The authenticated `layout/` owns the global page width and overflow boundary.
@@ -83,15 +90,21 @@ Rules for frontend work under `apps/web/`.
 
 ## Tables
 
-- Use the existing `DataTableShell` plus lower-level `Table` for current admin
-  list pages. Every query-backed table must render `DataTableState` for initial
-  loading, empty, and error states; keep stale rows visible during background
-  refresh and provide a retry action for errors.
+- Use `DataTableShell` + route-local `ProTable` for current admin list pages.
+  Every query-backed table must render `DataState` for initial loading, empty,
+  and error states;
+  keep stale rows visible during background refresh and provide a retry action for
+  errors.
 - Keep table column definitions close to the owning route until reuse is real.
-- For icon-only action columns, use `TableActionButton` and `TABLE_ACTION_SPACE_SIZE`.
-- Set action column `width` to the smallest fixed value that keeps actions on one line. If a page has more actions, calculate the value once while designing the column and write the fixed number directly.
-- Do not add a helper such as `tableActionColumnWidth(count)` for simple one-line width math.
-- Do not override `.ant-table-cell` padding for a single page. If table density needs to change globally, use Ant Design table size or theme tokens as a product-wide decision.
+- For icon-only action columns, use compact `Button` + `Tooltip` and fixed width.
+- Set action column `width` to the smallest fixed value that keeps actions on one
+  line. If a page has more actions, calculate the value once while designing the
+  column and write the fixed number directly.
+- Do not add a helper such as `tableActionColumnWidth(count)` for simple one-line
+  width math.
+- Do not override `.ant-table-cell` padding for a single page. If table density
+  needs to change globally, use Ant Design table size or theme tokens as a product-wide
+  decision.
 
 ## Package Manager
 

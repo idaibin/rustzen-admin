@@ -28,18 +28,19 @@ automation consumer or shared-system revision is introduced.
 - Permission state feedback occupies the same bordered region as the populated
   permission catalog so loading, error, and empty transitions do not materially
   move the dialog footer.
-- At narrow widths, use the existing dialog reflow and stack the permission
-  choices through the current responsive grid. Do not add new breakpoints.
+- At narrow widths, use the existing dialog reflow and keep the permission tree
+  inside its bounded scroll region without horizontal overflow. Do not add new
+  breakpoints.
 
 ## Component and token mapping
 
 | UI responsibility | Owner | Decision |
 | --- | --- | --- |
 | Page shell and actions | `PageCard`, existing role route | Reuse |
-| List states | `DataTableState` | Reuse |
+| List feedback and loading states | `DataState` in route scope | Reuse |
 | Permission states | `DataState` in compact mode | Reuse locally |
-| Dialog and footer | existing `Dialog` primitives | Reuse |
-| Permission selection | existing `Input`, `Checkbox`, and `Label` | Reuse |
+| Dialog and footer | existing `Modal` primitives | Reuse |
+| Permission selection | Ant Design `Input`, `Checkbox`, and `Tree` | Reuse |
 | Status and feedback color | current semantic theme tokens | Reuse |
 
 Do not add a store, shared hook, new component variant, token, or API module.
@@ -72,7 +73,7 @@ reuse.
   semantics through `DataState`.
 - Retry is a keyboard-reachable `type="button"` action and uses the existing
   visible focus treatment.
-- Permission checkboxes retain label association and current target size.
+- Permission tree checkboxes retain Ant Design's label association and target size.
 - The dialog owns focus trapping and restoration. Retry does not move focus out
   of the dialog or reset the form.
 - Existing reduced-motion behavior remains authoritative; no new animation is

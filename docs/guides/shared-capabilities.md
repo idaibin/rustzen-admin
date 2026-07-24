@@ -41,8 +41,8 @@ tree.
 | --- | --- | --- | --- |
 | Page hierarchy | `PageHeader`, `PageCard` under `apps/web/src/components/page/` | Dashboard, status, list, and management routes | Reuse; extend the owner only for a product-wide semantic variant. |
 | Operational metric | `MetricCard` in `apps/web/src/components/page/metric-card.tsx` | Monitoring and Analytics overviews | Reuse with factual values; do not add module-specific copies. |
-| Loading, empty, error, permission, processing | `DataState`, `DataTableState` in `apps/web/src/components/feedback/data-state.tsx` | Query-backed pages and tables | Reuse; the owning query supplies retry behavior. |
-| Table surface and pagination | `DataTableShell`, `TablePagination` under `apps/web/src/components/table/` | System, management, and module lists | Reuse; keep columns and filters local until semantics repeat. |
+| Loading, empty, error, permission, processing | `DataState` in `apps/web/src/components/feedback/data-state.tsx` | Query-backed pages and lists | Reuse; the owning query supplies retry behavior. |
+| Table surface and paging | `DataTableShell` under `apps/web/src/components/table/` + route-local `ProTable` | System, management, and module lists | Reuse; keep columns and filters local until semantics repeat. |
 | Confirmation | `ConfirmDialog` in `apps/web/src/components/feedback/confirm-dialog.tsx` | Destructive management actions | Reuse; business copy remains local. |
 | Date-time display | `formatDateTime` in `apps/web/src/lib/format-date-time.ts` | Management and system tables with nullable values | Reuse only when empty values map to `-` and locale display is intended. |
 | HTTP transport | `apiRequest`, `apiUpload`, `apiDownload` in `apps/web/src/api/request.ts` | All domain API modules | Reuse; URLs and transport shaping stay in the owning API module. |

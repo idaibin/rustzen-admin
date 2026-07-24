@@ -1,19 +1,18 @@
 {
   "version": 2,
-  "revision": 4,
+  "revision": 5,
   "components": {
     "application-shell": {"decision": "adapt", "source": "apps/web/src/components/layout/index.tsx", "reason": "Existing route, permission, search, theme, and account owner."},
-    "sidebar": {"decision": "reuse", "source": "apps/web/src/components/ui/sidebar.tsx", "reason": "Existing shadcn-compatible responsive and collapse behavior."},
+    "sidebar": {"decision": "reuse", "source": "apps/web/src/components/layout/index.tsx", "reason": "Sidebar shell is now owned by ProLayout; layout owner handles collapse, menu, and responsive behavior."},
     "page-card": {"decision": "adapt", "source": "apps/web/src/components/page/page-card.tsx", "reason": "Standard page title, action, toolbar, and compact content hierarchy for list and management routes."},
     "page-header": {"decision": "adapt", "source": "apps/web/src/components/page/page-header.tsx", "reason": "Standard compact heading owner for dashboard, overview, status, profile, and route-status surfaces."},
     "metric-card": {"decision": "create", "source": "apps/web/src/components/page/metric-card.tsx", "reason": "Monitoring and analytics had duplicated metric presentation with two real consumers."},
     "data-state": {"decision": "adapt", "source": "apps/web/src/components/feedback/data-state.tsx", "reason": "Single loading, empty, error, permission, and processing vocabulary for pages and tables."},
-    "data-table-shell": {"decision": "reuse", "source": "apps/web/src/components/table/data-table-shell.tsx", "reason": "Existing table surface consumes the shared light and dark semantic tokens."},
-    "table-pagination": {"decision": "adapt", "source": "apps/web/src/components/table/table-pagination.tsx", "reason": "Shared pagination layout and navigation semantics."},
+    "data-table-shell": {"decision": "reuse", "source": "apps/web/src/components/table/data-table-shell.tsx", "reason": "Route table surfaces combine DataTableShell with route-local ProTable and DataState for loading/empty/error feedback."},
     "form-fields": {"decision": "reuse", "source": "apps/web/src/components/form", "reason": "Existing label, error, input, and description ownership."},
     "theme-system": {"decision": "adapt", "source": "apps/web/src/components/theme-provider.tsx and apps/web/src/styles/theme.css", "reason": "The existing provider remains the only state and persistence owner; the existing stylesheet remains the only semantic token owner while themes converge to light and dark."},
     "login": {"decision": "adapt", "source": "apps/web/src/routes/login.tsx", "reason": "Reuse the existing auth route and form contract while replacing the marketing composition with a compact sign-in surface."},
     "dashboard": {"decision": "adapt", "source": "apps/web/src/routes/index.tsx", "reason": "Existing real dashboard API and loading/error states."},
-    "cards-and-tables": {"decision": "adapt", "source": "apps/web/src/components/ui/card.tsx, apps/web/src/components/ui/dialog.tsx, and apps/web/src/components/table/data-table-shell.tsx", "reason": "The existing component system remains authoritative while shared padding, radius, shadow, and solid surfaces become denser and more restrained."}
+    "cards-and-tables": {"decision": "adapt", "source": "apps/web/src/components/page/page-card.tsx, apps/web/src/components/feedback/confirm-dialog.tsx, and route-level ProTable usage", "reason": "Keep list page cards/tables on shared antd/pro-components owners with route-local ProTable and DataState for table feedback."}
   }
 }

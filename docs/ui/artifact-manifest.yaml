@@ -1,7 +1,7 @@
 version: 2
 artifact:
   id: rustzen-admin-application-ui-standardization
-  revision: 11
+  revision: 13
 source:
   repository: rustzen-admin
   ref: refact/modules-mvp
@@ -12,8 +12,8 @@ inputs:
   task_revision: 5
   reference_revision: 4
   tokens_revision: 5
-  component_map_revision: 4
-  evaluation_revision: 7
+  component_map_revision: 5
+  evaluation_revision: 8
   rubric_revision: 1
 outputs:
   profile:
@@ -35,11 +35,11 @@ outputs:
   component_map:
     root: task-local
     path: component-map.json
-    sha256: 1018aaf2d92762d14adc855bb3601bfd62fe131861f04507a3e416bf4867ea34
+    sha256: c0c20e7313dce38fe06848470a4778b8fa59a5381f2e03061237dcb39df547f7
   evaluation:
     root: task-local
     path: evaluation.yaml
-    sha256: 3e51ba1ba927a5e5f04c9a92ce1cba07fd514c56086ba2e7e52e2e7ac8586edb
+    sha256: 41506e3cbe63c1c43ff04eb8e8a1905ba4af86da18ca041b743e12695b7f175d
 evaluation:
   score: 97
   status: pending-human-approval
