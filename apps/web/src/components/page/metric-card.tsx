@@ -5,11 +5,15 @@ interface MetricCardProps {
     label: ReactNode;
     value: ReactNode;
     icon?: ReactNode;
+    tone?: "primary" | "success" | "warning" | "danger" | "info";
     hint?: ReactNode;
 }
 
-export function MetricCard({ label, value, icon, hint }: MetricCardProps) {
+export function MetricCard({ label, value, icon, tone, hint }: MetricCardProps) {
     const statisticValue = typeof value === "number" || typeof value === "string" ? value : "";
+    const iconColor = tone
+        ? `var(--${tone === "primary" ? "primary" : `status-${tone}`})`
+        : undefined;
 
     return (
         <StatisticCard
@@ -21,7 +25,9 @@ export function MetricCard({ label, value, icon, hint }: MetricCardProps) {
                     </span>
                 ),
                 value: statisticValue,
-                icon,
+                icon: icon ? (
+                    <span style={iconColor ? { color: iconColor } : undefined}>{icon}</span>
+                ) : null,
                 description: hint ? (
                     <span className="text-xs text-muted-foreground">{hint}</span>
                 ) : null,

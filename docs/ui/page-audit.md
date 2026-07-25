@@ -1,5 +1,9 @@
 # UI Route Audit Matrix
 
+> Historical task evidence. For current shared visual semantics, use
+> [`DESIGN.md`](../../DESIGN.md) and verify live source; this matrix is not a
+> design-system authority.
+
 This matrix covers the current 20 frontend routes. The application `layout/`
 owns the global width boundary, `PageHeader` or `PageCard` owns page hierarchy,
 and `DataState` owns global list feedback while each route owns its `ProTable`

@@ -5,11 +5,9 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 
 - Scope class: versioned Web/Rust monorepo.
 - Map and Git root: the repository root.
-- Specialist maps: `docs/ui/component-map.json` owns the declared UI component
-  mapping, while `docs/ui/evaluation.yaml` owns its current approval status;
-  `docs/reference/capability-map.md` owns the short capability-owner view. This
-  file links those boundaries instead of duplicating their complete
-  inventories.
+- `DESIGN.md` is the single shared visual-semantics entry point. Historical
+  `docs/ui/` artifacts retain task evidence only; `docs/reference/capability-map.md`
+  owns the short capability-owner view.
 
 ## Authority and reading paths
 
@@ -18,7 +16,7 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | Product positioning, direction, or module purpose | `docs/product/product.md` → delivered source behavior |
 | Runtime topology or repository ownership | source code → `docs/architecture.md` → the nearest guide |
 | Frontend page or interaction change | target route → owning `apps/web/src/api/` module → shared component owner → matching backend route |
-| Shared UI semantics or visual tokens | `docs/ui/component-map.json` and `docs/ui/design-tokens.json` → live definitions and consumers → `apps/web/src/styles/theme.css` |
+| Shared UI semantics or visual tokens | `DESIGN.md` → live definitions and consumers → `apps/web/src/styles/theme.css` |
 | Build, check, or runtime verification | the matching root `justfile` recipe → scripts invoked by that recipe |
 
 ## Root
@@ -110,13 +108,12 @@ not component behavior.
 | Page heading and actions | `apps/web/src/components/page/page-header.tsx` (`PageHeader`) | dashboard, profile, system status | Reuse for overview/detail surfaces; list and management pages use `PageCard`. |
 | List and management page surface | `apps/web/src/components/page/page-card.tsx` (`PageCard`) | Monitoring, Analytics, Reports, Admin lists | Reuse title, toolbar, action, and content hierarchy without nesting a second page title. |
 | Query state vocabulary | `apps/web/src/components/feedback/data-state.tsx` (`DataState`) | Monitoring, Analytics, Reports, Admin tables | Reuse loading, empty, error, permission, and processing states; retry calls the owning query. |
-| Operational metric | `apps/web/src/components/page/metric-card.tsx` (`MetricCard`) | Monitoring and Analytics overviews | Reuse for factual compact metrics; do not turn it into decorative KPI cards. |
+| Operational metric | `apps/web/src/components/page/metric-card.tsx` (`MetricCard`) | Dashboard, Monitoring, and Analytics overviews | Reuse for factual compact metrics; do not turn it into decorative KPI cards. |
 | Table surface and pagination | `apps/web/src/components/table/`, `@ant-design/pro-components` | module and Admin list routes | Reuse `DataTableShell` and route-local `ProTable`; keep columns and page-local actions with the route and Pro components pagination behavior. |
 
-`docs/ui/component-map.json` records the current reuse candidates and
-`docs/ui/design-tokens.json` records the current token-owner mapping. Their shared
-artifact manifest is not an accepted baseline while approval is absent. Revalidate
-the live definition and at least one current consumer before using either artifact.
+For shared visual work, start with the anchors in `DESIGN.md`, then revalidate the
+live definition and at least one current consumer. `docs/ui/` is historical
+task evidence, not a competing current map or token authority.
 
 ## Common task routes
 
@@ -129,7 +126,7 @@ the live definition and at least one current consumer before using either artifa
 | Change product scope or module purpose | `docs/product/product.md` → affected source and acceptance evidence | documentation checks plus the implementation slice's own gate |
 | Add or expand a module capability | `docs/product/product.md` → `docs/reference/legacy-module-comparison.md` → `docs/guides/shared-capabilities.md` → owning feature and route registration | focused tests, then `just verify-modules-mvp` |
 | Add a shared Rust capability | `docs/guides/shared-capabilities.md` → closest named crate → exports → two representative consumers | focused tests, then `just check` |
-| Add or change shared UI | target UI feature contract → current component/token owner → representative routes → `docs/ui/evaluation.yaml` | frontend checks and browser verification |
+| Add or change shared UI | target UI feature contract → `DESIGN.md` anchor → current component/token owner → representative routes | frontend checks and browser verification |
 
 OpenAPI is not a universal task gate. Use the repository-native route and client
 authority unless an existing generated pipeline or an explicit task introduces one.
@@ -143,9 +140,9 @@ authority unless an existing generated pipeline or an explicit task introduces o
 | Authentication and capabilities | `crates/auth/src/` exports | Admin permission checks and three module routers | Reuse policy and constants; business authorization decisions remain with the owner. |
 | SQLite connection and maintenance | `crates/storage/src/{sqlite,maintenance}.rs`, exported by `crates/storage/src/lib.rs` | Four databases and retention jobs | Reuse mechanics; schemas, SQL, and retention selection stay application-owned. |
 | HTTP transport | `apiRequest`, `apiUpload`, `apiDownload` in `apps/web/src/api/request.ts` | Admin and module API packages | Reuse transport; keep URLs, DTOs, and shaping in the domain API module. |
-| Page hierarchy | `PageHeader`, `PageCard` in `apps/web/src/components/page/` | Dashboard/status and list/management routes | Reuse the mapped semantics and check current approval in `docs/ui/evaluation.yaml`. |
+| Page hierarchy | `PageHeader`, `PageCard` in `apps/web/src/components/page/` | Dashboard/status and list/management routes | Reuse the semantics in `DESIGN.md#layout-and-density` and verify live consumers. |
 | Query feedback and table surface | `DataState`, `DataTableShell` | System, management, and module lists | Reuse states and surface; keep filters and columns route-local until semantics repeat. |
-| Operational metrics | `MetricCard` in `apps/web/src/components/page/metric-card.tsx` | Monitoring and Analytics overviews | Reuse factual metrics; do not create module copies. |
+| Operational metrics | `MetricCard` in `apps/web/src/components/page/metric-card.tsx` | Dashboard, Monitoring, and Analytics overviews | Reuse factual metrics; do not create module copies. |
 | Nullable locale date-time | `formatDateTime` in `apps/web/src/lib/format-date-time.ts` | Management and system tables | Reuse only for the same `null`/empty to `-` and locale-display contract. |
 | Module API envelope and page | `ApiResponse<T>`, `Page<T>`, and bounded pagination in `crates/ipc/src/response.rs` | Monitor, Insights, and Reports HTTP boundaries | Reuse only for the shared `{code,message,data}` and `{data,total,success}` wire contracts; Admin's historical top-level `total` stays local. |
 
@@ -185,8 +182,8 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 | `docs/reference/` | Optional deeper current context. | Current facts and guides are not enough. |
 | `docs/reference/legacy-module-comparison.md` | Fixed live-source comparison with former standalone products. | You decide which former behaviors to retain, reproduce, defer, or drop. |
 | `docs/history/` | Non-current plans and records. | You need historical rationale. |
-| `docs/ui/component-map.json` | Current shared-component candidates; not an accepted baseline while manifest approval is absent. | You consider a new shared component or change an existing semantic owner. |
-| `docs/ui/design-tokens.json` | Current visual-token owner mapping; verify live source before use. | You change product-wide visual semantics or themes. |
+| `DESIGN.md` | Shared visual semantics and implementation naming anchors. | You change product-wide visual semantics, shared components, or themes. |
+| `docs/ui/` | Historical task-local mappings and evidence; not a current design authority. | You need prior task rationale or evidence. |
 
 ## Commands
 

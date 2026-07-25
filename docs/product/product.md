@@ -119,10 +119,13 @@ Technical ownership and stable internal names are defined in
    consistency may justify extraction earlier than ordinary presentation code.
 5. Module business meanings, status lifecycles, calculations, data selection,
    and failure semantics remain with the module.
-6. The current UI specification records the selected visual direction. Its
-   package approval remains governed by `docs/ui/evaluation.yaml` and
-   `docs/ui/artifact-manifest.yaml`; a new or changed product surface requires
-   a scoped UI specification before frontend implementation.
+6. Root `DESIGN.md` is the sole current authority for shared visual semantics,
+   component semantics, and design-approval records. A new or changed product
+   surface still requires a scoped UI specification before frontend
+   implementation; `docs/ui/features/*` may retain slice-local behavior and
+   acceptance evidence. Structured `docs/ui/` packages such as
+   `evaluation.yaml` and `artifact-manifest.yaml` are historical or task-local
+   evidence only and do not govern current approval.
 7. Dashboard is a control-plane landing page: it shows account totals and
    module health. Detailed host resources remain owned by System Status, while
    module metrics and trends remain on their Monitoring and Analytics pages.

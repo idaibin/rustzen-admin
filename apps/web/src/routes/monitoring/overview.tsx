@@ -8,10 +8,11 @@ import {
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card, Col, Row, Statistic } from "antd";
+import { Button } from "antd";
 
 import { monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { MetricCard } from "@/components/page/metric-card";
 import { PageCard } from "@/components/page/page-card";
 import { t } from "@/lib/i18n";
 
@@ -73,31 +74,31 @@ function MonitoringOverviewPage() {
             label: t("已注册节点", "Registered nodes"),
             value: data.registeredNodes,
             icon: <CloudServerOutlined />,
-            color: "var(--primary)",
+            tone: "primary" as const,
         },
         {
             label: t("在线节点", "Online nodes"),
             value: data.onlineNodes,
             icon: <SignalFilled />,
-            color: "#52c41a",
+            tone: "success" as const,
         },
         {
             label: t("离线节点", "Offline nodes"),
             value: data.offlineNodes,
             icon: <CloudSyncOutlined />,
-            color: "#faad14",
+            tone: "warning" as const,
         },
         {
             label: t("异常检查", "Unhealthy checks"),
             value: data.unhealthyChecks,
             icon: <AlertOutlined />,
-            color: "#ff4d4f",
+            tone: "danger" as const,
         },
         {
             label: t("活动事件", "Active incidents"),
             value: data.activeIncidents,
             icon: <ExclamationCircleOutlined />,
-            color: "#722ed1",
+            tone: "info" as const,
         },
     ];
 
@@ -109,26 +110,17 @@ function MonitoringOverviewPage() {
                 "View current node availability and the latest infrastructure heartbeats.",
             )}
         >
-            <Row gutter={[12, 12]}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 {cards.map((item) => (
-                    <Col key={item.label} xs={24} sm={12} xl={5}>
-                        <Card size="small">
-                            <Statistic
-                                title={item.label}
-                                value={item.value}
-                                prefix={
-                                    <span
-                                        className="inline-flex items-center justify-center"
-                                        style={{ color: item.color }}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                }
-                            />
-                        </Card>
-                    </Col>
+                    <MetricCard
+                        key={item.label}
+                        label={item.label}
+                        value={item.value}
+                        icon={item.icon}
+                        tone={item.tone}
+                    />
                 ))}
-            </Row>
+            </div>
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <LineChartOutlined />
                 <span>

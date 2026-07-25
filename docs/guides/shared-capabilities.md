@@ -47,9 +47,9 @@ tree.
 | Date-time display | `formatDateTime` in `apps/web/src/lib/format-date-time.ts` | Management and system tables with nullable values | Reuse only when empty values map to `-` and locale display is intended. |
 | HTTP transport | `apiRequest`, `apiUpload`, `apiDownload` in `apps/web/src/api/request.ts` | All domain API modules | Reuse; URLs and transport shaping stay in the owning API module. |
 
-The detailed accepted UI mapping remains in `docs/ui/component-map.json`. That
-artifact owns visual-component decisions; this guide owns implementation
-placement and extraction gates.
+`DESIGN.md` owns shared visual and component semantics. This guide owns
+implementation placement and extraction gates. `docs/ui/component-map.json` is
+historical evidence only and must not be treated as the current accepted owner.
 
 ## New-module intake
 

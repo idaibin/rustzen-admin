@@ -1,8 +1,10 @@
 # UI Feature Index
 
-Shared visual-system facts remain in the existing `docs/ui/` profile, token,
-component-map, and evaluation artifacts. Load only the target feature contract
-below for slice-local behavior.
+`DESIGN.md` is the only current shared visual-semantics authority. The files in
+this directory are historical task-local mappings, contracts, and evidence from
+the prior UI-standardization task; they do not define current token values or
+component semantics. Load a target feature contract below only for its
+slice-local behavior.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |

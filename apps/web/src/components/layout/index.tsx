@@ -215,14 +215,14 @@ const UserMenu = ({
             trigger={["click"]}
         >
             <Button type="text" className="h-9 rounded-full p-0">
-                <UserAvatar userInfo={userInfo} />
+                <UserMenuAvatar userInfo={userInfo} />
                 <span className="sr-only">{t("打开账号菜单", "Open account menu")}</span>
             </Button>
         </Dropdown>
     );
 };
 
-const UserAvatar = ({ userInfo }: { userInfo: Auth.UserInfoResponse | null }) => {
+const UserMenuAvatar = ({ userInfo }: { userInfo: Auth.UserInfoResponse | null }) => {
     const displayName = userInfo?.realName || userInfo?.username || "RA";
     return (
         <Avatar size={32} src={userInfo?.avatarUrl ?? undefined} icon={<UserOutlined />}>
