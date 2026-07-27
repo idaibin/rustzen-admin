@@ -11,15 +11,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "antd";
 
 import { monitorAPI } from "@/api";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
-import { PageCard } from "@/components/page/page-card";
+import { PageHeader } from "@/components/page/page-header";
 import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
 
 function MonitoringOverviewPage() {
-    const { data, error, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
         queryKey: ["monitor", "overview"],
         queryFn: monitorAPI.overview,
         refetchInterval: 30_000,
@@ -27,27 +28,29 @@ function MonitoringOverviewPage() {
 
     if (isPending && !data) {
         return (
-            <PageCard
-                title={t("监控概览", "Monitoring overview")}
-                description={t(
-                    "查看当前节点可用性和最新基础设施心跳。",
-                    "View current node availability and the latest infrastructure heartbeats.",
-                )}
-            >
+            <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                <PageHeader
+                    title={t("监控概览", "Monitoring overview")}
+                    description={t(
+                        "查看当前节点可用性和最新基础设施心跳。",
+                        "View current node availability and the latest infrastructure heartbeats.",
+                    )}
+                />
                 <DataState kind="loading" title={t("正在加载监控概览", "Loading overview")} />
-            </PageCard>
+            </div>
         );
     }
 
     if (!data) {
         return (
-            <PageCard
-                title={t("监控概览", "Monitoring overview")}
-                description={t(
-                    "查看当前节点可用性和最新基础设施心跳。",
-                    "View current node availability and the latest infrastructure heartbeats.",
-                )}
-            >
+            <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                <PageHeader
+                    title={t("监控概览", "Monitoring overview")}
+                    description={t(
+                        "查看当前节点可用性和最新基础设施心跳。",
+                        "View current node availability and the latest infrastructure heartbeats.",
+                    )}
+                />
                 <DataState
                     kind="error"
                     title={
@@ -65,7 +68,7 @@ function MonitoringOverviewPage() {
                         </Button>
                     }
                 />
-            </PageCard>
+            </div>
         );
     }
 
@@ -103,13 +106,14 @@ function MonitoringOverviewPage() {
     ];
 
     return (
-        <PageCard
-            title={t("监控概览", "Monitoring overview")}
-            description={t(
-                "查看当前节点可用性和最新基础设施心跳。",
-                "View current node availability and the latest infrastructure heartbeats.",
-            )}
-        >
+        <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            <PageHeader
+                title={t("监控概览", "Monitoring overview")}
+                description={t(
+                    "查看当前节点可用性和最新基础设施心跳。",
+                    "View current node availability and the latest infrastructure heartbeats.",
+                )}
+            />
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 {cards.map((item) => (
                     <MetricCard
@@ -127,6 +131,9 @@ function MonitoringOverviewPage() {
                     {t("监控数据每 30 秒自动刷新。", "Monitoring data refreshes every 30 seconds.")}
                 </span>
             </div>
+            {error ? (
+                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+            ) : null}
             {data.registeredNodes === 0 ? (
                 <DataState
                     kind="empty"
@@ -137,6 +144,6 @@ function MonitoringOverviewPage() {
                     )}
                 />
             ) : null}
-        </PageCard>
+        </div>
     );
 }

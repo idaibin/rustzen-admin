@@ -99,6 +99,10 @@
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
     --color-destructive: var(--destructive);
+    --color-status-success: var(--status-success);
+    --color-status-warning: var(--status-warning);
+    --color-status-danger: var(--status-danger);
+    --color-status-info: var(--status-info);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);

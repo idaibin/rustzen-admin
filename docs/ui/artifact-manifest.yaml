@@ -1,18 +1,16 @@
 version: 2
 artifact:
   id: rustzen-admin-application-ui-standardization
-  revision: 13
+  revision: 14
 source:
   repository: rustzen-admin
-  ref: refact/modules-mvp
+  ref: 83970be3e637d5dd0c2d2a08237283313bcb8397
   visual_source_id: rustzen-admin-solid-surface-baseline
   visual_source_revision: 1
 inputs:
   profile_revision: 4
   task_revision: 5
   reference_revision: 4
-  tokens_revision: 5
-  component_map_revision: 5
   evaluation_revision: 8
   rubric_revision: 1
 outputs:
@@ -28,24 +26,20 @@ outputs:
     root: task-local
     path: task.yaml
     sha256: b8d7fcdda42c40f720646e5524e0d12f2cf79a412c1d02c928ef0a8460dca387
-  tokens:
-    root: task-local
-    path: design-tokens.json
-    sha256: 7d0e912029dd331fa715fc749c8c80d71e1b618ae7a3831642dbea466006e035
-  component_map:
-    root: task-local
-    path: component-map.json
-    sha256: c0c20e7313dce38fe06848470a4778b8fa59a5381f2e03061237dcb39df547f7
   evaluation:
     root: task-local
     path: evaluation.yaml
     sha256: 41506e3cbe63c1c43ff04eb8e8a1905ba4af86da18ca041b743e12695b7f175d
 evaluation:
   score: 97
-  status: pending-human-approval
+  status: historical-superseded
+  evaluated_revision: 13
 approval:
   approved_by: null
   approved_at: null
+superseded_by:
+  path: DESIGN.md
+  status: adopted
 effort:
   duration_minutes: 75
 rollback:

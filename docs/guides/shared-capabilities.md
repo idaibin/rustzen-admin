@@ -48,8 +48,8 @@ tree.
 | HTTP transport | `apiRequest`, `apiUpload`, `apiDownload` in `apps/web/src/api/request.ts` | All domain API modules | Reuse; URLs and transport shaping stay in the owning API module. |
 
 `DESIGN.md` owns shared visual and component semantics. This guide owns
-implementation placement and extraction gates. `docs/ui/component-map.json` is
-historical evidence only and must not be treated as the current accepted owner.
+implementation placement and extraction gates. The historical `docs/ui/`
+package must not be treated as a current accepted owner.
 
 ## New-module intake
 

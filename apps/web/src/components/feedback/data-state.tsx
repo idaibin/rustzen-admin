@@ -46,7 +46,7 @@ export function DataState({
             ? "min-h-28 gap-2 px-4 py-6"
             : "min-h-64 gap-3 rounded-lg border border-dashed px-6 py-10",
         kind === "error" && "border-destructive/40 bg-destructive/5",
-        kind === "permission" && "border-amber-500/40 bg-amber-500/5",
+        kind === "permission" && "border-status-warning/40 bg-status-warning/5",
         className,
     ].filter((item): item is string => typeof item === "string");
 
@@ -54,7 +54,7 @@ export function DataState({
         "size-8 text-muted-foreground",
         busy && "animate-spin",
         kind === "error" && "text-destructive",
-        kind === "permission" && "text-amber-600 dark:text-amber-400",
+        kind === "permission" && "text-status-warning",
     ].filter((item): item is string => typeof item === "string");
 
     return (

@@ -8,7 +8,8 @@
         "prepare": "vp config || true",
         "preview": "vp preview",
         "dev": "vp dev",
-        "build": "vp build"
+        "build": "vp build",
+        "test": "bun test"
     },
     "dependencies": {
         "@ant-design/icons": "^6.3.2",

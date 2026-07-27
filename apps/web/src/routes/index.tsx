@@ -10,6 +10,7 @@ import { Button, Card, Tag } from "antd";
 import type { ReactNode } from "react";
 
 import { dashboardAPI } from "@/api";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
@@ -39,30 +40,27 @@ function DashboardPage() {
 }
 
 function ModuleHealthCards() {
-    const { data, error, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
         queryKey: ["dashboard", "modules"],
         queryFn: dashboardAPI.modules,
         refetchInterval: 15_000,
     });
 
     return (
-        <Card className="!rounded-xl">
-            <div className="border-b border-b-border px-6 py-4">
-                <h3 className="text-lg font-medium">{t("模块可用性", "Module availability")}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {t(
-                        "当前各运行模块的版本与连通状态。",
-                        "Versions and connectivity status of the active modules.",
-                    )}
-                </p>
-            </div>
-
+        <DashboardSection
+            title={t("模块可用性", "Module availability")}
+            description={t(
+                "当前各运行模块的版本与连通状态。",
+                "Versions and connectivity status of the active modules.",
+            )}
+        >
             <DashboardQueryBoundary
                 isPending={isPending}
                 error={error}
                 hasData={data !== undefined}
                 loadingTitle={t("正在加载模块状态", "Loading module status")}
                 errorTitle={t("模块状态加载失败", "Failed to load module status")}
+                updatedAt={dataUpdatedAt}
                 onRetry={() => void refetch()}
             >
                 <div className="divide-y">
@@ -94,13 +92,14 @@ function ModuleHealthCards() {
                     })}
                 </div>
             </DashboardQueryBoundary>
-        </Card>
+        </DashboardSection>
     );
 }
 
 function StatsCards() {
     const {
         data: stats,
+        dataUpdatedAt,
         error,
         isPending,
         refetch,
@@ -137,17 +136,13 @@ function StatsCards() {
     ];
 
     return (
-        <Card className="!rounded-xl">
-            <div className="border-b border-b-border px-6 py-4">
-                <h3 className="text-lg font-medium">{t("账号台账", "Account overview")}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {t(
-                        "注册、活跃、近期和待审核访问情况。",
-                        "Registration, activity, recent access, and pending reviews.",
-                    )}
-                </p>
-            </div>
-
+        <DashboardSection
+            title={t("账号台账", "Account overview")}
+            description={t(
+                "注册、活跃、近期和待审核访问情况。",
+                "Registration, activity, recent access, and pending reviews.",
+            )}
+        >
             <div className="grid gap-4 p-4 sm:grid-cols-2">
                 <DashboardQueryBoundary
                     isPending={isPending}
@@ -155,6 +150,7 @@ function StatsCards() {
                     hasData={stats !== undefined}
                     loadingTitle={t("正在加载账号统计", "Loading account statistics")}
                     errorTitle={t("账号统计加载失败", "Failed to load account statistics")}
+                    updatedAt={dataUpdatedAt}
                     onRetry={() => void refetch()}
                 >
                     {cards.map((item) => (
@@ -168,6 +164,27 @@ function StatsCards() {
                     ))}
                 </DashboardQueryBoundary>
             </div>
+        </DashboardSection>
+    );
+}
+
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <Card
+            className="!rounded-xl"
+            title={<h2 className="text-lg font-medium">{title}</h2>}
+            extra={null}
+        >
+            <p className="-mt-2 mb-4 text-sm text-muted-foreground">{description}</p>
+            {children}
         </Card>
     );
 }
@@ -178,6 +195,7 @@ function DashboardQueryBoundary({
     hasData,
     loadingTitle,
     errorTitle,
+    updatedAt,
     onRetry,
     children,
 }: {
@@ -186,6 +204,7 @@ function DashboardQueryBoundary({
     hasData: boolean;
     loadingTitle: string;
     errorTitle: string;
+    updatedAt: number;
     onRetry: () => void;
     children: ReactNode;
 }) {
@@ -211,19 +230,8 @@ function DashboardQueryBoundary({
         <>
             {children}
             {error ? (
-                <div
-                    className="col-span-full flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-destructive"
-                    role="alert"
-                >
-                    <span>
-                        {t(
-                            "后台刷新失败，当前继续显示上次成功数据。",
-                            "Background refresh failed. The last successfully loaded data remains visible.",
-                        )}
-                    </span>
-                    <Button size="small" onClick={onRetry}>
-                        {t("重试", "Retry")}
-                    </Button>
+                <div className="col-span-full">
+                    <BackgroundRefreshNotice updatedAt={updatedAt} onRetry={onRetry} />
                 </div>
             ) : null}
         </>

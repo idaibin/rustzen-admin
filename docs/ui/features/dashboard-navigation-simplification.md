@@ -23,8 +23,10 @@ failures even though they are not navigation examples.
 
 ## Visual-source mapping
 
-The project-owned source is `docs/product/product.md`, together with the
-accepted solid-surface visual profile in `docs/ui/profile.yaml`. Preserve its
+The project-owned product source is `docs/product/product.md`. Shared visual
+semantics and component ownership are defined only by root `DESIGN.md` and its
+live implementation in `apps/web/src/styles/theme.css`; `docs/ui/profile.yaml`
+is historical task evidence, not an accepted visual source. Preserve the
 compact information hierarchy, standard light/dark themes, semantic status
 colors, and existing component ownership. Decorative glass, ambient background
 images, speculative metrics, and unverified navigation are excluded.

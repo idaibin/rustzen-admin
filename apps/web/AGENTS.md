@@ -2,6 +2,7 @@
 
 ## Read
 
+- `../../DESIGN.md`
 - `docs/guides/frontend.md`
 - `docs/guides/ai-coding-rules.md`
 

@@ -1,9 +1,4 @@
-import {
-    MenuFoldOutlined,
-    MenuUnfoldOutlined,
-    SettingOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
+import { MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
@@ -48,7 +43,12 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
     const locale = useLocale();
     const router = useRouter();
     const currentPath = useLocation().pathname;
-    const { data: moduleNavigation = [] } = useQuery({
+    const {
+        data: moduleNavigation,
+        error: moduleNavigationError,
+        isPending: isModuleNavigationPending,
+        refetch: refetchModuleNavigation,
+    } = useQuery({
         queryKey: ["system", "modules", "navigation", menuPermissionSignature],
         queryFn: systemAPI.module.navigation,
         enabled: !hidden,
@@ -56,24 +56,16 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
     });
 
     const menuData = useMemo(
-        () => getMenuData(checkMenuPermissions, moduleNavigation),
+        () => getMenuData(checkMenuPermissions, moduleNavigation ?? []),
         [checkMenuPermissions, menuPermissionSignature, moduleNavigation, locale],
     );
 
     const searchRoutes = useMemo(
-        () => getSearchRouteItems(checkMenuPermissions, moduleNavigation),
+        () => getSearchRouteItems(checkMenuPermissions, moduleNavigation ?? []),
         [checkMenuPermissions, menuPermissionSignature, moduleNavigation, locale],
     );
 
     const proMenuData = useMemo(() => convertToProRoutes(menuData), [menuData]);
-
-    const pageTitle = useMemo(
-        () =>
-            currentPath === "/profile"
-                ? t("个人资料", "Profile")
-                : (currentPageTitle(menuData, currentPath) ?? APP_BRAND_NAME),
-        [menuData, currentPath],
-    );
 
     const handleSearchSelect = (path: AppRoutePath) => {
         void router.navigate({ to: path });
@@ -121,19 +113,33 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
                     aria-label={t("折叠导航", "Toggle sidebar")}
                 />
                 <div className="w-px border-r border-border/60" />
-                <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{pageTitle}</div>
-                </div>
+                <div className="min-w-0 flex-1" />
                 <AppSearch routes={searchRoutes} onSelect={handleSearchSelect} />
                 <LanguageSwitch />
                 <ThemeSwitch />
-                <Button
-                    type="text"
-                    icon={<SettingOutlined />}
-                    aria-label={t("偏好设置", "Preferences")}
-                />
                 <UserMenu userInfo={userInfo} onLogout={handleLogout} />
             </header>
+
+            {isModuleNavigationPending ? (
+                <div className="border-b px-4 py-2 text-xs text-muted-foreground" role="status">
+                    {t("正在加载模块导航…", "Loading module navigation…")}
+                </div>
+            ) : null}
+            {moduleNavigationError ? (
+                <div className="border-b px-4 py-2" role="alert">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-status-warning">
+                        <span>
+                            {t(
+                                "模块导航加载失败，请重试。",
+                                "Module navigation could not be loaded. Please retry.",
+                            )}
+                        </span>
+                        <Button size="small" onClick={() => void refetchModuleNavigation()}>
+                            {t("重试", "Retry")}
+                        </Button>
+                    </div>
+                </div>
+            ) : null}
 
             <main className="rz-content min-h-0 min-w-0 flex-1 overflow-hidden p-4 xl:p-5">
                 <div className="rz-page mx-auto h-full min-h-0 w-full max-w-400 overflow-hidden">
@@ -229,19 +235,4 @@ const UserMenuAvatar = ({ userInfo }: { userInfo: Auth.UserInfoResponse | null }
             {displayName.slice(0, 2).toUpperCase()}
         </Avatar>
     );
-};
-
-const currentPageTitle = (items: AppRouteItem[], currentPath: string): string | undefined => {
-    for (const item of items) {
-        if (item.path === currentPath) {
-            return item.name;
-        }
-        if (item.children) {
-            const childTitle = currentPageTitle(item.children, currentPath);
-            if (childTitle) {
-                return childTitle;
-            }
-        }
-    }
-    return undefined;
 };

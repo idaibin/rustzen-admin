@@ -24,6 +24,7 @@ check:
     cd apps/web && bun run vp fmt --check
     cd apps/web && bun run vp lint
     cd apps/web && bun x tsc --noEmit
+    cd apps/web && bun run test
     cd apps/web && bun run vp build
     cargo fmt --all -- --check
     cargo check --workspace
