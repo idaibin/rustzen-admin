@@ -60,7 +60,7 @@ try {
   let current;
   for (let attempt = 0; attempt < 600; attempt += 1) {
     current = await call(`/api/reports/runs/${run.id}`, "reports:run:view");
-    if (!["queued", "running"].includes(current.status)) break;
+    if (!["queued", "running", "cancelling"].includes(current.status)) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (current?.status !== "succeeded") {
@@ -79,7 +79,63 @@ try {
   if (!liveResponse.ok || !liveResponse.headers.get("content-type")?.startsWith("image/png") || (await liveResponse.arrayBuffer()).byteLength === 0) {
     throw new Error(`Live frame endpoint failed: ${liveResponse.status}`);
   }
-  console.log(`Reports browser verification passed: run=${run.id}, steps=${steps.length}, artifacts=${artifacts.length}`);
+
+  submitted = "";
+  const cancellationFlow = await call("/api/reports/flows", "reports:flow:manage", "POST", {
+    systemId: system.id,
+    name: "Cancellation stops later actions",
+    steps: [
+      { action: "goto", url: "/" },
+      { action: "waitFor", selector: "#never-appears" },
+      { action: "click", selector: "#submit" },
+    ],
+  });
+  const cancellationRun = await call("/api/reports/runs", "reports:run:manage", "POST", {
+    flowId: cancellationFlow.id,
+    input: {},
+  });
+  let cancellationCurrent;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    cancellationCurrent = await call(`/api/reports/runs/${cancellationRun.id}`, "reports:run:view");
+    if (cancellationCurrent.status === "running") break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  if (cancellationCurrent?.status !== "running") {
+    throw new Error(`Cancellation run did not start: ${JSON.stringify(cancellationCurrent)}`);
+  }
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const cancelling = await call(
+    `/api/reports/runs/${cancellationRun.id}/cancel`,
+    "reports:run:manage",
+    "POST",
+  );
+  if (cancelling.status !== "cancelling") {
+    throw new Error(`Running cancellation was prematurely terminal: ${JSON.stringify(cancelling)}`);
+  }
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    cancellationCurrent = await call(`/api/reports/runs/${cancellationRun.id}`, "reports:run:view");
+    if (cancellationCurrent.status === "cancelled") break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  const cancellationSteps = await call(
+    `/api/reports/runs/${cancellationRun.id}/steps`,
+    "reports:run:view",
+  );
+  const laterActionRan = cancellationSteps.some(
+    step => step.action === "click" && step.status === "succeeded",
+  );
+  if (
+    cancellationCurrent?.status !== "cancelled" ||
+    laterActionRan ||
+    submitted !== ""
+  ) {
+    throw new Error(
+      `Cancellation did not stop execution: run=${JSON.stringify(cancellationCurrent)}, steps=${JSON.stringify(cancellationSteps)}, submitted=${submitted}`,
+    );
+  }
+  console.log(
+    `Reports browser verification passed: run=${run.id}, steps=${steps.length}, artifacts=${artifacts.length}, cancelled=${cancellationRun.id}`,
+  );
 } finally {
   await new Promise(resolve => fixture.close(resolve));
 }

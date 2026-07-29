@@ -37,8 +37,7 @@ declare namespace Reports {
     interface Run {
         id: string;
         flowId: string;
-        status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
-        inputJson: string;
+        status: "queued" | "running" | "cancelling" | "succeeded" | "failed" | "cancelled";
         error: string | null;
         createdAt: string;
         startedAt: string | null;

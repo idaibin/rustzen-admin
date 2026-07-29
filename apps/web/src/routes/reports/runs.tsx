@@ -2,7 +2,7 @@ import { EyeOutlined, PlayCircleOutlined, StopOutlined } from "@ant-design/icons
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Input, Modal, Select, Tag } from "antd";
+import { Alert, Button, Card, Form, Input, Modal, Select, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
@@ -22,6 +22,7 @@ const getRunStatusMeta = () =>
     ({
         queued: { label: t("排队中", "Queued"), color: "default" },
         running: { label: t("执行中", "Running"), color: "processing" },
+        cancelling: { label: t("取消中", "Cancelling"), color: "warning" },
         succeeded: { label: t("已成功", "Succeeded"), color: "success" },
         failed: { label: t("失败", "Failed"), color: "error" },
         cancelled: { label: t("已取消", "Cancelled"), color: "warning" },
@@ -32,9 +33,12 @@ const getStepStatusMeta = () =>
         running: { label: t("执行中", "Running"), color: "processing" },
         succeeded: { label: t("已成功", "Succeeded"), color: "success" },
         failed: { label: t("失败", "Failed"), color: "error" },
+        cancelled: { label: t("已取消", "Cancelled"), color: "warning" },
     }) satisfies Record<Reports.RunStep["status"], { label: string; color: string }>;
 
-const defaultRunInput = JSON.stringify({ username: "", password: "" }, null, 2);
+const defaultRunInput = JSON.stringify({ value: "" }, null, 2);
+const isActiveRun = (status?: Reports.Run["status"]) =>
+    status === "queued" || status === "running" || status === "cancelling";
 
 function RunsPage() {
     const locale = useLocale();
@@ -46,9 +50,7 @@ function RunsPage() {
         queryKey: ["reports", "runs", current],
         queryFn: () => reportsAPI.runs({ current, pageSize: size }),
         refetchInterval: (q) =>
-            q.state.data?.data.some((r) => r.status === "queued" || r.status === "running")
-                ? 1000
-                : false,
+            q.state.data?.data.some((r) => isActiveRun(r.status)) ? 1000 : false,
     });
     const total = data?.total ?? 0;
 
@@ -64,9 +66,13 @@ function RunsPage() {
 
     const cancel = useMutation({
         mutationFn: reportsAPI.cancelRun,
-        onSuccess: async () => {
+        onSuccess: async (run) => {
             await client.invalidateQueries({ queryKey: ["reports", "runs"] });
-            appMessage.success(t("填报执行已取消", "Report run cancelled"));
+            appMessage.success(
+                run.status === "cancelling"
+                    ? t("正在停止填报执行", "Stopping report run")
+                    : t("填报执行已取消", "Report run cancelled"),
+            );
         },
     });
     const runStatusMeta = useMemo(() => getRunStatusMeta(), [locale]);
@@ -340,6 +346,15 @@ function RunDialog({ flows }: { flows: Reports.Flow[] }) {
                         "Select a verified template and enter the input data for this run.",
                     )}
                 </p>
+                <Alert
+                    className="mb-4"
+                    type="warning"
+                    showIcon
+                    title={t(
+                        "不要提交密码、Token、密钥或其他敏感信息。",
+                        "Do not submit passwords, tokens, keys, or other sensitive information.",
+                    )}
+                />
                 <Form layout="vertical">
                     <Form.Item label={t("流程", "Template")}>
                         <Select
@@ -384,7 +399,7 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
         initialData: run,
         refetchInterval: (query) => {
             const status = query.state.data?.status;
-            return status === "queued" || status === "running" ? 1000 : false;
+            return isActiveRun(status) ? 1000 : false;
         },
     });
 
@@ -392,16 +407,14 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
         queryKey: ["reports", "run-steps", run?.id],
         queryFn: () => reportsAPI.runSteps(run!.id),
         enabled: Boolean(run),
-        refetchInterval:
-            currentRun?.status === "queued" || currentRun?.status === "running" ? 1000 : false,
+        refetchInterval: isActiveRun(currentRun?.status) ? 1000 : false,
     });
 
     const { data: artifacts = [] } = useQuery({
         queryKey: ["reports", "run-artifacts", run?.id],
         queryFn: () => reportsAPI.runArtifacts(run!.id),
         enabled: Boolean(run),
-        refetchInterval:
-            currentRun?.status === "queued" || currentRun?.status === "running" ? 1000 : false,
+        refetchInterval: isActiveRun(currentRun?.status) ? 1000 : false,
     });
 
     const runStatusMeta = useMemo(() => getRunStatusMeta(), [locale]);
@@ -492,13 +505,15 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
                     }
                     compact
                 />
-            ) : currentRun?.status === "queued" || currentRun?.status === "running" ? (
+            ) : isActiveRun(currentRun?.status) ? (
                 <DataState
                     kind="processing"
                     title={
                         currentRun.status === "queued"
                             ? t("执行正在排队", "Run is queued")
-                            : t("填报正在执行", "Report run in progress")
+                            : currentRun.status === "cancelling"
+                              ? t("正在停止执行", "Stopping report run")
+                              : t("填报正在执行", "Report run in progress")
                     }
                     description={t(
                         "页面会每秒刷新步骤、产物和实时画面。",
@@ -543,15 +558,9 @@ function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }
                         emptyText:
                             steps.length === 0 ? (
                                 <DataState
-                                    kind={
-                                        currentRun?.status === "queued" ||
-                                        currentRun?.status === "running"
-                                            ? "processing"
-                                            : "empty"
-                                    }
+                                    kind={isActiveRun(currentRun?.status) ? "processing" : "empty"}
                                     title={
-                                        currentRun?.status === "queued" ||
-                                        currentRun?.status === "running"
+                                        isActiveRun(currentRun?.status)
                                             ? t("正在等待步骤结果", "Waiting for step results")
                                             : t("暂无步骤记录", "No step records")
                                     }
@@ -589,7 +598,7 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
         queryKey: ["reports", "live-frame", run?.id],
         queryFn: ({ signal }) => reportsAPI.liveFrame(run!.id, signal),
         enabled: Boolean(run),
-        refetchInterval: run?.status === "queued" || run?.status === "running" ? 1000 : false,
+        refetchInterval: isActiveRun(run?.status) ? 1000 : false,
     });
     const [source, setSource] = useState<string>();
 
@@ -608,12 +617,12 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
 
     return (
         <div>
-            <h3 className="mb-2 font-medium">{t("实时画面", "Live view")}</h3>
-            <div className="relative flex h-80 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+            <Typography.Title level={5}>{t("实时画面", "Live view")}</Typography.Title>
+            <Card className="h-80 overflow-auto">
                 {source ? (
                     <img
                         src={source}
-                        className="h-full w-full object-contain"
+                        className="max-h-64 w-full object-contain"
                         alt={t("执行实时画面", "Live run view")}
                     />
                 ) : error ? (
@@ -630,13 +639,9 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
                     />
                 ) : (
                     <DataState
-                        kind={
-                            run?.status === "queued" || run?.status === "running"
-                                ? "processing"
-                                : "empty"
-                        }
+                        kind={isActiveRun(run?.status) ? "processing" : "empty"}
                         title={
-                            run?.status === "queued" || run?.status === "running"
+                            isActiveRun(run?.status)
                                 ? t("正在等待浏览器画面", "Waiting for browser view")
                                 : t("暂无实时画面", "No live view")
                         }
@@ -644,7 +649,7 @@ function LiveFrame({ run }: { run?: Reports.Run }) {
                         className="h-full"
                     />
                 )}
-            </div>
+            </Card>
         </div>
     );
 }

@@ -25,6 +25,8 @@ struct ExecutionContext<'a> {
     input: &'a Value,
 }
 
+const BROWSER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
 pub async fn execute(
     state: &AppState,
     run: &Run,
@@ -50,30 +52,68 @@ pub async fn execute(
     let page = browser.new_page(&system.base_url).await.map_err(AppError::internal)?;
     let input: Value = serde_json::from_str(&run.input_json)?;
     let context = ExecutionContext { state, run, system, page: &page, input: &input };
-    if let Err(error) = save_live_frame(state, &page, &run.id).await {
-        tracing::warn!(run_id = %run.id, %error, "Initial live frame capture failed");
-    }
+    try_save_live_frame(state, &page, &run.id).await;
     let result = execute_steps(&context, flow).await;
     if result.is_err() {
-        let _ = save_screenshot(state, &page, &run.id, "failure").await;
+        let _ = tokio::time::timeout(
+            BROWSER_SHUTDOWN_TIMEOUT,
+            save_screenshot(state, &page, &run.id, "failure"),
+        )
+        .await;
     }
-    let _ = browser.close().await;
-    let _ = handle.await;
+    close_browser(&mut browser, handle).await;
     result
+}
+
+async fn close_browser(browser: &mut Browser, mut handler: tokio::task::JoinHandle<()>) {
+    let closed =
+        matches!(tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, browser.close()).await, Ok(Ok(_)));
+    let exited = closed
+        && matches!(
+            tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, browser.wait()).await,
+            Ok(Ok(_))
+        );
+    if !exited {
+        tracing::warn!("Browser close did not complete; forcing process shutdown");
+        let _ = tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, browser.kill()).await;
+    }
+
+    if tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, &mut handler).await.is_err() {
+        tracing::warn!("Browser handler did not stop; aborting handler task");
+        handler.abort();
+        let _ = handler.await;
+    }
 }
 
 async fn execute_steps(context: &ExecutionContext<'_>, flow: &Flow) -> Result<(), AppError> {
     let settings = repo::settings(&context.state.pool).await?;
     for (index, step) in flow.steps.iter().enumerate() {
-        if repo::run_cancelled(&context.state.pool, &context.run.id).await? {
-            return Err(AppError::Conflict("run cancelled".into()));
+        if repo::run_cancel_requested(&context.state.pool, &context.run.id).await? {
+            return Err(AppError::Cancelled);
         }
         let started = Instant::now();
-        let result = tokio::time::timeout(
-            Duration::from_secs(settings.default_step_timeout_seconds as u64),
-            execute_step(context, step),
-        )
-        .await;
+        let result = tokio::select! {
+            cancellation = wait_for_cancellation(context) => {
+                cancellation?;
+                let duration = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+                repo::insert_run_step(
+                    &context.state.pool,
+                    &context.run.id,
+                    index as i64,
+                    step.action(),
+                    "cancelled",
+                    duration,
+                    Some("cancelled by user"),
+                    &Utc::now().to_rfc3339(),
+                )
+                .await?;
+                return Err(AppError::Cancelled);
+            }
+            result = tokio::time::timeout(
+                Duration::from_secs(settings.default_step_timeout_seconds as u64),
+                execute_step(context, step),
+            ) => result,
+        };
         let duration = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
         let outcome = match result {
             Ok(result) => result,
@@ -94,12 +134,32 @@ async fn execute_steps(context: &ExecutionContext<'_>, flow: &Flow) -> Result<()
             &Utc::now().to_rfc3339(),
         )
         .await?;
-        if let Err(error) = save_live_frame(context.state, context.page, &context.run.id).await {
-            tracing::warn!(run_id = %context.run.id, %error, "Live frame capture failed");
-        }
+        try_save_live_frame(context.state, context.page, &context.run.id).await;
         outcome?;
     }
     Ok(())
+}
+
+async fn wait_for_cancellation(context: &ExecutionContext<'_>) -> Result<(), AppError> {
+    loop {
+        if repo::run_cancel_requested(&context.state.pool, &context.run.id).await? {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+async fn try_save_live_frame(state: &AppState, page: &Page, run_id: &str) {
+    match tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, save_live_frame(state, page, run_id)).await
+    {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            tracing::warn!(run_id, %error, "Live frame capture failed");
+        }
+        Err(_) => {
+            tracing::warn!(run_id, "Live frame capture timed out");
+        }
+    }
 }
 
 async fn save_live_frame(state: &AppState, page: &Page, run_id: &str) -> Result<(), AppError> {

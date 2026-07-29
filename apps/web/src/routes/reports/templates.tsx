@@ -23,9 +23,8 @@ import { t } from "@/lib/i18n";
 export const Route = createFileRoute("/reports/templates")({ component: FlowsPage });
 
 const example: Reports.FlowStep[] = [
-    { action: "goto", url: "/login" },
-    { action: "fill", selector: "#username", value: "{{input.username}}" },
-    { action: "fill", selector: "#password", value: "{{input.password}}" },
+    { action: "goto", url: "/report" },
+    { action: "fill", selector: "#value", value: "{{input.value}}" },
     { action: "click", selector: "button[type=submit]" },
     { action: "waitFor", selector: "form" },
     { action: "screenshot", name: "submitted" },

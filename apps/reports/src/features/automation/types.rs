@@ -96,6 +96,7 @@ pub struct Run {
     pub id: String,
     pub flow_id: String,
     pub status: String,
+    #[serde(skip_serializing)]
     pub input_json: String,
     pub error: Option<String>,
     pub created_at: String,

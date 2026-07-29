@@ -73,11 +73,11 @@ The retained end-to-end journeys are:
 - Reports: define a target-backed template, validate run input, execute browser
   steps, and retain enough live or captured evidence to diagnose failure.
 
-Reports currently retains the complete run input with the execution record and
-returns it from run queries. Users must not submit passwords, tokens, or other
-secrets until a separate protected-storage and response-redaction boundary is
-specified, implemented, and verified. Any workflow that accepts secrets must
-deliver that boundary before collecting them.
+Reports retains non-sensitive run input for execution but omits it from run
+responses. Template definitions and run requests that reference password,
+token, key, credential, or other recognized secret fields are rejected. Users
+must not submit secrets until a separate protected-storage, encryption, and
+write-only-input boundary is specified, implemented, and verified.
 
 Across those journeys, loading, empty, validation, permission, business-error,
 retry, audit, interruption, and recovery results must remain explicit.
@@ -131,8 +131,9 @@ Technical ownership and stable internal names are defined in
    module metrics and trends remain on their Monitoring and Analytics pages.
 8. Dictionary management is not a current product capability because no
    in-repository workflow consumes it. Its HTTP surface, page, navigation, and
-   permission are removed; the historical SQLite table remains dormant for
-   upgrade compatibility and is not a supported integration contract.
+   permission are removed. The dormant SQLite table is not a supported
+   integration or upgrade-compatibility contract and may be removed from the
+   resettable baseline when schema cleanup is in scope.
 
 ## Legacy-product decisions
 
@@ -203,8 +204,8 @@ behavior. They do not justify a fifth process or a new contract crate today.
   migration targets.
 - Confirmed: Dashboard is limited to control-plane summary and module health;
   detailed resource and product telemetry stay on their owning pages.
-- Confirmed: Dictionary management is removed from the current surface while
-  its historical SQLite table is retained as dormant upgrade data.
+- Confirmed: Dictionary management is removed from the current surface; its
+  dormant SQLite table is not an upgrade-compatibility contract.
 - Confirmed: the primary positioning is a lightweight self-hosted operations
   product; the reference-implementation role is secondary.
 - Confirmed: SQLite and one coherent signed release are the current supported

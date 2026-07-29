@@ -29,6 +29,7 @@ CREATE TABLE automation_runs (
     created_at TEXT NOT NULL,
     started_at TEXT,
     finished_at TEXT,
+    cancel_requested_at TEXT,
     FOREIGN KEY (flow_id) REFERENCES automation_flows(id) ON DELETE RESTRICT
 );
 

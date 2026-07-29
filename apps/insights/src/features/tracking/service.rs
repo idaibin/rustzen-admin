@@ -10,6 +10,9 @@ use super::{
     types::{NewEvent, TrackAccepted, TrackInput},
 };
 
+const MAX_FUTURE_CLOCK_SKEW: ChronoDuration = ChronoDuration::minutes(5);
+const MAX_DURATION_MS: u64 = 24 * 60 * 60 * 1000;
+
 pub struct TrackingService;
 
 impl TrackingService {
@@ -27,7 +30,7 @@ impl TrackingService {
         let now = Utc::now();
         let events = inputs
             .into_iter()
-            .map(|input| validate_event(input, &now))
+            .map(|input| validate_event(input, &now, settings.event_retention_days))
             .collect::<Result<Vec<_>, _>>()?;
 
         let mut transaction = pool.begin().await.map_err(AppError::internal)?;
@@ -78,6 +81,7 @@ async fn cleanup_before(pool: &SqlitePool, cutoff: &str) -> Result<u64, AppError
 fn validate_event(
     input: TrackInput,
     received_at: &chrono::DateTime<Utc>,
+    retention_days: i64,
 ) -> Result<NewEvent, AppError> {
     let event_name = input
         .event_name
@@ -104,6 +108,19 @@ fn validate_event(
     if event_name == "api_request" && api_path.is_none() {
         return Err(AppError::bad_request("apiPath is required for api_request"));
     }
+    if input.status_code.is_some_and(|code| !(100..=599).contains(&code)) {
+        return Err(AppError::bad_request("statusCode must be between 100 and 599"));
+    }
+    if input.duration_ms.is_some_and(|duration| duration > MAX_DURATION_MS) {
+        return Err(AppError::bad_request("durationMs must not exceed 86400000"));
+    }
+    let occurred_at = input.occurred_at.unwrap_or(*received_at);
+    if occurred_at > *received_at + MAX_FUTURE_CLOCK_SKEW {
+        return Err(AppError::bad_request("occurredAt is too far in the future"));
+    }
+    if occurred_at < *received_at - ChronoDuration::days(retention_days) {
+        return Err(AppError::bad_request("occurredAt is outside the retention window"));
+    }
     let properties = serde_json::to_string(&input.properties).map_err(AppError::internal)?;
     if properties.len() > 16_384 {
         return Err(AppError::bad_request("properties exceed 16 KiB"));
@@ -120,10 +137,10 @@ fn validate_event(
         api_path,
         api_method: clean_optional(input.api_method, 20)?.map(|value| value.to_ascii_uppercase()),
         status_code: input.status_code,
-        duration_ms: input.duration_ms.map(to_i64),
+        duration_ms: input.duration_ms.map(|value| value as i64),
         is_error: i64::from(input.is_error),
         properties,
-        occurred_at: input.occurred_at.unwrap_or(*received_at).to_rfc3339(),
+        occurred_at: occurred_at.to_rfc3339(),
         received_at: received_at.to_rfc3339(),
     })
 }
@@ -149,6 +166,53 @@ fn clean_optional(value: Option<String>, max: usize) -> Result<Option<String>, A
         .map(Option::flatten)
 }
 
-fn to_i64(value: u64) -> i64 {
-    i64::try_from(value).unwrap_or(i64::MAX)
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeDelta, Utc};
+    use serde_json::json;
+
+    use super::validate_event;
+    use crate::features::tracking::types::TrackInput;
+
+    fn event() -> TrackInput {
+        TrackInput {
+            event_name: Some("api_request".to_string()),
+            event_type: None,
+            visitor_id: "visitor".to_string(),
+            user_id: None,
+            session_id: None,
+            platform: None,
+            page_path: None,
+            path: None,
+            referrer: None,
+            api_path: Some("/api/items".to_string()),
+            api_method: Some("GET".to_string()),
+            status_code: Some(200),
+            duration_ms: Some(40),
+            is_error: false,
+            properties: json!({}),
+            occurred_at: None,
+        }
+    }
+
+    #[test]
+    fn event_time_duration_and_status_code_are_bounded() {
+        let now = Utc::now();
+
+        let mut future = event();
+        future.occurred_at = Some(now + TimeDelta::minutes(6));
+        assert!(validate_event(future, &now, 30).is_err());
+
+        let mut expired = event();
+        expired.occurred_at = Some(now - TimeDelta::days(31));
+        assert!(validate_event(expired, &now, 30).is_err());
+
+        let mut duration = event();
+        duration.duration_ms = Some(86_400_001);
+        assert!(validate_event(duration, &now, 30).is_err());
+
+        let mut status = event();
+        status.status_code = Some(999);
+        assert!(validate_event(status, &now, 30).is_err());
+    }
 }

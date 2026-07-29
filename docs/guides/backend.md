@@ -41,6 +41,10 @@ persistence; Admin `features/dashboard/` is the current intentional exception.
 
 - SQL must be explicit; do not use `SELECT *`.
 - Schema changes require a migration in the owning application.
+- While this repository is a resettable template, each application keeps one
+  baseline migration: fold schema changes into that baseline and recreate local
+  SQLite databases with `just reset-db`. Do not add upgrade-only compatibility
+  migrations until persistent user data becomes a supported contract.
 - Use `crates/storage/` for shared SQLite connection and maintenance behavior.
 - Use the focused config type from `crates/config/`; a process must not parse
   settings owned only by another process.

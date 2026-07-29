@@ -47,7 +47,7 @@ async fn execute_run(state: &AppState, id: &str) -> Result<(), AppError> {
     let flow = service::flow(&state.pool, &run.flow_id).await?;
     let system = service::system(&state.pool, &flow.system_id).await?;
     if !system.enabled {
-        repo::finish_run(
+        finish_run_or_cancellation(
             &state.pool,
             id,
             "failed",
@@ -63,16 +63,36 @@ async fn execute_run(state: &AppState, id: &str) -> Result<(), AppError> {
         browser::execute(state, &run, &flow, &system),
     )
     .await;
+    let cancellation_requested = repo::run_cancel_requested(&state.pool, id).await?;
+    if cancellation_requested || matches!(&result, Ok(Err(AppError::Cancelled))) {
+        repo::finish_cancelled(&state.pool, id, &Utc::now().to_rfc3339()).await?;
+        return Ok(());
+    }
     let (status, error) = match result {
         Ok(Ok(())) => ("succeeded", None),
         Ok(Err(error)) => ("failed", Some(error.to_string())),
         Err(_) => ("failed", Some("run timed out".into())),
     };
-    if !repo::run_cancelled(&state.pool, id).await? {
-        repo::finish_run(&state.pool, id, status, error.as_deref(), &Utc::now().to_rfc3339())
-            .await?;
-    }
+    finish_run_or_cancellation(&state.pool, id, status, error.as_deref(), &Utc::now().to_rfc3339())
+        .await?;
     Ok(())
+}
+
+async fn finish_run_or_cancellation(
+    pool: &rustzen_storage::SqlitePool,
+    id: &str,
+    status: &str,
+    error: Option<&str>,
+    now: &str,
+) -> Result<(), AppError> {
+    if repo::finish_run(pool, id, status, error, now).await? {
+        return Ok(());
+    }
+    if repo::run_cancel_requested(pool, id).await? {
+        repo::finish_cancelled(pool, id, now).await?;
+        return Ok(());
+    }
+    Err(AppError::Conflict("run is no longer running".into()))
 }
 
 fn spawn_cleanup(state: Arc<AppState>) {

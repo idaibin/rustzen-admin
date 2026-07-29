@@ -153,6 +153,7 @@ mod tests {
         )
         .await;
         let response = app
+            .clone()
             .oneshot(request(
                 Method::POST,
                 "/api/reports/runs",
@@ -162,7 +163,20 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(body(response).await["data"]["status"], "queued");
+        let created_run = body(response).await;
+        assert_eq!(created_run["data"]["status"], "queued");
+        assert!(created_run["data"].get("inputJson").is_none());
+
+        let sensitive = app
+            .oneshot(request(
+                Method::POST,
+                "/api/reports/runs",
+                "reports:run:manage",
+                json!({"flowId":flow["data"]["id"],"input":{"password":"secret"}}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(sensitive.status(), StatusCode::BAD_REQUEST);
         tokio::fs::remove_dir_all(state.output_dir).await.unwrap();
     }
 

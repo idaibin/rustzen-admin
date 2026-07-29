@@ -48,8 +48,10 @@ impl AuthRepository {
 
     /// Update last login timestamp
     pub async fn update_last_login(pool: &SqlitePool, id: i64) -> Result<(), ServiceError> {
+        let now = Utc::now().naive_utc();
         sqlx::query("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?")
-            .bind(Utc::now().naive_utc())
+            .bind(now)
+            .bind(now)
             .bind(id)
             .execute(pool)
             .await
@@ -58,5 +60,32 @@ impl AuthRepository {
                 ServiceError::DatabaseQueryFailed
             })?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    use super::AuthRepository;
+
+    #[tokio::test]
+    async fn update_last_login_sets_both_timestamps_for_the_requested_user() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("connect");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+
+        AuthRepository::update_last_login(&pool, 1).await.expect("update last login");
+
+        let (last_login_at, updated_at): (Option<String>, String) =
+            sqlx::query_as("SELECT last_login_at, updated_at FROM users WHERE id = 1")
+                .fetch_one(&pool)
+                .await
+                .expect("load timestamps");
+        assert!(last_login_at.is_some());
+        assert_eq!(last_login_at.as_deref(), Some(updated_at.as_str()));
     }
 }

@@ -12,6 +12,8 @@ pub enum AppError {
     NotFound(String),
     #[error("{0}")]
     Conflict(String),
+    #[error("run cancelled")]
+    Cancelled,
     #[error("reports database operation failed")]
     Database,
     #[error("reports service operation failed")]
@@ -52,6 +54,7 @@ impl IntoResponse for AppError {
             Self::InvalidInput(message) => (StatusCode::BAD_REQUEST, message),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message),
             Self::Conflict(message) => (StatusCode::CONFLICT, message),
+            Self::Cancelled => (StatusCode::CONFLICT, "run cancelled".to_string()),
             Self::Database | Self::Internal => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "reports worker error".to_string())
             }

@@ -92,21 +92,7 @@ impl AuthService {
             e
         })?;
 
-        let user_id_clone = user.id;
-        let pool_clone = pool.clone();
-        tokio::spawn(async move {
-            tracing::debug!(user_id = user_id_clone, "Updating last login in background");
-            if let Err(error) = AuthRepository::update_last_login(&pool_clone, user_id_clone).await
-            {
-                tracing::debug!(
-                    user_id = user_id_clone,
-                    error = ?error,
-                    "Failed to update last login in background"
-                );
-            } else {
-                tracing::debug!(user_id = user_id_clone, "Updated last login in background");
-            }
-        });
+        AuthRepository::update_last_login(pool, user.id).await?;
 
         let user_info = Self::get_login_info(pool, user.id).await?;
 
