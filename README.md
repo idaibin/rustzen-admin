@@ -21,6 +21,7 @@
 - `apps/monitor/` 提供监控能力和可选的受管节点 Agent
 - `apps/insights/` 提供产品分析和公共追踪脚本
 - `apps/reports/` 提供报表模板、填报执行和实时运行视图
+- `apps/cli/` 提供不常驻、只读的统一运维命令 `rz`
 - `apps/web/` 包含 React 前端应用
 - `deploy/` 包含部署资产和发布支持文件
 - `docs/` 包含仓库级架构与开发指南
@@ -61,7 +62,25 @@ cargo run -p rustzen-admin -- serve
 cargo run -p rustzen-monitor -- controller
 cargo run -p rustzen-insights -- serve
 cargo run -p rustzen-reports -- serve
+cargo run -p rustzen-cli -- --json doctor
 ```
+
+部署包会把 `rz` 与四个服务二进制安装到同一
+`/opt/rz/current/bin/` 目录。`rz` 不加入 `rz.target`，不拥有数据库，
+也不会合并四个服务的进程或故障域。当前只读命令为：
+
+```bash
+rz --help
+rz --json doctor
+rz --json version
+rz --json status all
+rz --json status monitor
+```
+
+JSON 成功响应固定包含 `schema_version`、`ok`、`command` 和 `data`；
+CLI 参数或执行失败固定包含 `schema_version`、`ok`、`command` 和
+`error.code` / `error.message`。`doctor` 只按端点白名单读取配置，
+凭据键不会进入 CLI 状态，也不会输出凭据值。
 
 本地启动默认使用 SQLite，不需要 PostgreSQL。
 SQLite 连接能力、角色策略、运行时目录和日志均由本仓库维护，不依赖 `rustzen-core` 运行时。

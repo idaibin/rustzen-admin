@@ -16,11 +16,11 @@ just verify-services
 git diff --check
 ```
 
-`just build-native` builds the Web application and the four optimized binaries
-for the current machine. `just build` uses Docker to build four Linux musl
-binaries, assembles one bundle, signs the complete tar, and verifies the
-signature. The Web package manager is Bun 1.3.14 and `apps/web/bun.lock` is the
-only frontend lockfile.
+`just build-native` builds the Web application, four optimized server binaries,
+and the non-resident `rz` operations CLI for the current machine. `just build`
+uses Docker to build the same five Linux musl executables, assembles one bundle,
+signs the complete tar, and verifies the signature. The Web package manager is
+Bun 1.3.14 and `apps/web/bun.lock` is the only frontend lockfile.
 
 ## Bundle contract
 
@@ -30,6 +30,7 @@ The artifact is an uncompressed signed tar:
 target/rz/rz-<version>-<x86_64|aarch64>.tar
 └── rz-<version>-<arch>/
     ├── bin/
+    │   ├── rz
     │   ├── rz-admin
     │   ├── rz-monitor
     │   ├── rz-insights
@@ -45,7 +46,7 @@ target/rz/rz-<version>-<x86_64|aarch64>.tar
     └── setup-layout.sh
 ```
 
-All four ELF binaries must match the declared architecture and workspace
+All five ELF executables must match the declared architecture and workspace
 version. Each embeds `RUSTZEN_RELEASE_MARKER` with
 `artifact=rz-bundle-member` and its exact binary name. The appended Ed25519
 signature covers the complete tar payload as component `bundle`.
@@ -83,7 +84,7 @@ one relative link:
 ```text
 /opt/rz/
 ├── current -> releases/<version>
-├── releases/<version>/bin/{rz-admin,rz-monitor,rz-insights,rz-reports}
+├── releases/<version>/bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
 ├── config/rz.env
 ├── data/db/{admin,monitor,insights,reports}.db
 ├── data/releases/rz-<version>-<arch>.tar
@@ -112,6 +113,23 @@ recovery fails.
 
 `rz-monitor-agent.service` is installed only on managed nodes, runs
 `rz-monitor agent`, and is not part of `rz.target`.
+
+`rz` has no systemd unit and is not a service alias. It is upgraded and rolled
+back only with the same signed release and `current` link as the four servers.
+Operators can invoke `/opt/rz/current/bin/rz` directly or add that directory to
+their managed shell `PATH`. Its current contract is read-only:
+
+```bash
+rz --json doctor
+rz --json version
+rz --json status all
+rz --json status admin
+```
+
+`status` performs only bounded loopback `/health` reads. `doctor` reports
+installation paths, binary presence, and the same health summary. Its config
+reader accepts only the internal host and four port keys; credential values
+are neither retained nor emitted.
 
 ## Configuration
 

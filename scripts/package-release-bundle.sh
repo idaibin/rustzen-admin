@@ -20,7 +20,7 @@ case "$ARCH" in
   *) echo "unsupported architecture: $ARCH" >&2; exit 2 ;;
 esac
 
-for binary in rz-admin rz-monitor rz-insights rz-reports; do
+for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
   if [ ! -f "$BIN_DIR/$binary" ] || [ ! -x "$BIN_DIR/$binary" ]; then
     echo "missing executable bundle member: $BIN_DIR/$binary" >&2
     exit 1
@@ -52,7 +52,7 @@ trap 'rm -rf "$STAGING"' EXIT HUP INT TERM
 ROOT="$STAGING/$ROOT_NAME"
 mkdir -p "$ROOT/bin" "$ROOT/systemd" "$ROOT/config"
 
-for binary in rz-admin rz-monitor rz-insights rz-reports; do
+for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
   install -m 0755 "$BIN_DIR/$binary" "$ROOT/bin/$binary"
 done
 for unit in rz.target rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service; do

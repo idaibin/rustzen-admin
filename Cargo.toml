@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "apps/admin",
+    "apps/cli",
     "apps/insights",
     "apps/monitor",
     "apps/reports",

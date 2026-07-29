@@ -5,6 +5,10 @@ Insights, and Reports runtime. It is a Web/Rust A-class monorepo that produces
 four independent server binaries in one signed release bundle, with one
 version and one rollback boundary.
 
+The same bundle also contains `rz`, a non-resident, read-only operations CLI.
+It is a fifth executable entry point, not a fifth service: it owns no database,
+has no systemd unit, and does not change the four server failure domains.
+
 ## Ownership
 
 - `apps/admin/` owns the Admin API, authentication and RBAC persistence, the
@@ -98,6 +102,16 @@ set, or parse and re-serialize JSON on this hot path.
 Public module routes still require Admin delegation at the service boundary.
 Direct unsigned, expired, cross-module, or wrong-capability calls are rejected.
 
+Insights accepts public tracking events only inside the configured retention
+window and a five-minute future clock-skew allowance. HTTP status codes and
+durations are bounded before they can affect overview or percentile metrics.
+
+Reports rejects recognized secret fields in templates and run input, persists
+only accepted non-sensitive input, and omits run input from API responses. A
+running cancellation remains non-terminal while the browser step is being
+aborted; the API exposes `cancelling` until the browser closes and Reports
+durably records `cancelled`.
+
 ## Permissions and menus
 
 The product navigation presents the stable internal services as grouped modules:
@@ -126,13 +140,13 @@ removes it from runtime navigation without deleting its stored overrides.
 
 ## Release topology
 
-All four Cargo applications use the workspace version. `just build` creates and
-signs one uncompressed tar bundle:
+All four server applications and the operations CLI use the workspace version.
+`just build` creates and signs one uncompressed tar bundle:
 
 ```text
 target/rz/rz-<version>-<arch>.tar
 └── rz-<version>-<arch>/
-    ├── bin/{rz-admin,rz-monitor,rz-insights,rz-reports}
+    ├── bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
     ├── systemd/{rz.target,rz-recovery.service,rz-admin.service,
     │            rz-monitor.service,rz-insights.service,rz-reports.service}
     ├── config/rz.env
@@ -146,7 +160,7 @@ and installs an immutable release directory:
 ```text
 /opt/rz/
 ├── current -> releases/<version>
-├── releases/<version>/bin/{rz-admin,rz-monitor,rz-insights,rz-reports}
+├── releases/<version>/bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
 ├── config/rz.env
 ├── data/db/{admin,monitor,insights,reports}.db
 ├── data/releases/rz-<version>-<arch>.tar

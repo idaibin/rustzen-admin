@@ -34,12 +34,18 @@ check:
 verify-services:
     cargo test -p rustzen-admin changed_manifest_swaps_after_commit_and_invalid_change_rolls_back
     cargo test -p rustzen-admin warm_gateway_streams_with_memory_auth_and_a_closed_database
-    cargo build --release -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
-    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports
+    cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
+    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz
 
 verify-modules-mvp:
     cargo build --workspace
-    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports
+    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz
+
+verify-cli:
+    cargo test -p rustzen-cli
+    cargo clippy -p rustzen-cli --all-targets -- -D warnings
+    cargo build -p rustzen-cli
+    tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version; "{{justfile_directory()}}/target/debug/rz" --json status all
 
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
@@ -51,7 +57,7 @@ e2e-modules browser_path:
 
 # Reset local sqlite database and let migrations re-run on next startup.
 reset-db:
-    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights reports; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done
+    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights reports; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done; rm -f "${runtime_root}/data/rustzen.db" "${runtime_root}/data/rustzen.db-shm" "${runtime_root}/data/rustzen.db-wal"
 
 # Build all (production)
 build:
@@ -65,7 +71,7 @@ build-release:
 
 build-native:
     cd apps/web && bun run vp build
-    cargo build --release -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
+    cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
 
 # Build web production bundle
 build-web:

@@ -86,7 +86,7 @@ make_bundle() {
     release_root="$source_dir/$root_name"
 
     mkdir -p "$release_root/bin" "$release_root/systemd" "$release_root/config"
-    for binary in rz-admin rz-monitor rz-insights rz-reports; do
+    for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
         printf 'fixture %s %s\n' "$binary" "$version" >"$release_root/bin/$binary"
         chmod 0755 "$release_root/bin/$binary"
     done
@@ -167,7 +167,7 @@ TEST_COUNT=$((TEST_COUNT + 1))
 
 assert_equals "releases/1.2.3" "$(readlink "$INSTALL_ROOT_ONE/current")" \
     "initial current link"
-for binary in rz-admin rz-monitor rz-insights rz-reports; do
+for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
     path="$INSTALL_ROOT_ONE/releases/1.2.3/bin/$binary"
     assert_exists "$path"
     assert_equals "755" "$(file_mode "$path")" "$binary mode"

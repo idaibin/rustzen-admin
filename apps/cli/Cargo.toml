@@ -1,0 +1,18 @@
+[package]
+name = "rustzen-cli"
+version.workspace = true
+edition = "2024"
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "rz"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
+rustzen-ipc = { path = "../../crates/ipc" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

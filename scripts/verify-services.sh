@@ -6,6 +6,7 @@ ADMIN="${1:-target/release/rz-admin}"
 MONITOR="${2:-target/release/rz-monitor}"
 INSIGHTS="${3:-target/release/rz-insights}"
 REPORTS="${4:-target/release/rz-reports}"
+CLI="${5:-target/release/rz}"
 
 absolute_binary() {
     case "$1" in
@@ -18,8 +19,9 @@ ADMIN="$(absolute_binary "$ADMIN")"
 MONITOR="$(absolute_binary "$MONITOR")"
 INSIGHTS="$(absolute_binary "$INSIGHTS")"
 REPORTS="$(absolute_binary "$REPORTS")"
+CLI="$(absolute_binary "$CLI")"
 
-for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS"; do
+for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI"; do
     if [ ! -x "$binary" ]; then
         echo "verify-services: missing executable: $binary" >&2
         exit 1
@@ -313,6 +315,23 @@ for service in admin monitor insights reports; do
     wait_for_health "$service"
 done
 
+cli_status="$($CLI --json status all)"
+CLI_STATUS="$cli_status" bun -e '
+    const payload = JSON.parse(process.env.CLI_STATUS);
+    const services = payload.data?.services;
+    if (
+        payload.schema_version !== 1
+        || payload.ok !== true
+        || payload.command !== "status"
+        || payload.data?.selection !== "all"
+        || !Array.isArray(services)
+        || services.length !== 4
+        || services.some((service) => service.reachable !== true || service.state !== "healthy")
+    ) {
+        throw new Error(`invalid rz status response: ${JSON.stringify(payload)}`);
+    }
+'
+
 owner_login="$(login owner 'rustzen@123')"
 RUSTZEN_ADMIN_TOKEN="$(printf '%s' "$owner_login" | parse_json 'value.data.token')"
 RUSTZEN_ADMIN_USER_ID="$(printf '%s' "$owner_login" | parse_json 'value.data.userInfo.id')"
@@ -453,5 +472,5 @@ for database in admin monitor insights reports; do
     }
 done
 
-echo "verify-services: Admin-alone login, Agent persistence, 24 startup orders, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
+echo "verify-services: Admin-alone login, Agent persistence, 24 startup orders, rz status, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
 echo "verify-services: latency evidence: $RUSTZEN_GATEWAY_LATENCY_OUTPUT"

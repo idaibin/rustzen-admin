@@ -41,6 +41,7 @@ RUN cd apps/web && bun run vp build
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
+COPY apps/cli apps/cli
 COPY apps/admin apps/admin
 COPY apps/monitor apps/monitor
 COPY apps/insights apps/insights
@@ -52,12 +53,13 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/app/target \
     if [ "${TARGET_TRIPLE}" = "aarch64-unknown-linux-gnu" ]; then \
         cargo build --release --target "${TARGET_TRIPLE}" \
-          -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
+          -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
     else \
         RUSTFLAGS="-C target-feature=+crt-static" \
         cargo build --release --target "${TARGET_TRIPLE}" \
-          -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
+          -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
     fi && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz" "/out/bin/rz" && \
     install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/bin/rz-admin" && \
     install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/bin/rz-monitor" && \
     install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/out/bin/rz-insights" && \

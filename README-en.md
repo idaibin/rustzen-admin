@@ -27,6 +27,7 @@ The repository is organized as a monorepo:
 - `apps/monitor/` powers Monitoring and the optional managed-node Agent
 - `apps/insights/` powers product Analytics and its public tracker
 - `apps/reports/` powers report templates, filling runs, and live execution views
+- `apps/cli/` provides the non-resident, read-only `rz` operations command
 - `apps/web/` contains the React frontend application
 - `deploy/` contains deployment assets and release support files
 - `docs/` contains repository-level architecture and development guides
@@ -67,7 +68,27 @@ cargo run -p rustzen-admin -- serve
 cargo run -p rustzen-monitor -- controller
 cargo run -p rustzen-insights -- serve
 cargo run -p rustzen-reports -- serve
+cargo run -p rustzen-cli -- --json doctor
 ```
+
+The release installs `rz` beside the four server binaries under
+`/opt/rz/current/bin/`. It is not part of `rz.target`, owns no database, and
+does not merge the four process or failure boundaries. Its current read-only
+surface is:
+
+```bash
+rz --help
+rz --json doctor
+rz --json version
+rz --json status all
+rz --json status monitor
+```
+
+JSON success responses always contain `schema_version`, `ok`, `command`, and
+`data`. CLI failures contain `schema_version`, `ok`, `command`, plus
+`error.code` and `error.message`. `doctor` reads only an endpoint allowlist
+from configuration; credential keys never enter CLI state and credential
+values are never emitted.
 
 Local startup is SQLite-first and does not require PostgreSQL.
 SQLite connection primitives, role policy, runtime layout, and logging are owned

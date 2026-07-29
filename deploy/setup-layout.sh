@@ -6,6 +6,7 @@ SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
 MANAGED_UNITS="rz.target rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service"
 REQUIRED_FILES="
+bin/rz
 bin/rz-admin
 bin/rz-monitor
 bin/rz-insights
@@ -278,7 +279,7 @@ while IFS= read -r entry || [ -n "$entry" ]; do
 
     case "$normalized" in
         "$ROOT_NAME"|"$ROOT_NAME/bin"|"$ROOT_NAME/systemd"|"$ROOT_NAME/config"|\
-        "$ROOT_NAME/bin/rz-admin"|"$ROOT_NAME/bin/rz-monitor"|\
+        "$ROOT_NAME/bin/rz"|"$ROOT_NAME/bin/rz-admin"|"$ROOT_NAME/bin/rz-monitor"|\
         "$ROOT_NAME/bin/rz-insights"|"$ROOT_NAME/bin/rz-reports"|\
         "$ROOT_NAME/systemd/rz.target"|"$ROOT_NAME/systemd/rz-recovery.service"|\
         "$ROOT_NAME/systemd/rz-admin.service"|\
@@ -395,7 +396,7 @@ if [ -e "$CANDIDATE_DIR" ] || [ -L "$CANDIDATE_DIR" ]; then
     fail "release staging path already exists: $CANDIDATE_DIR"
 fi
 mkdir -p "$CANDIDATE_DIR/bin" "$CANDIDATE_DIR/systemd" "$CANDIDATE_DIR/config"
-for binary in rz-admin rz-monitor rz-insights rz-reports; do
+for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
     install -m 0755 "$SOURCE_ROOT/bin/$binary" "$CANDIDATE_DIR/bin/$binary"
 done
 for unit in $MANAGED_UNITS; do

@@ -15,7 +15,7 @@ pub const SIGNED_MARKER_BEGIN: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n"
 pub const SIGNED_MARKER_END: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n";
 const SIGNATURE_PAYLOAD_VERSION: &str = "rustzen-bundle-v1";
 const SUPPORTED_ARCHES: [&str; 2] = ["x86_64", "aarch64"];
-const BINARIES: [&str; 4] = ["rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
+const BINARIES: [&str; 5] = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
 const SYSTEMD_FILES: [&str; 6] = [
     "rz.target",
     "rz-recovery.service",
@@ -651,7 +651,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn validates_and_installs_exact_four_binary_bundle() {
+    fn validates_and_installs_exact_release_binary_bundle() {
         let version = "1.2.3";
         let data = fixture(version, "x86_64");
         let info = validate_bundle(&data, version, false, None).expect("valid bundle");

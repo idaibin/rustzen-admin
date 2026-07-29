@@ -37,7 +37,8 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | Format, lint, typecheck, build, clippy, and test | `just check` |
 | Exercise the four-service module contract | `just verify-modules-mvp` |
 | Exercise real Reports browser filling | `just verify-automation-browser <browser-path>` |
-| Build the native four-binary release | `just build-native` |
+| Build the native release (four servers plus `rz`) | `just build-native` |
+| Verify the read-only operations CLI | `just verify-cli` |
 | Build the signed Linux release bundle | `just build` |
 
 ## Shared crates
@@ -64,6 +65,12 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | `apps/admin/src/features/manage/` | Logs, scheduled tasks, and deploy versions. | You change Admin management features. |
 | `apps/admin/src/features/system/` | Menu, role, user, and status management. | You change RBAC or system administration. |
 | `apps/admin/migrations/sqlite/` | Admin, RBAC, module-state, and release migrations. | You change Admin schema. |
+
+## Operations CLI
+
+| Path | Value | Inspect when |
+| --- | --- | --- |
+| `apps/cli/` | Non-resident `rz` command, stable JSON envelopes, allowlisted loopback health reads, and CLI tests. | You change operator-facing read commands or output contracts. |
 
 ## Module applications
 
@@ -162,7 +169,7 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `Dockerfile` | Four-binary Linux release build. | You change release compilation. |
+| `Dockerfile` | Five-executable Linux release build: four servers plus `rz`. | You change release compilation. |
 | `scripts/package-release-bundle.sh` | Exact bundle assembly and marker checks. | You change bundle membership. |
 | `scripts/deploy-sign.mjs` | Complete-bundle signing and verification. | You change signature behavior. |
 | `deploy/setup-layout.sh` | Signature-verifying initial installer and first atomic `current` link. | You change installation. |
