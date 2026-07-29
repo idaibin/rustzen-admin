@@ -10,7 +10,7 @@ import {
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Modal, Space, Tag } from "antd";
+import { Button, Form, Modal, Space, Tag, Typography } from "antd";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -43,27 +43,33 @@ function TaskPage() {
                 title: t("名称", "Name"),
                 dataIndex: "name",
                 key: "name",
-                width: 190,
-                render: (_: unknown, row: Task.Item) =>
-                    localizeBuiltInTaskName(row.taskKey, row.name),
+                width: 150,
+                ellipsis: true,
+                render: (_: unknown, row: Task.Item) => {
+                    const name = localizeBuiltInTaskName(row.taskKey, row.name);
+                    return <Typography.Text ellipsis={{ tooltip: name }}>{name}</Typography.Text>;
+                },
             },
             {
                 title: t("描述", "Description"),
                 dataIndex: "description",
                 key: "description",
-                width: 200,
-                ellipsis: true,
-                render: (_: unknown, row: Task.Item) => (
-                    <span>
-                        {localizeBuiltInTaskDescription(row.taskKey, row.description) || "-"}
-                    </span>
-                ),
+                width: 220,
+                render: (_: unknown, row: Task.Item) => {
+                    const description =
+                        localizeBuiltInTaskDescription(row.taskKey, row.description) || "-";
+                    return (
+                        <Typography.Text ellipsis={{ tooltip: description }}>
+                            {description}
+                        </Typography.Text>
+                    );
+                },
             },
             {
                 title: "Cron",
                 dataIndex: ["schedule", "expression"],
                 key: "cron",
-                width: 130,
+                width: 120,
                 render: (_: unknown, row: Task.Item) => (
                     <Tag color="blue">{row.schedule.expression}</Tag>
                 ),
@@ -72,7 +78,7 @@ function TaskPage() {
                 title: t("状态", "Status"),
                 dataIndex: "running",
                 key: "status",
-                width: 120,
+                width: 110,
                 render: (_: unknown, row: Task.Item) => (
                     <TaskStatusBadge status={row.running ? "running" : row.lastStatus} />
                 ),
@@ -81,28 +87,36 @@ function TaskPage() {
                 title: t("下次运行", "Next run"),
                 dataIndex: "nextRunAt",
                 key: "nextRunAt",
-                width: 190,
+                width: 170,
                 render: (_: unknown, row: Task.Item) => formatDateTime(row.nextRunAt),
             },
             {
                 title: t("上次完成", "Last finished"),
                 dataIndex: "lastFinishedAt",
                 key: "lastFinishedAt",
-                width: 190,
+                width: 150,
                 render: (_: unknown, row: Task.Item) => formatDateTime(row.lastFinishedAt),
             },
             {
                 title: t("上次错误", "Last error"),
                 dataIndex: "lastErrorMessage",
                 key: "lastErrorMessage",
-                width: 220,
-                render: (_: unknown, row: Task.Item) => <span>{row.lastErrorMessage || "-"}</span>,
+                width: 140,
+                render: (_: unknown, row: Task.Item) => {
+                    const errorMessage = row.lastErrorMessage || "-";
+                    return (
+                        <Typography.Text ellipsis={{ tooltip: errorMessage }}>
+                            {errorMessage}
+                        </Typography.Text>
+                    );
+                },
             },
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 104,
+                width: 72,
                 fixed: "right",
+                align: "left",
                 render: (_: unknown, row: Task.Item) => (
                     <TaskActions record={row} onTaskUpdated={refetch} isFetching={isFetching} />
                 ),
@@ -210,7 +224,7 @@ function TaskActions({
     isFetching: boolean;
 }) {
     return (
-        <Space size="small">
+        <Space size={0}>
             <TaskRunLogDialog
                 taskKey={record.taskKey}
                 taskName={localizeBuiltInTaskName(record.taskKey, record.name)}
@@ -284,7 +298,7 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
         <>
             <Button
                 icon={<HistoryOutlined />}
-                type="link"
+                type="text"
                 size="small"
                 aria-label={t("任务日志", "Task logs")}
                 onClick={() => setOpen(true)}
@@ -398,7 +412,7 @@ function RunTaskDialog({
     return (
         <>
             <Button
-                type="link"
+                type="text"
                 size="small"
                 icon={<PlayCircleOutlined />}
                 disabled={disabled}

@@ -30,8 +30,8 @@ function DashboardPage() {
                     "An operational overview of accounts and runtime modules.",
                 )}
             />
-            <AccountMetricCards />
             <ModuleHealthCards />
+            <AccountMetricCards />
         </div>
     );
 }
@@ -121,24 +121,28 @@ function AccountMetricCards() {
             value: stats?.totalUsers ?? 0,
             description: t("全部已注册账号", "All registered accounts"),
             icon: <TeamOutlined />,
+            tone: "primary" as const,
         },
         {
             title: t("活跃用户", "Active users"),
             value: stats?.activeUsers ?? 0,
             description: t("最近七天登录", "Signed in during the last seven days"),
             icon: <UserSwitchOutlined />,
+            tone: "success" as const,
         },
         {
             title: t("今日登录", "Today's logins"),
             value: stats?.todayLogins ?? 0,
             description: t("最近二十四小时", "During the last 24 hours"),
             icon: <ClockCircleOutlined />,
+            tone: "info" as const,
         },
         {
             title: t("待审核用户", "Pending users"),
             value: stats?.pendingUsers ?? 0,
             description: t("等待管理员处理", "Awaiting administrator action"),
             icon: <IdcardOutlined />,
+            tone: "warning" as const,
         },
     ];
 
@@ -160,6 +164,7 @@ function AccountMetricCards() {
                         value={item.value}
                         icon={item.icon}
                         hint={item.description}
+                        tone={item.tone}
                     />
                 ))}
             </div>

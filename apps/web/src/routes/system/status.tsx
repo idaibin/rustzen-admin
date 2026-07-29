@@ -80,7 +80,7 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                     "SQLite 存储及运行目录分布。",
                     "SQLite storage and runtime directory distribution.",
                 )}
-                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 8 }}
+                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 14 }}
             >
                 <div className="space-y-6">
                     <div>
@@ -152,18 +152,18 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
             </ProCard>
 
             <ProCard
-                title={t("目录占用", "Directory usage")}
+                title={t("数据库文件", "Database files")}
                 className="min-w-[240px]"
-                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 16 }}
+                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 10 }}
                 extra={
                     <span className="text-xs text-muted-foreground">
-                        {t("主服务 / WAL / SHM", "Main / WAL / SHM")}
+                        {t("主库 / WAL / SHM", "Main / WAL / SHM")}
                     </span>
                 }
             >
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
                     <StorageBreakdownItem
-                        label={t("主服务", "Main service")}
+                        label={t("主库", "Main database")}
                         value={storage.database.mainBytes}
                         total={storage.database.totalBytes}
                     />

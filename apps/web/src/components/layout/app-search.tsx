@@ -36,7 +36,7 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
             children: groupRoutes.map((route) => ({
                 key: route.path,
                 icon: route.icon,
-                label: route.label,
+                label: `${route.label} · ${route.path}`,
             })),
         }));
     }, [filteredRoutes]);
@@ -116,6 +116,8 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                 onCancel={closeSearch}
                 footer={null}
                 title={t("搜索页面", "Search pages")}
+                width={560}
+                destroyOnHidden
             >
                 <Flex vertical gap="small">
                     <Input
@@ -135,7 +137,7 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                             description={t("未找到页面", "No pages found")}
                         />
                     ) : (
-                        <div className="max-h-105 overflow-y-auto">
+                        <div className="max-h-80 overflow-y-auto">
                             <Menu
                                 items={menuItems}
                                 selectedKeys={[filteredRoutes[activeIndex]?.path ?? ""]}
