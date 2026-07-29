@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
     Button,
+    Card,
     Checkbox,
     Form,
     Input,
@@ -726,7 +727,7 @@ function PermissionPicker({
                     {t(`已选择 ${checkedValues.length} 项`, `${checkedValues.length} selected`)}
                 </span>
             </div>
-            <div className="h-72 overflow-auto rounded-md border p-3">
+            <Card size="small" className="h-72 overflow-auto">
                 {loading ? (
                     <DataState
                         compact
@@ -786,7 +787,7 @@ function PermissionPicker({
                         )}
                     </div>
                 )}
-            </div>
+            </Card>
         </div>
     );
 }

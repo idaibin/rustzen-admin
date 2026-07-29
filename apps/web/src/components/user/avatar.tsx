@@ -59,7 +59,7 @@ export const UserAvatar = () => {
 
     return (
         <div className="flex w-full flex-col items-center gap-3 text-center">
-            <Avatar size={96} src={userInfo?.avatarUrl} className="border">
+            <Avatar size={96} src={userInfo?.avatarUrl}>
                 {avatarFallback(userInfo)}
             </Avatar>
             <Upload

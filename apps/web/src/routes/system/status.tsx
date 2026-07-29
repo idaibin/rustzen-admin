@@ -7,7 +7,7 @@ import {
 import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Progress, Statistic, Tag } from "antd";
+import { Button, Card, Progress, Statistic, Tag, Typography } from "antd";
 
 import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
@@ -73,14 +73,14 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
     const maxDirectoryBytes = Math.max(...storage.directories.map((item) => item.sizeBytes), 1);
 
     return (
-        <ProCard split="vertical" ghost={false}>
+        <ProCard split="vertical" ghost={false} wrap>
             <ProCard
                 title={t("存储", "Storage")}
                 subTitle={t(
                     "SQLite 存储及运行目录分布。",
                     "SQLite storage and runtime directory distribution.",
                 )}
-                colSpan={1}
+                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 8 }}
             >
                 <div className="space-y-6">
                     <div>
@@ -90,11 +90,9 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                         </div>
                         <Statistic
                             value={formatBytes(storage.database.totalBytes)}
-                            valueStyle={{ fontSize: 28 }}
+                            styles={{ content: { fontSize: 28 } }}
                         />
-                        <div className="mt-4 inline-block rounded-md border bg-muted/40 px-3 py-1 text-sm text-muted-foreground">
-                            {t("SQLite 数据库", "SQLite database")}
-                        </div>
+                        <Tag className="mt-4">{t("SQLite 数据库", "SQLite database")}</Tag>
                         <Progress className="mt-5" percent={100} showInfo={false} />
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
                             <span>
@@ -107,15 +105,15 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                         </div>
                     </div>
 
-                    <div className="rounded-lg border p-4">
+                    <Card size="small">
                         <div className="mb-5 flex items-start justify-between gap-4">
                             <div>
-                                <div className="text-base font-semibold">
+                                <Typography.Text strong>
                                     {t("目录分布", "Directory distribution")}
-                                </div>
-                                <div className="mt-1 text-sm text-muted-foreground">
+                                </Typography.Text>
+                                <Typography.Paragraph type="secondary">
                                     {t("按当前目录占用空间对比", "Compare current directory usage")}
-                                </div>
+                                </Typography.Paragraph>
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {t(
@@ -149,13 +147,14 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </Card>
                 </div>
             </ProCard>
 
             <ProCard
                 title={t("目录占用", "Directory usage")}
                 className="min-w-[240px]"
+                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 16 }}
                 extra={
                     <span className="text-xs text-muted-foreground">
                         {t("主服务 / WAL / SHM", "Main / WAL / SHM")}
@@ -275,7 +274,7 @@ function ResourceMetric({
                 value={formatPercent(percent)}
                 suffix="%"
                 precision={1}
-                valueStyle={{ fontSize: 20 }}
+                styles={{ content: { fontSize: 20 } }}
             />
             <div className="mt-3 flex w-full items-center gap-3">
                 <Progress

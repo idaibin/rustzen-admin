@@ -7,7 +7,7 @@ import {
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Drawer, Progress, Space, Tag, Typography } from "antd";
+import { Button, Card, Drawer, Progress, Space, Tag, Typography } from "antd";
 import { useState } from "react";
 import {
     CartesianGrid,
@@ -231,18 +231,16 @@ function AddNodeDialog() {
                             "Start the bundled agent on the node. It will join the list after its first heartbeat.",
                         )}
                     </Typography.Paragraph>
-                    <p>
+                    <Typography.Paragraph>
                         {t(
                             "配置控制器地址，并使用与 Monitor 服务一致的环境变量：",
                             "Configure the controller address and use the same environment variable as the Monitor service:",
                         )}
-                        <code className="mx-1 rounded bg-muted px-1 py-0.5">
-                            RUSTZEN_MONITOR_AGENT_TOKEN
-                        </code>
-                    </p>
-                    <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+                        <Typography.Text code>RUSTZEN_MONITOR_AGENT_TOKEN</Typography.Text>
+                    </Typography.Paragraph>
+                    <Typography.Paragraph code copyable>
                         rz-monitor agent
-                    </pre>
+                    </Typography.Paragraph>
                     <Typography.Text type="secondary">
                         {t(
                             "节点 ID 由 Agent 主机名生成；后续心跳会更新现有记录，不会重复创建节点。",
@@ -278,7 +276,7 @@ function NodeDetails({
         <Drawer
             open={Boolean(node)}
             onClose={() => onOpenChange(false)}
-            width={960}
+            size="large"
             title={node?.hostname ?? t("节点详情", "Node details")}
             destroyOnHidden
             footer={null}
@@ -306,7 +304,7 @@ function NodeDetails({
                     }
                 />
             </div>
-            <div className="mt-4 h-80 rounded-lg border p-3">
+            <Card className="mt-4 h-80">
                 {isPending ? (
                     <DataState
                         kind="loading"
@@ -374,17 +372,17 @@ function NodeDetails({
                         className="h-full min-h-0"
                     />
                 )}
-            </div>
+            </Card>
         </Drawer>
     );
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 font-medium">{value}</div>
-        </div>
+        <Card size="small">
+            <Typography.Text type="secondary">{label}</Typography.Text>
+            <Typography.Paragraph strong>{value}</Typography.Paragraph>
+        </Card>
     );
 }
 

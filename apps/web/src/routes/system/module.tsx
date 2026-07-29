@@ -43,7 +43,7 @@ function SystemModulePage() {
         {
             title: t("模块", "Module"),
             key: "module",
-            width: 240,
+            width: "42%",
             render: (_: unknown, module: SystemModule.Item) => (
                 <div>
                     <div className="font-medium">{localizeModuleName(module.id, module.name)}</div>
@@ -54,7 +54,7 @@ function SystemModulePage() {
         {
             title: t("启用状态", "Enabled"),
             key: "enabled",
-            width: 120,
+            width: "22%",
             render: (_: unknown, module: SystemModule.Item) => (
                 <Tag color={module.enabled ? "blue" : "default"}>
                     {module.enabled ? t("已启用", "Enabled") : t("已禁用", "Disabled")}
@@ -64,55 +64,60 @@ function SystemModulePage() {
         {
             title: t("健康状态", "Health"),
             key: "health",
-            width: 160,
+            width: "30%",
             render: (_: unknown, module: SystemModule.Item) => <ModuleHealthTag module={module} />,
         },
         {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 180,
-            render: (_: unknown, module: SystemModule.Item) => (
-                <AuthWrap code="system:module:update">
-                    <ConfirmDialog
-                        trigger={
-                            <Button
-                                icon={<PoweroffOutlined />}
-                                type={module.enabled ? "default" : "primary"}
-                                size="small"
-                                danger={module.enabled}
-                            >
-                                {module.enabled ? t("禁用", "Disable") : t("启用", "Enable")}
-                            </Button>
-                        }
-                        title={
-                            module.enabled
-                                ? t(
-                                      `禁用${localizeModuleName(module.id, module.name)}`,
-                                      `Disable ${localizeModuleName(module.id, module.name)}`,
-                                  )
-                                : t(
-                                      `启用${localizeModuleName(module.id, module.name)}`,
-                                      `Enable ${localizeModuleName(module.id, module.name)}`,
-                                  )
-                        }
-                        description={
-                            module.enabled
-                                ? t(
-                                      `禁用 ${localizeModuleName(module.id, module.name)} 并移除对应导航入口？`,
-                                      `Disable ${localizeModuleName(module.id, module.name)} and remove its navigation entry?`,
-                                  )
-                                : t(
-                                      `启用 ${localizeModuleName(module.id, module.name)} 并恢复 Manifest 同步？`,
-                                      `Enable ${localizeModuleName(module.id, module.name)} and restore manifest synchronization?`,
-                                  )
-                        }
-                        confirmLabel={module.enabled ? t("禁用", "Disable") : t("启用", "Enable")}
-                        destructive={module.enabled}
-                        onConfirm={() => updateEnabled(module)}
-                    />
-                </AuthWrap>
-            ),
+            width: "6%",
+            render: (_: unknown, module: SystemModule.Item) => {
+                const actionLabel = module.enabled ? t("禁用", "Disable") : t("启用", "Enable");
+
+                return (
+                    <AuthWrap code="system:module:update">
+                        <ConfirmDialog
+                            trigger={
+                                <Tooltip title={actionLabel}>
+                                    <Button
+                                        icon={<PoweroffOutlined />}
+                                        type="link"
+                                        size="small"
+                                        danger={module.enabled}
+                                        aria-label={actionLabel}
+                                    />
+                                </Tooltip>
+                            }
+                            title={
+                                module.enabled
+                                    ? t(
+                                          `禁用${localizeModuleName(module.id, module.name)}`,
+                                          `Disable ${localizeModuleName(module.id, module.name)}`,
+                                      )
+                                    : t(
+                                          `启用${localizeModuleName(module.id, module.name)}`,
+                                          `Enable ${localizeModuleName(module.id, module.name)}`,
+                                      )
+                            }
+                            description={
+                                module.enabled
+                                    ? t(
+                                          `禁用 ${localizeModuleName(module.id, module.name)} 并移除对应导航入口？`,
+                                          `Disable ${localizeModuleName(module.id, module.name)} and remove its navigation entry?`,
+                                      )
+                                    : t(
+                                          `启用 ${localizeModuleName(module.id, module.name)} 并恢复 Manifest 同步？`,
+                                          `Enable ${localizeModuleName(module.id, module.name)} and restore manifest synchronization?`,
+                                      )
+                            }
+                            confirmLabel={actionLabel}
+                            destructive={module.enabled}
+                            onConfirm={() => updateEnabled(module)}
+                        />
+                    </AuthWrap>
+                );
+            },
         },
     ];
 

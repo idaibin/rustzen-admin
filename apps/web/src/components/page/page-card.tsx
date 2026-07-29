@@ -31,18 +31,12 @@ export function PageCard({
         <ProCard
             className={rootClassName.join(" ")}
             title={title}
-            subTitle={
-                description ? (
-                    <div className="mt-1 text-sm text-muted-foreground">{description}</div>
-                ) : null
-            }
-            extra={actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+            subTitle={description}
+            extra={actions}
             headerBordered
         >
             <div className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
-                {toolbar ? (
-                    <div className="rounded-md border bg-muted/35 p-2">{toolbar}</div>
-                ) : null}
+                {toolbar}
                 <div className={contentClass.join(" ")}>{children}</div>
             </div>
         </ProCard>

@@ -10,7 +10,7 @@ import {
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Modal, Tag } from "antd";
+import { Button, Form, Modal, Space, Tag } from "antd";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -43,7 +43,7 @@ function TaskPage() {
                 title: t("名称", "Name"),
                 dataIndex: "name",
                 key: "name",
-                width: 200,
+                width: 190,
                 render: (_: unknown, row: Task.Item) =>
                     localizeBuiltInTaskName(row.taskKey, row.name),
             },
@@ -51,6 +51,8 @@ function TaskPage() {
                 title: t("描述", "Description"),
                 dataIndex: "description",
                 key: "description",
+                width: 200,
+                ellipsis: true,
                 render: (_: unknown, row: Task.Item) => (
                     <span>
                         {localizeBuiltInTaskDescription(row.taskKey, row.description) || "-"}
@@ -99,7 +101,7 @@ function TaskPage() {
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 180,
+                width: 104,
                 fixed: "right",
                 render: (_: unknown, row: Task.Item) => (
                     <TaskActions record={row} onTaskUpdated={refetch} isFetching={isFetching} />
@@ -208,7 +210,7 @@ function TaskActions({
     isFetching: boolean;
 }) {
     return (
-        <div className="flex items-center justify-end gap-2">
+        <Space size="small">
             <TaskRunLogDialog
                 taskKey={record.taskKey}
                 taskName={localizeBuiltInTaskName(record.taskKey, record.name)}
@@ -220,7 +222,7 @@ function TaskActions({
                     disabled={isFetching || record.running}
                 />
             </AuthWrap>
-        </div>
+        </Space>
     );
 }
 
@@ -282,7 +284,8 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
         <>
             <Button
                 icon={<HistoryOutlined />}
-                type="text"
+                type="link"
+                size="small"
                 aria-label={t("任务日志", "Task logs")}
                 onClick={() => setOpen(true)}
             />
@@ -395,7 +398,8 @@ function RunTaskDialog({
     return (
         <>
             <Button
-                type="text"
+                type="link"
+                size="small"
                 icon={<PlayCircleOutlined />}
                 disabled={disabled}
                 loading={isSubmitting}

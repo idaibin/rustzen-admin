@@ -1,6 +1,15 @@
+import {
+    ApiOutlined,
+    BarChartOutlined,
+    BugOutlined,
+    ClockCircleOutlined,
+    EyeOutlined,
+    FieldTimeOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card } from "antd";
+import { Button, Card, Typography } from "antd";
 import {
     CartesianGrid,
     Line,
@@ -90,20 +99,60 @@ function AnalyticsOverviewPage() {
                     "View page, API, event, and visitor activity for the current instance.",
                 )}
             />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label={t("页面浏览量", "Page views")} value={overview.pv} />
-                <MetricCard label={t("独立访客", "Unique visitors")} value={overview.uv} />
-                <MetricCard label={t("全部事件", "Total events")} value={overview.eventCount} />
-                <MetricCard label={t("接口请求", "API requests")} value={overview.requestCount} />
-                <MetricCard label={t("错误数", "Errors")} value={overview.errorCount} />
-                <MetricCard
-                    label={t("平均耗时", "Average duration")}
-                    value={`${Math.round(overview.averageDurationMs)} ms`}
-                />
-                <MetricCard
-                    label={t("P95 耗时", "P95 duration")}
-                    value={`${overview.p95DurationMs} ms`}
-                />
+            <div className="flex flex-col gap-4">
+                <Typography.Text strong>{t("核心活动", "Core activity")}</Typography.Text>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard
+                        label={t("页面浏览量", "Page views")}
+                        value={overview.pv}
+                        icon={<EyeOutlined />}
+                        tone="primary"
+                    />
+                    <MetricCard
+                        label={t("独立访客", "Unique visitors")}
+                        value={overview.uv}
+                        icon={<UserOutlined />}
+                        tone="info"
+                    />
+                    <MetricCard
+                        label={t("全部事件", "Total events")}
+                        value={overview.eventCount}
+                        icon={<BarChartOutlined />}
+                        tone="primary"
+                    />
+                    <MetricCard
+                        label={t("接口请求", "API requests")}
+                        value={overview.requestCount}
+                        icon={<ApiOutlined />}
+                        tone="info"
+                    />
+                </div>
+                <Typography.Text strong>
+                    {t("质量与性能", "Quality and performance")}
+                </Typography.Text>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <MetricCard
+                        label={t("错误数", "Errors")}
+                        value={overview.errorCount}
+                        icon={<BugOutlined />}
+                        tone={overview.errorCount > 0 ? "danger" : "success"}
+                        size="small"
+                    />
+                    <MetricCard
+                        label={t("平均耗时", "Average duration")}
+                        value={`${Math.round(overview.averageDurationMs)} ms`}
+                        icon={<FieldTimeOutlined />}
+                        tone="warning"
+                        size="small"
+                    />
+                    <MetricCard
+                        label={t("P95 耗时", "P95 duration")}
+                        value={`${overview.p95DurationMs} ms`}
+                        icon={<ClockCircleOutlined />}
+                        tone="warning"
+                        size="small"
+                    />
+                </div>
             </div>
             {error ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />

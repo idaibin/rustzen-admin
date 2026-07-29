@@ -1,11 +1,4 @@
-import {
-    AlertOutlined,
-    FileDoneOutlined,
-    LockOutlined,
-    InboxOutlined,
-    LoadingOutlined,
-} from "@ant-design/icons";
-import { Progress } from "antd";
+import { Empty, Flex, Progress, Result, Spin, Typography } from "antd";
 import type { ReactNode } from "react";
 
 export type DataStateKind = "loading" | "empty" | "error" | "permission" | "processing";
@@ -20,14 +13,6 @@ interface DataStateProps {
     className?: string;
 }
 
-const icons = {
-    loading: LoadingOutlined,
-    empty: InboxOutlined,
-    error: AlertOutlined,
-    permission: LockOutlined,
-    processing: FileDoneOutlined,
-};
-
 export function DataState({
     kind,
     title,
@@ -37,51 +22,83 @@ export function DataState({
     compact = false,
     className,
 }: DataStateProps) {
-    const Icon = icons[kind];
-    const busy = kind === "loading" || kind === "processing";
-
     const containerClassName = [
-        "flex w-full flex-col items-center justify-center text-center",
-        compact
-            ? "min-h-28 gap-2 px-4 py-6"
-            : "min-h-64 gap-3 rounded-lg border border-dashed px-6 py-10",
-        kind === "error" && "border-destructive/40 bg-destructive/5",
-        kind === "permission" && "border-status-warning/40 bg-status-warning/5",
+        "flex w-full items-center justify-center",
+        compact ? "min-h-28 p-4" : "min-h-64 p-6",
         className,
-    ].filter((item): item is string => typeof item === "string");
+    ]
+        .filter((item): item is string => typeof item === "string")
+        .join(" ");
 
-    const iconClassName = [
-        "size-8 text-muted-foreground",
-        busy && "animate-spin",
-        kind === "error" && "text-destructive",
-        kind === "permission" && "text-status-warning",
-    ].filter((item): item is string => typeof item === "string");
+    if (kind === "error" || kind === "permission") {
+        return (
+            <div className={containerClassName} role="alert">
+                <Result
+                    status={kind === "error" ? "error" : "403"}
+                    title={title}
+                    subTitle={description}
+                    extra={action}
+                />
+            </div>
+        );
+    }
+
+    if (kind === "empty") {
+        return (
+            <div className={containerClassName} role="status">
+                <Empty
+                    description={
+                        <Flex vertical gap="small">
+                            <Typography.Text strong>{title}</Typography.Text>
+                            {description ? (
+                                <Typography.Text type="secondary">{description}</Typography.Text>
+                            ) : null}
+                        </Flex>
+                    }
+                >
+                    {action}
+                </Empty>
+            </div>
+        );
+    }
+
+    if (kind === "processing") {
+        return (
+            <Flex
+                className={containerClassName}
+                vertical
+                gap="middle"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+            >
+                <Typography.Text strong>{title}</Typography.Text>
+                {description ? (
+                    <Typography.Text type="secondary">{description}</Typography.Text>
+                ) : null}
+                {progress !== undefined ? (
+                    <Progress percent={Math.round(progress)} className="max-w-sm" />
+                ) : (
+                    <Spin />
+                )}
+                {action}
+            </Flex>
+        );
+    }
 
     return (
-        <div
-            className={containerClassName.join(" ")}
-            role={kind === "error" || kind === "permission" ? "alert" : "status"}
-            aria-live={busy ? "polite" : undefined}
-            aria-busy={busy || undefined}
+        <Flex
+            className={containerClassName}
+            vertical
+            gap="middle"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
         >
-            <Icon className={iconClassName.join(" ")} aria-hidden="true" />
-            <div className="space-y-1">
-                <p className="font-medium">{title}</p>
-                {description ? (
-                    <p className="max-w-lg text-sm text-muted-foreground">{description}</p>
-                ) : null}
-            </div>
-            {kind === "processing" && progress !== undefined ? (
-                <div className="w-full max-w-sm space-y-1">
-                    <Progress percent={progress} />
-                    <p className="text-xs tabular-nums text-muted-foreground">
-                        {Math.round(progress)}%
-                    </p>
-                </div>
-            ) : null}
-            {action ? (
-                <div className="mt-1 flex flex-wrap justify-center gap-2">{action}</div>
-            ) : null}
-        </div>
+            <Spin size={compact ? "medium" : "large"} />
+            <Typography.Text strong>{title}</Typography.Text>
+            {description ? <Typography.Text type="secondary">{description}</Typography.Text> : null}
+            {action}
+        </Flex>
     );
 }

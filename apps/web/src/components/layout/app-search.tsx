@@ -1,6 +1,7 @@
 import { SearchOutlined } from "@ant-design/icons";
-import { AutoComplete, Button, Input, Modal } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { Button, Empty, Flex, Input, Menu, Modal } from "antd";
+import type { MenuProps } from "antd";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 
 import { t } from "@/lib/i18n";
 
@@ -11,53 +12,34 @@ interface AppSearchProps {
     onSelect: (path: AppRoutePath) => void;
 }
 
-type SearchOption = {
-    value: string;
-    label: string;
-    groupLabel?: string;
-    searchText: string;
-    routePath: AppRoutePath;
-};
-
 export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
     const [open, setOpen] = useState(false);
     const [keyword, setKeyword] = useState("");
+    const [activeIndex, setActiveIndex] = useState(0);
 
-    const groupedOptions = useMemo(() => {
-        const grouped = routes.reduce<Record<string, SearchOption[]>>((groups, route) => {
-            const groupLabel = route.groupLabel;
-            const searchText = [route.label, route.path, route.groupLabel].join(" ").toLowerCase();
-            const option = {
-                value: route.path,
-                label: `${route.label} · ${route.path}`,
-                groupLabel,
-                searchText,
-                routePath: route.path,
-            };
-            groups[groupLabel] = groups[groupLabel] ?? [];
-            groups[groupLabel].push(option);
-            return groups;
-        }, {});
+    const filteredRoutes = useMemo(() => {
+        const normalizedKeyword = keyword.trim().toLowerCase();
+        if (!normalizedKeyword) {
+            return routes;
+        }
+        return routes.filter((route) => route.searchText.includes(normalizedKeyword));
+    }, [keyword, routes]);
 
-        return Object.entries(grouped).map(([groupLabel, options]) => ({
-            value: groupLabel,
+    const menuItems = useMemo<MenuProps["items"]>(() => {
+        const groups = new Map<string, SearchRouteItem[]>();
+        filteredRoutes.forEach((route) => {
+            groups.set(route.groupLabel, [...(groups.get(route.groupLabel) ?? []), route]);
+        });
+        return Array.from(groups, ([groupLabel, groupRoutes]) => ({
+            type: "group" as const,
             label: groupLabel,
-            options: options.map((option) => ({
-                ...option,
-                label: (
-                    <>
-                        <div className="flex min-w-0 items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                            <span className="text-xs text-muted-foreground">
-                                {option.routePath}
-                            </span>
-                        </div>
-                    </>
-                ),
-                value: option.routePath,
+            children: groupRoutes.map((route) => ({
+                key: route.path,
+                icon: route.icon,
+                label: route.label,
             })),
         }));
-    }, [routes]);
+    }, [filteredRoutes]);
 
     useEffect(() => {
         const handleShortcut = (event: globalThis.KeyboardEvent) => {
@@ -71,77 +53,102 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
         return () => window.removeEventListener("keydown", handleShortcut);
     }, []);
 
-    const selectRoute = (value: AppRoutePath) => {
-        const selected = routes.find((route) => route.path === value);
-        if (!selected) {
-            return;
-        }
-        onSelect(selected.path);
+    useEffect(() => {
+        setActiveIndex(0);
+    }, [keyword, open]);
+
+    const closeSearch = () => {
         setOpen(false);
         setKeyword("");
+    };
+
+    const selectRoute = (route: SearchRouteItem) => {
+        closeSearch();
+        onSelect(route.path);
+    };
+
+    const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Escape") {
+            closeSearch();
+            return;
+        }
+
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setActiveIndex((current) =>
+                filteredRoutes.length === 0 ? 0 : (current + 1) % filteredRoutes.length,
+            );
+            return;
+        }
+
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveIndex((current) =>
+                filteredRoutes.length === 0
+                    ? 0
+                    : (current - 1 + filteredRoutes.length) % filteredRoutes.length,
+            );
+            return;
+        }
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+            const activeRoute = filteredRoutes[activeIndex];
+            if (activeRoute) {
+                selectRoute(activeRoute);
+            }
+        }
     };
 
     return (
         <>
             <Button
-                type="default"
-                className="size-9 shrink-0 justify-center px-0 text-muted-foreground sm:w-45 sm:justify-start sm:gap-2 sm:px-3 xl:w-90"
-                onClick={() => setOpen(true)}
+                type="text"
                 icon={<SearchOutlined />}
+                onClick={() => setOpen(true)}
                 aria-label={t("打开页面搜索", "Open page search")}
             >
-                <span className="hidden min-w-0 flex-1 truncate text-left sm:inline">
-                    {t("搜索", "Search")}
-                </span>
-                <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-xs leading-none text-muted-foreground sm:inline">
-                    ⌘ K
-                </kbd>
+                {t("搜索", "Search")}
             </Button>
 
             <Modal
                 open={open}
-                onCancel={() => setOpen(false)}
+                onCancel={closeSearch}
                 footer={null}
-                centered
                 title={t("搜索页面", "Search pages")}
-                width={680}
             >
-                <div className="space-y-3 py-2">
-                    <AutoComplete
+                <Flex vertical gap="small">
+                    <Input
+                        allowClear
                         autoFocus
-                        className="w-full"
-                        options={groupedOptions as any}
-                        onSelect={(_value: string, option: unknown) => {
-                            const selected = option as SearchOption;
-                            selectRoute(selected.routePath);
-                        }}
+                        prefix={<SearchOutlined />}
                         value={keyword}
-                        onChange={setKeyword}
                         placeholder={t("输入页面名称或路径...", "Type a page name or path...")}
-                        onKeyDown={(event) => {
-                            if (event.key === "Escape") {
-                                setOpen(false);
-                            }
-                        }}
-                        filterOption={(input, option) => {
-                            const typed = (input ?? "").toLowerCase();
-                            const routeOption = option as SearchOption;
-                            const searchText = String(routeOption?.searchText ?? "").toLowerCase();
-                            return searchText.includes(typed);
-                        }}
-                    >
-                        <Input
-                            suffix={null}
-                            placeholder={t("输入页面名称或路径...", "Type a page name or path...")}
-                        />
-                    </AutoComplete>
+                        onChange={(event) => setKeyword(event.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        aria-label={t("搜索页面", "Search pages")}
+                    />
 
-                    {routes.length === 0 ? (
-                        <div className="rounded-sm border border-dashed p-3 text-sm text-muted-foreground">
-                            {t("未找到页面。", "No pages found.")}
+                    {filteredRoutes.length === 0 ? (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={t("未找到页面", "No pages found")}
+                        />
+                    ) : (
+                        <div className="max-h-105 overflow-y-auto">
+                            <Menu
+                                items={menuItems}
+                                selectedKeys={[filteredRoutes[activeIndex]?.path ?? ""]}
+                                onSelect={({ key }) => {
+                                    const route = filteredRoutes.find((item) => item.path === key);
+                                    if (route) {
+                                        selectRoute(route);
+                                    }
+                                }}
+                            />
                         </div>
-                    ) : null}
-                </div>
+                    )}
+                </Flex>
             </Modal>
         </>
     );

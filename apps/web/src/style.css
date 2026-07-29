@@ -19,14 +19,6 @@
         width: 100%;
         background: var(--background);
         color: var(--foreground);
-        font-family:
-            Inter,
-            ui-sans-serif,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
-        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     }
 
     body[data-scroll-locked] {
@@ -44,48 +36,6 @@
         textarea {
             font-size: 16px !important;
         }
-    }
-}
-
-@layer components {
-    .rz-shell {
-        height: 100%;
-        min-height: 0;
-        overflow: hidden;
-        background-color: var(--background);
-    }
-
-    .rz-sidebar [data-slot="sidebar-inner"] {
-        border-inline-end: 1px solid var(--sidebar-border);
-        background: var(--sidebar);
-    }
-
-    .rz-topbar {
-        background: var(--card);
-    }
-
-    .rz-content {
-        background: transparent;
-    }
-
-    .rz-page [data-slot="card"] {
-        border-color: var(--border);
-        background: var(--panel);
-        box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
-    }
-
-    .rz-page {
-        max-width: 100rem;
-    }
-
-    .operations-ledger__main,
-    .operations-ledger__rail {
-        min-width: 0;
-    }
-
-    .rz-page [data-slot="card-title"],
-    .rz-page .tabular-nums {
-        font-variant-numeric: tabular-nums;
     }
 }
 

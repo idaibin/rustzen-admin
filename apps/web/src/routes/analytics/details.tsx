@@ -119,17 +119,15 @@ function AnalyticsEventsPage() {
                 "View raw page, API, user, and business events for the current instance.",
             )}
             toolbar={
-                <div className="flex flex-wrap gap-3">
-                    <Input
-                        className="mt-auto w-64"
-                        placeholder={t("输入完整事件名称", "Enter the full event name")}
-                        value={eventName}
-                        onChange={(event) => {
-                            setEventName(event.target.value);
-                            setCurrent(1);
-                        }}
-                    />
-                </div>
+                <Input
+                    className="w-64"
+                    placeholder={t("输入完整事件名称", "Enter the full event name")}
+                    value={eventName}
+                    onChange={(event) => {
+                        setEventName(event.target.value);
+                        setCurrent(1);
+                    }}
+                />
             }
         >
             <ProTable<EventRow>
