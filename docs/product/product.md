@@ -62,6 +62,14 @@ Product decisions follow these principles:
 Module failure must not prevent Admin login or make an unrelated module
 unavailable.
 
+An enabled fixed module's active, visible, reconciled navigation remains
+discoverable in the sidebar and page search when its service is unavailable or
+its current runtime contract is incompatible. Service health controls whether
+the destination can currently serve a request, not whether an otherwise
+visible entry exists. Disabling the module removes that navigation. Existing
+RBAC grants and manual menu-visibility overrides continue to decide which of
+the enabled module's destinations a user may see.
+
 The retained end-to-end journeys are:
 
 - Admin: sign in, inspect system state, manage users and roles, control modules,
@@ -126,10 +134,18 @@ Technical ownership and stable internal names are defined in
    acceptance evidence. Structured `docs/ui/` packages such as
    `evaluation.yaml` and `artifact-manifest.yaml` are historical or task-local
    evidence only and do not govern current approval.
-7. Dashboard is a control-plane landing page: it shows account totals and
-   module health. Detailed host resources remain owned by System Status, while
-   module metrics and trends remain on their Monitoring and Analytics pages.
-8. Dictionary management is not a current product capability because no
+7. Dashboard is a control-plane landing page: it shows account totals, module
+   health, and a permission-gated summary of the Admin host's CPU, memory, and
+   disk usage. Detailed storage and host-resource diagnostics remain owned by
+   System Status, while module metrics and trends remain on their Monitoring
+   and Analytics pages.
+8. Menu management shows the navigation inventory used by the sidebar and page
+   search. Core Admin navigation is read-only there; only module-owned
+   presentation may be edited. It does not create capability definitions.
+   Admin route registration and module Manifests generate the capability
+   catalog, while role management is the only product surface that assigns
+   those capabilities to custom roles.
+9. Dictionary management is not a current product capability because no
    in-repository workflow consumes it. Its HTTP surface, page, navigation, and
    permission are removed. The dormant SQLite table is not a supported
    integration or upgrade-compatibility contract and may be removed from the
@@ -202,8 +218,11 @@ behavior. They do not justify a fifth process or a new contract crate today.
   in one release; Automation remains part of Reports.
 - Confirmed: former products are capability evidence, not whole-product
   migration targets.
-- Confirmed: Dashboard is limited to control-plane summary and module health;
-  detailed resource and product telemetry stay on their owning pages.
+- Confirmed: Dashboard includes account totals, module health, and the three
+  key Admin-host resource percentages for operators who can view System
+  Status; detailed resource and product telemetry stay on their owning pages.
+- Confirmed: capability definitions cannot be added manually. Admin routes and
+  module Manifests generate them, and role management assigns them.
 - Confirmed: Dictionary management is removed from the current surface; its
   dormant SQLite table is not an upgrade-compatibility contract.
 - Confirmed: the primary positioning is a lightweight self-hosted operations

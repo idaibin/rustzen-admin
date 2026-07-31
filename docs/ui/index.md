@@ -8,7 +8,8 @@ slice-local behavior.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |
-| Admin | [dashboard-navigation-simplification](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Implemented; post-merge browser review pending |
+| Admin | [metric-card-visual-consistency](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Implemented and verified for retained 1920x1080 / 1440x900 runtime evidence |
+| Admin | [dashboard-navigation-simplification](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Implemented and verified for retained 1920x1080 / 1440x900 runtime evidence |
 | Admin | [role-definition-management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge runtime and browser evidence retained |
 | Admin | [user-role-assignment-readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge runtime and browser evidence retained |
 
