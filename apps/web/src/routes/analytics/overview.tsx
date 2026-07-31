@@ -1,12 +1,4 @@
-import {
-    ApiOutlined,
-    BarChartOutlined,
-    BugOutlined,
-    ClockCircleOutlined,
-    EyeOutlined,
-    FieldTimeOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
+import { ApiOutlined, BarChartOutlined, EyeFilled, UserOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Card, Typography } from "antd";
@@ -105,52 +97,26 @@ function AnalyticsOverviewPage() {
                     <MetricCard
                         label={t("页面浏览量", "Page views")}
                         value={overview.pv}
-                        icon={<EyeOutlined />}
-                        tone="primary"
+                        icon={<EyeFilled />}
+                        tone="blue"
                     />
                     <MetricCard
                         label={t("独立访客", "Unique visitors")}
                         value={overview.uv}
                         icon={<UserOutlined />}
-                        tone="info"
+                        tone="violet"
                     />
                     <MetricCard
                         label={t("全部事件", "Total events")}
                         value={overview.eventCount}
                         icon={<BarChartOutlined />}
-                        tone="primary"
+                        tone="green"
                     />
                     <MetricCard
                         label={t("接口请求", "API requests")}
                         value={overview.requestCount}
                         icon={<ApiOutlined />}
-                        tone="info"
-                    />
-                </div>
-                <Typography.Text strong>
-                    {t("质量与性能", "Quality and performance")}
-                </Typography.Text>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <MetricCard
-                        label={t("错误数", "Errors")}
-                        value={overview.errorCount}
-                        icon={<BugOutlined />}
-                        tone={overview.errorCount > 0 ? "danger" : "success"}
-                        size="small"
-                    />
-                    <MetricCard
-                        label={t("平均耗时", "Average duration")}
-                        value={`${Math.round(overview.averageDurationMs)} ms`}
-                        icon={<FieldTimeOutlined />}
-                        tone="warning"
-                        size="small"
-                    />
-                    <MetricCard
-                        label={t("P95 耗时", "P95 duration")}
-                        value={`${overview.p95DurationMs} ms`}
-                        icon={<ClockCircleOutlined />}
-                        tone="warning"
-                        size="small"
+                        tone="amber"
                     />
                 </div>
             </div>

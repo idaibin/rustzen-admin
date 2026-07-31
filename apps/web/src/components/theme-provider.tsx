@@ -52,7 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                     algorithm,
                 }}
             >
-                <AntdApp>{children}</AntdApp>
+                <AntdApp className="flex h-full min-h-0 flex-col">{children}</AntdApp>
             </ConfigProvider>
         </ThemeContext>
     );

@@ -1,5 +1,5 @@
 import {
-    AlertOutlined,
+    AlertFilled,
     CloudServerOutlined,
     CloudSyncOutlined,
     ExclamationCircleOutlined,
@@ -77,31 +77,31 @@ function MonitoringOverviewPage() {
             label: t("已注册节点", "Registered nodes"),
             value: data.registeredNodes,
             icon: <CloudServerOutlined />,
-            tone: "primary" as const,
+            tone: "blue" as const,
         },
         {
             label: t("在线节点", "Online nodes"),
             value: data.onlineNodes,
             icon: <SignalFilled />,
-            tone: "success" as const,
+            tone: "green" as const,
         },
         {
             label: t("离线节点", "Offline nodes"),
             value: data.offlineNodes,
             icon: <CloudSyncOutlined />,
-            tone: "warning" as const,
+            tone: "amber" as const,
         },
         {
             label: t("异常检查", "Unhealthy checks"),
             value: data.unhealthyChecks,
-            icon: <AlertOutlined />,
-            tone: "danger" as const,
+            icon: <AlertFilled />,
+            tone: "red" as const,
         },
         {
             label: t("活动事件", "Active incidents"),
             value: data.activeIncidents,
             icon: <ExclamationCircleOutlined />,
-            tone: "info" as const,
+            tone: "violet" as const,
         },
     ];
 
@@ -114,7 +114,7 @@ function MonitoringOverviewPage() {
                     "View current node availability and the latest infrastructure heartbeats.",
                 )}
             />
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 {cards.map((item) => (
                     <MetricCard
                         key={item.label}

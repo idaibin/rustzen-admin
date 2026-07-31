@@ -51,11 +51,31 @@ decorative KPI grids.
 
 ## Component semantics
 
-`MetricCard` owns the compact factual metric presentation for dashboard,
-Monitoring, and Analytics overviews. Its optional icon tone is semantic, not a
-feature-local color. `DataState` owns loading, empty, error, permission, and
-processing feedback. Keep form validation, tables, actions, and query state
-with their route unless a stable shared responsibility already exists.
+`MetricCard` owns factual operational metrics on Dashboard, Monitoring, and
+Analytics overview surfaces. Every instance uses the same two-zone anatomy:
+
+- a neutral identity zone groups one semantic icon with the metric title;
+- a separated, lightly tinted value zone makes the number the dominant element;
+- icon, value, divider, and value-zone tint derive from one semantic tone;
+- supporting copy is optional and must not be inserted merely to fill space;
+- the component owns its internal spacing, type hierarchy, radius, border, and
+  tone treatment, while the consuming route owns grid columns and inter-card
+  gaps.
+
+Use the component palette `blue`, `green`, `violet`, `amber`, and `red` by
+metric category. These names describe the metric-card palette and do not
+redefine global success, warning, or danger status semantics. Do not assign one
+tone to an entire page, add route-local card variants, place decorative
+gradients or glow inside a metric card, or use `MetricCard` for module
+availability, progress, charts, forms, and arbitrary content.
+
+`apps/web/src/styles/theme.css` owns each palette tone's foreground, soft
+surface, and divider values. Its five metric tones must remain visibly distinct
+in both light and dark themes. Routes never define metric-card color values.
+
+`DataState` owns loading, empty, error, permission, and processing feedback.
+Keep form validation, tables, actions, and query state with their route unless
+a stable shared responsibility already exists.
 
 ## Status semantics
 
