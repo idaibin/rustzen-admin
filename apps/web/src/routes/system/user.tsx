@@ -331,6 +331,7 @@ function UserPage() {
                 loading={isPending || isFetching}
                 search={false}
                 options={false}
+                scroll={{ x: 1654 }}
                 pagination={{
                     current: currentPage,
                     pageSize: PAGE_SIZE,

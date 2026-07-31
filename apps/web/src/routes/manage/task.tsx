@@ -10,7 +10,7 @@ import {
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Form, Modal, Space, Tag, Typography } from "antd";
+import { Button, Form, Modal, Space, Tag, Tooltip, Typography } from "antd";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -43,7 +43,7 @@ function TaskPage() {
                 title: t("名称", "Name"),
                 dataIndex: "name",
                 key: "name",
-                width: 150,
+                width: 140,
                 ellipsis: true,
                 render: (_: unknown, row: Task.Item) => {
                     const name = localizeBuiltInTaskName(row.taskKey, row.name);
@@ -54,7 +54,7 @@ function TaskPage() {
                 title: t("描述", "Description"),
                 dataIndex: "description",
                 key: "description",
-                width: 220,
+                width: 200,
                 render: (_: unknown, row: Task.Item) => {
                     const description =
                         localizeBuiltInTaskDescription(row.taskKey, row.description) || "-";
@@ -69,7 +69,7 @@ function TaskPage() {
                 title: "Cron",
                 dataIndex: ["schedule", "expression"],
                 key: "cron",
-                width: 120,
+                width: 110,
                 render: (_: unknown, row: Task.Item) => (
                     <Tag color="blue">{row.schedule.expression}</Tag>
                 ),
@@ -78,7 +78,7 @@ function TaskPage() {
                 title: t("状态", "Status"),
                 dataIndex: "running",
                 key: "status",
-                width: 110,
+                width: 100,
                 render: (_: unknown, row: Task.Item) => (
                     <TaskStatusBadge status={row.running ? "running" : row.lastStatus} />
                 ),
@@ -87,7 +87,7 @@ function TaskPage() {
                 title: t("下次运行", "Next run"),
                 dataIndex: "nextRunAt",
                 key: "nextRunAt",
-                width: 170,
+                width: 160,
                 render: (_: unknown, row: Task.Item) => formatDateTime(row.nextRunAt),
             },
             {
@@ -101,7 +101,7 @@ function TaskPage() {
                 title: t("上次错误", "Last error"),
                 dataIndex: "lastErrorMessage",
                 key: "lastErrorMessage",
-                width: 140,
+                width: 120,
                 render: (_: unknown, row: Task.Item) => {
                     const errorMessage = row.lastErrorMessage || "-";
                     return (
@@ -114,8 +114,7 @@ function TaskPage() {
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 72,
-                fixed: "right",
+                width: 88,
                 align: "left",
                 render: (_: unknown, row: Task.Item) => (
                     <TaskActions record={row} onTaskUpdated={refetch} isFetching={isFetching} />
@@ -296,13 +295,15 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
 
     return (
         <>
-            <Button
-                icon={<HistoryOutlined />}
-                type="text"
-                size="small"
-                aria-label={t("任务日志", "Task logs")}
-                onClick={() => setOpen(true)}
-            />
+            <Tooltip title={t("任务日志", "Task logs")}>
+                <Button
+                    icon={<HistoryOutlined />}
+                    type="text"
+                    size="small"
+                    aria-label={t("任务日志", "Task logs")}
+                    onClick={() => setOpen(true)}
+                />
+            </Tooltip>
             <Modal
                 open={open}
                 onCancel={() => setOpen(false)}
@@ -315,21 +316,9 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
                 width="90%"
                 destroyOnHidden
             >
-                <Form layout="vertical" preserve={false}>
-                    <Form.Item
-                        label={t(
-                            "该任务最近的调度执行记录。",
-                            "Recent scheduled runs for this task.",
-                        )}
-                    >
-                        <span>
-                            {t(
-                                "该任务最近的调度执行记录。",
-                                "Recent scheduled runs for this task.",
-                            )}
-                        </span>
-                    </Form.Item>
-                </Form>
+                <Typography.Paragraph type="secondary">
+                    {t("该任务最近的调度执行记录。", "Recent scheduled runs for this task.")}
+                </Typography.Paragraph>
                 {error ? (
                     <DataState
                         kind="error"
@@ -411,15 +400,17 @@ function RunTaskDialog({
 
     return (
         <>
-            <Button
-                type="text"
-                size="small"
-                icon={<PlayCircleOutlined />}
-                disabled={disabled}
-                loading={isSubmitting}
-                onClick={() => setOpen(true)}
-                aria-label={record.running ? t("执行中", "Running") : t("执行任务", "Run task")}
-            />
+            <Tooltip title={record.running ? t("执行中", "Running") : t("执行任务", "Run task")}>
+                <Button
+                    type="link"
+                    size="small"
+                    icon={<PlayCircleOutlined />}
+                    disabled={disabled}
+                    loading={isSubmitting}
+                    onClick={() => setOpen(true)}
+                    aria-label={record.running ? t("执行中", "Running") : t("执行任务", "Run task")}
+                />
+            </Tooltip>
             <Modal
                 open={open}
                 onCancel={() => setOpen(false)}

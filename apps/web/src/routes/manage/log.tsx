@@ -2,7 +2,7 @@ import { DownloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Input, Tabs, Tag, type TabsProps } from "antd";
+import { Button, Input, Select, Tag } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { manageAPI } from "@/api";
@@ -37,11 +37,6 @@ function LogPage() {
     const [searchInput, setSearchInput] = useState("");
     const [searchKeyword, setSearchKeyword] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-
-    const actionItems: TabsProps["items"] = actionOptions.map((item) => ({
-        key: item.value,
-        label: item.label,
-    }));
 
     const params = useMemo<Log.QueryParams>(
         () => ({
@@ -100,7 +95,13 @@ function LogPage() {
 
     const logToolbar = (
         <div className="flex flex-wrap items-center gap-3">
-            <Tabs items={actionItems} activeKey={actionType} onChange={updateAction} />
+            <Select
+                aria-label={t("操作类型", "Action type")}
+                className="w-36"
+                value={actionType}
+                options={actionOptions}
+                onChange={updateAction}
+            />
             <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Input.Search
                     prefix={<SearchOutlined />}

@@ -73,14 +73,13 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
     const maxDirectoryBytes = Math.max(...storage.directories.map((item) => item.sizeBytes), 1);
 
     return (
-        <ProCard split="vertical" ghost={false} wrap>
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,5fr)]">
             <ProCard
                 title={t("存储", "Storage")}
                 subTitle={t(
                     "SQLite 存储及运行目录分布。",
                     "SQLite storage and runtime directory distribution.",
                 )}
-                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 14 }}
             >
                 <div className="space-y-6">
                     <div>
@@ -153,8 +152,7 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
 
             <ProCard
                 title={t("数据库文件", "Database files")}
-                className="min-w-[240px]"
-                colSpan={{ xs: 24, sm: 24, md: 24, lg: 24, xl: 10 }}
+                className="min-w-0"
                 extra={
                     <span className="text-xs text-muted-foreground">
                         {t("主库 / WAL / SHM", "Main / WAL / SHM")}
@@ -179,7 +177,7 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                     />
                 </div>
             </ProCard>
-        </ProCard>
+        </div>
     );
 }
 

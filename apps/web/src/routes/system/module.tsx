@@ -45,9 +45,11 @@ function SystemModulePage() {
             key: "module",
             width: "42%",
             render: (_: unknown, module: SystemModule.Item) => (
-                <div>
-                    <div className="font-medium">{localizeModuleName(module.id, module.name)}</div>
-                    <div className="text-xs text-muted-foreground">{module.id}</div>
+                <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                        {localizeModuleName(module.id, module.name)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{module.id}</span>
                 </div>
             ),
         },
