@@ -18,11 +18,9 @@ export const menuAPI = {
             success: true,
         };
     },
-    create: (data: Menu.CreateRequest) => {
-        return apiRequest<number, Menu.CreateRequest>({
-            url: "/api/system/menus",
-            method: "POST",
-            params: data,
+    inventory: () => {
+        return apiRequest<Menu.Item[]>({
+            url: "/api/system/menus/inventory",
         });
     },
     update: (id: number, data: Menu.UpdateRequest) => {

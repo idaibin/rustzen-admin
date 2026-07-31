@@ -185,7 +185,6 @@ pub mod system_role {
 /// Menu management capability boundaries.
 pub mod system_menu {
     pub const LIST: &str = "system:menu:list";
-    pub const CREATE: &str = "system:menu:create";
     pub const UPDATE: &str = "system:menu:update";
     pub const DELETE: &str = "system:menu:delete";
     pub const OPTIONS: &str = "system:menu:options";

@@ -1589,16 +1589,13 @@ mod tests {
             .await
             .expect("old menu row");
         let override_request = UpdateMenuPayload {
-            parent_id: 0,
             name: "Operations Monitor".to_string(),
-            code: "monitor:view".to_string(),
-            menu_type: MENU_TYPE_MENU,
             sort_order: 42,
             status: 2,
             icon: Some("activity".to_string()),
         };
 
-        MenuService::update_menu(&pool, old_id, 0, override_request.clone())
+        MenuService::update_menu(&pool, old_id, override_request.clone())
             .await
             .expect("edit before Manifest permission change");
         let changed = monitor_manifest(
@@ -1623,10 +1620,23 @@ mod tests {
             active_after_edit_first,
             ("monitor:manage".to_string(), "Operations Monitor".to_string(), 42, 2)
         );
+        let inactive_row_before: (String, String) =
+            sqlx::query_as("SELECT code, name FROM menus WHERE id = ?")
+                .bind(old_id)
+                .fetch_one(&pool)
+                .await
+                .expect("inactive row before rejected edit");
         assert!(matches!(
-            MenuService::update_menu(&pool, old_id, 0, override_request.clone()).await,
-            Err(ServiceError::NotFound(_))
+            MenuService::update_menu(&pool, old_id, override_request.clone()).await,
+            Err(ServiceError::InvalidOperation(_))
         ));
+        let inactive_row_after: (String, String) =
+            sqlx::query_as("SELECT code, name FROM menus WHERE id = ?")
+                .bind(old_id)
+                .fetch_one(&pool)
+                .await
+                .expect("inactive row after rejected edit");
+        assert_eq!(inactive_row_after, inactive_row_before);
 
         let race_pool = sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(1)
@@ -1648,7 +1658,7 @@ mod tests {
         let edit_request = override_request;
         let edit = tokio::spawn(async move {
             edit_start.wait().await;
-            MenuService::update_menu(&edit_pool, race_old_id, 0, edit_request).await
+            MenuService::update_menu(&edit_pool, race_old_id, edit_request).await
         });
         let reconcile_pool = race_pool.clone();
         let reconcile_start = Arc::clone(&start);
@@ -1672,7 +1682,7 @@ mod tests {
                 active_after_race,
                 ("monitor:manage".to_string(), "Operations Monitor".to_string())
             ),
-            Err(ServiceError::NotFound(_)) => assert_eq!(
+            Err(ServiceError::NotFound(_) | ServiceError::InvalidOperation(_)) => assert_eq!(
                 active_after_race,
                 ("monitor:manage".to_string(), "Changed default".to_string())
             ),

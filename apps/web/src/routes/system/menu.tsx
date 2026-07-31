@@ -1,4 +1,4 @@
-import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { EditOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -6,14 +6,12 @@ import { Button, Form, Input, Modal, Select, Tag } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
-import { menuQueryOptions } from "@/api/system/menu/query-options";
 import { AuthWrap } from "@/components/auth";
-import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
+import { getCoreNavigationItems } from "@/components/layout/routes";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { getEnableOptions, getMenuTypeOptions, getModuleIconOptions } from "@/constant/options";
-import { localizeBuiltInMenuName } from "@/lib/builtin-i18n";
+import { getEnableOptions, getModuleIconOptions } from "@/constant/options";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
@@ -21,27 +19,52 @@ export const Route = createFileRoute("/system/menu")({
     component: MenuPage,
 });
 
-type FlatMenuItem = Menu.Item & {
-    depth: number;
-    children?: Menu.Item[];
+type DisplayMenuItem = Menu.Item & {
+    readOnly?: boolean;
 };
 
 function MenuPage() {
     const locale = useLocale();
-    const [current, setCurrent] = useState(1);
     const [nameFilter, setNameFilter] = useState("");
     const [codeFilter, setCodeFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const { data, error, isPending, isFetching, refetch } = useQuery({
-        queryKey: ["system", "menu"],
-        queryFn: () => systemAPI.menu.list({}),
+        queryKey: ["system", "menu", "inventory"],
+        queryFn: systemAPI.menu.inventory,
     });
-    const rows = useMemo(() => flattenMenuTree(data?.data ?? []), [data?.data]);
+    const navigationRows = useMemo<DisplayMenuItem[]>(
+        () => [
+            ...getCoreNavigationItems().map((route, index) => ({
+                id: -(index + 1),
+                parentId: 0,
+                name: route.name,
+                code: route.permission ?? "",
+                menuType: 2,
+                sortOrder: index,
+                status: 1,
+                isSystem: true,
+                isManual: false,
+                path: route.path ?? null,
+                icon: null,
+                moduleId: null,
+                moduleMenuCode: null,
+                isActive: true,
+                createdAt: "",
+                updatedAt: "",
+                readOnly: true,
+            })),
+            ...(data ?? []),
+        ],
+        [data, locale],
+    );
+    const pageError = error;
+    const pagePending = isPending;
+    const pageFetching = isFetching;
 
     const tableRows = useMemo(() => {
         const nameQuery = nameFilter.trim().toLowerCase();
         const codeQuery = codeFilter.trim().toLowerCase();
-        return rows.filter((item) => {
+        return navigationRows.filter((item) => {
             if (nameQuery && !item.name.toLowerCase().includes(nameQuery)) {
                 return false;
             }
@@ -53,29 +76,23 @@ function MenuPage() {
             }
             return true;
         });
-    }, [codeFilter, nameFilter, rows, statusFilter]);
+    }, [codeFilter, nameFilter, navigationRows, statusFilter]);
 
     const resetFilters = () => {
         setNameFilter("");
         setCodeFilter("");
         setStatusFilter("all");
-        setCurrent(1);
     };
 
-    const columns: ProColumns<FlatMenuItem>[] = useMemo(
+    const columns: ProColumns<DisplayMenuItem>[] = useMemo(
         () => [
             {
                 title: t("名称", "Name"),
                 dataIndex: "name",
                 key: "name",
                 width: 260,
-                render: (_: unknown, row: FlatMenuItem) => (
-                    <span className="font-medium" style={{ paddingLeft: `${row.depth * 18}px` }}>
-                        {row.depth > 0 ? (
-                            <span className="mr-2 text-muted-foreground">└</span>
-                        ) : null}
-                        {localizeBuiltInMenuName(row)}
-                    </span>
+                render: (_: unknown, row: DisplayMenuItem) => (
+                    <span className="font-medium">{row.name}</span>
                 ),
             },
             {
@@ -83,21 +100,22 @@ function MenuPage() {
                 dataIndex: "path",
                 key: "path",
                 width: 220,
-                render: (_: unknown, row: FlatMenuItem) => <span>{row.path || "-"}</span>,
+                render: (_: unknown, row: DisplayMenuItem) => <span>{row.path || "-"}</span>,
             },
             {
                 title: t("权限编码", "Permission code"),
                 dataIndex: "code",
                 key: "code",
                 width: 220,
-                render: (_: unknown, row: FlatMenuItem) => <Tag bordered>{row.code}</Tag>,
+                render: (_: unknown, row: DisplayMenuItem) =>
+                    row.code ? <Tag bordered>{row.code}</Tag> : <span>-</span>,
             },
             {
                 title: t("菜单类型", "Menu type"),
                 dataIndex: "menuType",
                 key: "menuType",
                 width: 110,
-                render: (_: unknown, row: FlatMenuItem) => (
+                render: (_: unknown, row: DisplayMenuItem) => (
                     <MenuTypeBadge menuType={row.menuType} />
                 ),
             },
@@ -106,7 +124,9 @@ function MenuPage() {
                 dataIndex: "status",
                 key: "status",
                 width: 110,
-                render: (_: unknown, row: FlatMenuItem) => <MenuStatusBadge status={row.status} />,
+                render: (_: unknown, row: DisplayMenuItem) => (
+                    <MenuStatusBadge status={row.status} />
+                ),
             },
             {
                 title: t("排序", "Sort order"),
@@ -119,14 +139,15 @@ function MenuPage() {
                 dataIndex: "updatedAt",
                 key: "updatedAt",
                 width: 180,
-                render: (_: unknown, row: FlatMenuItem) => formatDateTime(row.updatedAt),
+                render: (_: unknown, row: DisplayMenuItem) =>
+                    row.updatedAt ? formatDateTime(row.updatedAt) : "-",
             },
             {
                 title: t("操作", "Actions"),
                 key: "actions",
                 width: 128,
                 fixed: "right",
-                render: (_: unknown, row: FlatMenuItem) => (
+                render: (_: unknown, row: DisplayMenuItem) => (
                     <MenuActions record={row} onSuccess={refresh} />
                 ),
             },
@@ -138,23 +159,16 @@ function MenuPage() {
         void refetch();
     };
 
-    if (!rows.length && isPending) {
+    const pageDescription = t(
+        "与左侧导航和页面搜索使用同一份菜单结构；权限分配请在角色管理中完成。",
+        "Uses the same menu structure as the sidebar and page search. Assign permissions in Role management.",
+    );
+
+    if (!data && pagePending) {
         return (
             <PageCard
                 title={t("菜单管理", "Menu management")}
-                description={t(
-                    "管理路由菜单、权限编码和按钮操作。",
-                    "Manage route menus, permission codes, and button actions.",
-                )}
-                actions={
-                    <AuthWrap code="system:menu:create">
-                        <MenuDialog mode="create" onSuccess={refresh}>
-                            <Button type="primary" icon={<PlusOutlined />}>
-                                {t("新建菜单", "New menu")}
-                            </Button>
-                        </MenuDialog>
-                    </AuthWrap>
-                }
+                description={pageDescription}
                 toolbar={
                     <div className="grid gap-3 md:grid-cols-4">
                         <Input
@@ -193,23 +207,11 @@ function MenuPage() {
         );
     }
 
-    if (!rows.length && error) {
+    if (!data && pageError) {
         return (
             <PageCard
                 title={t("菜单管理", "Menu management")}
-                description={t(
-                    "管理路由菜单、权限编码和按钮操作。",
-                    "Manage route menus, permission codes, and button actions.",
-                )}
-                actions={
-                    <AuthWrap code="system:menu:create">
-                        <MenuDialog mode="create" onSuccess={refresh}>
-                            <Button type="primary" icon={<PlusOutlined />}>
-                                {t("新建菜单", "New menu")}
-                            </Button>
-                        </MenuDialog>
-                    </AuthWrap>
-                }
+                description={pageDescription}
                 toolbar={
                     <div className="grid gap-3 md:grid-cols-4">
                         <Input
@@ -247,12 +249,12 @@ function MenuPage() {
                     kind="error"
                     title={t("菜单加载失败", "Failed to load menus")}
                     description={
-                        error instanceof Error
-                            ? error.message
+                        pageError instanceof Error
+                            ? pageError.message
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" onClick={refresh}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -264,26 +266,11 @@ function MenuPage() {
     return (
         <PageCard
             title={t("菜单管理", "Menu management")}
-            description={t(
-                "管理路由菜单、权限编码和按钮操作。",
-                "Manage route menus, permission codes, and button actions.",
-            )}
-            actions={
-                <AuthWrap code="system:menu:create">
-                    <MenuDialog mode="create" onSuccess={refresh}>
-                        <Button type="primary" icon={<PlusOutlined />}>
-                            {t("新建菜单", "New menu")}
-                        </Button>
-                    </MenuDialog>
-                </AuthWrap>
-            }
+            description={pageDescription}
             toolbar={
                 <form
                     className="grid gap-3 md:grid-cols-4"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        setCurrent(1);
-                    }}
+                    onSubmit={(event) => event.preventDefault()}
                 >
                     <Input
                         aria-label={t("菜单名称", "Menu name")}
@@ -311,47 +298,41 @@ function MenuPage() {
                         aria-label={t("状态", "Status")}
                     />
                     <div className="flex gap-2">
-                        <Button type="default" onClick={resetFilters} disabled={isFetching}>
+                        <Button type="default" onClick={resetFilters} disabled={pageFetching}>
                             {t("重置", "Reset")}
                         </Button>
-                        <Button type="primary" htmlType="submit" disabled={isFetching}>
+                        <Button type="primary" htmlType="submit" disabled={pageFetching}>
                             {t("查询", "Search")}
                         </Button>
                     </div>
                 </form>
             }
         >
-            {error ? (
+            {pageError ? (
                 <DataState
                     kind="error"
                     title={t("菜单加载失败", "Failed to load menus")}
                     description={
-                        error instanceof Error
-                            ? error.message
+                        pageError instanceof Error
+                            ? pageError.message
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" onClick={refresh}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
                 />
             ) : null}
             <DataTableShell>
-                <ProTable<FlatMenuItem>
+                <ProTable<DisplayMenuItem>
                     rowKey="id"
                     columns={columns}
                     dataSource={tableRows}
                     search={false}
-                    loading={isFetching}
+                    loading={pageFetching}
                     options={false}
-                    pagination={{
-                        current,
-                        pageSize: 20,
-                        total: tableRows.length,
-                        showSizeChanger: false,
-                        onChange: (page) => setCurrent(page),
-                    }}
+                    pagination={false}
                     toolBarRender={false}
                     tableAlertOptionRender={false}
                     rowSelection={false}
@@ -367,82 +348,54 @@ function MenuPage() {
     );
 }
 
-function MenuActions({ record, onSuccess }: { record: Menu.Item; onSuccess: () => void }) {
-    const canEdit = !record.moduleId || Boolean(record.moduleMenuCode);
+function MenuActions({ record, onSuccess }: { record: DisplayMenuItem; onSuccess: () => void }) {
+    if (record.readOnly || !record.moduleId || !record.moduleMenuCode) {
+        return null;
+    }
 
     return (
-        <div className="flex justify-end gap-2">
-            {canEdit ? (
-                <AuthWrap code="system:menu:update">
-                    <MenuDialog mode="edit" initialValues={record} onSuccess={onSuccess}>
-                        <Button
-                            type="text"
-                            icon={<EditOutlined />}
-                            aria-label={t("编辑菜单", "Edit menu")}
-                        />
-                    </MenuDialog>
-                </AuthWrap>
-            ) : null}
-            {!record.isSystem && !record.moduleId ? (
-                <AuthWrap code="system:menu:delete">
-                    <DisableMenuDialog record={record} onSuccess={onSuccess} />
-                </AuthWrap>
-            ) : null}
-        </div>
+        <AuthWrap code="system:menu:update">
+            <ModuleMenuDialog record={record} onSuccess={onSuccess}>
+                <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    aria-label={t("编辑导航菜单", "Edit navigation menu")}
+                />
+            </ModuleMenuDialog>
+        </AuthWrap>
     );
 }
 
-interface MenuDialogProps {
-    initialValues?: Partial<Menu.Item>;
-    mode?: "create" | "edit";
+interface ModuleMenuDialogProps {
+    record: Menu.Item;
     children: ReactNode;
     onSuccess?: () => void;
 }
 
-const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: MenuDialogProps) => {
+function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps) {
     const queryClient = useQueryClient();
-    const isModuleOwned = Boolean(initialValues?.moduleId);
     const [open, setOpen] = useState(false);
-    const [parentId, setParentId] = useState("0");
     const [name, setName] = useState("");
-    const [code, setCode] = useState("");
-    const [menuType, setMenuType] = useState("1");
     const [status, setStatus] = useState("1");
     const [sortOrder, setSortOrder] = useState("0");
     const [icon, setIcon] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const { data: menuOptions = [] } = useQuery({
-        ...menuQueryOptions.options(),
-        enabled: open && !isModuleOwned,
-    });
-    const selectableParents = useMemo(
-        () => menuOptions.filter((option) => option.value !== initialValues?.id),
-        [initialValues?.id, menuOptions],
-    );
 
     useEffect(() => {
         if (open) {
-            setParentId(String(initialValues?.parentId ?? 0));
-            setName(initialValues?.name ?? "");
-            setCode(initialValues?.code ?? "");
-            setMenuType(String(initialValues?.menuType ?? 1));
-            setStatus(String(initialValues?.status ?? 1));
-            setSortOrder(String(initialValues?.sortOrder ?? 0));
-            setIcon(initialValues?.icon ?? "");
+            setName(record.name);
+            setStatus(String(record.status));
+            setSortOrder(String(record.sortOrder));
+            setIcon(record.icon ?? "");
         }
-    }, [initialValues, open]);
+    }, [open, record]);
 
     const submit = async () => {
         const trimmedName = name.trim();
-        const trimmedCode = code.trim();
         const parsedSortOrder = Number(sortOrder);
 
         if (!trimmedName) {
             appMessage.error(t("请输入菜单名称", "Enter a menu name."));
-            return;
-        }
-        if (!trimmedCode) {
-            appMessage.error(t("请输入权限编码", "Enter a permission code."));
             return;
         }
         if (!Number.isInteger(parsedSortOrder) || parsedSortOrder < 0) {
@@ -452,30 +405,18 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
             return;
         }
 
-        const payload = {
-            parentId: Number(parentId),
-            name: trimmedName,
-            code: trimmedCode,
-            menuType: Number(menuType),
-            sortOrder: parsedSortOrder,
-            status: Number(status),
-            icon: icon || null,
-        };
-
         setSubmitting(true);
         try {
-            if (mode === "create") {
-                await systemAPI.menu.create(payload);
-                appMessage.success(t("菜单已创建", "Menu created."));
-            } else if (initialValues?.id) {
-                await systemAPI.menu.update(initialValues.id, payload);
-                appMessage.success(t("菜单已更新", "Menu updated."));
-            }
-            if (isModuleOwned) {
-                await queryClient.invalidateQueries({
-                    queryKey: ["system", "modules", "navigation"],
-                });
-            }
+            await systemAPI.menu.update(record.id, {
+                name: trimmedName,
+                sortOrder: parsedSortOrder,
+                status: Number(status),
+                icon: icon || null,
+            });
+            appMessage.success(t("导航菜单已更新", "Navigation menu updated."));
+            await queryClient.invalidateQueries({
+                queryKey: ["system", "menu", "inventory"],
+            });
             onSuccess?.();
             setOpen(false);
         } finally {
@@ -499,40 +440,16 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
                 onCancel={() => setOpen(false)}
                 destroyOnHidden
                 footer={null}
-                title={
-                    mode === "create" ? t("创建菜单", "Create menu") : t("编辑菜单", "Edit menu")
-                }
-                width={760}
+                title={t("编辑导航菜单", "Edit navigation menu")}
+                width={640}
             >
                 <p className="mb-4 text-sm text-muted-foreground">
-                    {isModuleOwned
-                        ? t(
-                              "覆盖标题、图标、排序和可见性。模块标识仍与清单保持同步。",
-                              "Override the title, icon, sort order, and visibility. The module identifier remains synchronized with the manifest.",
-                          )
-                        : t(
-                              "配置菜单层级、权限编码和显示顺序。",
-                              "Configure the menu hierarchy, permission code, and display order.",
-                          )}
+                    {t(
+                        "仅覆盖导航标题、图标、排序和可见性；路由与权限编码仍由模块清单维护。",
+                        "Override only the navigation title, icon, order, and visibility. The module manifest continues to own the route and permission code.",
+                    )}
                 </p>
                 <Form layout="vertical" onFinish={submit}>
-                    <div className="grid gap-2">
-                        <label htmlFor="menu-parent">{t("上级菜单", "Parent menu")}</label>
-                        <Select
-                            id="menu-parent"
-                            value={parentId}
-                            onChange={setParentId}
-                            disabled={isModuleOwned}
-                            style={{ width: "100%" }}
-                            options={[
-                                { value: "0", label: t("顶级菜单", "Top menu") },
-                                ...selectableParents.map((item) => ({
-                                    value: String(item.value),
-                                    label: item.label,
-                                })),
-                            ]}
-                        />
-                    </div>
                     <div className="grid gap-2 md:grid-cols-2">
                         <Form.Item label={t("菜单名称", "Menu name")} required>
                             <Input
@@ -540,42 +457,18 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
                                 value={name}
                                 placeholder={t("请输入菜单名称", "Enter a menu name")}
                                 onChange={(event) => setName(event.target.value)}
-                                disabled={false}
                             />
                         </Form.Item>
                         <Form.Item label={t("权限编码", "Permission code")} required>
-                            <Input
-                                id="menu-code"
-                                value={code}
-                                placeholder={t(
-                                    "请输入权限编码（如 system:menu:list）",
-                                    "Enter a permission code (for example, system:menu:list)",
-                                )}
-                                onChange={(event) => setCode(event.target.value)}
-                                disabled={isModuleOwned}
-                            />
+                            <Input id="menu-code" value={record.code} disabled />
                         </Form.Item>
                     </div>
-                    {isModuleOwned && initialValues?.path ? (
+                    {record.path ? (
                         <Form.Item label={t("路由路径", "Route path")}>
-                            <Input id="menu-path" value={initialValues.path} disabled />
+                            <Input id="menu-path" value={record.path} disabled />
                         </Form.Item>
                     ) : null}
                     <div className="grid gap-2 md:grid-cols-2">
-                        <div className="grid gap-2">
-                            <label htmlFor="menu-type">{t("类型", "Type")}</label>
-                            <Select
-                                id="menu-type"
-                                value={menuType}
-                                onChange={setMenuType}
-                                disabled={isModuleOwned}
-                                style={{ width: "100%" }}
-                                options={getMenuTypeOptions().map((item) => ({
-                                    value: String(item.value),
-                                    label: item.label,
-                                }))}
-                            />
-                        </div>
                         <div className="grid gap-2">
                             <label htmlFor="menu-status">{t("状态", "Status")}</label>
                             <Select
@@ -589,8 +482,6 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
                                 }))}
                             />
                         </div>
-                    </div>
-                    {isModuleOwned ? (
                         <div className="grid gap-2">
                             <label htmlFor="menu-icon">{t("图标", "Icon")}</label>
                             <Select
@@ -606,7 +497,7 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
                                 placeholder={t("请选择图标", "Select an icon")}
                             />
                         </div>
-                    ) : null}
+                    </div>
                     <div className="grid gap-2">
                         <Form.Item label={t("排序", "Sort order")}>
                             <Input
@@ -625,40 +516,12 @@ const MenuDialog = ({ children, initialValues, mode = "create", onSuccess }: Men
                             {t("取消", "Cancel")}
                         </Button>
                         <Button type="primary" htmlType="submit" loading={submitting}>
-                            {mode === "create" ? t("创建", "Create") : t("保存", "Save")}
+                            {t("保存", "Save")}
                         </Button>
                     </div>
                 </Form>
             </Modal>
         </>
-    );
-};
-
-function DisableMenuDialog({ record, onSuccess }: { record: Menu.Item; onSuccess: () => void }) {
-    const submit = async () => {
-        await systemAPI.menu.delete(record.id);
-        appMessage.success(t("菜单已禁用", "Menu disabled."));
-        onSuccess();
-    };
-
-    return (
-        <ConfirmDialog
-            trigger={
-                <Button
-                    type="text"
-                    icon={<StopOutlined />}
-                    aria-label={t("禁用菜单", "Disable menu")}
-                />
-            }
-            title={t("禁用菜单", "Disable menu")}
-            description={t(
-                `菜单 ${record.name} 将被禁用，是否继续？`,
-                `Menu ${record.name} will be disabled. Continue?`,
-            )}
-            confirmLabel={t("禁用", "Disable")}
-            destructive
-            onConfirm={submit}
-        />
     );
 }
 
@@ -687,11 +550,4 @@ function MenuStatusBadge({ status }: { status: number }) {
     };
 
     return <Tag color={meta.color}>{meta.label}</Tag>;
-}
-
-function flattenMenuTree(items: Menu.Item[], depth = 0): FlatMenuItem[] {
-    return items.flatMap((item) => {
-        const { children, ...rest } = item;
-        return [{ ...rest, depth }, ...flattenMenuTree(children ?? [], depth + 1)];
-    });
 }

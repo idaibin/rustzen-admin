@@ -37,6 +37,7 @@ export type AppRouteItem = {
     name: string;
     icon?: ReactNode;
     path?: AppRoutePath | AppRouteGroupPath;
+    permission?: string;
     children?: AppRouteItem[];
     requiresPermission?: boolean;
 };
@@ -53,6 +54,7 @@ const dashboardRoute = (): AppRouteItem => ({
     path: "/",
     name: t("仪表盘", "Dashboard"),
     icon: <DashboardOutlined />,
+    permission: "dashboard:view",
 });
 
 const profileRoute = (): AppRouteItem => ({
@@ -91,6 +93,7 @@ const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteIte
             path: item.path,
             name: localizeModuleMenuName(item.module, item.code, item.title),
             icon,
+            permission: item.permission,
             requiresPermission: false,
         });
         groups.set(item.module, group);
@@ -107,21 +110,25 @@ const systemRoutes = (): AppRouteItem => ({
             path: "/system/user",
             name: t("用户", "Users"),
             icon: <UserOutlined />,
+            permission: "system:user:list",
         },
         {
             path: "/system/role",
             name: t("角色", "Roles"),
             icon: <TeamOutlined />,
+            permission: "system:role:list",
         },
         {
             path: "/system/menu",
             name: t("菜单", "Menus"),
             icon: <MenuOutlined />,
+            permission: "system:menu:list",
         },
         {
             path: "/manage/log",
             name: t("日志", "Logs"),
             icon: <HistoryOutlined />,
+            permission: "manage:log:list",
         },
     ],
 });
@@ -135,21 +142,25 @@ const manageRoutes = (): AppRouteItem => ({
             path: "/system/module",
             name: t("系统模块", "System modules"),
             icon: <AppstoreOutlined />,
+            permission: "system:module:list",
         },
         {
             path: "/system/status",
             name: t("系统状态", "System status"),
             icon: <MonitorOutlined />,
+            permission: "system:status:view",
         },
         {
             path: "/manage/task",
             name: t("定时任务", "Scheduled tasks"),
             icon: <ClockCircleOutlined />,
+            permission: "manage:task:list",
         },
         {
             path: "/manage/deploy",
             name: t("部署版本", "Deploy versions"),
             icon: <CloudUploadOutlined />,
+            permission: "manage:deploy:list",
         },
     ],
 });
@@ -217,6 +228,19 @@ export const getMenuData = (
     };
 
     return getMenuList(layoutMenuRoutes);
+};
+
+export const getCoreNavigationItems = (): AppRouteItem[] => {
+    const flattenRoutes = (routes: AppRouteItem[]): AppRouteItem[] =>
+        routes.flatMap((route) =>
+            route.children
+                ? flattenRoutes(route.children)
+                : isAppRoutePath(route.path) && route.permission
+                  ? [route]
+                  : [],
+        );
+
+    return flattenRoutes([dashboardRoute(), systemRoutes(), manageRoutes()]);
 };
 
 export const getSearchRouteItems = (

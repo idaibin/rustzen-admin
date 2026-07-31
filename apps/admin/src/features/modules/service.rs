@@ -75,9 +75,10 @@ impl ModuleService {
             .await?
             .into_iter()
             .filter(|menu| {
-                snapshot.modules().get(&menu.module).is_some_and(|runtime| {
-                    runtime.enabled && runtime.compatible() && user.has_capability(&menu.permission)
-                })
+                snapshot
+                    .modules()
+                    .get(&menu.module)
+                    .is_some_and(|runtime| runtime.enabled && user.has_capability(&menu.permission))
             })
             .map(|mut menu| {
                 if let Some(runtime) = snapshot.modules().get(&menu.module) {
@@ -253,6 +254,7 @@ mod tests {
     };
 
     use axum::{Json, Router, extract::State, routing::get};
+    use rustzen_auth::auth::CurrentUser;
     use rustzen_ipc::{
         AccessMode, DelegationSigner, MenuDefinition, ModuleManifest, RouteManifest,
     };
@@ -260,10 +262,74 @@ mod tests {
     use tokio::sync::{Barrier, Notify};
 
     use super::{ModuleControlState, ModuleService};
-    use crate::features::modules::{
-        registry::ModuleRegistry,
-        types::{GatewayLookup, ModuleCondition, ModuleSpec},
+    use crate::{
+        features::modules::{
+            registry::ModuleRegistry,
+            types::{GatewayLookup, ModuleCondition, ModuleSpec},
+        },
+        infra::permission::PermissionService,
     };
+
+    #[tokio::test]
+    async fn navigation_keeps_persisted_enabled_menus_visible_without_a_runtime_manifest() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("pool");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+        PermissionService::reconcile_module_manifest(&pool, &test_manifest(false))
+            .await
+            .expect("persist module manifest");
+        let state = ModuleControlState {
+            pool,
+            registry: ModuleRegistry::new(
+                vec![ModuleSpec {
+                    id: "monitor",
+                    name: "Monitor",
+                    base_url: "http://127.0.0.1:9802".to_string(),
+                }],
+                &BTreeMap::new(),
+            ),
+            client: reqwest::Client::new(),
+            signer: DelegationSigner::new("secret").expect("signer"),
+            enabled_update: Arc::default(),
+        };
+        let authorized = CurrentUser::new(1, "user", ["monitor:view".to_string()], false);
+
+        for condition in [ModuleCondition::Unavailable, ModuleCondition::Incompatible] {
+            state.registry.update_module("monitor", |runtime| {
+                runtime.condition = condition;
+                assert!(runtime.manifest.is_none());
+            });
+            let navigation =
+                ModuleService::navigation(&state, &authorized).await.expect("navigation");
+            assert_eq!(navigation.len(), 1, "{condition:?} module keeps persisted menu visible");
+            assert_eq!(navigation[0].module_name, "Monitor");
+        }
+
+        let unauthorized = CurrentUser::new(2, "user", Vec::new(), false);
+        assert!(
+            ModuleService::navigation(&state, &unauthorized).await.expect("navigation").is_empty()
+        );
+
+        sqlx::query("UPDATE menus SET status = 2 WHERE module_id = 'monitor'")
+            .execute(&state.pool)
+            .await
+            .expect("hide menu");
+        assert!(
+            ModuleService::navigation(&state, &authorized).await.expect("navigation").is_empty()
+        );
+        sqlx::query("UPDATE menus SET status = 1 WHERE module_id = 'monitor'")
+            .execute(&state.pool)
+            .await
+            .expect("restore menu");
+
+        ModuleService::set_enabled(&state, "monitor", false).await.expect("disable");
+        assert!(
+            ModuleService::navigation(&state, &authorized).await.expect("navigation").is_empty()
+        );
+    }
 
     #[tokio::test]
     async fn changed_manifest_swaps_after_commit_and_invalid_change_rolls_back() {

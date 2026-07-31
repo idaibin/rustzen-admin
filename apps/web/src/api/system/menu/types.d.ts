@@ -36,22 +36,8 @@ declare namespace Menu {
         status?: string;
     }
 
-    // 创建菜单请求
-    interface CreateRequest {
-        parentId: number;
-        name: string;
-        code: string;
-        menuType: number;
-        sortOrder: number;
-        status: number;
-        icon?: string | null;
-    }
-
     interface UpdateRequest {
-        parentId: number;
         name: string;
-        code: string;
-        menuType: number;
         sortOrder: number;
         status: number;
         icon?: string | null;

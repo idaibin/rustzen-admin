@@ -13,6 +13,12 @@ Current capability, module delegation, and menu-reconciliation rules.
   synchronization, the immutable runtime registry, and gateway authorization.
 - Module Rust route registration is the single source for method, path, public
   or protected access, and required capability.
+- Admin route registration and module Manifests are the only supported sources
+  of capability definitions. Role management assigns existing capabilities;
+  menu management does not create them.
+- Menu management displays the runtime navigation inventory. Core Admin entries
+  are read-only there; only module-owned title, icon, order, and visibility may
+  be overridden.
 
 ## Capability rules
 
@@ -67,6 +73,13 @@ preserves manual presentation overrides. Disabled modules are not polled and
 remain unavailable until a fresh valid Manifest is synchronized after
 re-enabling.
 
+Runtime navigation uses the last transactionally reconciled active menu rows.
+For a user with the required capability, an unavailable or incompatible service
+does not hide an otherwise active, visible, non-deleted menu row. Runtime health
+and compatibility continue to govern gateway availability independently.
+Disabling the module hides its navigation without deleting the stored rows or
+presentation overrides. Manual menu-visibility overrides remain effective.
+
 ## Request flow
 
 1. Admin matches method and full path in the in-memory registry.
@@ -88,3 +101,4 @@ at the module boundary. Direct unsigned requests are rejected.
 - database, TOML, Manifest, or discovery work in the gateway hot path;
 - forwarding complete user roles or capabilities;
 - silent or partial Manifest reconciliation.
+- manually creating capability definitions through an administration endpoint.

@@ -1,6 +1,6 @@
 use super::{
     service::MenuService,
-    types::{CreateMenuRequest, MenuItemResp, MenuOptionResp, MenuQuery, UpdateMenuPayload},
+    types::{MenuItemResp, MenuOptionResp, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
@@ -22,26 +22,21 @@ pub async fn list_menus(
     Ok(ApiResponse::page(menu_list, total))
 }
 
-/// Create new menu
-/// Body: name, path, parent_id, icon, sort_order, status
-pub async fn create_menu(
+/// List the active module-owned menu inventory, including disabled presentation rows.
+pub async fn list_module_menu_inventory(
     State(pool): State<SqlitePool>,
-    Json(request): Json<CreateMenuRequest>,
-) -> AppResult<i64> {
-    Ok(ApiResponse::success(MenuService::create_menu(&pool, request).await?))
+) -> AppResult<Vec<MenuItemResp>> {
+    Ok(ApiResponse::success(MenuService::list_module_menu_inventory(&pool).await?))
 }
 
-/// Update menu
-/// Body: name, path, parent_id, icon, sort_order, status (all optional)
+/// Update module-owned navigation presentation.
+/// Body: name, icon, sort_order, status.
 pub async fn update_menu(
-    current_user: CurrentUser,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(
-        MenuService::update_menu(&pool, id, current_user.user_id, request).await?,
-    ))
+    Ok(ApiResponse::success(MenuService::update_menu(&pool, id, request).await?))
 }
 
 /// Disable menu

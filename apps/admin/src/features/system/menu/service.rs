@@ -1,9 +1,6 @@
 use super::{
     repo::MenuRepository,
-    types::{
-        CreateMenuRequest, MenuItemResp, MenuListQuery, MenuOptionResp, MenuQuery,
-        UpdateMenuPayload,
-    },
+    types::{MenuItemResp, MenuListQuery, MenuOptionResp, MenuQuery, UpdateMenuPayload},
 };
 use crate::common::{api::OptionsQuery, error::ServiceError, query::parse_optional_i16_filter};
 use crate::infra::permission::PermissionService;
@@ -31,23 +28,20 @@ impl MenuService {
         Ok((menu_responses, count))
     }
 
-    /// Create new menu with validation
-    pub async fn create_menu(
+    pub async fn list_module_menu_inventory(
         pool: &SqlitePool,
-        request: CreateMenuRequest,
-    ) -> Result<i64, ServiceError> {
-        tracing::info!("Attempting to create menu with name: {}", request.name);
-        ensure_not_module_capability(&request.code)?;
-        let menu_id = MenuRepository::create(pool, &request).await?;
-        PermissionService::refresh_all_user_permissions(pool).await?;
-        Ok(menu_id)
+    ) -> Result<Vec<MenuItemResp>, ServiceError> {
+        Ok(MenuRepository::list_module_menu_inventory(pool)
+            .await?
+            .into_iter()
+            .map(MenuItemResp::from)
+            .collect())
     }
 
     /// Update existing menu with validation
     pub async fn update_menu(
         pool: &SqlitePool,
         id: i64,
-        current_user_id: i64,
         request: UpdateMenuPayload,
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
@@ -65,12 +59,9 @@ impl MenuService {
                 )
                 .await
             }
-            Some((_, None, None)) => {
-                ensure_not_module_capability(&request.code)?;
-                Self::ensure_menu_is_mutable(pool, id, current_user_id).await?;
-                MenuRepository::update(pool, id, &request).await
-            }
-            Some(_) => Err(ServiceError::NotFound("Active module menu".to_string())),
+            Some(_) => Err(ServiceError::InvalidOperation(
+                "Only module navigation presentation can be updated.".to_string(),
+            )),
             None => Err(ServiceError::NotFound(format!("Menu id: {id}"))),
         }?;
         PermissionService::refresh_all_user_permissions(pool).await?;
@@ -133,24 +124,130 @@ impl MenuService {
     }
 }
 
-fn ensure_not_module_capability(code: &str) -> Result<(), ServiceError> {
-    if ["monitor:", "insights:", "reports:"].iter().any(|prefix| code.starts_with(prefix)) {
-        return Err(ServiceError::InvalidOperation(
-            "Independent module capabilities are declared by Rust routes.".to_string(),
-        ));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use super::ensure_not_module_capability;
+    use super::MenuService;
+    use crate::common::error::ServiceError;
+    use crate::features::system::menu::types::UpdateMenuPayload;
+    use sqlx::sqlite::SqlitePoolOptions;
 
-    #[test]
-    fn fixed_module_capabilities_cannot_be_created_or_reassigned_manually() {
-        for code in ["monitor:view", "insights:analyze", "reports:export"] {
-            assert!(ensure_not_module_capability(code).is_err(), "accepted {code}");
-        }
-        assert!(ensure_not_module_capability("system:menu:update").is_ok());
+    #[tokio::test]
+    async fn core_capability_rows_cannot_be_redefined_through_menu_updates() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("in-memory sqlite pool");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+        let menu_id: i64 = sqlx::query_scalar("SELECT id FROM menus WHERE code = '*'")
+            .fetch_one(&pool)
+            .await
+            .expect("core capability row");
+
+        let result = MenuService::update_menu(
+            &pool,
+            menu_id,
+            UpdateMenuPayload {
+                name: "Escalated".to_string(),
+                sort_order: 1,
+                status: 1,
+                icon: None,
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+        let code: String = sqlx::query_scalar("SELECT code FROM menus WHERE id = ?")
+            .bind(menu_id)
+            .fetch_one(&pool)
+            .await
+            .expect("unchanged capability row");
+        assert_eq!(code, "*");
+    }
+
+    #[tokio::test]
+    async fn legacy_manual_capability_rows_cannot_be_updated() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("in-memory sqlite pool");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+        let menu_id: i64 = sqlx::query_scalar(
+            "INSERT INTO menus
+             (parent_id, name, code, menu_type, status, is_system, is_manual, sort_order)
+             VALUES (0, 'Legacy manual', 'legacy:manual', 2, 1, FALSE, TRUE, 1)
+             RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("legacy manual capability row");
+
+        let result = MenuService::update_menu(
+            &pool,
+            menu_id,
+            UpdateMenuPayload {
+                name: "Changed".to_string(),
+                sort_order: 99,
+                status: 2,
+                icon: Some("lock".to_string()),
+            },
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+        let row: (String, i32, i16, Option<String>) =
+            sqlx::query_as("SELECT name, sort_order, status, icon FROM menus WHERE id = ?")
+                .bind(menu_id)
+                .fetch_one(&pool)
+                .await
+                .expect("unchanged legacy manual capability row");
+        assert_eq!(row, ("Legacy manual".to_string(), 1, 1, None));
+    }
+
+    #[tokio::test]
+    async fn module_menu_inventory_keeps_disabled_active_rows_available_for_reenable() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("in-memory sqlite pool");
+        crate::infra::db::run_migrations(&pool).await.expect("migrations");
+        let menu_id: i64 = sqlx::query_scalar(
+            "INSERT INTO menus
+             (parent_id, name, code, menu_type, status, is_system, is_manual, sort_order,
+              path, icon, module_id, module_menu_code, is_active)
+             VALUES (0, 'Monitor', 'monitor:view', 2, 2, TRUE, TRUE, 1,
+                     '/monitoring', 'monitor', 'monitor', 'monitor', TRUE)
+             RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("module menu");
+
+        let inventory =
+            MenuService::list_module_menu_inventory(&pool).await.expect("module menu inventory");
+        assert_eq!(inventory.len(), 1);
+        assert_eq!(inventory[0].id, menu_id);
+        assert_eq!(inventory[0].status, 2);
+
+        MenuService::update_menu(
+            &pool,
+            menu_id,
+            UpdateMenuPayload {
+                name: "Monitor".to_string(),
+                sort_order: 1,
+                status: 1,
+                icon: Some("monitor".to_string()),
+            },
+        )
+        .await
+        .expect("re-enable module menu");
+        let status: i16 = sqlx::query_scalar("SELECT status FROM menus WHERE id = ?")
+            .bind(menu_id)
+            .fetch_one(&pool)
+            .await
+            .expect("re-enabled status");
+        assert_eq!(status, 1);
     }
 }

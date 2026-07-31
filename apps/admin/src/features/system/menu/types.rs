@@ -23,27 +23,11 @@ pub struct MenuRow {
     pub updated_at: NaiveDateTime,
 }
 
-/// Create menu request parameters
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateMenuRequest {
-    pub parent_id: i64,
-    pub name: String,
-    pub code: String,
-    pub menu_type: i16,
-    pub sort_order: i16,
-    pub status: i16,
-    pub icon: Option<String>,
-}
-
 /// Update menu request parameters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMenuPayload {
-    pub parent_id: i64,
     pub name: String,
-    pub code: String,
-    pub menu_type: i16,
     pub sort_order: i16,
     pub status: i16,
     pub icon: Option<String>,

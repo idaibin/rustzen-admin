@@ -6,7 +6,7 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
-use super::types::{CreateMenuRequest, MenuListQuery, MenuRow, UpdateMenuPayload};
+use super::types::{MenuListQuery, MenuRow};
 
 /// Menu data access layer
 pub struct MenuRepository;
@@ -36,69 +36,24 @@ impl MenuRepository {
         .await
     }
 
-    /// Creates a new menu
-    pub async fn create(
+    pub async fn list_module_menu_inventory(
         pool: &SqlitePool,
-        request: &CreateMenuRequest,
-    ) -> Result<i64, ServiceError> {
-        let now = Utc::now().naive_utc();
-        let menu_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO menus (parent_id, name, code, menu_type, sort_order, status, icon, is_manual, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)
-             RETURNING id",
+    ) -> Result<Vec<MenuRow>, ServiceError> {
+        sqlx::query_as::<_, MenuRow>(
+            "SELECT id, parent_id, parent_code, name, code, menu_type, status, is_system, is_manual, sort_order, path, icon, module_id, module_menu_code, is_active, created_at, updated_at
+             FROM menus
+             WHERE module_id IS NOT NULL
+               AND module_menu_code IS NOT NULL
+               AND is_active = TRUE
+               AND deleted_at IS NULL
+             ORDER BY sort_order ASC, id ASC",
         )
-        .bind(request.parent_id)
-        .bind(&request.name)
-        .bind(&request.code)
-        .bind(request.menu_type)
-        .bind(request.sort_order)
-        .bind(request.status)
-        .bind(request.icon.as_deref())
-        .bind(now)
-        .bind(now)
-        .fetch_one(pool)
+        .fetch_all(pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error creating menu: {:?}", e);
+        .map_err(|error| {
+            tracing::error!(%error, "Database error loading module menu inventory");
             ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(menu_id)
-    }
-
-    /// Updates an existing menu
-    pub async fn update(
-        pool: &SqlitePool,
-        id: i64,
-        request: &UpdateMenuPayload,
-    ) -> Result<i64, ServiceError> {
-        let menu_id = sqlx::query_scalar::<_, i64>(
-                "UPDATE menus
-                 SET parent_id = ?, name = ?, code = ?, menu_type = ?, sort_order = ?, status = ?, icon = ?, is_manual = TRUE, updated_at = ?
-                 WHERE id = ? AND deleted_at IS NULL
-                 RETURNING id",
-            )
-            .bind(request.parent_id)
-            .bind(&request.name)
-            .bind(&request.code)
-            .bind(request.menu_type)
-            .bind(request.sort_order)
-            .bind(request.status)
-            .bind(request.icon.as_deref())
-            .bind(Utc::now().naive_utc())
-            .bind(id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating menu: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        if let Some(menu_id) = menu_id {
-            Ok(menu_id)
-        } else {
-            Err(ServiceError::NotFound("Menu".to_string()))
-        }
+        })
     }
 
     pub async fn update_module_override(

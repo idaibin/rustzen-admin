@@ -137,6 +137,10 @@ reconciled module menu rows in SQLite. The permission cache is refreshed on
 login and permission mutations; the gateway reads the cache only. Manual menu
 overrides are preserved when a Manifest refreshes, and disabling a module
 removes it from runtime navigation without deleting its stored overrides.
+For enabled modules, the last reconciled active, visible menu rows remain in
+navigation during service outages and incompatible runtime states; health and
+contract compatibility affect request availability, not menu visibility.
+Manual menu-visibility overrides remain effective.
 
 ## Release topology
 
