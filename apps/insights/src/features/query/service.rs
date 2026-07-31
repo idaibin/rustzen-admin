@@ -16,6 +16,8 @@ pub async fn events(pool: &SqlitePool, query: EventQuery) -> Result<Page<Event>,
         pool,
         &Window { from: &from, to: &to, offset, limit },
         clean_filter(query.event_name).as_deref(),
+        query.event_kind.map(|kind| kind.as_str()),
+        clean_filter(query.path).as_deref(),
         clean_filter(query.visitor_id).as_deref(),
         clean_filter(query.platform).as_deref(),
     )

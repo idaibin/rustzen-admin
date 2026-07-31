@@ -3,12 +3,32 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::FromRow;
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EventKind {
+    Page,
+    Api,
+    Other,
+}
+
+impl EventKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Page => "page",
+            Self::Api => "api",
+            Self::Other => "other",
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventQuery {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub event_name: Option<String>,
+    pub event_kind: Option<EventKind>,
+    pub path: Option<String>,
     pub visitor_id: Option<String>,
     pub platform: Option<String>,
     pub current: Option<i64>,

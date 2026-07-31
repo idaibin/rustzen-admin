@@ -38,6 +38,8 @@ declare namespace Insights {
 
     interface EventQuery extends ListQuery {
         eventName?: string;
+        eventKind?: "page" | "api" | "other";
+        path?: string;
         visitorId?: string;
         platform?: string;
     }

@@ -141,6 +141,58 @@ mod tests {
         assert_eq!(response_json(details).await["data"]["total"], 2);
     }
 
+    #[tokio::test]
+    async fn event_query_filters_by_kind_path_and_combination_with_correct_totals() {
+        let app = build_router(test_pool().await, SECRET).expect("router");
+        let tracked = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                "/api/insights/track",
+                DelegatedAccess::Public,
+                json!([
+                    { "eventName": "page_view", "visitorId": "v1", "pagePath": "/analytics/overview" },
+                    { "eventName": "api_request", "visitorId": "v1", "apiPath": "/api/insights/events" },
+                    { "eventName": "custom_export", "visitorId": "v1", "pagePath": "/analytics/overview" },
+                    { "eventName": "page_view", "visitorId": "v1", "pagePath": "/settings" }
+                ]),
+            ))
+            .await
+            .expect("track");
+        assert_eq!(response_json(tracked).await["data"]["accepted"], 4);
+
+        for (query, expected_names, expected_total) in [
+            ("eventKind=page", vec!["page_view", "page_view"], 2),
+            ("eventKind=api", vec!["api_request"], 1),
+            ("eventKind=other", vec!["custom_export"], 1),
+            ("path=analytics", vec!["custom_export", "page_view"], 2),
+            ("eventKind=page&path=analytics", vec!["page_view"], 1),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(signed_request(
+                    Method::GET,
+                    &format!("/api/insights/events?{query}"),
+                    DelegatedAccess::protected("insights:event:view"),
+                    Body::empty(),
+                ))
+                .await
+                .expect("filtered events");
+            let body = response_json(response).await;
+            assert_eq!(body["data"]["total"], expected_total, "{query}");
+            assert_eq!(
+                body["data"]["data"]
+                    .as_array()
+                    .expect("event data")
+                    .iter()
+                    .map(|event| event["eventName"].as_str().expect("event name"))
+                    .collect::<Vec<_>>(),
+                expected_names,
+                "{query}",
+            );
+        }
+    }
+
     async fn test_pool() -> sqlx::SqlitePool {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)

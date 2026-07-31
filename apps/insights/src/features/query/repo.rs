@@ -13,6 +13,8 @@ pub async fn events(
     pool: &SqlitePool,
     window: &Window<'_>,
     event_name: Option<&str>,
+    event_kind: Option<&str>,
+    path: Option<&str>,
     visitor_id: Option<&str>,
     platform: Option<&str>,
 ) -> Result<(Vec<EventRow>, i64), sqlx::Error> {
@@ -23,6 +25,12 @@ pub async fn events(
          WHERE occurred_at >= ? AND occurred_at <= ?
            AND (? IS NULL OR event_name = ?) AND (? IS NULL OR visitor_id = ?)
            AND (? IS NULL OR platform = ?)
+           AND (? IS NULL OR CASE ?
+                WHEN 'page' THEN event_name = 'page_view'
+                WHEN 'api' THEN event_name = 'api_request'
+                WHEN 'other' THEN event_name NOT IN ('page_view', 'api_request')
+                ELSE 0 END)
+           AND (? IS NULL OR page_path LIKE '%' || ? || '%' OR api_path LIKE '%' || ? || '%')
          ORDER BY occurred_at DESC, id DESC LIMIT ? OFFSET ?",
     )
     .bind(window.from)
@@ -33,6 +41,11 @@ pub async fn events(
     .bind(visitor_id)
     .bind(platform)
     .bind(platform)
+    .bind(event_kind)
+    .bind(event_kind)
+    .bind(path)
+    .bind(path)
+    .bind(path)
     .bind(window.limit)
     .bind(window.offset)
     .fetch_all(pool)
@@ -41,7 +54,13 @@ pub async fn events(
         "SELECT COUNT(*) FROM insights_events
          WHERE occurred_at >= ? AND occurred_at <= ?
            AND (? IS NULL OR event_name = ?) AND (? IS NULL OR visitor_id = ?)
-           AND (? IS NULL OR platform = ?)",
+           AND (? IS NULL OR platform = ?)
+           AND (? IS NULL OR CASE ?
+                WHEN 'page' THEN event_name = 'page_view'
+                WHEN 'api' THEN event_name = 'api_request'
+                WHEN 'other' THEN event_name NOT IN ('page_view', 'api_request')
+                ELSE 0 END)
+           AND (? IS NULL OR page_path LIKE '%' || ? || '%' OR api_path LIKE '%' || ? || '%')",
     )
     .bind(window.from)
     .bind(window.to)
@@ -51,6 +70,11 @@ pub async fn events(
     .bind(visitor_id)
     .bind(platform)
     .bind(platform)
+    .bind(event_kind)
+    .bind(event_kind)
+    .bind(path)
+    .bind(path)
+    .bind(path)
     .fetch_one(pool)
     .await?;
     Ok((rows, total))
