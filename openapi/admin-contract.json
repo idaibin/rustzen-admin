@@ -1,0 +1,260 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RustZen Admin contract trial",
+    "version": "0.5.0"
+  },
+  "paths": {
+    "/api/auth/me": {
+      "get": {
+        "operationId": "getCurrentAdminUser",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUserInfoResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/system/users": {
+      "post": {
+        "operationId": "createAdminUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseI64"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or invalid JSON",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing capability"
+          },
+          "404": {
+            "description": "Role not found"
+          },
+          "409": {
+            "description": "Username or email conflict"
+          },
+          "415": {
+            "description": "Content-Type must be application/json",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "422": {
+            "description": "DTO deserialization failed",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:user:create"
+          ],
+          "mode": "require"
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponseI64": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseUserInfoResp": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserInfoResp"
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "description": "Create user request parameters",
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "realName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "A non-empty list of role IDs to assign to the user."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "User status: Defaults to 1."
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "UserInfoResp": {
+        "type": "object",
+        "description": "Comprehensive user information for authenticated sessions.",
+        "required": [
+          "id",
+          "username",
+          "isSystem",
+          "permissions"
+        ],
+        "properties": {
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Avatar URL of the user"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Email of the user"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unique identifier of the user"
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "Whether the user is a system user"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of permission codes the user has access to"
+          },
+          "realName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Full/display name of the user (optional)"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username of the user"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -13,23 +13,14 @@ export async function apiRequest<T, P = Api.BaseParams>(
     props: RequestOptions<P>,
 ): Promise<T | Api.ApiResponse<T>> {
     const { url, config } = formatFetchConfig(props);
-    const response = await fetch(url, config);
-    if (!response.ok) {
-        return handleError(response);
-    }
-
-    const result = (await response.json()) as Api.ApiResponse<T>;
-    if (result.code !== 0) {
-        const message = localizeApiError(
-            result.code,
-            result.message || response.statusText || t("请求失败", "Request failed"),
-        );
-        appMessage.error(message);
-        return Promise.reject(new Error(message));
-    }
+    const result = await executeJsonRequest<Api.ApiResponse<T>>(url, config);
 
     return props.raw ? result : result.data;
 }
+
+/** Orval mutator: generated clients retain the same auth/error semantics. */
+export const generatedApiRequest = <T>(url: string, options: RequestInit): Promise<T> =>
+    executeJsonRequest<T>(url, withDefaultAndAuthHeaders(options));
 
 export const apiDownload = async ({
     filename,
@@ -105,7 +96,7 @@ interface RequestOptions<P = Api.BaseParams> extends RequestInit {
     raw?: boolean;
 }
 
-const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions<T>) => {
+const withDefaultAndAuthHeaders = (options: RequestInit): RequestInit => {
     const headers = new Headers(defaultHeaders);
     new Headers(options.headers).forEach((value, key) => {
         headers.set(key, value);
@@ -114,10 +105,11 @@ const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions
         headers.set(key, value);
     });
 
-    const config: RequestInit = {
-        ...options,
-        headers,
-    };
+    return { ...options, headers };
+};
+
+const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions<T>) => {
+    const config = withDefaultAndAuthHeaders(options);
     url = appendQueryString(url, query);
     if (["PUT", "POST", "PATCH"].includes(options.method || "GET")) {
         config.body = options.body || JSON.stringify(params);
@@ -125,6 +117,22 @@ const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions
         url = appendQueryString(url, params);
     }
     return { url, config };
+};
+
+const executeJsonRequest = async <T>(url: string, config: RequestInit): Promise<T> => {
+    const response = await fetch(url, config);
+    if (!response.ok) return handleError(response);
+    const result = (await response.json()) as T;
+    if (typeof result === "object" && result !== null && "code" in result && result.code !== 0) {
+        const envelope = result as { code: number; message?: string };
+        const message = localizeApiError(
+            envelope.code,
+            envelope.message || response.statusText || t("请求失败", "Request failed"),
+        );
+        appMessage.error(message);
+        return Promise.reject(new Error(message));
+    }
+    return result;
 };
 
 const handleError = async (error: unknown) => {

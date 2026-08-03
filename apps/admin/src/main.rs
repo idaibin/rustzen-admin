@@ -2,6 +2,7 @@ mod common;
 mod features;
 mod infra;
 mod middleware;
+mod openapi;
 
 use crate::features::manage::deploy::service::DeployService;
 use crate::infra::app::run_server;
@@ -23,6 +24,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load env
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
+    if command == Command::OpenApi {
+        println!("{}", openapi::normalized_json()?);
+        return Ok(());
+    }
     // SAFETY: this runs in synchronous main before Tokio creates worker threads.
     unsafe { rustzen_config::initialize_process_timezone(CONFIG.timezone()) };
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
@@ -35,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Command::Serve => run_server().await,
             Command::UpdateWorker(id) => DeployService::run_update_worker(id).await,
             Command::UpdateRecover => DeployService::recover_interrupted_update_at_boot().await,
+            Command::OpenApi => unreachable!("OpenAPI generation exits before runtime startup"),
         }
     })?;
 
@@ -46,6 +52,7 @@ enum Command {
     Serve,
     UpdateWorker(i64),
     UpdateRecover,
+    OpenApi,
 }
 
 impl Command {
@@ -53,6 +60,7 @@ impl Command {
         let args = args.into_iter().collect::<Vec<_>>();
         match args.as_slice() {
             [mode] if mode == "serve" => Ok(Self::Serve),
+            [mode] if mode == "openapi" => Ok(Self::OpenApi),
             [module, mode] if module == "update" && mode == "recover" => Ok(Self::UpdateRecover),
             [module, mode, id] if module == "update" && mode == "worker" => id
                 .parse::<i64>()
@@ -71,7 +79,7 @@ struct CommandError;
 impl std::fmt::Display for CommandError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(
-            "usage: rz-admin serve | rz-admin update worker <release-id> | rz-admin update recover",
+            "usage: rz-admin serve | rz-admin openapi | rz-admin update worker <release-id> | rz-admin update recover",
         )
     }
 }
@@ -85,6 +93,7 @@ mod tests {
     #[test]
     fn parses_admin_commands_only() {
         assert_eq!(Command::parse(["serve".to_string()]).ok(), Some(Command::Serve));
+        assert_eq!(Command::parse(["openapi".to_string()]).ok(), Some(Command::OpenApi));
         assert_eq!(
             Command::parse(["update".to_string(), "worker".to_string(), "7".to_string()]).ok(),
             Some(Command::UpdateWorker(7))

@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::common::api::OptionItem;
 use crate::common::error::ServiceError;
@@ -22,7 +23,7 @@ pub struct UserWithRolesRow {
 }
 
 /// Create user request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserRequest {
     pub username: String,

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::common::error::ServiceError;
 
@@ -64,7 +65,7 @@ pub struct LoginResp {
 }
 
 /// Comprehensive user information for authenticated sessions.
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfoResp {
     /// Unique identifier of the user

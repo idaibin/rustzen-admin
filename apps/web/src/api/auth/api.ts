@@ -1,4 +1,5 @@
 import { apiRequest } from "@/api/request";
+import { getCurrentAdminUser } from "@/api/generated/admin-contract";
 
 export const authAPI = {
     login: (data: Auth.LoginRequest) => {
@@ -13,7 +14,5 @@ export const authAPI = {
         return apiRequest<void>({ url: "/api/auth/logout" });
     },
 
-    me: () => {
-        return apiRequest<Auth.UserInfoResponse>({ url: "/api/auth/me" });
-    },
+    me: async () => (await getCurrentAdminUser()).data,
 };

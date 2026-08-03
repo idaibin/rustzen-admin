@@ -209,3 +209,26 @@ requests and 320 measured requests per path. Direct p50/p95/p99 were
 0.825/1.302/1.507 ms; gateway p50/p95/p99 were 1.151/1.722/1.835 ms; the
 corresponding overhead was 0.327/0.419/0.328 ms. The p95 overhead passed the
 2 ms investigation gate.
+
+## Bounded Admin route-contract trial
+
+The Admin contract trial is code-first and currently covers only `GET /api/auth/me`
+and `POST /api/system/users`. `apps/admin/src/infra/contract.rs` registers the
+Axum method router and records normalized method, final path, operation ID and
+access policy in one call. The outer JWT middleware remains owned by
+`infra/app.rs`; the contract records this boundary rather than duplicating JWT
+enforcement. `Public`, `Authenticated`, `Require`, `Any`, and `All` map to
+OpenAPI security and, for capability policies, `x-rustzen-authorization`.
+
+`just contract-generate` derives `openapi/admin-contract.json`; Orval derives
+the bounded Web client. Generated calls use the `generatedApiRequest` mutator,
+which preserves existing token and error semantics, and feature APIs remain the
+only page-facing callers. `just contract-verify`, `contract-client`,
+`contract-compat`, and `contract-bench` provide focused checks. The checked
+bootstrap baseline is an exact byte-equality/idempotence gate for this initial
+two-operation artifact; it is not a general semantic compatibility diff or a
+claim of historic full-API coverage. Other Admin and module routes remain outside
+the trial until migrated explicitly. `contract-bench` is an isolated release-mode
+microbenchmark that alternates legacy-first and contract-first samples and reports
+registration and prebuilt hot-router timing separately; it is not an end-to-end
+or production latency claim.

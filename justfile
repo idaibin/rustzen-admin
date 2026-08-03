@@ -41,6 +41,31 @@ verify-modules-mvp:
     cargo build --workspace
     scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz
 
+# Bounded Admin route-contract trial. Rust registration is the authority; this
+# artifact is a derived input for client generation and compatibility checks.
+contract-generate:
+    mkdir -p openapi
+    cargo run --quiet -p rustzen-admin -- openapi > openapi/admin-contract.json
+
+contract-verify:
+    just contract-generate
+    just contract-compat
+    just contract-client
+    cargo test -p rustzen-admin infra::contract
+    cargo test -p rustzen-admin documented_nested_routes_match
+    cargo test -p rustzen-admin generated_document_matches
+    cd apps/web && bun x tsc --noEmit
+    cd apps/web && bun test src/api/request.contract.test.ts
+
+contract-compat:
+    cmp -s openapi/baselines/contract-bootstrap-refact-modules-mvp.json openapi/admin-contract.json
+
+contract-client:
+    cd apps/web && bun run contract:generate
+
+contract-bench:
+    cargo test --release -p rustzen-admin route_contract_registration_and_hot_request_benchmark -- --ignored --nocapture
+
 verify-cli:
     cargo test -p rustzen-cli
     cargo clippy -p rustzen-cli --all-targets -- -D warnings

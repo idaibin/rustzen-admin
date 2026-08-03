@@ -1,4 +1,5 @@
 import { apiRequest } from "@/api/request";
+import { createAdminUser, type CreateUserRequest } from "@/api/generated/admin-contract";
 
 /**
  * User management API service.
@@ -16,13 +17,7 @@ export const userAPI = {
             success: true,
         };
     },
-    create: (data: User.CreateRequest) => {
-        return apiRequest<number, User.CreateRequest>({
-            url: "/api/system/users",
-            method: "POST",
-            params: data,
-        });
-    },
+    create: async (data: CreateUserRequest) => (await createAdminUser(data)).data,
     update: (id: number, data: User.UpdateRequest) => {
         return apiRequest<number, User.UpdateRequest>({
             url: `/api/system/users/${id}`,

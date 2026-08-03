@@ -9,7 +9,8 @@
         "preview": "vp preview",
         "dev": "vp dev",
         "build": "vp build",
-        "test": "bun test"
+        "test": "bun test",
+        "contract:generate": "orval --config orval.contract.config.mjs"
     },
     "dependencies": {
         "@ant-design/icons": "^6.3.2",
@@ -29,12 +30,14 @@
         "@tanstack/react-query-devtools": "^5.101.2",
         "@tanstack/react-router-devtools": "^1.167.0",
         "@tanstack/router-plugin": "1.168.20",
+        "@types/bun": "^1.3.14",
         "@types/node": "^26.1.1",
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^6.0.3",
         "autoprefixer": "^10.5.2",
         "globals": "^17.7.0",
+        "orval": "8.22.0",
         "postcss": "^8.5.19",
         "tailwindcss": "^4.3.2",
         "typescript": "~7.0.2",
