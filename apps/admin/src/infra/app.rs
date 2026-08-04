@@ -68,12 +68,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         ]);
 
     let (documented_routes, _documented_contracts) = documented_protected_routes();
-    let protected_legacy = Router::new()
-        .nest("/account", account_routes())
-        .nest("/dashboard", dashboard_routes())
-        .nest("/manage", manage_routes());
+    let (public_auth_router, _) = public_auth_routes().into_parts();
     let protected_api: Router = documented_routes
-        .merge(Router::new().nest("/api", protected_legacy))
         .layer(Extension(task_service))
         .layer(Extension(deploy_service))
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
@@ -83,9 +79,9 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         ))
         .with_state(pool.clone());
 
-    let public_api: Router =
-        Router::new().nest("/auth", public_auth_routes()).with_state(pool.clone());
-    let module_control: Router = control_routes()
+    let public_api: Router = public_auth_router.with_state(pool.clone());
+    let (module_control_router, _) = control_routes().into_parts();
+    let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
         .route_layer(middleware::from_fn_with_state(
             (jwt_codec(), ServerAuthContextLoader::new()),
@@ -106,7 +102,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/health", get(health))
-        .nest("/api", public_api)
+        .merge(public_api)
         .merge(protected_api)
         .merge(module_control)
         .merge(module_gateway)
@@ -133,7 +129,22 @@ pub(crate) fn documented_protected_routes()
         .expect("static API contract")
         .nest("/api/system", system_contract_routes())
         .expect("static API contract")
+        .nest("/api/account", account_routes())
+        .expect("static API contract")
+        .nest("/api/dashboard", dashboard_routes())
+        .expect("static API contract")
+        .nest("/api/manage", manage_routes())
+        .expect("static API contract")
         .into_parts()
+}
+
+pub(crate) fn documented_all_contracts() -> Vec<crate::infra::contract::RouteContract> {
+    let (_, mut contracts) = documented_protected_routes();
+    let (_, public_contracts) = public_auth_routes().into_parts();
+    contracts.extend(public_contracts);
+    let (_, control_contracts) = control_routes().into_parts();
+    contracts.extend(control_contracts);
+    contracts
 }
 
 async fn health() -> axum::Json<HealthResponse> {
@@ -149,9 +160,11 @@ mod contract_route_tests {
     use super::*;
     use async_trait::async_trait;
     use axum::{
-        body::Body,
+        body::{Body, to_bytes},
+        extract::ConnectInfo,
         http::{Request, StatusCode},
         middleware,
+        response::IntoResponse,
     };
     use rustzen_auth::{
         auth::{AuthClaims, AuthContextLoader, CurrentUser, JwtCodec},
@@ -169,6 +182,17 @@ mod contract_route_tests {
                 if claims.username == "owner" { vec!["*".to_owned()] } else { Vec::new() };
             Ok(CurrentUser::new(claims.user_id, claims.username.clone(), permissions, false))
         }
+    }
+
+    async fn assert_json_error(response: axum::response::Response, status: StatusCode, code: i32) {
+        assert_eq!(response.status(), status);
+        assert_eq!(response.headers().get("content-type").unwrap(), "application/json");
+        let body: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .expect("JSON error response");
+        assert_eq!(body["code"], code);
+        assert!(body["message"].is_string());
+        assert!(body["data"].is_null());
     }
 
     #[tokio::test]
@@ -191,7 +215,7 @@ mod contract_route_tests {
             .oneshot(Request::get("/api/auth/me").body(Body::empty()).unwrap())
             .await
             .unwrap();
-        assert_eq!(auth_response.status(), StatusCode::UNAUTHORIZED);
+        assert_json_error(auth_response, StatusCode::UNAUTHORIZED, 401).await;
 
         let viewer = codec.encode(2, "viewer").expect("token");
         let user_response = app
@@ -205,7 +229,7 @@ mod contract_route_tests {
             )
             .await
             .unwrap();
-        assert_eq!(user_response.status(), StatusCode::FORBIDDEN);
+        assert_json_error(user_response, StatusCode::FORBIDDEN, 403).await;
 
         let owner = codec.encode(1, "owner").expect("token");
         let missing_content_type = app
@@ -223,6 +247,7 @@ mod contract_route_tests {
             missing_content_type.headers().get("content-type").unwrap(),
             "text/plain; charset=utf-8"
         );
+        assert!(!to_bytes(missing_content_type.into_body(), usize::MAX).await.unwrap().is_empty());
 
         let malformed_json = app
             .clone()
@@ -240,6 +265,7 @@ mod contract_route_tests {
             malformed_json.headers().get("content-type").unwrap(),
             "text/plain; charset=utf-8"
         );
+        assert!(!to_bytes(malformed_json.into_body(), usize::MAX).await.unwrap().is_empty());
 
         let invalid_dto = app
             .oneshot(
@@ -253,5 +279,291 @@ mod contract_route_tests {
             .unwrap();
         assert_eq!(invalid_dto.status(), StatusCode::UNPROCESSABLE_ENTITY);
         assert_eq!(invalid_dto.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+        assert!(!to_bytes(invalid_dto.into_body(), usize::MAX).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn login_statuses_return_the_documented_json_errors() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+        run_migrations(&pool).await.expect("migrations");
+        let (routes, _) = public_auth_routes().into_parts();
+        let app = routes
+            .layer(Extension(ConnectInfo(
+                "127.0.0.1:3000".parse::<std::net::SocketAddr>().expect("address"),
+            )))
+            .with_state(pool.clone());
+
+        for (status, expected_status, code) in [
+            (2_i16, StatusCode::FORBIDDEN, 10004),
+            (3_i16, StatusCode::BAD_REQUEST, 10005),
+            (4_i16, StatusCode::BAD_REQUEST, 10006),
+        ] {
+            sqlx::query("UPDATE users SET status = ? WHERE username = 'owner'")
+                .bind(status)
+                .execute(&pool)
+                .await
+                .expect("update seeded owner status");
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::post("/api/auth/login")
+                        .header("content-type", "application/json")
+                        .body(Body::from(r#"{"username":"owner","password":"anything"}"#))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_json_error(response, expected_status, code).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn business_and_internal_errors_match_the_json_error_envelope() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+        run_migrations(&pool).await.expect("migrations");
+        let (routes, _) = documented_protected_routes();
+        PermissionService::sync_permissions(&pool).await.expect("permission cache");
+        let codec = JwtCodec::new("contract-test", 60);
+        let app = Router::new()
+            .merge(routes)
+            .route_layer(middleware::from_fn_with_state(
+                (codec.clone(), TestLoader),
+                auth_middleware,
+            ))
+            .with_state(pool);
+        let owner = codec.encode(1, "owner").expect("token");
+        let not_found = app
+            .clone()
+            .oneshot(
+                Request::delete("/api/system/users/999")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_json_error(not_found, StatusCode::NOT_FOUND, 10001).await;
+
+        let owner_status = codec.encode(1, "owner").expect("status token");
+        let invalid_status = app
+            .clone()
+            .oneshot(
+                Request::put("/api/system/users/1/status")
+                    .header("authorization", format!("Bearer {owner_status}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"status":99}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_json_error(invalid_status, StatusCode::BAD_REQUEST, 10007).await;
+
+        assert_json_error(
+            crate::common::error::AppError::from(
+                crate::common::error::ServiceError::UsernameConflict,
+            )
+            .into_response(),
+            StatusCode::CONFLICT,
+            10201,
+        )
+        .await;
+        assert_json_error(
+            crate::common::error::AppError::from(
+                crate::common::error::ServiceError::DatabaseQueryFailed,
+            )
+            .into_response(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            20001,
+        )
+        .await;
+    }
+
+    fn multipart_body(boundary: &str, fields: &[(&str, Option<&str>, &str, &str)]) -> Body {
+        let mut body = String::new();
+        for (name, filename, content_type, value) in fields {
+            body.push_str(&format!("--{boundary}\r\n"));
+            body.push_str(&format!("Content-Disposition: form-data; name=\"{name}\""));
+            if let Some(filename) = filename {
+                body.push_str(&format!("; filename=\"{filename}\""));
+            }
+            body.push_str("\r\n");
+            if !content_type.is_empty() {
+                body.push_str(&format!("Content-Type: {content_type}\r\n"));
+            }
+            body.push_str(&format!("\r\n{value}\r\n"));
+        }
+        body.push_str(&format!("--{boundary}--\r\n"));
+        Body::from(body)
+    }
+
+    #[tokio::test]
+    async fn multipart_contract_routes_accept_generated_file_inputs() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+        run_migrations(&pool).await.expect("migrations");
+        let (routes, _) = documented_protected_routes();
+        let codec = JwtCodec::new("contract-test", 60);
+        let app = Router::new()
+            .merge(routes)
+            .layer(Extension(std::sync::Arc::new(DeployService::new(pool.clone()))))
+            .route_layer(middleware::from_fn_with_state(
+                (codec.clone(), TestLoader),
+                auth_middleware,
+            ))
+            .with_state(pool);
+        let owner = codec.encode(1, "owner").expect("token");
+
+        let boundary = "avatar-boundary";
+        let avatar_response = app
+            .clone()
+            .oneshot(
+                Request::post("/api/account/avatar")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                    .body(multipart_body(
+                        boundary,
+                        &[("file", Some("avatar.png"), "image/png", "png")],
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(avatar_response.status(), StatusCode::OK);
+        let avatar_payload: serde_json::Value = serde_json::from_slice(
+            &to_bytes(avatar_response.into_body(), usize::MAX).await.unwrap(),
+        )
+        .expect("avatar response");
+        let avatar_url = avatar_payload["data"].as_str().expect("avatar URL");
+        assert!(avatar_url.ends_with(".png"));
+        crate::common::files::remove_avatar_by_url(avatar_url).await.expect("avatar cleanup");
+
+        let oversized_avatar = "x".repeat(3 * 1024 * 1024 + 1024);
+        let oversized_response = app
+            .clone()
+            .oneshot(
+                Request::post("/api/account/avatar")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .header("content-type", "multipart/form-data; boundary=oversized-avatar")
+                    .body(multipart_body(
+                        "oversized-avatar",
+                        &[("file", Some("avatar.png"), "image/png", &oversized_avatar)],
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let oversized_status = oversized_response.status();
+        let oversized_content_type = oversized_response.headers().get("content-type").cloned();
+        let oversized_body = to_bytes(oversized_response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(oversized_status, StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(oversized_content_type.unwrap(), "text/plain; charset=utf-8");
+        assert!(!oversized_body.is_empty());
+
+        let invalid_deployment_id = app
+            .clone()
+            .oneshot(
+                Request::get("/api/manage/deploy/not-a-number")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(invalid_deployment_id.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            invalid_deployment_id.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+        assert!(!to_bytes(invalid_deployment_id.into_body(), usize::MAX).await.unwrap().is_empty());
+
+        let deployment_boundary = "deployment-boundary";
+        let deployment_response = app
+            .oneshot(
+                Request::post("/api/manage/deploy/upload")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .header(
+                        "content-type",
+                        format!("multipart/form-data; boundary={deployment_boundary}"),
+                    )
+                    .body(multipart_body(
+                        deployment_boundary,
+                        &[
+                            ("component", None, "text/plain", "release"),
+                            ("version", None, "text/plain", "0.5.0"),
+                            (
+                                "file",
+                                Some("release.tar"),
+                                "application/octet-stream",
+                                "not-a-bundle",
+                            ),
+                        ],
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(deployment_response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn export_logs_route_returns_csv_content_type_and_body() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+        run_migrations(&pool).await.expect("migrations");
+        let (routes, _) = documented_protected_routes();
+        let codec = JwtCodec::new("contract-test", 60);
+        let app = Router::new()
+            .merge(routes)
+            .route_layer(middleware::from_fn_with_state(
+                (codec.clone(), TestLoader),
+                auth_middleware,
+            ))
+            .with_state(pool);
+        let owner = codec.encode(1, "owner").expect("token");
+        let invalid_query = app
+            .clone()
+            .oneshot(
+                Request::get("/api/manage/logs/export?current=invalid")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(invalid_query.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            invalid_query.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+        assert!(!to_bytes(invalid_query.into_body(), usize::MAX).await.unwrap().is_empty());
+        let response = app
+            .oneshot(
+                Request::get("/api/manage/logs/export")
+                    .header("authorization", format!("Bearer {owner}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("content-type").unwrap(), "text/csv; charset=utf-8");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            body,
+            "ID,user_id,username,action,description,status,duration_ms,ip_address,user_agent,created_at\n"
+        );
+    }
+
+    #[test]
+    fn admin_native_contract_inventory_has_no_duplicate_operations_or_routes() {
+        let contracts = documented_all_contracts();
+        assert_eq!(contracts.len(), 42);
+
+        let mut operations = std::collections::BTreeSet::new();
+        let mut routes = std::collections::BTreeSet::new();
+        for contract in contracts {
+            assert!(operations.insert(contract.operation.operation_id()));
+            assert!(routes.insert((contract.method, contract.path)));
+        }
+        assert_eq!(operations.len(), 42);
+        assert_eq!(routes.len(), 42);
     }
 }

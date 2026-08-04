@@ -1,15 +1,19 @@
 /** Bounded, generated client for the Admin route-contract pilot. */
+const contractInput = process.env.CONTRACT_OPENAPI_INPUT ?? "../../openapi/admin-contract.json";
+const contractOutput = process.env.CONTRACT_CLIENT_OUTPUT ?? "src/api/generated/admin-contract.ts";
+const mutatorPath = process.env.CONTRACT_MUTATOR_PATH ?? "./src/api/request.ts";
+
 export default {
     adminContract: {
-        input: "../../openapi/admin-contract.json",
+        input: contractInput,
         output: {
             client: "fetch",
             clean: true,
             mode: "single",
-            target: "src/api/generated/admin-contract.ts",
+            target: contractOutput,
             override: {
                 fetch: { includeHttpResponseReturnType: false },
-                mutator: { path: "./src/api/request.ts", name: "generatedApiRequest" },
+                mutator: { path: mutatorPath, name: "generatedApiRequest" },
             },
         },
     },

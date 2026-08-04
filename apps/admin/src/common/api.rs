@@ -30,13 +30,14 @@ impl<T: Serialize> ApiResponse<Vec<T>> {
 
 pub type AppResult<T> = Result<Json<ApiResponse<T>>, AppError>;
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct OptionItem<T> {
     pub label: String,
     pub value: T,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct OptionsQuery {
     pub q: Option<String>,
     pub limit: Option<i64>,

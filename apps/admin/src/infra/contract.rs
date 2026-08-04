@@ -31,8 +31,48 @@ pub struct RouteContract {
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(dead_code, reason = "synthetic policy contracts are exercised by focused tests")]
 pub enum OperationDescriptor {
+    Login,
     CurrentAdminUser,
+    Logout,
+    UpdateAccountAvatar,
+    UpdateAccountProfile,
+    ChangeAccountPassword,
+    GetDashboardStats,
+    ListManageLogs,
+    ExportManageLogs,
+    ListManageTasks,
+    ListTaskRuns,
+    RunTask,
+    ListDeployments,
+    UploadDeployment,
+    CleanupDeployments,
+    GetDeployment,
+    ExpireDeployment,
+    DeleteDeployment,
+    DeployVersion,
+    ListMenus,
+    ListModuleMenuInventory,
+    UpdateMenu,
+    DeleteMenu,
+    GetMenuOptions,
+    ListRoles,
+    CreateRole,
+    UpdateRole,
+    DeleteRole,
+    GetRoleOptions,
+    GetStatusOverview,
+    ListUsers,
     CreateAdminUser,
+    UpdateUser,
+    DeleteUser,
+    GetUserOptions,
+    GetUserStatusOptions,
+    UpdateUserPassword,
+    UpdateUserStatus,
+    ListModules,
+    UpdateModuleEnabled,
+    GetModuleNavigation,
+    GetDashboardModules,
     ContractPublic,
     ContractAny,
     ContractAll,
@@ -41,8 +81,48 @@ pub enum OperationDescriptor {
 impl OperationDescriptor {
     pub const fn operation_id(&self) -> &'static str {
         match self {
+            Self::Login => "login",
             Self::CurrentAdminUser => "getCurrentAdminUser",
+            Self::Logout => "logout",
+            Self::UpdateAccountAvatar => "updateAccountAvatar",
+            Self::UpdateAccountProfile => "updateAccountProfile",
+            Self::ChangeAccountPassword => "changeAccountPassword",
+            Self::GetDashboardStats => "getDashboardStats",
+            Self::ListManageLogs => "listManageLogs",
+            Self::ExportManageLogs => "exportManageLogs",
+            Self::ListManageTasks => "listManageTasks",
+            Self::ListTaskRuns => "listTaskRuns",
+            Self::RunTask => "runTask",
+            Self::ListDeployments => "listDeployments",
+            Self::UploadDeployment => "uploadDeployment",
+            Self::CleanupDeployments => "cleanupDeployments",
+            Self::GetDeployment => "getDeployment",
+            Self::ExpireDeployment => "expireDeployment",
+            Self::DeleteDeployment => "deleteDeployment",
+            Self::DeployVersion => "deployVersion",
+            Self::ListMenus => "listMenus",
+            Self::ListModuleMenuInventory => "listModuleMenuInventory",
+            Self::UpdateMenu => "updateMenu",
+            Self::DeleteMenu => "deleteMenu",
+            Self::GetMenuOptions => "getMenuOptions",
+            Self::ListRoles => "listRoles",
+            Self::CreateRole => "createRole",
+            Self::UpdateRole => "updateRole",
+            Self::DeleteRole => "deleteRole",
+            Self::GetRoleOptions => "getRoleOptions",
+            Self::GetStatusOverview => "getStatusOverview",
+            Self::ListUsers => "listUsers",
             Self::CreateAdminUser => "createAdminUser",
+            Self::UpdateUser => "updateUser",
+            Self::DeleteUser => "deleteUser",
+            Self::GetUserOptions => "getUserOptions",
+            Self::GetUserStatusOptions => "getUserStatusOptions",
+            Self::UpdateUserPassword => "updateUserPassword",
+            Self::UpdateUserStatus => "updateUserStatus",
+            Self::ListModules => "listModules",
+            Self::UpdateModuleEnabled => "updateModuleEnabled",
+            Self::GetModuleNavigation => "getModuleNavigation",
+            Self::GetDashboardModules => "getDashboardModules",
             Self::ContractPublic => "contractPublic",
             Self::ContractAny => "contractAny",
             Self::ContractAll => "contractAll",
@@ -121,11 +201,6 @@ where
         Ok(self)
     }
 
-    pub fn merge_router(mut self, router: Router<S>) -> Self {
-        self.router = self.router.merge(router);
-        self
-    }
-
     pub fn get(
         self,
         path: &str,
@@ -144,6 +219,37 @@ where
         route: MethodRouter<S>,
     ) -> Result<Self, ContractError> {
         self.register(Method::POST, path, operation, access, route)
+    }
+
+    pub fn put(
+        self,
+        path: &str,
+        operation: OperationDescriptor,
+        access: AccessPolicy,
+        route: MethodRouter<S>,
+    ) -> Result<Self, ContractError> {
+        self.register(Method::PUT, path, operation, access, route)
+    }
+
+    #[allow(dead_code, reason = "the contract surface supports PATCH registrations")]
+    pub fn patch(
+        self,
+        path: &str,
+        operation: OperationDescriptor,
+        access: AccessPolicy,
+        route: MethodRouter<S>,
+    ) -> Result<Self, ContractError> {
+        self.register(Method::PATCH, path, operation, access, route)
+    }
+
+    pub fn delete(
+        self,
+        path: &str,
+        operation: OperationDescriptor,
+        access: AccessPolicy,
+        route: MethodRouter<S>,
+    ) -> Result<Self, ContractError> {
+        self.register(Method::DELETE, path, operation, access, route)
     }
 
     fn register(
@@ -328,6 +434,49 @@ mod tests {
         assert_eq!(join_path("/api", "/auth/me"), "/api/auth/me");
     }
 
+    #[test]
+    fn all_axum_http_methods_can_be_registered_with_one_contract_authority() {
+        let router = ContractRouter::<()>::new()
+            .get("/resource", OperationDescriptor::ContractPublic, AccessPolicy::Public, get(ok))
+            .unwrap()
+            .post(
+                "/resource",
+                OperationDescriptor::ContractAny,
+                AccessPolicy::Public,
+                axum::routing::post(ok),
+            )
+            .unwrap()
+            .put(
+                "/resource",
+                OperationDescriptor::ContractAll,
+                AccessPolicy::Public,
+                axum::routing::put(ok),
+            )
+            .unwrap()
+            .patch(
+                "/resource",
+                OperationDescriptor::BenchmarkRequire,
+                AccessPolicy::Public,
+                axum::routing::patch(ok),
+            )
+            .unwrap()
+            .delete(
+                "/resource",
+                OperationDescriptor::CurrentAdminUser,
+                AccessPolicy::Public,
+                axum::routing::delete(ok),
+            )
+            .unwrap();
+
+        let (_, contracts) = router.into_parts();
+        assert_eq!(contracts.len(), 5);
+        assert_eq!(
+            contracts.iter().map(|contract| contract.method.clone()).collect::<Vec<_>>(),
+            vec![Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE,]
+        );
+        assert!(contracts.iter().all(|contract| contract.path == "/resource"));
+    }
+
     #[tokio::test]
     async fn public_any_and_all_enforce_their_real_router_policies() {
         use rustzen_auth::auth::CurrentUser;
@@ -392,46 +541,159 @@ mod tests {
         const SAMPLES: usize = 9;
         const ITERATIONS: usize = 5_000;
         const CAPABILITY: &str = "benchmark:read";
-        fn request() -> Request<Body> {
-            let mut request = Request::get("/bench").body(Body::empty()).unwrap();
-            request.extensions_mut().insert(CurrentUser::new(
-                1,
-                "benchmark",
-                [CAPABILITY.to_owned()],
-                false,
-            ));
-            request
-        }
         fn summary(mut values: Vec<f64>) -> (f64, f64) {
             values.sort_by(f64::total_cmp);
             (values[values.len() / 2], values[(values.len() * 95 / 100).min(values.len() - 1)])
         }
+
+        let descriptors = [
+            OperationDescriptor::Login,
+            OperationDescriptor::CurrentAdminUser,
+            OperationDescriptor::Logout,
+            OperationDescriptor::UpdateAccountAvatar,
+            OperationDescriptor::UpdateAccountProfile,
+            OperationDescriptor::ChangeAccountPassword,
+            OperationDescriptor::GetDashboardStats,
+            OperationDescriptor::ListManageLogs,
+            OperationDescriptor::ExportManageLogs,
+            OperationDescriptor::ListManageTasks,
+            OperationDescriptor::ListTaskRuns,
+            OperationDescriptor::RunTask,
+            OperationDescriptor::ListDeployments,
+            OperationDescriptor::UploadDeployment,
+            OperationDescriptor::CleanupDeployments,
+            OperationDescriptor::GetDeployment,
+            OperationDescriptor::ExpireDeployment,
+            OperationDescriptor::DeleteDeployment,
+            OperationDescriptor::DeployVersion,
+            OperationDescriptor::ListMenus,
+            OperationDescriptor::ListModuleMenuInventory,
+            OperationDescriptor::UpdateMenu,
+            OperationDescriptor::DeleteMenu,
+            OperationDescriptor::GetMenuOptions,
+            OperationDescriptor::ListRoles,
+            OperationDescriptor::CreateRole,
+            OperationDescriptor::UpdateRole,
+            OperationDescriptor::DeleteRole,
+            OperationDescriptor::GetRoleOptions,
+            OperationDescriptor::GetStatusOverview,
+            OperationDescriptor::ListUsers,
+            OperationDescriptor::CreateAdminUser,
+            OperationDescriptor::UpdateUser,
+            OperationDescriptor::DeleteUser,
+            OperationDescriptor::GetUserOptions,
+            OperationDescriptor::GetUserStatusOptions,
+            OperationDescriptor::UpdateUserPassword,
+            OperationDescriptor::UpdateUserStatus,
+            OperationDescriptor::ListModules,
+            OperationDescriptor::UpdateModuleEnabled,
+            OperationDescriptor::GetModuleNavigation,
+            OperationDescriptor::GetDashboardModules,
+        ];
+        assert_eq!(descriptors.len(), 42);
+
+        fn method(index: usize) -> Method {
+            match index % 5 {
+                0 => Method::GET,
+                1 => Method::POST,
+                2 => Method::PUT,
+                3 => Method::PATCH,
+                _ => Method::DELETE,
+            }
+        }
+
+        fn add_legacy(
+            router: Router<()>,
+            path: &str,
+            method: Method,
+            access: AccessPolicy,
+        ) -> Router<()> {
+            let permission = rustzen_auth::permission::PermissionsCheck::Require(CAPABILITY);
+            match (method, access) {
+                (Method::GET, AccessPolicy::Require(_)) => {
+                    router.route_with_permission(path, get(ok), permission)
+                }
+                (Method::POST, AccessPolicy::Require(_)) => {
+                    router.route_with_permission(path, axum::routing::post(ok), permission)
+                }
+                (Method::PUT, AccessPolicy::Require(_)) => {
+                    router.route_with_permission(path, axum::routing::put(ok), permission)
+                }
+                (Method::PATCH, AccessPolicy::Require(_)) => {
+                    router.route_with_permission(path, axum::routing::patch(ok), permission)
+                }
+                (Method::DELETE, AccessPolicy::Require(_)) => {
+                    router.route_with_permission(path, axum::routing::delete(ok), permission)
+                }
+                (Method::GET, _) => router.route(path, get(ok)),
+                (Method::POST, _) => router.route(path, axum::routing::post(ok)),
+                (Method::PUT, _) => router.route(path, axum::routing::put(ok)),
+                (Method::PATCH, _) => router.route(path, axum::routing::patch(ok)),
+                (Method::DELETE, _) => router.route(path, axum::routing::delete(ok)),
+                _ => router,
+            }
+        }
+
+        fn add_contract(
+            router: ContractRouter<()>,
+            path: &str,
+            method: Method,
+            descriptor: OperationDescriptor,
+            access: AccessPolicy,
+        ) -> ContractRouter<()> {
+            let result = match method {
+                Method::GET => router.get(path, descriptor, access, get(ok)),
+                Method::POST => router.post(path, descriptor, access, axum::routing::post(ok)),
+                Method::PUT => router.put(path, descriptor, access, axum::routing::put(ok)),
+                Method::PATCH => router.patch(path, descriptor, access, axum::routing::patch(ok)),
+                Method::DELETE => {
+                    router.delete(path, descriptor, access, axum::routing::delete(ok))
+                }
+                _ => unreachable!(),
+            };
+            result.expect("benchmark contract registration")
+        }
+
         let mut legacy_register = Vec::new();
         let mut contract_register = Vec::new();
         for sample in 0..(WARMUP + SAMPLES) {
             let measure_legacy = || {
                 let started = Instant::now();
                 for _ in 0..ITERATIONS {
-                    let _ = Router::<()>::new().route_with_permission(
-                        "/bench",
-                        get(ok),
-                        rustzen_auth::permission::PermissionsCheck::Require(CAPABILITY),
-                    );
+                    let mut router = Router::<()>::new();
+                    for (index, _) in descriptors.iter().enumerate() {
+                        let access = if index < 2 {
+                            AccessPolicy::Authenticated
+                        } else {
+                            AccessPolicy::Require(CAPABILITY)
+                        };
+                        router =
+                            add_legacy(router, &format!("/bench/{index}"), method(index), access);
+                    }
                 }
                 started.elapsed().as_nanos() as f64 / ITERATIONS as f64
             };
             let measure_contract = || {
                 let started = Instant::now();
                 for _ in 0..ITERATIONS {
-                    let _ = ContractRouter::<()>::new()
-                        .get(
-                            "/bench",
-                            OperationDescriptor::BenchmarkRequire,
-                            AccessPolicy::Require(CAPABILITY),
-                            get(ok),
-                        )
-                        .unwrap()
-                        .into_parts();
+                    let mut router = ContractRouter::<()>::new();
+                    for (index, descriptor) in descriptors.iter().enumerate() {
+                        let access = if index == 0 {
+                            AccessPolicy::Public
+                        } else if index == 1 {
+                            AccessPolicy::Authenticated
+                        } else {
+                            AccessPolicy::Require(CAPABILITY)
+                        };
+                        router = add_contract(
+                            router,
+                            &format!("/bench/{index}"),
+                            method(index),
+                            descriptor.clone(),
+                            access,
+                        );
+                    }
+                    let _ = router.into_parts();
                 }
                 started.elapsed().as_nanos() as f64 / ITERATIONS as f64
             };
@@ -447,14 +709,31 @@ mod tests {
                 contract_register.push(contract);
             }
         }
-        let legacy = Router::<()>::new().route_with_permission(
-            "/bench",
-            get(ok),
-            rustzen_auth::permission::PermissionsCheck::Require(CAPABILITY),
-        );
+        let legacy = Router::<()>::new()
+            .route("/bench/public", get(ok))
+            .route("/bench/auth", get(ok))
+            .route_with_permission(
+                "/bench/require",
+                get(ok),
+                rustzen_auth::permission::PermissionsCheck::Require(CAPABILITY),
+            );
         let contract = ContractRouter::<()>::new()
             .get(
-                "/bench",
+                "/bench/public",
+                OperationDescriptor::ContractPublic,
+                AccessPolicy::Public,
+                get(ok),
+            )
+            .unwrap()
+            .get(
+                "/bench/auth",
+                OperationDescriptor::CurrentAdminUser,
+                AccessPolicy::Authenticated,
+                get(ok),
+            )
+            .unwrap()
+            .get(
+                "/bench/require",
                 OperationDescriptor::BenchmarkRequire,
                 AccessPolicy::Require(CAPABILITY),
                 get(ok),
@@ -462,30 +741,68 @@ mod tests {
             .unwrap()
             .into_parts()
             .0;
-        let mut legacy_hot = Vec::new();
-        let mut contract_hot = Vec::new();
+        let mut legacy_hot = [Vec::new(), Vec::new(), Vec::new()];
+        let mut contract_hot = [Vec::new(), Vec::new(), Vec::new()];
+        fn request(path: &str, authenticated: bool) -> Request<Body> {
+            let mut request = Request::get(path).body(Body::empty()).unwrap();
+            if authenticated {
+                request.extensions_mut().insert(CurrentUser::new(
+                    1,
+                    "benchmark",
+                    [CAPABILITY.to_owned()],
+                    false,
+                ));
+            }
+            request
+        }
         for sample in 0..(WARMUP + SAMPLES) {
             let measure_legacy = async {
-                let started = Instant::now();
-                for _ in 0..ITERATIONS {
-                    assert_eq!(
-                        legacy.clone().oneshot(request()).await.unwrap().status(),
-                        StatusCode::NO_CONTENT
-                    );
+                let mut values = Vec::new();
+                for (index, (path, authenticated)) in
+                    [("/bench/public", false), ("/bench/auth", true), ("/bench/require", true)]
+                        .into_iter()
+                        .enumerate()
+                {
+                    let started = Instant::now();
+                    for _ in 0..ITERATIONS {
+                        assert_eq!(
+                            legacy
+                                .clone()
+                                .oneshot(request(path, authenticated))
+                                .await
+                                .unwrap()
+                                .status(),
+                            StatusCode::NO_CONTENT
+                        );
+                    }
+                    values.push((index, started.elapsed().as_nanos() as f64 / ITERATIONS as f64));
                 }
-                started.elapsed().as_nanos() as f64 / ITERATIONS as f64
+                values
             };
             let measure_contract = async {
-                let started = Instant::now();
-                for _ in 0..ITERATIONS {
-                    assert_eq!(
-                        contract.clone().oneshot(request()).await.unwrap().status(),
-                        StatusCode::NO_CONTENT
-                    );
+                let mut values = Vec::new();
+                for (index, (path, authenticated)) in
+                    [("/bench/public", false), ("/bench/auth", true), ("/bench/require", true)]
+                        .into_iter()
+                        .enumerate()
+                {
+                    let started = Instant::now();
+                    for _ in 0..ITERATIONS {
+                        assert_eq!(
+                            contract
+                                .clone()
+                                .oneshot(request(path, authenticated))
+                                .await
+                                .unwrap()
+                                .status(),
+                            StatusCode::NO_CONTENT
+                        );
+                    }
+                    values.push((index, started.elapsed().as_nanos() as f64 / ITERATIONS as f64));
                 }
-                started.elapsed().as_nanos() as f64 / ITERATIONS as f64
+                values
             };
-            let (legacy_ns, contract_ns) = if sample % 2 == 0 {
+            let (legacy_values, contract_values) = if sample % 2 == 0 {
                 (measure_legacy.await, measure_contract.await)
             } else {
                 let contract_ns = measure_contract.await;
@@ -493,18 +810,29 @@ mod tests {
                 (legacy_ns, contract_ns)
             };
             if sample >= WARMUP {
-                legacy_hot.push(legacy_ns);
-                contract_hot.push(contract_ns);
+                for (index, value) in legacy_values {
+                    legacy_hot[index].push(value);
+                }
+                for (index, value) in contract_values {
+                    contract_hot[index].push(value);
+                }
             }
         }
         let (lr50, lr95) = summary(legacy_register);
         let (cr50, cr95) = summary(contract_register);
-        let (lh50, lh95) = summary(legacy_hot);
-        let (ch50, ch95) = summary(contract_hot);
+        let hot_names = ["public", "authenticated", "require"];
         println!(
-            "route-contract benchmark warmup={WARMUP} samples={SAMPLES} iterations={ITERATIONS} register_ns_op legacy_median={lr50:.1} legacy_p95={lr95:.1} contract_median={cr50:.1} contract_p95={cr95:.1} ratio={:.3} hot_ns_op legacy_median={lh50:.1} legacy_p95={lh95:.1} contract_median={ch50:.1} contract_p95={ch95:.1} ratio={:.3}",
-            cr50 / lr50,
-            ch50 / lh50
+            "route-contract benchmark routes={} warmup={WARMUP} samples={SAMPLES} iterations={ITERATIONS} register_ns_op legacy_median={lr50:.1} legacy_p95={lr95:.1} contract_median={cr50:.1} contract_p95={cr95:.1} ratio={:.3}",
+            descriptors.len(),
+            cr50 / lr50
         );
+        for (index, name) in hot_names.into_iter().enumerate() {
+            let (legacy_median, legacy_p95) = summary(std::mem::take(&mut legacy_hot[index]));
+            let (contract_median, contract_p95) = summary(std::mem::take(&mut contract_hot[index]));
+            println!(
+                "route-contract hot_access={name} legacy_median={legacy_median:.1} legacy_p95={legacy_p95:.1} contract_median={contract_median:.1} contract_p95={contract_p95:.1} ratio={:.3}",
+                contract_median / legacy_median
+            );
+        }
     }
 }

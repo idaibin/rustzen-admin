@@ -86,6 +86,10 @@ pub enum ServiceError {
     /// Failed to create avatar file.
     #[error("Failed to create avatar file")]
     CreateAvatarFileFailed,
+
+    /// The request body exceeded the configured multipart limit.
+    #[error("Request payload is too large")]
+    PayloadTooLarge,
 }
 
 /// A unified error type for the application layer, which can be converted into an HTTP response.
@@ -178,6 +182,9 @@ impl From<ServiceError> for AppError {
                 20003,
                 "Failed to create avatar file. Please try again later.",
             ),
+            ServiceError::PayloadTooLarge => {
+                app_error(StatusCode::PAYLOAD_TOO_LARGE, 10013, "Request payload is too large.")
+            }
             ServiceError::InvalidToken => app_error(
                 StatusCode::UNAUTHORIZED,
                 30000,

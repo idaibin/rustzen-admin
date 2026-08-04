@@ -2,11 +2,14 @@ use super::{
     service::LogService,
     types::{LogItemResp, LogQuery},
 };
-use crate::common::api::{ApiResponse, AppResult};
+use crate::common::{
+    api::{ApiResponse, AppResult},
+    error::{AppError, ServiceError},
+};
 
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header},
+    http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Response},
 };
 use chrono::Utc;
@@ -24,18 +27,16 @@ pub async fn list_logs(
 pub async fn export_logs(
     State(pool): State<SqlitePool>,
     Query(query): Query<LogQuery>,
-) -> Result<Response, (StatusCode, String)> {
-    let content = LogService::export_logs_csv(&pool, query)
-        .await
-        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+) -> Result<Response, AppError> {
+    let content = LogService::export_logs_csv(&pool, query).await.map_err(AppError::from)?;
 
     let filename = format!("log_{}.csv", get_timestamp());
     let disposition = format!("attachment; filename={}", filename);
 
     let mut headers = HeaderMap::new();
-    let content_disposition = HeaderValue::from_str(&disposition).map_err(|_| {
-        (StatusCode::INTERNAL_SERVER_ERROR, "invalid content disposition".to_string())
-    })?;
+    let content_disposition = HeaderValue::from_str(&disposition)
+        .map_err(|_| AppError::from(ServiceError::DatabaseQueryFailed))?;
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/csv; charset=utf-8"));
     headers.insert(header::CONTENT_DISPOSITION, content_disposition);
     headers.insert(header::CONTENT_LENGTH, HeaderValue::from(content.len()));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));

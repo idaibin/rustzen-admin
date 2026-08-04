@@ -1,5 +1,5 @@
-import { apiRequest } from "@/api/request";
 import { getCurrentAdminUser } from "@/api/generated/admin-contract";
+import { apiRequest } from "@/api/request";
 
 export const authAPI = {
     login: (data: Auth.LoginRequest) => {

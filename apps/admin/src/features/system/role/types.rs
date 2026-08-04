@@ -5,7 +5,7 @@ use crate::common::api::OptionItem;
 use crate::common::error::ServiceError;
 
 /// Role with menus row from the database view.
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct RoleWithMenusRow {
     pub id: i64,
     pub name: String,
@@ -19,7 +19,7 @@ pub struct RoleWithMenusRow {
 }
 
 /// Create and update role request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRoleRequest {
     pub name: String,
@@ -30,7 +30,7 @@ pub struct CreateRoleRequest {
 }
 
 /// Update role request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRolePayload {
     pub name: String,
@@ -41,7 +41,7 @@ pub struct UpdateRolePayload {
 }
 
 /// Role item for list display
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleItemResp {
     pub id: i64,
@@ -54,7 +54,7 @@ pub struct RoleItemResp {
     pub menus: Vec<OptionItem<i64>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleOptionResp {
     pub label: String,
@@ -64,7 +64,8 @@ pub struct RoleOptionResp {
 }
 
 /// Role list query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleQuery {
     /// The page number to retrieve. Defaults to 1.

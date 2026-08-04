@@ -3,7 +3,6 @@ pub mod role;
 pub mod status;
 pub mod user;
 
-use axum::Router;
 use sqlx::SqlitePool;
 
 use crate::infra::contract::ContractRouter;
@@ -16,10 +15,10 @@ pub fn system_contract_routes() -> ContractRouter<SqlitePool> {
     ContractRouter::new()
         .nest("/users", user_contract_routes())
         .expect("static system contract")
-        .merge_router(
-            Router::new()
-                .nest("/menus", menu_routes())
-                .nest("/roles", role_routes())
-                .nest("/status", status_routes()),
-        )
+        .nest("/menus", menu_routes())
+        .expect("static system contract")
+        .nest("/roles", role_routes())
+        .expect("static system contract")
+        .nest("/status", status_routes())
+        .expect("static system contract")
 }

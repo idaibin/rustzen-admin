@@ -2,18 +2,19 @@ pub mod handler;
 pub mod service;
 pub mod types;
 
-use axum::{Router, routing::get};
+use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
+use axum::routing::get;
 use handler::get_status_overview;
-use rustzen_auth::{
-    capability::system_status,
-    permission::{PermissionsCheck, RouterExt},
-};
+use rustzen_auth::capability::system_status;
 use sqlx::SqlitePool;
 
-pub fn status_routes() -> Router<SqlitePool> {
-    Router::new().route_with_permission(
-        "/",
-        get(get_status_overview),
-        PermissionsCheck::Require(system_status::VIEW),
-    )
+pub fn status_routes() -> ContractRouter<SqlitePool> {
+    ContractRouter::new()
+        .get(
+            "/",
+            OperationDescriptor::GetStatusOverview,
+            AccessPolicy::Require(system_status::VIEW),
+            get(get_status_overview),
+        )
+        .expect("static status contract")
 }

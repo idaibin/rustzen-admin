@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 /// Menu row from the database.
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct MenuRow {
     pub id: i64,
     pub parent_id: i64,
@@ -24,7 +24,7 @@ pub struct MenuRow {
 }
 
 /// Update menu request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMenuPayload {
     pub name: String,
@@ -33,7 +33,7 @@ pub struct UpdateMenuPayload {
     pub icon: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuOptionResp {
     pub label: String,
@@ -45,7 +45,7 @@ pub struct MenuOptionResp {
 }
 
 /// Menu item for tree list display
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuItemResp {
     pub id: i64,
@@ -68,7 +68,8 @@ pub struct MenuItemResp {
 }
 
 /// Menu query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuQuery {
     /// The name of the menu.

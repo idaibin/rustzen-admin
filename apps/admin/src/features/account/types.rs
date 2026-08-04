@@ -6,7 +6,7 @@ pub struct PasswordHashRow {
 }
 
 /// Request payload for current-account profile updates.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAccountProfileRequest {
     pub email: String,
@@ -14,7 +14,7 @@ pub struct UpdateAccountProfileRequest {
 }
 
 /// Request payload for current-account password changes.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ChangeAccountPasswordRequest {
     pub current_password: String,

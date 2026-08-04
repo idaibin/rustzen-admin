@@ -3,38 +3,47 @@ pub mod repo;
 pub mod service;
 pub mod types;
 
-use axum::{
-    Router,
-    routing::{delete, get, post, put},
-};
+use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
+use axum::routing::{delete, get, post, put};
 use handler::{create_role, delete_role, get_role_options, list_roles, update_role};
-use rustzen_auth::{
-    capability::system_role,
-    permission::{PermissionsCheck, RouterExt},
-};
+use rustzen_auth::capability::system_role;
 use sqlx::SqlitePool;
 
-pub fn role_routes() -> Router<SqlitePool> {
-    Router::new()
-        .route_with_permission("/", get(list_roles), PermissionsCheck::Require(system_role::LIST))
-        .route_with_permission(
+pub fn role_routes() -> ContractRouter<SqlitePool> {
+    ContractRouter::new()
+        .get(
             "/",
+            OperationDescriptor::ListRoles,
+            AccessPolicy::Require(system_role::LIST),
+            get(list_roles),
+        )
+        .expect("static role contract")
+        .post(
+            "/",
+            OperationDescriptor::CreateRole,
+            AccessPolicy::Require(system_role::CREATE),
             post(create_role),
-            PermissionsCheck::Require(system_role::CREATE),
         )
-        .route_with_permission(
+        .expect("static role contract")
+        .put(
             "/{id}",
+            OperationDescriptor::UpdateRole,
+            AccessPolicy::Require(system_role::UPDATE),
             put(update_role),
-            PermissionsCheck::Require(system_role::UPDATE),
         )
-        .route_with_permission(
+        .expect("static role contract")
+        .delete(
             "/{id}",
+            OperationDescriptor::DeleteRole,
+            AccessPolicy::Require(system_role::DELETE),
             delete(delete_role),
-            PermissionsCheck::Require(system_role::DELETE),
         )
-        .route_with_permission(
+        .expect("static role contract")
+        .get(
             "/options",
+            OperationDescriptor::GetRoleOptions,
+            AccessPolicy::Require(system_role::OPTIONS),
             get(get_role_options),
-            PermissionsCheck::Require(system_role::OPTIONS),
         )
+        .expect("static role contract")
 }

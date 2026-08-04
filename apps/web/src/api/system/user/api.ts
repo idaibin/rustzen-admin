@@ -1,5 +1,5 @@
-import { apiRequest } from "@/api/request";
 import { createAdminUser, type CreateUserRequest } from "@/api/generated/admin-contract";
+import { apiRequest } from "@/api/request";
 
 /**
  * User management API service.

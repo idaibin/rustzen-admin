@@ -46,7 +46,7 @@ impl TryFrom<i16> for UserStatus {
 }
 
 /// Request payload for user authentication.
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct LoginRequest {
     /// Username or email for authentication
     pub username: String,
@@ -55,7 +55,7 @@ pub struct LoginRequest {
 }
 
 /// Response payload for successful user login.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResp {
     /// JWT token for authenticating subsequent requests

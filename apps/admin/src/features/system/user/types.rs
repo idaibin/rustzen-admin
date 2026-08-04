@@ -6,7 +6,7 @@ use crate::common::api::OptionItem;
 use crate::common::error::ServiceError;
 
 /// User with roles row from the database view.
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
 pub struct UserWithRolesRow {
     pub id: i64,
     pub username: String,
@@ -38,7 +38,7 @@ pub struct CreateUserRequest {
 }
 
 /// Update user request parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserPayload {
     pub email: String,
@@ -47,18 +47,18 @@ pub struct UpdateUserPayload {
     pub role_ids: Vec<i64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct UpdateUserPasswordPayload {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct UpdateUserStatusPayload {
     pub status: i16,
 }
 
 /// User item for list display
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserItemResp {
     pub id: i64,
@@ -77,7 +77,7 @@ pub struct UserItemResp {
 /// User option
 pub type UserOptionResp = OptionItem<i64>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserRoleResp {
     pub label: String,
@@ -89,7 +89,8 @@ pub struct UserRoleResp {
 }
 
 /// User list query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct UserQuery {
     /// The page number to retrieve. Defaults to 1.
@@ -107,7 +108,8 @@ pub struct UserQuery {
 }
 
 /// User options query parameters
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct UserOptionsQuery {
     /// Search keyword

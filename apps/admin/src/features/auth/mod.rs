@@ -4,16 +4,15 @@ pub mod service;
 pub mod types;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
-use axum::{
-    Router,
-    routing::{get, post},
-};
+use axum::routing::{get, post};
 use sqlx::SqlitePool;
 
 use handler::{get_login_info, login, logout};
 
-pub fn public_auth_routes() -> Router<SqlitePool> {
-    Router::new().route("/login", post(login))
+pub fn public_auth_routes() -> ContractRouter<SqlitePool> {
+    ContractRouter::new()
+        .post("/api/auth/login", OperationDescriptor::Login, AccessPolicy::Public, post(login))
+        .expect("static auth contract")
 }
 
 /// `GET /api/auth/me` is documented from the same registration that builds its
@@ -28,5 +27,6 @@ pub fn protected_auth_contract_routes() -> ContractRouter<SqlitePool> {
             get(get_login_info),
         )
         .expect("static auth contract")
-        .merge_router(Router::new().route("/logout", get(logout)))
+        .get("/logout", OperationDescriptor::Logout, AccessPolicy::Authenticated, get(logout))
+        .expect("static auth contract")
 }

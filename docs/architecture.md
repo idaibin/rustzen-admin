@@ -210,25 +210,33 @@ requests and 320 measured requests per path. Direct p50/p95/p99 were
 corresponding overhead was 0.327/0.419/0.328 ms. The p95 overhead passed the
 2 ms investigation gate.
 
-## Bounded Admin route-contract trial
+## Admin route contract
 
-The Admin contract trial is code-first and currently covers only `GET /api/auth/me`
-and `POST /api/system/users`. `apps/admin/src/infra/contract.rs` registers the
-Axum method router and records normalized method, final path, operation ID and
-access policy in one call. The outer JWT middleware remains owned by
-`infra/app.rs`; the contract records this boundary rather than duplicating JWT
-enforcement. `Public`, `Authenticated`, `Require`, `Any`, and `All` map to
-OpenAPI security and, for capability policies, `x-rustzen-authorization`.
+The Admin contract is code-first and covers all 42 statically enumerable
+Admin-owned operations: the public login operation, authenticated and
+capability-gated Admin routes, and the four ModuleControlState routes. Module
+service routes (Monitor, Insights, and Reports) remain excluded from the public
+OpenAPI document: `ModuleRouter` currently emits only method, path, access, and
+capability metadata, while the gateway resolves dynamic paths through its
+in-memory registry. Adding operation IDs, request/response schemas, and grounded
+business errors there requires extending that shared contract seam; a second
+hand-maintained OpenAPI catalog would violate route authority.
+
+`apps/admin/src/infra/contract.rs` registers the Axum method router and records
+normalized method, final path, operation ID and access policy in one call. The
+outer JWT middleware remains owned by `infra/app.rs`; the contract records this
+boundary rather than duplicating JWT enforcement. `Public`, `Authenticated`,
+`Require`, `Any`, and `All` map to OpenAPI security and, for capability policies,
+`x-rustzen-authorization`.
 
 `just contract-generate` derives `openapi/admin-contract.json`; Orval derives
-the bounded Web client. Generated calls use the `generatedApiRequest` mutator,
-which preserves existing token and error semantics, and feature APIs remain the
-only page-facing callers. `just contract-verify`, `contract-client`,
-`contract-compat`, and `contract-bench` provide focused checks. The checked
-bootstrap baseline is an exact byte-equality/idempotence gate for this initial
-two-operation artifact; it is not a general semantic compatibility diff or a
-claim of historic full-API coverage. Other Admin and module routes remain outside
-the trial until migrated explicitly. `contract-bench` is an isolated release-mode
-microbenchmark that alternates legacy-first and contract-first samples and reports
-registration and prebuilt hot-router timing separately; it is not an end-to-end
-or production latency claim.
+the Web client. Generated calls use the `generatedApiRequest` mutator, which
+preserves existing token and error semantics, and feature APIs remain the only
+page-facing callers. `just contract-verify`, `contract-client`,
+`contract-compat`, and `contract-bench` provide focused checks. The fixed
+`contract-admin-native-all-refact-modules-mvp.json` baseline records the one-time
+expansion from the former two-operation bootstrap artifact. `contract-bench` is
+an isolated release-mode microbenchmark over the 42-operation registration set;
+it alternates legacy-first and contract-first samples and reports separate
+prebuilt hot-router probes for Public, Authenticated, and Require paths. It is
+not an end-to-end or production latency claim.

@@ -1,7 +1,7 @@
 use crate::common::error::ServiceError;
 use crate::infra::config::CONFIG;
 
-use axum::extract::Multipart;
+use axum::{extract::Multipart, http::StatusCode};
 use std::{fs::File, io::Write, path::PathBuf};
 use uuid::Uuid;
 
@@ -16,10 +16,15 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
         .await
         .map_err(|_| ServiceError::CreateAvatarFolderFailed)?;
 
-    let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|_| ServiceError::InvalidOperation("Invalid multipart data".into()))?
+    let Some(field) = multipart.next_field().await.map_err(|error| {
+        if error.status() == StatusCode::PAYLOAD_TOO_LARGE
+            || error.body_text() == "Request payload is too large"
+        {
+            ServiceError::PayloadTooLarge
+        } else {
+            ServiceError::InvalidOperation("Invalid multipart data".into())
+        }
+    })?
     else {
         return Err(ServiceError::InvalidOperation("No file provided".into()));
     };
@@ -43,10 +48,15 @@ pub async fn save_avatar(multipart: &mut Multipart) -> Result<String, ServiceErr
     let file_name = format!("{}.{}", Uuid::new_v4(), extension);
     let file_path = avatar_dir.join(&file_name);
 
-    let data = field
-        .bytes()
-        .await
-        .map_err(|_| ServiceError::InvalidOperation("Failed to read file data".into()))?;
+    let data = field.bytes().await.map_err(|error| {
+        if error.status() == StatusCode::PAYLOAD_TOO_LARGE
+            || error.body_text() == "Request payload is too large"
+        {
+            ServiceError::PayloadTooLarge
+        } else {
+            ServiceError::InvalidOperation("Failed to read file data".into())
+        }
+    })?;
 
     if data.len() > USER_AVATAR_MAX_SIZE {
         return Err(ServiceError::InvalidOperation("File size must be less than 1MB".into()));

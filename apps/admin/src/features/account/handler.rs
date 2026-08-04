@@ -10,6 +10,7 @@ use crate::{
 use axum::{
     Json,
     extract::{Multipart, State},
+    response::IntoResponse,
 };
 use rustzen_auth::auth::CurrentUser;
 use sqlx::SqlitePool;
@@ -20,10 +21,15 @@ pub async fn update_avatar(
     current_user: CurrentUser,
     State(pool): State<SqlitePool>,
     mut multipart: Multipart,
-) -> AppResult<String> {
-    Ok(ApiResponse::success(
-        AccountService::update_avatar(&pool, current_user.user_id, &mut multipart).await?,
-    ))
+) -> Result<axum::response::Response, crate::common::error::AppError> {
+    match AccountService::update_avatar(&pool, current_user.user_id, &mut multipart).await {
+        Ok(avatar_url) => Ok(ApiResponse::success(avatar_url).into_response()),
+        Err(crate::common::error::ServiceError::PayloadTooLarge) => {
+            Ok((axum::http::StatusCode::PAYLOAD_TOO_LARGE, "Request payload is too large")
+                .into_response())
+        }
+        Err(error) => Err(error.into()),
+    }
 }
 
 /// Update current-account profile.

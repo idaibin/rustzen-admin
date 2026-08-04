@@ -4,106 +4,1551 @@
  * RustZen Admin contract trial
  * OpenAPI spec version: 0.5.0
  */
-import { generatedApiRequest } from '../request.ts';
+import { generatedApiRequest } from "../request.ts";
+export interface ApiErrorResponse {
+    code: number;
+    /** @nullable */
+    data: null;
+    message: string;
+}
+
+export interface ApiResponseBool {
+    code: number;
+    data: boolean;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export type DeployComponent = (typeof DeployComponent)[keyof typeof DeployComponent];
+
+export const DeployComponent = {
+    release: "release",
+} as const;
+
+export interface DeploymentItem {
+    arch: string;
+    component: DeployComponent;
+    createdAt: string;
+    /** @nullable */
+    deletedAt?: string | null;
+    /** @nullable */
+    deployedAt?: string | null;
+    /** @nullable */
+    deployedBy?: string | null;
+    /** @nullable */
+    expiredAt?: string | null;
+    fileHash: string;
+    filePath: string;
+    fileSize: number;
+    id: number;
+    isCurrent: boolean;
+    isDeployed: boolean;
+    isExpired: boolean;
+    /** @nullable */
+    notes?: string | null;
+    updatedAt: string;
+    version: string;
+}
+
+export interface ApiResponseDeploymentItem {
+    code: number;
+    data: DeploymentItem;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ApiResponseDeploymentItemList {
+    code: number;
+    data: DeploymentItem[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
 export interface ApiResponseI64 {
-  code: number;
-  data: number;
-  message: string;
-  /** @nullable */
-  total?: number | null;
+    code: number;
+    data: number;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export type ApiResponseJsonData = { [key: string]: unknown };
+
+export interface ApiResponseJson {
+    code: number;
+    data: ApiResponseJsonData;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+/**
+ * Log item for list display
+ */
+export interface LogItemResp {
+    action: string;
+    createdAt: string;
+    data?: unknown;
+    /** @nullable */
+    description?: string | null;
+    durationMs: number;
+    id: number;
+    ipAddress: string;
+    status: string;
+    userAgent: string;
+    userId: number;
+    username: string;
+}
+
+export interface ApiResponseLogItemRespList {
+    code: number;
+    data: LogItemResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
 }
 
 /**
  * Comprehensive user information for authenticated sessions.
  */
 export interface UserInfoResp {
-  /**
+    /**
      * Avatar URL of the user
      * @nullable
      */
-  avatarUrl?: string | null;
-  /**
+    avatarUrl?: string | null;
+    /**
      * Email of the user
      * @nullable
      */
-  email?: string | null;
-  /** Unique identifier of the user */
-  id: number;
-  /** Whether the user is a system user */
-  isSystem: boolean;
-  /** List of permission codes the user has access to */
-  permissions: string[];
-  /**
+    email?: string | null;
+    /** Unique identifier of the user */
+    id: number;
+    /** Whether the user is a system user */
+    isSystem: boolean;
+    /** List of permission codes the user has access to */
+    permissions: string[];
+    /**
      * Full/display name of the user (optional)
      * @nullable
      */
-  realName?: string | null;
-  /** Username of the user */
-  username: string;
+    realName?: string | null;
+    /** Username of the user */
+    username: string;
+}
+
+/**
+ * Response payload for successful user login.
+ */
+export interface LoginResp {
+    /** JWT token for authenticating subsequent requests */
+    token: string;
+    /** User information */
+    userInfo: UserInfoResp;
+}
+
+export interface ApiResponseLoginResp {
+    code: number;
+    data: LoginResp;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+/**
+ * Menu item for tree list display
+ */
+export interface MenuItemResp {
+    /** @nullable */
+    children?: MenuItemResp[] | null;
+    code: string;
+    createdAt: string;
+    /** @nullable */
+    icon?: string | null;
+    id: number;
+    isActive: boolean;
+    isManual: boolean;
+    isSystem: boolean;
+    menuType: number;
+    /** @nullable */
+    moduleId?: string | null;
+    /** @nullable */
+    moduleMenuCode?: string | null;
+    name: string;
+    parentId: number;
+    /** @nullable */
+    path?: string | null;
+    sortOrder: number;
+    status: number;
+    updatedAt: string;
+}
+
+export interface ApiResponseMenuItemRespList {
+    code: number;
+    data: MenuItemResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface MenuOptionResp {
+    code: string;
+    isSystem: boolean;
+    label: string;
+    /** @nullable */
+    moduleId?: string | null;
+    /** @nullable */
+    moduleMenuCode?: string | null;
+    value: number;
+}
+
+export interface ApiResponseMenuOptionRespList {
+    code: number;
+    data: MenuOptionResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleHealthResponse {
+    available: boolean;
+    module: string;
+    /** @nullable */
+    releaseVersion?: string | null;
+}
+
+export interface ApiResponseModuleHealthResponseList {
+    code: number;
+    data: ModuleHealthResponse[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleStatusResponse {
+    available: boolean;
+    compatible: boolean;
+    enabled: boolean;
+    /** @nullable */
+    error?: string | null;
+    id: string;
+    /** @nullable */
+    lastSeenAt?: string | null;
+    name: string;
+    /** @nullable */
+    releaseVersion?: string | null;
+}
+
+export interface ApiResponseModuleStatusResponseList {
+    code: number;
+    data: ModuleStatusResponse[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export type I64 = number;
+
+export interface OptionItemI64 {
+    label: string;
+    value: I64;
+}
+
+/**
+ * Role item for list display
+ */
+export interface RoleItemResp {
+    code: string;
+    createdAt: string;
+    /** @nullable */
+    description?: string | null;
+    id: number;
+    menus: OptionItemI64[];
+    name: string;
+    status: number;
+    updatedAt: string;
+}
+
+export interface ApiResponseRoleItemRespList {
+    code: number;
+    data: RoleItemResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface RoleOptionResp {
+    code: string;
+    isSystem: boolean;
+    label: string;
+    value: number;
+}
+
+export interface ApiResponseRoleOptionRespList {
+    code: number;
+    data: RoleOptionResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface RuntimeMenuResponse {
+    code: string;
+    icon: string;
+    module: string;
+    moduleName: string;
+    path: string;
+    permission: string;
+    sortOrder: number;
+    title: string;
+}
+
+export interface ApiResponseRuntimeMenuResponseList {
+    code: number;
+    data: RuntimeMenuResponse[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface StatsResp {
+    activeUsers: number;
+    pendingUsers: number;
+    todayLogins: number;
+    totalUsers: number;
+}
+
+export interface ApiResponseStatsResp {
+    code: number;
+    data: StatsResp;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ApiResponseString {
+    code: number;
+    data: string;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface CpuResourceStatus {
+    /** @minimum 0 */
+    cores: number;
+    usagePercent: number;
+}
+
+export interface DiskResourceStatus {
+    /** @minimum 0 */
+    availableBytes: number;
+    /** @minimum 0 */
+    totalBytes: number;
+    usagePercent: number;
+    /** @minimum 0 */
+    usedBytes: number;
+}
+
+export interface MemoryResourceStatus {
+    /** @minimum 0 */
+    availableBytes: number;
+    /** @minimum 0 */
+    totalBytes: number;
+    usagePercent: number;
+    /** @minimum 0 */
+    usedBytes: number;
+}
+
+export interface LocalResourceStatus {
+    cpu: CpuResourceStatus;
+    disk: DiskResourceStatus;
+    memory: MemoryResourceStatus;
+}
+
+export interface SqliteStorageStatus {
+    /** @minimum 0 */
+    mainBytes: number;
+    /** @minimum 0 */
+    shmBytes: number;
+    /** @minimum 0 */
+    totalBytes: number;
+    /** @minimum 0 */
+    walBytes: number;
+}
+
+export interface DirectoryStorageItem {
+    /** @nullable */
+    errorMessage?: string | null;
+    key: string;
+    label: string;
+    /** @minimum 0 */
+    sizeBytes: number;
+}
+
+export interface SystemStorageStatus {
+    database: SqliteStorageStatus;
+    directories: DirectoryStorageItem[];
+}
+
+export interface SystemStatusOverview {
+    collectedAt: string;
+    resource: LocalResourceStatus;
+    storage: SystemStorageStatus;
+}
+
+export interface ApiResponseSystemStatusOverview {
+    code: number;
+    data: SystemStatusOverview;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export type TaskRunStatus = (typeof TaskRunStatus)[keyof typeof TaskRunStatus];
+
+export const TaskRunStatus = {
+    running: "running",
+    success: "success",
+    failed: "failed",
+    skipped: "skipped",
+} as const;
+
+export type TaskTriggerType = (typeof TaskTriggerType)[keyof typeof TaskTriggerType];
+
+export const TaskTriggerType = {
+    scheduled: "scheduled",
+    manual: "manual",
+} as const;
+
+export type TaskSchedule = {
+    expression: string;
+    type: "cron";
+};
+
+export interface TaskItem {
+    createdAt: string;
+    /** @nullable */
+    description?: string | null;
+    enabled: boolean;
+    /** @nullable */
+    lastErrorMessage?: string | null;
+    /** @nullable */
+    lastFinishedAt?: string | null;
+    /** @nullable */
+    lastRunId?: number | null;
+    /** @nullable */
+    lastStartedAt?: string | null;
+    lastStatus?: null | TaskRunStatus;
+    lastTriggerType?: null | TaskTriggerType;
+    name: string;
+    /** @nullable */
+    nextRunAt?: string | null;
+    running: boolean;
+    schedule: TaskSchedule;
+    taskKey: string;
+    updatedAt: string;
+}
+
+export interface ApiResponseTaskItemList {
+    code: number;
+    data: TaskItem[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface TaskRunItem {
+    createdAt: string;
+    /** @nullable */
+    errorMessage?: string | null;
+    /** @nullable */
+    finishedAt?: string | null;
+    id: number;
+    /** @nullable */
+    scheduledFor?: string | null;
+    startedAt: string;
+    status: TaskRunStatus;
+    taskKey: string;
+    triggerType: TaskTriggerType;
+    updatedAt: string;
+}
+
+export interface ApiResponseTaskRunItem {
+    code: number;
+    data: TaskRunItem;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ApiResponseTaskRunItemList {
+    code: number;
+    data: TaskRunItem[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ApiResponseUnit {
+    code: number;
+    /** @nullable */
+    data: null;
+    message: string;
+    /** @nullable */
+    total?: number | null;
 }
 
 export interface ApiResponseUserInfoResp {
-  code: number;
-  data: UserInfoResp;
-  message: string;
-  /** @nullable */
-  total?: number | null;
+    code: number;
+    data: UserInfoResp;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface UserRoleResp {
+    code?: string;
+    isSystem?: boolean;
+    label: string;
+    value: number;
+}
+
+/**
+ * User item for list display
+ */
+export interface UserItemResp {
+    /** @nullable */
+    avatarUrl?: string | null;
+    createdAt: string;
+    email: string;
+    id: number;
+    isSystem: boolean;
+    /** @nullable */
+    lastLoginAt?: string | null;
+    /** @nullable */
+    realName?: string | null;
+    roles: UserRoleResp[];
+    status: number;
+    updatedAt: string;
+    username: string;
+}
+
+export interface ApiResponseUserItemRespList {
+    code: number;
+    data: UserItemResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface OptionItem {
+    label: string;
+    value: I64;
+}
+
+export interface ApiResponseUserOptionRespList {
+    code: number;
+    data: OptionItem[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface AvatarUpload {
+    file: File;
+}
+
+/**
+ * Request payload for current-account password changes.
+ */
+export interface ChangeAccountPasswordRequest {
+    confirmPassword: string;
+    currentPassword: string;
+    newPassword: string;
+}
+
+/**
+ * Create and update role request parameters
+ */
+export interface CreateRoleRequest {
+    code: string;
+    /** @nullable */
+    description?: string | null;
+    menuIds: number[];
+    name: string;
+    status: number;
 }
 
 /**
  * Create user request parameters
  */
 export interface CreateUserRequest {
-  email: string;
-  password: string;
-  /** @nullable */
-  realName?: string | null;
-  /** A non-empty list of role IDs to assign to the user. */
-  roleIds?: number[];
-  /**
+    email: string;
+    password: string;
+    /** @nullable */
+    realName?: string | null;
+    /** A non-empty list of role IDs to assign to the user. */
+    roleIds?: number[];
+    /**
      * User status: Defaults to 1.
      * @nullable
      */
-  status?: number | null;
-  username: string;
+    status?: number | null;
+    username: string;
 }
+
+export interface DeploymentUpload {
+    arch?: string;
+    component: DeployComponent;
+    file: Blob;
+    notes?: string;
+    version: string;
+}
+
+export interface ExpireVersionRequest {
+    /** @nullable */
+    notes?: string | null;
+}
+
+/**
+ * Request payload for user authentication.
+ */
+export interface LoginRequest {
+    /** User's password in plain text */
+    password: string;
+    /** Username or email for authentication */
+    username: string;
+}
+
+/**
+ * Request payload for current-account profile updates.
+ */
+export interface UpdateAccountProfileRequest {
+    email: string;
+    /** @nullable */
+    realName?: string | null;
+}
+
+/**
+ * Update menu request parameters
+ */
+export interface UpdateMenuPayload {
+    /** @nullable */
+    icon?: string | null;
+    name: string;
+    sortOrder: number;
+    status: number;
+}
+
+export interface UpdateModuleRequest {
+    enabled: boolean;
+}
+
+/**
+ * Update role request parameters
+ */
+export interface UpdateRolePayload {
+    code: string;
+    /** @nullable */
+    description?: string | null;
+    menuIds: number[];
+    name: string;
+    status: number;
+}
+
+export interface UpdateUserPasswordPayload {
+    password: string;
+}
+
+/**
+ * Update user request parameters
+ */
+export interface UpdateUserPayload {
+    email: string;
+    realName: string;
+    /** A list of role IDs to assign to the user. If provided, replaces all existing roles. */
+    roleIds: number[];
+}
+
+export interface UpdateUserStatusPayload {
+    status: number;
+}
+
+export type CleanupDeploymentsParams = {
+    component?: DeployComponent;
+};
+
+export type ListDeploymentsParams = {
+    current?: number;
+    pageSize?: number;
+    component?: DeployComponent;
+    isCurrent?: boolean;
+    isDeployed?: boolean;
+    isExpired?: boolean;
+    search?: string;
+};
+
+export type ListManageLogsParams = {
+    current?: number;
+    pageSize?: number;
+    search?: string;
+    username?: string;
+    action?: string;
+    description?: string;
+    ipAddress?: string;
+};
+
+export type ExportManageLogsParams = {
+    current?: number;
+    pageSize?: number;
+    search?: string;
+    username?: string;
+    action?: string;
+    description?: string;
+    ipAddress?: string;
+};
+
+export type ListTaskRunsParams = {
+    current?: number;
+    pageSize?: number;
+};
+
+export type ListMenusParams = {
+    /**
+     * The name of the menu.
+     */
+    name?: string;
+    /**
+     * The code of the menu.
+     */
+    code?: string;
+    /**
+     * The status of the menu.
+     */
+    status?: string;
+};
+
+export type GetMenuOptionsParams = {
+    q?: string;
+    limit?: number;
+};
+
+export type ListRolesParams = {
+    /**
+     * The page number to retrieve. Defaults to 1.
+     */
+    current?: number;
+    /**
+     * The number of items per page. Defaults to 10.
+     */
+    pageSize?: number;
+    /**
+     * Filter by role name (case-insensitive search).
+     */
+    roleName?: string;
+    /**
+     * Filter by role code (case-insensitive search).
+     */
+    roleCode?: string;
+    /**
+     * Filter by role status.
+     */
+    status?: string;
+};
+
+export type GetRoleOptionsParams = {
+    q?: string;
+    limit?: number;
+};
+
+export type ListUsersParams = {
+    /**
+     * The page number to retrieve. Defaults to 1.
+     */
+    current?: number;
+    /**
+     * The number of items per page. Defaults to 10.
+     */
+    pageSize?: number;
+    /**
+     * Filter by username (case-insensitive search).
+     */
+    username?: string;
+    /**
+     * Filter by user status. Accepts: "normal"/"1", "disabled"/"2", or "all".
+     */
+    status?: string;
+    /**
+     * Filter by real name (case-insensitive search).
+     */
+    realName?: string;
+    /**
+     * Filter by email (case-insensitive search).
+     */
+    email?: string;
+};
+
+export type GetUserOptionsParams = {
+    /**
+     * Search keyword
+     */
+    q?: string;
+    /**
+     * Maximum number of results to return
+     */
+    limit?: number;
+    /**
+     * Filter by user status
+     */
+    status?: number;
+};
+
+export const getUpdateAccountAvatarUrl = () => {
+    return `/api/account/avatar`;
+};
+
+export const updateAccountAvatar = async (
+    avatarUpload: AvatarUpload,
+    options?: RequestInit,
+): Promise<ApiResponseString> => {
+    const formData = new FormData();
+    formData.append(`file`, avatarUpload.file, avatarUpload.file.name);
+
+    return generatedApiRequest<ApiResponseString>(getUpdateAccountAvatarUrl(), {
+        ...options,
+        method: "POST",
+        body: formData,
+    });
+};
+
+export const getChangeAccountPasswordUrl = () => {
+    return `/api/account/password`;
+};
+
+export const changeAccountPassword = async (
+    changeAccountPasswordRequest: ChangeAccountPasswordRequest,
+    options?: RequestInit,
+): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getChangeAccountPasswordUrl(), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(changeAccountPasswordRequest),
+    });
+};
+
+export const getUpdateAccountProfileUrl = () => {
+    return `/api/account/profile`;
+};
+
+export const updateAccountProfile = async (
+    updateAccountProfileRequest: UpdateAccountProfileRequest,
+    options?: RequestInit,
+): Promise<ApiResponseUserInfoResp> => {
+    return generatedApiRequest<ApiResponseUserInfoResp>(getUpdateAccountProfileUrl(), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateAccountProfileRequest),
+    });
+};
+
+export const getLoginUrl = () => {
+    return `/api/auth/login`;
+};
+
+export const login = async (
+    loginRequest: LoginRequest,
+    options?: RequestInit,
+): Promise<ApiResponseLoginResp> => {
+    return generatedApiRequest<ApiResponseLoginResp>(getLoginUrl(), {
+        ...options,
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(loginRequest),
+    });
+};
+
+export const getLogoutUrl = () => {
+    return `/api/auth/logout`;
+};
+
+export const logout = async (options?: RequestInit): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getLogoutUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
 
 export const getGetCurrentAdminUserUrl = () => {
+    return `/api/auth/me`;
+};
 
+export const getCurrentAdminUser = async (
+    options?: RequestInit,
+): Promise<ApiResponseUserInfoResp> => {
+    return generatedApiRequest<ApiResponseUserInfoResp>(getGetCurrentAdminUserUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
 
+export const getGetDashboardModulesUrl = () => {
+    return `/api/dashboard/modules`;
+};
 
+export const getDashboardModules = async (
+    options?: RequestInit,
+): Promise<ApiResponseModuleHealthResponseList> => {
+    return generatedApiRequest<ApiResponseModuleHealthResponseList>(getGetDashboardModulesUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
 
-  return `/api/auth/me`
-}
+export const getGetDashboardStatsUrl = () => {
+    return `/api/dashboard/stats`;
+};
 
-export const getCurrentAdminUser = async ( options?: RequestInit): Promise<ApiResponseUserInfoResp> => {
+export const getDashboardStats = async (options?: RequestInit): Promise<ApiResponseStatsResp> => {
+    return generatedApiRequest<ApiResponseStatsResp>(getGetDashboardStatsUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
 
-  return generatedApiRequest<ApiResponseUserInfoResp>(getGetCurrentAdminUserUrl(),
-  {
-    ...options,
-    method: 'GET'
+export const getCleanupDeploymentsUrl = (params?: CleanupDeploymentsParams) => {
+    const normalizedParams = new URLSearchParams();
 
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
 
-  }
-);}
+    const stringifiedParams = normalizedParams.toString();
 
+    return stringifiedParams.length > 0
+        ? `/api/manage/deploy/cleanup?${stringifiedParams}`
+        : `/api/manage/deploy/cleanup`;
+};
 
+export const cleanupDeployments = async (
+    params?: CleanupDeploymentsParams,
+    options?: RequestInit,
+): Promise<ApiResponseI64> => {
+    return generatedApiRequest<ApiResponseI64>(getCleanupDeploymentsUrl(params), {
+        ...options,
+        method: "POST",
+    });
+};
+
+export const getListDeploymentsUrl = (params?: ListDeploymentsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/manage/deploy/list?${stringifiedParams}`
+        : `/api/manage/deploy/list`;
+};
+
+export const listDeployments = async (
+    params?: ListDeploymentsParams,
+    options?: RequestInit,
+): Promise<ApiResponseDeploymentItemList> => {
+    return generatedApiRequest<ApiResponseDeploymentItemList>(getListDeploymentsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getUploadDeploymentUrl = () => {
+    return `/api/manage/deploy/upload`;
+};
+
+export const uploadDeployment = async (
+    deploymentUpload: DeploymentUpload,
+    options?: RequestInit,
+): Promise<ApiResponseDeploymentItem> => {
+    const formData = new FormData();
+    if (deploymentUpload.arch !== undefined) {
+        formData.append(`arch`, deploymentUpload.arch);
+    }
+    formData.append(`component`, deploymentUpload.component);
+    formData.append(`file`, deploymentUpload.file);
+    if (deploymentUpload.notes !== undefined) {
+        formData.append(`notes`, deploymentUpload.notes);
+    }
+    formData.append(`version`, deploymentUpload.version);
+
+    return generatedApiRequest<ApiResponseDeploymentItem>(getUploadDeploymentUrl(), {
+        ...options,
+        method: "POST",
+        body: formData,
+    });
+};
+
+export const getGetDeploymentUrl = (id: number) => {
+    return `/api/manage/deploy/${id}`;
+};
+
+export const getDeployment = async (
+    id: number,
+    options?: RequestInit,
+): Promise<ApiResponseDeploymentItem> => {
+    return generatedApiRequest<ApiResponseDeploymentItem>(getGetDeploymentUrl(id), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getDeleteDeploymentUrl = (id: number) => {
+    return `/api/manage/deploy/${id}`;
+};
+
+export const deleteDeployment = async (
+    id: number,
+    options?: RequestInit,
+): Promise<ApiResponseDeploymentItem> => {
+    return generatedApiRequest<ApiResponseDeploymentItem>(getDeleteDeploymentUrl(id), {
+        ...options,
+        method: "DELETE",
+    });
+};
+
+export const getDeployVersionUrl = (id: number) => {
+    return `/api/manage/deploy/${id}/deploy`;
+};
+
+export const deployVersion = async (
+    id: number,
+    options?: RequestInit,
+): Promise<ApiResponseBool> => {
+    return generatedApiRequest<ApiResponseBool>(getDeployVersionUrl(id), {
+        ...options,
+        method: "POST",
+    });
+};
+
+export const getExpireDeploymentUrl = (id: number) => {
+    return `/api/manage/deploy/${id}/expire`;
+};
+
+export const expireDeployment = async (
+    id: number,
+    expireVersionRequest: ExpireVersionRequest,
+    options?: RequestInit,
+): Promise<ApiResponseDeploymentItem> => {
+    return generatedApiRequest<ApiResponseDeploymentItem>(getExpireDeploymentUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(expireVersionRequest),
+    });
+};
+
+export const getListManageLogsUrl = (params?: ListManageLogsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/manage/logs?${stringifiedParams}`
+        : `/api/manage/logs`;
+};
+
+export const listManageLogs = async (
+    params?: ListManageLogsParams,
+    options?: RequestInit,
+): Promise<ApiResponseLogItemRespList> => {
+    return generatedApiRequest<ApiResponseLogItemRespList>(getListManageLogsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getExportManageLogsUrl = (params?: ExportManageLogsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/manage/logs/export?${stringifiedParams}`
+        : `/api/manage/logs/export`;
+};
+
+export const exportManageLogs = async (
+    params?: ExportManageLogsParams,
+    options?: RequestInit,
+): Promise<string> => {
+    return generatedApiRequest<string>(getExportManageLogsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getListManageTasksUrl = () => {
+    return `/api/manage/tasks`;
+};
+
+export const listManageTasks = async (options?: RequestInit): Promise<ApiResponseTaskItemList> => {
+    return generatedApiRequest<ApiResponseTaskItemList>(getListManageTasksUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getRunTaskUrl = (taskKey: string) => {
+    return `/api/manage/tasks/${taskKey}/run`;
+};
+
+export const runTask = async (
+    taskKey: string,
+    options?: RequestInit,
+): Promise<ApiResponseTaskRunItem> => {
+    return generatedApiRequest<ApiResponseTaskRunItem>(getRunTaskUrl(taskKey), {
+        ...options,
+        method: "POST",
+    });
+};
+
+export const getListTaskRunsUrl = (taskKey: string, params?: ListTaskRunsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/manage/tasks/${taskKey}/runs?${stringifiedParams}`
+        : `/api/manage/tasks/${taskKey}/runs`;
+};
+
+export const listTaskRuns = async (
+    taskKey: string,
+    params?: ListTaskRunsParams,
+    options?: RequestInit,
+): Promise<ApiResponseTaskRunItemList> => {
+    return generatedApiRequest<ApiResponseTaskRunItemList>(getListTaskRunsUrl(taskKey, params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getListMenusUrl = (params?: ListMenusParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/menus?${stringifiedParams}`
+        : `/api/system/menus`;
+};
+
+export const listMenus = async (
+    params?: ListMenusParams,
+    options?: RequestInit,
+): Promise<ApiResponseMenuItemRespList> => {
+    return generatedApiRequest<ApiResponseMenuItemRespList>(getListMenusUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getListModuleMenuInventoryUrl = () => {
+    return `/api/system/menus/inventory`;
+};
+
+export const listModuleMenuInventory = async (
+    options?: RequestInit,
+): Promise<ApiResponseMenuItemRespList> => {
+    return generatedApiRequest<ApiResponseMenuItemRespList>(getListModuleMenuInventoryUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getGetMenuOptionsUrl = (params?: GetMenuOptionsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/menus/options?${stringifiedParams}`
+        : `/api/system/menus/options`;
+};
+
+export const getMenuOptions = async (
+    params?: GetMenuOptionsParams,
+    options?: RequestInit,
+): Promise<ApiResponseMenuOptionRespList> => {
+    return generatedApiRequest<ApiResponseMenuOptionRespList>(getGetMenuOptionsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getUpdateMenuUrl = (id: number) => {
+    return `/api/system/menus/${id}`;
+};
+
+export const updateMenu = async (
+    id: number,
+    updateMenuPayload: UpdateMenuPayload,
+    options?: RequestInit,
+): Promise<ApiResponseI64> => {
+    return generatedApiRequest<ApiResponseI64>(getUpdateMenuUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateMenuPayload),
+    });
+};
+
+export const getDeleteMenuUrl = (id: number) => {
+    return `/api/system/menus/${id}`;
+};
+
+export const deleteMenu = async (id: number, options?: RequestInit): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getDeleteMenuUrl(id), {
+        ...options,
+        method: "DELETE",
+    });
+};
+
+export const getListModulesUrl = () => {
+    return `/api/system/modules`;
+};
+
+export const listModules = async (
+    options?: RequestInit,
+): Promise<ApiResponseModuleStatusResponseList> => {
+    return generatedApiRequest<ApiResponseModuleStatusResponseList>(getListModulesUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getGetModuleNavigationUrl = () => {
+    return `/api/system/modules/navigation`;
+};
+
+export const getModuleNavigation = async (
+    options?: RequestInit,
+): Promise<ApiResponseRuntimeMenuResponseList> => {
+    return generatedApiRequest<ApiResponseRuntimeMenuResponseList>(getGetModuleNavigationUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getUpdateModuleEnabledUrl = (module: string) => {
+    return `/api/system/modules/${module}/enabled`;
+};
+
+export const updateModuleEnabled = async (
+    module: string,
+    updateModuleRequest: UpdateModuleRequest,
+    options?: RequestInit,
+): Promise<ApiResponseModuleStatusResponseList> => {
+    return generatedApiRequest<ApiResponseModuleStatusResponseList>(
+        getUpdateModuleEnabledUrl(module),
+        {
+            ...options,
+            method: "PUT",
+            headers: { "Content-Type": "application/json", ...options?.headers },
+            body: JSON.stringify(updateModuleRequest),
+        },
+    );
+};
+
+export const getListRolesUrl = (params?: ListRolesParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/roles?${stringifiedParams}`
+        : `/api/system/roles`;
+};
+
+export const listRoles = async (
+    params?: ListRolesParams,
+    options?: RequestInit,
+): Promise<ApiResponseRoleItemRespList> => {
+    return generatedApiRequest<ApiResponseRoleItemRespList>(getListRolesUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getCreateRoleUrl = () => {
+    return `/api/system/roles`;
+};
+
+export const createRole = async (
+    createRoleRequest: CreateRoleRequest,
+    options?: RequestInit,
+): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getCreateRoleUrl(), {
+        ...options,
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(createRoleRequest),
+    });
+};
+
+export const getGetRoleOptionsUrl = (params?: GetRoleOptionsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/roles/options?${stringifiedParams}`
+        : `/api/system/roles/options`;
+};
+
+export const getRoleOptions = async (
+    params?: GetRoleOptionsParams,
+    options?: RequestInit,
+): Promise<ApiResponseRoleOptionRespList> => {
+    return generatedApiRequest<ApiResponseRoleOptionRespList>(getGetRoleOptionsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getUpdateRoleUrl = (id: number) => {
+    return `/api/system/roles/${id}`;
+};
+
+export const updateRole = async (
+    id: number,
+    updateRolePayload: UpdateRolePayload,
+    options?: RequestInit,
+): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getUpdateRoleUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateRolePayload),
+    });
+};
+
+export const getDeleteRoleUrl = (id: number) => {
+    return `/api/system/roles/${id}`;
+};
+
+export const deleteRole = async (id: number, options?: RequestInit): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getDeleteRoleUrl(id), {
+        ...options,
+        method: "DELETE",
+    });
+};
+
+export const getGetStatusOverviewUrl = () => {
+    return `/api/system/status`;
+};
+
+export const getStatusOverview = async (
+    options?: RequestInit,
+): Promise<ApiResponseSystemStatusOverview> => {
+    return generatedApiRequest<ApiResponseSystemStatusOverview>(getGetStatusOverviewUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getListUsersUrl = (params?: ListUsersParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/users?${stringifiedParams}`
+        : `/api/system/users`;
+};
+
+export const listUsers = async (
+    params?: ListUsersParams,
+    options?: RequestInit,
+): Promise<ApiResponseUserItemRespList> => {
+    return generatedApiRequest<ApiResponseUserItemRespList>(getListUsersUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
 
 export const getCreateAdminUserUrl = () => {
+    return `/api/system/users`;
+};
 
+export const createAdminUser = async (
+    createUserRequest: CreateUserRequest,
+    options?: RequestInit,
+): Promise<ApiResponseI64> => {
+    return generatedApiRequest<ApiResponseI64>(getCreateAdminUserUrl(), {
+        ...options,
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(createUserRequest),
+    });
+};
 
+export const getGetUserOptionsUrl = (params?: GetUserOptionsParams) => {
+    const normalizedParams = new URLSearchParams();
 
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
 
-  return `/api/system/users`
-}
+    const stringifiedParams = normalizedParams.toString();
 
-export const createAdminUser = async (createUserRequest: CreateUserRequest, options?: RequestInit): Promise<ApiResponseI64> => {
+    return stringifiedParams.length > 0
+        ? `/api/system/users/options?${stringifiedParams}`
+        : `/api/system/users/options`;
+};
 
-  return generatedApiRequest<ApiResponseI64>(getCreateAdminUserUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createUserRequest)
-  }
-);}
+export const getUserOptions = async (
+    params?: GetUserOptionsParams,
+    options?: RequestInit,
+): Promise<ApiResponseUserOptionRespList> => {
+    return generatedApiRequest<ApiResponseUserOptionRespList>(getGetUserOptionsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getGetUserStatusOptionsUrl = () => {
+    return `/api/system/users/status-options`;
+};
+
+export const getUserStatusOptions = async (
+    options?: RequestInit,
+): Promise<ApiResponseUserOptionRespList> => {
+    return generatedApiRequest<ApiResponseUserOptionRespList>(getGetUserStatusOptionsUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getUpdateUserUrl = (id: number) => {
+    return `/api/system/users/${id}`;
+};
+
+export const updateUser = async (
+    id: number,
+    updateUserPayload: UpdateUserPayload,
+    options?: RequestInit,
+): Promise<ApiResponseI64> => {
+    return generatedApiRequest<ApiResponseI64>(getUpdateUserUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateUserPayload),
+    });
+};
+
+export const getDeleteUserUrl = (id: number) => {
+    return `/api/system/users/${id}`;
+};
+
+export const deleteUser = async (id: number, options?: RequestInit): Promise<ApiResponseUnit> => {
+    return generatedApiRequest<ApiResponseUnit>(getDeleteUserUrl(id), {
+        ...options,
+        method: "DELETE",
+    });
+};
+
+export const getUpdateUserPasswordUrl = (id: number) => {
+    return `/api/system/users/${id}/password`;
+};
+
+export const updateUserPassword = async (
+    id: number,
+    updateUserPasswordPayload: UpdateUserPasswordPayload,
+    options?: RequestInit,
+): Promise<ApiResponseBool> => {
+    return generatedApiRequest<ApiResponseBool>(getUpdateUserPasswordUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateUserPasswordPayload),
+    });
+};
+
+export const getUpdateUserStatusUrl = (id: number) => {
+    return `/api/system/users/${id}/status`;
+};
+
+export const updateUserStatus = async (
+    id: number,
+    updateUserStatusPayload: UpdateUserStatusPayload,
+    options?: RequestInit,
+): Promise<ApiResponseBool> => {
+    return generatedApiRequest<ApiResponseBool>(getUpdateUserStatusUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateUserStatusPayload),
+    });
+};

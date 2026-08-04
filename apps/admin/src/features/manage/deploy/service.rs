@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use axum::extract::Multipart;
+use axum::{extract::Multipart, http::StatusCode};
 use rustzen_ipc::HealthResponse;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -147,11 +147,15 @@ impl DeployService {
         let mut notes = None;
         let mut file_data = None;
 
-        while let Some(field) = multipart
-            .next_field()
-            .await
-            .map_err(|_| ServiceError::InvalidOperation("Invalid multipart data".to_string()))?
-        {
+        while let Some(field) = multipart.next_field().await.map_err(|error| {
+            if error.status() == StatusCode::PAYLOAD_TOO_LARGE
+                || error.body_text() == "Request payload is too large"
+            {
+                ServiceError::PayloadTooLarge
+            } else {
+                ServiceError::InvalidOperation("Invalid multipart data".to_string())
+            }
+        })? {
             let Some(name) = field.name().map(str::to_string) else {
                 continue;
             };
@@ -182,10 +186,16 @@ impl DeployService {
                         field
                             .bytes()
                             .await
-                            .map_err(|_| {
-                                ServiceError::InvalidOperation(
-                                    "Failed to read uploaded release".to_string(),
-                                )
+                            .map_err(|error| {
+                                if error.status() == StatusCode::PAYLOAD_TOO_LARGE
+                                    || error.body_text() == "Request payload is too large"
+                                {
+                                    ServiceError::PayloadTooLarge
+                                } else {
+                                    ServiceError::InvalidOperation(
+                                        "Failed to read uploaded release".to_string(),
+                                    )
+                                }
                             })?
                             .to_vec(),
                     );

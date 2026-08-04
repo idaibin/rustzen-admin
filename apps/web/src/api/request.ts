@@ -97,13 +97,17 @@ interface RequestOptions<P = Api.BaseParams> extends RequestInit {
 }
 
 const withDefaultAndAuthHeaders = (options: RequestInit): RequestInit => {
-    const headers = new Headers(defaultHeaders);
+    const isMultipart = typeof FormData !== "undefined" && options.body instanceof FormData;
+    const headers = new Headers(isMultipart ? undefined : defaultHeaders);
     new Headers(options.headers).forEach((value, key) => {
         headers.set(key, value);
     });
     new Headers(getAuthHeaders()).forEach((value, key) => {
         headers.set(key, value);
     });
+    if (isMultipart) {
+        headers.delete("content-type");
+    }
 
     return { ...options, headers };
 };
@@ -122,6 +126,10 @@ const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions
 const executeJsonRequest = async <T>(url: string, config: RequestInit): Promise<T> => {
     const response = await fetch(url, config);
     if (!response.ok) return handleError(response);
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (contentType.includes("text/csv") || contentType.includes("text/plain")) {
+        return (await response.text()) as T;
+    }
     const result = (await response.json()) as T;
     if (typeof result === "object" && result !== null && "code" in result && result.code !== 0) {
         const envelope = result as { code: number; message?: string };

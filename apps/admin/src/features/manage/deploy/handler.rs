@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::{
     Extension, Json,
     extract::{Multipart, Path, Query},
+    response::IntoResponse,
 };
 
 use crate::common::api::{ApiResponse, AppResult};
@@ -24,8 +25,15 @@ pub async fn list_deployments(
 pub async fn upload_deployment(
     Extension(deploy_service): Extension<Arc<DeployService>>,
     multipart: Multipart,
-) -> AppResult<DeploymentItem> {
-    Ok(ApiResponse::success(deploy_service.upload(multipart).await?))
+) -> Result<axum::response::Response, crate::common::error::AppError> {
+    match deploy_service.upload(multipart).await {
+        Ok(item) => Ok(ApiResponse::success(item).into_response()),
+        Err(crate::common::error::ServiceError::PayloadTooLarge) => {
+            Ok((axum::http::StatusCode::PAYLOAD_TOO_LARGE, "Request payload is too large")
+                .into_response())
+        }
+        Err(error) => Err(error.into()),
+    }
 }
 
 pub async fn get_deployment(
