@@ -21,6 +21,10 @@ automation consumer or shared-system revision is introduced.
 
 - Preserve the current role-list `PageCard`, toolbar, table, pagination, and
   action-column ownership.
+- Preserve the current column order through **Permissions**, then add
+  **Assigned users / 已分配用户**, followed by **Updated at** and the existing
+  action column. The new column renders the backend `assignedUserCount` without
+  changing the table's page size or pagination ownership.
 - Preserve the existing role dialog width, field order, and footer.
 - The permission region owns its bounded vertical overflow. The dialog remains
   the focus and outer scroll boundary; no page-level or horizontal overflow is
@@ -48,6 +52,18 @@ Keep role-specific state composition local until another real consumer proves
 reuse.
 
 ## State and interaction contract
+
+### Role list deletion state
+
+| Role state | Assigned users column | Delete affordance |
+| --- | --- | --- |
+| Built-in (`owner`, `admin`, `viewer`) | Backend count is shown. | No edit or delete action is rendered. |
+| Custom, `assignedUserCount = 0`, `deletable = true` | Shows `0`. | Existing delete confirmation remains available. |
+| Custom, `assignedUserCount > 0` | Shows the positive count. | Delete button is disabled; hover, focus, `title`, and accessible label explain in Chinese and English that all assignments must be removed first. |
+| Custom, backend `deletable = false` | Shows the returned count. | Delete button is disabled with a localized unavailable-state explanation. |
+
+The list projection is advisory for the interaction. The backend delete
+transaction rechecks `user_roles` and remains authoritative for races.
 
 | Permission state | Presentation | Primary action |
 | --- | --- | --- |
@@ -83,6 +99,12 @@ reuse.
 
 ## Evaluation gates
 
+- The list layout keeps the new Assigned users column immediately after
+  Permissions at the standard desktop and narrow table widths.
+- The assigned-user state matrix reaches zero-count confirmation, positive-count
+  disabled guidance, and built-in action omission from deterministic role rows.
+- The disabled action exposes the bilingual reason to a keyboard-focusable
+  wrapper and the control's accessible label/title; it never opens confirmation.
 - List loading, error, empty, populated, and retry remain distinct.
 - Permission loading, error, retry, empty, no-match, populated, and submitting
   states are reachable from deterministic query/form inputs.

@@ -1,5 +1,5 @@
 use super::{
-    repo::RoleRepository,
+    repo::{RoleRepository, SoftDeleteOutcome},
     types::{
         CreateRoleRequest, RoleItemResp, RoleListQuery, RoleOptionResp, RoleQuery,
         UpdateRolePayload,
@@ -107,15 +107,28 @@ impl RoleService {
         }
 
         // Perform the deletion
-        let success = RoleRepository::soft_delete(pool, id).await?;
-
-        if success {
-            crate::infra::permission::PermissionService::refresh_all_user_permissions(pool).await?;
-            tracing::info!("Successfully deleted role: {}", id);
-            Ok(())
-        } else {
-            tracing::warn!("Role not found during deletion: {}", id);
-            Err(ServiceError::NotFound("Role".to_string()))
+        match RoleRepository::soft_delete(pool, id).await? {
+            SoftDeleteOutcome::Deleted => {
+                crate::infra::permission::PermissionService::refresh_all_user_permissions(pool)
+                    .await?;
+                tracing::info!("Successfully deleted role: {}", id);
+                Ok(())
+            }
+            SoftDeleteOutcome::AssignmentBlocked(user_count) => {
+                tracing::warn!(
+                    "Cannot delete role {} - still assigned to {} users",
+                    id,
+                    user_count
+                );
+                Err(ServiceError::InvalidOperation(format!(
+                    "Cannot delete role '{}' - it is still assigned to {} user(s). Please remove all user assignments before deleting the role.",
+                    id, user_count
+                )))
+            }
+            SoftDeleteOutcome::NotFound => {
+                tracing::warn!("Role not found during deletion: {}", id);
+                Err(ServiceError::NotFound("Role".to_string()))
+            }
         }
     }
 

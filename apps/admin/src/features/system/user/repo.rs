@@ -217,16 +217,28 @@ impl UserRepository {
             return Ok(());
         }
         let now = Utc::now().naive_utc();
-        let mut query_builder: QueryBuilder<Sqlite> =
-            QueryBuilder::new("INSERT INTO user_roles (user_id, role_id, created_at) ");
-        query_builder.push_values(role_ids.iter(), |mut builder, role_id| {
-            builder.push_bind(user_id).push_bind(role_id).push_bind(now);
-        });
+        let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(
+            "INSERT INTO user_roles (user_id, role_id, created_at)
+             SELECT ",
+        );
+        query_builder.push_bind(user_id).push(", requested.role_id, ").push_bind(now);
+        query_builder.push(" FROM (SELECT ");
+        query_builder.push_bind(role_ids[0]).push(" AS role_id");
+        for role_id in &role_ids[1..] {
+            query_builder.push(" UNION ALL SELECT ").push_bind(role_id);
+        }
+        query_builder.push(
+            ") AS requested
+             INNER JOIN roles r ON r.id = requested.role_id AND r.deleted_at IS NULL",
+        );
 
-        query_builder.build().execute(&mut **tx).await.map_err(|e| {
+        let result = query_builder.build().execute(&mut **tx).await.map_err(|e| {
             tracing::error!("Database error inserting user_roles: {:?}", e);
             ServiceError::DatabaseQueryFailed
         })?;
+        if result.rows_affected() != role_ids.len() as u64 {
+            return Err(ServiceError::NotFound("Role".to_string()));
+        }
         Ok(())
     }
 

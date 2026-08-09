@@ -5041,15 +5041,24 @@
           "status",
           "createdAt",
           "updatedAt",
-          "menus"
+          "menus",
+          "assignedUserCount",
+          "deletable"
         ],
         "properties": {
+          "assignedUserCount": {
+            "type": "integer",
+            "format": "int64"
+          },
           "code": {
             "type": "string"
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "deletable": {
+            "type": "boolean"
           },
           "description": {
             "type": [

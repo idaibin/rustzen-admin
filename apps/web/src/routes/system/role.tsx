@@ -13,6 +13,7 @@ import {
     Select,
     Tag,
     Tree,
+    Tooltip,
     type FormProps,
 } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -30,6 +31,8 @@ import {
 } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
+
+import { deriveRoleDeletionState } from "./-role-delete-state";
 
 const OWNER_ROLE_CODE = "owner";
 const BUILTIN_ROLE_CODES = new Set([OWNER_ROLE_CODE, "admin", "viewer"]);
@@ -158,6 +161,13 @@ function RolePage() {
                 ) : (
                     <span className="text-muted-foreground">{t("暂无权限", "No permissions")}</span>
                 ),
+        },
+        {
+            title: t("已分配用户", "Assigned users"),
+            dataIndex: "assignedUserCount",
+            key: "assignedUserCount",
+            width: 150,
+            render: (_: unknown, row: Role.Item) => row.assignedUserCount,
         },
         {
             title: t("更新时间", "Updated at"),
@@ -309,6 +319,27 @@ function RoleActions({ record, onSuccess }: { record: Role.Item; onSuccess: () =
         return null;
     }
 
+    const deletionState = deriveRoleDeletionState(record);
+    const deletionBlockedReason = deletionState.blockedByAssignments
+        ? t(
+              "该角色已分配用户，移除所有分配后才能删除。",
+              "This role is assigned to users. Remove all assignments before deleting it.",
+          )
+        : t("当前角色不可删除。", "This role cannot be deleted right now.");
+    const deleteButton = (
+        <Button
+            type="text"
+            size="small"
+            danger
+            disabled={deletionState.disabled}
+            aria-label={
+                deletionState.disabled ? deletionBlockedReason : t("删除角色", "Delete role")
+            }
+            title={deletionState.disabled ? deletionBlockedReason : undefined}
+            icon={<DeleteOutlined />}
+        />
+    );
+
     return (
         <div className="flex justify-end gap-2">
             <AuthWrap code="system:role:update">
@@ -322,22 +353,34 @@ function RoleActions({ record, onSuccess }: { record: Role.Item; onSuccess: () =
                 </RoleDialog>
             </AuthWrap>
             <AuthWrap code="system:role:delete">
-                <Popconfirm
-                    title={t("删除角色", "Delete role")}
-                    description={
-                        <span>
-                            {t(
-                                `此操作无法撤销。确定删除角色 ${record.name}？`,
-                                `This action cannot be undone. Delete role ${record.name}?`,
-                            )}
+                {deletionState.disabled ? (
+                    <Tooltip title={deletionBlockedReason}>
+                        <span
+                            className="inline-flex"
+                            tabIndex={0}
+                            aria-label={deletionBlockedReason}
+                        >
+                            {deleteButton}
                         </span>
-                    }
-                    okText={t("删除", "Delete")}
-                    cancelText={t("取消", "Cancel")}
-                    onConfirm={() => onSuccessDelete(record.id, onSuccess)}
-                >
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
+                    </Tooltip>
+                ) : (
+                    <Popconfirm
+                        title={t("删除角色", "Delete role")}
+                        description={
+                            <span>
+                                {t(
+                                    `此操作无法撤销。确定删除角色 ${record.name}？`,
+                                    `This action cannot be undone. Delete role ${record.name}?`,
+                                )}
+                            </span>
+                        }
+                        okText={t("删除", "Delete")}
+                        cancelText={t("取消", "Cancel")}
+                        onConfirm={() => onSuccessDelete(record.id, onSuccess)}
+                    >
+                        {deleteButton}
+                    </Popconfirm>
+                )}
             </AuthWrap>
         </div>
     );

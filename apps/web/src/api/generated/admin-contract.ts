@@ -261,8 +261,10 @@ export interface OptionItemI64 {
  * Role item for list display
  */
 export interface RoleItemResp {
+    assignedUserCount: number;
     code: string;
     createdAt: string;
+    deletable: boolean;
     /** @nullable */
     description?: string | null;
     id: number;

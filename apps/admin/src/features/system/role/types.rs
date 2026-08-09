@@ -16,6 +16,7 @@ pub struct RoleWithMenusRow {
     pub updated_at: NaiveDateTime,
     pub is_system: Option<bool>,
     pub menus: serde_json::Value,
+    pub assigned_user_count: i64,
 }
 
 /// Create and update role request parameters
@@ -52,6 +53,8 @@ pub struct RoleItemResp {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub menus: Vec<OptionItem<i64>>,
+    pub assigned_user_count: i64,
+    pub deletable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -105,6 +108,8 @@ impl TryFrom<RoleWithMenusRow> for RoleItemResp {
             created_at: role.created_at,
             updated_at: role.updated_at,
             menus,
+            assigned_user_count: role.assigned_user_count,
+            deletable: role.is_system == Some(false) && role.assigned_user_count == 0,
         })
     }
 }

@@ -6,16 +6,11 @@ declare namespace Role {
         Disabled = 2,
     }
 
-    // 角色基本信息 - 更新为与后端一致
-    interface Item {
-        id: number;
-        name: string;
-        code: string;
-        description?: string;
+    // 角色列表字段直接继承生成契约，仅在页面域内收窄状态枚举。
+    type ContractItem = import("@/api/generated/admin-contract").RoleItemResp;
+
+    interface Item extends Omit<ContractItem, "status"> {
         status: Status;
-        createdAt: string;
-        updatedAt: string;
-        menus: Api.OptionItem<number>[];
     }
 
     interface OptionItem extends Api.OptionItem<number> {
