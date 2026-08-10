@@ -210,7 +210,7 @@ pub(crate) fn validate_routes(module: &str, routes: &[RouteManifest]) -> Result<
 }
 
 fn validate_method(method: &str) -> Result<(), ManifestError> {
-    if matches!(method, "GET" | "POST" | "PUT" | "PATCH" | "DELETE") {
+    if matches!(method, "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS") {
         Ok(())
     } else {
         Err(ManifestError::UnsupportedMethod(method.to_string()))
@@ -355,6 +355,36 @@ permission = "reports:view"
             ],
         );
         assert!(matches!(result, Err(ManifestError::AmbiguousRoute { .. })));
+
+        let result = definition.build_manifest(
+            "0.5.0",
+            vec![
+                RouteManifest::public(Method::OPTIONS, "/track"),
+                RouteManifest::public(Method::OPTIONS, "/track"),
+            ],
+        );
+        assert!(matches!(result, Err(ManifestError::AmbiguousRoute { .. })));
+    }
+
+    #[test]
+    fn options_is_the_only_additional_public_method() {
+        let definition = ModuleDefinition::from_toml(MODULE_TOML).expect("definition");
+        assert!(
+            definition
+                .build_manifest(
+                    "0.5.0",
+                    vec![
+                        RouteManifest::public(Method::OPTIONS, "/track"),
+                        RouteManifest::protected(Method::GET, "/jobs", "reports:view"),
+                    ],
+                )
+                .is_ok()
+        );
+        let result = definition
+            .build_manifest("0.5.0", vec![RouteManifest::public(Method::TRACE, "/track")]);
+        assert!(
+            matches!(result, Err(ManifestError::UnsupportedMethod(method)) if method == "TRACE")
+        );
     }
 
     #[test]

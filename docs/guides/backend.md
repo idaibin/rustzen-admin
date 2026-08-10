@@ -40,11 +40,13 @@ persistence; Admin `features/dashboard/` is the current intentional exception.
 ## Persistence and configuration
 
 - SQL must be explicit; do not use `SELECT *`.
-- Schema changes require a migration in the owning application.
-- While this repository is a resettable template, each application keeps one
-  baseline migration: fold schema changes into that baseline and recreate local
-  SQLite databases with `just reset-db`. Do not add upgrade-only compatibility
-  migrations until persistent user data becomes a supported contract.
+- Schema changes require a forward migration in the owning application. A
+  published `0001_*.sql` baseline is immutable: never edit, reorder, or rewrite
+  it. Add the next numbered migration (for example `0002_*.sql`) for a new
+  schema change, and test both the migration chain and the resulting contract.
+  Local reset/recreate remains available through `just reset-db`, but it does
+  not permit changing an already-published migration or pretending that a
+  forward migration is a baseline rewrite.
 - Use `crates/storage/` for shared SQLite connection and maintenance behavior.
 - Use the focused config type from `crates/config/`; a process must not parse
   settings owned only by another process.

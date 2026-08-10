@@ -30,6 +30,29 @@ pub fn routes(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>, 
         .post_with_permission("/flows", handler::create_flow, Require(reports::FLOW_MANAGE))?
         .put_with_permission("/flows/{id}", handler::update_flow, Require(reports::FLOW_MANAGE))?
         .delete_with_permission("/flows/{id}", handler::delete_flow, Require(reports::FLOW_MANAGE))?
+        .get_with_permission("/schedules", handler::schedules, Require(reports::SCHEDULE_VIEW))?
+        .get_with_permission(
+            "/flow-options",
+            handler::flow_options,
+            Require(reports::SCHEDULE_VIEW),
+        )?
+        .post_with_permission(
+            "/schedules",
+            handler::create_schedule,
+            Require(reports::SCHEDULE_MANAGE),
+        )?
+        .get_with_permission("/schedules/{id}", handler::schedule, Require(reports::SCHEDULE_VIEW))?
+        .put_with_permission(
+            "/schedules/{id}",
+            handler::update_schedule,
+            Require(reports::SCHEDULE_MANAGE),
+        )?
+        .delete_with_permission(
+            "/schedules/{id}",
+            handler::delete_schedule,
+            Require(reports::SCHEDULE_MANAGE),
+        )?
+        .get_with_permission("/settings", handler::settings, Require(reports::SCHEDULE_VIEW))?
         .get_with_permission("/runs", handler::runs, Require(reports::RUN_VIEW))?
         .post_with_permission("/runs", handler::create_run, Require(reports::RUN_MANAGE))?
         .get_with_permission("/runs/{id}", handler::run, Require(reports::RUN_VIEW))?

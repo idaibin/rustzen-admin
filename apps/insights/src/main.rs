@@ -7,6 +7,8 @@ mod middleware;
 
 use std::error::Error;
 
+use crate::{config::CONFIG, infra::logger::init_logging};
+
 type StartupResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[used]
@@ -24,10 +26,10 @@ fn main() -> StartupResult<()> {
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
     // SAFETY: this runs in synchronous main before Tokio creates worker threads.
-    unsafe { rustzen_config::initialize_process_timezone(config::CONFIG.timezone()) };
+    unsafe { rustzen_config::initialize_process_timezone(CONFIG.timezone()) };
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
     runtime.block_on(async move {
-        init_logging()?;
+        let _logging = init_logging().map_err(|error| std::io::Error::other(error.to_string()))?;
         match command {
             Command::Serve => app::run().await,
         }
@@ -58,18 +60,6 @@ impl std::fmt::Display for CommandError {
 }
 
 impl Error for CommandError {}
-
-fn init_logging() -> StartupResult<()> {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_target(false)
-        .compact()
-        .try_init()
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

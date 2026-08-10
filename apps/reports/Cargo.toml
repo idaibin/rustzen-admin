@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
 chromiumoxide = "0.9.1"
 futures = "0.3"
 rustzen-auth = { path = "../../crates/auth" }

@@ -49,6 +49,7 @@ argon2 = "0.6.0-rc.8"
 sysinfo = "0.39.3"
 tokio-stream = "0.1.17"
 futures = "0.3.31"
+libc = "0.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls", "stream"] }
 rust-embed = "8.11.0"
 mime_guess = "2.0.5"

@@ -1,0 +1,152 @@
+# Module Log Diagnostics UI
+
+## Profile, authority, and selected source
+
+- Profile: **Feature UI**.
+- Product basis: [Module Log Diagnostics, Backup, and Cleanup](../../product/features/module-log-diagnostics/spec.md).
+- Shared visual authority: root `DESIGN.md`, especially
+  `#layout-and-density`, `#component-semantics`, and `#status-semantics`.
+- Selected source identity: accepted current System Status and Manage Log
+  surfaces in `apps/web/src/routes/system/status.tsx` and
+  `apps/web/src/routes/manage/log.tsx`, plus repository-owned `DESIGN.md`
+  baseline (`version: 1.0`).
+- Selection status: accepted existing product surfaces. Rights/use are
+  repository-owned; legacy file browsers, glass/gradient references, and the
+  operation-log surface as a process-log substitute are ignored.
+- Target: an owner-only diagnostics section under System Status with
+  module/file list, bounded reverse-cursor tail, bounded Blob archive backup
+  action, cleanup preview, and confirmation in loading, populated, empty,
+  error, processing, and partial states
+  at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
+  zh-CN/en-US. Runtime captures for the new section are `Not verified`.
+
+Dates shown for daily files, retention cutoffs, and current-day protection are
+UTC, matching the rolling logger; labels must make the UTC basis clear.
+
+The selected source proves the current status page shell, storage/resource
+cards, operation-log table, download transport, and confirmation semantics. It
+does not authorize arbitrary filesystem browsing or a second log database.
+
+## Surface and layout contract
+
+- Keep one `PageHeader` for System Status. Add a diagnostics `PageCard` below
+  the existing resource/storage summary; do not rename or replace the separate
+  `/manage/log` operation-log page.
+- The diagnostics panel begins with a fixed module selector and file/date
+  metadata table. Selecting a file opens a bounded reverse-cursor tail Drawer or detail region
+  that owns its vertical scroll; the page owns no nested horizontal scroll.
+- The module-log diagnostics route/menu and all three actions are owner-only;
+  admin, viewer, and custom-role users cannot enter this System Status surface
+  and direct endpoint requests are rejected. No diagnostics-local permission
+  state is rendered for a user stopped at that boundary. Cleanup uses a preview
+  list and existing `ConfirmDialog` pattern; a one-click destructive action is
+  prohibited.
+- Long lines wrap by default. If a bounded preformatted region is necessary,
+  it is explicitly labeled and horizontally scrollable within the Drawer only.
+- At narrow widths, module/file controls stack, metadata columns reduce to
+  prefix/date/size/status/action essentials, and the detail Drawer retains a
+  reachable close and confirmation action.
+
+## Component and data-owner mapping
+
+| Responsibility | Current owner | Decision |
+| --- | --- | --- |
+| Page title and status summary | `PageHeader` and existing System Status cards | Reuse |
+| Module/file metadata list | `DataTableShell` + route-local `ProTable` or existing table pattern | Reuse; columns remain local |
+| Loading, empty, error, processing | `DataState` | Reuse; owner-only route boundary prevents a local permission state |
+| Bounded reverse-cursor log tail | Ant Design `Drawer` + `Typography`/code region | Wrap route-local content; hard caps are 256 KiB, 2,000 lines, and 16 KiB per line; no shared file viewer |
+| Backup download | Existing `apiDownload`/download action semantics | Reuse; bounded 64 MiB Blob, manifest/hash copy, and fail-closed result are route-local |
+| Cleanup review/confirm | Existing `ConfirmDialog` and Ant Design list/table | Reuse |
+| Partial result | Ant Design `Alert`/`Tag` with semantic status | Wrap route-local item outcomes |
+| HTTP transport | Admin system API client and `apiRequest`/`apiDownload` | Reuse; Admin route is authority |
+| Log content | Runtime files emitted by each service | Services own content; Admin owns allowlist/access/audit |
+
+No new global file-browser, log database, table, or archive component is
+introduced. `DataState` and semantic tokens remain the only shared feedback
+owners.
+
+## State and interaction contract
+
+| State | Presentation | Interaction |
+| --- | --- | --- |
+| Loading | Compact `DataState` in the diagnostics panel or Drawer | Preserve selection; disable duplicate actions. |
+| Populated | Metadata table or bounded tail with module/date labels | Keyboard-accessible row opens detail. |
+| Empty | `DataState` distinguishes absent/empty file from no cleanup candidates | Explain scope/cutoff; no false error. |
+| Error | Alert-semantic `DataState` with retry | Retry only the owning read/action; no success toast alone. |
+| Processing | Inline progress/disabled action for Blob download, preview, or confirm | Keep selected module/file and prevent duplicates. |
+| Partial | Item-level outcome list and summary | Failed files remain identified; successful cleanup is not repeated blindly. |
+| Preview ready | Candidate list plus cutoff/current UTC-day warning | Confirmation is explicit, scoped, and short-lived. |
+
+The content viewer does not expose shell commands, arbitrary paths, live tail,
+or operation-log rows. Current UTC-day/active files and changed candidates remain
+non-destructible even when a preview was previously shown.
+
+## Accessibility and responsive behavior
+
+- The diagnostics section has a descriptive heading and table headers. Module,
+  date, file size, and status are available as text; color is supplementary.
+- Tail, backup, preview, and confirm controls are real keyboard-focusable
+  buttons with visible focus and bilingual accessible labels. Drawer focus is
+  trapped/restored; confirmation states do not discard the selected scope.
+- Loading uses status semantics, errors and destructive warnings use alert
+  semantics. The global route/API denial does not reveal log content; no local
+  permission state is rendered.
+- Long lines may scroll only inside an explicitly labeled bounded region. The
+  page, table, and modal do not acquire hidden horizontal overflow.
+- Existing reduced-motion, light/dark, and typography tokens remain
+  authoritative. No new animation, glow, gradient, or decorative file icon
+  system is introduced.
+
+## API and data ownership
+
+The Web client consumes an Admin-owned system diagnostics contract after the
+Admin `ContractRouter` route is registered, exported to OpenAPI, and reflected
+in the Orval-generated Admin client. This is the only one of these four slices
+that uses the Admin OpenAPI/Orval chain. The document intentionally does not
+duplicate paths or file schemas. Admin owns the fixed allowlist, path safety,
+64 MiB preflight/Blob archive, manifest/hash metadata, confirmation token,
+capability checks, and audit metadata. `crates/runtime` and each service own
+file naming/emission/retention; no module database is read by Admin.
+
+## Traceable UI deltas
+
+| ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
+| --- | --- | --- | --- | --- | --- |
+| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `Not verified`: diagnostics section not yet rendered | Add one bounded diagnostics panel without replacing resource/storage summary | P1 | System Status route; desktop/narrow alignment check |
+| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `Not verified`: process-log metadata/tail not yet rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Admin API + route-local table; contract and content-scope check |
+| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `Not verified`: preview/processing/partial paths not yet exercised | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | route action state; forced response/destructive safety matrix |
+| ML-UI-004 | `source-extracted`: current `apiDownload` and semantic status treatment | `Not verified`: 64 MiB preflight, manifest/hash, and long-line rendering not yet captured | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | `apiDownload`, Drawer/content owner; browser and HTTP evidence |
+
+Exact new geometry, archive content, runtime permission, and browser evidence
+are `Not verified` until implementation and validation.
+
+## Responsive and verification matrix
+
+| Priority | Viewport | Theme/locale | Surface and state | Acceptance |
+| --- | --- | --- | --- | --- |
+| Required | 1920x1080 @ 100% | light / zh-CN | System Status populated | Diagnostics panel aligns with existing status content; module/file actions are reachable. |
+| Required | 1440x900 @ 100% | dark / en-US | Tail Drawer and backup processing | Long lines, integrity copy, focus, and status contrast pass. |
+| Required | 390x844 @ 100% | light / zh-CN | Empty/error | Controls stack; no content or action is clipped. |
+| Required | 390x844 @ 100% | dark / en-US | Cleanup preview/partial confirmation | Candidate list wraps/scrolls in its owner; confirmation remains keyboard reachable. |
+
+Static checks cover fixed module scope, owner-only route/menu/API boundaries,
+absence of a diagnostics-local permission state, and separation from operation
+logs. HTTP/browser validation must exercise
+symlink/path safety, 64 MiB preflight, manifest/hash metadata, mid-build change
+fail-closed behavior, current UTC-day protection, partial cleanup results, and two
+same-viewport comparison passes after implementation.
+
+## Shared-system changes and readiness
+
+Shared-system changes: **None**. Reuse current System Status/operation-log
+visual owners, `DataState`, table shell, Drawer, ConfirmDialog, download
+transport, and semantic tokens.
+
+## Ready for dev-frontend module log diagnostics
+
+The selected source, layout ownership, component mapping, route/API
+authorization and action states, responsive/accessibility rules, and acceptance
+IDs are fixed. The slice
+is **Ready for dev-frontend**. Runtime log availability (especially Insights),
+archive/hash response, path safety, final geometry, and two-pass browser
+evidence remain `Not verified`.

@@ -4,6 +4,7 @@ declare namespace SystemModule {
         | "/monitoring/overview"
         | "/monitoring/nodes"
         | "/monitoring/checks"
+        | "/monitoring/incidents"
         | "/analytics/overview"
         | "/analytics/details"
         | "/reports/templates"

@@ -52,7 +52,22 @@ function RunsPage() {
         refetchInterval: (q) =>
             q.state.data?.data.some((r) => isActiveRun(r.status)) ? 1000 : false,
     });
+    const linkedRunId =
+        typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("runId");
+    const { data: linkedRun } = useQuery({
+        queryKey: ["reports", "run", linkedRunId],
+        queryFn: () => reportsAPI.run(linkedRunId!),
+        enabled: Boolean(linkedRunId),
+    });
     const total = data?.total ?? 0;
+
+    useEffect(() => {
+        if (linkedRun) {
+            setSelected(linkedRun);
+        }
+    }, [linkedRun]);
 
     useEffect(() => {
         if (data === undefined || isFetching) {

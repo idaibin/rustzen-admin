@@ -25,6 +25,10 @@ impl AppError {
         Self { status: StatusCode::BAD_REQUEST, code: 40002, message: message.into() }
     }
 
+    pub fn unprocessable(message: impl Into<String>) -> Self {
+        Self { status: StatusCode::UNPROCESSABLE_ENTITY, code: 40002, message: message.into() }
+    }
+
     pub fn not_found(resource: &str) -> Self {
         Self {
             status: StatusCode::NOT_FOUND,
@@ -41,7 +45,7 @@ impl AppError {
         }
     }
 
-    fn database() -> Self {
+    pub(crate) fn database() -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: 40002,

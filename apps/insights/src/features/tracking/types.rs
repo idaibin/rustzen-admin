@@ -6,13 +6,11 @@ use serde_json::Value;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrackInput {
     pub event_name: Option<String>,
-    pub event_type: Option<String>,
     pub visitor_id: String,
     pub user_id: Option<String>,
     pub session_id: Option<String>,
     pub platform: Option<String>,
     pub page_path: Option<String>,
-    pub path: Option<String>,
     pub referrer: Option<String>,
     pub api_path: Option<String>,
     pub api_method: Option<String>,

@@ -14,6 +14,11 @@ export default {
             override: {
                 fetch: { includeHttpResponseReturnType: false },
                 mutator: { path: mutatorPath, name: "generatedApiRequest" },
+                operations: {
+                    backupModuleLogs: {
+                        mutator: { path: mutatorPath, name: "generatedBlobRequest" },
+                    },
+                },
             },
         },
     },

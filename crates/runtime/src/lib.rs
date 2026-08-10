@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{Days, Local, NaiveDate};
+use chrono::{Days, NaiveDate, Utc};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{EnvFilter, fmt::writer::MakeWriterExt};
 
@@ -42,7 +42,7 @@ pub fn init_file_logging(
         .try_init()
         .map_err(|error| std::io::Error::other(error.to_string()))?;
 
-    cleanup_expired_log_files(&log_dir, file_prefix, retention_days, Local::now().date_naive())?;
+    cleanup_expired_log_files(&log_dir, file_prefix, retention_days, Utc::now().date_naive())?;
     spawn_log_cleanup_task(log_dir, file_prefix.to_string(), retention_days, cleanup_error_message);
     Ok(FileLoggingGuard { _file_guard: file_guard })
 }
@@ -67,7 +67,7 @@ fn spawn_log_cleanup_task(
                 &log_dir,
                 &file_prefix,
                 retention_days,
-                Local::now().date_naive(),
+                Utc::now().date_naive(),
             ) {
                 tracing::error!(%error, "{}", cleanup_error_message);
             }

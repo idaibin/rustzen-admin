@@ -16,6 +16,7 @@ chrono = { version = "0.4", features = ["serde"] }
 rustzen-auth = { path = "../../crates/auth" }
 rustzen-config = { path = "../../crates/config" }
 rustzen-ipc = { path = "../../crates/ipc" }
+rustzen-runtime = { path = "../../crates/runtime" }
 rustzen-storage = { path = "../../crates/storage" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,8 +30,8 @@ sqlx = { version = "0.9.0", features = [
 ] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.17", features = ["v4", "serde"] }
+sysinfo = "0.39.3"
 
 [dev-dependencies]
 tower = "0.5"

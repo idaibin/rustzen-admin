@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.5.0
  */
 import { generatedApiRequest } from "../request.ts";
+import { generatedBlobRequest } from "../request.ts";
 export interface ApiErrorResponse {
     code: number;
     /** @nullable */
@@ -223,6 +224,94 @@ export interface ModuleHealthResponse {
 export interface ApiResponseModuleHealthResponseList {
     code: number;
     data: ModuleHealthResponse[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleLogCleanupCandidate {
+    date: string;
+    fileName: string;
+    modifiedAt: string;
+    module: string;
+    /** @minimum 0 */
+    sizeBytes: number;
+}
+
+export interface ModuleLogItemFailure {
+    fileName: string;
+    module: string;
+    reason: string;
+}
+
+export interface ModuleLogCleanupPreviewResp {
+    candidates: ModuleLogCleanupCandidate[];
+    cutoffDate: string;
+    expiresAt: string;
+    failures: ModuleLogItemFailure[];
+    previewId: string;
+    token: string;
+}
+
+export interface ApiResponseModuleLogCleanupPreviewResp {
+    code: number;
+    data: ModuleLogCleanupPreviewResp;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleLogCleanupResultResp {
+    failures: ModuleLogItemFailure[];
+    partial: boolean;
+    previewId: string;
+    removed: ModuleLogCleanupCandidate[];
+    retained: ModuleLogCleanupCandidate[];
+}
+
+export interface ApiResponseModuleLogCleanupResultResp {
+    code: number;
+    data: ModuleLogCleanupResultResp;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleLogFileResp {
+    active: boolean;
+    date: string;
+    fileName: string;
+    modifiedAt: string;
+    module: string;
+    readable: boolean;
+    /** @minimum 0 */
+    sizeBytes: number;
+}
+
+export interface ApiResponseModuleLogFileRespList {
+    code: number;
+    data: ModuleLogFileResp[];
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ModuleLogTailResp {
+    /** @minimum 0 */
+    byteCount: number;
+    content: string;
+    date: string;
+    /** @minimum 0 */
+    lineCount: number;
+    module: string;
+    /** @nullable */
+    nextCursor?: string | null;
+    truncated: boolean;
+}
+
+export interface ApiResponseModuleLogTailResp {
+    code: number;
+    data: ModuleLogTailResp;
     message: string;
     /** @nullable */
     total?: number | null;
@@ -626,6 +715,19 @@ export interface LoginRequest {
     username: string;
 }
 
+export interface ModuleLogFileSelector {
+    date: string;
+    module: string;
+}
+
+export interface ModuleLogBackupRequest {
+    files: ModuleLogFileSelector[];
+}
+
+export interface ModuleLogCleanupConfirmRequest {
+    token: string;
+}
+
 /**
  * Request payload for current-account profile updates.
  */
@@ -765,6 +867,17 @@ export type ListRolesParams = {
 export type GetRoleOptionsParams = {
     q?: string;
     limit?: number;
+};
+
+export type ListModuleLogsParams = {
+    module?: string;
+    date?: string;
+};
+
+export type TailModuleLogParams = {
+    module: string;
+    date: string;
+    cursor?: string;
 };
 
 export type ListUsersParams = {
@@ -1407,6 +1520,109 @@ export const getStatusOverview = async (
     options?: RequestInit,
 ): Promise<ApiResponseSystemStatusOverview> => {
     return generatedApiRequest<ApiResponseSystemStatusOverview>(getGetStatusOverviewUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getListModuleLogsUrl = (params?: ListModuleLogsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/status/module-logs?${stringifiedParams}`
+        : `/api/system/status/module-logs`;
+};
+
+export const listModuleLogs = async (
+    params?: ListModuleLogsParams,
+    options?: RequestInit,
+): Promise<ApiResponseModuleLogFileRespList> => {
+    return generatedApiRequest<ApiResponseModuleLogFileRespList>(getListModuleLogsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getBackupModuleLogsUrl = () => {
+    return `/api/system/status/module-logs/backup`;
+};
+
+export const backupModuleLogs = async (
+    moduleLogBackupRequest: ModuleLogBackupRequest,
+    options?: RequestInit,
+): Promise<Blob> => {
+    return generatedBlobRequest<Blob>(getBackupModuleLogsUrl(), {
+        ...options,
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(moduleLogBackupRequest),
+    });
+};
+
+export const getConfirmModuleLogCleanupUrl = () => {
+    return `/api/system/status/module-logs/cleanup/confirm`;
+};
+
+export const confirmModuleLogCleanup = async (
+    moduleLogCleanupConfirmRequest: ModuleLogCleanupConfirmRequest,
+    options?: RequestInit,
+): Promise<ApiResponseModuleLogCleanupResultResp> => {
+    return generatedApiRequest<ApiResponseModuleLogCleanupResultResp>(
+        getConfirmModuleLogCleanupUrl(),
+        {
+            ...options,
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...options?.headers },
+            body: JSON.stringify(moduleLogCleanupConfirmRequest),
+        },
+    );
+};
+
+export const getPreviewModuleLogCleanupUrl = () => {
+    return `/api/system/status/module-logs/cleanup/preview`;
+};
+
+export const previewModuleLogCleanup = async (
+    options?: RequestInit,
+): Promise<ApiResponseModuleLogCleanupPreviewResp> => {
+    return generatedApiRequest<ApiResponseModuleLogCleanupPreviewResp>(
+        getPreviewModuleLogCleanupUrl(),
+        {
+            ...options,
+            method: "POST",
+        },
+    );
+};
+
+export const getTailModuleLogUrl = (params: TailModuleLogParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/system/status/module-logs/tail?${stringifiedParams}`
+        : `/api/system/status/module-logs/tail`;
+};
+
+export const tailModuleLog = async (
+    params: TailModuleLogParams,
+    options?: RequestInit,
+): Promise<ApiResponseModuleLogTailResp> => {
+    return generatedApiRequest<ApiResponseModuleLogTailResp>(getTailModuleLogUrl(params), {
         ...options,
         method: "GET",
     });

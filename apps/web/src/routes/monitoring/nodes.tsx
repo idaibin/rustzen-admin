@@ -21,6 +21,7 @@ import {
 } from "recharts";
 
 import { monitorAPI } from "@/api";
+import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { formatDateTime } from "@/lib/format-date-time";
@@ -284,6 +285,16 @@ function NodeDetails({
             <Typography.Paragraph type="secondary">
                 {node ? `${node.agentId} · Agent ${node.agentVersion}` : ""}
             </Typography.Paragraph>
+            {node ? (
+                <AuthWrap code="monitor:incident:view">
+                    <Button
+                        type="link"
+                        href={`/monitoring/incidents?sourceType=node&sourceId=${encodeURIComponent(node.id)}`}
+                    >
+                        {t("查看该节点事件", "View incidents for this node")}
+                    </Button>
+                </AuthWrap>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                 <Summary label={t("状态", "Status")} value={node?.status ?? "-"} />
                 <Summary label="CPU" value={formatPercent(node?.cpuPercent ?? null)} />

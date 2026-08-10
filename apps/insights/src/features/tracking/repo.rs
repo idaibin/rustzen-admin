@@ -1,6 +1,42 @@
+use rustzen_storage::SqlitePool;
 use sqlx::SqliteConnection;
 
 use super::types::NewEvent;
+
+#[derive(Debug, Clone)]
+pub struct ProjectPolicy {
+    pub project_id: String,
+    pub collection_enabled: bool,
+    pub allowed_origins: String,
+}
+
+pub async fn find_project_policy(
+    pool: &SqlitePool,
+    project_key_hash: &str,
+) -> Result<Option<ProjectPolicy>, sqlx::Error> {
+    sqlx::query_as::<_, ProjectPolicyRow>(
+        "SELECT id, collection_enabled, allowed_origins
+         FROM insights_projects
+         WHERE project_key_hash = ? AND archived_at IS NULL",
+    )
+    .bind(project_key_hash)
+    .fetch_optional(pool)
+    .await
+    .map(|row| {
+        row.map(|row| ProjectPolicy {
+            project_id: row.id,
+            collection_enabled: row.collection_enabled != 0,
+            allowed_origins: row.allowed_origins,
+        })
+    })
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct ProjectPolicyRow {
+    id: String,
+    collection_enabled: i64,
+    allowed_origins: String,
+}
 
 pub async fn insert_event(
     connection: &mut SqliteConnection,

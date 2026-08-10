@@ -2849,6 +2849,442 @@
         }
       }
     },
+    "/api/system/status/module-logs": {
+      "get": {
+        "operationId": "listModuleLogs",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseModuleLogFileRespList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid module-log query or filesystem scope",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:module:log:view"
+          ],
+          "mode": "require"
+        }
+      }
+    },
+    "/api/system/status/module-logs/backup": {
+      "post": {
+        "operationId": "backupModuleLogs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleLogBackupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bounded module-log tar archive",
+            "headers": {
+              "content-disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-rustzen-archive-file-count": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "x-rustzen-archive-sha256": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/x-tar": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid module-log request or filesystem scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              },
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type must be application/json",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "422": {
+            "description": "DTO deserialization failed",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:module:log:backup"
+          ],
+          "mode": "require"
+        }
+      }
+    },
+    "/api/system/status/module-logs/cleanup/confirm": {
+      "post": {
+        "operationId": "confirmModuleLogCleanup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleLogCleanupConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseModuleLogCleanupResultResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid module-log request or filesystem scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              },
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type must be application/json",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "422": {
+            "description": "DTO deserialization failed",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:module:log:cleanup"
+          ],
+          "mode": "require"
+        }
+      }
+    },
+    "/api/system/status/module-logs/cleanup/preview": {
+      "post": {
+        "operationId": "previewModuleLogCleanup",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseModuleLogCleanupPreviewResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid module-log query or filesystem scope",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:module:log:cleanup"
+          ],
+          "mode": "require"
+        }
+      }
+    },
+    "/api/system/status/module-logs/tail": {
+      "get": {
+        "operationId": "tailModuleLog",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseModuleLogTailResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid module-log query or filesystem scope",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:module:log:view"
+          ],
+          "mode": "require"
+        }
+      }
+    },
     "/api/system/users": {
       "get": {
         "operationId": "listUsers",
@@ -3953,6 +4389,113 @@
           }
         }
       },
+      "ApiResponseModuleLogCleanupPreviewResp": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ModuleLogCleanupPreviewResp"
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseModuleLogCleanupResultResp": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ModuleLogCleanupResultResp"
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseModuleLogFileRespList": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogFileResp"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseModuleLogTailResp": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ModuleLogTailResp"
+          },
+          "message": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "ApiResponseModuleStatusResponseList": {
         "type": "object",
         "required": [
@@ -4952,6 +5495,246 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "ModuleLogBackupRequest": {
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogFileSelector"
+            }
+          }
+        }
+      },
+      "ModuleLogCleanupCandidate": {
+        "type": "object",
+        "required": [
+          "module",
+          "fileName",
+          "date",
+          "sizeBytes",
+          "modifiedAt"
+        ],
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "module": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ModuleLogCleanupConfirmRequest": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "ModuleLogCleanupPreviewResp": {
+        "type": "object",
+        "required": [
+          "previewId",
+          "token",
+          "expiresAt",
+          "cutoffDate",
+          "candidates",
+          "failures"
+        ],
+        "properties": {
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogCleanupCandidate"
+            }
+          },
+          "cutoffDate": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogItemFailure"
+            }
+          },
+          "previewId": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "ModuleLogCleanupResultResp": {
+        "type": "object",
+        "required": [
+          "previewId",
+          "removed",
+          "retained",
+          "failures",
+          "partial"
+        ],
+        "properties": {
+          "failures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogItemFailure"
+            }
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "previewId": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogCleanupCandidate"
+            }
+          },
+          "retained": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleLogCleanupCandidate"
+            }
+          }
+        }
+      },
+      "ModuleLogFileResp": {
+        "type": "object",
+        "required": [
+          "module",
+          "fileName",
+          "date",
+          "sizeBytes",
+          "modifiedAt",
+          "readable",
+          "active"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "date": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "module": {
+            "type": "string"
+          },
+          "readable": {
+            "type": "boolean"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ModuleLogFileSelector": {
+        "type": "object",
+        "required": [
+          "module",
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          }
+        }
+      },
+      "ModuleLogItemFailure": {
+        "type": "object",
+        "required": [
+          "module",
+          "fileName",
+          "reason"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ModuleLogTailResp": {
+        "type": "object",
+        "required": [
+          "module",
+          "date",
+          "content",
+          "truncated",
+          "lineCount",
+          "byteCount"
+        ],
+        "properties": {
+          "byteCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "lineCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "module": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
           }
         }
       },

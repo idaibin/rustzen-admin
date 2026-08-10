@@ -24,6 +24,11 @@ use crate::{
             role::types::{
                 CreateRoleRequest, RoleItemResp, RoleOptionResp, RoleQuery, UpdateRolePayload,
             },
+            status::logs::types::{
+                ModuleLogBackupRequest, ModuleLogCleanupCandidate, ModuleLogCleanupConfirmRequest,
+                ModuleLogCleanupPreviewResp, ModuleLogCleanupResultResp, ModuleLogFileResp,
+                ModuleLogFileSelector, ModuleLogItemFailure, ModuleLogTailResp,
+            },
             status::types::{
                 CpuResourceStatus, DirectoryStorageItem, DiskResourceStatus, LocalResourceStatus,
                 MemoryResourceStatus, SqliteStorageStatus, SystemStatusOverview,
@@ -41,7 +46,8 @@ use crate::{
     },
 };
 use utoipa::openapi::{
-    ComponentsBuilder, Content, Info, OpenApi, OpenApiBuilder, Paths, Ref, ResponseBuilder,
+    ComponentsBuilder, Content, Header, Info, OpenApi, OpenApiBuilder, Paths, Ref, ResponseBuilder,
+    SchemaFormat,
     extensions::ExtensionsBuilder,
     path::{HttpMethod, Operation, OperationBuilder},
     path::{ParameterBuilder, ParameterIn},
@@ -107,6 +113,15 @@ pub fn document() -> Result<OpenApi, crate::infra::contract::ContractError> {
         .schema_from::<ModuleHealthResponse>()
         .schema_from::<RuntimeMenuResponse>()
         .schema_from::<UpdateModuleRequest>()
+        .schema_from::<ModuleLogFileSelector>()
+        .schema_from::<ModuleLogBackupRequest>()
+        .schema_from::<ModuleLogCleanupConfirmRequest>()
+        .schema_from::<ModuleLogFileResp>()
+        .schema_from::<ModuleLogTailResp>()
+        .schema_from::<ModuleLogCleanupCandidate>()
+        .schema_from::<ModuleLogItemFailure>()
+        .schema_from::<ModuleLogCleanupPreviewResp>()
+        .schema_from::<ModuleLogCleanupResultResp>()
         .build();
     if let Some(option_item) = components.schemas.get("OptionItem").cloned() {
         components.schemas.insert("OptionItem_i64".into(), option_item);
@@ -184,6 +199,33 @@ fn operation_for(contract: &crate::infra::contract::RouteContract) -> Operation 
                 )
                 .build(),
         ),
+        OperationDescriptor::BackupModuleLogs => operation.response(
+            "200",
+            ResponseBuilder::new()
+                .description("Bounded module-log tar archive")
+                .content(
+                    "application/x-tar",
+                    Content::new(Some(
+                        ObjectBuilder::new()
+                            .schema_type(Type::String)
+                            .format(Some(SchemaFormat::Custom("binary".into())))
+                            .build(),
+                    )),
+                )
+                .header(
+                    "content-disposition",
+                    Header::new(ObjectBuilder::new().schema_type(Type::String).build()),
+                )
+                .header(
+                    "x-rustzen-archive-sha256",
+                    Header::new(ObjectBuilder::new().schema_type(Type::String).build()),
+                )
+                .header(
+                    "x-rustzen-archive-file-count",
+                    Header::new(ObjectBuilder::new().schema_type(Type::Integer).build()),
+                )
+                .build(),
+        ),
         OperationDescriptor::Logout
         | OperationDescriptor::UpdateAccountAvatar
         | OperationDescriptor::UpdateAccountProfile
@@ -211,6 +253,10 @@ fn operation_for(contract: &crate::infra::contract::RouteContract) -> Operation 
         | OperationDescriptor::DeleteRole
         | OperationDescriptor::GetRoleOptions
         | OperationDescriptor::GetStatusOverview
+        | OperationDescriptor::ListModuleLogs
+        | OperationDescriptor::TailModuleLog
+        | OperationDescriptor::PreviewModuleLogCleanup
+        | OperationDescriptor::ConfirmModuleLogCleanup
         | OperationDescriptor::ListUsers
         | OperationDescriptor::UpdateUser
         | OperationDescriptor::DeleteUser
@@ -427,6 +473,16 @@ fn error_specs(operation: &OperationDescriptor) -> Vec<ErrorSpec> {
             json_error("500", "Internal server error"),
         ],
         GetStatusOverview => vec![json_error("400", "Status collection failed")],
+        ListModuleLogs | TailModuleLog | PreviewModuleLogCleanup => vec![
+            extractor_error("400", "Invalid module-log query or filesystem scope"),
+            json_error("500", "Internal server error"),
+        ],
+        BackupModuleLogs | ConfirmModuleLogCleanup => vec![
+            json_and_extractor_error("400", "Invalid module-log request or filesystem scope"),
+            extractor_error("415", "Content-Type must be application/json"),
+            extractor_error("422", "DTO deserialization failed"),
+            json_error("500", "Internal server error"),
+        ],
         ListUsers => vec![
             extractor_error("400", "Invalid query parameters"),
             json_error("500", "Internal server error"),
@@ -510,6 +566,10 @@ fn response_schema(operation: &OperationDescriptor) -> &'static str {
         OperationDescriptor::ListRoles => "ApiResponseRoleItemRespList",
         OperationDescriptor::GetRoleOptions => "ApiResponseRoleOptionRespList",
         OperationDescriptor::GetStatusOverview => "ApiResponseSystemStatusOverview",
+        OperationDescriptor::ListModuleLogs => "ApiResponseModuleLogFileRespList",
+        OperationDescriptor::TailModuleLog => "ApiResponseModuleLogTailResp",
+        OperationDescriptor::PreviewModuleLogCleanup => "ApiResponseModuleLogCleanupPreviewResp",
+        OperationDescriptor::ConfirmModuleLogCleanup => "ApiResponseModuleLogCleanupResultResp",
         OperationDescriptor::ListUsers => "ApiResponseUserItemRespList",
         OperationDescriptor::CreateAdminUser | OperationDescriptor::UpdateUser => "ApiResponseI64",
         OperationDescriptor::GetUserOptions | OperationDescriptor::GetUserStatusOptions => {
@@ -521,6 +581,7 @@ fn response_schema(operation: &OperationDescriptor) -> &'static str {
         OperationDescriptor::GetModuleNavigation => "ApiResponseRuntimeMenuResponseList",
         OperationDescriptor::GetDashboardModules => "ApiResponseModuleHealthResponseList",
         OperationDescriptor::ExportManageLogs
+        | OperationDescriptor::BackupModuleLogs
         | OperationDescriptor::ContractPublic
         | OperationDescriptor::ContractAny
         | OperationDescriptor::ContractAll
@@ -550,6 +611,10 @@ fn response_schemas() -> Vec<(&'static str, serde_json::Value)> {
         ("ApiResponseRoleItemRespList", list("RoleItemResp")),
         ("ApiResponseRoleOptionRespList", list("RoleOptionResp")),
         ("ApiResponseSystemStatusOverview", reference("SystemStatusOverview")),
+        ("ApiResponseModuleLogFileRespList", list("ModuleLogFileResp")),
+        ("ApiResponseModuleLogTailResp", reference("ModuleLogTailResp")),
+        ("ApiResponseModuleLogCleanupPreviewResp", reference("ModuleLogCleanupPreviewResp")),
+        ("ApiResponseModuleLogCleanupResultResp", reference("ModuleLogCleanupResultResp")),
         ("ApiResponseUserItemRespList", list("UserItemResp")),
         ("ApiResponseUserOptionRespList", list("OptionItem")),
         ("ApiResponseModuleStatusResponseList", list("ModuleStatusResponse")),
@@ -574,6 +639,8 @@ fn request_schema(operation: &OperationDescriptor) -> Option<&'static str> {
         OperationDescriptor::UpdateUserPassword => Some("UpdateUserPasswordPayload"),
         OperationDescriptor::UpdateUserStatus => Some("UpdateUserStatusPayload"),
         OperationDescriptor::UpdateModuleEnabled => Some("UpdateModuleRequest"),
+        OperationDescriptor::BackupModuleLogs => Some("ModuleLogBackupRequest"),
+        OperationDescriptor::ConfirmModuleLogCleanup => Some("ModuleLogCleanupConfirmRequest"),
         _ => None,
     }
 }
@@ -645,6 +712,12 @@ fn query_parameters(operation: &OperationDescriptor) -> Vec<utoipa::openapi::pat
         OperationDescriptor::ListUsers => <UserQuery as utoipa::IntoParams>::into_params(query),
         OperationDescriptor::GetUserOptions => {
             <UserOptionsQuery as utoipa::IntoParams>::into_params(query)
+        }
+        OperationDescriptor::ListModuleLogs => {
+            <crate::features::system::status::logs::types::ModuleLogListQuery as utoipa::IntoParams>::into_params(query)
+        }
+        OperationDescriptor::TailModuleLog => {
+            <crate::features::system::status::logs::types::ModuleLogTailQuery as utoipa::IntoParams>::into_params(query)
         }
         _ => Vec::new(),
     }
@@ -740,6 +813,24 @@ mod tests {
         );
         assert!(value["paths"]["/api/system/users"]["post"]["responses"]["415"].is_object());
         assert!(value["paths"]["/api/system/users"]["post"]["responses"]["422"]["content"]["text/plain"].is_object());
+    }
+
+    #[test]
+    fn module_log_backup_documents_binary_transport_and_integrity_headers() {
+        let value: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();
+        let response =
+            &value["paths"]["/api/system/status/module-logs/backup"]["post"]["responses"]["200"];
+        assert_eq!(response["content"]["application/x-tar"]["schema"]["type"], "string");
+        assert_eq!(response["content"]["application/x-tar"]["schema"]["format"], "binary");
+        for header in
+            ["content-disposition", "x-rustzen-archive-sha256", "x-rustzen-archive-file-count"]
+        {
+            assert!(response["headers"][header].is_object(), "missing {header}");
+        }
+        assert_eq!(
+            response["headers"]["x-rustzen-archive-file-count"]["schema"]["type"],
+            "integer"
+        );
     }
 
     #[test]

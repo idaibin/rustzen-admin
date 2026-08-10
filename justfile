@@ -25,6 +25,7 @@ check:
     cd apps/web && bun run vp lint
     cd apps/web && bun x tsc --noEmit
     cd apps/web && bun run test
+    bun test apps/insights/src/features/tracking/tracker.test.mjs
     cd apps/web && bun run vp build
     cargo fmt --all -- --check
     cargo check --workspace

@@ -27,14 +27,21 @@ has no systemd unit, and does not change the four server failure domains.
   path defaults.
 - `crates/storage/` owns shared SQLite connection and maintenance primitives.
 - `crates/runtime/` owns stable runtime-layout helpers and the compatible
-  daily-file logging mechanism used by Admin, Monitor, and Reports. It does not
-  own application lifecycle or process registration.
+  daily-file logging mechanism used by all four server applications. It does
+  not own application lifecycle or process registration.
 - `deploy/` owns the installer, target, recovery unit, four server units, and
   the separately installed Monitor Agent unit.
 
 There is no runtime dependency on `rustzen-core` or `rz-core`, no registry or
 service discovery, and no dynamic module or independently published module
 version.
+
+Each server keeps a thin logger adapter at its own source boundary and delegates
+file rotation and retention to `crates/runtime/`: `apps/admin/src/infra/logger.rs`,
+`apps/monitor/src/infra/logger.rs`, `apps/insights/src/infra/logger.rs`, and
+`apps/reports/src/infra/logger.rs`. These four adapters own only the service
+prefix, log directory, and cleanup message; they do not share application log
+content or persistence.
 
 ## Product and module evolution
 
@@ -105,6 +112,10 @@ Direct unsigned, expired, cross-module, or wrong-capability calls are rejected.
 Insights accepts public tracking events only inside the configured retention
 window and a five-minute future clock-skew allowance. HTTP status codes and
 durations are bounded before they can affect overview or percentile metrics.
+Its 30-request/300-event per-project/source admission windows live in the
+running Insights process and reset on process restart; they are runtime
+protection, not durable cross-restart hard maxima. Body, batch, storage-budget,
+and free-disk caps remain hard fail-closed boundaries.
 
 Reports rejects recognized secret fields in templates and run input, persists
 only accepted non-sensitive input, and omits run input from API responses. A
@@ -212,7 +223,7 @@ corresponding overhead was 0.327/0.419/0.328 ms. The p95 overhead passed the
 
 ## Admin route contract
 
-The Admin contract is code-first and covers all 42 statically enumerable
+The Admin contract is code-first and covers all 47 statically enumerable
 Admin-owned operations: the public login operation, authenticated and
 capability-gated Admin routes, and the four ModuleControlState routes. Module
 service routes (Monitor, Insights, and Reports) remain excluded from the public
@@ -230,13 +241,14 @@ boundary rather than duplicating JWT enforcement. `Public`, `Authenticated`,
 `x-rustzen-authorization`.
 
 `just contract-generate` derives `openapi/admin-contract.json`; Orval derives
-the Web client. Generated calls use the `generatedApiRequest` mutator, which
-preserves existing token and error semantics, and feature APIs remain the only
-page-facing callers. `just contract-verify`, `contract-client`,
+the Web client. Generated JSON calls use the `generatedApiRequest` mutator,
+while binary responses use `generatedBlobRequest`; both preserve the existing
+token and error semantics, and feature APIs remain the only page-facing
+callers. `just contract-verify`, `contract-client`,
 `contract-compat`, and `contract-bench` provide focused checks. The fixed
 `contract-admin-native-all-refact-modules-mvp.json` baseline records the one-time
 expansion from the former two-operation bootstrap artifact. `contract-bench` is
-an isolated release-mode microbenchmark over the 42-operation registration set;
+an isolated release-mode microbenchmark over the 47-operation registration set;
 it alternates legacy-first and contract-first samples and reports separate
 prebuilt hot-router probes for Public, Authenticated, and Require paths. It is
 not an end-to-end or production latency claim.

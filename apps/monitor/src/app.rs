@@ -61,6 +61,7 @@ pub(crate) fn build_app(
         )?;
     let module_router = features::metrics::routes(module_router)?;
     let module_router = features::checks::routes(module_router)?;
+    let module_router = features::incidents::routes(module_router)?;
     let (module_routes, manifest) = module_router.build(&definition, env!("CARGO_PKG_VERSION"))?;
     let state = AppState {
         pool,
@@ -99,8 +100,13 @@ mod tests {
         assert_eq!(manifest.module, "monitor");
         assert_eq!(manifest.api_prefix, "/api/monitor");
         assert_eq!(manifest.release_version, env!("CARGO_PKG_VERSION"));
-        assert_eq!(manifest.menus.len(), 3);
-        assert_eq!(manifest.routes.len(), 13);
+        assert_eq!(manifest.menus.len(), 4);
+        assert!(manifest.menus.iter().any(|menu| {
+            menu.code == "incidents"
+                && menu.path == "/monitoring/incidents"
+                && menu.permission == "monitor:incident:view"
+        }));
+        assert_eq!(manifest.routes.len(), 15);
         assert!(manifest.routes.iter().any(|route| {
             route.method == "POST"
                 && route.path == "/heartbeat"
@@ -123,6 +129,18 @@ mod tests {
                 })
                 .count()
                 == 3
+        );
+        assert!(
+            manifest
+                .routes
+                .iter()
+                .filter(|route| {
+                    route.method == "GET"
+                        && route.path.starts_with("/incidents")
+                        && route.permission.as_deref() == Some("monitor:incident:view")
+                })
+                .count()
+                == 2
         );
     }
 }

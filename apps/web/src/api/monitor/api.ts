@@ -15,6 +15,15 @@ export const monitorAPI = {
             url: contract.checks.path,
             params,
         }),
+    incidents: (params: Monitor.IncidentQuery = {}) =>
+        apiRequest<Monitor.Page<Monitor.IncidentSummary>, Monitor.IncidentQuery>({
+            url: contract.incidents.path,
+            params,
+        }),
+    incident: (id: string) =>
+        apiRequest<Monitor.IncidentDetail>({
+            url: routePath(contract.incident, { id }),
+        }),
     createCheck: (params: Monitor.SaveCheck) =>
         apiRequest<Monitor.Check, Monitor.SaveCheck>({
             url: contract.createCheck.path,

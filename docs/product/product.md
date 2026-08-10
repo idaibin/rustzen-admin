@@ -192,6 +192,14 @@ already owns them. The browser runtime stays Reports-owned until another real
 module needs the same semantics; it must not become a generic workflow engine
 in advance.
 
+The selected bounded Reports automation slice is
+[`scheduled-report-automation`](./features/scheduled-report-automation/spec.md):
+daily and weekly schedules around existing target-backed flows, installation
+timezone, missed-occurrence skip semantics, and one ordinary run per enqueued
+occurrence. Credentials, datasets, expression/group DSL, notifications, and
+webhooks remain deferred; they require separate protected-storage, data, or
+delivery contracts.
+
 ### Report Center
 
 A cross-module report catalog, common report summary, document renderer, and
@@ -229,6 +237,9 @@ behavior. They do not justify a fifth process or a new contract crate today.
   product; the reference-implementation role is secondary.
 - Confirmed: SQLite and one coherent signed release are the current supported
   operating boundary.
+- Confirmed: Reports has selected the bounded daily/weekly schedule slice; it
+  does not authorize credentials, datasets, expression/group DSL,
+  notifications, or webhooks.
 - Assumption: the primary adopter is a developer-operator or small technical
   team managing one installation.
 - Assumption: the named former repositories remain the best product-behavior
@@ -240,8 +251,9 @@ behavior. They do not justify a fifth process or a new contract crate today.
   capability, or a separately approved module.
 - Rejected: copying a former repository's Admin shell, authentication, RBAC,
   deployment, or directory layout into a module.
-- Deferred: multi-project Analytics, expanded Reports automation, Monitoring
-  alert policies and period reports, Report Center, and a fifth process.
+- Deferred: multi-project Analytics, Reports credentials/datasets/
+  expression-group DSL/notifications/webhooks, Monitoring alert policies and
+  period reports, Report Center, and a fifth process.
 
 ## Development horizon and success signals
 

@@ -27,3 +27,11 @@ path = "/monitoring/checks"
 icon = "monitor"
 sort_order = 30
 permission = "monitor:check:view"
+
+[[menus]]
+code = "incidents"
+title = "监控事件"
+path = "/monitoring/incidents"
+icon = "monitor"
+sort_order = 40
+permission = "monitor:incident:view"

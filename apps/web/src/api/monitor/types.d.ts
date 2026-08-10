@@ -84,25 +84,53 @@ declare namespace Monitor {
         error: string | null;
     }
 
-    interface Incident {
+    interface IncidentSummary {
         id: string;
         sourceType: "node" | "check" | "resource";
         sourceId: string;
         kind: string;
         title: string;
         status: "open" | "acknowledged" | "resolved";
-        details: Record<string, unknown> | null;
         openedAt: string;
         acknowledgedAt: string | null;
         resolvedAt: string | null;
         lastObservedAt: string;
     }
 
+    interface IncidentDetail extends IncidentSummary {
+        details: Record<string, unknown>;
+        node: IncidentNodeContext | null;
+        check: IncidentCheckContext | null;
+    }
+
+    interface IncidentNodeContext {
+        id: string;
+        agentId: string;
+        hostname: string;
+        agentVersion: string;
+        lastSeenAt: string;
+    }
+
+    interface IncidentCheckContext {
+        id: string;
+        name: string;
+        host: string;
+        port: number;
+        lastStatus: "up" | "down" | null;
+        lastCheckedAt: string | null;
+        consecutiveFailures: number;
+    }
+
+    type Incident = IncidentSummary;
+
     interface IncidentQuery {
         current?: number;
         pageSize?: number;
-        status?: "active" | "open" | "acknowledged" | "resolved";
+        status?: "open" | "acknowledged" | "resolved";
         sourceType?: "node" | "check" | "resource";
+        sourceId?: string;
+        from?: string;
+        to?: string;
     }
 
     interface Page<T> {

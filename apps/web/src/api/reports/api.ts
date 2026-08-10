@@ -3,6 +3,11 @@ import { reportsAPIContract as contract } from "@/api/reports/contract";
 import { apiBlob, apiDownload, apiRequest } from "@/api/request";
 
 export const reportsAPI = {
+    settings: () =>
+        apiRequest<Reports.InstallationSettings>({
+            url: contract.settings.path,
+            method: contract.settings.method,
+        }),
     systems: () => apiRequest<Reports.System[]>({ url: contract.systems.path }),
     createSystem: (params: Reports.SaveSystem) =>
         apiRequest<Reports.System, Reports.SaveSystem>({
@@ -28,6 +33,31 @@ export const reportsAPI = {
         apiRequest<void>({
             url: routePath(contract.deleteFlow, { id }),
             method: contract.deleteFlow.method,
+        }),
+    flowOptions: () =>
+        apiRequest<Reports.FlowOption[]>({
+            url: contract.flowOptions.path,
+            method: contract.flowOptions.method,
+        }),
+    schedules: () => apiRequest<Reports.Schedule[]>({ url: contract.schedules.path }),
+    createSchedule: (params: Reports.SaveSchedule) =>
+        apiRequest<Reports.Schedule, Reports.SaveSchedule>({
+            url: contract.createSchedule.path,
+            method: contract.createSchedule.method,
+            params,
+        }),
+    schedule: (id: string) =>
+        apiRequest<Reports.Schedule>({ url: routePath(contract.schedule, { id }) }),
+    updateSchedule: (id: string, params: Reports.SaveSchedule) =>
+        apiRequest<Reports.Schedule, Reports.SaveSchedule>({
+            url: routePath(contract.updateSchedule, { id }),
+            method: contract.updateSchedule.method,
+            params,
+        }),
+    deleteSchedule: (id: string) =>
+        apiRequest<void>({
+            url: routePath(contract.deleteSchedule, { id }),
+            method: contract.deleteSchedule.method,
         }),
     runs: (params: { current?: number; pageSize?: number; status?: string }) =>
         apiRequest<Reports.Page<Reports.Run>, typeof params>({

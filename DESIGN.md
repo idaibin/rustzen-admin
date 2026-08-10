@@ -34,6 +34,11 @@ persistence owner.
   types, lower-kebab-case for component files and directories, TanStack route
   files that match their path, and Ant Design / Pro Components as the sole UI
   component library. Tailwind is limited to layout and spacing composition.
+  Recharts is approved only as a factual trend or chart-rendering utility for
+  the current Analytics and Monitoring consumers; it does not own shared UI
+  components, interaction patterns, or theme semantics. Chart containers,
+  loading/empty/error/permission states, and colors remain governed by this
+  document and the existing shared components.
 
 ## Themes and surfaces
 
@@ -87,6 +92,68 @@ they consume the configured theme context.
 
 ## Historical UI artifacts
 
-`docs/ui/` contains task-local or historical mappings and evidence from the
-prior UI-standardization task. They are not a second design-system authority;
-current shared visual work begins here, then verifies the live implementation.
+`docs/ui/` contains current feature-local contracts plus retained historical
+mappings and evidence. It is not a second design-system authority: shared
+visual semantics begin here, while each UI slice records only its local
+composition and validation evidence.
+
+## Cross-feature interaction semantics
+
+The four current feature slices reuse the same visual grammar even when their
+business meanings stay with different module owners:
+
+- `PageHeader` owns one overview/detail heading and its actions. `PageCard`
+  owns list and management surfaces. A feature must not add a second page title
+  or a decorative dashboard shell.
+- `DataState` owns loading, empty, error, permission, and processing feedback.
+  Query owners keep the last successful data visible during background refresh
+  and supply retry. A failed request is never styled as a successful empty
+  result.
+- `DataTableShell` with a route-local ProTable owns paginated lists. Columns,
+  filters, and business actions remain local until two real consumers prove the
+  same semantics.
+- Ant Design `Drawer`, `Modal`, `Form`, `Alert`, `Tag`, and `ConfirmDialog`
+  remain the existing owners for detail, edit, warning, status, and destructive
+  confirmation behavior. Wrap them locally when a feature needs composition;
+  do not create a generic diagnostics or file-browser component.
+
+When an operation affects multiple named items, `partial` is a semantic outcome
+with explicit item-level success/failure and retry or review guidance. It is
+never a new color, a generic success banner, or a replacement for `DataState`.
+
+## Responsive and accessibility baseline
+
+The authenticated layout owns global width and overflow; each route owns its
+vertical scroll region. Feature contracts name their own viewport matrix, while
+the shared baseline is:
+
+- desktop acceptance at 1920x1080 and 1440x900 CSS px, 100% zoom;
+- narrow acceptance at 390x844 CSS px, with content allowed to grow vertically;
+- no document-level horizontal overflow; a bounded long-content region may
+  scroll only when its owner and accessible label are explicit;
+- visible keyboard focus, real button targets, focus trapping/restoration for
+  dialogs and drawers, and text-first status meaning;
+- Simplified Chinese and English copy that can wrap without clipping;
+- standard light/dark themes and existing reduced-motion behavior, with no
+  feature-specific gradient, glow, or decorative motion.
+
+Exact dimensions, responsive transformations, and state copy belong to the
+linked feature UI contract. This section stabilizes cross-page semantics only.
+
+## Reuse and extension gate
+
+Feature work uses the following decisions in order:
+
+1. **Reuse** an existing owner when its semantics already match.
+2. **Extend** an owner only when the new variant remains product-wide and has a
+   stable second consumer.
+3. **Wrap** an existing Ant Design or shared owner for one feature's local
+   composition and state meaning.
+4. **New** shared components are allowed only after the repository shared-
+   capability gate proves at least two compatible consumers and an independent
+   test. A route-local component is preferred until then.
+
+No feature in the current product slice changes shared tokens or introduces a
+new component library. API and persistence contracts remain with their module
+owners; the visual system consumes their verified states without redefining
+DTOs or business lifecycles.

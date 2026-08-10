@@ -1,4 +1,8 @@
 declare namespace Reports {
+    interface InstallationSettings {
+        timezone: string;
+    }
+
     interface System {
         id: string;
         name: string;
@@ -29,10 +33,53 @@ declare namespace Reports {
         createdAt: string;
         updatedAt: string;
     }
+    interface FlowOption {
+        id: string;
+        name: string;
+        enabled: boolean;
+    }
     interface SaveFlow {
         systemId: string;
         name: string;
         steps: FlowStep[];
+    }
+    type ScheduleCadence = "daily" | "weekly";
+    type ScheduleDecision = "enqueued" | "skipped";
+    interface SaveSchedule {
+        flowId: string;
+        cadence: ScheduleCadence;
+        weekday?: number;
+        dueTime: string;
+        input: Record<string, unknown>;
+        description?: string;
+        enabled?: boolean;
+    }
+    interface ScheduleOccurrence {
+        id: number;
+        scheduleId: string;
+        occurrenceKey: string;
+        dueLocal: string;
+        dueAt: string | null;
+        decidedAt: string;
+        decision: ScheduleDecision;
+        reason: string | null;
+        runId: string | null;
+    }
+    interface Schedule {
+        id: string;
+        flowId: string;
+        cadence: ScheduleCadence;
+        weekday: number | null;
+        dueTime: string;
+        input: Record<string, unknown>;
+        description: string;
+        enabled: boolean;
+        timezone: string;
+        nextDue: string | null;
+        lastOccurrence: ScheduleOccurrence | null;
+        lastRun: Run | null;
+        createdAt: string;
+        updatedAt: string;
     }
     interface Run {
         id: string;

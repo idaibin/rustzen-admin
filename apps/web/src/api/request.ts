@@ -22,6 +22,16 @@ export async function apiRequest<T, P = Api.BaseParams>(
 export const generatedApiRequest = <T>(url: string, options: RequestInit): Promise<T> =>
     executeJsonRequest<T>(url, withDefaultAndAuthHeaders(options));
 
+/** Orval mutator for binary responses; JSON routes keep generatedApiRequest. */
+export const generatedBlobRequest = async <T extends Blob = Blob>(
+    url: string,
+    options: RequestInit,
+): Promise<T> => {
+    const response = await fetch(url, withDefaultAndAuthHeaders(options));
+    if (!response.ok) return handleError(response);
+    return (await response.blob()) as T;
+};
+
 export const apiDownload = async ({
     filename,
     ...options

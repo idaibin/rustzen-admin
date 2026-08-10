@@ -6,20 +6,28 @@ import {
     LineChartOutlined,
     SignalFilled,
 } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button } from "antd";
+import { Button, Card, Tag } from "antd";
 
 import { monitorAPI } from "@/api";
+import { AuthWrap } from "@/components/auth";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
+import { DataTableShell } from "@/components/table/data-table-shell";
+import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
 
 function MonitoringOverviewPage() {
+    const canViewIncidents = useAuthStore((state) =>
+        state.checkPermissions("monitor:incident:view"),
+    );
     const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
         queryKey: ["monitor", "overview"],
         queryFn: monitorAPI.overview,
@@ -97,12 +105,16 @@ function MonitoringOverviewPage() {
             icon: <AlertFilled />,
             tone: "red" as const,
         },
-        {
-            label: t("活动事件", "Active incidents"),
-            value: data.activeIncidents,
-            icon: <ExclamationCircleOutlined />,
-            tone: "violet" as const,
-        },
+        ...(canViewIncidents
+            ? [
+                  {
+                      label: t("活动事件", "Active incidents"),
+                      value: data.activeIncidents,
+                      icon: <ExclamationCircleOutlined />,
+                      tone: "violet" as const,
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -134,6 +146,7 @@ function MonitoringOverviewPage() {
             {error ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}
+            {canViewIncidents ? <IncidentOverviewPanel /> : null}
             {data.registeredNodes === 0 ? (
                 <DataState
                     kind="empty"
@@ -145,5 +158,108 @@ function MonitoringOverviewPage() {
                 />
             ) : null}
         </div>
+    );
+}
+
+function IncidentOverviewPanel() {
+    const canViewIncidents = useAuthStore((state) =>
+        state.checkPermissions("monitor:incident:view"),
+    );
+    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
+        queryKey: ["monitor", "incidents", "overview"],
+        queryFn: () => monitorAPI.incidents({ current: 1, pageSize: 5, status: "open" }),
+        enabled: canViewIncidents,
+        refetchInterval: 30_000,
+    });
+    if (!canViewIncidents) return null;
+    const columns: ProColumns<Monitor.IncidentSummary>[] = [
+        {
+            title: t("事件", "Incident"),
+            key: "title",
+            ellipsis: true,
+            render: (_value: unknown, row: Monitor.IncidentSummary) => (
+                <div>
+                    <div className="font-medium">{row.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                        {row.sourceType} · {row.sourceId}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            title: t("状态", "Status"),
+            key: "status",
+            width: 120,
+            render: (_value: unknown, _row: Monitor.IncidentSummary) => (
+                <Tag color="error">{t("活动", "Open")}</Tag>
+            ),
+        },
+        {
+            title: t("最近观察", "Last observed"),
+            key: "lastObservedAt",
+            width: 180,
+            render: (_value: unknown, row: Monitor.IncidentSummary) =>
+                formatDateTime(row.lastObservedAt),
+        },
+    ];
+
+    return (
+        <Card
+            title={t("活动事件", "Active incidents")}
+            extra={
+                <AuthWrap code="monitor:incident:view">
+                    <Button type="link" href="/monitoring/incidents">
+                        {t("查看全部", "View all")}
+                    </Button>
+                </AuthWrap>
+            }
+        >
+            {error && data ? (
+                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+            ) : null}
+            {!data && isPending ? (
+                <DataState
+                    kind="loading"
+                    title={t("正在加载活动事件", "Loading active incidents")}
+                    compact
+                />
+            ) : !data && error ? (
+                <DataState
+                    kind="error"
+                    title={t("活动事件暂不可用", "Active incidents unavailable")}
+                    description={t(
+                        "无法读取事件列表，请检查 Monitor 服务。",
+                        "Unable to read incidents. Check the Monitor service.",
+                    )}
+                    action={<Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>}
+                    compact
+                />
+            ) : data && data.data.length === 0 ? (
+                <DataState
+                    kind="empty"
+                    title={t("暂无活动事件", "No active incidents")}
+                    description={t(
+                        "Monitor 当前没有活动事件。",
+                        "Monitor has no active incidents right now.",
+                    )}
+                    compact
+                />
+            ) : (
+                <DataTableShell>
+                    <ProTable<Monitor.IncidentSummary>
+                        rowKey="id"
+                        columns={columns}
+                        dataSource={data?.data ?? []}
+                        loading={isFetching}
+                        search={false}
+                        options={false}
+                        pagination={false}
+                        toolBarRender={false}
+                        tableAlertOptionRender={false}
+                        rowSelection={false}
+                    />
+                </DataTableShell>
+            )}
+        </Card>
     );
 }

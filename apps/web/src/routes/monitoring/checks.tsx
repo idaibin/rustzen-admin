@@ -19,6 +19,8 @@ import { PageCard } from "@/components/page/page-card";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
+import { checkIncidentHref } from "./-check-context";
+
 export const Route = createFileRoute("/monitoring/checks")({ component: MonitoringChecksPage });
 
 const pageSize = 20;
@@ -145,6 +147,18 @@ function MonitoringChecksPage() {
             dataIndex: "lastCheckedAt",
             key: "lastCheckedAt",
             render: (_: unknown, row: Monitor.Check) => formatDateTime(row.lastCheckedAt),
+        },
+        {
+            title: t("事件", "Incidents"),
+            key: "incidents",
+            width: 110,
+            render: (_: unknown, row: Monitor.Check) => (
+                <AuthWrap code="monitor:incident:view">
+                    <Button type="link" size="small" href={checkIncidentHref(row.id)}>
+                        {t("查看事件", "View incidents")}
+                    </Button>
+                </AuthWrap>
+            ),
         },
         {
             title: t("操作", "Actions"),

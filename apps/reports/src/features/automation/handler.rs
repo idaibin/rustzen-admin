@@ -48,6 +48,10 @@ pub async fn flows(
     Ok(ApiResponse::success(service::flows(&state.pool, query.system_id.as_deref()).await?))
 }
 
+pub async fn flow_options(State(state): State<AppState>) -> AppResult<Vec<FlowOption>> {
+    Ok(ApiResponse::success(service::flow_options(&state.pool).await?))
+}
+
 pub async fn create_flow(
     State(state): State<AppState>,
     ModuleJson(input): ModuleJson<SaveFlow>,
@@ -65,6 +69,46 @@ pub async fn update_flow(
 
 pub async fn delete_flow(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<()> {
     service::delete_flow(&state.pool, &id).await?;
+    Ok(ApiResponse::success(()))
+}
+
+pub async fn schedules(State(state): State<AppState>) -> AppResult<Vec<Schedule>> {
+    Ok(ApiResponse::success(service::schedules(&state.pool).await?))
+}
+
+pub async fn settings() -> AppResult<InstallationSettings> {
+    Ok(ApiResponse::success(InstallationSettings {
+        timezone: crate::config::CONFIG.timezone().to_string(),
+    }))
+}
+
+pub async fn create_schedule(
+    State(state): State<AppState>,
+    ModuleJson(input): ModuleJson<SaveSchedule>,
+) -> AppResult<Schedule> {
+    Ok(ApiResponse::success(service::create_schedule(&state.pool, input).await?))
+}
+
+pub async fn schedule(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> AppResult<Schedule> {
+    Ok(ApiResponse::success(service::schedule(&state.pool, &id).await?))
+}
+
+pub async fn update_schedule(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    ModuleJson(input): ModuleJson<SaveSchedule>,
+) -> AppResult<Schedule> {
+    Ok(ApiResponse::success(service::update_schedule(&state.pool, &id, input).await?))
+}
+
+pub async fn delete_schedule(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> AppResult<()> {
+    service::delete_schedule(&state.pool, &id).await?;
     Ok(ApiResponse::success(()))
 }
 

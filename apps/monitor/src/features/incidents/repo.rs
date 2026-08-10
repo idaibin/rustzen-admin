@@ -1,6 +1,102 @@
 use rustzen_storage::SqlitePool;
 
-use super::types::ResourceSample;
+use super::types::{CheckContext, IncidentRow, NodeContext, ResourceSample};
+
+pub(super) struct ListParams<'a> {
+    pub offset: i64,
+    pub limit: i64,
+    pub status: Option<&'a str>,
+    pub source_type: Option<&'a str>,
+    pub source_id: Option<&'a str>,
+    pub from: &'a str,
+    pub to: &'a str,
+}
+
+pub(super) async fn list(
+    pool: &SqlitePool,
+    params: ListParams<'_>,
+) -> Result<(Vec<IncidentRow>, i64), sqlx::Error> {
+    let rows = sqlx::query_as(
+        "SELECT id, source_type, source_id, kind, title, status, details,
+                opened_at, acknowledged_at, resolved_at, last_observed_at
+         FROM monitor_incidents
+         WHERE (? IS NULL OR status = ?)
+           AND (? IS NULL OR source_type = ?)
+           AND (? IS NULL OR source_id = ?)
+           AND last_observed_at >= ?
+           AND last_observed_at <= ?
+         ORDER BY last_observed_at DESC, opened_at DESC, id DESC
+         LIMIT ? OFFSET ?",
+    )
+    .bind(params.status)
+    .bind(params.status)
+    .bind(params.source_type)
+    .bind(params.source_type)
+    .bind(params.source_id)
+    .bind(params.source_id)
+    .bind(params.from)
+    .bind(params.to)
+    .bind(params.limit)
+    .bind(params.offset)
+    .fetch_all(pool)
+    .await?;
+    let total = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM monitor_incidents
+         WHERE (? IS NULL OR status = ?)
+           AND (? IS NULL OR source_type = ?)
+           AND (? IS NULL OR source_id = ?)
+           AND last_observed_at >= ?
+           AND last_observed_at <= ?",
+    )
+    .bind(params.status)
+    .bind(params.status)
+    .bind(params.source_type)
+    .bind(params.source_type)
+    .bind(params.source_id)
+    .bind(params.source_id)
+    .bind(params.from)
+    .bind(params.to)
+    .fetch_one(pool)
+    .await?;
+    Ok((rows, total))
+}
+
+pub(super) async fn get(pool: &SqlitePool, id: &str) -> Result<Option<IncidentRow>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT id, source_type, source_id, kind, title, status, details,
+                opened_at, acknowledged_at, resolved_at, last_observed_at
+         FROM monitor_incidents WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+}
+
+pub(super) async fn node_context(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<Option<NodeContext>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT id, agent_id, hostname, agent_version, last_seen_at
+         FROM monitor_nodes WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+}
+
+pub(super) async fn check_context(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<Option<CheckContext>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT id, name, host, port, last_status, last_checked_at, consecutive_failures
+         FROM monitor_checks WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+}
 
 pub(super) struct ActiveIncident<'a> {
     pub id: &'a str,

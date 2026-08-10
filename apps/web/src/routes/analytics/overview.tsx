@@ -19,6 +19,8 @@ import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
 import { t } from "@/lib/i18n";
 
+import { CollectionPolicyStatus } from "./-collection-policy-status";
+
 export const Route = createFileRoute("/analytics/overview")({
     component: AnalyticsOverviewPage,
 });
@@ -45,6 +47,7 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
+                <CollectionPolicyStatus />
                 <DataState
                     kind="loading"
                     title={t("正在加载分析概览", "Loading analytics overview")}
@@ -63,6 +66,7 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
+                <CollectionPolicyStatus />
                 <DataState
                     kind="error"
                     title={
@@ -91,6 +95,7 @@ function AnalyticsOverviewPage() {
                     "View page, API, event, and visitor activity for the current instance.",
                 )}
             />
+            <CollectionPolicyStatus />
             <div className="flex flex-col gap-4">
                 <Typography.Text strong>{t("核心活动", "Core activity")}</Typography.Text>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

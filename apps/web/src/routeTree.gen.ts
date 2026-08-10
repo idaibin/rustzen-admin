@@ -26,6 +26,7 @@ import { Route as ReportsTemplatesRouteImport } from './routes/reports/templates
 import { Route as ReportsRunsRouteImport } from './routes/reports/runs'
 import { Route as MonitoringOverviewRouteImport } from './routes/monitoring/overview'
 import { Route as MonitoringNodesRouteImport } from './routes/monitoring/nodes'
+import { Route as MonitoringIncidentsRouteImport } from './routes/monitoring/incidents'
 import { Route as MonitoringChecksRouteImport } from './routes/monitoring/checks'
 import { Route as ManageTaskRouteImport } from './routes/manage/task'
 import { Route as ManageLogRouteImport } from './routes/manage/log'
@@ -118,6 +119,11 @@ const MonitoringNodesRoute = MonitoringNodesRouteImport.update({
   path: '/nodes',
   getParentRoute: () => MonitoringRoute,
 } as any)
+const MonitoringIncidentsRoute = MonitoringIncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => MonitoringRoute,
+} as any)
 const MonitoringChecksRoute = MonitoringChecksRouteImport.update({
   id: '/checks',
   path: '/checks',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
   '/monitoring/checks': typeof MonitoringChecksRoute
+  '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
   '/reports/runs': typeof ReportsRunsRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
   '/monitoring/checks': typeof MonitoringChecksRoute
+  '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
   '/reports/runs': typeof ReportsRunsRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
   '/monitoring/checks': typeof MonitoringChecksRoute
+  '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
   '/reports/runs': typeof ReportsRunsRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/manage/log'
     | '/manage/task'
     | '/monitoring/checks'
+    | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
     | '/reports/runs'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/manage/log'
     | '/manage/task'
     | '/monitoring/checks'
+    | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
     | '/reports/runs'
@@ -292,6 +303,7 @@ export interface FileRouteTypes {
     | '/manage/log'
     | '/manage/task'
     | '/monitoring/checks'
+    | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
     | '/reports/runs'
@@ -443,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitoringNodesRouteImport
       parentRoute: typeof MonitoringRoute
     }
+    '/monitoring/incidents': {
+      id: '/monitoring/incidents'
+      path: '/incidents'
+      fullPath: '/monitoring/incidents'
+      preLoaderRoute: typeof MonitoringIncidentsRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
     '/monitoring/checks': {
       id: '/monitoring/checks'
       path: '/checks'
@@ -504,12 +523,14 @@ const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
 
 interface MonitoringRouteChildren {
   MonitoringChecksRoute: typeof MonitoringChecksRoute
+  MonitoringIncidentsRoute: typeof MonitoringIncidentsRoute
   MonitoringNodesRoute: typeof MonitoringNodesRoute
   MonitoringOverviewRoute: typeof MonitoringOverviewRoute
 }
 
 const MonitoringRouteChildren: MonitoringRouteChildren = {
   MonitoringChecksRoute: MonitoringChecksRoute,
+  MonitoringIncidentsRoute: MonitoringIncidentsRoute,
   MonitoringNodesRoute: MonitoringNodesRoute,
   MonitoringOverviewRoute: MonitoringOverviewRoute,
 }

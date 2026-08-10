@@ -103,8 +103,13 @@ mod tests {
             .unwrap();
         let manifest = body(response).await;
         assert_eq!(manifest["module"], "reports");
-        assert_eq!(manifest["menus"].as_array().unwrap().len(), 2);
-        assert_eq!(manifest["routes"].as_array().unwrap().len(), 16);
+        assert_eq!(manifest["menus"].as_array().unwrap().len(), 3);
+        assert!(manifest["menus"].as_array().unwrap().iter().any(|menu| {
+            menu["code"] == "schedules"
+                && menu["path"] == "/reports/templates"
+                && menu["permission"] == "reports:schedule:view"
+        }));
+        assert_eq!(manifest["routes"].as_array().unwrap().len(), 23);
         assert!(
             manifest["routes"]
                 .as_array()
@@ -112,10 +117,22 @@ mod tests {
                 .iter()
                 .any(|route| { route["path"] == "/runs/{id}/live-frame" })
         );
-        assert!(manifest["routes"].as_array().unwrap().iter().all(|route| {
-            !route["path"].as_str().unwrap().contains("schedules")
-                && !route["path"].as_str().unwrap().contains("settings")
-                && !route["path"].as_str().unwrap().contains("accounts")
+        assert!(
+            manifest["routes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|route| { route["path"] == "/schedules" && route["method"] == "GET" })
+        );
+        assert!(manifest["routes"].as_array().unwrap().iter().any(|route| {
+            route["path"] == "/settings"
+                && route["method"] == "GET"
+                && route["permission"] == "reports:schedule:view"
+        }));
+        assert!(manifest["routes"].as_array().unwrap().iter().any(|route| {
+            route["path"] == "/flow-options"
+                && route["method"] == "GET"
+                && route["permission"] == "reports:schedule:view"
         }));
         tokio::fs::remove_dir_all(state.output_dir).await.unwrap();
     }
@@ -177,6 +194,159 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(sensitive.status(), StatusCode::BAD_REQUEST);
+        tokio::fs::remove_dir_all(state.output_dir).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn schedules_validate_capability_safe_input_and_lifecycle() {
+        let (app, state) = test_app().await;
+        let system = body(
+            app.clone()
+                .oneshot(request(
+                    Method::POST,
+                    "/api/reports/systems",
+                    "reports:system:manage",
+                    json!({"name":"Fixture","baseUrl":"https://fixture.local"}),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        let flow = body(
+            app.clone()
+                .oneshot(request(
+                    Method::POST,
+                    "/api/reports/flows",
+                    "reports:flow:manage",
+                    json!({
+                        "systemId": system["data"]["id"],
+                        "name": "Scheduled flow",
+                        "steps": [{"action":"fill","selector":"#value","value":"{{input.value}}"}]
+                    }),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        let flow_id = flow["data"]["id"].as_str().unwrap();
+        let created = app
+            .clone()
+            .oneshot(request(
+                Method::POST,
+                "/api/reports/schedules",
+                "reports:schedule:manage",
+                json!({
+                    "flowId": flow_id,
+                    "cadence": "daily",
+                    "dueTime": "23:59",
+                    "input": {"value":"42"},
+                    "description": "Nightly report"
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(created.status(), StatusCode::OK);
+        let schedule = body(created).await;
+        let schedule_id = schedule["data"]["id"].as_str().unwrap();
+        assert_eq!(schedule["data"]["cadence"], "daily");
+        assert_eq!(schedule["data"]["timezone"], "UTC");
+        assert!(schedule["data"]["lastOccurrence"].is_null());
+
+        let flow_options = body(
+            app.clone()
+                .oneshot(request(
+                    Method::GET,
+                    "/api/reports/flow-options",
+                    "reports:schedule:view",
+                    json!({}),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(flow_options["data"].as_array().unwrap().len(), 1);
+        assert_eq!(flow_options["data"][0]["id"], flow_id);
+        assert_eq!(flow_options["data"][0]["name"], "Scheduled flow");
+        assert_eq!(flow_options["data"][0]["enabled"], true);
+        assert!(flow_options["data"][0].get("steps").is_none());
+
+        let flow_view_forbidden = app
+            .clone()
+            .oneshot(request(
+                Method::GET,
+                "/api/reports/flow-options",
+                "reports:flow:view",
+                json!({}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(flow_view_forbidden.status(), StatusCode::FORBIDDEN);
+
+        let settings = body(
+            app.clone()
+                .oneshot(request(
+                    Method::GET,
+                    "/api/reports/settings",
+                    "reports:schedule:view",
+                    json!({}),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(settings["data"]["timezone"], "UTC");
+
+        let forbidden = app
+            .clone()
+            .oneshot(request(
+                Method::POST,
+                "/api/reports/schedules",
+                "reports:schedule:view",
+                json!({"flowId":flow_id,"cadence":"daily","dueTime":"23:59"}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+        let sensitive = app
+            .clone()
+            .oneshot(request(
+                Method::POST,
+                "/api/reports/schedules",
+                "reports:schedule:manage",
+                json!({"flowId":flow_id,"cadence":"daily","dueTime":"23:59","input":{"accessToken":"secret"}}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(sensitive.status(), StatusCode::BAD_REQUEST);
+
+        let updated = body(
+            app.clone()
+                .oneshot(request(
+                    Method::PUT,
+                    &format!("/api/reports/schedules/{schedule_id}"),
+                    "reports:schedule:manage",
+                    json!({"flowId":flow_id,"cadence":"weekly","weekday":0,"dueTime":"08:30","enabled":false}),
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(updated["data"]["cadence"], "weekly");
+        assert_eq!(updated["data"]["enabled"], false);
+        assert!(updated["data"]["nextDue"].is_null());
+
+        let deleted = app
+            .clone()
+            .oneshot(request(
+                Method::DELETE,
+                &format!("/api/reports/schedules/{schedule_id}"),
+                "reports:schedule:manage",
+                json!({}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(deleted.status(), StatusCode::OK);
         tokio::fs::remove_dir_all(state.output_dir).await.unwrap();
     }
 

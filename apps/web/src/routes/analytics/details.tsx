@@ -10,6 +10,8 @@ import { PageCard } from "@/components/page/page-card";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
+import { CollectionPolicyStatus } from "./-collection-policy-status";
+
 type EventRow = Insights.Event;
 type EventKindFilter = "all" | "page" | "api" | "other";
 
@@ -46,6 +48,7 @@ function AnalyticsEventsPage() {
                     "View page visits, API requests, and other reported operations.",
                 )}
             >
+                <CollectionPolicyStatus />
                 <DataState kind="loading" title={t("正在加载访问记录", "Loading activity")} />
             </PageCard>
         );
@@ -60,6 +63,7 @@ function AnalyticsEventsPage() {
                     "View page visits, API requests, and other reported operations.",
                 )}
             >
+                <CollectionPolicyStatus />
                 <DataState
                     kind="error"
                     title={t("访问记录加载失败", "Failed to load activity")}
@@ -181,6 +185,7 @@ function AnalyticsEventsPage() {
                 </div>
             }
         >
+            <CollectionPolicyStatus />
             <ProTable<EventRow>
                 rowKey="id"
                 dataSource={eventRows}

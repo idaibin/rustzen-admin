@@ -452,6 +452,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono-tz"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
+dependencies = [
+ "chrono",
+ "phf",
+]
+
+[[package]]
 name = "clap"
 version = "4.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2100,6 +2110,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913273894cec178f401a31ec4b656318d95473527be05c0752cc41cdc32be8b7"
+dependencies = [
+ "phf_shared",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06005508882fb681fd97892ecff4b7fd0fee13ef1aa569f8695dae7ab9099981"
+dependencies = [
+ "siphasher",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2630,6 +2658,7 @@ dependencies = [
  "ed25519-dalek",
  "futures",
  "hex",
+ "libc",
  "mime_guess",
  "once_cell",
  "reqwest",
@@ -2704,15 +2733,16 @@ dependencies = [
  "rustzen-auth",
  "rustzen-config",
  "rustzen-ipc",
+ "rustzen-runtime",
  "rustzen-storage",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "sqlx",
+ "sysinfo",
  "tokio",
  "tower",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2761,6 +2791,7 @@ dependencies = [
  "axum",
  "chromiumoxide",
  "chrono",
+ "chrono-tz",
  "futures",
  "rustzen-auth",
  "rustzen-config",
@@ -3054,6 +3085,12 @@ dependencies = [
  "thiserror",
  "time",
 ]
+
+[[package]]
+name = "siphasher"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 
 [[package]]
 name = "slab"

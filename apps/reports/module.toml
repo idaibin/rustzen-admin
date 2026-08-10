@@ -19,3 +19,11 @@ path = "/reports/runs"
 icon = "file-text"
 sort_order = 220
 permission = "reports:run:view"
+
+[[menus]]
+code = "schedules"
+title = "定时报表"
+path = "/reports/templates"
+icon = "file-text"
+sort_order = 230
+permission = "reports:schedule:view"

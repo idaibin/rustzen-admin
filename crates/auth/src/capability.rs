@@ -119,10 +119,12 @@ mod role_policy_tests {
             "monitor:overview:view",
             "monitor:node:view",
             "monitor:check:view",
+            "monitor:incident:view",
             "insights:overview:view",
             "insights:event:view",
             "reports:run:view",
             "reports:flow:view",
+            "reports:schedule:view",
         ] {
             assert!(policy.role_allows_capability(BUILTIN_ADMIN_ROLE_CODE, capability));
             assert!(policy.role_allows_capability(BUILTIN_VIEWER_ROLE_CODE, capability));
@@ -140,6 +142,7 @@ pub mod monitor {
     pub const OVERVIEW_VIEW: &str = "monitor:overview:view";
     pub const NODE_VIEW: &str = "monitor:node:view";
     pub const CHECK_VIEW: &str = "monitor:check:view";
+    pub const INCIDENT_VIEW: &str = "monitor:incident:view";
     pub const CHECK_MANAGE: &str = "monitor:check:manage";
     pub const MANAGE: &str = "monitor:manage";
 }
@@ -159,6 +162,8 @@ pub mod reports {
     pub const SYSTEM_MANAGE: &str = "reports:system:manage";
     pub const FLOW_VIEW: &str = "reports:flow:view";
     pub const FLOW_MANAGE: &str = "reports:flow:manage";
+    pub const SCHEDULE_VIEW: &str = "reports:schedule:view";
+    pub const SCHEDULE_MANAGE: &str = "reports:schedule:manage";
     pub const MANAGE: &str = "reports:manage";
 }
 
@@ -193,6 +198,13 @@ pub mod system_menu {
 /// System status capability boundary.
 pub mod system_status {
     pub const VIEW: &str = "system:status:view";
+}
+
+/// Owner-only module process-log diagnostics capability boundaries.
+pub mod system_module_log {
+    pub const VIEW: &str = "system:module:log:view";
+    pub const BACKUP: &str = "system:module:log:backup";
+    pub const CLEANUP: &str = "system:module:log:cleanup";
 }
 
 /// Independent module administration capability boundaries.

@@ -61,6 +61,11 @@ pub enum OperationDescriptor {
     DeleteRole,
     GetRoleOptions,
     GetStatusOverview,
+    ListModuleLogs,
+    TailModuleLog,
+    BackupModuleLogs,
+    PreviewModuleLogCleanup,
+    ConfirmModuleLogCleanup,
     ListUsers,
     CreateAdminUser,
     UpdateUser,
@@ -111,6 +116,11 @@ impl OperationDescriptor {
             Self::DeleteRole => "deleteRole",
             Self::GetRoleOptions => "getRoleOptions",
             Self::GetStatusOverview => "getStatusOverview",
+            Self::ListModuleLogs => "listModuleLogs",
+            Self::TailModuleLog => "tailModuleLog",
+            Self::BackupModuleLogs => "backupModuleLogs",
+            Self::PreviewModuleLogCleanup => "previewModuleLogCleanup",
+            Self::ConfirmModuleLogCleanup => "confirmModuleLogCleanup",
             Self::ListUsers => "listUsers",
             Self::CreateAdminUser => "createAdminUser",
             Self::UpdateUser => "updateUser",
@@ -577,6 +587,11 @@ mod tests {
             OperationDescriptor::DeleteRole,
             OperationDescriptor::GetRoleOptions,
             OperationDescriptor::GetStatusOverview,
+            OperationDescriptor::ListModuleLogs,
+            OperationDescriptor::TailModuleLog,
+            OperationDescriptor::BackupModuleLogs,
+            OperationDescriptor::PreviewModuleLogCleanup,
+            OperationDescriptor::ConfirmModuleLogCleanup,
             OperationDescriptor::ListUsers,
             OperationDescriptor::CreateAdminUser,
             OperationDescriptor::UpdateUser,
@@ -590,7 +605,7 @@ mod tests {
             OperationDescriptor::GetModuleNavigation,
             OperationDescriptor::GetDashboardModules,
         ];
-        assert_eq!(descriptors.len(), 42);
+        assert_eq!(descriptors.len(), 47);
 
         fn method(index: usize) -> Method {
             match index % 5 {

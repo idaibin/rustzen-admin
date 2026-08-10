@@ -109,6 +109,14 @@ where
         self.add_route(Method::POST, path, routing::post(handler), DelegatedAccess::Public)
     }
 
+    pub fn options_public<H, T>(self, path: &str, handler: H) -> Result<Self, ManifestError>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+    {
+        self.add_route(Method::OPTIONS, path, routing::options(handler), DelegatedAccess::Public)
+    }
+
     pub fn get_public<H, T>(self, path: &str, handler: H) -> Result<Self, ManifestError>
     where
         H: Handler<T, S>,
@@ -249,10 +257,12 @@ permission = "reports:view"
             .get_with_permission("/jobs", || async { "jobs" }, Require("reports:view"))
             .expect("get route")
             .post_public("/track", || async { StatusCode::NO_CONTENT })
-            .expect("public route");
+            .expect("public route")
+            .options_public("/track", || async { StatusCode::NO_CONTENT })
+            .expect("public options route");
         let definition = ModuleDefinition::from_toml(MODULE_TOML).expect("definition");
         let (app, manifest) = module.build(&definition, "0.5.0").expect("build");
-        assert_eq!(manifest.routes.len(), 2);
+        assert_eq!(manifest.routes.len(), 3);
 
         let context = DelegatedContext::new(
             "request-1",
@@ -292,10 +302,34 @@ permission = "reports:view"
             head_request = head_request.header(name, value);
         }
         let head_response = app
+            .clone()
             .oneshot(head_request.body(Body::empty()).expect("request"))
             .await
             .expect("response");
         assert_eq!(head_response.status(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let options_context = DelegatedContext::new(
+            "request-3",
+            None,
+            "reports",
+            Method::OPTIONS,
+            "/track",
+            DelegatedAccess::Public,
+        )
+        .expect("options context");
+        let options_headers =
+            DelegationSigner::new("secret").expect("signer").sign(&options_context).expect("sign");
+        let mut options_request = Request::builder().method(Method::OPTIONS).uri("/track");
+        for (name, value) in options_headers {
+            if let Some(name) = name {
+                options_request = options_request.header(name, value);
+            }
+        }
+        let options_response = app
+            .oneshot(options_request.body(Body::empty()).expect("request"))
+            .await
+            .expect("response");
+        assert_eq!(options_response.status(), StatusCode::NO_CONTENT);
     }
 
     #[tokio::test]

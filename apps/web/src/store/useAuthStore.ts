@@ -59,8 +59,7 @@ export const useAuthStore = create<AuthState>()(
                 return false;
             },
             checkMenuPermissions: (path: string) => {
-                const code = formatPathCode(path);
-                return get().checkPermissions(code);
+                return getRouteCapabilityCodes(path).some((code) => get().checkPermissions(code));
             },
         }),
         {
@@ -69,34 +68,40 @@ export const useAuthStore = create<AuthState>()(
     ),
 );
 
-const formatPathCode = (pathname: string) => {
-    const explicitRouteCapability: Record<string, string> = {
+export const getRouteCapabilityCodes = (pathname: string): string[] => {
+    const explicitRouteCapability: Record<string, string | string[]> = {
         "/": "dashboard:view",
         "/monitoring": "monitor:overview:view",
         "/monitoring/overview": "monitor:overview:view",
         "/monitoring/nodes": "monitor:node:view",
         "/monitoring/checks": "monitor:check:view",
+        "/monitoring/incidents": "monitor:incident:view",
         "/analytics": "insights:overview:view",
         "/analytics/overview": "insights:overview:view",
         "/analytics/details": "insights:event:view",
         "/reports": "reports:flow:view",
-        "/reports/templates": "reports:flow:view",
+        "/reports/templates": ["reports:flow:view", "reports:schedule:view"],
         "/reports/runs": "reports:run:view",
     };
     const explicitCode = explicitRouteCapability[pathname];
-    if (explicitCode) {
+    if (Array.isArray(explicitCode)) {
         return explicitCode;
+    }
+    if (explicitCode) {
+        return [explicitCode];
     }
 
     const code = pathname.replace(/\//g, ":").slice(1);
     if (code.endsWith(":create")) {
-        return code;
+        return [code];
     }
     if (code.endsWith(":edit") || code.endsWith(":detail")) {
-        return code
-            .split(":")
-            .filter((s) => !/^\d+$/.test(s))
-            .join(":");
+        return [
+            code
+                .split(":")
+                .filter((s) => !/^\d+$/.test(s))
+                .join(":"),
+        ];
     }
-    return `${code}:list`;
+    return [`${code}:list`];
 };

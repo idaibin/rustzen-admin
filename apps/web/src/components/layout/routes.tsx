@@ -16,6 +16,8 @@ import type { ReactNode } from "react";
 import { localizeModuleMenuName, localizeModuleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
+import { dedupeModuleNavigation } from "./module-navigation";
+
 export type AppRoutePath =
     | "/"
     | "/profile"
@@ -78,7 +80,7 @@ const moduleIcons: Record<SystemModule.Icon, ReactNode> = {
 
 const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteItem[] => {
     const groups = new Map<SystemModule.Id, AppRouteItem>();
-    navigation.forEach((item) => {
+    dedupeModuleNavigation(navigation).forEach((item) => {
         const icon = moduleIcons[item.icon];
         if (!registeredModuleRoutePaths.has(item.path) || !icon) {
             return;
@@ -171,6 +173,7 @@ const appRoutePaths = new Set<string>([
     "/monitoring/overview",
     "/monitoring/nodes",
     "/monitoring/checks",
+    "/monitoring/incidents",
     "/analytics/overview",
     "/analytics/details",
     "/reports/templates",
@@ -191,6 +194,7 @@ const registeredModuleRoutePaths = new Set<SystemModule.RoutePath>([
     "/monitoring/overview",
     "/monitoring/nodes",
     "/monitoring/checks",
+    "/monitoring/incidents",
     "/analytics/overview",
     "/analytics/details",
     "/reports/templates",
