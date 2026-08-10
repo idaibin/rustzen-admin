@@ -14,7 +14,6 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | Question | Read in order |
 | --- | --- |
 | Product positioning, direction, or module purpose | `docs/product/product.md` → delivered source behavior |
-| Cross-cutting platform ownership and fixed-basis evidence | `platform-spec/README.md` → owning source/spec/test → named runtime evidence |
 | Runtime topology or repository ownership | source code → `docs/architecture.md` → the nearest guide |
 | Frontend page or interaction change | target route → owning `apps/web/src/api/` module → shared component owner → matching backend route |
 | Shared UI semantics or visual tokens | `DESIGN.md` → live definitions and consumers → `apps/web/src/styles/theme.css` |
@@ -28,7 +27,6 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | `AGENTS.md` | Repository-wide contribution constraints. | You start any task. |
 | `Cargo.toml` | Workspace members and authoritative release version. | You change packages, dependencies, or versions. |
 | `justfile` | Command source of truth. | You run, check, build, package, or verify. |
-| `platform-spec/README.md` | Markdown-first platform ownership and evidence baseline. | You need the fixed basis, requirement/gap ledger, or runtime-evidence boundary. |
 | `.env.example` | Minimal production configuration template. | You change runtime configuration or deployment. |
 
 ## Commands
@@ -186,7 +184,6 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 | `docs/README.md` | Documentation index. | You choose current guidance. |
 | `docs/architecture.md` | Current repository and runtime facts. | You need architecture or data flow. |
 | `docs/product/product.md` | Product positioning, current boundary, module purposes, non-goals, and deferred slices. | You make or verify a product-boundary decision. |
-| `platform-spec/` | Fixed-basis ownership, requirement/gap evidence, changed-file and test boundaries. | You coordinate a cross-cutting implementation slice without adding a second source of truth. |
 | `docs/guides/` | Current development rules. | You edit backend, frontend, permission, or deployment behavior. |
 | `docs/guides/shared-capabilities.md` | Shared-code ownership and new-module intake gate. | You consider copying, extracting, or creating a shared declaration. |
 | `docs/reference/` | Optional deeper current context. | Current facts and guides are not enough. |

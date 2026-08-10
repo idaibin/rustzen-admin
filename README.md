@@ -51,8 +51,6 @@
 
 → 完整文档索引：[docs/README.md](./docs/README.md)
 
-→ 平台规范基线：[platform-spec/README.md](./platform-spec/README.md)
-
 → 旧独立仓库能力对比：[docs/reference/legacy-module-comparison.md](./docs/reference/legacy-module-comparison.md)
 
 ## 命令入口

@@ -8,10 +8,9 @@ This is the documentation entrypoint for `rustzen-admin`.
 2. [architecture.md](./architecture.md)
 3. [guides/](./guides/)
 4. [product/product.md](./product/product.md) (product scope and decisions, not implementation truth)
-5. [platform-spec/README.md](../platform-spec/README.md) (cross-cutting evidence and ownership baseline)
-6. [reference/](./reference/)
-7. [history/README.md](./history/README.md) (historical input and completion records)
-8. [history/](./history/)
+5. [reference/](./reference/)
+6. [history/README.md](./history/README.md) (historical input and completion records)
+7. [history/](./history/)
 
 For product positioning, direction, and module-purpose decisions, use
 [product/product.md](./product/product.md). Delivered behavior remains grounded
@@ -30,7 +29,6 @@ in source code, and runtime structure remains grounded in
 | [role-definition-management UI](./ui/features/role-definition-management.md) | Current UI specification | Defines role permission-loading states, interaction, responsive behavior, and acceptance. |
 | [ai-coding-rules.md](./guides/ai-coding-rules.md) | Current rule | Defines source-of-truth order, module ownership, and task verification expectations for AI-assisted changes. |
 | [architecture.md](./architecture.md) | Current fact | Defines repository boundaries, runtime topology, data flow, and command source. |
-| [platform-spec](../platform-spec/README.md) | Cross-cutting baseline | Records fixed basis, owners, requirement/gap evidence, and static acceptance without replacing source truth. |
 | [project-map.md](./project-map.md) | Current fact | Maps important directories without implementation detail. |
 | [dashboard-navigation-simplification UI](./ui/features/dashboard-navigation-simplification.md) | Current UI specification | Defines the implemented Dashboard and navigation simplification boundary. |
 | [guides/backend.md](./guides/backend.md) | Current rule | Gives backend layering, naming, config, SQL, and prohibited-change rules. |
@@ -58,8 +56,6 @@ in source code, and runtime structure remains grounded in
 - Put current implementation facts in `architecture.md` or `project-map.md`.
 - Keep durable product boundaries and confirmed decisions in `product/product.md`; do not add a case-variant duplicate.
 - Put current development rules in `guides/`.
-- Put cross-cutting fixed-basis ownership and evidence boundaries in
-  [platform-spec/](../platform-spec/); keep it Markdown-first and source-linked.
 - Put optional diagrams, audits, specs, and checklists in `reference/`.
 - Put completed designs, task records, proposals, fixes, and incidents in `history/`.
 - Do not put Chinese text in documentation files.

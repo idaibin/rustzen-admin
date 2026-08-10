@@ -193,11 +193,6 @@ single-binary fallback, and multiple active release links are not supported.
 
 ## Verification
 
-Cross-cutting fixed-basis ownership and evidence boundaries are indexed in the
-[platform-spec baseline](../platform-spec/README.md). It is a static Markdown
-baseline: `just verify-platform-spec` checks structure and links, while source,
-focused tests, and real runtime checks remain the evidence authorities.
-
 The root `justfile` is the command authority. `just verify-services` uses
 release binaries to test all 24 startup orders, independent termination, four
 database corruption/restore boundaries, gateway and delegation contracts, and

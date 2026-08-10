@@ -7,9 +7,6 @@
 - Current implementation facts: source code, then
   [docs/architecture.md](./docs/architecture.md), then
   [docs/guides/](./docs/guides/).
-- Cross-cutting ownership and evidence baseline:
-  [platform-spec/README.md](./platform-spec/README.md). It is Markdown-first
-  and never replaces source, tests, or runtime evidence.
 - AI contribution constraints: [docs/guides/ai-coding-rules.md](./docs/guides/ai-coding-rules.md).
 - Command source: root `justfile`; inspect the target before running it.
 
@@ -58,5 +55,3 @@
 - SQLite is the default storage backend.
 - Update code, docs, and commands together when structure changes.
 - Keep task completion tied to the task's verification commands before updating status.
-- Run `just verify-platform-spec` when changing the platform-spec baseline or
-  its repository entry links.

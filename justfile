@@ -26,7 +26,6 @@ check:
     cd apps/web && bun x tsc --noEmit
     cd apps/web && bun run test
     cd apps/web && bun run vp build
-    just verify-platform-spec
     cargo fmt --all -- --check
     cargo check --workspace
     cargo clippy --workspace --all-targets -- -D warnings
@@ -66,9 +65,6 @@ contract-client:
 
 contract-bench:
     cargo test --release -p rustzen-admin route_contract_registration_and_hot_request_benchmark -- --ignored --nocapture
-
-verify-platform-spec:
-    scripts/verify-platform-spec.sh
 
 verify-cli:
     cargo test -p rustzen-cli
