@@ -418,7 +418,6 @@ fn filesystem_capacity_ok(database_path: &Path, projected_bytes: u64) -> bool {
 pub fn spawn_retention(pool: SqlitePool) {
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;
             let result = async {
                 let settings = crate::features::settings::service::get(&pool).await?;
                 let cutoff =
@@ -438,6 +437,7 @@ pub fn spawn_retention(pool: SqlitePool) {
                 }
                 Err(error) => tracing::error!(%error, "Insights retention failed"),
             }
+            tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;
         }
     });
 }

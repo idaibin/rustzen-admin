@@ -18,6 +18,8 @@ pub async fn events(
     visitor_id: Option<&str>,
     platform: Option<&str>,
 ) -> Result<(Vec<EventRow>, i64), sqlx::Error> {
+    let escaped_path = path.map(escape_like_pattern);
+    let path = escaped_path.as_deref();
     let rows = sqlx::query_as(
         "SELECT id, event_name, visitor_id, user_id, session_id, platform, page_path,
                 referrer, api_path, api_method, status_code, duration_ms, is_error,
@@ -30,7 +32,8 @@ pub async fn events(
                 WHEN 'api' THEN event_name = 'api_request'
                 WHEN 'other' THEN event_name NOT IN ('page_view', 'api_request')
                 ELSE 0 END)
-           AND (? IS NULL OR page_path LIKE '%' || ? || '%' OR api_path LIKE '%' || ? || '%')
+           AND (? IS NULL OR page_path LIKE '%' || ? || '%' ESCAPE char(92)
+                OR api_path LIKE '%' || ? || '%' ESCAPE char(92))
          ORDER BY occurred_at DESC, id DESC LIMIT ? OFFSET ?",
     )
     .bind(window.from)
@@ -60,7 +63,8 @@ pub async fn events(
                 WHEN 'api' THEN event_name = 'api_request'
                 WHEN 'other' THEN event_name NOT IN ('page_view', 'api_request')
                 ELSE 0 END)
-           AND (? IS NULL OR page_path LIKE '%' || ? || '%' OR api_path LIKE '%' || ? || '%')",
+           AND (? IS NULL OR page_path LIKE '%' || ? || '%' ESCAPE char(92)
+                OR api_path LIKE '%' || ? || '%' ESCAPE char(92))",
     )
     .bind(window.from)
     .bind(window.to)
@@ -78,4 +82,8 @@ pub async fn events(
     .fetch_one(pool)
     .await?;
     Ok((rows, total))
+}
+
+fn escape_like_pattern(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }

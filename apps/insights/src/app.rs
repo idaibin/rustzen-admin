@@ -370,19 +370,21 @@ mod tests {
                     { "eventName": "page_view", "visitorId": "v1", "pagePath": "/analytics/overview" },
                     { "eventName": "api_request", "visitorId": "v1", "apiPath": "/api/insights/events" },
                     { "eventName": "custom_export", "visitorId": "v1", "pagePath": "/analytics/overview" },
-                    { "eventName": "page_view", "visitorId": "v1", "pagePath": "/settings" }
+                    { "eventName": "page_view", "visitorId": "v1", "pagePath": "/settings" },
+                    { "eventName": "custom_export", "visitorId": "v1", "pagePath": "/exports/100%_done" }
                 ]),
             ))
             .await
             .expect("track");
-        assert_eq!(response_json(tracked).await["data"]["accepted"], 4);
+        assert_eq!(response_json(tracked).await["data"]["accepted"], 5);
 
         for (query, expected_names, expected_total) in [
             ("eventKind=page", vec!["page_view", "page_view"], 2),
             ("eventKind=api", vec!["api_request"], 1),
-            ("eventKind=other", vec!["custom_export"], 1),
+            ("eventKind=other", vec!["custom_export", "custom_export"], 2),
             ("path=analytics", vec!["custom_export", "page_view"], 2),
             ("eventKind=page&path=analytics", vec!["page_view"], 1),
+            ("path=%25_", vec!["custom_export"], 1),
         ] {
             let response = app
                 .clone()

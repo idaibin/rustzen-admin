@@ -220,6 +220,8 @@ mod tests {
             agent.monitor_controller_url = Some(url.to_string());
             assert!(agent.validate().is_err(), "accepted {url:?}");
         }
+        agent.monitor_controller_url = Some("http://monitor.example".to_string());
+        agent.validate().expect("valid internal HTTP controller URL");
         agent.monitor_controller_url = Some("https://monitor.example".to_string());
         agent.validate().expect("valid remote controller URL");
         assert_eq!(agent.heartbeat_endpoint(), "https://monitor.example/api/monitor/heartbeat");
