@@ -1,10 +1,16 @@
-import { LockOutlined, UserOutlined } from "@ant-design/icons";
+import {
+    BarChartOutlined,
+    CloudServerOutlined,
+    FileTextOutlined,
+    LockOutlined,
+    SafetyCertificateOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Button, Card, Form, Input, Typography, type FormProps } from "antd";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { authAPI } from "@/api";
-import loginIllustrationUrl from "@/assets/login-illustration.png";
 import rustzenLogoUrl from "@/assets/rustzen-logo.png";
 import { LanguageSwitch } from "@/components/language-switch";
 import { ThemeSwitch } from "@/components/theme-provider";
@@ -43,63 +49,79 @@ function LoginPage() {
 
     return (
         <main className="min-h-[100svh] bg-background text-foreground">
-            <div className="relative mx-auto min-h-[100svh] w-full max-w-[1760px] px-7 sm:px-12 lg:px-14 xl:px-20">
-                <header className="absolute inset-x-7 top-8 z-10 flex h-10 items-center gap-3 sm:inset-x-12 lg:inset-x-14 xl:inset-x-20">
+            <div className="relative mx-auto min-h-[100svh] w-full max-w-[1440px] px-6 sm:px-10 lg:px-16">
+                <header className="absolute inset-x-6 top-6 z-10 flex h-10 items-center gap-3 sm:inset-x-10 lg:inset-x-16">
                     <img
                         src={rustzenLogoUrl}
                         alt={APP_BRAND_NAME}
                         className="size-10 object-contain"
                     />
-                    <span className="text-[22px] font-bold leading-none">{APP_BRAND_NAME}</span>
+                    <span className="text-xl font-semibold leading-none">{APP_BRAND_NAME}</span>
                     <div className="ms-auto flex items-center gap-1">
                         <LanguageSwitch />
                         <ThemeSwitch />
                     </div>
                 </header>
 
-                <div className="mx-auto grid min-h-[100svh] w-full items-center gap-8 py-24 min-[1440px]:grid-cols-[minmax(0,1fr)_532px] min-[1440px]:gap-14 2xl:gap-20">
-                    <section className="hidden min-w-0 self-stretch min-[1440px]:flex min-[1440px]:flex-col min-[1440px]:justify-center">
-                        <div className="h-125 xl:h-153">
-                            <img
-                                src={loginIllustrationUrl}
-                                alt={`${APP_BRAND_NAME} Operations Management Platform`}
-                                className="h-full w-full object-contain object-left"
+                <div className="grid min-h-[100svh] w-full items-center gap-16 py-24 lg:grid-cols-[minmax(0,1fr)_440px] xl:gap-28">
+                    <section className="hidden max-w-2xl lg:block">
+                        <Typography.Text className="mb-5 block text-sm font-semibold text-primary">
+                            {t(
+                                "轻量、自托管、边界清晰",
+                                "Lightweight, self-hosted, clearly bounded",
+                            )}
+                        </Typography.Text>
+                        <Typography.Title
+                            level={1}
+                            className="!mb-5 !text-4xl !leading-tight !tracking-tight xl:!text-5xl"
+                        >
+                            {t("一个入口，掌握系统运行状态", "One console for operational clarity")}
+                        </Typography.Title>
+                        <Typography.Paragraph className="!mb-10 max-w-xl !text-base !leading-7 !text-muted-foreground">
+                            {t(
+                                "统一管理账号、运行模块、基础监控、产品分析与自动化报表。",
+                                "Manage accounts, runtime modules, monitoring, analytics, and automated reports in one place.",
+                            )}
+                        </Typography.Paragraph>
+                        <div className="grid max-w-xl grid-cols-2 gap-x-10 gap-y-6">
+                            <Capability
+                                icon={<SafetyCertificateOutlined />}
+                                label={t("身份与权限", "Identity and access")}
                             />
-                        </div>
-                        <div className="-mt-9 flex w-full items-center gap-6 pl-3 xl:-mt-14 xl:gap-10">
-                            <div className="shrink-0 text-[34px] leading-none whitespace-nowrap font-extrabold text-foreground xl:text-[40px]">
-                                {t("让运维，更从容", "Operations, with confidence")}
-                            </div>
-                            <div className="h-12 w-px shrink-0 bg-border" />
-                            <div className="grid min-w-0 gap-2">
-                                <p className="m-0 text-[15px] leading-none font-semibold text-foreground xl:text-[16px]">
-                                    {t("高效 · 可靠 · 智能", "Efficient · Reliable · Smart")}
-                                </p>
-                                <p className="m-0 text-[14px] leading-none text-muted-foreground xl:text-[15px]">
-                                    {t(
-                                        "统一运维管理平台，让管理更简单、更高效。",
-                                        "A unified operations platform for simpler, more efficient management.",
-                                    )}
-                                </p>
-                            </div>
+                            <Capability
+                                icon={<CloudServerOutlined />}
+                                label={t("节点与服务监控", "Node and service monitoring")}
+                            />
+                            <Capability
+                                icon={<BarChartOutlined />}
+                                label={t("产品行为分析", "Product analytics")}
+                            />
+                            <Capability
+                                icon={<FileTextOutlined />}
+                                label={t("自动化报表", "Automated reports")}
+                            />
                         </div>
                     </section>
 
                     <Card
-                        className="w-full max-w-105 justify-self-center rounded-[18px] border border-border bg-card shadow-sm xl:max-w-133"
+                        className="page-panel w-full max-w-110 justify-self-center bg-card"
                         styles={{ body: { padding: 0 } }}
+                        role="region"
                         aria-label={t("登录", "Sign in")}
                     >
-                        <div className="px-7 py-10 sm:px-12 sm:py-14 xl:px-16 xl:py-22">
-                            <div className="mb-10 text-center xl:mb-12">
+                        <div className="px-7 py-9 sm:px-10 sm:py-11">
+                            <div className="mb-8">
                                 <Typography.Title
-                                    level={1}
-                                    className="m-0 text-[36px] font-extrabold leading-none text-foreground xl:text-[40px]"
+                                    level={2}
+                                    className="!mb-2 !text-2xl !font-semibold !tracking-tight"
                                 >
-                                    RustZen <span className="text-primary">Admin</span>
+                                    {t("登录 RustZen Admin", "Sign in to RustZen Admin")}
                                 </Typography.Title>
-                                <Typography.Text className="mt-6 block text-base leading-none text-muted-foreground">
-                                    {t("欢迎来到", "Welcome to")} {APP_BRAND_NAME}
+                                <Typography.Text type="secondary">
+                                    {t(
+                                        "使用管理员账号继续",
+                                        "Continue with your administrator account",
+                                    )}
                                 </Typography.Text>
                             </div>
 
@@ -107,12 +129,12 @@ function LoginPage() {
                                 layout="vertical"
                                 autoComplete="off"
                                 onFinish={onLogin}
-                                className="grid gap-7"
+                                className="grid gap-5"
                                 requiredMark={false}
                             >
-                                <div className="grid gap-3">
+                                <div className="grid gap-2">
                                     <label
-                                        className="text-base font-semibold text-foreground"
+                                        className="text-sm font-medium text-foreground"
                                         htmlFor="login_username"
                                     >
                                         {t("用户名", "Username")}
@@ -152,13 +174,14 @@ function LoginPage() {
                                             }
                                             placeholder={t("请输入用户名", "Enter your username")}
                                             autoComplete="username"
-                                            className="h-15 rounded-[10px] border-input text-base shadow-none hover:border-ring focus-visible:border-ring"
+                                            size="large"
+                                            className="shadow-none"
                                         />
                                     </Form.Item>
                                 </div>
 
-                                <div className="grid gap-3">
-                                    <div className="text-base leading-none">
+                                <div className="grid gap-2">
+                                    <div className="text-sm leading-none">
                                         <label
                                             htmlFor="login_password"
                                             className="font-semibold text-foreground"
@@ -193,7 +216,8 @@ function LoginPage() {
                                             }
                                             placeholder={t("请输入密码", "Enter your password")}
                                             autoComplete="current-password"
-                                            className="h-15 rounded-[10px] border-input text-base shadow-none hover:border-ring focus-visible:border-ring"
+                                            size="large"
+                                            className="shadow-none"
                                         />
                                     </Form.Item>
                                 </div>
@@ -204,7 +228,8 @@ function LoginPage() {
                                         htmlType="submit"
                                         block
                                         loading={isSubmitting}
-                                        className="h-15 rounded-[10px] text-lg font-semibold shadow-sm"
+                                        size="large"
+                                        className="mt-1 font-medium shadow-none"
                                     >
                                         {isSubmitting
                                             ? t("正在登录...", "Signing in...")
@@ -217,5 +242,16 @@ function LoginPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+function Capability({ icon, label }: { icon: ReactNode; label: string }) {
+    return (
+        <div className="flex items-center gap-3 text-sm font-medium text-foreground">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-primary">
+                {icon}
+            </span>
+            <span>{label}</span>
+        </div>
     );
 }

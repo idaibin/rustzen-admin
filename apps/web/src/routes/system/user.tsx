@@ -21,6 +21,7 @@ import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { DataTableShell } from "@/components/table/data-table-shell";
 import { getEnableOptions } from "@/constant/options";
 import { localizeBuiltInRoleName, localizeBuiltInUserName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
@@ -124,13 +125,13 @@ function UserPage() {
             title: t("ID", "ID"),
             dataIndex: "id",
             key: "id",
-            width: 80,
+            width: 64,
             render: (_: unknown, row: User.Item) => <span className="font-medium">{row.id}</span>,
         },
         {
             title: t("头像", "Avatar"),
             key: "avatar",
-            width: 96,
+            width: 72,
             render: (_: unknown, row: User.Item) => (
                 <Avatar size={32} src={row.avatarUrl ?? undefined} alt={row.username}>
                     {getUserInitial(row)}
@@ -141,19 +142,19 @@ function UserPage() {
             title: t("用户名", "Username"),
             dataIndex: "username",
             key: "username",
-            width: 160,
+            width: 128,
         },
         {
             title: t("邮箱", "Email"),
             dataIndex: "email",
             key: "email",
-            width: 240,
+            width: 192,
             ellipsis: true,
         },
         {
             title: t("真实姓名", "Real name"),
             key: "realName",
-            width: 180,
+            width: 144,
             render: (_: unknown, row: User.Item) =>
                 row.isSystem
                     ? localizeBuiltInUserName(row.username, row.realName)
@@ -162,13 +163,13 @@ function UserPage() {
         {
             title: t("状态", "Status"),
             key: "status",
-            width: 110,
+            width: 88,
             render: (_: unknown, row: User.Item) => <UserStatusBadge status={row.status} />,
         },
         {
             title: t("角色", "Roles"),
             key: "roles",
-            width: 240,
+            width: 176,
             ellipsis: true,
             render: (_: unknown, row: User.Item) =>
                 row.roles
@@ -180,20 +181,20 @@ function UserPage() {
         {
             title: t("最后登录", "Last sign-in"),
             key: "lastLoginAt",
-            width: 210,
+            width: 160,
             render: (_: unknown, row: User.Item) => formatDateTime(row.lastLoginAt),
         },
         {
             title: t("更新时间", "Updated at"),
             key: "updatedAt",
-            width: 210,
+            width: 160,
             render: (_: unknown, row: User.Item) => formatDateTime(row.updatedAt),
         },
         {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 128,
+            width: 96,
             align: "right",
             render: (_: unknown, row: User.Item) => (
                 <UserActions record={row} currentUserId={currentUserId} onSuccess={refresh} />
@@ -324,28 +325,30 @@ function UserPage() {
                     }
                 />
             ) : null}
-            <ProTable<User.Item>
-                rowKey="id"
-                columns={columns}
-                dataSource={rows}
-                loading={isPending || isFetching}
-                search={false}
-                options={false}
-                scroll={{ x: 1654 }}
-                pagination={{
-                    current: currentPage,
-                    pageSize: PAGE_SIZE,
-                    total,
-                    showSizeChanger: false,
-                    onChange: (page) => setCurrentPage(page),
-                }}
-                locale={{
-                    emptyText:
-                        rows.length === 0 ? (
-                            <DataState kind="empty" title={t("暂无用户", "No users")} />
-                        ) : undefined,
-                }}
-            />
+            <DataTableShell ariaLabel={t("系统用户", "System users table")}>
+                <ProTable<User.Item>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={rows}
+                    loading={isPending || isFetching}
+                    search={false}
+                    options={false}
+                    scroll={{ x: 1280 }}
+                    pagination={{
+                        current: currentPage,
+                        pageSize: PAGE_SIZE,
+                        total,
+                        showSizeChanger: false,
+                        onChange: (page) => setCurrentPage(page),
+                    }}
+                    locale={{
+                        emptyText:
+                            rows.length === 0 ? (
+                                <DataState kind="empty" title={t("暂无用户", "No users")} />
+                            ) : undefined,
+                    }}
+                />
+            </DataTableShell>
         </PageCard>
     );
 }

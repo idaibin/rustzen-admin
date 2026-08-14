@@ -4,12 +4,12 @@
 
 - Profile: **Feature UI**.
 - Product basis: [Scheduled Report Automation](../../product/features/scheduled-report-automation/spec.md).
-- Shared visual authority: root `DESIGN.md`, especially
-  `#layout-and-density`, `#component-semantics`, and `#status-semantics`.
+- Shared visual authority: root `DESIGN.md`; this slice does not restate its
+  theme, component, state, layout, or accessibility semantics.
 - Selected source identity: accepted current Reports Templates and Runs
   surfaces in `apps/web/src/routes/reports/templates.tsx` and
   `apps/web/src/routes/reports/runs.tsx`, plus the repository-owned `DESIGN.md`
-  baseline (`version: 1.0`).
+  adopted root `DESIGN.md` baseline.
 - Selection status: accepted existing product surface and Ant Design system.
   Rights/use are repository-owned; former standalone report shells and visual
   alternatives are ignored.

@@ -2,10 +2,10 @@
 
 Read [product.md](./product.md) for product positioning, shared principles,
 module boundaries, and direction. Read only the target feature specification
-below for slice-local behavior and acceptance. The independent
-`project-delivery-system` repository owns cross-project templates and review
-records; this repository keeps only the current product contract and its
-implementation handoff.
+below for slice-local behavior and acceptance. The independent Forgeway
+repository (`idaibin/forgeway`) owns cross-project templates and review records;
+this repository keeps only the current product contract and its implementation
+handoff.
 
 ## Shared implementation contract
 

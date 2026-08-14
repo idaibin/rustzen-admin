@@ -3,7 +3,6 @@ import {
     CloudServerOutlined,
     CloudSyncOutlined,
     ExclamationCircleOutlined,
-    LineChartOutlined,
     SignalFilled,
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
@@ -36,7 +35,7 @@ function MonitoringOverviewPage() {
 
     if (isPending && !data) {
         return (
-            <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
                 <PageHeader
                     title={t("监控概览", "Monitoring overview")}
                     description={t(
@@ -51,7 +50,7 @@ function MonitoringOverviewPage() {
 
     if (!data) {
         return (
-            <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
                 <PageHeader
                     title={t("监控概览", "Monitoring overview")}
                     description={t(
@@ -118,13 +117,18 @@ function MonitoringOverviewPage() {
     ];
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
             <PageHeader
                 title={t("监控概览", "Monitoring overview")}
                 description={t(
                     "查看当前节点可用性和最新基础设施心跳。",
                     "View current node availability and the latest infrastructure heartbeats.",
                 )}
+                actions={
+                    <span className="text-xs text-muted-foreground">
+                        {t("每 30 秒自动刷新", "Refreshes every 30 seconds")}
+                    </span>
+                }
             />
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 {cards.map((item) => (
@@ -136,12 +140,6 @@ function MonitoringOverviewPage() {
                         tone={item.tone}
                     />
                 ))}
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <LineChartOutlined />
-                <span>
-                    {t("监控数据每 30 秒自动刷新。", "Monitoring data refreshes every 30 seconds.")}
-                </span>
             </div>
             {error ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
@@ -205,6 +203,7 @@ function IncidentOverviewPanel() {
 
     return (
         <Card
+            className="page-panel"
             title={t("活动事件", "Active incidents")}
             extra={
                 <AuthWrap code="monitor:incident:view">
@@ -245,7 +244,7 @@ function IncidentOverviewPanel() {
                     compact
                 />
             ) : (
-                <DataTableShell>
+                <DataTableShell ariaLabel={t("活动监控事件", "Active incidents table")}>
                     <ProTable<Monitor.IncidentSummary>
                         rowKey="id"
                         columns={columns}

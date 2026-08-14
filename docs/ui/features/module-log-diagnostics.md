@@ -4,12 +4,12 @@
 
 - Profile: **Feature UI**.
 - Product basis: [Module Log Diagnostics, Backup, and Cleanup](../../product/features/module-log-diagnostics/spec.md).
-- Shared visual authority: root `DESIGN.md`, especially
-  `#layout-and-density`, `#component-semantics`, and `#status-semantics`.
+- Shared visual authority: root `DESIGN.md`; this slice does not restate its
+  theme, component, state, layout, or accessibility semantics.
 - Selected source identity: accepted current System Status and Manage Log
   surfaces in `apps/web/src/routes/system/status.tsx` and
   `apps/web/src/routes/manage/log.tsx`, plus repository-owned `DESIGN.md`
-  baseline (`version: 1.0`).
+  adopted root `DESIGN.md` baseline.
 - Selection status: accepted existing product surfaces. Rights/use are
   repository-owned; legacy file browsers, glass/gradient references, and the
   operation-log surface as a process-log substitute are ignored.

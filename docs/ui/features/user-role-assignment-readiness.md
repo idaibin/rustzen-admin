@@ -6,8 +6,8 @@
   visual-language change is required.
 - Product basis: `docs/product/features/user-role-assignment-readiness/spec.md`.
 - Current surface: the create-user and edit-user dialogs on the Admin user page.
-- Reuse owners: the existing dialog, form controls, `DataState`, buttons,
-  checkboxes, theme tokens, and localized built-in role labels.
+- Reuse owners: the existing dialog/form composition, shared owners referenced
+  from root `DESIGN.md`, and localized built-in role labels.
 - Browser evidence covers role loading, populated data, forced failure and retry,
   successful empty data, field preservation, submission readiness, and wide and
   narrow dialog layout after implementation.

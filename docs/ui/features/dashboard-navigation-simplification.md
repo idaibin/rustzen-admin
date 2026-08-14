@@ -25,12 +25,10 @@ failures even though they are not navigation examples.
 ## Visual-source mapping
 
 The project-owned product source is `docs/product/product.md`. Shared visual
-semantics and component ownership are defined only by root `DESIGN.md` and its
-live implementation in `apps/web/src/styles/theme.css`; `docs/ui/profile.yaml`
-is historical task evidence, not an accepted visual source. Preserve the
-compact information hierarchy, standard light/dark themes, semantic status
-colors, and existing component ownership. Decorative glass, ambient background
-images, speculative metrics, and unverified navigation are excluded.
+semantics and component ownership are defined only by root `DESIGN.md`;
+`apps/web` source is its current implementation adapter, and
+`docs/ui/profile.yaml` is historical task evidence rather than an accepted
+visual source. This slice only owns Dashboard and navigation composition.
 
 ## Layout, components, and tokens
 
@@ -40,8 +38,8 @@ images, speculative metrics, and unverified navigation are excluded.
 - Reuse `Card`, `MetricCard`, `DataState`, `Badge`, and `Button`. Do not
   introduce charts, progress rings, tabs, a quick-action framework, a nested
   dashboard, or a new metric-card variant for this slice.
-- Reuse the existing light and dark semantic theme tokens in
-  `apps/web/src/styles/theme.css`. No semantic token changes are authorized.
+- Reuse the adopted root `DESIGN.md` semantics through the existing theme
+  adapter. No shared semantic change is authorized by this slice.
 - Sidebar groups remain System and Management plus enabled module-provided
   navigation. Search consumes the same route inventory as the sidebar.
 

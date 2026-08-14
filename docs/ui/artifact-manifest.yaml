@@ -1,46 +1,6 @@
-version: 2
-artifact:
-  id: rustzen-admin-application-ui-standardization
-  revision: 14
-source:
-  repository: rustzen-admin
-  ref: 83970be3e637d5dd0c2d2a08237283313bcb8397
-  visual_source_id: rustzen-admin-solid-surface-baseline
-  visual_source_revision: 1
-inputs:
-  profile_revision: 4
-  task_revision: 5
-  reference_revision: 4
-  evaluation_revision: 8
-  rubric_revision: 1
-outputs:
-  profile:
-    root: task-local
-    path: profile.yaml
-    sha256: 3b3d306e3a3ecb2a556fbd01edf49593d408a3368601087e3733509642bcd538
-  references:
-    root: task-local
-    path: references.yaml
-    sha256: 1a756ae1d67bff6b7ab8f4ed3dc25ec4135e5dd6dda17d267dbd692236eb2945
-  task:
-    root: task-local
-    path: task.yaml
-    sha256: b8d7fcdda42c40f720646e5524e0d12f2cf79a412c1d02c928ef0a8460dca387
-  evaluation:
-    root: task-local
-    path: evaluation.yaml
-    sha256: 41506e3cbe63c1c43ff04eb8e8a1905ba4af86da18ca041b743e12695b7f175d
-evaluation:
-  score: 97
-  status: historical-superseded
-  evaluated_revision: 13
-approval:
-  approved_by: null
-  approved_at: null
-superseded_by:
-  path: DESIGN.md
-  status: adopted
-effort:
-  duration_minutes: 75
-rollback:
-  accepted_revision: 3
+version: 3
+status: historical-superseded
+role: legacy-artifact-pointer
+artifact_id: rustzen-admin-application-ui-standardization
+superseded_by: DESIGN.md
+note: Legacy hashes, scores, visual-source declarations, and approval placeholders are intentionally retired and must not be used as current contracts.

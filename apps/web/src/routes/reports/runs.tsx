@@ -268,7 +268,7 @@ function RunsPage() {
                     }
                 />
             ) : null}
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("报表运行记录", "Report runs table")}>
                 <ProTable<Reports.Run>
                     rowKey="id"
                     columns={columns}

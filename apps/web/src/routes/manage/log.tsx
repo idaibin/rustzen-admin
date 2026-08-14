@@ -254,7 +254,7 @@ function LogPage() {
             actions={exportButton}
             toolbar={logToolbar}
         >
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("操作日志", "Operation logs table")}>
                 {error ? (
                     <DataState
                         kind="error"

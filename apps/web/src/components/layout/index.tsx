@@ -86,10 +86,13 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
     };
 
     const handleLogout = async () => {
-        await authAPI.logout();
-        clearAuth();
-        appMessage.success(t("退出登录成功", "Signed out successfully"));
-        void router.navigate({ to: "/login" });
+        try {
+            await authAPI.logout();
+            appMessage.success(t("退出登录成功", "Signed out successfully"));
+        } finally {
+            clearAuth();
+            void router.navigate({ to: "/login" });
+        }
     };
 
     if (hidden) {
@@ -98,13 +101,14 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
 
     return (
         <ProLayout
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="app-shell flex min-h-0 flex-1 flex-col overflow-hidden"
             style={layoutStyle}
             title={APP_BRAND_NAME}
             logo="/rustzen.png"
             route={{ path: "/", routes: proMenuData }}
             location={{ pathname: currentPath }}
             layout="mix"
+            siderWidth={232}
             collapsed={collapsed}
             onCollapse={setCollapsed}
             menu={{
@@ -157,7 +161,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
                 />
             ) : null}
 
-            <main className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto p-4">
+            <main className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
                 {children}
             </main>
         </ProLayout>

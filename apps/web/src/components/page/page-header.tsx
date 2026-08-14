@@ -10,6 +10,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
     return (
         <ProPageHeader
+            className="page-header"
             title={title}
             subTitle={description}
             extra={actions ? [actions] : undefined}

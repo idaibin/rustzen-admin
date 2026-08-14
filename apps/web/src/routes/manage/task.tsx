@@ -187,7 +187,7 @@ function TaskPage() {
                 "View scheduling status and run maintenance tasks manually.",
             )}
         >
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("维护任务", "Maintenance tasks table")}>
                 <ProTable<Task.Item>
                     rowKey="taskKey"
                     columns={columns}

@@ -1,159 +1,181 @@
 ---
-version: 1.0
 name: "RustZen Admin"
-description: "Repository-owned shared visual semantics for the Ant Design administration console"
+description: "Shared visual semantics for the RustZen self-hosted operations console"
 ---
 
 # RustZen Admin Design System
 
-## Authority
+## Overview
 
-This document is the single shared visual-semantics entry point for RustZen
-Admin. The selected source is the current accepted Admin UI / Ant Design
-migration. It was approved by Daibin on 2026-07-25 through the current
-repository request, and its rights status is repository-owned.
+RustZen Admin uses a restrained, precise visual system for developer-operators and
+small technical teams. The interface prioritizes operational status, readable data,
+clear actions, and explicit failure evidence. Visual refinement comes from hierarchy,
+alignment, typography, spacing, borders, and state clarity rather than decoration.
 
-`apps/web/src/styles/theme.css` implements the concrete CSS custom-property
-values. Do not duplicate those values in other persistent documentation.
-`apps/web/src/components/theme-provider.tsx` remains the only theme state and
-persistence owner.
+## Authority and scope
 
-## Visual anchors
+This file is the sole shared visual-semantic authority for the repository-root Web
+design boundary. Product specifications own behavior, permissions, failure semantics,
+and acceptance outcomes. Feature UI specifications own page- or flow-local composition,
+applicable states, responsive behavior, and acceptance. Frontend source implements this
+contract but does not silently approve a conflicting visual decision.
 
-- `#themes-and-surfaces`: standard light and dark themes only; use compact,
-  solid semantic surfaces without gradients, glow, glass, or ambient imagery.
-- `#layout-and-density`: the application layout owns global width; routes own
-  vertical scrolling; use one `PageHeader` or `PageCard` title per surface.
-- `#component-semantics`: reuse `MetricCard` for factual compact operational
-  metrics, `DataState` for query feedback, and route-local Ant Design forms
-  and tables for feature behavior.
-- `#status-semantics`: use `--primary`, `--status-success`,
-  `--status-warning`, `--status-danger`, and `--status-info` rather than
-  literal status colors. The theme stylesheet owns their light and dark values.
-- `#implementation-naming`: use PascalCase for exported React components and
-  types, lower-kebab-case for component files and directories, TanStack route
-  files that match their path, and Ant Design / Pro Components as the sole UI
-  component library. Tailwind is limited to layout and spacing composition.
-  Recharts is approved only as a factual trend or chart-rendering utility for
-  the current Analytics and Monitoring consumers; it does not own shared UI
-  components, interaction patterns, or theme semantics. Chart containers,
-  loading/empty/error/permission states, and colors remain governed by this
-  document and the existing shared components.
+The acceptance record for a revision is a named non-implementer human approval bound
+to the exact file content hash. A changed hash requires a new approval. Task captures,
+screenshots, generated concepts, historical QA, CSS values, and structured sidecars are
+evidence or implementation; none is a second shared authority.
 
-## Themes and surfaces
+## Visual direction
 
-Light is the default theme. Cards, dialogs, forms, and tables use the shared
-semantic background, foreground, panel, border, and muted anchors implemented
-in the theme stylesheet. Preserve the existing compact readable density and
-semantic status treatment.
+- Use quiet operational density: compact enough for administration work, with enough
+  separation to scan status, tables, and actions reliably.
+- Make the primary task and critical status evident without decorative competition.
+- Use solid surfaces, restrained borders, and clear hierarchy. Do not use gradient,
+  glass, glow, ambient imagery, hover lift, bento filler, or oversized hero treatment
+  as default Admin language.
+- Keep one primary accent role. Success, warning, danger, information, focus, and chart
+  series remain distinct semantic roles.
+- Preserve the product's information architecture, routes, behavior, and accessibility
+  unless their owning contracts separately authorize a change.
+
+## Themes and color semantics
+
+Light and dark are the only shared themes; light is the default. Both themes map the
+same semantic roles:
+
+- canvas, surface, raised overlay, foreground, muted foreground, and border;
+- primary action/accent and visible keyboard-focus ring;
+- success for healthy/completed, warning for attention/degraded, danger for failed or
+  destructive, and information for active neutral status;
+- independent chart-series and factual metric-category tones.
+
+Color never carries status alone. Text, icon, label, or another non-color signal must
+communicate the meaning. Dark mode preserves readable surface separation, focus,
+hover, disabled, and overlay states rather than merely inverting light colors.
+
+## Typography and data
+
+Use the repository's system-compatible sans-serif stack for interface text. Page titles,
+section titles, body/table text, and supporting copy form one descending hierarchy.
+Operational numbers use tabular figures. Labels and supporting copy may wrap; primary
+actions and status meaning must not disappear when Simplified Chinese or English text
+expands. Avoid display typography or marketing-scale headlines inside the authenticated
+console.
 
 ## Layout and density
 
-The authenticated layout owns the global page-width and overflow boundary.
-Overview and detail routes use `PageHeader`; list and management routes use
-`PageCard`. Do not duplicate a page title, create nested dashboards, or add
-decorative KPI grids.
+The application shell owns global chrome, viewport clipping, and the broad content
+boundary. The authenticated main content container owns one desktop page inset. A route
+owns its page composition and vertical scroll region. A panel or reusable component owns
+only its internal spacing. An overlay owns its stacking, focus, collision, and dismissal.
 
-## Component semantics
+Do not stack equivalent shell, page, panel, and component insets. Align page headings,
+actions, panels, empty states, and table headers to a named content edge. The document
+must not scroll horizontally. A bounded table or long-content region may scroll
+horizontally only when that owner is explicit and accessible.
 
-`MetricCard` owns factual operational metrics on Dashboard, Monitoring, and
-Analytics overview surfaces. Every instance uses the same two-zone anatomy:
+The shared desktop rhythm uses a 24 px page inset, 24 px major separation, 16 px section
+separation, and 8-12 px inline separation. Panels use a restrained 10 px radius and
+ordinary controls use an 8 px radius with a 36 px default height. These values are shared
+targets; feature contracts own justified exceptions and source owns the implementation.
 
-- a neutral identity zone groups one semantic icon with the metric title;
-- a separated, lightly tinted value zone makes the number the dominant element;
-- icon, value, divider, and value-zone tint derive from one semantic tone;
-- supporting copy is optional and must not be inserted merely to fill space;
-- the component owns its internal spacing, type hierarchy, radius, border, and
-  tone treatment, while the consuming route owns grid columns and inter-card
-  gaps.
+## Shared component semantics
 
-Use the component palette `blue`, `green`, `violet`, `amber`, and `red` by
-metric category. These names describe the metric-card palette and do not
-redefine global success, warning, or danger status semantics. Do not assign one
-tone to an entire page, add route-local card variants, place decorative
-gradients or glow inside a metric card, or use `MetricCard` for module
-availability, progress, charts, forms, and arbitrary content.
+### PageHeader
 
-`apps/web/src/styles/theme.css` owns each palette tone's foreground, soft
-surface, and divider values. Its five metric tones must remain visibly distinct
-in both light and dark themes. Routes never define metric-card color values.
+Use one `PageHeader` for overview and detail surfaces. It owns the page title, concise
+description, and directly related actions. It does not create a panel or a second page
+inset. A page does not repeat the same title in another shared shell.
 
-`DataState` owns loading, empty, error, permission, and processing feedback.
-Keep form validation, tables, actions, and query state with their route unless
-a stable shared responsibility already exists.
+### PageCard
 
-## Status semantics
+Use one `PageCard` for list and management surfaces. It owns the bounded surface that
+groups title, description, primary action, optional toolbar, and content. It does not
+redefine table columns, business actions, query behavior, or page-level permissions.
 
-Choose a status anchor by meaning, not appearance: primary for the default
-operational accent, success for healthy or completed state, warning for
-attention or offline state, danger for unhealthy or failed state, and info for
-active informational state. Ant Design status props remain appropriate where
-they consume the configured theme context.
+### MetricCard
 
-## Historical UI artifacts
+Use `MetricCard` only for compact factual operational metrics with a label, dominant
+value, and optional supporting hint. Icon and category tone are supporting cues, not
+status by themselves. Routes own the metric selection, ordering, grid, and business
+meaning. Do not use MetricCard for arbitrary content, module availability, charts,
+forms, progress, or decorative KPI filler, and do not create route-local visual variants.
 
-`docs/ui/` contains current feature-local contracts plus retained historical
-mappings and evidence. It is not a second design-system authority: shared
-visual semantics begin here, while each UI slice records only its local
-composition and validation evidence.
+### DataState
 
-## Cross-feature interaction semantics
+Use `DataState` for shared query or process feedback. Preserve these distinctions:
 
-The four current feature slices reuse the same visual grammar even when their
-business meanings stay with different module owners:
+- loading: no successful result is available yet;
+- populated: successful usable data is present;
+- empty: a successful result contains no applicable data;
+- error: the owning operation failed and exposes recovery when available;
+- permission: access is unavailable and is not presented as an empty result;
+- processing: a long-running operation is active and reports progress when known;
+- background refresh: keep the last successful data visible, identify stale/failure
+  state, and provide retry without converting the surface to empty.
 
-- `PageHeader` owns one overview/detail heading and its actions. `PageCard`
-  owns list and management surfaces. A feature must not add a second page title
-  or a decorative dashboard shell.
-- `DataState` owns loading, empty, error, permission, and processing feedback.
-  Query owners keep the last successful data visible during background refresh
-  and supply retry. A failed request is never styled as a successful empty
-  result.
-- `DataTableShell` with a route-local ProTable owns paginated lists. Columns,
-  filters, and business actions remain local until two real consumers prove the
-  same semantics.
-- Ant Design `Drawer`, `Modal`, `Form`, `Alert`, `Tag`, and `ConfirmDialog`
-  remain the existing owners for detail, edit, warning, status, and destructive
-  confirmation behavior. Wrap them locally when a feature needs composition;
-  do not create a generic diagnostics or file-browser component.
+A feature contract lists only the states its real behavior exposes and justifies any
+excluded state. Form validation and business-result semantics remain with their owning
+feature or product contract.
 
-When an operation affects multiple named items, `partial` is a semantic outcome
-with explicit item-level success/failure and retry or review guidance. It is
-never a new color, a generic success banner, or a replacement for `DataState`.
+### DataTableShell
 
-## Responsive and accessibility baseline
+Use `DataTableShell` as the bounded horizontal-overflow owner around a route-local data
+table. The route owns columns, filters, pagination, row selection, and business actions.
+The shell does not add a second card, page inset, or generic table domain abstraction.
 
-The authenticated layout owns global width and overflow; each route owns its
-vertical scroll region. Feature contracts name their own viewport matrix, while
-the shared baseline is:
+### Overlays and feedback
 
-- desktop acceptance at 1920x1080 and 1440x900 CSS px, 100% zoom;
-- narrow acceptance at 390x844 CSS px, with content allowed to grow vertically;
-- no document-level horizontal overflow; a bounded long-content region may
-  scroll only when its owner and accessible label are explicit;
-- visible keyboard focus, real button targets, focus trapping/restoration for
-  dialogs and drawers, and text-first status meaning;
-- Simplified Chinese and English copy that can wrap without clipping;
-- standard light/dark themes and existing reduced-motion behavior, with no
-  feature-specific gradient, glow, or decorative motion.
+Use the existing dialog, drawer, form, alert, tag, confirmation, and feedback primitives
+for their established meanings. The default accepted page state contains no open
+overlay. An open overlay must define its trigger, initial focus, focus trap, dismissal,
+and focus restoration in the applicable feature contract.
 
-Exact dimensions, responsive transformations, and state copy belong to the
-linked feature UI contract. This section stabilizes cross-page semantics only.
+## Interaction and accessibility
 
-## Reuse and extension gate
+- All actions are keyboard reachable and have a visible focus indicator in both themes.
+- Icon-only controls have an accessible name; color-only and hover-only disclosure are
+  not acceptable.
+- Dialogs and drawers trap focus while open, support expected dismissal, and restore
+  focus to a sensible trigger.
+- Loading and processing announce status without unnecessary interruption; errors and
+  permission failures use appropriate alert semantics.
+- Text and controls remain readable at zoom and with bilingual wrapping. Long values
+  wrap, truncate with an accessible reveal, or scroll inside an explicit owner.
+- Motion communicates feedback or state change only. Reduced-motion preference removes
+  nonessential transitions and animation.
 
-Feature work uses the following decisions in order:
+## Viewport acceptance baseline
 
-1. **Reuse** an existing owner when its semantics already match.
-2. **Extend** an owner only when the new variant remains product-wide and has a
-   stable second consumer.
-3. **Wrap** an existing Ant Design or shared owner for one feature's local
-   composition and state meaning.
-4. **New** shared components are allowed only after the repository shared-
-   capability gate proves at least two compatible consumers and an independent
-   test. A route-local component is preferred until then.
+- Primary: 1920x1080 CSS pixels, 100% zoom.
+- Compatibility: 1440x900 CSS pixels, 100% zoom.
+- Required themes: light and dark according to each feature's acceptance matrix.
+- Smaller viewports: best effort unless a feature contract explicitly promotes a named
+  size and state into required acceptance.
 
-No feature in the current product slice changes shared tokens or introduces a
-new component library. API and persistence contracts remain with their module
-owners; the visual system consumes their verified states without redefining
-DTOs or business lifecycles.
+Each feature contract names its applicable state, locale, theme, overflow, focus, and
+evidence matrix at these viewports. Static source, lint, build, screenshots, browser
+runtime, and assistive-technology checks remain separate evidence levels.
+
+## Reuse and extension
+
+Reuse an existing shared owner when its meaning matches. Extend it only when the new
+meaning is shared, has at least two compatible real consumers, and can be independently
+verified. Otherwise compose or wrap existing primitives inside the feature. Do not add
+a parallel token system, component library, generic shared directory, or route-local
+theme override to avoid the shared owner.
+
+Changes to shared themes, tokens, component meanings, state vocabulary, or cross-surface
+visual rules require an updated DESIGN candidate, official lint/diff gates, and a fresh
+named non-implementer approval bound to the exact content hash before implementation.
+
+## Do's and don'ts
+
+- Do keep operational hierarchy, status, actions, and recovery clear.
+- Do keep one effective owner for each inset, scroll axis, overlay, and shared meaning.
+- Do use real product copy and data states from their owning contracts.
+- Do not infer exact tokens, accessibility, behavior, or approval from pixels alone.
+- Do not copy shared visual semantics into feature specs, guides, YAML/JSON projections,
+  task reviews, or generated prompts.
+- Do not treat a build, lint result, screenshot, or isolated browser pass as complete
+  visual and assistive-technology acceptance.

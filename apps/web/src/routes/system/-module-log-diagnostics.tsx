@@ -518,7 +518,7 @@ function ModuleLogDiagnosticsContent() {
                     )}
                 />
             ) : (
-                <DataTableShell>
+                <DataTableShell ariaLabel={t("模块日志文件", "Module log files table")}>
                     <ProTable<ModuleLogFile>
                         rowKey={(record) => `${record.module}:${record.date}`}
                         columns={columns}

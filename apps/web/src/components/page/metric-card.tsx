@@ -16,77 +16,62 @@ export function MetricCard({ label, value, icon, tone, hint }: MetricCardProps) 
         blue: {
             foreground: "var(--metric-blue-foreground)",
             surface: "var(--metric-blue-surface)",
-            divider: "var(--metric-blue-divider)",
         },
         green: {
             foreground: "var(--metric-green-foreground)",
             surface: "var(--metric-green-surface)",
-            divider: "var(--metric-green-divider)",
         },
         violet: {
             foreground: "var(--metric-violet-foreground)",
             surface: "var(--metric-violet-surface)",
-            divider: "var(--metric-violet-divider)",
         },
         amber: {
             foreground: "var(--metric-amber-foreground)",
             surface: "var(--metric-amber-surface)",
-            divider: "var(--metric-amber-divider)",
         },
         red: {
             foreground: "var(--metric-red-foreground)",
             surface: "var(--metric-red-surface)",
-            divider: "var(--metric-red-divider)",
         },
     }[tone];
 
     return (
         <Card
-            className="min-h-44 overflow-hidden border border-border bg-card shadow-sm"
-            styles={{ body: { height: "100%", padding: 0 }, root: { borderRadius: 12 } }}
+            className="min-h-32 overflow-hidden border border-border bg-card shadow-none"
+            styles={{ body: { height: "100%", padding: 20 }, root: { borderRadius: 10 } }}
         >
-            <div className="flex h-full flex-col">
-                <div className="flex min-h-[87px] items-center gap-3 px-6 py-4">
-                    <span
-                        className="flex size-12 shrink-0 items-center justify-center rounded-lg text-[26px]"
-                        style={{
-                            color: toneTokens.foreground,
-                            background: toneTokens.surface,
-                        }}
-                    >
-                        {icon}
-                    </span>
-                    <div className="min-w-0">
-                        <div className="text-lg font-semibold leading-tight text-foreground">
-                            {label}
-                        </div>
-                        {hint ? (
-                            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                                {hint}
-                            </div>
-                        ) : null}
+            <div className="flex h-full items-start gap-4">
+                <div className="min-w-0 flex-1">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <span
+                            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-base"
+                            style={{
+                                color: toneTokens.foreground,
+                                background: toneTokens.surface,
+                            }}
+                        >
+                            {icon}
+                        </span>
+                        <span className="truncate">{label}</span>
                     </div>
-                </div>
-                <div
-                    className="flex min-h-[87px] min-w-0 flex-1 items-center border-t px-6 py-3"
-                    style={{
-                        borderColor: toneTokens.divider,
-                        background: toneTokens.surface,
-                    }}
-                >
                     <Statistic
                         value={value}
                         styles={{
                             content: {
-                                color: toneTokens.foreground,
-                                fontSize: 56,
-                                fontWeight: 700,
-                                lineHeight: 1,
-                                letterSpacing: "-0.04em",
+                                color: "var(--foreground)",
+                                fontSize: 32,
+                                fontWeight: 650,
+                                lineHeight: 1.15,
+                                letterSpacing: "-0.03em",
                                 fontVariantNumeric: "tabular-nums",
                             },
                         }}
                     />
+                    {hint ? (
+                        <div className="mt-2 truncate text-xs leading-5 text-muted-foreground">
+                            {hint}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </Card>

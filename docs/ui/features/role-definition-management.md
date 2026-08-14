@@ -6,8 +6,8 @@
 - Selected source: the accepted current Admin role-management page and dialog
   in `apps/web/src/routes/system/role.tsx` on the current product source.
 - Selection status: accepted existing product surface; repository-owned source.
-- Use: current `PageCard`, table, dialog, form controls, `DataState`, semantic
-  status styles, theme tokens, spacing, density, and bilingual copy pattern.
+- Use: current route composition and the shared owners referenced from root
+  `DESIGN.md`, plus the bilingual copy pattern.
 - Ignore: deleted legacy glass imagery and any visual alternative that is not
   part of the current standard light/dark Admin system.
 - Product basis:
@@ -45,7 +45,7 @@ automation consumer or shared-system revision is introduced.
 | Permission states | `DataState` in compact mode | Reuse locally |
 | Dialog and footer | existing `Modal` primitives | Reuse |
 | Permission selection | Ant Design `Input`, `Checkbox`, and `Tree` | Reuse |
-| Status and feedback color | current semantic theme tokens | Reuse |
+| Status and feedback presentation | root `DESIGN.md` through current adapters | Reuse; do not redefine here |
 
 Do not add a store, shared hook, new component variant, token, or API module.
 Keep role-specific state composition local until another real consumer proves

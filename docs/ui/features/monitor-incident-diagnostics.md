@@ -4,12 +4,12 @@
 
 - Profile: **Feature UI**.
 - Product basis: [Monitoring Incident Diagnostics](../../product/features/monitor-incident-diagnostics/spec.md).
-- Shared visual authority: root `DESIGN.md`, especially
-  `#layout-and-density`, `#component-semantics`, and `#status-semantics`.
+- Shared visual authority: root `DESIGN.md`; this slice does not restate its
+  theme, component, state, layout, or accessibility semantics.
 - Selected source identity: accepted current Ant Design Monitoring overview
   and Nodes surfaces in `apps/web/src/routes/monitoring/overview.tsx` and
   `apps/web/src/routes/monitoring/nodes.tsx`, together with the repository
-  `DESIGN.md` baseline (`version: 1.0`).
+  adopted root `DESIGN.md` baseline.
 - Selection status: accepted existing product surface and repository-owned
   design system. Approval is the repository's accepted Ant Design migration;
   no external image or brand asset is copied.

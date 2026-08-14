@@ -12,7 +12,7 @@ feature specs record only route-local composition, states, and evidence.
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Reports | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
-| Admin | [Metric-card consistency](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Implemented; retained runtime evidence is historical to that slice |
+| Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Adopted contract; current Worktree runtime verification pending |
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Implemented; retained runtime evidence is historical to that slice |
 | Admin | [Role definition management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge evidence retained |
 | Admin | [User role assignment readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge evidence retained |

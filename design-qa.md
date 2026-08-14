@@ -1,5 +1,10 @@
 # Login Copy Layout Design QA
 
+Status: historical task evidence only. This file does not define the current
+shared design system, selected visual source, viewport contract, or acceptance
+status. Root [`DESIGN.md`](./DESIGN.md) is the sole shared visual-semantic
+authority; current runtime claims require a new task-local evidence package.
+
 ## Comparison Target
 
 - Source visual truth: `/Users/daibin/.codex/generated_images/019f9718-f2a4-7950-bcaf-75a08fe2d80f/exec-222d0ff8-b676-42fe-9016-26abea69388b.png`

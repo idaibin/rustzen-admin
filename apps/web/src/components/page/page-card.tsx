@@ -20,9 +20,10 @@ export function PageCard({
     className,
     contentClassName,
 }: PageCardProps) {
-    const rootClassName = ["flex h-full min-h-0 flex-col overflow-hidden", className].filter(
-        (item): item is string => typeof item === "string",
-    );
+    const rootClassName = [
+        "page-card flex h-full min-h-0 flex-col overflow-hidden",
+        className,
+    ].filter((item): item is string => typeof item === "string");
     const contentClass = ["flex min-h-0 flex-1 flex-col gap-4", contentClassName].filter(
         (item): item is string => typeof item === "string",
     );

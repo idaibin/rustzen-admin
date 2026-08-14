@@ -5,9 +5,9 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 
 - Scope class: versioned Web/Rust monorepo.
 - Map and Git root: the repository root.
-- `DESIGN.md` is the single shared visual-semantics entry point. Historical
-  `docs/ui/` artifacts retain task evidence only; `docs/reference/capability-map.md`
-  owns the short capability-owner view.
+- `DESIGN.md` is the single shared visual-semantics entry point. Current
+  route-local UI contracts are indexed by `docs/ui/index.md`; legacy YAML
+  sidecars in that directory are historical pointers only.
 
 ## Authority and reading paths
 
@@ -118,9 +118,9 @@ not component behavior.
 | Operational metric | `apps/web/src/components/page/metric-card.tsx` (`MetricCard`) | Dashboard, Monitoring, and Analytics overviews | Reuse for factual compact metrics; do not turn it into decorative KPI cards. |
 | Table surface and pagination | `apps/web/src/components/table/`, `@ant-design/pro-components` | module and Admin list routes | Reuse `DataTableShell` and route-local `ProTable`; keep columns and page-local actions with the route and Pro components pagination behavior. |
 
-For shared visual work, start with the anchors in `DESIGN.md`, then revalidate the
-live definition and at least one current consumer. `docs/ui/` is historical
-task evidence, not a competing current map or token authority.
+For shared visual work, start with `DESIGN.md`, then revalidate the live definition
+and at least one current consumer. `docs/ui/features/` contains subordinate current
+route-local contracts; legacy `docs/ui/*.yaml` sidecars are historical pointers only.
 
 ## Common task routes
 
@@ -190,7 +190,8 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 | `docs/reference/legacy-module-comparison.md` | Fixed live-source comparison with former standalone products. | You decide which former behaviors to retain, reproduce, defer, or drop. |
 | `docs/history/` | Non-current plans and records. | You need historical rationale. |
 | `DESIGN.md` | Shared visual semantics and implementation naming anchors. | You change product-wide visual semantics, shared components, or themes. |
-| `docs/ui/` | Historical task-local mappings and evidence; not a current design authority. | You need prior task rationale or evidence. |
+| `docs/ui/index.md` and `docs/ui/features/` | Current subordinate route-local UI contracts; not a shared visual authority. | You need page composition, applicable states, or feature acceptance. |
+| `docs/ui/*.yaml` | Historical superseded pointers; not current contracts. | You need to identify the retired UI-standardization task. |
 
 ## Commands
 

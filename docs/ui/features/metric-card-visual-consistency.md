@@ -1,235 +1,133 @@
-# Operational Metric Card Visual Consistency UI
+# Operational Metric Card Route Contract
 
-Status: **Implemented and verified** for the retained 1920x1080 and 1440x900
-runtime evidence. The remaining viewport-matrix entries are not re-asserted by
-this document.
+Status: adopted shared authority; implementation verification pending for the current Worktree.
 
-## Profile, authority, and selected source
+## Authority and selected source
 
-- Profile: **Feature UI + shared component contract**.
+- Profile: Feature UI.
 - Product basis:
-  `docs/product/features/metric-card-visual-consistency/spec.md`.
-- Shared visual authority: root `DESIGN.md`, especially
-  `#component-semantics`, `#themes-and-surfaces`, and `#status-semantics`.
-- Selected source identity: 2026-07-31 user-provided reference image; private
-  evidence, redistribution restricted.
-- Revision: the image attached to the 2026-07-31 request asking whether the
-  current implementation matches the selected UI.
-- Source approval: approved by Daibin on 2026-07-31 as the implementation
-  direction. Daibin confirmed the exact adaptation values and palette mapping
-  on 2026-07-31 with the instruction to begin execution.
-- Rights/use: user-supplied local reference, allowed for this repository's
-  implementation; redistribution outside this task is not authorized.
-- Use: four-card anatomy, hierarchy, neutral identity zone, tinted value zone,
-  semantic per-card color, prominent number, icon/title pairing, and restrained
-  border/radius treatment.
-- Ignore: the image canvas size as a browser viewport, literal raster pixels as
-  CSS tokens, any unverified font identity, image compression/blur, and shadows
-  caused by raster scaling.
-- Source canvas: 2556x520 at 100% image zoom; it is a component-group crop, not
-  a verified page viewport.
-- Selected state: populated, Simplified Chinese, light theme, four account
-  metrics, no supporting copy, no hover/focus state.
+  [Operational Metric Card Visual Consistency](../../product/features/metric-card-visual-consistency/spec.md).
+- Shared visual authority: root `DESIGN.md` at approved SHA-256
+  `724874eec2c075c5cda20800458bc8cca89447a841076d375cd85d4f58d9fd88`.
+- Selected source: the adopted shared `MetricCard` meaning plus the current factual
+  Dashboard, Monitoring overview, and Analytics overview surfaces.
+- Approval: daibin, human product/repository owner, approved the exact DESIGN content
+  hash through controller task `019ff4d6-8b8a-7100-bada-b8cb46d3ed17`.
+- Rights/use: repository-owned source and approved shared authority.
+- Use: existing factual metrics, route-local ordering/grid, icons, localized labels,
+  semantic category mapping, query states, and current API ownership.
+- Ignore: the superseded 2026-07-31 crop as shared component authority, its inferred
+  pixels, old 176 px/two-zone geometry, historical glass styling, speculative metrics,
+  and any route-local shared-component variant.
 
-The selected image is visually inspectable but has no design-tool metadata.
-Source proportions are therefore `visually-inferred`; exact CSS values below
-are the approved repository adaptation, not falsely relabeled source values.
+This Feature UI contract does not repeat shared component anatomy, tokens, typography,
+radius, spacing, theme, state vocabulary, or accessibility semantics from DESIGN.
 
-## Shared component decision
+## Route-local composition
 
-`MetricCard` remains the single owner at
-`apps/web/src/components/page/metric-card.tsx`. Dashboard, Monitoring, and
-Analytics routes reuse it and own only grid columns, grid gaps, metric order,
-localized title, value, icon selection, and semantic tone.
+### Dashboard
 
-The shared component contract is:
+The route keeps this order:
 
-- two stacked zones with an approximately 50/50 visual split;
-- neutral identity zone with icon tile and title on one row;
-- lightly tinted value zone separated by a semantic divider;
-- number is the sole dominant element in the value zone;
-- optional supporting copy is supported but absent from the current 16 metrics;
-- component tones are `blue`, `green`, `violet`, `amber`, and `red` and use
-  component-level palette tokens owned by the shared theme stylesheet,
-  never literal route colors;
-- no hover lift or click affordance because current cards are informational.
+1. one page heading;
+2. four account metrics;
+3. a permission-gated Admin-host resource summary;
+4. runtime module availability.
 
-## Dashboard composition
+The factual account and host-resource values remain in their current query boundaries.
+Module availability is not a `MetricCard`. Detailed resource diagnostics stay on System
+Status.
 
-The Dashboard keeps one page header followed by two panel-level Ant Design
-`Card` containers for every user, plus one permission-gated panel:
+### Monitoring overview
 
-1. account overview, containing its title, optional explanatory copy, query
-   feedback, and the four shared `MetricCard` instances;
-2. system running summary, visible only with `system:status:view`, containing
-   CPU, memory, and disk `MetricCard` instances sourced from the existing
-   System Status endpoint;
-3. runtime modules, containing the three module connectivity rows.
+The route keeps one summary row for registered, online, offline, unhealthy-check, and,
+when permitted, active-incident counts. The active-incident evidence surface follows the
+summary. Refresh metadata remains secondary to the page title and current operational
+state.
 
-The account-overview panel must appear before the system summary and runtime
-modules. Runtime polling
-continues every 15 seconds, but the interval is an implementation detail and
-must not be repeated as visible panel copy.
+### Analytics overview
 
-## Target geometry and typography
+The route keeps its current factual activity metrics and query ownership. It does not
+reintroduce removed quality/performance metrics or add trends, confidence, or prediction
+data.
 
-The following values are the approved target adaptation for implementation and
-runtime verification:
+Parent routes own grid columns, gaps, ordering, labels, values, icon selection, and
+business meaning. They reuse the single shared `MetricCard`; they do not clone or
+redefine it.
 
-| Property | Target |
-| --- | --- |
-| Card height | `176px` desktop; content may grow for wrapping/localization |
-| Card radius | `12px` |
-| Card border | `1px`, shared border anchor |
-| Card shadow | restrained panel shadow only; no glow |
-| Zone split | `88px` identity / minimum `88px` value at desktop |
-| Horizontal padding | `24px` in both zones |
-| Icon tile | `48px` square, `12px` radius |
-| Icon glyph | `26px`, centered |
-| Icon/title gap | `16px` |
-| Title | `18px`, weight `600`, shared foreground |
-| Value | `56px`, weight `700`, line-height `1`, tabular numerals |
-| Grid gap | route-owned `16px`; no gap embedded in the card |
+## Metric category mapping
 
-The target intentionally increases hierarchy from the current 130px card
-without copying the source crop's apparent 1.52 aspect ratio into every grid.
-This keeps the five-column Monitoring layout operational at desktop widths while
-making the value materially more prominent.
-
-## Semantic tone and icon mapping
-
-Color is scoped within each card: icon glyph, icon-tile tint, divider, numeric
-value, and value-zone tint share one semantic tone. The rest of the card stays
-on the neutral panel surface. Tints must remain subtle in both themes; do not
-tint the whole card.
-
-`apps/web/src/styles/theme.css` owns each `MetricCard` tone's foreground, soft
-surface, and divider values for light and dark themes. The final composed hues
-must remain visibly distinct from one another. A neutral/near-white dark-theme
-value is not an acceptable substitute for the blue tone. Routes consume only
-the tone enum and never define color values.
-
-| Metric meaning | Tone | Icon rule |
+| Surface | Metric | Category |
 | --- | --- | --- |
-| totals, inventory, default volume | `blue` | closest existing group/inventory icon |
-| active, healthy, completed | `green` | closest existing active/healthy icon |
-| recent, visitor, informational activity | `violet` | closest existing clock/information icon |
-| pending, offline, requests needing attention | `amber` | closest existing pending/attention icon |
-| unhealthy, failed, critical | `red` | closest existing alert/error icon |
+| Dashboard | Total users | blue |
+| Dashboard | Active users | green |
+| Dashboard | Today's logins | violet |
+| Dashboard | Pending users | amber |
+| Dashboard | CPU | blue |
+| Dashboard | Memory | green |
+| Dashboard | Disk | amber |
+| Monitoring | Registered nodes | blue |
+| Monitoring | Online nodes | green |
+| Monitoring | Offline nodes | amber |
+| Monitoring | Unhealthy checks | red |
+| Monitoring | Active incidents | violet |
+| Analytics | Page views | blue |
+| Analytics | Unique visitors | violet |
+| Analytics | Total events | green |
+| Analytics | API requests | amber |
 
-The current 16 metrics map as follows:
+Categories distinguish factual groupings; health and failure meaning still includes text
+outside color-only presentation. Routes use their existing icon package and do not add a
+second icon system.
 
-| Surface | Metric | Tone |
-| --- | --- | --- |
-| Dashboard | 用户总数 / Total users | `blue` |
-| Dashboard | 活跃用户 / Active users | `green` |
-| Dashboard | 今日登录 / Today's logins | `violet` |
-| Dashboard | 待审核用户 / Pending users | `amber` |
-| Dashboard | CPU | `blue` |
-| Dashboard | 内存 / Memory | `green` |
-| Dashboard | 磁盘 / Disk | `amber` |
-| Monitoring | 已注册节点 / Registered nodes | `blue` |
-| Monitoring | 在线节点 / Online nodes | `green` |
-| Monitoring | 离线节点 / Offline nodes | `amber` |
-| Monitoring | 异常检查 / Unhealthy checks | `red` |
-| Monitoring | 活动事件 / Active incidents | `violet` |
-| Analytics | 页面浏览量 / Page views | `blue` |
-| Analytics | 独立访客 / Unique visitors | `violet` |
-| Analytics | 全部事件 / Total events | `green` |
-| Analytics | 接口请求 / API requests | `amber` |
+## Applicable state matrix
 
-Use existing `@ant-design/icons` assets already owned by the routes. Prefer a
-filled icon only where the package provides a semantically equivalent asset;
-otherwise retain the correct outlined asset and make it legible through the
-48px tile and 26px glyph. Do not import a second icon system or substitute one
-generic icon for every metric.
-
-System resource cards display the percentage as the dominant value. CPU uses
-core count as optional supporting copy; memory and disk use current used/total
-capacity as optional supporting copy. They do not add progress bars or detailed
-storage breakdowns.
-
-## States, content, and accessibility
-
-- Values use tabular numerals and remain text in the accessibility tree.
-- Title and value must not rely on color to convey their meaning. Health facts
-  that need status text remain outside this purely numeric component.
-- One-line titles truncate only when the grid cell cannot accommodate the
-  localized label; at narrow widths, prefer wrapping to hiding the value.
-- Optional supporting copy, when present in a future approved consumer, sits
-  below the title and must not reduce the value below the target hierarchy.
-- The card is not interactive and receives no tab stop. Any future click action
-  requires a separate product/UI slice with focus, hover, and target-size rules.
-- Foreground/icon/value contrast must meet WCAG AA against their final composed
-  surfaces. Semantic tint is never the only status indicator.
-- Existing route `DataState` and refresh notices retain loading, error, empty,
-  retry, and background-refresh ownership.
-
-## Responsive contract and viewport matrix
-
-Parent grids retain current ordering and reflow; `MetricCard` must not set grid
-columns. No affected page may gain document-level horizontal overflow.
-
-| Priority | Viewport | Theme / locale | Surface and required state | Acceptance |
-| --- | --- | --- | --- | --- |
-| Required | 1920x1080 CSS px @ 100% | light / zh-CN | Dashboard populated | four cards, equal height, 176px target, no clipping/overflow; viewport capture file must be exactly 1920x1080 raster px |
-| Required | 1440x900 @ 100% | dark / zh-CN | Monitoring populated | five cards remain legible; semantic tones remain distinct |
-| Required | 1440x900 @ 100% | light / en-US | Analytics populated | labels and values preserve hierarchy without overlap |
-| Required | 390x844 @ 100% | light / zh-CN | Dashboard populated | one-column stacking, natural content growth, no horizontal overflow |
-| Required | 390x844 @ 100% | dark / en-US | representative overview | wrapping/truncation and contrast remain acceptable |
-
-### Dashboard screenshot artifact contract
-
-The required Dashboard evidence is a viewport screenshot, not a full-page
-capture. It must satisfy all of the following:
-
-- set the browser CSS viewport to exactly `1920x1080` and keep page zoom at
-  `100%`;
-- capture only the current viewport; `fullPage` capture is prohibited for this
-  acceptance item even when the page currently fits within one viewport;
-- export a raster file whose intrinsic `pixelWidth` and `pixelHeight` are
-  exactly `1920` and `1080`;
-- do not crop, scale, stretch, resample, or otherwise post-process a different
-  capture into the required dimensions;
-- record both the runtime `window.innerWidth` / `window.innerHeight` values and
-  the exported file's intrinsic pixel dimensions with the screenshot evidence.
-
-If either the CSS viewport or intrinsic raster dimensions differ from
-`1920x1080`, or if page zoom is not proven to be `100%`, the required Dashboard
-viewport entry is `Not verified` and must not be reported as passed.
-
-## Traceable delta table
-
-| ID | Area | Selected source | Current runtime | Target contract | Priority | Owner and validation |
+| Surface | Loading | Populated | Empty/zero | Error | Permission | Background refresh |
 | --- | --- | --- | --- | --- | --- | --- |
-| MC-001 | Anatomy | visually inferred neutral header plus separately tinted lower value region | browser-computed 130px card with 64px minimum zones | one shared 176px two-zone card, 88px/88px target | P1 | `MetricCard`; compare DOM rectangles at required desktop viewports |
-| MC-002 | Numeric hierarchy | visually inferred large number as dominant content | browser-computed 44px value | 56px/700/1 tabular value, visually dominant over 18px title | P1 | `MetricCard`; computed type and side-by-side review |
-| MC-003 | Icon/title | visually inferred prominent semantic tile paired with title | browser-computed 40px tile, 20px glyph, 14px title | 48px tile, 26px glyph, 18px/600 title, 16px gap | P1 | shared component plus route icon mapping; computed geometry and asset review |
-| MC-004 | Per-card color | distinct blue, green, violet, and amber meanings; tint is local to icon/value areas | current light Dashboard has four distinct hue families, but proportion, saturation, and lightness differ; other themes/consumers are not verified | shared theme owns five component-level foreground/surface/divider values per theme; each of the 16 metrics follows the approved mapping above; neutral identity surface and local tint only | P1 | `DESIGN.md`, `theme.css`, `MetricCard`, route data; final composed color and dark-theme review |
-| MC-005 | Reuse | repeated four-card grammar | current shared component has Dashboard, Monitoring, Analytics consumers | all 16 metrics retain one component; no route-local clone or palette | P1 | source scan plus affected-route runtime review |
-| MC-006 | Responsive/accessibility | source crop proves desktop four-card direction only | narrow, dark, English, contrast and focus behavior not proven by source crop | pass full viewport matrix, AA contrast, no overflow, non-interactive cards excluded from tab order | P1 | browser evidence at every required viewport/state |
+| Dashboard account metrics | Required | Required | Successful zero values | Required with retry | Page access owner | Keep last successful values when available |
+| Dashboard host resources | Required when permitted | Required | Successful zero values | Required with retry | Region absent without `system:status:view` | Keep last successful values when available |
+| Dashboard modules | Required | Required including unavailable module | Not applicable; fixed modules remain named | Required with retry | Existing navigation/capability owner | Existing polling keeps visible data |
+| Monitoring summary | Required | Required | Registered-node zero remains distinguishable from request failure | Required with retry | Incident metric is permission-gated | Keep last successful summary and expose retry |
+| Analytics summary | Required | Required | Successful zero values | Required with retry | Existing route/capability owner | Keep last successful summary when available |
 
-## Implementation and evidence gates
+A failed initial request never becomes a valid zero/empty metric surface. Permission
+rules remain with product/source owners and are not redefined here.
 
-Before editing source, `dev-frontend` must map every `MC-*` item to the shared
-component, route consumer, theme/asset owner, and verification method in the
-`frontend-visual-evidence/v1` artifact. Implementation order is anatomy,
-typography, icon mapping, color composition, then polish.
+## Viewport and accessibility acceptance
 
-After editing, completion requires two same-viewport/state comparison passes,
-computed geometry and final composed colors, light/dark and Chinese/English
-coverage, the required viewport matrix, and no unresolved P0/P1 finding. Static
-checks or a screenshot alone do not prove completion.
+| Priority | Viewport | Theme/locale coverage | Required surfaces |
+| --- | --- | --- | --- |
+| Primary | 1920x1080 CSS px, 100% zoom | light, zh-CN; representative keyboard/focus and state checks | Dashboard, Monitoring, representative data table |
+| Compatibility | 1440x900 CSS px, 100% zoom | light/dark and zh-CN/en-US wrapping across representative surfaces | Dashboard, Monitoring, representative data table |
+| Excluded from this task | smaller viewports | best effort | No completion claim; a future slice may promote a named viewport |
 
-For the required Dashboard capture, each comparison pass must use the viewport
-screenshot contract above and retain the unmodified `1920x1080` raster artifact.
-File dimensions alone do not prove the viewport requirement; the matching
-runtime viewport and `100%` zoom evidence are required in the same pass.
+At required viewports:
 
-## Ready for dev-frontend metric-card-visual-consistency
+- parent grids preserve source/reading order and do not create document-level horizontal
+  overflow;
+- labels, values, hints, and status text remain readable without hiding primary actions;
+- the shared cards remain non-interactive and do not enter the tab order;
+- visible focus is verified on nearby interactive controls;
+- final composed foreground/background contrast is checked in light and dark;
+- loading, error/retry, successful zero, permission-gated, and background-refresh paths
+  are exercised where the table above marks them applicable.
 
-Selected source identity, approval, allowed use, evidence limits, shared-system
-ownership, target adaptation, semantic mapping, responsive/accessibility rules,
-delta IDs, and acceptance gates are fixed and approved. Blockers: **None**.
-Runtime fidelity remains a downstream implementation and two-pass evidence
-obligation.
+## Acceptance-to-owner mapping
+
+| ID | Acceptance | Owner | Decision | Verification |
+| --- | --- | --- | --- | --- |
+| MC-001 | One shared factual metric component across three overview domains | `MetricCard` and current route consumers | Reuse | Source scan plus rendered consumer count |
+| MC-002 | Dashboard order and factual metric scope remain unchanged | Dashboard route | Reuse current product behavior | DOM order and populated runtime |
+| MC-003 | Monitoring metric/incident hierarchy and refresh states remain explicit | Monitoring overview route | Reuse/wrap route-local composition | Loading, populated, error, permission, refresh runtime |
+| MC-004 | Analytics retains only current factual activity metrics | Analytics overview route | Reuse | Source and populated runtime |
+| MC-005 | Category mapping is consistent without color-only status | Route data plus existing theme adapter | Reuse DESIGN semantics | Light/dark computed color and text checks |
+| MC-006 | Required desktop viewports have no document overflow or clipped actions | Shell, route grids, shared component | Reuse/adjust minimally | Computed geometry at both required viewports |
+
+## Readiness
+
+Ready for `dev-frontend` metric-card route alignment.
+
+Shared-system changes beyond adopting root DESIGN: none. Exact implementation geometry is
+validated against the adopted DESIGN and required viewports; it is not redefined here.
+Runtime completion requires two comparison passes, computed geometry/style checks, the
+applicable state matrix, and no unresolved P0/P1 finding.

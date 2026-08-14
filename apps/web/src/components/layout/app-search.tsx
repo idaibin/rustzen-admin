@@ -106,14 +106,16 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                 color="default"
                 variant="filled"
                 icon={<SearchOutlined />}
-                className="w-44 justify-start"
+                className="w-9 justify-center sm:w-44 sm:justify-start"
                 classNames={{ content: "flex flex-1 items-center" }}
                 onClick={() => setOpen(true)}
                 aria-label={t("打开页面搜索", "Open page search")}
                 aria-keyshortcuts="Control+K Meta+K"
             >
-                <span>{t("搜索页面", "Search pages")}</span>
-                <span className="ml-auto text-xs text-muted-foreground">Ctrl K</span>
+                <span className="hidden sm:inline">{t("搜索页面", "Search pages")}</span>
+                <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">
+                    Ctrl K
+                </span>
             </Button>
 
             <Modal

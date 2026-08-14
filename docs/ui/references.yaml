@@ -1,27 +1,9 @@
-version: 2
-revision: 4
+version: 3
+status: historical-superseded
+role: legacy-task-pointer
 references:
-  - id: rustzen-admin-solid-surface-baseline
-    source: apps/web/src/styles/theme.css
-    rights_status: project-owned
-    local_copy_allowed: false
-    use:
-      - semantic-light-dark-color-system
-      - compact-solid-surface-treatment
-      - restrained-radius-and-shadow
-      - application-shell-density
-    ignore:
-      - historical-glass-theme
-      - historical-ambient-background
-      - speculative-business-content
-      - unverified-metrics
-  - id: rustzen-admin-product-foundation
-    source: docs/product/product.md
-    rights_status: project-owned
-    local_copy_allowed: false
-    use:
-      - product-boundary
-      - operator-audience
-      - operational-information-priority
-    ignore:
-      - speculative-capabilities
+  - source: DESIGN.md
+    use: current-shared-visual-authority
+  - source: docs/product/product.md
+    use: current-product-foundation
+note: Historical theme.css visual-source declarations are not authority.

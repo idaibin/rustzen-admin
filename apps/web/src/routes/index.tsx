@@ -3,16 +3,13 @@ import {
     ClockCircleFilled,
     CloudServerOutlined,
     ContactsFilled,
-    DashboardOutlined,
-    DatabaseOutlined,
     FileTextOutlined,
-    HddOutlined,
     IdcardFilled,
     UserSwitchOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge, Button, Card, Typography, theme } from "antd";
+import { Badge, Button, Card, Progress, Typography, theme } from "antd";
 import type { ReactNode } from "react";
 
 import { dashboardAPI, systemAPI } from "@/api";
@@ -38,8 +35,10 @@ function DashboardPage() {
                 )}
             />
             <AccountMetricCards />
-            <SystemResourceCards />
-            <ModuleHealthCards />
+            <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,1fr)]">
+                <SystemResourceCards />
+                <ModuleHealthCards />
+            </div>
         </div>
     );
 }
@@ -62,32 +61,29 @@ function SystemResourceCards() {
         ? [
               {
                   title: "CPU",
-                  value: formatPercent(data.resource.cpu.usagePercent),
+                  value: data.resource.cpu.usagePercent,
                   hint: t(`${data.resource.cpu.cores} 核`, `${data.resource.cpu.cores} cores`),
-                  icon: <DashboardOutlined />,
                   tone: "blue" as const,
               },
               {
                   title: t("内存", "Memory"),
-                  value: formatPercent(data.resource.memory.usagePercent),
+                  value: data.resource.memory.usagePercent,
                   hint: `${formatBytes(data.resource.memory.usedBytes)} / ${formatBytes(data.resource.memory.totalBytes)}`,
-                  icon: <DatabaseOutlined />,
                   tone: "green" as const,
               },
               {
                   title: t("磁盘", "Disk"),
-                  value: formatPercent(data.resource.disk.usagePercent),
+                  value: data.resource.disk.usagePercent,
                   hint: `${formatBytes(data.resource.disk.usedBytes)} / ${formatBytes(data.resource.disk.totalBytes)}`,
-                  icon: <HddOutlined />,
                   tone: "amber" as const,
               },
           ]
         : [];
 
     return (
-        <Card styles={{ body: { padding: 20 } }}>
-            <div className="mb-4">
-                <Typography.Title level={5} className="!mb-1">
+        <Card className="page-panel h-full" styles={{ body: { padding: 24 } }}>
+            <div className="mb-6">
+                <Typography.Title level={5} className="!mb-1.5">
                     {t("系统运行状况", "System health")}
                 </Typography.Title>
                 <Typography.Text type="secondary">
@@ -106,16 +102,30 @@ function SystemResourceCards() {
                 updatedAt={dataUpdatedAt}
                 onRetry={() => void refetch()}
             >
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-3">
                     {cards.map((item) => (
-                        <MetricCard
+                        <div
                             key={item.title}
-                            label={item.title}
-                            value={item.value}
-                            hint={item.hint}
-                            icon={item.icon}
-                            tone={item.tone}
-                        />
+                            className="min-w-0 border-b border-border pb-5 last:border-b-0 last:pb-0 md:border-e md:border-b-0 md:pb-0 md:pe-6 md:last:border-e-0 md:last:pe-0"
+                        >
+                            <div className="mb-3 flex items-baseline justify-between gap-3">
+                                <Typography.Text strong>{item.title}</Typography.Text>
+                                <span className="text-2xl font-semibold tracking-tight text-foreground">
+                                    {formatPercent(item.value)}
+                                </span>
+                            </div>
+                            <Progress
+                                aria-label={t(`${item.title}使用率`, `${item.title} usage`)}
+                                percent={Number(item.value.toFixed(1))}
+                                showInfo={false}
+                                strokeColor={`var(--metric-${item.tone}-foreground)`}
+                                railColor={`var(--metric-${item.tone}-surface)`}
+                                size={["100%", 7]}
+                            />
+                            <div className="mt-3 truncate text-xs text-muted-foreground">
+                                {item.hint}
+                            </div>
+                        </div>
                     ))}
                 </div>
             </DashboardQueryBoundary>
@@ -132,9 +142,9 @@ function ModuleHealthCards() {
     });
 
     return (
-        <Card styles={{ body: { padding: 20 } }}>
-            <div className="mb-4">
-                <Typography.Title level={5} className="!mb-1">
+        <Card className="page-panel h-full" styles={{ body: { padding: 24 } }}>
+            <div className="mb-6">
+                <Typography.Title level={5} className="!mb-1.5">
                     {t("运行模块", "Runtime modules")}
                 </Typography.Title>
                 <Typography.Text type="secondary">
@@ -153,7 +163,7 @@ function ModuleHealthCards() {
                 updatedAt={dataUpdatedAt}
                 onRetry={() => void refetch()}
             >
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid gap-2">
                     {(["monitor", "insights", "reports"] as const).map((module) => {
                         const health = data?.find((item) => item.module === module);
                         const available = health?.available ?? false;
@@ -177,10 +187,10 @@ function ModuleHealthCards() {
                         return (
                             <div
                                 key={module}
-                                className="flex min-h-20 items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
+                                className="flex min-h-16 items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60"
                             >
                                 <span
-                                    className="flex size-10 shrink-0 items-center justify-center rounded-lg text-lg"
+                                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-base"
                                     style={{
                                         color: available ? token.colorSuccess : token.colorError,
                                         background: available
@@ -253,9 +263,9 @@ function AccountMetricCards() {
     ];
 
     return (
-        <Card styles={{ body: { padding: 20 } }}>
+        <section>
             <div className="mb-4">
-                <Typography.Title level={5} className="!mb-1">
+                <Typography.Title level={5} className="!mb-1.5">
                     {t("账号概览", "Account overview")}
                 </Typography.Title>
                 <Typography.Text type="secondary">
@@ -283,7 +293,7 @@ function AccountMetricCards() {
                     ))}
                 </div>
             </DashboardQueryBoundary>
-        </Card>
+        </section>
     );
 }
 

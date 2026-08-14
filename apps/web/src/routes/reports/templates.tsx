@@ -310,7 +310,7 @@ function FlowsPage() {
                     compact
                 />
             ) : null}
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("报表流程", "Report flows table")}>
                 <ProTable<Reports.Flow>
                     rowKey="id"
                     columns={columns}
@@ -856,7 +856,7 @@ function SchedulePanel() {
                     compact
                 />
             ) : (
-                <DataTableShell>
+                <DataTableShell ariaLabel={t("报表计划", "Report schedules table")}>
                     <ProTable<Reports.Schedule>
                         rowKey="id"
                         columns={columns}

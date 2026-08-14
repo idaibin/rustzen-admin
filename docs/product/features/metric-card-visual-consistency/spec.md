@@ -27,16 +27,15 @@ APIs.
 ## Confirmed decisions
 
 - All factual overview metrics reuse one shared `MetricCard` component.
-- The numeric value is the dominant content; title and icon identify the metric.
-- Supporting copy is optional and is not required for the current metric set.
-- Each metric receives its own semantic tone. A page-wide default tone is not
-  acceptable.
-- The accepted direction is a neutral title region plus a separate lightly
-  tinted value region, not a fully tinted card.
+- Every metric retains a visible title, numeric value, and semantically related
+  icon. Supporting copy remains optional.
+- Each metric receives its own semantic category; a page-wide default category
+  is not acceptable and color is never the only carrier of meaning.
 - Existing real values and request boundaries remain authoritative. A failed
   request is never converted into a successful zero state.
-- Shared visual semantics belong to root `DESIGN.md`; exact slice geometry and
-  visual acceptance belong to the linked UI contract.
+- Shared component meaning, hierarchy, tone treatment, and visual semantics
+  belong only to root `DESIGN.md`. The linked UI contract owns route-local
+  mapping, state coverage, responsive composition, and acceptance.
 
 ## Scope and non-goals
 
@@ -66,8 +65,8 @@ Non-goals:
 1. Each route loads data through its existing query boundary.
 2. A populated response maps each existing metric to a title, value, icon, and
    semantic tone and renders the shared `MetricCard`.
-3. The card keeps the title and icon together in its identity region and renders
-   the value alone as the strongest element in its value region.
+3. The card presents the verified value without adding substitute or decorative
+   data.
 4. At narrower widths, the parent grid changes column count while the component
    preserves its hierarchy and does not introduce horizontal overflow.
 5. Initial loading, error, retry, background-refresh error, and successful empty
@@ -101,8 +100,8 @@ Non-goals:
   refresh-interval label.
 - Every card contains a visible title, a semantically related icon, and a
   dominant tabular numeric value; supporting copy remains optional.
-- Adjacent metric categories visibly differ through their semantic icon/value/
-  value-surface treatment, while the identity surface remains neutral.
+- Adjacent metric categories remain distinguishable without relying on color
+  alone.
 - No route introduces a local metric-card clone, local card palette, or page-wide
   single-tone override.
 - Existing loading, error, retry, populated-zero, and background refresh behavior
@@ -120,20 +119,17 @@ Non-goals:
 
 - Existing `@ant-design/icons` assets are sufficient; a new icon library is not
   required.
-- The shared theme stylesheet can own component-level tone tokens when a generic
-  semantic anchor does not remain distinct in both themes.
+- The existing theme adapter can implement the semantic roles approved in root
+  `DESIGN.md` without becoming a second authority.
 
 ### Open questions
 
-- None. Daibin confirmed the linked UI contract's geometry and per-metric
-  palette mapping on 2026-07-31 with the instruction to begin execution.
+- None for product behavior. Visual decisions are resolved through the adopted
+  root `DESIGN.md` and the route-local UI contract.
 
 ### Rejected
 
 - Applying the same pink or any other single tone to every metric.
-- Tinting the entire card with one color.
-- Keeping the current compact 130px treatment when it does not match the accepted
-  hierarchy.
 - Duplicating the component in each route.
 
 ### Deferred
@@ -147,8 +143,7 @@ Non-goals:
 
 ## Ready for operational metric-card alignment
 
-The product scope, data boundary, affected consumers, failure semantics,
-non-goals, and acceptance criteria are fixed. Visual source, proposed geometry,
-proposed palette mapping, responsive rules, and UI evidence are owned by
-`docs/ui/features/metric-card-visual-consistency.md`; its owner-confirmation
-gate is closed.
+The product scope, data boundary, affected consumers, failure semantics, and
+non-goals are fixed. Shared visual semantics are owned by root `DESIGN.md`;
+route-local mapping, state coverage, responsive rules, and UI evidence are
+owned by `docs/ui/features/metric-card-visual-consistency.md`.

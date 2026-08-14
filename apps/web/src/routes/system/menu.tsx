@@ -324,7 +324,7 @@ function MenuPage() {
                     }
                 />
             ) : null}
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("系统菜单", "System menus table")}>
                 <ProTable<DisplayMenuItem>
                     rowKey="id"
                     columns={columns}

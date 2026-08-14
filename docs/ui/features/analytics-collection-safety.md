@@ -4,12 +4,12 @@
 
 - Profile: **Feature UI**.
 - Product basis: [Analytics Collection Safety](../../product/features/analytics-collection-safety/spec.md).
-- Shared visual authority: root `DESIGN.md`, especially
-  `#themes-and-surfaces`, `#component-semantics`, and `#status-semantics`.
+- Shared visual authority: root `DESIGN.md`; this slice does not restate its
+  theme, component, state, layout, or accessibility semantics.
 - Selected source identity: accepted current Analytics overview and Details
   surfaces in `apps/web/src/routes/analytics/overview.tsx` and
   `apps/web/src/routes/analytics/details.tsx`, plus the repository-owned
-  `DESIGN.md` baseline (`version: 1.0`).
+  adopted root `DESIGN.md` baseline.
 - Selection status: accepted existing product surface. Rights/use are
   repository-owned; legacy analytics shell and unrelated visual references are
   ignored.

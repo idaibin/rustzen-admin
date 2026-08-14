@@ -1,36 +1,6 @@
-version: 2
-revision: 8
-status: pending-human-approval
-deterministic:
-  results:
-    - check: ui-artifact-contract
-      result: pass-v2-schema-and-hash-validation
-    - check: web-production-build
-      result: pass
-    - check: web-typecheck-and-lint
-      result: pass
-    - check: browser-review-login-dashboard
-      result: pass-desktop-and-mobile-checks
-    - check: browser-review-system-user-role-manage-deploy
-      result: pass-desktop-390x844-with-no-horizontal-overflow
-    - check: authenticated-browser-console-on-core-routes
-      result: pass-empty-console-warn-error-on-checked-routes
-hard_blockers: []
-scores:
-  product_truth: 15
-  source_fidelity: 15
-  information_architecture: 10
-  interaction_states: 13
-  responsive_accessibility: 14
-  component_token_mapping: 15
-  engineering_fit: 10
-  evidence: 5
-total: 97
-decision: pending
-reviewer: codex-design-qa
-gaps:
-  - representative-core-surfaces-verified-after-antd-migration-not-all-24-routes
-  - human-approval-not-recorded-for-integrated-antd-migration
-  - legacy-storage-fallback-source-verified-not-directly-inspected-in-browser-storage
-  - historical-global-package-does-not-contain-independent-contracts-for-every-domain
-promotion_approvals: []
+version: 3
+status: historical-superseded
+role: legacy-evaluation-pointer
+decision: superseded-by-approved-DESIGN
+current_evidence: .codex/artifacts/ui-authority-v4/frontend-visual-evidence.json
+note: The ignored task artifact is validation evidence, not durable visual authority.

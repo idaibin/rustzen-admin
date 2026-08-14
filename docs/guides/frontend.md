@@ -37,12 +37,15 @@ component system.
 
 ## State And UI
 
+- Root [`DESIGN.md`](../../DESIGN.md) is the only shared visual-semantic
+  authority. This guide records implementation ownership and framework usage;
+  it does not redefine theme, component, state, layout, responsive, or
+  accessibility meaning.
 - React Query owns read-side server state.
 - Zustand stays limited to shared auth state and small persisted UI filters.
-- Use `DataState` for shared loading, empty, error, permission, and long-running
-  processing states. Initial request failures must
-  not be rendered as valid zero or empty data. Retry actions call the owning
-  query's `refetch`; background refreshes keep the last successful data visible.
+- Implement the `DataState` distinctions defined by `DESIGN.md`. Query owners
+  supply the real state, retry through their existing query, and retain the
+  last successful data during background refresh.
 - Keep page-local tables, forms, and action handlers in the route file until reuse is real.
 - Keep layout-only concerns in `apps/web/src/components/layout/`.
 - Theme and app-level feedback must come from the existing `ConfigProvider` and
@@ -54,16 +57,9 @@ component system.
   existing owner directories; do not recreate a generic `ui/`, `app/`, `base-*`, or catch-all `shared/`
   directory.
 - Use existing design-system primitives before adding wrappers.
-- The authenticated `layout/` owns the global page width and overflow boundary.
-  Route pages own vertical scrolling and use a `PageHeader` for overview/detail
-  surfaces or a `PageCard` for list/management surfaces. Do not repeat the same
-  page title in both components.
-- Use `MetricCard` for compact operational metrics shared by overview pages.
-  Keep visual metrics factual and do not create a grid of decorative KPIs.
-- Standard light and dark are the only supported themes, with light as the
-  default. The shell, page cards, dialogs, forms, and tables use solid semantic
-  surfaces; gradients, ambient imagery, glow, and decorative glass are not part
-  of the Admin visual system.
+- `layout/`, route pages, and shared page/table components implement the owners
+  named by `DESIGN.md`; page-local composition and applicable states remain in
+  the owning Feature UI contract and route source.
 - The UI defaults to Simplified Chinese and also supports English. Write fixed
   user-facing copy with `t(chinese, english)` from `apps/web/src/lib/i18n.ts`.
   Retain untranslated product names, protocol/method names, file formats, role
@@ -85,8 +81,9 @@ component system.
 
 ## Browser Testing
 
-- When opening the frontend in a browser for testing or verification, set the default viewport to `1920*1080` before checking layout or screenshots.
-- If the browser tool cannot set `1920*1080`, state that limitation in the verification result.
+- Consume the applicable Feature UI viewport matrix and the root `DESIGN.md`
+  baseline without redefining either here. If the browser cannot set a required
+  viewport, record that entry as `Not verified`.
 
 ## Tables
 

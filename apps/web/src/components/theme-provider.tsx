@@ -50,6 +50,51 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 locale={antdLocale}
                 theme={{
                     algorithm,
+                    token: {
+                        borderRadius: 8,
+                        colorLink: theme === "dark" ? "#9fc5ff" : "#1f5fbf",
+                        colorPrimary: theme === "dark" ? "#e9edf4" : "#1f5fbf",
+                        colorText: "var(--foreground)",
+                        colorTextDescription: theme === "dark" ? "#b6beca" : "#58616f",
+                        colorTextLightSolid: "var(--primary-foreground)",
+                        colorTextSecondary: theme === "dark" ? "#b6beca" : "#58616f",
+                        colorTextTertiary: theme === "dark" ? "#b6beca" : "#58616f",
+                        controlHeight: 36,
+                        fontSize: 14,
+                        lineWidth: 1,
+                        motionDurationFast: "0.12s",
+                        motionDurationMid: "0.18s",
+                    },
+                    components: {
+                        Button: {
+                            borderRadius: 8,
+                            controlHeight: 36,
+                            fontWeight: 500,
+                        },
+                        Card: {
+                            borderRadiusLG: 10,
+                            boxShadowTertiary: "none",
+                            headerFontSize: 16,
+                        },
+                        Input: {
+                            activeShadow:
+                                "0 0 0 3px color-mix(in srgb, var(--ring) 16%, transparent)",
+                            borderRadius: 8,
+                        },
+                        Menu: {
+                            itemBorderRadius: 8,
+                            itemHeight: 40,
+                        },
+                        Select: {
+                            borderRadius: 8,
+                        },
+                        Table: {
+                            cellPaddingBlock: 13,
+                            headerBg: "var(--table-header)",
+                            headerColor: "var(--foreground)",
+                            rowHoverBg: "var(--table-row-hover)",
+                        },
+                    },
                 }}
             >
                 <AntdApp className="flex h-full min-h-0 flex-col">{children}</AntdApp>

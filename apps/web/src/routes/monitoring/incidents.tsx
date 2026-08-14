@@ -291,7 +291,7 @@ function MonitoringIncidentsPage() {
             {error ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("监控事件", "Monitoring incidents table")}>
                 <ProTable<Monitor.IncidentSummary>
                     rowKey="id"
                     columns={columns}

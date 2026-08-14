@@ -248,7 +248,7 @@ function DeployPage() {
                     compact
                 />
             ) : null}
-            <DataTableShell>
+            <DataTableShell ariaLabel={t("部署记录", "Deployments table")}>
                 <ProTable<Deploy.Item>
                     rowKey="id"
                     columns={columns}
