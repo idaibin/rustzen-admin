@@ -55,50 +55,5 @@ impl PasswordUtils {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_password_hashing_and_verification() {
-        let password = "test_password_123";
-
-        // Test hashing
-        let hash = PasswordUtils::hash_password(password).expect("Should hash password");
-        assert!(!hash.is_empty());
-
-        // Test verification with correct password
-        assert!(PasswordUtils::verify_password(password, &hash));
-
-        // Test verification with incorrect password
-        assert!(!PasswordUtils::verify_password("wrong_password", &hash));
-
-        // Test verification with invalid hash
-        assert!(!PasswordUtils::verify_password(password, "invalid_hash"));
-    }
-
-    #[test]
-    fn test_different_passwords_produce_different_hashes() {
-        let password1 = "password1";
-        let password2 = "password2";
-
-        let hash1 = PasswordUtils::hash_password(password1).expect("Should hash password1");
-        let hash2 = PasswordUtils::hash_password(password2).expect("Should hash password2");
-
-        assert_ne!(hash1, hash2);
-    }
-
-    #[test]
-    fn test_same_password_produces_different_hashes() {
-        // Due to random salt, same password should produce different hashes
-        let password = "same_password";
-
-        let hash1 = PasswordUtils::hash_password(password).expect("Should hash password");
-        let hash2 = PasswordUtils::hash_password(password).expect("Should hash password");
-
-        assert_ne!(hash1, hash2);
-
-        // But both should verify correctly
-        assert!(PasswordUtils::verify_password(password, &hash1));
-        assert!(PasswordUtils::verify_password(password, &hash2));
-    }
-}
+#[path = "password_tests.rs"]
+mod tests;
