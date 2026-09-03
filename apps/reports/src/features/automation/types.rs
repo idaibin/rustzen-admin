@@ -26,12 +26,38 @@ pub struct SaveSystem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", deny_unknown_fields)]
 pub enum FlowStep {
-    Goto { url: String },
-    Fill { selector: String, value: String },
-    Click { selector: String },
-    WaitFor { selector: String },
-    AssertText { selector: String, text: String },
-    Screenshot { name: Option<String> },
+    Goto {
+        url: String,
+    },
+    Fill {
+        selector: String,
+        value: String,
+    },
+    Click {
+        selector: String,
+    },
+    WaitFor {
+        selector: String,
+    },
+    AssertText {
+        selector: String,
+        text: String,
+    },
+    Screenshot {
+        name: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    GuardExists {
+        selector: String,
+        on_missing: Option<String>,
+    },
+    PressKey {
+        key: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    Pause {
+        duration_ms: u64,
+    },
 }
 
 impl FlowStep {
@@ -43,6 +69,9 @@ impl FlowStep {
             Self::WaitFor { .. } => "waitFor",
             Self::AssertText { .. } => "assertText",
             Self::Screenshot { .. } => "screenshot",
+            Self::GuardExists { .. } => "guardExists",
+            Self::PressKey { .. } => "pressKey",
+            Self::Pause { .. } => "pause",
         }
     }
 }

@@ -36,12 +36,36 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState::new(pool, output_dir);
     automation::initialize(&state).await?;
     let app = build_router(state.clone(), &config::CONFIG.ipc_token)?;
-    automation::spawn(state);
     let address = config::CONFIG.bind_address();
     let listener = tokio::net::TcpListener::bind(&address).await?;
+    let workers = automation::spawn(state);
+    let shutdown = workers.shutdown.clone();
     tracing::info!(%address, "Reports service started");
-    axum::serve(listener, app).await?;
+    let result = axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            shutdown.send_replace(true);
+        })
+        .await;
+    workers.shutdown().await;
+    result?;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("install SIGTERM handler");
+        tokio::select! {
+            _ = terminate.recv() => {},
+            _ = tokio::signal::ctrl_c() => {},
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = tokio::signal::ctrl_c().await;
+    tracing::info!("Reports service shutting down");
 }
 
 fn build_router(state: AppState, ipc_token: &str) -> Result<Router, rustzen_ipc::ManifestError> {

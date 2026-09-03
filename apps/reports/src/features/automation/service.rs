@@ -324,6 +324,33 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                     return Err(AppError::InvalidInput("screenshot name is too long".into()));
                 }
             }
+            FlowStep::GuardExists { selector, on_missing } => {
+                validate_selector(selector)?;
+                if let Some(strategy) = on_missing {
+                    match strategy.as_str() {
+                        "continue" | "skipNext" | "stop" | "fail" | "error" => {}
+                        _ => {
+                            return Err(AppError::InvalidInput(format!(
+                                "unsupported guardExists onMissing strategy: {strategy}"
+                            )));
+                        }
+                    }
+                }
+            }
+            FlowStep::PressKey { key } => {
+                if key.trim().is_empty() || key.len() > 50 {
+                    return Err(AppError::InvalidInput(
+                        "pressKey must specify a key name with 1 to 50 characters".into(),
+                    ));
+                }
+            }
+            FlowStep::Pause { duration_ms } => {
+                if *duration_ms > 300_000 {
+                    return Err(AppError::InvalidInput(
+                        "pause duration cannot exceed 300000ms".into(),
+                    ));
+                }
+            }
         }
     }
     Ok(())
@@ -539,5 +566,40 @@ mod tests {
         assert!(reject_sensitive_template("{{input.apiKeyValue}}").is_err());
         assert!(reject_sensitive_input(&json!({"monkey": "allowed"})).is_ok());
         assert!(reject_sensitive_input(&json!({"username": "owner", "value": "42"})).is_ok());
+    }
+
+    #[test]
+    fn validate_steps_accepts_guard_press_and_pause() {
+        use super::validate_flow;
+        use crate::features::automation::types::{FlowStep, System};
+
+        let system = System {
+            id: "system".into(),
+            name: "System".into(),
+            base_url: "https://fixture.local".into(),
+            enabled: true,
+            notes: String::new(),
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        let steps = vec![
+            FlowStep::Goto { url: "/search".into() },
+            FlowStep::GuardExists {
+                selector: "#banner".into(),
+                on_missing: Some("skipNext".into()),
+            },
+            FlowStep::Click { selector: "#banner-close".into() },
+            FlowStep::Fill { selector: "#kw".into(), value: "test".into() },
+            FlowStep::PressKey { key: "Enter".into() },
+            FlowStep::Pause { duration_ms: 500 },
+            FlowStep::Screenshot { name: Some("result".into()) },
+        ];
+        assert!(validate_flow(&system, &steps).is_ok());
+
+        let invalid_guard = vec![FlowStep::GuardExists {
+            selector: "#test".into(),
+            on_missing: Some("invalid_strategy".into()),
+        }];
+        assert!(validate_flow(&system, &invalid_guard).is_err());
     }
 }

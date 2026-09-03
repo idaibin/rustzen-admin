@@ -32,8 +32,36 @@ pub async fn execute(
     run: &Run,
     flow: &Flow,
     system: &System,
+    timeout: Duration,
+    shutdown: tokio::sync::watch::Receiver<bool>,
 ) -> Result<(), AppError> {
-    let mut builder = BrowserConfig::builder();
+    if *shutdown.borrow() {
+        return Err(AppError::Interrupted);
+    }
+    // Each execution owns its profile; Chromium's shared default can be locked by
+    // another run and can leak cookies between unrelated target systems.
+    let profile = state.output_dir.join(&run.id).join(format!("browser-{}", Uuid::new_v4()));
+    tokio::fs::create_dir_all(&profile).await?;
+    let deadline = tokio::time::Instant::now() + timeout;
+    let result = execute_with_profile(state, run, flow, system, &profile, deadline, shutdown).await;
+    if let Err(error) = tokio::fs::remove_dir_all(&profile).await {
+        tracing::warn!(run_id = run.id, %error, "Browser profile cleanup failed");
+    }
+    result
+}
+
+async fn execute_with_profile(
+    state: &AppState,
+    run: &Run,
+    flow: &Flow,
+    system: &System,
+    profile: &std::path::Path,
+    deadline: tokio::time::Instant,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+) -> Result<(), AppError> {
+    let mut builder = BrowserConfig::builder()
+        .user_data_dir(profile)
+        .no_sandbox();
     if let Some(path) = state.browser_path.as_deref() {
         builder = builder.chrome_executable(path);
     }
@@ -41,7 +69,13 @@ pub async fn execute(
         builder = builder.with_head();
     }
     let config = builder.build().map_err(AppError::internal)?;
-    let (mut browser, mut handler) = Browser::launch(config).await.map_err(AppError::internal)?;
+    if *shutdown.borrow() {
+        return Err(AppError::Interrupted);
+    }
+    let (mut browser, mut handler) = tokio::time::timeout_at(deadline, Browser::launch(config))
+        .await
+        .map_err(|_| AppError::TimedOut)?
+        .map_err(AppError::internal)?;
     let handle = tokio::spawn(async move {
         while let Some(result) = handler.next().await {
             if result.is_err() {
@@ -49,18 +83,26 @@ pub async fn execute(
             }
         }
     });
-    let page = browser.new_page(&system.base_url).await.map_err(AppError::internal)?;
-    let input: Value = serde_json::from_str(&run.input_json)?;
-    let context = ExecutionContext { state, run, system, page: &page, input: &input };
-    try_save_live_frame(state, &page, &run.id).await;
-    let result = execute_steps(&context, flow).await;
-    if result.is_err() {
-        let _ = tokio::time::timeout(
-            BROWSER_SHUTDOWN_TIMEOUT,
-            save_screenshot(state, &page, &run.id, "failure"),
-        )
-        .await;
-    }
+    let work = tokio::time::timeout_at(deadline, async {
+        let page = browser.new_page(&system.base_url).await.map_err(AppError::internal)?;
+        let input: Value = serde_json::from_str(&run.input_json)?;
+        let context = ExecutionContext { state, run, system, page: &page, input: &input };
+        try_save_live_frame(state, &page, &run.id).await;
+        let result = execute_steps(&context, flow).await;
+        if result.is_err() {
+            let _ = tokio::time::timeout(
+                BROWSER_SHUTDOWN_TIMEOUT,
+                save_screenshot(state, &page, &run.id, "failure"),
+            )
+            .await;
+        }
+        result
+    });
+    let result = tokio::select! {
+        biased;
+        _ = shutdown.wait_for(|stopped| *stopped) => Err(AppError::Interrupted),
+        result = work => result.unwrap_or(Err(AppError::TimedOut)),
+    };
     close_browser(&mut browser, handle).await;
     result
 }
@@ -85,11 +127,33 @@ async fn close_browser(browser: &mut Browser, mut handler: tokio::task::JoinHand
     }
 }
 
+enum StepOutcome {
+    Continue,
+    SkipNext,
+    Stop,
+}
+
 async fn execute_steps(context: &ExecutionContext<'_>, flow: &Flow) -> Result<(), AppError> {
     let settings = repo::settings(&context.state.pool).await?;
+    let mut skip_next = false;
     for (index, step) in flow.steps.iter().enumerate() {
         if repo::run_cancel_requested(&context.state.pool, &context.run.id).await? {
             return Err(AppError::Cancelled);
+        }
+        if skip_next {
+            skip_next = false;
+            repo::insert_run_step(
+                &context.state.pool,
+                &context.run.id,
+                index as i64,
+                step.action(),
+                "skipped",
+                0,
+                Some("skipped by guard condition"),
+                &Utc::now().to_rfc3339(),
+            )
+            .await?;
+            continue;
         }
         let started = Instant::now();
         let result = tokio::select! {
@@ -120,7 +184,7 @@ async fn execute_steps(context: &ExecutionContext<'_>, flow: &Flow) -> Result<()
             Err(_) => Err(AppError::Internal),
         };
         let (message, status) = match &outcome {
-            Ok(()) => (None, "succeeded"),
+            Ok(_) => (None, "succeeded"),
             Err(error) => (Some(error.to_string()), "failed"),
         };
         repo::insert_run_step(
@@ -135,7 +199,15 @@ async fn execute_steps(context: &ExecutionContext<'_>, flow: &Flow) -> Result<()
         )
         .await?;
         try_save_live_frame(context.state, context.page, &context.run.id).await;
-        outcome?;
+        match outcome? {
+            StepOutcome::Continue => {}
+            StepOutcome::SkipNext => {
+                skip_next = true;
+            }
+            StepOutcome::Stop => {
+                break;
+            }
+        }
     }
     Ok(())
 }
@@ -188,16 +260,20 @@ async fn save_live_frame(state: &AppState, page: &Page, run_id: &str) -> Result<
     Ok(())
 }
 
-async fn execute_step(context: &ExecutionContext<'_>, step: &FlowStep) -> Result<(), AppError> {
+async fn execute_step(
+    context: &ExecutionContext<'_>,
+    step: &FlowStep,
+) -> Result<StepOutcome, AppError> {
     match step {
         FlowStep::Goto { url } => {
             let value = service::substitute(url, context.input)?;
             let base = url::Url::parse(&context.system.base_url).map_err(AppError::internal)?;
             let target = service::goto_target(&base, &value)?;
             context.page.goto(target.as_str()).await.map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
         }
         FlowStep::Fill { selector, value } => {
-            let element = context.page.find_element(selector).await.map_err(AppError::internal)?;
+            let element = locate_element(context.page, selector).await?;
             let value = service::substitute(value, context.input)?;
             let encoded = serde_json::to_string(&value)?;
             element
@@ -209,24 +285,23 @@ async fn execute_step(context: &ExecutionContext<'_>, step: &FlowStep) -> Result
                 )
                 .await
                 .map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
         }
         FlowStep::Click { selector } => {
-            context
-                .page
-                .find_element(selector)
-                .await
-                .map_err(AppError::internal)?
+            locate_element(context.page, selector)
+                .await?
                 .click()
                 .await
                 .map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
         }
-        FlowStep::WaitFor { selector } => wait_for(context.page, selector).await?,
+        FlowStep::WaitFor { selector } => {
+            wait_for(context.page, selector).await?;
+            Ok(StepOutcome::Continue)
+        }
         FlowStep::AssertText { selector, text } => {
-            let actual = context
-                .page
-                .find_element(selector)
-                .await
-                .map_err(AppError::internal)?
+            let actual = locate_element(context.page, selector)
+                .await?
                 .inner_text()
                 .await
                 .map_err(AppError::internal)?;
@@ -234,6 +309,7 @@ async fn execute_step(context: &ExecutionContext<'_>, step: &FlowStep) -> Result
             if !actual.is_some_and(|actual| actual.contains(&expected)) {
                 return Err(AppError::Conflict("assertText did not match".into()));
             }
+            Ok(StepOutcome::Continue)
         }
         FlowStep::Screenshot { name } => {
             save_screenshot(
@@ -243,15 +319,65 @@ async fn execute_step(context: &ExecutionContext<'_>, step: &FlowStep) -> Result
                 name.as_deref().unwrap_or("screenshot"),
             )
             .await?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::GuardExists { selector, on_missing } => {
+            let exists = locate_element(context.page, selector).await.is_ok();
+            if exists {
+                Ok(StepOutcome::Continue)
+            } else {
+                match on_missing.as_deref().unwrap_or("continue") {
+                    "skipNext" => Ok(StepOutcome::SkipNext),
+                    "stop" => Ok(StepOutcome::Stop),
+                    "fail" | "error" => Err(AppError::Conflict(format!(
+                        "guardExists: element '{selector}' not found"
+                    ))),
+                    _ => Ok(StepOutcome::Continue),
+                }
+            }
+        }
+        FlowStep::PressKey { key } => {
+            let encoded_key = serde_json::to_string(key)?;
+            let script = format!(
+                "(() => {{
+                    const target = document.activeElement || document.body;
+                    const init = {{ key: {encoded_key}, code: {encoded_key}, bubbles: true, cancelable: true }};
+                    target.dispatchEvent(new KeyboardEvent('keydown', init));
+                    target.dispatchEvent(new KeyboardEvent('keypress', init));
+                    target.dispatchEvent(new KeyboardEvent('keyup', init));
+                    if ({encoded_key} === 'Enter' && target.form) {{
+                        target.form.dispatchEvent(new Event('submit', {{ bubbles: true, cancelable: true }}));
+                    }}
+                }})()"
+            );
+            context.page.evaluate(script).await.map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::Pause { duration_ms } => {
+            let duration = Duration::from_millis((*duration_ms).min(30_000));
+            tokio::time::sleep(duration).await;
+            Ok(StepOutcome::Continue)
         }
     }
-    Ok(())
+}
+
+fn is_xpath(selector: &str) -> bool {
+    selector.starts_with("//") || selector.starts_with("xpath=")
+}
+
+async fn locate_element(page: &Page, selector: &str) -> Result<chromiumoxide::Element, AppError> {
+    if is_xpath(selector) {
+        let clean = selector.strip_prefix("xpath=").unwrap_or(selector);
+        page.find_xpath(clean).await.map_err(AppError::internal)
+    } else {
+        page.find_element(selector).await.map_err(AppError::internal)
+    }
 }
 
 async fn wait_for(page: &Page, selector: &str) -> Result<(), AppError> {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        if page.find_element(selector).await.is_ok() {
+        if locate_element(page, selector).await.is_ok() {
             return Ok(());
         }
         if Instant::now() >= deadline {
@@ -296,4 +422,66 @@ async fn save_screenshot(
     )
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn stopped_execution_never_launches_or_creates_a_profile() {
+        let output_dir = std::env::temp_dir().join(format!("reports-stopped-{}", Uuid::new_v4()));
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().connect_lazy("sqlite::memory:").unwrap();
+        let state = AppState {
+            pool,
+            output_dir: output_dir.clone(),
+            browser_path: Some("/nonexistent-test-browser".into()),
+            headless: true,
+            max_concurrency: 1,
+        };
+        let run = Run {
+            id: "run".into(),
+            flow_id: "flow".into(),
+            status: "running".into(),
+            input_json: "{}".into(),
+            error: None,
+            created_at: String::new(),
+            started_at: None,
+            finished_at: None,
+        };
+        let flow = Flow {
+            id: "flow".into(),
+            system_id: "system".into(),
+            name: String::new(),
+            steps: vec![],
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        let system = System {
+            id: "system".into(),
+            name: String::new(),
+            base_url: "http://127.0.0.1".into(),
+            enabled: true,
+            notes: String::new(),
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        let (_sender, receiver) = tokio::sync::watch::channel(true);
+        assert!(matches!(
+            execute(&state, &run, &flow, &system, Duration::from_secs(1), receiver).await,
+            Err(AppError::Interrupted)
+        ));
+        assert!(!output_dir.exists());
+    }
+
+    #[test]
+    fn xpath_selector_detection_supports_slash_and_prefix() {
+        assert!(is_xpath("//button[@id='su']"));
+        assert!(is_xpath("//*[@id='kw']"));
+        assert!(is_xpath("xpath=//input"));
+        assert!(is_xpath("xpath=//*[@class='title']"));
+        assert!(!is_xpath("#kw"));
+        assert!(!is_xpath("button.submit"));
+        assert!(!is_xpath("[data-testid='btn']"));
+    }
 }

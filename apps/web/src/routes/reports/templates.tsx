@@ -56,9 +56,8 @@ const example: Reports.FlowStep[] = [
 
 function FlowsPage() {
     const client = useQueryClient();
-    const { canViewFlows, canViewSchedules } = useAuthStore((state) =>
-        getSchedulePermissionState(state.checkPermissions),
-    );
+    const checkPermissions = useAuthStore((state) => state.checkPermissions);
+    const { canViewFlows, canViewSchedules } = getSchedulePermissionState(checkPermissions);
     const { data: systems = [] } = useQuery({
         ...reportsQueryOptions.systems(),
         enabled: canViewFlows,
@@ -490,8 +489,8 @@ function FlowDialog({
             >
                 <p className="mb-4 text-sm text-muted-foreground">
                     {t(
-                        "支持的动作：goto、fill、click、waitFor、assertText、screenshot。",
-                        "Supported actions: goto, fill, click, waitFor, assertText, screenshot.",
+                        "支持的动作：goto、fill、click、waitFor、assertText、screenshot、guardExists、pressKey、pause。",
+                        "Supported actions: goto, fill, click, waitFor, assertText, screenshot, guardExists, pressKey, pause.",
                     )}
                 </p>
                 <Form layout="vertical">

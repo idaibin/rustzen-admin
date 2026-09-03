@@ -14,6 +14,10 @@ pub enum AppError {
     Conflict(String),
     #[error("run cancelled")]
     Cancelled,
+    #[error("run timed out")]
+    TimedOut,
+    #[error("run interrupted by service shutdown")]
+    Interrupted,
     #[error("reports database operation failed")]
     Database,
     #[error("reports service operation failed")]
@@ -55,7 +59,7 @@ impl IntoResponse for AppError {
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message),
             Self::Conflict(message) => (StatusCode::CONFLICT, message),
             Self::Cancelled => (StatusCode::CONFLICT, "run cancelled".to_string()),
-            Self::Database | Self::Internal => {
+            Self::Database | Self::Internal | Self::TimedOut | Self::Interrupted => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "reports worker error".to_string())
             }
         };
