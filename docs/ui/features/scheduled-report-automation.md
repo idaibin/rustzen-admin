@@ -79,6 +79,7 @@ matrix are therefore **Not verified**.
 | Enable/disable and outcome labels | Ant Design `Tag`/`Switch` with semantic theme | Wrap route-local meaning; no new status component |
 | Destructive confirmation | Existing `ConfirmDialog` | Reuse |
 | Run link/detail | Existing Reports route detail Modal/Drawer | Wrap/reuse; no new artifact viewer |
+| Terminal-run retry | Existing Reports run action buttons and detail Modal | Wrap/reuse; no new run form or route |
 | HTTP transport | Existing Reports API client and `apiRequest` | Reuse; Reports chain is Rust `ModuleRouter/Manifest` -> handwritten `apps/web/src/api/reports/contract.ts` -> `scripts/verify-worker-contracts.mjs` |
 | Schedule/run data | Reports automation and Reports SQLite | Reports owns lifecycle and persistence |
 
@@ -102,6 +103,21 @@ compatible consumer exists.
 The form never exposes credential fields, arbitrary cron text, notification
 channels, or catch-up controls. A disabled schedule is textually distinct from
 a failed run and a skipped occurrence.
+
+The Runs list and Run audit detail show a bilingual Retry action only for
+`failed` and `cancelled` terminal runs and only behind `reports:run:manage`.
+While the request is pending, both the list and Run audit Retry controls for
+that source run are disabled. A successful retry selects the returned direct
+child and refreshes the list; a failure is visible through the existing message
+feedback without closing the source run. Repeating the action returns the same
+direct child even after it is terminal. To continue after a failed or cancelled
+child, the operator opens that child and retries it, extending the
+source-to-child chain without replacing an earlier link. Retention can clear a
+child's source reference when the older source is removed, so the UI does not
+promise lineage after source deletion. Retry creates a separate
+manual run from the source's persisted snapshot. It does not change the source
+evidence or expose a second link from any scheduled occurrence, so it is not
+presented as a schedule catch-up action.
 
 ## Accessibility and responsive behavior
 
@@ -136,6 +152,7 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
+| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Implemented source; rendered retry state **Not verified** | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1 | Runs route/detail and Reports API; seam and worker-contract check |
 
 Exact new geometry, computed styles, and runtime schedule outcomes are
 `Not verified` until implementation and browser capture.

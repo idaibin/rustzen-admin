@@ -9,9 +9,18 @@ import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
 import { LiveFrame } from "./live-frame";
+import { RetryRunButton } from "./retry-run-button";
 import { getRunStatusMeta, getStepStatusMeta, isActiveRun } from "./status";
 
-export function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () => void }) {
+export function RunDetails({
+    run,
+    onClose,
+    onRetried,
+}: {
+    run?: Reports.Run;
+    onClose: () => void;
+    onRetried: (run: Reports.Run) => void;
+}) {
     const locale = useLocale();
     const {
         data: currentRun = run,
@@ -148,6 +157,7 @@ export function RunDetails({ run, onClose }: { run?: Reports.Run; onClose: () =>
                         {formatDateTime(currentRun?.finishedAt)}
                     </p>
                     {currentRun?.error ? <p className="text-red-600">{currentRun.error}</p> : null}
+                    {currentRun ? <RetryRunButton run={currentRun} onRetried={onRetried} /> : null}
                 </div>
             ) : null}
             <div className="mb-5">

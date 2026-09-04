@@ -512,6 +512,10 @@ pub async fn cancel_run(pool: &SqlitePool, id: &str) -> Result<Run, AppError> {
     run(pool, id).await
 }
 
+pub async fn retry_run(pool: &SqlitePool, id: &str) -> Result<Run, AppError> {
+    super::retry::retry_run(pool, id).await
+}
+
 pub fn substitute(value: &str, input: &Value) -> Result<String, AppError> {
     let mut out = value.to_string();
     while let Some(start) = out.find("{{input.") {

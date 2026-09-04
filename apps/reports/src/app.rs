@@ -133,7 +133,7 @@ mod tests {
                 && menu["path"] == "/reports/templates"
                 && menu["permission"] == "reports:schedule:view"
         }));
-        assert_eq!(manifest["routes"].as_array().unwrap().len(), 23);
+        assert_eq!(manifest["routes"].as_array().unwrap().len(), 24);
         assert!(
             manifest["routes"]
                 .as_array()
@@ -141,6 +141,11 @@ mod tests {
                 .iter()
                 .any(|route| { route["path"] == "/runs/{id}/live-frame" })
         );
+        assert!(manifest["routes"].as_array().unwrap().iter().any(|route| {
+            route["path"] == "/runs/{id}/retry"
+                && route["method"] == "POST"
+                && route["permission"] == "reports:run:manage"
+        }));
         assert!(
             manifest["routes"]
                 .as_array()

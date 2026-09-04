@@ -23,6 +23,7 @@ CREATE INDEX idx_automation_flows_system ON automation_flows(system_id, created_
 CREATE TABLE automation_runs (
     id TEXT PRIMARY KEY NOT NULL,
     flow_id TEXT NOT NULL,
+    retry_source_run_id TEXT UNIQUE,
     status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')),
     input_json TEXT NOT NULL DEFAULT '{}',
     error TEXT,
@@ -30,7 +31,8 @@ CREATE TABLE automation_runs (
     started_at TEXT,
     finished_at TEXT,
     cancel_requested_at TEXT,
-    FOREIGN KEY (flow_id) REFERENCES automation_flows(id) ON DELETE RESTRICT
+    FOREIGN KEY (flow_id) REFERENCES automation_flows(id) ON DELETE RESTRICT,
+    FOREIGN KEY (retry_source_run_id) REFERENCES automation_runs(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_automation_runs_status_created ON automation_runs(status, created_at);

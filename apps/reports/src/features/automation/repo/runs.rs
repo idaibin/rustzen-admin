@@ -28,6 +28,61 @@ pub async fn insert_run(
 ) -> Result<bool, sqlx::Error> {
     sqlx::query("INSERT INTO automation_runs(id,flow_id,status,input_json,created_at) VALUES(?,?,'queued',?,?)").bind(id).bind(flow_id).bind(input).bind(now).execute(pool).await.map(|r|r.rows_affected()==1)
 }
+pub enum RetryRunOutcome {
+    Retry(Run),
+    SourceNotFound,
+    SourceNotRetryable,
+}
+
+pub async fn retry_run(
+    pool: &SqlitePool,
+    id: &str,
+    source_id: &str,
+    now: &str,
+) -> Result<RetryRunOutcome, sqlx::Error> {
+    let mut transaction = pool.begin_with("BEGIN IMMEDIATE").await?;
+    if let Some(existing) = sqlx::query_as(
+        "SELECT id,flow_id,CASE WHEN status='running' AND cancel_requested_at IS NOT NULL THEN 'cancelling' ELSE status END AS status,input_json,error,created_at,started_at,finished_at
+         FROM automation_runs WHERE retry_source_run_id=?",
+    )
+    .bind(source_id)
+    .fetch_optional(&mut *transaction)
+    .await
+    ? {
+        transaction.commit().await?;
+        return Ok(RetryRunOutcome::Retry(existing));
+    }
+
+    if let Some(created) = sqlx::query_as(
+        "INSERT INTO automation_runs(id,flow_id,retry_source_run_id,status,input_json,created_at)
+         SELECT ?,flow_id,?,'queued',input_json,?
+         FROM automation_runs
+         WHERE id=? AND status IN ('failed','cancelled')
+         RETURNING id,flow_id,status,input_json,error,created_at,started_at,finished_at",
+    )
+    .bind(id)
+    .bind(source_id)
+    .bind(now)
+    .bind(source_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    {
+        transaction.commit().await?;
+        return Ok(RetryRunOutcome::Retry(created));
+    }
+
+    let source_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM automation_runs WHERE id=?)")
+            .bind(source_id)
+            .fetch_one(&mut *transaction)
+            .await?;
+    transaction.commit().await?;
+    Ok(if source_exists {
+        RetryRunOutcome::SourceNotRetryable
+    } else {
+        RetryRunOutcome::SourceNotFound
+    })
+}
 pub async fn claim_run(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, sqlx::Error> {
     sqlx::query(
         "UPDATE automation_runs SET status='running',started_at=? WHERE id=? AND status='queued'",

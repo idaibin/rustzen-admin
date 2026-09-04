@@ -15,6 +15,7 @@ import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
 import { RunDetails } from "./-runs/run-details";
+import { RetryRunButton } from "./-runs/retry-run-button";
 import { RunDialog } from "./-runs/run-dialog";
 import { getRunStatusMeta, isActiveRun } from "./-runs/status";
 
@@ -77,7 +78,7 @@ function RunsPage() {
                 title: t("执行", "Run"),
                 dataIndex: "id",
                 key: "id",
-                width: 150,
+                width: 200,
                 render: (_: unknown, row) => (
                     <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
                 ),
@@ -127,6 +128,7 @@ function RunsPage() {
                             aria-label={t("查看执行", "View run")}
                             onClick={() => setSelected(row)}
                         />
+                        <RetryRunButton run={row} onRetried={setSelected} />
                         <AuthWrap code="reports:run:manage">
                             <Button
                                 type="text"
@@ -228,7 +230,11 @@ function RunsPage() {
                     }}
                 />
             </DataTableShell>
-            <RunDetails run={selected} onClose={() => setSelected(undefined)} />
+            <RunDetails
+                run={selected}
+                onClose={() => setSelected(undefined)}
+                onRetried={setSelected}
+            />
         </PageCard>
     );
 }

@@ -134,6 +134,10 @@ pub async fn cancel_run(State(state): State<AppState>, Path(id): Path<String>) -
     Ok(ApiResponse::success(service::cancel_run(&state.pool, &id).await?))
 }
 
+pub async fn retry_run(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Run> {
+    Ok(ApiResponse::success(service::retry_run(&state.pool, &id).await?))
+}
+
 pub async fn run_steps(
     State(state): State<AppState>,
     Path(id): Path<String>,

@@ -76,6 +76,11 @@ export const reportsAPI = {
             url: routePath(contract.cancelRun, { id }),
             method: contract.cancelRun.method,
         }),
+    retryRun: (id: string) =>
+        apiRequest<Reports.Run>({
+            url: routePath(contract.retryRun, { id }),
+            method: contract.retryRun.method,
+        }),
     runSteps: (id: string) =>
         apiRequest<Reports.RunStep[]>({ url: routePath(contract.runSteps, { id }) }),
     runArtifacts: (id: string) =>

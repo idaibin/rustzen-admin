@@ -518,6 +518,14 @@ const reportRun = await responseData(
 );
 if (reportRun.status !== "queued") throw new Error("Report filling run was not queued");
 
+await expectStatus(
+    await directRequest(reportsBase, "reports", `/api/reports/runs/${reportRun.id}/retry`, "reports:run:view", {
+        method: "POST",
+    }),
+    403,
+    "report run view capability cannot retry",
+);
+
 const reportsRuntimeRoot = required("RUSTZEN_RUNTIME_ROOT");
 const reportsDatabase = `${reportsRuntimeRoot}/data/reports/db/reports.db`;
 const scheduleSettings = await responseData(
@@ -616,6 +624,87 @@ const enqueuedDaily = await waitForScheduleDecision(daily.id, "enqueued");
 if (!enqueuedDaily.lastOccurrence?.runId || enqueuedDaily.lastRun?.id !== enqueuedDaily.lastOccurrence.runId) {
     throw new Error(`daily enqueued occurrence lost its run linkage: ${JSON.stringify(enqueuedDaily)}`);
 }
+const sourceRunId = enqueuedDaily.lastOccurrence.runId;
+const sourceSnapshot = Bun.spawnSync([
+    "sqlite3",
+    reportsDatabase,
+    `UPDATE automation_runs SET status='failed',error='fixture failure',finished_at='2000-01-01T00:00:00+00:00' WHERE id='${sourceRunId}'; SELECT flow_id || '|' || input_json FROM automation_runs WHERE id='${sourceRunId}';`,
+]);
+if (sourceSnapshot.exitCode !== 0) throw new Error(`could not prepare retry fixture: ${sourceSnapshot.stderr.toString()}`);
+const retrySourceSnapshot = sourceSnapshot.stdout.toString().trim();
+const retriedRun = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", `/api/reports/runs/${sourceRunId}/retry`, "reports:run:manage", {
+            method: "POST",
+        }),
+        200,
+        "retry failed report run",
+    ),
+    "retry failed report run",
+);
+if (retriedRun.id === sourceRunId || retriedRun.status !== "queued") {
+    throw new Error(`retry did not return an independent queued run: ${JSON.stringify(retriedRun)}`);
+}
+const retryCheck = Bun.spawnSync([
+    "sqlite3",
+    reportsDatabase,
+    `SELECT flow_id || '|' || input_json FROM automation_runs WHERE id='${retriedRun.id}'; SELECT run_id FROM automation_schedule_occurrences WHERE schedule_id='${daily.id}'; SELECT COUNT(*) FROM automation_schedule_occurrences WHERE run_id='${retriedRun.id}';`,
+]);
+if (retryCheck.exitCode !== 0) throw new Error(`could not inspect retry fixture: ${retryCheck.stderr.toString()}`);
+const [retriedSnapshot, linkedSourceRunId, retryOccurrences] = retryCheck.stdout.toString().trim().split("\n");
+if (retriedSnapshot !== retrySourceSnapshot || linkedSourceRunId !== sourceRunId || retryOccurrences !== "0") {
+    throw new Error("retry changed source snapshot or schedule occurrence linkage");
+}
+const repeatedRetry = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", `/api/reports/runs/${sourceRunId}/retry`, "reports:run:manage", {
+            method: "POST",
+        }),
+        200,
+        "repeat retry returns the existing child",
+    ),
+    "repeat retry returns the existing child",
+);
+if (repeatedRetry.id !== retriedRun.id) {
+    throw new Error(`repeat retry created a different child: ${JSON.stringify(repeatedRetry)}`);
+}
+const terminalRetryFixture = Bun.spawnSync([
+    "sqlite3",
+    reportsDatabase,
+    `UPDATE automation_runs SET status='failed',error='retry fixture failure',finished_at='2000-01-01T00:00:00+00:00' WHERE id='${retriedRun.id}';`,
+]);
+if (terminalRetryFixture.exitCode !== 0) throw new Error(`could not finish retry fixture: ${terminalRetryFixture.stderr.toString()}`);
+const terminalRepeatedRetry = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", `/api/reports/runs/${sourceRunId}/retry`, "reports:run:manage", {
+            method: "POST",
+        }),
+        200,
+        "terminal child remains the source retry result",
+    ),
+    "terminal child remains the source retry result",
+);
+if (terminalRepeatedRetry.id !== retriedRun.id || terminalRepeatedRetry.status !== "failed") {
+    throw new Error(`terminal retry child was replaced: ${JSON.stringify(terminalRepeatedRetry)}`);
+}
+const chainedRetry = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", `/api/reports/runs/${retriedRun.id}/retry`, "reports:run:manage", {
+            method: "POST",
+        }),
+        200,
+        "retry terminal child",
+    ),
+    "retry terminal child",
+);
+if (chainedRetry.id === retriedRun.id) throw new Error("terminal retry child did not create a new chain link");
+await expectStatus(
+    await directRequest(reportsBase, "reports", `/api/reports/runs/${chainedRetry.id}/retry`, "reports:run:manage", {
+        method: "POST",
+    }),
+    409,
+    "retry non-terminal report run",
+);
 
 const missedMoment = new Date(Date.now() - 120_000);
 const weeklyParts = utcParts(missedMoment);
@@ -639,7 +728,7 @@ for (const id of [daily.id, weekly.id]) {
     }), 200, "remove verification schedule");
     await expectStatus(await directRequest(reportsBase, "reports", path, "reports:schedule:view"), 404, "removed schedule");
 }
-console.log("Reports daily/weekly schedule CRUD, enable/disable, permissions, occurrence decisions and run linkage verified");
+console.log("Reports daily/weekly schedule CRUD, idempotent retry chains, permissions, occurrence decisions and run linkage verified");
 
 function percentile(values, quantile) {
     const sorted = [...values].sort((left, right) => left - right);

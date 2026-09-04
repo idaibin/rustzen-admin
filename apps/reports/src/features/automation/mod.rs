@@ -1,6 +1,7 @@
 mod browser;
 mod handler;
 mod repo;
+mod retry;
 mod scheduler;
 mod service;
 mod types;
@@ -61,6 +62,7 @@ pub fn routes(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>, 
             handler::cancel_run,
             Require(reports::RUN_MANAGE),
         )?
+        .post_with_permission("/runs/{id}/retry", handler::retry_run, Require(reports::RUN_MANAGE))?
         .get_with_permission("/runs/{id}/steps", handler::run_steps, Require(reports::RUN_VIEW))?
         .get_with_permission(
             "/runs/{id}/artifacts",

@@ -110,3 +110,33 @@ async fn retention_clears_live_run_fk_but_preserves_occurrence_decision_and_snap
     assert_eq!(remaining_runs, 0);
     assert_eq!(remaining_artifacts, 0);
 }
+
+#[tokio::test]
+async fn retention_deletes_an_old_retry_source_and_keeps_a_newer_child() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .expect("connect");
+    crate::infra::db::MIGRATOR.run(&pool).await.expect("migrate");
+    for statement in [
+        "INSERT INTO automation_systems(id,name,base_url,enabled,notes,created_at,updated_at) VALUES('system','System','https://example.com',1,'','now','now')",
+        "INSERT INTO automation_flows(id,system_id,name,steps_json,created_at,updated_at) VALUES('flow','system','Flow','[]','now','now')",
+        "INSERT INTO automation_runs(id,flow_id,status,input_json,created_at,finished_at) VALUES('source','flow','failed','{}','2000-01-01T00:00:00+00:00','2000-01-01T00:01:00+00:00')",
+        "INSERT INTO automation_runs(id,flow_id,retry_source_run_id,status,input_json,created_at,finished_at) VALUES('child','flow','source','succeeded','{}','2026-01-01T00:00:00+00:00','2026-01-01T00:01:00+00:00')",
+    ] {
+        sqlx::query(statement).execute(&pool).await.expect("fixture");
+    }
+
+    let (_, deleted_runs) =
+        cleanup_retention(&pool, "2020-01-01T00:00:00+00:00", "2020-01-01T00:00:00+00:00")
+            .await
+            .expect("retention cleanup");
+    assert_eq!(deleted_runs, 1);
+    let child_source: Option<String> =
+        sqlx::query_scalar("SELECT retry_source_run_id FROM automation_runs WHERE id='child'")
+            .fetch_one(&pool)
+            .await
+            .expect("retained child");
+    assert_eq!(child_source, None);
+}

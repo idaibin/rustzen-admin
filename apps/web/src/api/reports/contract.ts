@@ -19,6 +19,7 @@ export const reportsAPIContract = {
     run: { method: "GET", path: "/api/reports/runs/{id}" },
     createRun: { method: "POST", path: "/api/reports/runs" },
     cancelRun: { method: "POST", path: "/api/reports/runs/{id}/cancel" },
+    retryRun: { method: "POST", path: "/api/reports/runs/{id}/retry" },
     runSteps: { method: "GET", path: "/api/reports/runs/{id}/steps" },
     runArtifacts: { method: "GET", path: "/api/reports/runs/{id}/artifacts" },
     artifact: {

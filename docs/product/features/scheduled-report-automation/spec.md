@@ -87,6 +87,32 @@ decision. Run status (`queued`, `running`, `succeeded`, `failed`, `cancelling`,
 or `cancelled`) belongs to the existing Reports run lifecycle and is not copied
 into the schedule decision.
 
+## Terminal-run retry boundary
+
+A failed or cancelled terminal run may be retried by an operator with
+`reports:run:manage`. `POST /api/reports/runs/{id}/retry` reads the source
+run's persisted `flow_id` and `input_json` snapshot and creates one new,
+independent manual queued run. The source run, its steps, artifacts, error and
+timestamps remain unchanged.
+
+Retry is idempotent per retained direct source run. A source run has at most one
+direct retry child while the source exists. Repeated or concurrent retry requests return that
+same child, including after the child has reached a terminal state; they never
+create a replacement child. If that child fails or is cancelled, an operator
+retries the child itself to create the next link in the retry chain.
+
+Retry never updates a schedule occurrence, changes its unique
+`schedule occurrence -> run` association, or evaluates a due slot. Retrying a
+run created by an `enqueued` occurrence is therefore not catch-up execution:
+the new manual run has no occurrence row. Queued, running, cancelling and
+succeeded runs without an existing retry child are rejected. The response
+returns the created or already-existing direct child snapshot so the Web Runs
+list or detail can navigate to it.
+
+Retention may delete an older source run while retaining a newer child. In that
+case the child's lineage reference is cleared, the deleted source cannot be
+retried, and no lineage guarantee is made across the deleted record.
+
 The scheduler resolves local schedule time using the installation timezone and
 applies one fixed 60-second lateness window:
 
@@ -223,6 +249,11 @@ policy removes them.
 - Successful, failed, and cancelled `enqueued` outcomes link to or preserve the
   existing Reports run evidence; `skipped` preserves due/reason with no run;
   a mixed list remains visibly partial.
+- Only failed or cancelled terminal runs can create a first direct retry child.
+  Repeat or concurrent requests return that same child forever; retrying a
+  terminal child creates the next chain link. Every child copies its direct
+  source's persisted flow/input snapshot, and source evidence plus schedule
+  occurrence associations remain unchanged.
 - Viewer cannot mutate a schedule, and direct backend mutation without the
   manage capability is rejected.
 - Disable/enable and destructive delete have explicit processing and
@@ -241,7 +272,7 @@ policy removes them.
 | --- | --- | --- |
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
-| HTTP | Focused worker verifier creates, lists, reads, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, `enqueued`/`skipped`, and run linkage are observable locally. |
+| HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
 | Browser | Reports browser verifier plus schedule permission seam | Real target-backed execution, screenshots, limits, cleanup, and direct schedule-only viewer/manager requests pass; rendered Templates/Runs Web visual matrix remains **Not verified**. |
 | Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
