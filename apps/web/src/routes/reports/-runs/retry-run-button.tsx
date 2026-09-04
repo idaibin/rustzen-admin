@@ -6,9 +6,11 @@ import { appMessage, reportsAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { t } from "@/lib/i18n";
 
-const isRetryable = (status: Reports.Run["status"]) =>
-    status === "failed" || status === "cancelled";
-const retryMutationKey = (sourceRunId: string) => ["reports", "retry-run", sourceRunId] as const;
+import {
+    createRetryRunHandlers,
+    isRetryableRunStatus,
+    retryRunMutationKey,
+} from "./retry-run-state";
 
 export function RetryRunButton({
     run,
@@ -18,24 +20,22 @@ export function RetryRunButton({
     onRetried: (run: Reports.Run) => void;
 }) {
     const client = useQueryClient();
-    const mutationKey = retryMutationKey(run.id);
+    const mutationKey = retryRunMutationKey(run.id);
     const isRetryPending = useIsMutating({ mutationKey }) > 0;
+    const handlers = createRetryRunHandlers({
+        invalidateRuns: () => client.invalidateQueries({ queryKey: ["reports", "runs"] }),
+        selectRun: onRetried,
+        showSuccess: () => appMessage.success(t("已打开重试执行", "Retry run opened")),
+        showError: (message) => appMessage.error(message),
+        fallbackError: t("重试失败，请稍后重试。", "Retry failed."),
+    });
     const retry = useMutation({
         mutationKey,
         mutationFn: reportsAPI.retryRun,
-        onSuccess: async (retriedRun) => {
-            await client.invalidateQueries({ queryKey: ["reports", "runs"] });
-            onRetried(retriedRun);
-            appMessage.success(t("已打开重试执行", "Retry run opened"));
-        },
-        onError: (error) => {
-            appMessage.error(
-                error instanceof Error ? error.message : t("重试失败，请稍后重试。", "Retry failed."),
-            );
-        },
+        ...handlers,
     });
 
-    if (!isRetryable(run.status)) return null;
+    if (!isRetryableRunStatus(run.status)) return null;
     return (
         <AuthWrap code="reports:run:manage">
             <Button

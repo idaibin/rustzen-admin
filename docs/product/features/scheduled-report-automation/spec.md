@@ -37,8 +37,10 @@ and persistence. The focused worker verifier is the HTTP acceptance seam for
 daily/weekly CRUD, direct capability denial, real due occurrence readback,
 `enqueued`/`skipped` decisions, and run linkage. The browser verifier covers
 the Reports execution browser, real screenshot artifacts, cleanup, and
-schedule-only delegated permission requests; the Web seam test fixes the
-route's selector and schedule view/manage gates. The four-service verifier
+schedule-only delegated permission requests; the Web seam tests fix the
+route's selector and schedule view/manage gates plus terminal retry visibility,
+the shared per-source pending key, success selection of the direct child, and
+failure preservation of the source selection. The four-service verifier
 covers startup ordering, failure isolation, gateway contracts, and each
 service database restore. A Colima Debian/amd64 run covers Reports as an
 unprivileged user with browser user namespaces, WAL files, recovery blocking,
@@ -254,6 +256,9 @@ policy removes them.
   terminal child creates the next chain link. Every child copies its direct
   source's persisted flow/input snapshot, and source evidence plus schedule
   occurrence associations remain unchanged.
+- The Runs list and detail use the same retry state owner: the source run ID
+  determines one shared pending key, success selects the returned direct child,
+  and failure leaves the source selected while exposing the returned error.
 - Viewer cannot mutate a schedule, and direct backend mutation without the
   manage capability is rejected.
 - Disable/enable and destructive delete have explicit processing and

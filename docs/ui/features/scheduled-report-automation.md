@@ -43,7 +43,10 @@ panel renders daily/weekly values, installation timezone, next due, and the
 latest occurrence; only an occurrence with `runId` exposes the existing run
 link.
 
-The static seam test verifies that selector and gate composition. The Reports
+The static seam tests verify selector/gate composition and the route-local retry
+behavior: failed/cancelled visibility, one per-source pending key shared by the
+list and detail, child selection after success, and source preservation after
+failure. The Reports
 browser verifier separately verifies schedule-only viewer/manager delegated
 HTTP access while exercising the existing target-backed browser runner. It
 does not produce a visual capture of the Web Templates route. Desktop/narrow,
@@ -152,7 +155,7 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
-| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Implemented source; rendered retry state **Not verified** | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1 | Runs route/detail and Reports API; seam and worker-contract check |
+| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Source and deterministic behavior implemented: failed/cancelled visibility, shared per-source pending, child selection, and failure preservation are covered; rendered retry state **Not verified** | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1 | route-local behavior test plus Reports worker HTTP retry-chain contract; browser rendering remains open |
 
 Exact new geometry, computed styles, and runtime schedule outcomes are
 `Not verified` until implementation and browser capture.

@@ -16,6 +16,9 @@ const status = await Bun.file(
 const retry = await Bun.file(
     new URL("../src/routes/reports/-runs/retry-run-button.tsx", import.meta.url),
 ).text();
+const retryState = await Bun.file(
+    new URL("../src/routes/reports/-runs/retry-run-state.ts", import.meta.url),
+).text();
 
 describe("reports runs route composition", () => {
     test("keeps the route as an orchestrator and delegates each bounded concern", () => {
@@ -39,9 +42,11 @@ describe("reports runs route composition", () => {
         expect(details).toContain("<RetryRunButton run={currentRun} onRetried={onRetried} />");
         expect(retry).toContain("reportsAPI.retryRun");
         expect(retry).toContain('code="reports:run:manage"');
-        expect(retry).toContain('status === "failed" || status === "cancelled"');
+        expect(retry).toContain("isRetryableRunStatus(run.status)");
+        expect(retryState).toContain('status === "failed" || status === "cancelled"');
         expect(retry).toContain("useIsMutating");
-        expect(retry).toContain('const retryMutationKey = (sourceRunId: string) => ["reports", "retry-run", sourceRunId]');
+        expect(retry).toContain("retryRunMutationKey(run.id)");
+        expect(retryState).toContain('["reports", "retry-run", sourceRunId]');
         expect(retry).toContain("mutationKey,");
         expect(retry).toContain("disabled={isRetryPending}");
         expect(frame).toContain("reportsAPI.liveFrame(run!.id, signal)");
