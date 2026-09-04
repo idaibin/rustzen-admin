@@ -78,7 +78,7 @@ and commands in the design are not current working commands.
 | D05 | Inspect tar and native install | Exact allowlisted files/units/directories; no excluded executable, config or image |
 | D06 | Fresh monitor database initialization | Only access and Monitor tables/indexes/seeds; no notifications/tasks/deploy/unused dictionary tables |
 | D07 | Owner calls every excluded namespace | 404 JSON/API failure, never 200 SPA or privileged fallback |
-| D08 | Inspect compiled Web entry + all lazy chunks/maps/assets | No excluded route/API/search/nav/product module in graph |
+| D08 | Inspect compiled Web entry + all lazy chunks/maps/assets | No excluded route/API/search/nav/product module in graph. The Monitor producer records Vite module IDs and emitted files, validates them against the resolver-derived route/public allowlist, then scans text as a secondary sentinel check. Its mutation suite rejects excluded, foreign-composition, relative or absolute-escape source modules; unknown dependency or virtual module IDs; dynamically composed namespaces; extra static assets; and symbolic links at every output/generated/API-source path ancestor, as well as every inventory identity/list field drift. The selected Vite output is composition-qualified and never reuses `apps/web/dist`. |
 | D09 | Run monitor for 10 minutes with request tracing | Only two server processes/ports; no probe/timer/config lookup for absent services |
 | D10 | Stop installed Monitor | Entry login works; authorized monitor navigation remains; API shows unavailable |
 | D11 | Change env to enable an absent module | Startup validation rejects it; cannot create route/schema/process |

@@ -48,6 +48,10 @@ distribution-release-gate selection="distribution/fixtures/monitor.json":
 verify-distribution-selection:
     pnpm dlx bun@1.3.14 test distribution scripts/distribution-resolve.test.ts
 
+# Builds a composition-qualified Monitor Web artifact and rejects excluded emitted routes/API/assets.
+verify-distribution-web:
+    pnpm dlx bun@1.3.14 test scripts/distribution-verify-web.test.ts
+
 verify-service-wiring:
     scripts/test-verify-services.sh
 

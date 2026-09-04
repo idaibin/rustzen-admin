@@ -8,6 +8,7 @@
 /apps/web/dist
 /apps/web/.eslintcache
 /apps/web/.vite
+/apps/web/.selected-web
 /uploads
 
 

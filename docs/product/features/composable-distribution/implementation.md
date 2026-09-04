@@ -30,7 +30,7 @@ reproduce those behaviors in the new distribution pipeline.
 | P0 | Refresh current source/dirty basis and behavior assertions | Existing five application test suites pass; current coupling documented | Baseline captured; backend suites passed |
 | P1 | Finite catalog, preset/custom resolver, composition identity, test-only fixture isolation, release refusal until real producers exist | Deterministic CLI tests; monitor excludes notifications; invalid selections fail | Implemented; 17 tests pass on pinned Bun; independent review fixes verified |
 | P2 | Minimal Admin composition, selected registry/config, essential account/role UI contract and final selected schema | Full regression plus minimal auth/API/DB tests; absent owner never initializes | Implemented; source/build gate passes |
-| P3 | Controller/Agent binary separation; positive Cargo closure; code-derived selected contracts; Web/schema generation | Per-binary feature evidence, selected queries, full/monitor Web/API/schema negative tests | Controller/Agent prerequisite implemented and independently reviewed; selected server/Web work follows P2 |
+| P3 | Controller/Agent binary separation; positive Cargo closure; code-derived selected contracts; Web/schema generation | Per-binary feature evidence, selected queries, full/monitor Web/API/schema negative tests | Controller/Agent prerequisite implemented and independently reviewed. Monitor selected-Web producer is implemented; selected server/schema producers remain open. |
 | P4 | Selected signed archive, native install/one-shot recovery, CLI and constrained release-UI caller | Exact member/signature/path tests and disposable Linux/systemd install tests | Queued after P3 |
 | P5 | Optional Admin inbox, current recipient authorization, sequence-bounded reads and retention budgets | Fresh SQLite transaction/concurrency/retention tests | Queued after P2/P3 |
 | P6 | Monitor and Reports optional outbox/relay, trusted initiator, fenced claims and bounded ambiguity | Lifecycle/crash/dedupe/recipient tests | Queued after P5 |
@@ -121,6 +121,36 @@ login. The full Admin regression passes 126 tests with one benchmark ignored.
 This verifies the backend composition and the declared essential Web root
 contract; P3 still owns generation and physical verification of the selected
 Web bundle and selected API artifact.
+
+The P3 Monitor Web producer resolves `distribution/fixtures/monitor.json`, copies
+only the access and Monitor route allowlist into
+`apps/web/.selected-web/<compositionId>/routes`, and gives that directory—not
+`apps/web/src/routes`—to the TanStack generator. It writes its route tree,
+temporary generator data and selected public directory below the same
+composition-qualified workspace; Vite writes the artifact to
+`target/distributions/<compositionId>/web/dist`. The generated entry uses the
+access/Monitor API surface and a static Monitor/access shell; it has no full
+API barrel or module-navigation query. `scripts/distribution-verify-web.ts`
+records Vite's actual module IDs and emitted entries, then strictly compares
+the generated inventory with the resolver's monitor plan. It rejects extra,
+missing, stale, escaped or symlinked output paths; and any module ID which is
+not exactly one of the selected generated source, an explicit repository-source
+allowlist, an allowlisted dependency package, or Vite's fixed preload helper.
+Before reading inventory or traversing output it rejects symbolic links at every
+ancestor of the distribution root, Web root, dist root, generated root and API
+adapter source. It also rejects Analytics, Reports, Admin-console and
+management route/API sentinels. The
+selected role page receives an options-only menu adapter, so menu list,
+inventory mutation and delete APIs never enter the artifact. The verifier also
+requires the access and Monitor API/path sentinels and the selected
+`rustzen.png` asset. `apps/web/dist` remains the full-build output and is never
+accepted as selected-artifact evidence. This producer closes only
+the selected-Web blocker; selected Admin API export, selected schema, native
+bundle, installer and runtime gates remain release blockers.
+
+```sh
+just verify-distribution-web
+```
 
 The Controller/Agent separation is independent of minimal Admin and was executed
 early. `rz-monitor controller` is the default controller

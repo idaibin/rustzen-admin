@@ -11,7 +11,7 @@
                     "package": "rustzen-admin",
                     "binary": "rz-admin",
                     "status": "blocked",
-                    "reason": "Minimal Admin is implemented; selected Web assets and signed native packaging are not certified."
+                    "reason": "Minimal Admin and the Monitor selected-Web producer are implemented; selected Admin API/schema, signed native packaging and runtime certification are not complete."
                 }
             ],
             "webRoots": [

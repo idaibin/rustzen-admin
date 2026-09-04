@@ -9,6 +9,8 @@
         "preview": "vp preview",
         "dev": "vp dev",
         "build": "vp build",
+        "build:selected": "bun ../../scripts/distribution-build-web.ts --selection ../../distribution/fixtures/monitor.json",
+        "verify:selected": "bun ../../scripts/distribution-verify-web.ts --selection ../../distribution/fixtures/monitor.json",
         "test": "bun test",
         "contract:generate": "orval --config orval.contract.config.mjs"
     },
