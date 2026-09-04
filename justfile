@@ -192,6 +192,11 @@ verify-distribution-native-staging:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts
 
+verify-distribution-canonical-archive:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/canonical-archive.test.ts distribution/canonical-archive-boundaries.test.ts
+    scripts/verify-canonical-archive-linux.sh
+
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent

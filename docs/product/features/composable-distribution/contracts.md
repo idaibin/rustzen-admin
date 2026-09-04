@@ -698,3 +698,16 @@ canonical combined artifact rejects missing, additional, reordered or changed
 field metadata and any value field. Manifest callers provide `configRoot`; a
 caller-supplied `configDigest` is rejected. Server and Agent config artifacts
 are separate compositions and cannot be substituted for each other.
+
+### Canonical selected archive
+
+The selected archive is a deterministic ustar stream rooted at
+`rz-<artifactClass>-<buildId>`. It contains exactly the staged payload files
+under `payload/` plus canonical `release-manifest.json`. Headers fix uid, gid,
+mtime, ownership names, file type and padding; reader validation rejects PAX,
+links, devices, directories, reordered members and trailing bytes. The reader
+validates the archive against the selected composition and hashes canonical
+manifest bytes. Member paths are scalar Unicode encoded as UTF-8; ustar name
+and prefix limits are respectively 100 and 155 bytes. The detached Ed25519
+envelope is outside the archive; signing and publication remain pending and
+are not implied by this archive contract.
