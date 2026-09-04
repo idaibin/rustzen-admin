@@ -934,7 +934,7 @@ mod tests {
             ("/api/manage/deploy/{id}", "delete"),
             ("/api/manage/deploy/{id}/expire", "put"),
             ("/api/manage/deploy/{id}/deploy", "post"),
-            ("/api/system/menus/{id}", "put"),
+            ("/api/system/menus/inventory/{id}", "put"),
             ("/api/system/menus/{id}", "delete"),
             ("/api/system/roles/{id}", "put"),
             ("/api/system/roles/{id}", "delete"),

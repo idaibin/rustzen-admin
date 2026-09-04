@@ -44,6 +44,23 @@ CREATE TABLE modules (
     enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))
 );
 
+CREATE TABLE module_navigation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_id TEXT NOT NULL REFERENCES modules(id),
+    module_menu_code TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    path TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2)),
+    is_manual INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(module_id, module_menu_code)
+);
+
 CREATE TABLE menus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER NOT NULL DEFAULT 0,

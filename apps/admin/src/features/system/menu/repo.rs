@@ -40,53 +40,45 @@ impl MenuRepository {
         pool: &SqlitePool,
     ) -> Result<Vec<MenuRow>, ServiceError> {
         sqlx::query_as::<_, MenuRow>(
-            "SELECT id, parent_id, parent_code, name, code, menu_type, status, is_system, is_manual, sort_order, path, icon, module_id, module_menu_code, is_active, created_at, updated_at
-             FROM menus
-             WHERE module_id IS NOT NULL
-               AND module_menu_code IS NOT NULL
-               AND is_active = TRUE
-               AND deleted_at IS NULL
-             ORDER BY sort_order ASC, id ASC",
+            "SELECT id,0 AS parent_id,NULL AS parent_code,name,code,2 AS menu_type,status,
+                    TRUE AS is_system,is_manual,sort_order,path,icon,module_id,module_menu_code,
+                    is_active,created_at,updated_at
+             FROM module_navigation WHERE is_active=TRUE ORDER BY sort_order,id",
         )
         .fetch_all(pool)
         .await
         .map_err(|error| {
-            tracing::error!(%error, "Database error loading module menu inventory");
+            tracing::error!(%error, "loading module navigation inventory");
             ServiceError::DatabaseQueryFailed
         })
     }
 
-    pub async fn update_module_override(
+    pub async fn update_navigation(
         pool: &SqlitePool,
-        module_id: &str,
-        module_menu_code: &str,
+        id: i64,
         name: &str,
         icon: Option<&str>,
         sort_order: i16,
         status: i16,
     ) -> Result<i64, ServiceError> {
-        sqlx::query_scalar::<_, i64>(
-            "UPDATE menus
-             SET name = ?, icon = COALESCE(?, icon), sort_order = ?, status = ?,
-                 is_manual = TRUE, updated_at = ?
-             WHERE module_id = ? AND module_menu_code = ? AND is_active = TRUE
-               AND is_system = TRUE AND deleted_at IS NULL
-             RETURNING id",
+        sqlx::query_scalar(
+            "UPDATE module_navigation
+             SET name=?,icon=COALESCE(?,icon),sort_order=?,status=?,is_manual=TRUE,updated_at=?
+             WHERE id=? AND is_active=TRUE RETURNING id",
         )
         .bind(name)
         .bind(icon)
         .bind(sort_order)
         .bind(status)
         .bind(Utc::now().naive_utc())
-        .bind(module_id)
-        .bind(module_menu_code)
+        .bind(id)
         .fetch_optional(pool)
         .await
         .map_err(|error| {
-            tracing::error!(%error, module_id, module_menu_code, "Database error updating module menu override");
+            tracing::error!(%error, id, "updating module navigation");
             ServiceError::DatabaseQueryFailed
         })?
-        .ok_or_else(|| ServiceError::NotFound("Module menu".to_string()))
+        .ok_or_else(|| ServiceError::NotFound("Module navigation".into()))
     }
 
     /// Returns whether the menu is a system built-in menu.

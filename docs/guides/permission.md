@@ -7,8 +7,10 @@ Current capability, module delegation, and menu-reconciliation rules.
 - `crates/auth/` owns shared auth types, capability constants, and Admin-native
   route permission checks.
 - `crates/ipc/` owns module route access metadata and HMAC delegated context.
-- `apps/admin/src/infra/permission.rs` owns the in-memory user permission cache,
-  built-in role policy, and transactional module menu reconciliation.
+- `apps/admin/src/infra/permission/` owns the in-memory user permission cache,
+  built-in role policy, and transactional module reconciliation. `mod.rs`
+  orchestrates transactions and cache access; `capabilities.rs`, `navigation.rs`,
+  and `roles.rs` own their respective persistence rules.
 - `apps/admin/src/features/modules/` owns fixed module enabled state, Manifest
   synchronization, the immutable runtime registry, and gateway authorization.
 - Module Rust route registration is the single source for method, path, public
@@ -21,6 +23,20 @@ Current capability, module delegation, and menu-reconciliation rules.
   be overridden.
 
 ## Capability rules
+
+Module navigation is persisted in `module_navigation`, keyed by module ID and
+Manifest menu code. Multiple pages may reference the same capability without
+collapsing their navigation or presentation overrides. The `menus` capability
+catalog remains unique by permission code and continues to own role grants.
+Both projections reconcile in one transaction before the runtime Manifest changes.
+
+`GET /api/system/menus/inventory` returns navigation IDs;
+`PUT /api/system/menus/inventory/{id}` edits only that navigation row's title,
+icon, order, and visibility. Capability IDs are a separate namespace. The former
+`PUT /api/system/menus/{id}` route is not registered. Hiding or removing a navigation
+entry does not revoke a surviving API capability. Removed Manifest entries become
+inactive; presentation overrides follow the stable module/menu identity when its
+path or required permission changes.
 
 - Admin-native routes use `PermissionsCheck::Require(...)` by default. Use
   `Any(...)` or `All(...)` only for a concrete feature need.

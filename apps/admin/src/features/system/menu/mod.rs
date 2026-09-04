@@ -26,7 +26,7 @@ pub fn menu_routes() -> ContractRouter<SqlitePool> {
         )
         .expect("static menu contract")
         .put(
-            "/{id}",
+            "/inventory/{id}",
             OperationDescriptor::UpdateMenu,
             AccessPolicy::Require(system_menu::UPDATE),
             put(update_menu),
