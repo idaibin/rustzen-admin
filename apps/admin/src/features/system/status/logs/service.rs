@@ -312,8 +312,17 @@ mod secure_fs {
         destination: *const libc::c_char,
     ) -> Result<(), ServiceError> {
         let result = unsafe {
-            // SAFETY: both basenames are validated and the directory descriptor is owned by the caller.
-            libc::renameat2(directory_fd, source, directory_fd, destination, libc::RENAME_NOREPLACE)
+            // SAFETY: both basenames are validated and the directory descriptor is owned by the
+            // caller. Calling the Linux syscall directly preserves `RENAME_NOREPLACE` on both
+            // glibc and musl targets, where libc does not expose the same wrapper API.
+            libc::syscall(
+                libc::SYS_renameat2,
+                directory_fd,
+                source,
+                directory_fd,
+                destination,
+                libc::RENAME_NOREPLACE,
+            )
         };
         if result == 0 {
             Ok(())
