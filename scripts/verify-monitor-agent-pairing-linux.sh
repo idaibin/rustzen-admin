@@ -284,6 +284,30 @@ EOF
     if [ ! -d /var/lib/rustzen-monitor-agent/logs ] || [ -z "$(find /var/lib/rustzen-monitor-agent/logs -type f -print -quit)" ]; then
       cat "$base/runtime.out" >&2; find /var/lib/rustzen-monitor-agent -maxdepth 3 -ls >&2; exit 1
     fi
+    rm "$profile" "$marker" "$installed_config"
+    pin_with "$server/release-manifest.json" "$server/signature-envelope.json" https://localhost:4443 | grep -F true
+    write_source "$base/d55c-config.env" fixture-token-is-not-a-placeholder https://localhost:4443 fixture-agent
+    : > "$recorder_log"
+    RUSTZEN_SYSTEMCTL_RECORDER="$recorder" "$rz" --json activate-monitor-agent --config "$base/d55c-config.env" | grep -F true
+    cmp "$base/systemctl.expected" "$recorder_log"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=RustZen D55c CA" -addext basicConstraints=critical,CA:TRUE -addext keyUsage=critical,keyCertSign,cRLSign -keyout "$base/d55c-ca.key" -out "$base/d55c-ca.crt" >/dev/null 2>&1
+    openssl req -newkey rsa:2048 -nodes -subj /CN=localhost -keyout "$base/d55c.key" -out "$base/d55c.csr" >/dev/null 2>&1
+    printf "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost\n" > "$base/d55c.ext"
+    openssl x509 -req -in "$base/d55c.csr" -CA "$base/d55c-ca.crt" -CAkey "$base/d55c-ca.key" -CAcreateserial -days 1 -extfile "$base/d55c.ext" -out "$base/d55c.crt" >/dev/null 2>&1
+    cp "$base/d55c-ca.crt" /usr/local/share/ca-certificates/rz-d55c.crt
+    update-ca-certificates >/dev/null
+    PYTHONDONTWRITEBYTECODE=1 python3 scripts/monitor-agent-pairing-fixture.py --agent "$agent_binary" --certificate "$base/d55c.crt" --private-key "$base/d55c.key" --runtime-root /var/lib/rustzen-monitor-agent --evidence "$base/d55c.jsonl" --endpoint https://localhost:4443 --port 4443
+    test "$(wc -l < "$base/d55c.jsonl")" = 12
+    ! grep -F fixture-token-is-not-a-placeholder "$base/d55c.jsonl"
+    grep -F "\"case\": \"accepted\", \"event\": \"readiness\", \"payload\": \"READY=1\"" "$base/d55c.jsonl"
+    grep -F "\"case\": \"duplicate\", \"event\": \"readiness\", \"payload\": \"READY=1\"" "$base/d55c.jsonl"
+    grep -F "\"case\": \"unauthorized\", \"event\": \"readiness\", \"payload\": null" "$base/d55c.jsonl"
+    grep -F "\"case\": \"drop\", \"event\": \"readiness\", \"payload\": null" "$base/d55c.jsonl"
+    rm "$profile" "$marker" "$installed_config"
+    pin_with "$server/release-manifest.json" "$server/signature-envelope.json" https://monitor.example | grep -F true
+    : > "$recorder_log"
+    RUSTZEN_SYSTEMCTL_RECORDER="$recorder" "$rz" --json activate-monitor-agent --config "$config_source" | grep -F true
+    cmp "$base/systemctl.expected" "$recorder_log"
     runuser -u rz-monitor-agent -- cat "$profile" | grep -F controllerBuildId
     ! runuser -u rz-monitor-agent -- sh -c "echo x >> $profile"
     if runuser -u rz-monitor-agent -- env RUSTZEN_ENV=production RUSTZEN_MONITOR_AGENT_TOKEN=fixture-token-is-not-a-placeholder RUSTZEN_MONITOR_NODE_ID=fixture-agent RUSTZEN_MONITOR_CONTROLLER_URL=https://monitor.example target/agent-pair-linux/debug/rz-monitor-agent >"$base/missing.out" 2>&1; then exit 1; fi

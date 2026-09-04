@@ -18,6 +18,8 @@
 *.sw?
 *.log
 *.tmp
+__pycache__/
+*.py[cod]
 *.DS_Store
 
 # Cursor / AI
