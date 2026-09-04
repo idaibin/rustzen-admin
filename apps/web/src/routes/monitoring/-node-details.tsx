@@ -248,13 +248,22 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                 </Form.Item>
                 {canManage ? (
                     <Space>
-                        <Button type="primary" htmlType="submit" loading={save.isPending} disabled={busy}>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={save.isPending}
+                            disabled={busy}
+                        >
                             {t("保存为节点策略", "Save node policy")}
                         </Button>
                         {data.isCustom ? (
-                            <Button loading={reset.isPending} disabled={busy} onClick={() => {
-                                if (!busy) reset.mutate();
-                            }}>
+                            <Button
+                                loading={reset.isPending}
+                                disabled={busy}
+                                onClick={() => {
+                                    if (!busy) reset.mutate();
+                                }}
+                            >
                                 {t("重置为全局默认", "Reset to global defaults")}
                             </Button>
                         ) : null}

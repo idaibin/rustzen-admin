@@ -1,18 +1,28 @@
 import { describe, expect, test } from "bun:test";
 
 const route = await Bun.file(new URL("../src/routes/reports/runs.tsx", import.meta.url)).text();
-const dialog = await Bun.file(new URL("../src/routes/reports/-runs/run-dialog.tsx", import.meta.url)).text();
-const details = await Bun.file(new URL("../src/routes/reports/-runs/run-details.tsx", import.meta.url)).text();
-const frame = await Bun.file(new URL("../src/routes/reports/-runs/live-frame.tsx", import.meta.url)).text();
-const status = await Bun.file(new URL("../src/routes/reports/-runs/status.ts", import.meta.url)).text();
+const dialog = await Bun.file(
+    new URL("../src/routes/reports/-runs/run-dialog.tsx", import.meta.url),
+).text();
+const details = await Bun.file(
+    new URL("../src/routes/reports/-runs/run-details.tsx", import.meta.url),
+).text();
+const frame = await Bun.file(
+    new URL("../src/routes/reports/-runs/live-frame.tsx", import.meta.url),
+).text();
+const status = await Bun.file(
+    new URL("../src/routes/reports/-runs/status.ts", import.meta.url),
+).text();
 
 describe("reports runs route composition", () => {
     test("keeps the route as an orchestrator and delegates each bounded concern", () => {
         expect(route.split("\n").length).toBeLessThan(300);
         expect(route).toContain('import { RunDialog } from "./-runs/run-dialog"');
         expect(route).toContain('import { RunDetails } from "./-runs/run-details"');
-        expect(route).toContain('<RunDialog flows={flows} />');
-        expect(route).toContain('<RunDetails run={selected} onClose={() => setSelected(undefined)} />');
+        expect(route).toContain("<RunDialog flows={flows} />");
+        expect(route).toContain(
+            "<RunDetails run={selected} onClose={() => setSelected(undefined)} />",
+        );
         expect(route).not.toContain("function LiveFrame(");
         expect(route).not.toContain("function RunDialog(");
         expect(route).not.toContain("function RunDetails(");

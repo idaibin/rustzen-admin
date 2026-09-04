@@ -27,9 +27,7 @@ function MonitoringNodesPage() {
     const [panel, setPanel] = useState<"add" | "settings">();
     const [selected, setSelected] = useState<Monitor.Node>();
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
-    const canViewSettings = useAuthStore((state) =>
-        state.checkPermissions("monitor:node:view"),
-    );
+    const canViewSettings = useAuthStore((state) => state.checkPermissions("monitor:node:view"));
     const { data, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "nodes"],
         queryFn: monitorAPI.nodes,

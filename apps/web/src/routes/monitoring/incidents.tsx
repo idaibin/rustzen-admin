@@ -173,7 +173,10 @@ function MonitoringIncidentsPage() {
                     rowSelection={false}
                     locale={{
                         emptyText: (
-                            <DataState kind="empty" title={t("暂无告警事件", "No alert incidents")} />
+                            <DataState
+                                kind="empty"
+                                title={t("暂无告警事件", "No alert incidents")}
+                            />
                         ),
                     }}
                 />

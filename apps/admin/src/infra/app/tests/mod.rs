@@ -29,26 +29,15 @@ struct TestLoader;
 #[async_trait]
 impl AuthContextLoader for TestLoader {
     async fn load_current_user(&self, claims: &AuthClaims) -> Result<CurrentUser, CoreError> {
-        let permissions = if claims.username == "owner" {
-            vec!["*".to_owned()]
-        } else {
-            Vec::new()
-        };
-        Ok(CurrentUser::new(
-            claims.user_id,
-            claims.username.clone(),
-            permissions,
-            false,
-        ))
+        let permissions =
+            if claims.username == "owner" { vec!["*".to_owned()] } else { Vec::new() };
+        Ok(CurrentUser::new(claims.user_id, claims.username.clone(), permissions, false))
     }
 }
 
 async fn assert_json_error(response: axum::response::Response, status: StatusCode, code: i32) {
     assert_eq!(response.status(), status);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "application/json"
-    );
+    assert_eq!(response.headers().get("content-type").unwrap(), "application/json");
     let body: serde_json::Value =
         serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
             .expect("JSON error response");

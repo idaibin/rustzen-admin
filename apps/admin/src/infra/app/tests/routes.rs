@@ -4,23 +4,12 @@ use super::*;
 async fn documented_nested_routes_match_their_final_public_paths() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
     let (routes, contracts) = documented_protected_routes();
-    assert!(
-        contracts
-            .iter()
-            .any(|contract| contract.path == "/api/auth/me")
-    );
-    assert!(
-        contracts
-            .iter()
-            .any(|contract| contract.path == "/api/system/users")
-    );
+    assert!(contracts.iter().any(|contract| contract.path == "/api/auth/me"));
+    assert!(contracts.iter().any(|contract| contract.path == "/api/system/users"));
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool);
 
     let auth_response = app
@@ -55,20 +44,12 @@ async fn documented_nested_routes_match_their_final_public_paths() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        missing_content_type.status(),
-        StatusCode::UNSUPPORTED_MEDIA_TYPE
-    );
+    assert_eq!(missing_content_type.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
     assert_eq!(
         missing_content_type.headers().get("content-type").unwrap(),
         "text/plain; charset=utf-8"
     );
-    assert!(
-        !to_bytes(missing_content_type.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert!(!to_bytes(missing_content_type.into_body(), usize::MAX).await.unwrap().is_empty());
 
     let malformed_json = app
         .clone()
@@ -82,16 +63,8 @@ async fn documented_nested_routes_match_their_final_public_paths() {
         .await
         .unwrap();
     assert_eq!(malformed_json.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(
-        malformed_json.headers().get("content-type").unwrap(),
-        "text/plain; charset=utf-8"
-    );
-    assert!(
-        !to_bytes(malformed_json.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(malformed_json.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+    assert!(!to_bytes(malformed_json.into_body(), usize::MAX).await.unwrap().is_empty());
 
     let invalid_dto = app
         .oneshot(
@@ -104,16 +77,8 @@ async fn documented_nested_routes_match_their_final_public_paths() {
         .await
         .unwrap();
     assert_eq!(invalid_dto.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    assert_eq!(
-        invalid_dto.headers().get("content-type").unwrap(),
-        "text/plain; charset=utf-8"
-    );
-    assert!(
-        !to_bytes(invalid_dto.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(invalid_dto.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+    assert!(!to_bytes(invalid_dto.into_body(), usize::MAX).await.unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -123,9 +88,7 @@ async fn login_statuses_return_the_documented_json_errors() {
     let (routes, _) = public_auth_routes().into_parts();
     let app = routes
         .layer(Extension(ConnectInfo(
-            "127.0.0.1:3000"
-                .parse::<std::net::SocketAddr>()
-                .expect("address"),
+            "127.0.0.1:3000".parse::<std::net::SocketAddr>().expect("address"),
         )))
         .with_state(pool.clone());
 
@@ -158,16 +121,11 @@ async fn business_and_internal_errors_match_the_json_error_envelope() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
     run_migrations(&pool).await.expect("migrations");
     let (routes, _) = documented_protected_routes();
-    PermissionService::sync_permissions(&pool)
-        .await
-        .expect("permission cache");
+    PermissionService::sync_permissions(&pool).await.expect("permission cache");
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool);
     let owner = codec.encode(1, "owner").expect("token");
     let not_found = app

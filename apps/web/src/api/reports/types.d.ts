@@ -25,7 +25,11 @@ declare namespace Reports {
         | { action: "waitFor"; selector: string }
         | { action: "assertText"; selector: string; text: string }
         | { action: "screenshot"; name?: string }
-        | { action: "guardExists"; selector: string; onMissing?: "continue" | "skipNext" | "stop" | "fail" | "error" }
+        | {
+              action: "guardExists";
+              selector: string;
+              onMissing?: "continue" | "skipNext" | "stop" | "fail" | "error";
+          }
         | { action: "pressKey"; key: string }
         | { action: "pause"; durationMs: number };
     interface Flow {

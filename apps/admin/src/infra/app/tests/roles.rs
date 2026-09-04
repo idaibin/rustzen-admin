@@ -19,10 +19,7 @@ async fn role_management_rejects_deletion_of_assigned_custom_role() {
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool.clone());
     let owner = codec.encode(1, "owner").expect("owner token");
     let create_response = app
@@ -68,12 +65,9 @@ async fn role_management_rejects_deletion_of_assigned_custom_role() {
         .await
         .unwrap();
     assert_eq!(delete_response.status(), StatusCode::BAD_REQUEST);
-    let payload: serde_json::Value = serde_json::from_slice(
-        &to_bytes(delete_response.into_body(), usize::MAX)
-            .await
-            .unwrap(),
-    )
-    .expect("role deletion error");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&to_bytes(delete_response.into_body(), usize::MAX).await.unwrap())
+            .expect("role deletion error");
     assert_eq!(payload["code"], 10002);
     assert!(payload["message"].as_str().unwrap().contains("assigned"));
 
@@ -125,10 +119,7 @@ async fn role_list_exposes_assignment_count_and_deletable_state() {
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool);
     let owner = codec.encode(1, "owner").expect("owner token");
     let response = app
@@ -146,9 +137,7 @@ async fn role_list_exposes_assignment_count_and_deletable_state() {
             .expect("role list response");
     let rows = payload["data"].as_array().expect("role list data");
     let row_for = |code: &str| {
-        rows.iter()
-            .find(|row| row["code"] == code)
-            .unwrap_or_else(|| panic!("missing role {code}"))
+        rows.iter().find(|row| row["code"] == code).unwrap_or_else(|| panic!("missing role {code}"))
     };
 
     let unassigned = row_for("unassigned_role");

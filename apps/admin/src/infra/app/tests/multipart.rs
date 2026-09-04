@@ -189,10 +189,7 @@ async fn export_logs_route_returns_csv_content_type_and_body() {
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool);
     let owner = codec.encode(1, "owner").expect("token");
     let invalid_query = app
@@ -206,16 +203,8 @@ async fn export_logs_route_returns_csv_content_type_and_body() {
         .await
         .unwrap();
     assert_eq!(invalid_query.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(
-        invalid_query.headers().get("content-type").unwrap(),
-        "text/plain; charset=utf-8"
-    );
-    assert!(
-        !to_bytes(invalid_query.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(invalid_query.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
+    assert!(!to_bytes(invalid_query.into_body(), usize::MAX).await.unwrap().is_empty());
     let response = app
         .oneshot(
             Request::get("/api/manage/logs/export")
@@ -226,10 +215,7 @@ async fn export_logs_route_returns_csv_content_type_and_body() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "text/csv; charset=utf-8"
-    );
+    assert_eq!(response.headers().get("content-type").unwrap(), "text/csv; charset=utf-8");
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     assert_eq!(
         body,

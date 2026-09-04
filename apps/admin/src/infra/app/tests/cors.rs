@@ -3,14 +3,10 @@ use super::*;
 #[tokio::test]
 async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
     let upstream = Router::new().route("/api/insights/track", any(fake_insights_cors));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind fake module");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind fake module");
     let address = listener.local_addr().expect("fake module address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, upstream)
-            .await
-            .expect("serve fake module");
+        axum::serve(listener, upstream).await.expect("serve fake module");
     });
 
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
@@ -71,9 +67,7 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
         .route("/health", axum::routing::get(health))
         .fallback(crate::infra::web::serve)
         .layer(admin_cors());
-    let app = Router::new()
-        .merge(gateway::routes().with_state(module_state))
-        .merge(admin_routes);
+    let app = Router::new().merge(gateway::routes().with_state(module_state)).merge(admin_routes);
 
     let allowed_options = app
         .clone()
@@ -97,18 +91,12 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
         allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
         "https://app.example"
     );
-    assert_eq!(
-        allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_METHODS],
-        "POST"
-    );
+    assert_eq!(allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_METHODS], "POST");
     assert_eq!(
         allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS],
         "content-type, x-rustzen-project-key"
     );
-    assert_ne!(
-        allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-        "*"
-    );
+    assert_ne!(allowed_options.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
 
     let denied_options = app
         .clone()
@@ -143,14 +131,8 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
         .await
         .expect("allowed module POST");
     assert_eq!(allowed_post.status(), StatusCode::OK);
-    assert_eq!(
-        allowed_post.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-        "https://app.example"
-    );
-    assert_ne!(
-        allowed_post.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-        "*"
-    );
+    assert_eq!(allowed_post.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], "https://app.example");
+    assert_ne!(allowed_post.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
 
     let denied_post = app
         .clone()
@@ -178,10 +160,7 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
         .await
         .expect("Admin CORS");
     assert_eq!(admin_health.status(), StatusCode::OK);
-    assert_eq!(
-        admin_health.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-        "*"
-    );
+    assert_eq!(admin_health.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
     let admin_preflight = app
         .oneshot(
             Request::builder()
@@ -194,10 +173,7 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
         )
         .await
         .expect("Admin preflight CORS");
-    assert_eq!(
-        admin_preflight.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
-        "*"
-    );
+    assert_eq!(admin_preflight.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
     assert_eq!(
         admin_preflight.headers()[header::ACCESS_CONTROL_ALLOW_METHODS],
         "GET,POST,PUT,PATCH,DELETE"
@@ -216,10 +192,7 @@ fn assert_no_cors_allow_headers(response: &axum::response::Response) {
 }
 
 async fn fake_insights_cors(request: axum::extract::Request) -> Response {
-    let allowed = request
-        .headers()
-        .get(header::ORIGIN)
-        .and_then(|value| value.to_str().ok())
+    let allowed = request.headers().get(header::ORIGIN).and_then(|value| value.to_str().ok())
         == Some("https://app.example");
     if !allowed {
         return StatusCode::FORBIDDEN.into_response();
@@ -229,10 +202,7 @@ async fn fake_insights_cors(request: axum::extract::Request) -> Response {
             .status(StatusCode::NO_CONTENT)
             .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "https://app.example")
             .header(header::ACCESS_CONTROL_ALLOW_METHODS, "POST")
-            .header(
-                header::ACCESS_CONTROL_ALLOW_HEADERS,
-                "content-type, x-rustzen-project-key",
-            )
+            .header(header::ACCESS_CONTROL_ALLOW_HEADERS, "content-type, x-rustzen-project-key")
             .header(header::VARY, "Origin")
             .body(Body::empty())
             .unwrap();

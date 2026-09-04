@@ -1,10 +1,6 @@
 import { expect, test } from "bun:test";
 
-import {
-    taskListRefreshInterval,
-    taskQueryKeys,
-    taskRunsRefreshInterval,
-} from "./-task-refresh";
+import { taskListRefreshInterval, taskQueryKeys, taskRunsRefreshInterval } from "./-task-refresh";
 
 test("task refreshes only while a task is running", () => {
     expect(taskListRefreshInterval([])).toBeFalse();
@@ -22,11 +18,5 @@ test("run records refresh only while the dialog is open and a run is active", ()
 test("task run keys invalidate all pages while keeping page queries distinct", () => {
     expect(taskQueryKeys.list()).toEqual(["manage", "task"]);
     expect(taskQueryKeys.runs("cleanup")).toEqual(["manage", "task", "cleanup", "runs"]);
-    expect(taskQueryKeys.runsPage("cleanup", 2)).toEqual([
-        "manage",
-        "task",
-        "cleanup",
-        "runs",
-        2,
-    ]);
+    expect(taskQueryKeys.runsPage("cleanup", 2)).toEqual(["manage", "task", "cleanup", "runs", 2]);
 });

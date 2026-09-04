@@ -70,9 +70,9 @@ test("menu update targets the inventory endpoint with PUT", async () => {
     }) as typeof fetch;
 
     try {
-        await expect(menuAPI.update(42, { name: "Monitor", sortOrder: 1, status: 1 })).resolves.toBe(
-            42,
-        );
+        await expect(
+            menuAPI.update(42, { name: "Monitor", sortOrder: 1, status: 1 }),
+        ).resolves.toBe(42);
         expect(requestUrl).toBe("/api/system/menus/inventory/42");
         expect(requestInit?.method).toBe("PUT");
     } finally {

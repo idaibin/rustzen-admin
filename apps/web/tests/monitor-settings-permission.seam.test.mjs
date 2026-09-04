@@ -15,7 +15,7 @@ test("alert settings remain readable but only managers receive enabled controls 
 test("Nodes exposes Global settings to node viewers while the form remains manager-only", () => {
     expect(nodesSource).toContain('state.checkPermissions("monitor:node:view")');
     expect(nodesSource).not.toContain('state.checkPermissions("monitor:overview:view")');
-    expect(nodesSource).toContain("panel === \"settings\" && canViewSettings");
+    expect(nodesSource).toContain('panel === "settings" && canViewSettings');
     expect(source).toContain('state.checkPermissions("monitor:manage")');
     expect(source).toContain("{canManage ? (");
 });
