@@ -129,9 +129,25 @@ rejected. The manifest derives the digest from the stable canonical artifact and
 binds it into `buildId` for both Server and Agent.
 The generated source also exposes the exact unit bytes for a later writer. It
 uses a distinct non-root User/Group for Admin, Controller and Agent. It
-does not include recovery conditions: Monitor fresh-root installer/recovery
-publication is still unimplemented, so the old `rz-recovery.service` cannot be
-carried into this selected topology.
+does not include recovery conditions, so the old `rz-recovery.service` cannot
+be carried into this selected topology.
+
+### Fresh-root admission executor
+
+`rz verify` consumes `archive.tar`, `release-manifest.json`, and
+`signature-envelope.json`, with a separately supplied trusted PEM public key and
+key ID. `rz apply --destination <absent-root>` performs the same verification;
+`--dry-run` writes nothing. The executor admits only a production Server or
+node-Agent tuple, strict regular ustar members, exact member hashes and a
+detached Ed25519 envelope before creating the root. It publishes only the
+immutable selected payload, retained manifest/envelope, `current` link,
+root-private trust and a publication marker. `runnable` remains false: this is
+not a completed fresh installation and it creates no runtime config, journal,
+systemd state, database, update, rollback, restore or recovery service.
+`keyId` is a single safe identifier (`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`), while
+`buildId` and `compositionId` are lowercase SHA-256 identities. Apply and dry
+run require the release target to match the executing Linux architecture before
+opening a destination for publication.
 
 agentProtocolContractId is required for node-agent and server selections with
 Monitor, and forbidden for other server selections. Derive it from the canonical

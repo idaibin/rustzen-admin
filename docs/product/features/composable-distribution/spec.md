@@ -4,6 +4,11 @@ Status: implementation underway; P1 selection and P2 minimal Admin backend are c
 Selected native staging emits only the resolver-selected payload into
 `target/distributions/.native-staging/<buildId>/<target>/<artifactClass>/payload`; it excludes
 secret environment values, installer state, archive envelopes and non-selected services.
+The P4 fresh-root installer is a non-resident Linux `rz` command. It accepts a
+selected release triplet plus an independently supplied trusted public key and
+key ID, verifies it before writing a destination, and publishes only a verified
+Monitor server or Agent payload. It does not start systemd units, initialize a
+database, upgrade an existing root, roll back, or restore data in this closure.
 Decision date: 2026-09-03.
 
 The user has authorized architecture design for a complete distribution and

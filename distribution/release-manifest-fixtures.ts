@@ -93,7 +93,7 @@ export async function releaseFixture(kind: "server" | "agent" = "server") {
     };
 }
 
-export async function serverManifestFixture() {
+export async function serverManifestFixture(selection = monitorSelection) {
     const fixture = await releaseFixture();
     const binaryRoot = join(fixture.root, "staging-binary");
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
@@ -103,7 +103,7 @@ export async function serverManifestFixture() {
     }
     const staged = await produceNativeStaging({
         ...manifestInputs,
-        selection: monitorSelection,
+        selection,
         outputParent: join(fixture.root, "staged"),
         trustedRoot: fixture.root,
         binaryRoot,
@@ -116,13 +116,18 @@ export async function serverManifestFixture() {
     });
     const manifest = await produceReleaseManifest({
         ...manifestInputs,
-        selection: monitorSelection,
+        selection,
         staging: staged,
     });
     return { ...fixture, payloadRoot: staged.root, staging: staged, manifest };
 }
 
-export async function stagedPayloadFixture(kind: "server" | "agent") {
+export async function stagedPayloadFixture(
+    kind: "server" | "agent",
+    selection = kind === "server"
+        ? monitorSelection
+        : { preset: "node-agent", target: monitorSelection.target },
+) {
     const fixture = await releaseFixture(kind);
     const binaryRoot = join(fixture.root, "staging-binary");
     const names =
@@ -132,10 +137,6 @@ export async function stagedPayloadFixture(kind: "server" | "agent") {
         await writeFile(join(binaryRoot, "bin", name), name);
         await chmod(join(binaryRoot, "bin", name), 0o755);
     }
-    const selection =
-        kind === "server"
-            ? monitorSelection
-            : { preset: "node-agent", target: monitorSelection.target };
     const staged = await produceNativeStaging({
         ...manifestInputs,
         selection,
@@ -150,4 +151,16 @@ export async function stagedPayloadFixture(kind: "server" | "agent") {
         protocolRoot: fixture.protocolRoot,
     });
     return { ...fixture, payloadRoot: staged.root, staging: staged };
+}
+
+export async function agentManifestFixture(
+    selection = { preset: "node-agent", target: monitorSelection.target },
+) {
+    const fixture = await stagedPayloadFixture("agent", selection);
+    const manifest = await produceReleaseManifest({
+        ...manifestInputs,
+        selection,
+        staging: fixture.staging,
+    });
+    return { ...fixture, manifest };
 }

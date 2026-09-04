@@ -47,6 +47,14 @@ test("envelope is canonical, signed and bound to every fixed payload field", asy
         expect(() =>
             parseEnvelopePayload({ ...payload, algorithm: "RSA" }),
         ).toThrow();
+        expect(() =>
+            releaseEnvelopePayload(
+                fixture.manifest,
+                "../../escaped",
+                archive,
+                canonicalManifestBytes(fixture.manifest, monitorSelection),
+            ),
+        ).toThrow("keyId is invalid");
         const malformed = JSON.parse(new TextDecoder().decode(bytes));
         malformed.signature = "AAAA";
         expect(() =>

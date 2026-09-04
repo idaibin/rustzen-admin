@@ -19,6 +19,7 @@ const payloadKeys = [
     "manifestSha256",
     "agentProtocolContractId",
 ];
+const keyIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 export type EnvelopePayload = {
     domain: "rustzen-selected-release-v1";
     envelopeVersion: 1;
@@ -46,7 +47,7 @@ export function releaseEnvelopePayload(
         domain: "rustzen-selected-release-v1",
         envelopeVersion: 1,
         algorithm: "Ed25519",
-        keyId: nonempty(keyId, "keyId"),
+        keyId: validKeyId(keyId),
         releaseClass: manifest.releaseClass,
         releaseVersion: manifest.releaseVersion,
         target: manifest.target,
@@ -94,7 +95,7 @@ export function verifyReleaseEnvelope(
         throw new Error("release envelope bytes are not canonical");
     if (
         trusted.keyId !== payload.keyId ||
-        !nonempty(trusted.keyId, "trusted keyId")
+        !validKeyId(trusted.keyId)
     )
         throw new Error("release envelope key ID is not trusted");
     if (
@@ -127,7 +128,7 @@ export function parseEnvelopePayload(value: unknown): EnvelopePayload {
         domain: "rustzen-selected-release-v1",
         envelopeVersion: 1,
         algorithm: "Ed25519",
-        keyId: nonempty(record.keyId, "keyId"),
+        keyId: validKeyId(string(record.keyId, "keyId")),
         releaseClass,
         releaseVersion: nonempty(record.releaseVersion, "releaseVersion"),
         target: nonempty(record.target, "target"),
@@ -181,4 +182,8 @@ function nonempty(value: unknown, label: string): string {
     const result = string(value, label);
     if (!result) throw new Error(`${label} must be nonempty`);
     return result;
+}
+export function validKeyId(value: string): string {
+    if (!keyIdPattern.test(value)) throw new Error("keyId is invalid");
+    return value;
 }

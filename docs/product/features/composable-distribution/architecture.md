@@ -579,6 +579,12 @@ same-descriptor `O_NOFOLLOW` and identity checks detect ordinary replacement and
 but do not claim portable `openat`-grade protection against a hostile same-UID writer.
 Untrusted archive extraction safety remains an installer closure.
 
+The first implemented executor slice covers detached-triplet verification,
+strict archive admission, dry-run, fresh-root publication and read-only status.
+It deliberately stops before service-manager reload/start, database initialization
+and interrupted-install continuation; those boundaries stay pending rather than
+being inferred from a published filesystem layout.
+
 Keep the reviewed trust boundaries: private root staging, same-file-object signature
 verification/extraction, descriptor-relative no-link writes, exact content digests,
 per-service non-root identities and root-only trust/unit/journal ownership. A stable

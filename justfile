@@ -202,6 +202,9 @@ verify-distribution-selected-release:
     pnpm dlx bun@1.3.14 test distribution/release-envelope.test.ts distribution/release-publisher.test.ts scripts/distribution-publish-selected-release.integration.test.ts
     scripts/verify-selected-release-linux.sh
 
+verify-distribution-selected-installer:
+    scripts/verify-selected-installer-linux.sh
+
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent

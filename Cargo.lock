@@ -2811,11 +2811,15 @@ dependencies = [
 name = "rustzen-cli"
 version = "0.5.0"
 dependencies = [
+ "base64",
  "clap",
+ "ed25519-dalek",
+ "libc",
  "reqwest",
  "rustzen-ipc",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
 ]
 
