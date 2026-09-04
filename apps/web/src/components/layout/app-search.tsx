@@ -106,15 +106,14 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                 color="default"
                 variant="filled"
                 icon={<SearchOutlined />}
-                className="w-9 justify-center sm:w-44 sm:justify-start"
-                classNames={{ content: "flex flex-1 items-center" }}
+                className="w-9 justify-center sm:w-full sm:max-w-md sm:justify-start"
                 onClick={() => setOpen(true)}
                 aria-label={t("打开页面搜索", "Open page search")}
                 aria-keyshortcuts="Control+K Meta+K"
             >
-                <span className="hidden sm:inline">{t("搜索页面", "Search pages")}</span>
-                <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">
-                    Ctrl K
+                <span className="hidden min-w-0 flex-1 items-center gap-2 sm:flex">
+                    <span>{t("搜索页面", "Search pages")}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">Ctrl K</span>
                 </span>
             </Button>
 
@@ -148,7 +147,7 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                             <Menu
                                 items={menuItems}
                                 selectedKeys={[filteredRoutes[activeIndex]?.path ?? ""]}
-                                onSelect={({ key }) => {
+                                onClick={({ key }) => {
                                     const route = filteredRoutes.find((item) => item.path === key);
                                     if (route) {
                                         selectRoute(route);

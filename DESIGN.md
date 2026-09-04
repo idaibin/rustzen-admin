@@ -1,181 +1,376 @@
 ---
-name: "RustZen Admin"
-description: "Shared visual semantics for the RustZen self-hosted operations console"
+name: "Rustzen Admin"
+description: "Shared visual semantics for the Rustzen self-hosted operations console"
+colors:
+  canvas: "#F2F5FA"
+  sidebar: "#FBFCFE"
+  header: "#FFFFFF"
+  content: "#FFFFFF"
+  surface-subtle: "#F5F7FB"
+  selected-child: "#EAF2FF"
+  primary: "#1769E8"
+  foreground: "#172033"
+  foreground-muted: "#64748B"
+  success: "#16A34A"
+  warning: "#F59E0B"
+  danger: "#E5484D"
+  info: "#4F46E5"
+typography:
+  page-title:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 26px
+    fontWeight: 600
+    lineHeight: 34px
+  section-title:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 18px
+    fontWeight: 600
+    lineHeight: 26px
+  body:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 22px
+  supporting:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 13px
+    fontWeight: 400
+    lineHeight: 20px
+  table-header:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 13px
+    fontWeight: 600
+    lineHeight: 18px
+  metric-value:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: 28px
+    fontWeight: 600
+    lineHeight: 36px
+    fontFeature: "tnum"
+spacing:
+  tight: 4px
+  compact: 8px
+  related: 12px
+  component: 16px
+  large: 20px
+  page: 24px
+  section: 32px
+rounded:
+  control: 8px
+  panel: 10px
+  full: 9999px
+components:
+  shell-sidebar:
+    backgroundColor: "{colors.sidebar}"
+    width: 260
+  shell-header:
+    backgroundColor: "{colors.header}"
+  shell-content:
+    backgroundColor: "{colors.content}"
+    padding: "{spacing.page}"
+  input-default:
+    backgroundColor: "{colors.surface-subtle}"
+    rounded: "{rounded.control}"
+    height: 36px
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    rounded: "{rounded.control}"
+    height: 36px
+  icon-button:
+    rounded: "{rounded.control}"
+    width: 32px
+    height: 32px
+  navigation-child-active:
+    backgroundColor: "{colors.selected-child}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.control}"
 ---
 
-# RustZen Admin Design System
+# Rustzen Admin Design System
 
 ## Overview
 
-RustZen Admin uses a restrained, precise visual system for developer-operators and
-small technical teams. The interface prioritizes operational status, readable data,
-clear actions, and explicit failure evidence. Visual refinement comes from hierarchy,
-alignment, typography, spacing, borders, and state clarity rather than decoration.
+Rustzen Admin is a restrained, precise operations console for developer-operators and
+small technical teams. It prioritizes operational status, readable data, clear actions,
+and explicit failure evidence. Refinement comes from typography, alignment, consistent
+spacing, solid background layers, and state clarity rather than decoration.
 
-## Authority and scope
+### Authority and status
 
-This file is the sole shared visual-semantic authority for the repository-root Web
-design boundary. Product specifications own behavior, permissions, failure semantics,
-and acceptance outcomes. Feature UI specifications own page- or flow-local composition,
-applicable states, responsive behavior, and acceptance. Frontend source implements this
-contract but does not silently approve a conflicting visual decision.
+This file is the repository-root Web boundary's sole shared visual-semantic authority.
+Product specifications own behavior, permissions, route inventory, failure semantics,
+and acceptance outcomes. Feature UI specifications own page-local composition, states,
+responsive behavior, and acceptance. Generated concepts, screenshots, prompts, CSS,
+and `.codex/reviews` files are evidence or task material, not parallel authorities.
 
-The acceptance record for a revision is a named non-implementer human approval bound
-to the exact file content hash. A changed hash requires a new approval. Task captures,
-screenshots, generated concepts, historical QA, CSS values, and structured sidecars are
-evidence or implementation; none is a second shared authority.
+This revision is a candidate until a named non-implementer approves its exact SHA-256.
+Any later byte change invalidates that approval and requires a new one.
 
-## Visual direction
+### Visual direction
 
 - Use quiet operational density: compact enough for administration work, with enough
-  separation to scan status, tables, and actions reliably.
-- Make the primary task and critical status evident without decorative competition.
-- Use solid surfaces, restrained borders, and clear hierarchy. Do not use gradient,
-  glass, glow, ambient imagery, hover lift, bento filler, or oversized hero treatment
-  as default Admin language.
-- Keep one primary accent role. Success, warning, danger, information, focus, and chart
-  series remain distinct semantic roles.
-- Preserve the product's information architecture, routes, behavior, and accessibility
-  unless their owning contracts separately authorize a change.
+  breathing room to scan status, tables, and actions.
+- Use Ant Design surfaces, borders, and state fills for hierarchy. Do not add a parallel
+  card-border grid, decorative shadow system, gradients, glass, glow, hover lift, bento
+  filler, or oversized hero treatment.
+- Keep one primary accent. Success, warning, danger, information, focus, and chart
+  series remain separate semantic roles.
+- Preserve real information architecture and behavior. A visual design must not invent
+  routes, modules, permissions, metrics, or actions.
 
-## Themes and color semantics
+## Colors
 
-Light and dark are the only shared themes; light is the default. Both themes map the
-same semantic roles:
+Light is the canonical and default theme. The authenticated shell maps `canvas`,
+`sidebar`, `header`, and `content` through the shared theme and repository-owned AppShell.
+The user-selected layout has a canvas gutter separating sidebar, global header and content.
+Ant Design supplies components, not the application geometry.
 
-- canvas, surface, raised overlay, foreground, muted foreground, and border;
-- primary action/accent and visible keyboard-focus ring;
-- success for healthy/completed, warning for attention/degraded, danger for failed or
-  destructive, and information for active neutral status;
-- independent chart-series and factual metric-category tones.
+- `surface-subtle` is the visible fill for search inputs and table headers. Inputs must never visually dissolve into their parent surface.
+- `selected-child` marks only the active second-level route. A top-level leaf may use it
+  when active, but an expanded parent does not receive the same background.
+- `primary` is reserved for primary actions, active text, and focus indication.
+- `foreground` is used for titles and important data; `foreground-muted` is used for
+  descriptions, hints, timestamps, and secondary metadata.
+- `success`, `warning`, `danger`, and `info` are semantic, not decorative. Pair every
+  status color with a readable label and a consistent status icon.
+- Pale semantic fills are allowed when meaning is explicit. Do not color every card or
+  put arbitrary multicolor squares behind icons.
+- Borders and hairlines come from Ant Design component/theme tokens or factual
+  visualization. Do not add route-local separator colors or duplicate a component's
+  built-in border ownership.
 
-Color never carries status alone. Text, icon, label, or another non-color signal must
-communicate the meaning. Dark mode preserves readable surface separation, focus,
-hover, disabled, and overlay states rather than merely inverting light colors.
+Dark mode, where retained by the product, must map the same semantic roles and preserve
+surface, focus, hover, disabled, and overlay contrast. It is compatibility behavior, not
+the canonical design-source theme for the 1920x1080 page suite.
 
-## Typography and data
+## Typography
 
-Use the repository's system-compatible sans-serif stack for interface text. Page titles,
-section titles, body/table text, and supporting copy form one descending hierarchy.
-Operational numbers use tabular figures. Labels and supporting copy may wrap; primary
-actions and status meaning must not disappear when Simplified Chinese or English text
-expands. Avoid display typography or marketing-scale headlines inside the authenticated
-console.
+Use the declared system-compatible sans-serif tokens. Do not use marketing display type
+inside the authenticated console.
 
-## Layout and density
+- `page-title`: one route title per page; never repeat it in the global header.
+- `section-title`: compact panel and section heading.
+- `body`: default data, controls, and table cells.
+- `supporting`: descriptions, timestamps, hints, and metadata.
+- `table-header`: one line, visually quieter and smaller than row content.
+- `metric-value`: factual operational numbers with tabular figures.
 
-The application shell owns global chrome, viewport clipping, and the broad content
-boundary. The authenticated main content container owns one desktop page inset. A route
-owns its page composition and vertical scroll region. A panel or reusable component owns
-only its internal spacing. An overlay owns its stacking, focus, collision, and dismissal.
+Primary actions and status meaning must remain visible when Simplified Chinese or English
+copy expands. Supporting copy may wrap. Long identifiers and values wrap, truncate with
+an accessible reveal, or scroll only inside an explicitly owned region.
 
-Do not stack equivalent shell, page, panel, and component insets. Align page headings,
-actions, panels, empty states, and table headers to a named content edge. The document
-must not scroll horizontally. A bounded table or long-content region may scroll
-horizontally only when that owner is explicit and accessible.
+## Layout
 
-The shared desktop rhythm uses a 24 px page inset, 24 px major separation, 16 px section
-separation, and 8-12 px inline separation. Panels use a restrained 10 px radius and
-ordinary controls use an 8 px radius with a 36 px default height. These values are shared
-targets; feature contracts own justified exceptions and source owns the implementation.
+### Canonical AppShell
 
-## Shared component semantics
+The primary verification frame is 1920x1080 CSS pixels, with 1440x900 compatibility.
+The user-selected reference defines three separate rounded surfaces: a full-height left
+sidebar, a global header at the top right, and one content panel below the header.
+The repository-owned AppShell uses CSS Grid with 16px outer clearance and 16px gaps,
+a fixed 260px sidebar, a 64px header, and 12px panel radii. Desktop navigation remains
+expanded; narrow-screen navigation opens in an Ant Design Drawer.
+Ant Design Menu, Button, Avatar, Dropdown and Drawer retain component behavior; ProLayout
+must not impose its default geometry on this shell.
 
-### PageHeader
+Below 768px, outer clearance and gaps are 8px, the header is 56px, and navigation opens
+in an Ant Design Drawer. The content panel owns vertical scrolling; its inner page has
+24px padding on desktop and 16px on narrow screens. Header and sidebar remain stationary.
+Route switching preserves the same shell and must not introduce document horizontal scrolling.
 
-Use one `PageHeader` for overview and detail surfaces. It owns the page title, concise
-description, and directly related actions. It does not create a panel or a second page
-inset. A page does not repeat the same title in another shared shell.
+### Spacing ownership
 
-### PageCard
+Use the Ant Design-aligned spacing steps `tight` 4px, `compact` 8px, `related` 12px,
+`component` 16px, `large` 20px, `page` 24px, and `section` 32px. Choose the smallest
+step that preserves the relationship: icons and labels use compact spacing, related
+controls use compact or related spacing, component internals use component spacing,
+desktop page inset uses page spacing, and major groups may use large or section spacing.
 
-Use one `PageCard` for list and management surfaces. It owns the bounded surface that
-groups title, description, primary action, optional toolbar, and content. It does not
-redefine table columns, business actions, query behavior, or page-level permissions.
+Dimensions, icon sizes, typography, and radii are not spacing tokens. Shell owns chrome
+and broad content boundaries; page owns composition and vertical scroll; component owns
+internal spacing; overlay owns stacking, focus, collision, and dismissal. Never stack
+equivalent insets or introduce a route-local spacing scale.
 
-### MetricCard
+### Shared dimensions and density
 
-Use `MetricCard` only for compact factual operational metrics with a label, dominant
-value, and optional supporting hint. Icon and category tone are supporting cues, not
-status by themselves. Routes own the metric selection, ordering, grid, and business
-meaning. Do not use MetricCard for arbitrary content, module availability, charts,
-forms, progress, or decorative KPI filler, and do not create route-local visual variants.
+- Default control and primary page action are 36px; icon button is 32x32px.
+- Ant Design `Menu` owns the 40px item height and the indentation of parent and child rows.
+- Ant Design `Table` owns row density through its configured cell padding; routes do not
+  hard-code a competing universal row height.
+- Page headings, actions, panels, empty states, and table headers align to the same page
+  content edge.
+- Document-level horizontal scrolling is forbidden. A bounded table or long-content
+  owner may scroll horizontally when accessible.
 
-### DataState
+## Elevation & Depth
 
-Use `DataState` for shared query or process feedback. Preserve these distinctions:
+Rustzen Admin is flat and tonal. Depth comes from separate shell panels, Ant Design surfaces and
+borders, whitespace, and semantic state fills. Sidebar, header, content, cards, tables,
+and overlays retain their configured Ant Design treatment; routes do not add a parallel
+shadow, gradient, glass, or glow system.
 
-- loading: no successful result is available yet;
-- populated: successful usable data is present;
-- empty: a successful result contains no applicable data;
-- error: the owning operation failed and exposes recovery when available;
-- permission: access is unavailable and is not presented as an empty result;
-- processing: a long-running operation is active and reports progress when known;
-- background refresh: keep the last successful data visible, identify stale/failure
-  state, and provide retry without converting the surface to empty.
+Raised overlays may use the existing accessible overlay treatment. Overlays are absent
+from default page acceptance; an open state must define trigger, initial focus, trap,
+dismissal, collision handling, and focus restoration.
 
-A feature contract lists only the states its real behavior exposes and justifies any
-excluded state. Form validation and business-result semantics remain with their owning
-feature or product contract.
+## Shapes
+
+- Use `control` 8px for inputs, ordinary buttons, active menu items, chips, and compact
+  interactive surfaces.
+- Use `panel` 10px for configured Cards and bounded panels. The AppShell panels use 12px radii.
+- Use `full` only for status dots, avatars, and semantically circular controls.
+- Do not mix unrelated radii or add decorative icon tiles. A pale circle is allowed only
+  for an explicit factual metric or semantic status.
+
+## Components
+
+Ant Design is the default component source for the Web application. Prefer existing
+`antd` and `@ant-design/pro-components` components and their supported composition
+patterns before introducing custom controls, tables, pagination, forms, overlays, or
+feedback surfaces. Tailwind owns layout and spacing only. A custom component is allowed
+only when the owning product requirement cannot be met by the installed Ant Design
+stack; document the concrete gap and preserve Ant Design tokens, semantics, and
+accessibility behavior.
+
+### AppShell and global header
+
+The AppShell owns shared desktop geometry and solid background separation. The global
+header stays on one horizontal alignment line and never shows the route title.
+
+The `shell-sidebar`, `shell-header`, and `shell-content` component tokens bind the three
+persistent shell surfaces to their shared fill, sizing, and inset semantics.
+
+- Page search uses the repository's filled Ant Design `Button` at the header's left and opens the Ant Design search `Modal`. Preserve its search icon, readable
+  label, keyboard shortcut, grouped results, empty state, and keyboard selection; do
+  not replace it with a fixed full-width input copied from generated assets.
+- `input-default`, `button-primary`, and `icon-button` define the shared filled input,
+  primary page action, and compact icon-action geometry.
+- Search remains at the left; language, theme, and avatar/account align at the right.
+  The shell owns responsive spacing; never use absolute screenshot coordinates.
+- Language and account are text-plus-icon controls; theme is an icon button. Do not wrap
+  each control in a heavy pill.
+
+### Sidebar navigation
+
+- The sidebar brand uses a stable 28px logo; brand text is the source-owned 16px semibold label.
+  Logo and text share one visual centerline.
+- Navigation icons use the installed Ant Design icon rendering and one coherent outline family.
+- Ant Design route items render the repository-provided icon for both parent and child
+  items. Do not strip child icons or replace the Ant Design Menu with a parallel list.
+- An expanded parent stays transparent. When a descendant is active, parent icon, label,
+  and chevron use `primary`, but only the active child gets `selected-child` background.
+- `navigation-child-active` is the only shared filled child-navigation state.
+- Children use Ant Design Menu indentation and keep one stable label edge. They have no
+  bullets, leading dots, tree rails, timelines, or icons outside the route-provided
+  Ant Design icon family.
+- Chevron changes direction without shifting row geometry. Expanding one group must not
+  change another primary row's height or padding.
+
+### Iconography
+
+Use one outline family visually compatible with the repository-owned Ant Design Icons.
+Do not mix outline, filled, cartoon, 3D, or duotone families. The product owner is the
+repository frontend; library package rights govern reuse. When a required semantic icon
+is absent, use a reviewed icon from the same family rather than generating SVG source.
+
+- Navigation and control icon sizing follows the owning Ant Design component. Larger
+  factual summary icons are allowed only when the owning shared component defines them.
+- Status uses check-circle, warning-triangle, close-circle, or info-circle plus text.
+- Familiar table actions use icon-only controls—view, edit, history, play,
+  enable/disable, delete, deploy—with tooltip and accessible name.
+
+### PageHeader and PageCard
+
+PageHeader owns one title, a description aligned beside it on desktop, and directly related
+actions. On narrow screens the description may wrap below the title. It is
+inside the white content panel, with no separate background, outer inset, or title card.
+PageCard composes the title and an unpadded ProCard content region; the shell alone
+owns the page inset. It does not redefine columns, queries or permissions. Search and filter
+controls sit at the upper right, beside the title and page actions. Use compact inline
+controls on desktop and wrap within the panel on narrow screens; no full-width filter strip.
+Text searches apply after 300 ms without typing, pause during IME composition, and clear
+immediately. Select/date changes apply immediately. Filter changes reset pagination before
+querying; do not show Search or Reset submit buttons. The user list offers username and
+status only; monitoring summaries have no search control.
+
+Ordinary content cards use the content surface with subtle borders; metric cards use the
+shared blue, green, violet and amber tone fills and their dark-theme counterparts.
+Module health uses a status indicator plus text rather than a large green tile. Empty
+states use a compact blue icon surface and readable copy, not a gray illustration.
+The four global alert controls share one configuration panel with outlined number inputs.
+The table stays on the content fill with a subtle header. Do not split the route title
+and table into two standalone panels.
+
+### AppShell navigation
+
+Use the repository-owned route data and Ant Design Menu for authenticated navigation.
+Keep permission filtering, route order, icons, active keys, submenu behavior and keyboard
+navigation. Navigation icons remain 14px. Desktop sidebar collapse is not provided; the mobile
+AppShell Drawer owns narrow-screen navigation while the Menu owns indentation, submenu arrows
+and popup behavior.
+
+### MetricCard and DataState
+
+`MetricCard` is only for compact factual metrics with label, dominant value, and optional
+hint. Icon and tone support meaning; they are not decoration or status by themselves.
+
+Shared data/process states keep these meanings distinct: loading, populated, empty,
+error, permission, processing, and background refresh. Background refresh retains the
+last successful data, identifies stale/failure state, and offers retry. Feature contracts
+declare only states the real behavior exposes.
 
 ### DataTableShell
 
-Use `DataTableShell` as the bounded horizontal-overflow owner around a route-local data
-table. The route owns columns, filters, pagination, row selection, and business actions.
-The shell does not add a second card, page inset, or generic table domain abstraction.
+`DataTableShell` owns bounded horizontal overflow around a route-local table. The route
+owns columns, filters, pagination, selection, and business actions.
 
-### Overlays and feedback
+- Use the repository-owned Ant Design `ProTable` / `Table` and `Pagination` components.
+  Do not draw or maintain a parallel custom table or pager. The route source remains
+  authoritative for whether pagination is enabled, disabled with `pagination={false}`,
+  or hidden on a single page.
 
-Use the existing dialog, drawer, form, alert, tag, confirmation, and feedback primitives
-for their established meanings. The default accepted page state contains no open
-overlay. An open overlay must define its trigger, initial focus, focus trap, dismissal,
-and focus restoration in the applicable feature contract.
+- Table header uses `surface-subtle`, `table-header`, and a single line. Rebalance widths
+  or shorten labels instead of wrapping.
+- Rows use whitespace and hover/state fills, not divider lines or a border grid.
+- Menu administration is a flat navigation inventory because the current data owner
+  supplies flat rows. Render it with `ProTable` and `pagination={false}`. If product
+  behavior later introduces hierarchical `children`, use Ant Design expandable tree
+  data and its built-in expand control rather than simulated indentation.
+- Action columns use Ant Design fixed-column behavior when needed and reserve enough
+  route-owned width for the real actions, tooltips, and a readable right inset. Do not
+  impose one universal pixel width or clip actions into the page edge.
+- A paginated data-list page uses one full-height table owner. Keep Ant Design pagination
+  inside that owner and align it to the owner's bottom edge; record count stays left and
+  pagination stays right. Do not stretch rows or invent records to fill unused height.
+  Pages with `pagination={false}` do not render a placeholder page button.
 
-## Interaction and accessibility
+### Feedback and details
 
-- All actions are keyboard reachable and have a visible focus indicator in both themes.
-- Icon-only controls have an accessible name; color-only and hover-only disclosure are
-  not acceptable.
-- Dialogs and drawers trap focus while open, support expected dismissal, and restore
-  focus to a sensible trigger.
-- Loading and processing announce status without unnecessary interruption; errors and
-  permission failures use appropriate alert semantics.
-- Text and controls remain readable at zoom and with bilingual wrapping. Long values
-  wrap, truncate with an accessible reveal, or scroll inside an explicit owner.
-- Motion communicates feedback or state change only. Reduced-motion preference removes
-  nonessential transitions and animation.
+- Transient success, information, warning, and error feedback uses the existing Ant
+  Design `App` message or notification APIs and floats without consuming document-flow
+  height. Persistent page state may use `Alert` only when it must remain in the reading
+  flow.
+- Contextual diagnostics, evidence, and row details use Ant Design `Drawer` or `Modal`
+  when they should not reduce the table's available height. Preserve trigger, dismissal,
+  focus, collision, and focus-restoration behavior defined by the owning feature.
 
-## Viewport acceptance baseline
+## Do's and Don'ts
 
-- Primary: 1920x1080 CSS pixels, 100% zoom.
-- Compatibility: 1440x900 CSS pixels, 100% zoom.
-- Required themes: light and dark according to each feature's acceptance matrix.
-- Smaller viewports: best effort unless a feature contract explicitly promotes a named
-  size and state into required acceptance.
-
-Each feature contract names its applicable state, locale, theme, overflow, focus, and
-evidence matrix at these viewports. Static source, lint, build, screenshots, browser
-runtime, and assistive-technology checks remain separate evidence levels.
-
-## Reuse and extension
-
-Reuse an existing shared owner when its meaning matches. Extend it only when the new
-meaning is shared, has at least two compatible real consumers, and can be independently
-verified. Otherwise compose or wrap existing primitives inside the feature. Do not add
-a parallel token system, component library, generic shared directory, or route-local
-theme override to avoid the shared owner.
-
-Changes to shared themes, tokens, component meanings, state vocabulary, or cross-surface
-visual rules require an updated DESIGN candidate, official lint/diff gates, and a fresh
-named non-implementer approval bound to the exact content hash before implementation.
-
-## Do's and don'ts
-
-- Do keep operational hierarchy, status, actions, and recovery clear.
-- Do keep one effective owner for each inset, scroll axis, overlay, and shared meaning.
-- Do use real product copy and data states from their owning contracts.
-- Do not infer exact tokens, accessibility, behavior, or approval from pixels alone.
-- Do not copy shared visual semantics into feature specs, guides, YAML/JSON projections,
-  task reviews, or generated prompts.
-- Do not treat a build, lint result, screenshot, or isolated browser pass as complete
-  visual and assistive-technology acceptance.
+- Do keep operational hierarchy, status, timestamps, failure evidence, actions, and
+  recovery visible.
+- Do use the Ant Design-aligned 4/8/12/16/20/24/32 spacing steps to create hierarchy.
+- Do keep one owner for every inset, scroll axis, overlay, and shared meaning.
+- Do keep header, sidebar, logo, menus, search, and content ownership stable across all
+  authenticated routes through the shared AppShell.
+- Do verify canonical design-source PNGs are independent 1920x1080 files; a collage is
+  an optional index, never the primary delivery.
+- Do keep color-independent status labels, keyboard focus, accessible icon names,
+  reduced-motion behavior, bilingual wrapping, and zoom readability.
+- Do not add parent and child selection backgrounds at the same time.
+- Do not add submenu bullets, oversized navigation rows, multicolor icon tiles, wrapped
+  table headers, text-heavy action columns, clipped actions, or detached pagination.
+- Do not add permanent sparse detail panes, detached helper panels, giant filler regions,
+  or marketing-style authenticated-console content.
+- Do not copy these shared semantics into prompts, feature specs, YAML/JSON sidecars, or
+  route-local themes. Reference this file instead.
+- Do not treat lint, build, screenshots, browser runtime, or generated output as human
+  approval or complete accessibility acceptance.

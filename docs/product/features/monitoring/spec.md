@@ -181,6 +181,6 @@ does not register an empty node. Check connection reads the actual node list
 and distinguishes connected, waiting and request failure. Known duplicate IDs
 are rejected. Agent startup, authentication and reporting remain the existing contract.
 
-Global settings is part of Nodes, with no independent menu/page. Reading retains
-monitor:overview:view; saving requires monitor:manage. The four defaults share one
+Global settings is part of Nodes, with no independent menu/page. Reading requires
+monitor:node:view; saving requires monitor:manage. The four defaults share one
 Save, and successful saves invalidate Monitoring queries including node policies.

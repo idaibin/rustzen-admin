@@ -37,8 +37,12 @@ export function MetricCard({ label, value, icon, tone, hint }: MetricCardProps) 
 
     return (
         <Card
-            className="min-h-32 overflow-hidden border border-border bg-card shadow-none"
-            styles={{ body: { height: "100%", padding: 20 }, root: { borderRadius: 10 } }}
+            className="page-panel min-h-32 overflow-hidden"
+            variant="borderless"
+            styles={{
+                body: { height: "100%", padding: 20 },
+                root: { borderRadius: 10, background: toneTokens.surface },
+            }}
         >
             <div className="flex h-full items-start gap-4">
                 <div className="min-w-0 flex-1">

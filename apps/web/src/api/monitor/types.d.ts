@@ -1,32 +1,68 @@
 declare namespace Monitor {
+    type IncidentKind = "cpuHigh" | "memoryHigh" | "diskHigh" | "nodeOffline";
+    type IncidentStatus = "active" | "resolved";
+
+    interface Usage {
+        usedBytes: number;
+        totalBytes: number;
+        usagePercent: number;
+    }
+
+    interface DiskUsage extends Usage {
+        mountPoint: string;
+        collectedAt: string;
+    }
+
+    interface LatestDiskUsage extends Usage {
+        mountPoint: string;
+    }
+
     interface Overview {
         registeredNodes: number;
         onlineNodes: number;
         offlineNodes: number;
         activeIncidents: number;
-        unhealthyChecks: number;
+        latestResource: {
+            nodeId: string;
+            collectedAt: string;
+            lastReceivedAt: string;
+            cpuPercent: number;
+            memoryPercent: number;
+            disks: LatestDiskUsage[];
+        } | null;
     }
 
     interface Node {
-        id: string;
-        agentId: string;
+        nodeId: string;
         hostname: string;
         agentVersion: string;
-        lastSeenAt: string;
-        cpuPercent: number | null;
-        memoryUsedBytes: number | null;
-        memoryTotalBytes: number | null;
-        diskUsedBytes: number | null;
-        diskTotalBytes: number | null;
-        collectedAt: string | null;
+        bootId: string;
+        sequence: number;
+        lastReportAt: string;
         status: "online" | "offline";
+        alertPolicySource: "global" | "custom";
+        cpuPercent: number;
+        memory: Usage;
+        disks: DiskUsage[];
+        createdAt: string;
+        updatedAt: string;
     }
 
     interface MetricPoint {
         collectedAt: string;
         cpuPercent: number;
         memoryPercent: number;
-        diskPercent: number;
+    }
+
+    interface DiskMetricSeries {
+        mountPoint: string;
+        points: Array<{ collectedAt: string; percent: number }>;
+    }
+
+    interface Metrics {
+        bucket: "raw" | "5m" | "1h";
+        points: MetricPoint[];
+        disks: DiskMetricSeries[];
     }
 
     interface MetricsQuery {
@@ -35,100 +71,76 @@ declare namespace Monitor {
         bucket?: "raw" | "5m" | "1h";
     }
 
-    interface Check {
-        id: string;
-        name: string;
-        host: string;
-        port: number;
-        intervalSeconds: number;
-        timeoutMs: number;
-        failureThreshold: number;
-        enabled: boolean;
-        lastStatus: "up" | "down" | null;
-        lastCheckedAt: string | null;
-        lastLatencyMs: number | null;
-        consecutiveFailures: number;
-        createdAt: string;
-        updatedAt: string;
-    }
-
-    interface SaveCheck {
-        name: string;
-        host: string;
-        port: number;
-        intervalSeconds?: number;
-        timeoutMs?: number;
-        failureThreshold?: number;
-        enabled?: boolean;
-    }
-
-    interface CheckQuery {
-        current?: number;
-        pageSize?: number;
-        enabled?: boolean;
-        status?: "up" | "down";
-    }
-
-    interface CheckResult {
-        id: number;
-        checkId: string;
-        status: "up" | "down";
-        latencyMs: number | null;
-        error: string | null;
-        checkedAt: string;
-    }
-
-    interface ProbeResult {
-        status: "up" | "down";
-        latencyMs: number | null;
-        error: string | null;
-    }
-
     interface IncidentSummary {
         id: string;
-        sourceType: "node" | "check" | "resource";
-        sourceId: string;
-        kind: string;
+        nodeId: string;
+        kind: IncidentKind;
+        target: string;
+        status: IncidentStatus;
         title: string;
-        status: "open" | "acknowledged" | "resolved";
+        thresholdPercent: number | null;
+        observedPercent: number | null;
         openedAt: string;
-        acknowledgedAt: string | null;
-        resolvedAt: string | null;
         lastObservedAt: string;
+        resolvedAt: string | null;
+        resolutionReason: string | null;
+        details: Record<string, unknown>;
     }
 
     interface IncidentDetail extends IncidentSummary {
-        details: Record<string, unknown>;
-        node: IncidentNodeContext | null;
-        check: IncidentCheckContext | null;
+        node: Pick<Node, "nodeId" | "hostname" | "agentVersion" | "lastReportAt">;
     }
-
-    interface IncidentNodeContext {
-        id: string;
-        agentId: string;
-        hostname: string;
-        agentVersion: string;
-        lastSeenAt: string;
-    }
-
-    interface IncidentCheckContext {
-        id: string;
-        name: string;
-        host: string;
-        port: number;
-        lastStatus: "up" | "down" | null;
-        lastCheckedAt: string | null;
-        consecutiveFailures: number;
-    }
-
-    type Incident = IncidentSummary;
 
     interface IncidentQuery {
         current?: number;
         pageSize?: number;
-        status?: "open" | "acknowledged" | "resolved";
-        sourceType?: "node" | "check" | "resource";
-        sourceId?: string;
+        status?: IncidentStatus;
+        kind?: IncidentKind;
+        nodeId?: string;
+        from?: string;
+        to?: string;
+    }
+
+    interface AlertThreshold {
+        enabled: boolean;
+        thresholdPercent: number;
+    }
+
+    interface AlertSettings {
+        cpu: AlertThreshold;
+        memory: AlertThreshold;
+        disk: AlertThreshold;
+        offline: { enabled: boolean; afterSeconds: number };
+        updatedAt: string;
+        source: "global" | "custom";
+        isCustom: boolean;
+    }
+
+    type UpdateAlertSettings = Omit<AlertSettings, "updatedAt" | "source" | "isCustom">;
+
+    interface SummaryRange {
+        min: number | null;
+        avg: number | null;
+        max: number | null;
+    }
+
+    interface DailySummary {
+        nodeId: string;
+        date: string;
+        sampleCount: number;
+        coverage: number;
+        coveragePercent: number;
+        cpu: SummaryRange;
+        memory: SummaryRange;
+        diskSummary: Record<string, SummaryRange>;
+        offlineSeconds: number;
+        incidentCount: number;
+    }
+
+    interface DailySummaryQuery {
+        current?: number;
+        pageSize?: number;
+        nodeId?: string;
         from?: string;
         to?: string;
     }
@@ -138,19 +150,4 @@ declare namespace Monitor {
         total: number;
         success: boolean;
     }
-
-    interface Settings {
-        offlineAfterSeconds: number;
-        metricsRetentionDays: number;
-        checkResultRetentionDays: number;
-        defaultCheckIntervalSeconds: number;
-        defaultCheckTimeoutMs: number;
-        failureThreshold: number;
-        cpuThresholdPercent: number;
-        memoryThresholdPercent: number;
-        diskThresholdPercent: number;
-        updatedAt: string;
-    }
-
-    type UpdateSettings = Omit<Settings, "updatedAt">;
 }

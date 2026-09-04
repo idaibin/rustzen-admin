@@ -72,7 +72,7 @@ log content and lifecycle.
 
 | Product area | Feature slice | Product specification | UI specification | Status |
 | --- | --- | --- | --- | --- |
-| Monitoring | Incident diagnostics | [monitor-incident-diagnostics](./features/monitor-incident-diagnostics/spec.md) | [monitor-incident-diagnostics UI](../ui/features/monitor-incident-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
+| Monitoring | Central node monitoring | [monitoring](./features/monitoring/spec.md) | [Monitoring UI](../ui/features/monitoring.md) | Local gateway/service scenarios verified; full visual/deployment acceptance pending |
 | Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Implemented; source-resolved; runtime Not verified |
 | Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Implemented; source-resolved; runtime Not verified |
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |

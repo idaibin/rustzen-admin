@@ -1,5 +1,8 @@
 import { ProCard } from "@ant-design/pro-components";
+import { cn } from "cn";
 import type { ReactNode } from "react";
+
+import { PageHeader } from "./page-header";
 
 interface PageCardProps {
     title: ReactNode;
@@ -9,6 +12,7 @@ interface PageCardProps {
     children: ReactNode;
     className?: string;
     contentClassName?: string;
+    headingLevel?: 1 | 2;
 }
 
 export function PageCard({
@@ -19,27 +23,50 @@ export function PageCard({
     children,
     className,
     contentClassName,
+    headingLevel = 1,
 }: PageCardProps) {
-    const rootClassName = [
-        "page-card flex h-full min-h-0 flex-col overflow-hidden",
-        className,
-    ].filter((item): item is string => typeof item === "string");
-    const contentClass = ["flex min-h-0 flex-1 flex-col gap-4", contentClassName].filter(
-        (item): item is string => typeof item === "string",
-    );
+    const rootClassName = cn("page-card flex h-full min-h-0 flex-col gap-5", className);
+    const contentClass = cn("flex min-h-0 flex-1 flex-col gap-4", contentClassName);
 
     return (
-        <ProCard
-            className={rootClassName.join(" ")}
-            title={title}
-            subTitle={description}
-            extra={actions}
-            headerBordered
-        >
-            <div className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
-                {toolbar}
-                <div className={contentClass.join(" ")}>{children}</div>
-            </div>
-        </ProCard>
+        <section className={rootClassName}>
+            <PageHeader
+                title={title}
+                description={description}
+                actions={
+                    toolbar || actions ? (
+                        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+                            {toolbar}
+                            {actions}
+                        </div>
+                    ) : undefined
+                }
+                headingLevel={headingLevel}
+            />
+            <ProCard
+                className="page-card-content min-h-0 flex-1"
+                variant="borderless"
+                styles={{
+                    root: {
+                        background: "transparent",
+                        display: "flex",
+                        flex: 1,
+                        flexDirection: "column",
+                        minHeight: 0,
+                    },
+                    body: {
+                        display: "flex",
+                        minHeight: 0,
+                        flex: 1,
+                        flexDirection: "column",
+                        padding: 0,
+                    },
+                }}
+            >
+                <div className="flex min-h-0 flex-1 flex-col gap-4">
+                    <div className={contentClass}>{children}</div>
+                </div>
+            </ProCard>
+        </section>
     );
 }

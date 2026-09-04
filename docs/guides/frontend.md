@@ -42,6 +42,9 @@ component system.
   it does not redefine theme, component, state, layout, responsive, or
   accessibility meaning.
 - React Query owns read-side server state.
+- Use `cn` from the `cn` package when combining conditional or caller-provided Tailwind
+  classes. Pass caller overrides last so conflicting utilities resolve consistently;
+  keep fixed class strings literal. Ant Design styling remains owned by its theme tokens.
 - Zustand stays limited to shared auth state and small persisted UI filters.
 - Implement the `DataState` distinctions defined by `DESIGN.md`. Query owners
   supply the real state, retry through their existing query, and retain the

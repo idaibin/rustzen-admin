@@ -26,7 +26,8 @@ APIs.
 
 ## Confirmed decisions
 
-- All factual overview metrics reuse one shared `MetricCard` component.
+- Factual count cards reuse one shared `MetricCard` component; host resource
+  percentages remain in the existing progress-based summary.
 - Every metric retains a visible title, numeric value, and semantically related
   icon. Supporting copy remains optional.
 - Each metric receives its own semantic category; a page-wide default category
@@ -43,8 +44,8 @@ In scope:
 
 - the four Dashboard account metrics;
 - the three permission-gated Dashboard system-resource metrics;
-- one Dashboard account-overview panel placed before the runtime-module panel;
-- the five Monitoring overview metrics;
+- the Dashboard account metric row preceding resource and module summaries;
+- the four Monitoring overview metrics;
 - the four current Analytics core-activity metrics;
 - one semantic tone contract and one optional-supporting-copy API;
 - responsive reflow without document-level horizontal overflow;
@@ -82,7 +83,7 @@ Non-goals:
 - Tone communicates category or operational meaning and must not be the only
   carrier of a health/status fact.
 - Card presentation has no write-side data effect.
-- Dashboard presents the account-overview panel before the runtime-module panel.
+- Dashboard presents account metrics before the resource and runtime-module summaries.
 - Metric order, localization, and permission behavior remain unchanged.
 - The runtime-module query keeps its 15-second background polling without showing
   a redundant refresh-interval label in the panel.
@@ -92,12 +93,10 @@ Non-goals:
 
 ## Acceptance criteria
 
-- Dashboard renders 4 account metrics and, for an authorized owner, 3 host
-  resource metrics; Monitoring renders 5 and Analytics renders 4 existing
-  metrics through the same exported `MetricCard` implementation.
-- Dashboard groups the four account metrics inside one account-overview `Card`
-  before the runtime-module `Card`; the runtime-module panel has no visible
-  refresh-interval label.
+- Dashboard renders four account count cards plus three permission-gated host resource
+  values. Monitoring renders four count cards; Analytics renders four activity count cards.
+- Dashboard count cards form one row without a redundant enclosing account Card.
+  Resource and module summaries follow; a module state remains readable as text.
 - Every card contains a visible title, a semantically related icon, and a
   dominant tabular numeric value; supporting copy remains optional.
 - Adjacent metric categories remain distinguishable without relying on color

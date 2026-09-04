@@ -5,15 +5,27 @@ import { apiRequest } from "@/api/request";
 export const monitorAPI = {
     overview: () => apiRequest<Monitor.Overview>({ url: contract.overview.path }),
     nodes: () => apiRequest<Monitor.Node[]>({ url: contract.nodes.path }),
+    node: (nodeId: string) =>
+        apiRequest<Monitor.Node>({ url: routePath(contract.node, { node_id: nodeId }) }),
     metrics: (nodeId: string, params: Monitor.MetricsQuery = {}) =>
-        apiRequest<Monitor.MetricPoint[], Monitor.MetricsQuery>({
+        apiRequest<Monitor.Metrics, Monitor.MetricsQuery>({
             url: routePath(contract.metrics, { node_id: nodeId }),
             params,
         }),
-    checks: (params: Monitor.CheckQuery = {}) =>
-        apiRequest<Monitor.Page<Monitor.Check>, Monitor.CheckQuery>({
-            url: contract.checks.path,
+    nodeAlertSettings: (nodeId: string) =>
+        apiRequest<Monitor.AlertSettings>({
+            url: routePath(contract.nodeAlertSettings, { node_id: nodeId }),
+        }),
+    updateNodeAlertSettings: (nodeId: string, params: Monitor.UpdateAlertSettings) =>
+        apiRequest<Monitor.AlertSettings, Monitor.UpdateAlertSettings>({
+            url: routePath(contract.updateNodeAlertSettings, { node_id: nodeId }),
+            method: contract.updateNodeAlertSettings.method,
             params,
+        }),
+    resetNodeAlertSettings: (nodeId: string) =>
+        apiRequest<Monitor.AlertSettings>({
+            url: routePath(contract.resetNodeAlertSettings, { node_id: nodeId }),
+            method: contract.resetNodeAlertSettings.method,
         }),
     incidents: (params: Monitor.IncidentQuery = {}) =>
         apiRequest<Monitor.Page<Monitor.IncidentSummary>, Monitor.IncidentQuery>({
@@ -21,36 +33,17 @@ export const monitorAPI = {
             params,
         }),
     incident: (id: string) =>
-        apiRequest<Monitor.IncidentDetail>({
-            url: routePath(contract.incident, { id }),
-        }),
-    createCheck: (params: Monitor.SaveCheck) =>
-        apiRequest<Monitor.Check, Monitor.SaveCheck>({
-            url: contract.createCheck.path,
-            method: contract.createCheck.method,
+        apiRequest<Monitor.IncidentDetail>({ url: routePath(contract.incident, { id }) }),
+    alertSettings: () => apiRequest<Monitor.AlertSettings>({ url: contract.alertSettings.path }),
+    updateAlertSettings: (params: Monitor.UpdateAlertSettings) =>
+        apiRequest<Monitor.AlertSettings, Monitor.UpdateAlertSettings>({
+            url: contract.updateAlertSettings.path,
+            method: contract.updateAlertSettings.method,
             params,
         }),
-    updateCheck: (id: string, params: Monitor.SaveCheck) =>
-        apiRequest<Monitor.Check, Monitor.SaveCheck>({
-            url: routePath(contract.updateCheck, { id }),
-            method: contract.updateCheck.method,
-            params,
-        }),
-    deleteCheck: (id: string) =>
-        apiRequest<void>({
-            url: routePath(contract.deleteCheck, { id }),
-            method: contract.deleteCheck.method,
-        }),
-    setCheckEnabled: (id: string, enabled: boolean) =>
-        apiRequest<Monitor.Check, { enabled: boolean }>({
-            url: routePath(contract.setCheckEnabled, { id }),
-            method: contract.setCheckEnabled.method,
-            params: { enabled },
-        }),
-    testCheck: (params: Pick<Monitor.SaveCheck, "host" | "port" | "timeoutMs">) =>
-        apiRequest<Monitor.ProbeResult, Pick<Monitor.SaveCheck, "host" | "port" | "timeoutMs">>({
-            url: contract.testCheck.path,
-            method: contract.testCheck.method,
+    dailySummaries: (params: Monitor.DailySummaryQuery = {}) =>
+        apiRequest<Monitor.Page<Monitor.DailySummary>, Monitor.DailySummaryQuery>({
+            url: contract.dailySummaries.path,
             params,
         }),
 };

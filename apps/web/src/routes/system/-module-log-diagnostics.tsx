@@ -385,12 +385,9 @@ function ModuleLogDiagnosticsContent() {
 
     return (
         <PageCard
+            headingLevel={2}
             className="shrink-0"
             title={t("模块日志诊断", "Module log diagnostics")}
-            description={t(
-                "查看四个本地服务的受限日志尾部，并通过预览安全备份或清理过期文件。操作日志仍保留在独立的日志页面。",
-                "Inspect bounded tails from the four local services, then preview safe backups or cleanup. Operation logs remain on their separate page.",
-            )}
             actions={
                 <Space wrap>
                     <Button
@@ -432,7 +429,7 @@ function ModuleLogDiagnosticsContent() {
                         type="date"
                         value={dateFilter}
                         onChange={(event) => setDateFilter(event.target.value)}
-                        className="w-40"
+                        style={{ width: 160, maxWidth: "100%" }}
                     />
                     <Button
                         icon={<ReloadOutlined />}
@@ -441,15 +438,21 @@ function ModuleLogDiagnosticsContent() {
                     >
                         {t("刷新", "Refresh")}
                     </Button>
-                    <Typography.Text type="secondary">
-                        {t(
-                            "备份上限 64 MiB；日志尾部最多 256 KiB / 2,000 行。",
-                            "Backup cap: 64 MiB; tail cap: 256 KiB / 2,000 lines.",
-                        )}
-                    </Typography.Text>
                 </div>
             }
         >
+            <Typography.Text type="secondary">
+                {t(
+                    "查看四个本地服务的受限日志尾部，并通过预览安全备份或清理过期文件。操作日志仍保留在独立的日志页面。",
+                    "Inspect bounded tails from the four local services, then preview safe backups or cleanup. Operation logs remain on their separate page.",
+                )}
+            </Typography.Text>
+            <Typography.Text type="secondary">
+                {t(
+                    "备份上限 64 MiB；日志尾部最多 256 KiB / 2,000 行。",
+                    "Backup cap: 64 MiB; tail cap: 256 KiB / 2,000 lines.",
+                )}
+            </Typography.Text>
             {backupError ? (
                 <Alert
                     type="error"

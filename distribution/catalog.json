@@ -45,8 +45,7 @@
                 "apps/web/src/routes/monitoring/overview.tsx",
                 "apps/web/src/routes/monitoring/nodes.tsx",
                 "apps/web/src/routes/monitoring/incidents.tsx",
-                "apps/web/src/routes/monitoring/summaries.tsx",
-                "apps/web/src/routes/monitoring/settings.tsx"
+                "apps/web/src/routes/monitoring/summaries.tsx"
             ],
             "schemaOwners": ["monitor"],
             "configOwners": ["monitor"],

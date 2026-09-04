@@ -42,7 +42,8 @@ export const localizeModuleName = (id: SystemModule.Id, fallback: string) =>
 const moduleMenuNames: Record<string, [string, string]> = {
     "monitor:overview": ["概览", "Overview"],
     "monitor:nodes": ["节点", "Nodes"],
-    "monitor:checks": ["服务监控", "Service checks"],
+    "monitor:incidents": ["告警事件", "Alert incidents"],
+    "monitor:summaries": ["日报", "Daily summaries"],
     "insights:overview": ["概览", "Overview"],
     "insights:details": ["明细", "Details"],
     "reports:templates": ["模板", "Templates"],

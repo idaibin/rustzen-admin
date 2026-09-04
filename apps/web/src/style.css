@@ -44,125 +44,79 @@
 }
 
 @layer components {
-    .app-shell .ant-pro-layout-bg-list {
-        display: none;
+    .app-shell {
+        --page-inset: 24px;
     }
 
-    .app-shell .ant-pro-sider,
-    .app-shell .ant-layout-header {
-        border-color: var(--border);
-    }
-
-    .page-header .ant-page-header-heading {
-        align-items: flex-start;
-        padding: 0;
-    }
-
-    .page-header .ant-page-header-heading-title {
+    .page-header .page-title {
+        margin: 0;
+        color: inherit;
         font-size: 26px;
+        font-weight: 600;
         line-height: 34px;
         letter-spacing: -0.02em;
     }
 
-    .page-header .ant-page-header-heading-sub-title {
-        margin-top: 5px;
-        color: var(--muted-foreground);
-        line-height: 22px;
+    .page-header h2.page-title {
+        font-size: 18px;
+        line-height: 26px;
     }
 
-    .page-card.ant-pro-card,
     .page-panel.ant-card {
-        border: 1px solid var(--border);
         box-shadow: none;
-    }
-
-    .page-card > .ant-pro-card-header {
-        padding: 20px 24px 16px;
-    }
-
-    .page-card > .ant-pro-card-body {
-        padding: 0 24px 24px;
-    }
-
-    .data-table-shell .ant-pro-table-list-toolbar-container {
-        padding-block: 12px;
     }
 
     .data-table-shell .ant-table-thead > tr > th {
         font-weight: 600;
     }
 
-    .data-table-shell .ant-table-cell {
-        border-color: var(--border);
-    }
-
     .data-table-shell .ant-pagination {
         margin-bottom: 0;
+    }
+
+    .data-table-shell .ant-table-placeholder [role="status"] {
+        position: sticky;
+        left: 0;
+        max-width: calc(var(--table-viewport-width, 100%) - 32px);
+    }
+    .data-table-shell-fill > .ant-pro-table,
+    .data-table-shell-fill .ant-pro-card,
+    .data-table-shell-fill .ant-pro-card-body,
+    .data-table-shell-fill .ant-table-wrapper,
+    .data-table-shell-fill .ant-table-wrapper > .ant-spin,
+    .data-table-shell-fill .ant-spin-nested-loading,
+    .data-table-shell-fill .ant-spin-container,
+    .data-table-shell-fill .ant-table,
+    .data-table-shell-fill .ant-table-container {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+    }
+
+    .data-table-shell-fill .ant-table-container,
+    .data-table-shell-fill .ant-table-body {
+        min-height: 0;
+        flex: 1;
+    }
+
+    .data-table-shell-fill .ant-table-body > table:has(.ant-table-placeholder) {
+        height: 100%;
+    }
+
+    .data-table-shell:not(.data-table-shell-fill) .ant-table-content {
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 }
 
 @media (max-width: 767px) {
-    .page-header .ant-page-header-heading {
-        flex-wrap: wrap;
-        gap: 12px;
+    .app-shell {
+        --page-inset: 16px;
     }
-
-    .page-header .ant-page-header-heading-left {
-        min-width: 0;
-        flex: 1 1 100%;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .page-header .ant-page-header-heading-title,
-    .page-header .ant-page-header-heading-sub-title {
-        max-width: 100%;
-        margin-inline-start: 0;
-        overflow: visible;
-        white-space: normal;
-        text-overflow: clip;
-    }
-
-    .page-header .ant-page-header-heading-title {
+    .page-header .page-title {
         font-size: 22px;
         line-height: 30px;
-    }
-
-    .page-header .ant-page-header-heading-sub-title {
-        margin-top: 2px;
-    }
-
-    .page-card > .ant-pro-card-header {
-        flex-wrap: wrap;
-        gap: 12px;
-        padding: 16px 16px 12px;
-    }
-
-    .page-card > .ant-pro-card-header .ant-pro-card-title {
-        width: 100%;
-    }
-
-    .page-card > .ant-pro-card-header .ant-pro-core-label-tip {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-    }
-
-    .page-card > .ant-pro-card-header .ant-pro-core-label-tip-title,
-    .page-card > .ant-pro-card-header .ant-pro-core-label-tip-subtitle {
-        width: auto;
-        max-width: 100%;
-        margin-inline-start: 0;
-        white-space: normal;
-    }
-
-    .page-card > .ant-pro-card-header .ant-pro-card-extra {
-        margin-inline-start: 0;
-    }
-
-    .page-card > .ant-pro-card-body {
-        padding: 0 16px 16px;
     }
 }
 
@@ -188,4 +142,95 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+}
+
+/* The shell owns the three panels; route components own their inner composition. */
+.app-shell {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
+    gap: 16px;
+    padding: 16px;
+    background: var(--background);
+}
+.shell-sidebar {
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    border-radius: 12px;
+    background: var(--sidebar);
+}
+.shell-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 64px;
+    flex-shrink: 0;
+    padding: 16px;
+}
+.shell-navigation {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 8px;
+}
+.shell-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding: 12px 24px;
+    border-radius: 12px;
+    background: var(--header);
+}
+.shell-search {
+    flex: 1;
+    min-width: 0;
+}
+.shell-mobile-toggle {
+    display: none;
+}
+.shell-content {
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--card);
+}
+.shell-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--page-inset);
+}
+.data-table-pagination {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 12px;
+}
+@media (max-width: 767px) {
+    .app-shell {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 56px minmax(0, 1fr);
+        gap: 8px;
+        padding: 8px;
+    }
+    .shell-sidebar {
+        display: none;
+    }
+    .shell-header {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    .shell-mobile-toggle {
+        display: inline-flex;
+    }
 }

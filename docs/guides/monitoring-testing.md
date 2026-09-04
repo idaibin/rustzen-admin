@@ -18,14 +18,14 @@ handler 和 SQLite 持久层验证以下边界：
 - `threshold_boundary_applies_to_cpu_memory_and_each_disk`、`disabled_offline_alert_does_not_create_incident`、`invalid_alert_settings_are_rejected_without_partial_update`、`metric_buckets_align_by_epoch_and_retain_independent_mount_series`、`file_cleanup_reports_reclaim_maintenance_and_is_idempotent`、`cleanup_retries_maintenance_after_committed_deletion_failure` 和 retention 测试覆盖阈值包含边界、禁用、非法设置、5 分钟桶、挂载点独立序列、文件库 freelist 维护、maintenance 失败结果与重试及保留/清理。
 - `sqlite_foreign_key_and_active_incident_uniqueness_are_enforced`、唯一初始化基线和文件重开测试覆盖 FK、active incident 唯一约束、仅创建最终表结构和重启持久化。
 
-2026-09-03 本地验收：Monitor 53 项测试通过；`just check` 和 Admin OpenAPI/client
+当前验收基线：Controller 47 项与 Agent 12 项测试通过；`just check` 和 Admin OpenAPI/client
 契约检查通过。`just verify-modules-mvp` 的底层服务验证脚本通过全新的四个服务数据库验证
 24 种启动顺序、原生 macOS Agent 经 Admin 网关上报、服务隔离与数据库恢复。
-新增 `scripts/verify-monitoring-scenarios.mjs` 验证真实 owner/viewer 权限、五个导航入口、
-共享权限页面的独立隐藏/恢复、全局与节点策略、重复/过期隔离、CPU/磁盘告警三次触发与
+新增 `scripts/verify-monitoring-scenarios.mjs` 验证真实 owner/viewer 权限、四个导航入口、
+全局与节点策略、重复/过期隔离、CPU/磁盘告警三次触发与
 三次恢复、事件分页/详情、非法输入和 30 天查询边界。该脚本被统一 worker 验证入口调用。
 
-浏览器已覆盖五个页面、节点多挂载点详情、自定义策略保存与重置、事件详情、设置保存及
+浏览器已覆盖四个页面、节点多挂载点详情、自定义策略保存与重置、事件详情、设置保存及
 日报空状态。完整分页/筛选组合、日报非 30 秒采样覆盖率、Linux/Windows 真实采集、部署
 环境定时任务及完整视觉/异常状态矩阵仍需单独验收。Overview/Nodes 当前没有分页契约，
 分页验收适用于 Incidents/Summaries；上述证据不能替代生产部署验证。
@@ -124,7 +124,7 @@ Using a file-backed SQLite database:
 
 ## P2 Web
 
-- Navigation contains Overview, Nodes, Incidents, Alert settings, and Daily summaries only.
+- Navigation contains Overview, Nodes, Incidents, and Daily summaries only; Global settings opens from Nodes.
 - Overview distinguishes online/offline nodes and active Incidents.
 - Node details display independent disk-mount series and a maximum 30-day query.
 - Incidents display only active/resolved states.

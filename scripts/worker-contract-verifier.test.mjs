@@ -43,11 +43,11 @@ describe("manifest/frontend route contract comparison", () => {
         expect(result.clientPublicRoutes).toEqual([]);
     });
 
-    test("allows Monitor heartbeat as an explicit public exception", () => {
+    test("allows the Monitor agent-report route as an explicit public application route", () => {
         const result = compareManifestRoutes(
             "monitor",
             manifest(
-                [{ method: "POST", path: "/heartbeat", access: "public" }],
+                [{ method: "POST", path: "/agent-reports", access: "public" }],
                 "/api/monitor",
             ),
             {},
@@ -70,7 +70,7 @@ describe("manifest/frontend route contract comparison", () => {
         ]);
     });
 
-    test("does not hide an unknown Monitor public route behind the heartbeat exception", () => {
+    test("does not hide an unknown Monitor public route behind the agent-report route", () => {
         const result = compareManifestRoutes(
             "monitor",
             manifest(
@@ -85,18 +85,18 @@ describe("manifest/frontend route contract comparison", () => {
         ]);
     });
 
-    test("reports public allowlist drift when the heartbeat route is not public", () => {
+    test("reports agent-report access drift", () => {
         const result = compareManifestRoutes(
             "monitor",
             manifest(
-                [{ method: "POST", path: "/heartbeat", access: "protected" }],
+                [{ method: "POST", path: "/agent-reports", access: "protected" }],
                 "/api/monitor",
             ),
-            { heartbeat: { method: "POST", path: "/api/monitor/heartbeat" } },
+            {},
         );
 
         expect(result.invalidAllowlist).toEqual([
-            { key: "POST /api/monitor/heartbeat", access: "protected" },
+            { key: "POST /api/monitor/agent-reports", access: "protected" },
         ]);
         expect(result.clientPublicRoutes).toEqual([]);
     });

@@ -1,84 +1,65 @@
 import {
-    AlertFilled,
     CloudServerOutlined,
-    CloudSyncOutlined,
+    DisconnectOutlined,
     ExclamationCircleOutlined,
     SignalFilled,
 } from "@ant-design/icons";
-import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card, Tag } from "antd";
+import { Button, Card, Progress, Tag, Typography } from "antd";
 
 import { monitorAPI } from "@/api";
-import { AuthWrap } from "@/components/auth";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
-import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
-import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
 
 function MonitoringOverviewPage() {
-    const canViewIncidents = useAuthStore((state) =>
-        state.checkPermissions("monitor:incident:view"),
-    );
     const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
         queryKey: ["monitor", "overview"],
         queryFn: monitorAPI.overview,
         refetchInterval: 30_000,
     });
-
-    if (isPending && !data) {
-        return (
-            <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
-                <PageHeader
-                    title={t("监控概览", "Monitoring overview")}
-                    description={t(
-                        "查看当前节点可用性和最新基础设施心跳。",
-                        "View current node availability and the latest infrastructure heartbeats.",
-                    )}
-                />
-                <DataState kind="loading" title={t("正在加载监控概览", "Loading overview")} />
-            </div>
-        );
-    }
-
+    const header = (
+        <PageHeader
+            title={t("监控概览", "Monitoring overview")}
+            description={t(
+                "查看节点在线状态、活动告警与最近一次资源上报。",
+                "View node availability, active alerts, and the most recent resource report.",
+            )}
+            actions={
+                <span className="text-xs text-muted-foreground">
+                    {t("每 30 秒自动刷新", "Refreshes every 30 seconds")}
+                </span>
+            }
+        />
+    );
     if (!data) {
         return (
             <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
-                <PageHeader
-                    title={t("监控概览", "Monitoring overview")}
-                    description={t(
-                        "查看当前节点可用性和最新基础设施心跳。",
-                        "View current node availability and the latest infrastructure heartbeats.",
-                    )}
-                />
+                {header}
                 <DataState
-                    kind="error"
+                    kind={isPending ? "loading" : "error"}
                     title={
-                        error
-                            ? t("监控概览加载失败", "Failed to load monitoring overview")
-                            : t("监控概览暂不可用", "Monitoring overview is unavailable")
+                        isPending
+                            ? t("正在加载监控概览", "Loading overview")
+                            : t("监控概览加载失败", "Failed to load monitoring overview")
                     }
-                    description={t(
-                        "无法读取节点和服务状态，请检查 Monitor 服务后重试。",
-                        "Unable to read node and service status. Check the Monitor service and try again.",
-                    )}
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
-                            {t("重新加载", "Reload")}
-                        </Button>
+                        !isPending ? (
+                            <Button type="primary" onClick={() => void refetch()}>
+                                {t("重新加载", "Reload")}
+                            </Button>
+                        ) : undefined
                     }
                 />
             </div>
         );
     }
-
     const cards = [
         {
             label: t("已注册节点", "Registered nodes"),
@@ -95,170 +76,87 @@ function MonitoringOverviewPage() {
         {
             label: t("离线节点", "Offline nodes"),
             value: data.offlineNodes,
-            icon: <CloudSyncOutlined />,
+            icon: <DisconnectOutlined />,
             tone: "amber" as const,
         },
         {
-            label: t("异常检查", "Unhealthy checks"),
-            value: data.unhealthyChecks,
-            icon: <AlertFilled />,
+            label: t("活动告警", "Active incidents"),
+            value: data.activeIncidents,
+            icon: <ExclamationCircleOutlined />,
             tone: "red" as const,
         },
-        ...(canViewIncidents
-            ? [
-                  {
-                      label: t("活动事件", "Active incidents"),
-                      value: data.activeIncidents,
-                      icon: <ExclamationCircleOutlined />,
-                      tone: "violet" as const,
-                  },
-              ]
-            : []),
     ];
-
     return (
         <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
-            <PageHeader
-                title={t("监控概览", "Monitoring overview")}
-                description={t(
-                    "查看当前节点可用性和最新基础设施心跳。",
-                    "View current node availability and the latest infrastructure heartbeats.",
-                )}
-                actions={
-                    <span className="text-xs text-muted-foreground">
-                        {t("每 30 秒自动刷新", "Refreshes every 30 seconds")}
-                    </span>
-                }
-            />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {header}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {cards.map((item) => (
-                    <MetricCard
-                        key={item.label}
-                        label={item.label}
-                        value={item.value}
-                        icon={item.icon}
-                        tone={item.tone}
-                    />
+                    <MetricCard key={item.label} {...item} />
                 ))}
             </div>
             {error ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}
-            {canViewIncidents ? <IncidentOverviewPanel /> : null}
-            {data.registeredNodes === 0 ? (
-                <DataState
-                    kind="empty"
-                    title={t("暂无监控节点", "No monitored nodes")}
-                    description={t(
-                        "启动节点上的 rz-monitor agent，首次心跳通过后会自动出现在这里。",
-                        "Start the rz-monitor agent on a node. It will appear here after its first heartbeat.",
-                    )}
-                />
-            ) : null}
+            <LatestResource value={data.latestResource} />
         </div>
     );
 }
 
-function IncidentOverviewPanel() {
-    const canViewIncidents = useAuthStore((state) =>
-        state.checkPermissions("monitor:incident:view"),
-    );
-    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
-        queryKey: ["monitor", "incidents", "overview"],
-        queryFn: () => monitorAPI.incidents({ current: 1, pageSize: 5, status: "open" }),
-        enabled: canViewIncidents,
-        refetchInterval: 30_000,
-    });
-    if (!canViewIncidents) return null;
-    const columns: ProColumns<Monitor.IncidentSummary>[] = [
-        {
-            title: t("事件", "Incident"),
-            key: "title",
-            ellipsis: true,
-            render: (_value: unknown, row: Monitor.IncidentSummary) => (
-                <div>
-                    <div className="font-medium">{row.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                        {row.sourceType} · {row.sourceId}
-                    </div>
-                </div>
-            ),
-        },
-        {
-            title: t("状态", "Status"),
-            key: "status",
-            width: 120,
-            render: (_value: unknown, _row: Monitor.IncidentSummary) => (
-                <Tag color="error">{t("活动", "Open")}</Tag>
-            ),
-        },
-        {
-            title: t("最近观察", "Last observed"),
-            key: "lastObservedAt",
-            width: 180,
-            render: (_value: unknown, row: Monitor.IncidentSummary) =>
-                formatDateTime(row.lastObservedAt),
-        },
-    ];
-
+function LatestResource({ value }: { value: Monitor.Overview["latestResource"] }) {
+    if (!value)
+        return (
+            <DataState
+                kind="empty"
+                title={t("暂无资源上报", "No resource reports")}
+                description={t(
+                    "节点 Agent 首次上报后，最新资源数据会显示在这里。",
+                    "The latest resource data appears after an agent's first report.",
+                )}
+            />
+        );
     return (
         <Card
             className="page-panel"
-            title={t("活动事件", "Active incidents")}
+            title={t("最近资源上报", "Latest resource report")}
             extra={
-                <AuthWrap code="monitor:incident:view">
-                    <Button type="link" href="/monitoring/incidents">
-                        {t("查看全部", "View all")}
-                    </Button>
-                </AuthWrap>
+                <Typography.Text type="secondary">
+                    {formatDateTime(value.collectedAt)}
+                </Typography.Text>
             }
         >
-            {error && data ? (
-                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
-            ) : null}
-            {!data && isPending ? (
-                <DataState
-                    kind="loading"
-                    title={t("正在加载活动事件", "Loading active incidents")}
-                    compact
-                />
-            ) : !data && error ? (
-                <DataState
-                    kind="error"
-                    title={t("活动事件暂不可用", "Active incidents unavailable")}
-                    description={t(
-                        "无法读取事件列表，请检查 Monitor 服务。",
-                        "Unable to read incidents. Check the Monitor service.",
-                    )}
-                    action={<Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>}
-                    compact
-                />
-            ) : data && data.data.length === 0 ? (
-                <DataState
-                    kind="empty"
-                    title={t("暂无活动事件", "No active incidents")}
-                    description={t(
-                        "Monitor 当前没有活动事件。",
-                        "Monitor has no active incidents right now.",
-                    )}
-                    compact
-                />
-            ) : (
-                <DataTableShell ariaLabel={t("活动监控事件", "Active incidents table")}>
-                    <ProTable<Monitor.IncidentSummary>
-                        rowKey="id"
-                        columns={columns}
-                        dataSource={data?.data ?? []}
-                        loading={isFetching}
-                        search={false}
-                        options={false}
-                        pagination={false}
-                        toolBarRender={false}
-                        tableAlertOptionRender={false}
-                        rowSelection={false}
-                    />
-                </DataTableShell>
-            )}
+            <div className="grid gap-4 md:grid-cols-3">
+                <Resource label="CPU" percent={value.cpuPercent} />
+                <Resource label={t("内存", "Memory")} percent={value.memoryPercent} />
+                <div>
+                    <Typography.Text type="secondary">
+                        {t("磁盘挂载点", "Disk mounts")}
+                    </Typography.Text>
+                    <div className="mt-2 space-y-2">
+                        {value.disks.map((disk) => (
+                            <div key={disk.mountPoint}>
+                                <div className="flex justify-between text-sm">
+                                    <span>{disk.mountPoint}</span>
+                                    <span>{disk.usagePercent.toFixed(1)}%</span>
+                                </div>
+                                <Progress percent={disk.usagePercent} size="small" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="mt-3">
+                <Tag>{value.nodeId}</Tag>
+            </div>
         </Card>
+    );
+}
+
+function Resource({ label, percent }: { label: string; percent: number }) {
+    return (
+        <div>
+            <Typography.Text type="secondary">{label}</Typography.Text>
+            <div className="mt-2 text-2xl font-semibold">{percent.toFixed(1)}%</div>
+            <Progress percent={percent} size="small" />
+        </div>
     );
 }

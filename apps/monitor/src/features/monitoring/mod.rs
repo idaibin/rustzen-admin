@@ -74,7 +74,7 @@ pub fn routes(
         .get_with_permission(
             "/alert-settings",
             policy::settings,
-            Require(rustzen_auth::capability::monitor::OVERVIEW_VIEW),
+            Require(rustzen_auth::capability::monitor::NODE_VIEW),
         )?
         .put_with_permission(
             "/alert-settings",

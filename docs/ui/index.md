@@ -8,7 +8,7 @@ feature specs record only route-local composition, states, and evidence.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |
-| Monitoring | [Incident diagnostics](./features/monitor-incident-diagnostics.md) | [Product spec](../product/features/monitor-incident-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
+| Monitoring | [Monitoring surfaces](./features/monitoring.md) | [Product spec](../product/features/monitoring/spec.md) | Current route contract; full visual/deployment acceptance pending |
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Reports | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |

@@ -39,6 +39,7 @@ function ProfilePage() {
             />
 
             <PageCard
+                headingLevel={2}
                 title={t("账号信息", "Account information")}
                 description={t("查看并维护当前账号资料。", "View and update your account details.")}
                 actions={

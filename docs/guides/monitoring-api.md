@@ -118,7 +118,7 @@ There is no acknowledged state or mutation endpoint.
 
 ### `GET /api/monitor/alert-settings`
 
-Permission: `monitor:overview:view`.
+Permission: `monitor:node:view`.
 
 ### `PUT /api/monitor/alert-settings`
 

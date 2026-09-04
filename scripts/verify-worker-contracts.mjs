@@ -3,6 +3,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { insightsAPIContract } from "../apps/web/src/api/insights/contract.ts";
 import { monitorAPIContract } from "../apps/web/src/api/monitor/contract.ts";
 import { reportsAPIContract } from "../apps/web/src/api/reports/contract.ts";
+import { verifyMonitoringScenarios } from "./verify-monitoring-scenarios.mjs";
 import { compareManifestRoutes } from "./worker-contract-verifier.mjs";
 
 const ipcToken = required("RUSTZEN_IPC_TOKEN");
@@ -147,39 +148,41 @@ await Promise.all([
     verifyFrontendAPIContract("reports", reportsBase, reportsAPIContract),
 ]);
 
-const heartbeat = {
-    agentId: "verify-agent",
+await verifyMonitoringScenarios({ adminBase, adminToken, agentToken });
+
+const report = {
+    nodeId: "verify-agent",
+    bootId: randomUUID(),
+    sequence: 1,
     hostname: "verify-host",
     agentVersion: "0.5.0",
     cpuPercent: 12.5,
-    memoryUsedBytes: 10,
-    memoryTotalBytes: 20,
-    diskUsedBytes: 30,
-    diskTotalBytes: 40,
+    memory: { usedBytes: 10, totalBytes: 20 },
+    disks: [{ mountPoint: "/", usedBytes: 30, totalBytes: 40 }],
     collectedAt: new Date().toISOString(),
 };
 
 await expectStatus(
-    await fetch(`${adminBase}/api/monitor/heartbeat`, {
+    await fetch(`${adminBase}/api/monitor/agent-reports`, {
         method: "POST",
         headers: {
             "content-type": "application/json",
             "x-rustzen-monitor-agent-token": agentToken,
         },
-        body: JSON.stringify(heartbeat),
+        body: JSON.stringify(report),
     }),
     200,
-    "public Monitor heartbeat through Admin",
+    "public Monitor agent report through Admin",
 );
 
 await expectStatus(
-    await directRequest(monitorBase, "monitor", "/api/monitor/heartbeat", "public", {
+    await directRequest(monitorBase, "monitor", "/api/monitor/agent-reports", "public", {
         method: "POST",
         headers: { "x-rustzen-monitor-agent-token": agentToken },
-        body: JSON.stringify({ ...heartbeat, agentId: "verify-direct-agent" }),
+        body: JSON.stringify({ ...report, nodeId: "verify-direct-agent", bootId: randomUUID() }),
     }),
     200,
-    "direct delegated Monitor heartbeat",
+    "direct delegated Monitor agent report",
 );
 
 const nodes = await responseData(
@@ -190,17 +193,17 @@ const nodes = await responseData(
     ),
     "Monitor node list",
 );
-if (!nodes.some((node) => node.agentId === "verify-agent")) {
-    throw new Error("Monitor public gateway heartbeat was not persisted");
+if (!nodes.some((node) => node.nodeId === "verify-agent")) {
+    throw new Error("Monitor public gateway agent report was not persisted");
 }
-const verifyNode = nodes.find((node) => node.agentId === "verify-agent");
+const verifyNode = nodes.find((node) => node.nodeId === "verify-agent");
 
 const metrics = await responseData(
     await expectStatus(
         await directRequest(
             monitorBase,
             "monitor",
-            `/api/monitor/nodes/${verifyNode.id}/metrics?bucket=raw`,
+            `/api/monitor/nodes/${verifyNode.nodeId}/metrics?bucket=raw`,
             "monitor:node:view",
         ),
         200,
@@ -208,74 +211,8 @@ const metrics = await responseData(
     ),
     "Monitor metric history",
 );
-if (metrics.length !== 1 || metrics[0].cpuPercent !== heartbeat.cpuPercent) {
+if (metrics.points?.length !== 1 || metrics.points[0].cpuPercent !== report.cpuPercent) {
     throw new Error(`unexpected Monitor metric history: ${JSON.stringify(metrics)}`);
-}
-
-const probe = await responseData(
-    await expectStatus(
-        await directRequest(
-            monitorBase,
-            "monitor",
-            "/api/monitor/checks/test",
-            "monitor:check:manage",
-            {
-                method: "POST",
-                body: JSON.stringify({
-                    host: "127.0.0.1",
-                    port: Number(required("RUSTZEN_ADMIN_PORT")),
-                    timeoutMs: 5000,
-                }),
-            },
-        ),
-        200,
-        "Monitor TCP probe",
-    ),
-    "Monitor TCP probe",
-);
-if (probe.status !== "up") {
-    throw new Error(`Monitor TCP probe unexpectedly failed: ${JSON.stringify(probe)}`);
-}
-
-const check = await responseData(
-    await expectStatus(
-        await directRequest(monitorBase, "monitor", "/api/monitor/checks", "monitor:check:manage", {
-            method: "POST",
-            body: JSON.stringify({
-                name: "Admin TCP",
-                host: "127.0.0.1",
-                port: Number(required("RUSTZEN_ADMIN_PORT")),
-                intervalSeconds: 30,
-                timeoutMs: 5000,
-                enabled: true,
-            }),
-        }),
-        200,
-        "Monitor check creation",
-    ),
-    "Monitor check creation",
-);
-
-let checkResults = [];
-for (let attempt = 0; attempt < 50 && checkResults.length === 0; attempt += 1) {
-    await Bun.sleep(100);
-    const page = await responseData(
-        await expectStatus(
-            await directRequest(
-                monitorBase,
-                "monitor",
-                `/api/monitor/checks/${check.id}/results`,
-                "monitor:check:view",
-            ),
-            200,
-            "Monitor check results",
-        ),
-        "Monitor check results",
-    );
-    checkResults = page.data;
-}
-if (checkResults.length !== 1 || checkResults[0].status !== "up") {
-    throw new Error(`Monitor scheduled TCP check did not succeed: ${JSON.stringify(checkResults)}`);
 }
 
 await expectStatus(

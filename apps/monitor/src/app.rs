@@ -140,6 +140,11 @@ mod tests {
                 && route.path == "/nodes/{node_id}/alert-settings"
                 && route.permission.as_deref() == Some("monitor:node:view")
         }));
+        assert!(manifest.routes.iter().any(|route| {
+            route.method == "GET"
+                && route.path == "/alert-settings"
+                && route.permission.as_deref() == Some("monitor:node:view")
+        }));
         assert_eq!(
             manifest
                 .routes

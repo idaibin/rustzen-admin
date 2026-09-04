@@ -1,10 +1,18 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { distributionCatalog, resolveSelection, validateCatalog } from "./resolver.ts";
 
 describe("distribution selection", () => {
     test("monitor resolves to access and monitor only", () => {
         expect(resolveSelection({ preset: "monitor" }).capabilities).toEqual(["access", "monitor"]);
+    });
+
+    test("selected Web roots exist", () => {
+        for (const root of resolveSelection({ preset: "monitor" }).webRoots) {
+            expect(existsSync(resolve(import.meta.dir, "..", root))).toBeTrue();
+        }
     });
 
     test("full is the exact declared production closure", () => {

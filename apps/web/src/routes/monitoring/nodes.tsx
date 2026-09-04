@@ -2,120 +2,48 @@ import {
     CheckCircleOutlined,
     DisconnectOutlined,
     PlusOutlined,
-    WarningOutlined,
+    SettingOutlined,
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card, Drawer, Progress, Space, Tag, Typography } from "antd";
+import { Button, Drawer, Tag } from "antd";
 import { useState } from "react";
-import {
-    CartesianGrid,
-    Legend,
-    Line,
-    LineChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from "recharts";
 
 import { monitorAPI } from "@/api";
-import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
+import { useAuthStore } from "@/store/useAuthStore";
+
+import { GlobalAlertSettings } from "./-global-alert-settings";
+import { NodeDetails, PolicySourceTag } from "./-node-details";
+import { NodeOnboarding } from "./-node-onboarding";
 
 export const Route = createFileRoute("/monitoring/nodes")({ component: MonitoringNodesPage });
 
-const statusColorMap = {
-    online: "success",
-    offline: "error",
-    unknown: "default",
-} as const;
-
-function statusLabel(status: string) {
-    if (status === "online") {
-        return t("在线", "Online");
-    }
-    if (status === "offline") {
-        return t("离线", "Offline");
-    }
-    return status;
-}
-
-function statusIcon(status: string) {
-    if (status === "online") {
-        return <CheckCircleOutlined />;
-    }
-    if (status === "offline") {
-        return <DisconnectOutlined />;
-    }
-    return <WarningOutlined />;
-}
-
 function MonitoringNodesPage() {
-    const [selected, setSelected] = useState<Monitor.Node | null>(null);
-    const { data, error, isPending, isFetching, refetch } = useQuery({
+    const [panel, setPanel] = useState<"add" | "settings">();
+    const [selected, setSelected] = useState<Monitor.Node>();
+    const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
+    const canViewSettings = useAuthStore((state) =>
+        state.checkPermissions("monitor:node:view"),
+    );
+    const { data, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "nodes"],
         queryFn: monitorAPI.nodes,
         refetchInterval: 30_000,
     });
-
-    if (!data && isPending) {
-        return (
-            <PageCard
-                title={t("节点", "Nodes")}
-                description={t(
-                    "查看每个已注册节点的最新心跳和资源快照。",
-                    "View the latest heartbeat and resource snapshot for each registered node.",
-                )}
-                actions={<AddNodeDialog />}
-            >
-                <DataState kind="loading" title={t("正在加载节点", "Loading nodes")} />
-            </PageCard>
-        );
-    }
-
-    if (!data && error) {
-        return (
-            <PageCard
-                title={t("节点", "Nodes")}
-                description={t(
-                    "查看每个已注册节点的最新心跳和资源快照。",
-                    "View the latest heartbeat and resource snapshot for each registered node.",
-                )}
-                actions={<AddNodeDialog />}
-            >
-                <DataState
-                    kind="error"
-                    title={t("节点加载失败", "Failed to load nodes")}
-                    description={t(
-                        "无法读取节点列表，请检查 Monitor 服务后重试。",
-                        "Unable to read the node list. Check the Monitor service and try again.",
-                    )}
-                    action={
-                        <Button type="primary" onClick={() => void refetch()}>
-                            {t("重新加载", "Reload")}
-                        </Button>
-                    }
-                />
-            </PageCard>
-        );
-    }
-
-    const nodes = data ?? [];
     const columns: ProColumns<Monitor.Node>[] = [
         {
             title: t("节点", "Node"),
-            dataIndex: "hostname",
-            key: "hostname",
-            render: (_: unknown, node: Monitor.Node) => (
+            key: "node",
+            render: (_, row) => (
                 <div>
-                    <div className="font-medium">{node.hostname}</div>
+                    <div className="font-medium">{row.hostname}</div>
                     <div className="text-xs text-muted-foreground">
-                        {node.agentId} · v{node.agentVersion}
+                        {row.nodeId} · v{row.agentVersion}
                     </div>
                 </div>
             ),
@@ -123,306 +51,145 @@ function MonitoringNodesPage() {
         {
             title: t("状态", "Status"),
             dataIndex: "status",
-            key: "status",
-            render: (_: unknown, node: Monitor.Node) => (
+            width: 110,
+            render: (_, row) => (
                 <Tag
-                    icon={statusIcon(node.status)}
-                    color={statusColorMap[node.status as keyof typeof statusColorMap] ?? "default"}
+                    color={row.status === "online" ? "success" : "error"}
+                    icon={
+                        row.status === "online" ? <CheckCircleOutlined /> : <DisconnectOutlined />
+                    }
                 >
-                    {statusLabel(node.status)}
+                    {row.status === "online" ? t("在线", "Online") : t("离线", "Offline")}
                 </Tag>
             ),
         },
         {
             title: "CPU",
             dataIndex: "cpuPercent",
-            key: "cpuPercent",
-            render: (_: unknown, node: Monitor.Node) => formatPercent(node.cpuPercent),
+            width: 100,
+            render: (_, row) => `${row.cpuPercent.toFixed(1)}%`,
+        },
+        {
+            title: t("告警策略", "Alert policy"),
+            dataIndex: "alertPolicySource",
+            width: 110,
+            render: (_, row) => <PolicySourceTag source={row.alertPolicySource} />,
         },
         {
             title: t("内存", "Memory"),
-            dataIndex: "memoryUsedBytes",
-            key: "memoryUsedBytes",
-            render: (_: unknown, node: Monitor.Node) => (
-                <Usage used={node.memoryUsedBytes} total={node.memoryTotalBytes} />
+            dataIndex: "memory",
+            render: (_, row) => `${row.memory.usagePercent.toFixed(1)}%`,
+        },
+        {
+            title: t("磁盘挂载点", "Disk mounts"),
+            key: "disks",
+            render: (_, row) => (
+                <div className="min-w-44 space-y-1 text-xs">
+                    {row.disks.map((disk) => (
+                        <div key={disk.mountPoint}>
+                            {disk.mountPoint} {disk.usagePercent.toFixed(1)}%
+                        </div>
+                    ))}
+                </div>
             ),
         },
         {
-            title: t("磁盘", "Disk"),
-            dataIndex: "diskUsedBytes",
-            key: "diskUsedBytes",
-            render: (_: unknown, node: Monitor.Node) => (
-                <Usage used={node.diskUsedBytes} total={node.diskTotalBytes} />
-            ),
-        },
-        {
-            title: t("最后在线", "Last seen"),
-            dataIndex: "lastSeenAt",
-            key: "lastSeenAt",
-            render: (_: unknown, node: Monitor.Node) => formatDateTime(node.lastSeenAt),
+            title: t("最后上报", "Last report"),
+            dataIndex: "lastReportAt",
+            width: 180,
+            render: (_, row) => formatDateTime(row.lastReportAt),
         },
         {
             title: t("详情", "Details"),
             key: "actions",
+            width: 88,
             fixed: "right",
-            render: (_: unknown, node: Monitor.Node) => (
-                <Space>
-                    <Button size="small" onClick={() => setSelected(node)}>
-                        {t("查看", "View")}
-                    </Button>
-                </Space>
+            render: (_, row) => (
+                <Button type="link" onClick={() => setSelected(row)}>
+                    {t("查看", "View")}
+                </Button>
             ),
         },
     ];
-
     return (
         <PageCard
             title={t("节点", "Nodes")}
             description={t(
-                "查看每个已注册节点的最新心跳和资源快照。",
-                "View the latest heartbeat and resource snapshot for each registered node.",
+                "查看 Agent 上报的最新 CPU、内存和各磁盘挂载点。",
+                "View the latest CPU, memory, and disk mounts reported by agents.",
             )}
-            actions={<AddNodeDialog />}
+            actions={
+                <>
+                    {canViewSettings ? (
+                        <Button icon={<SettingOutlined />} onClick={() => setPanel("settings")}>
+                            {t("全局配置", "Global settings")}
+                        </Button>
+                    ) : null}
+                    {canManage ? (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setPanel("add")}
+                        >
+                            {t("添加节点", "Add node")}
+                        </Button>
+                    ) : null}
+                </>
+            }
         >
-            <ProTable<Monitor.Node>
-                rowKey="id"
-                columns={columns}
-                dataSource={nodes}
-                loading={isFetching}
-                search={false}
-                options={false}
-                pagination={false}
-                locale={{
-                    emptyText:
-                        nodes.length === 0 ? (
+            {!data ? (
+                <DataState
+                    kind={isPending ? "loading" : "error"}
+                    title={
+                        isPending
+                            ? t("正在加载节点", "Loading nodes")
+                            : t("节点加载失败", "Failed to load nodes")
+                    }
+                    action={
+                        !isPending ? (
+                            <Button onClick={() => void refetch()}>
+                                {t("重新加载", "Reload")}
+                            </Button>
+                        ) : undefined
+                    }
+                />
+            ) : (
+                <ProTable
+                    rowKey="nodeId"
+                    columns={columns}
+                    dataSource={data}
+                    loading={isFetching}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    locale={{
+                        emptyText: (
                             <DataState
                                 kind="empty"
                                 title={t("暂无监控节点", "No monitored nodes")}
                                 description={t(
-                                    "启动节点 Agent 后，首次心跳会自动完成注册。",
-                                    "Start the node agent. Its first heartbeat will register it automatically.",
+                                    "节点 Agent 首次上报后会自动出现在列表中。",
+                                    "A node appears after its agent's first report.",
                                 )}
                             />
-                        ) : undefined,
-                }}
-            />
-            <NodeDetails node={selected} onOpenChange={(open) => !open && setSelected(null)} />
+                        ),
+                    }}
+                />
+            )}
+            <Drawer
+                open={Boolean(panel)}
+                onClose={() => setPanel(undefined)}
+                title={
+                    panel === "add" ? t("添加节点", "Add node") : t("全局配置", "Global settings")
+                }
+                size="large"
+                styles={{ wrapper: { maxWidth: "100vw" } }}
+                destroyOnHidden
+            >
+                {panel === "add" && canManage ? <NodeOnboarding /> : null}
+                {panel === "settings" && canViewSettings ? <GlobalAlertSettings /> : null}
+            </Drawer>
+            <NodeDetails node={selected} onClose={() => setSelected(undefined)} />
         </PageCard>
     );
-}
-
-function AddNodeDialog() {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-                {t("添加节点", "Add node")}
-            </Button>
-            <Drawer
-                open={open}
-                onClose={() => setOpen(false)}
-                title={t("添加监控节点", "Add monitored node")}
-                footer={null}
-            >
-                <div className="space-y-3 text-sm">
-                    <Typography.Paragraph>
-                        {t(
-                            "在节点上启动随包提供的 Agent；首次心跳通过后，节点会自动加入列表。",
-                            "Start the bundled agent on the node. It will join the list after its first heartbeat.",
-                        )}
-                    </Typography.Paragraph>
-                    <Typography.Paragraph>
-                        {t(
-                            "配置控制器地址，并使用与 Monitor 服务一致的环境变量：",
-                            "Configure the controller address and use the same environment variable as the Monitor service:",
-                        )}
-                        <Typography.Text code>RUSTZEN_MONITOR_AGENT_TOKEN</Typography.Text>
-                    </Typography.Paragraph>
-                    <Typography.Paragraph code copyable>
-                        rz-monitor agent
-                    </Typography.Paragraph>
-                    <Typography.Text type="secondary">
-                        {t(
-                            "节点 ID 由 Agent 主机名生成；后续心跳会更新现有记录，不会重复创建节点。",
-                            "The node ID is generated from the agent hostname. Later heartbeats update the existing record instead of creating duplicates.",
-                        )}
-                    </Typography.Text>
-                </div>
-            </Drawer>
-        </>
-    );
-}
-
-function NodeDetails({
-    node,
-    onOpenChange,
-}: {
-    node: Monitor.Node | null;
-    onOpenChange: (open: boolean) => void;
-}) {
-    const {
-        data: metrics = [],
-        error,
-        isPending,
-        isFetching,
-        refetch,
-    } = useQuery({
-        queryKey: ["monitor", "nodes", node?.id, "metrics", "5m"],
-        queryFn: () => monitorAPI.metrics(node?.id ?? "", { bucket: "5m" }),
-        enabled: Boolean(node),
-    });
-
-    return (
-        <Drawer
-            open={Boolean(node)}
-            onClose={() => onOpenChange(false)}
-            size="large"
-            title={node?.hostname ?? t("节点详情", "Node details")}
-            destroyOnHidden
-            footer={null}
-        >
-            <Typography.Paragraph type="secondary">
-                {node ? `${node.agentId} · Agent ${node.agentVersion}` : ""}
-            </Typography.Paragraph>
-            {node ? (
-                <AuthWrap code="monitor:incident:view">
-                    <Button
-                        type="link"
-                        href={`/monitoring/incidents?sourceType=node&sourceId=${encodeURIComponent(node.id)}`}
-                    >
-                        {t("查看该节点事件", "View incidents for this node")}
-                    </Button>
-                </AuthWrap>
-            ) : null}
-            <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                <Summary label={t("状态", "Status")} value={node?.status ?? "-"} />
-                <Summary label="CPU" value={formatPercent(node?.cpuPercent ?? null)} />
-                <Summary
-                    label={t("内存", "Memory")}
-                    value={
-                        node?.memoryUsedBytes === null || node?.memoryUsedBytes === undefined
-                            ? "-"
-                            : formatBytes(node.memoryUsedBytes)
-                    }
-                />
-                <Summary
-                    label={t("磁盘", "Disk")}
-                    value={
-                        node?.diskUsedBytes === null || node?.diskUsedBytes === undefined
-                            ? "-"
-                            : formatBytes(node.diskUsedBytes)
-                    }
-                />
-            </div>
-            <Card className="mt-4 h-80">
-                {isPending ? (
-                    <DataState
-                        kind="loading"
-                        title={t("正在加载指标", "Loading metrics")}
-                        compact
-                        className="h-full min-h-0"
-                    />
-                ) : error && metrics.length === 0 ? (
-                    <DataState
-                        kind="error"
-                        title={t("指标加载失败", "Failed to load metrics")}
-                        action={
-                            <Button
-                                size="small"
-                                onClick={() => void refetch()}
-                                loading={isFetching}
-                            >
-                                {t("重新加载", "Reload")}
-                            </Button>
-                        }
-                        compact
-                        className="h-full min-h-0"
-                    />
-                ) : metrics.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={metrics}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis
-                                dataKey="collectedAt"
-                                tickFormatter={(value) =>
-                                    new Date(String(value)).toLocaleTimeString()
-                                }
-                            />
-                            <YAxis domain={[0, 100]} />
-                            <Tooltip />
-                            <Legend />
-                            <Line
-                                type="monotone"
-                                dataKey="cpuPercent"
-                                name="CPU %"
-                                stroke="var(--chart-1)"
-                                dot={false}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="memoryPercent"
-                                name={t("内存 %", "Memory %")}
-                                stroke="var(--chart-2)"
-                                dot={false}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="diskPercent"
-                                name={t("磁盘 %", "Disk %")}
-                                stroke="var(--chart-3)"
-                                dot={false}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <DataState
-                        kind="empty"
-                        title={t("最近 24 小时暂无指标", "No metrics in the last 24 hours")}
-                        compact
-                        className="h-full min-h-0"
-                    />
-                )}
-            </Card>
-        </Drawer>
-    );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-    return (
-        <Card size="small">
-            <Typography.Text type="secondary">{label}</Typography.Text>
-            <Typography.Paragraph strong>{value}</Typography.Paragraph>
-        </Card>
-    );
-}
-
-function Usage({ used, total }: { used: number | null; total: number | null }) {
-    if (used === null || total === null || total <= 0) return <>-</>;
-    const percent = Math.min(100, Math.round((used / total) * 100));
-
-    return (
-        <div className="min-w-32">
-            <div className="mb-1 text-xs text-muted-foreground">
-                {formatBytes(used)} / {formatBytes(total)}
-            </div>
-            <Progress percent={percent} size="small" />
-        </div>
-    );
-}
-
-function formatPercent(value: number | null) {
-    return value === null ? "-" : `${value.toFixed(1)}%`;
-}
-
-function formatBytes(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    const units = ["KB", "MB", "GB", "TB"];
-    let value = bytes / 1024;
-    let index = 0;
-    while (value >= 1024 && index < units.length - 1) {
-        value /= 1024;
-        index += 1;
-    }
-    return `${value.toFixed(1)} ${units[index]}`;
 }
