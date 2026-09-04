@@ -61,10 +61,10 @@ scrolling and the table bounds horizontal overflow. Filter changes clear selecti
 | Module/file metadata list | `DataTableShell` + route-local `ProTable` or existing table pattern | Reuse; columns remain local |
 | Loading, empty, error, processing | `DataState` | Reuse; owner-only route boundary prevents a local permission state |
 | Bounded reverse-cursor log tail | Ant Design `Drawer` + `Typography`/code region | Wrap route-local content; hard caps are 256 KiB, 2,000 lines, and 16 KiB per line; no shared file viewer |
-| Backup download | Existing `apiDownload`/download action semantics | Reuse; bounded 64 MiB Blob, manifest/hash copy, and fail-closed result are route-local |
+| Backup download | Admin generated binary transport and download action semantics | Reuse; bounded 64 MiB Blob, manifest/hash copy, and fail-closed result are route-local. Require and validate `Content-Disposition`, `X-RustZen-Archive-SHA256`, and `X-RustZen-Archive-File-Count` before download; success feedback shows filename, file count, and hash summary. |
 | Cleanup review/confirm | Existing `ConfirmDialog` and Ant Design list/table | Reuse |
 | Partial result | Ant Design `Alert`/`Tag` with semantic status | Wrap route-local item outcomes |
-| HTTP transport | Admin system API client and `apiRequest`/`apiDownload` | Reuse; Admin route is authority |
+| HTTP transport | Admin system API client and binary response metadata | Reuse; Admin route is authority and Web rejects a missing or invalid archive metadata header |
 | Log content | Runtime files emitted by each service | Services own content; Admin owns allowlist/access/audit |
 
 No new global file-browser, log database, table, or archive component is
@@ -118,13 +118,14 @@ file naming/emission/retention; no module database is read by Admin.
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
-| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `Not verified`: diagnostics section not yet rendered | Add one bounded diagnostics panel without replacing resource/storage summary | P1 | System Status route; desktop/narrow alignment check |
-| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `Not verified`: process-log metadata/tail not yet rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Admin API + route-local table; contract and content-scope check |
-| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `Not verified`: preview/processing/partial paths not yet exercised | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | route action state; forced response/destructive safety matrix |
-| ML-UI-004 | `source-extracted`: current `apiDownload` and semantic status treatment | `Not verified`: 64 MiB preflight, manifest/hash, and long-line rendering not yet captured | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | `apiDownload`, Drawer/content owner; browser and HTTP evidence |
+| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `source implemented`: System Status composes the diagnostics section as an h2 PageCard | Keep one bounded diagnostics panel without replacing resource/storage summary | P1 | seam test; desktop/narrow browser alignment remains `Not verified` |
+| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `source implemented`: fixed module/date metadata table and bounded Tail Drawer are rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Admin/OpenAPI/client adapter tests; browser interaction remains `Not verified` |
+| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `source implemented`: preview, expiry, processing, confirmation, failure, and partial paths are rendered | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | service HTTP and adapter tests; browser interaction remains `Not verified` |
+| ML-UI-004 | `source-extracted`: generated binary transport and semantic status treatment | `source implemented`: metadata headers are required before download; success shows filename, file count, and hash summary; Tail Drawer renders bounds/truncation | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | adapter + service HTTP tests; browser evidence remains `Not verified` |
 
-Exact new geometry, archive content, runtime permission, and browser evidence
-are `Not verified` until implementation and validation.
+Exact new geometry, runtime-log availability, runtime permission, and browser
+evidence remain `Not verified` until exercised. Source, OpenAPI/client, and
+disposable-service HTTP evidence do not replace browser validation.
 
 ## Responsive and verification matrix
 
@@ -153,6 +154,5 @@ transport, and semantic tokens.
 The selected source, layout ownership, component mapping, route/API
 authorization and action states, responsive/accessibility rules, and acceptance
 IDs are fixed. The slice
-is **Ready for dev-frontend**. Runtime log availability (especially Insights),
-archive/hash response, path safety, final geometry, and two-pass browser
-evidence remain `Not verified`.
+is implemented in source. Runtime log availability (especially Insights), final
+geometry, and two-pass browser evidence remain `Not verified`.

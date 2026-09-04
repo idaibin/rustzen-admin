@@ -466,8 +466,8 @@ function ModuleLogDiagnosticsContent() {
                     showIcon
                     message={t("日志备份已下载", "Log backup downloaded")}
                     description={t(
-                        `${backupMutation.data} 已包含 manifest.json 和每个文件的 SHA-256 摘要。`,
-                        `${backupMutation.data} includes manifest.json and a SHA-256 digest for every file.`,
+                        `${backupMutation.data.filename}：${backupMutation.data.fileCount} 个文件，SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}…。`,
+                        `${backupMutation.data.filename}: ${backupMutation.data.fileCount} files, SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}….`,
                     )}
                 />
             ) : null}

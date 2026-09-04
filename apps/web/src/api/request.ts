@@ -23,13 +23,25 @@ export const generatedApiRequest = <T>(url: string, options: RequestInit): Promi
     executeJsonRequest<T>(url, withDefaultAndAuthHeaders(options));
 
 /** Orval mutator for binary responses; JSON routes keep generatedApiRequest. */
+export interface GeneratedBlobResponse<T extends Blob = Blob> {
+    blob: T;
+    headers: Headers;
+}
+
+export const generatedBlobResponse = async <T extends Blob = Blob>(
+    url: string,
+    options: RequestInit,
+): Promise<GeneratedBlobResponse<T>> => {
+    const response = await fetch(url, withDefaultAndAuthHeaders(options));
+    if (!response.ok) return handleError(response);
+    return { blob: (await response.blob()) as T, headers: response.headers };
+};
+
 export const generatedBlobRequest = async <T extends Blob = Blob>(
     url: string,
     options: RequestInit,
 ): Promise<T> => {
-    const response = await fetch(url, withDefaultAndAuthHeaders(options));
-    if (!response.ok) return handleError(response);
-    return (await response.blob()) as T;
+    return (await generatedBlobResponse<T>(url, options)).blob;
 };
 
 export const apiDownload = async ({

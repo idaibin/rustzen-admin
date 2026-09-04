@@ -39,7 +39,7 @@ runtime rolling logger; local timezone does not change eligibility.
 | --- | --- | --- |
 | The scope is the four local service prefixes only. | These files have a stable runtime owner and path contract. | No arbitrary path, managed-node OS log, or application log search is accepted. |
 | Admin owns authorization and audit; each service owns emitted content. | The Web console needs one control-plane boundary without merging databases. | File access is mediated by a fixed allowlist and actions are audited without copying content into Admin DB. |
-| Backup is a bounded external Blob archive downloaded through `apiDownload`. | A same-host copy is not an independent recovery artifact, while an unbounded archive complicates the current client boundary. | A preflight enforces a 64 MiB archive cap; the response includes a manifest and SHA-256 in archive metadata and response metadata; no local backup directory is invented. |
+| Backup is a bounded external Blob archive downloaded through the Admin binary transport. | A same-host copy is not an independent recovery artifact, while an unbounded archive complicates the current client boundary. | A preflight enforces a 64 MiB archive cap; Web requires `Content-Disposition`, `X-RustZen-Archive-SHA256`, and `X-RustZen-Archive-File-Count`, validates them before download, and shows the filename, file count, and hash summary after success; no local backup directory is invented. |
 | Cleanup is preview plus short-lived confirmation. | Destructive file removal needs an explicit review seam. | Preview lists candidates; confirmation cannot be replayed after expiry. |
 | The current UTC day is never deleted and is the only known-active marker. | A running process may still write it and operators need current evidence; cross-platform detection of an external process holding an older file is Not verified. | Cleanup rejects the current UTC-day file even when the cutoff is older; it makes no unsupported held-by-process claim for older files. |
 | Operation logs remain a separate product surface. | They contain request audit semantics, not process stdout/stderr. | `/manage/log` is not relabeled as a module-log viewer. |
@@ -108,9 +108,12 @@ Non-goals:
    labels the module/date, reports `truncated=true` when a byte/line/per-line
    limit is reached, and uses the cursor to request older content.
 3. Backup selection is validated server-side, preflighted against the 64 MiB
-   archive cap, and downloaded as one bounded Blob. The manifest lists every
-   included file and digest. A read, size, change, or hashing failure fails the
-   whole request and returns no partial archive.
+   archive cap, and downloaded as one bounded Blob. Before starting a browser
+   download, Web validates `Content-Disposition`, `X-RustZen-Archive-SHA256`,
+   and `X-RustZen-Archive-File-Count`; its success feedback shows the filename,
+   file count, and hash summary. The manifest lists every included file and
+   digest. A read, size, change, hashing, or invalid/missing metadata failure
+   fails closed and returns no partial archive.
 4. Cleanup preview computes candidates from the fixed prefixes and cutoff. It
    excludes the current UTC-day file, symlinks, unknown names, and path escapes.
 5. The owner reviews the candidate list and confirms once. The token expires
@@ -200,9 +203,12 @@ database.
   and caps each line at 16 KiB. The reverse cursor moves toward older content,
   and any cap reached sets `truncated=true`.
 - Backup is one bounded external Blob archive (64 MiB hard cap) and contains a
-  manifest plus SHA-256 digest for every included file; preflight and any
-  mid-build change fail closed with no partial download and no local same-host
-  copy is treated as a backup.
+  manifest plus SHA-256 digest for every included file. Web validates
+  `Content-Disposition`, `X-RustZen-Archive-SHA256`, and
+  `X-RustZen-Archive-File-Count` before download and shows their filename,
+  file-count, and hash-summary evidence; preflight and any mid-build change
+  fail closed with no partial download and no local same-host copy is treated
+  as a backup.
 - Cleanup requires a fresh preview and short-lived confirmation; current UTC-day,
   unknown, symlink, and changed-between-preview files are never deleted. An
   older file held by an external process is Not verified and is not represented
@@ -223,9 +229,9 @@ database.
 
 | Layer | Evidence | Acceptance |
 | --- | --- | --- |
-| Source/static | allowlist, symlink/path checks, capability, archive/hash, token, and audit review | No arbitrary filesystem or content-to-DB path. |
-| Automated | file safety, preflight cap, Blob manifest/hash, mid-build change, preview-confirm, active-day, partial-result, tail caps/cursor, and contract tests | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
-| HTTP | Real owner and non-owner requests through Admin | Owner-only route/API boundaries, direct denial, and bounded content are observable; no local permission state is needed for non-owners. |
+| Source/static | Implemented: fixed allowlist, symlink/path checks, owner-only capability, archive/hash, token, audit, System Status composition, and Web metadata validation | No arbitrary filesystem or content-to-DB path. |
+| Automated | Implemented: file safety, preflight cap, Blob manifest/hash, preview-confirm, active-day, partial-result, tail caps/cursor, OpenAPI/client adapter, and service HTTP checks | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
+| HTTP | Disposable-service owner/non-owner requests through Admin | Owner-only route/API boundaries, direct denial, tail cursor/cap, archive headers, and cleanup token behavior are observable; no local permission state is needed for non-owners. |
 | Browser | System Status diagnostics matrix | Tail, download, preview, confirm, partial, focus, responsive, and localized copy pass. |
 | Runtime/deployment | actual four-service runtime log directory | `Not verified` until all prefixes and permissions are exercised. |
 
@@ -261,6 +267,6 @@ database.
 
 The fixed module scope, ownership, permission boundary, path safety, backup
 integrity, cleanup confirmation, failure semantics, non-goals, and acceptance
-are fixed. The linked UI contract is ready for frontend implementation. The
-Insights shared logger prerequisite, runtime permissions, and
+are implemented in the Admin and Web source, including download metadata
+validation. The Insights shared logger prerequisite, runtime permissions, and
 browser/deployment evidence remain `Not verified` until exercised.
