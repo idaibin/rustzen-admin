@@ -651,4 +651,7 @@ schema artifact root; direct schema digests, fingerprints and data IDs are rejec
 before dotenv or runtime initialization. Monitor server descriptors are owned by
 `access` and `monitor`; the Agent descriptor is owned only by `monitor-agent`.
 Fields describe names and validation classes without serializing values. The
-canonical combined artifact and manifest binding remain the next P4 closure.
+canonical combined artifact rejects missing, additional, reordered or changed
+field metadata and any value field. Manifest callers provide `configRoot`; a
+caller-supplied `configDigest` is rejected. Server and Agent config artifacts
+are separate compositions and cannot be substituted for each other.

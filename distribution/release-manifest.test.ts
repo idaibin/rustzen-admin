@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
+import { completeSelectedConfigForTest } from "./selected-config.ts";
 import {
     canonicalJson,
     canonicalManifestBytes,
@@ -33,8 +34,12 @@ const inputs = {
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
     selectedRoutes: ["login", "monitor"],
-    configDigest: h("c"),
     protocolId: h("d"),
+};
+const contractDigests = {
+    apiDigest: h("a"),
+    schemaDigest: h("b"),
+    configDigest: h("c"),
 };
 async function fixture(kind: "server" | "agent" = "server") {
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-"));
@@ -42,6 +47,16 @@ async function fixture(kind: "server" | "agent" = "server") {
     const webRoot = join(root, "web");
     const apiRoot = join(root, "api");
     const schemaRoot = join(root, "schema");
+    const configRoot = join(root, "selected-config");
+    const configSelection =
+        kind === "server"
+            ? selection
+            : { preset: "node-agent", target: selection.target };
+    await mkdir(configRoot, { recursive: true });
+    await writeFile(
+        join(configRoot, "config.json"),
+        canonicalJson(completeSelectedConfigForTest(configSelection)),
+    );
     await produceSchemaContract(
         selection,
         join(import.meta.dir, ".."),
@@ -67,7 +82,7 @@ async function fixture(kind: "server" | "agent" = "server") {
         await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
     }
-    return { root, artifactRoot, webRoot, apiRoot, schemaRoot };
+    return { root, artifactRoot, webRoot, apiRoot, schemaRoot, configRoot };
 }
 async function serverManifest() {
     const f = await fixture();
@@ -79,6 +94,7 @@ async function serverManifest() {
         webRoot: f.webRoot,
         apiRoot: f.apiRoot,
         schemaRoot: f.schemaRoot,
+        configRoot: f.configRoot,
     });
     return { ...f, manifest };
 }
@@ -139,9 +155,9 @@ describe("release manifest producer and validator", () => {
                               ? "changed"
                               : h("9"),
                 };
-                expect(deriveBuildId(selection, changed)).not.toBe(
-                    deriveBuildId(selection, inputs),
-                );
+                expect(
+                    deriveBuildId(selection, changed, contractDigests),
+                ).not.toBe(deriveBuildId(selection, inputs, contractDigests));
             }
         } finally {
             await rm(root, { recursive: true, force: true });
@@ -149,8 +165,15 @@ describe("release manifest producer and validator", () => {
     });
 
     test("reads selected artifacts, excludes polluted binaries and follows no links", async () => {
-        const { root, artifactRoot, webRoot, apiRoot, schemaRoot, manifest } =
-            await serverManifest();
+        const {
+            root,
+            artifactRoot,
+            webRoot,
+            apiRoot,
+            schemaRoot,
+            configRoot,
+            manifest,
+        } = await serverManifest();
         try {
             expect(
                 (manifest as any).binaryDigests.map((x: any) => x.path),
@@ -165,6 +188,7 @@ describe("release manifest producer and validator", () => {
                 webRoot,
                 apiRoot,
                 schemaRoot,
+                configRoot,
             });
             expect((changed as any).webDigest.sha256).not.toBe(before);
             await writeFile(
@@ -181,6 +205,7 @@ describe("release manifest producer and validator", () => {
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                 }),
             ).rejects.toThrow("binary inventory");
             await rm(join(artifactRoot, "bin", "rz-reports"));
@@ -197,6 +222,7 @@ describe("release manifest producer and validator", () => {
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                 }),
             ).rejects.toThrow("changed");
             setArtifactReadHookForTest();
@@ -225,6 +251,7 @@ describe("release manifest producer and validator", () => {
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(
@@ -264,6 +291,7 @@ describe("release manifest producer and validator", () => {
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(afterOpenCount).toBe(0);
@@ -285,6 +313,7 @@ describe("release manifest producer and validator", () => {
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                 }),
             ).rejects.toThrow("symlink");
         } finally {
@@ -305,6 +334,7 @@ describe("release manifest producer and validator", () => {
                 selection: { preset: "node-agent", target: selection.target },
                 releaseVersion: "0.5.0",
                 artifactRoot: agentFixture.artifactRoot,
+                configRoot: agentFixture.configRoot,
             });
             validateServerAgentPair(manifest as any, agent as any);
             (agent as any).agentProtocolContractId = h("9");
@@ -338,8 +368,16 @@ test("rejects invalid Unicode and binds releaseVersion into build identity", asy
     expect(() => canonicalJson({ "\udc00": "ok" })).toThrow();
     expect(canonicalJson({ "😀": "ok" })).toContain("😀");
     expect(
-        deriveBuildId(selection, { ...inputs, releaseVersion: "0.5.0" }),
+        deriveBuildId(
+            selection,
+            { ...inputs, releaseVersion: "0.5.0" },
+            contractDigests,
+        ),
     ).not.toBe(
-        deriveBuildId(selection, { ...inputs, releaseVersion: "0.5.1" }),
+        deriveBuildId(
+            selection,
+            { ...inputs, releaseVersion: "0.5.1" },
+            contractDigests,
+        ),
     );
 });

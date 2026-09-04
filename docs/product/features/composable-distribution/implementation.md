@@ -207,16 +207,16 @@ shared canonical wire descriptor/digest for offline pairing; archive/signature/i
 Monitor P4 selected API export is implemented and verified: contract-only Admin
 and Monitor commands expose real selected registrations before startup inputs.
 The composition-qualified producer rejects deviations from the reviewed route
-corpus, and the release manifest binds the verified artifact bytes. Schema is
-implemented separately; configuration artifact binding remains P4 work.
+corpus, and the release manifest binds the verified artifact bytes. Schema and
+configuration artifacts are implemented as separate selected contracts.
 
 Monitor P4 selected schema export is implemented from the two authoritative
 fresh-install migrations. The manifest derives schema fingerprints and
 data-contract IDs from the canonical artifact and binds its byte digest into the
-build identity. Configuration remains the next P4 producer closure.
+build identity. Archive, signature and installer production remain P4 work.
 
 The three selected Config descriptors and contract-only CLI commands are now
 implemented. They are feature-specific, deterministic without environment or
-working-directory state, and contain no configuration values. Combining these
-descriptors into a canonical artifact and replacing caller-provided
-`configDigest` remains pending.
+working-directory state, and contain no configuration values. Server and Agent
+canonical config artifacts are now produced from those outputs; the manifest
+derives and binds their byte digest instead of accepting `configDigest` input.

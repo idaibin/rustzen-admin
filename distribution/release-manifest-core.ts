@@ -1,5 +1,6 @@
 import { resolveSelection } from "./resolver.ts";
 import type {
+    BuildContractDigests,
     BuildInputs,
     Digest,
     FileEntry,
@@ -61,12 +62,23 @@ export const selectionDigest = (selection: unknown): Digest => ({
 export const deriveBuildId = (
     selection: unknown,
     inputs: BuildInputs,
-    apiDigest?: string,
-    schemaDigest?: string,
-): string =>
-    sha256(
+    digests: BuildContractDigests,
+): string => {
+    const plan = resolveSelection(selection);
+    const configDigest = validHash(digests.configDigest);
+    const apiDigest = digests.apiDigest;
+    const schemaDigest = digests.schemaDigest;
+    if (plan.artifactClass === "server") {
+        if (apiDigest === undefined || schemaDigest === undefined)
+            throw new Error(
+                "server build identity requires API and schema digests",
+            );
+    } else if (apiDigest !== undefined || schemaDigest !== undefined) {
+        throw new Error("node-agent build identity forbids server digests");
+    }
+    return sha256(
         canonicalJson({
-            plan: resolveSelection(selection),
+            plan,
             releaseVersion: nonempty(inputs.releaseVersion, "releaseVersion"),
             sourceIdentity: nonempty(inputs.sourceIdentity, "sourceIdentity"),
             toolchain: nonempty(inputs.toolchain, "toolchain"),
@@ -74,7 +86,7 @@ export const deriveBuildId = (
                 inputs.selectedRoutes,
                 "selectedRoutes",
             ),
-            configDigest: validHash(inputs.configDigest),
+            configDigest,
             ...(apiDigest === undefined
                 ? {}
                 : { apiDigest: validHash(apiDigest) }),
@@ -87,6 +99,7 @@ export const deriveBuildId = (
                     : validHash(inputs.protocolId),
         }),
     );
+};
 export const filesDigest = (files: FileEntry[]): string =>
     sha256(canonicalJson(files.map(({ path, sha256 }) => ({ path, sha256 }))));
 

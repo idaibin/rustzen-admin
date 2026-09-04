@@ -45,8 +45,12 @@ export type BuildInputs = {
     sourceIdentity: string;
     toolchain: string;
     selectedRoutes: string[];
-    configDigest: string;
     protocolId?: string;
+};
+export type BuildContractDigests = {
+    configDigest: string;
+    apiDigest?: string;
+    schemaDigest?: string;
 };
 export type ProduceInput = BuildInputs & {
     selection: unknown;
@@ -54,4 +58,5 @@ export type ProduceInput = BuildInputs & {
     webRoot?: string;
     apiRoot?: string;
     schemaRoot?: string;
+    configRoot?: string;
 };

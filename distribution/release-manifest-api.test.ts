@@ -8,6 +8,7 @@ import {
     produceReleaseManifest,
 } from "./release-manifest.ts";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
+import { completeSelectedConfigForTest } from "./selected-config.ts";
 import {
     produceSchemaContract,
     readSchemaContract,
@@ -21,24 +22,47 @@ const inputs = {
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
     selectedRoutes: ["login", "monitor"],
-    configDigest: h("c"),
     protocolId: h("d"),
 };
 
 test("server binds verified API bytes and Agent forbids API inputs", async () => {
-    expect(deriveBuildId(selection, inputs, h("a"), h("b"))).not.toBe(
-        deriveBuildId(selection, inputs, h("a"), h("c")),
+    const digests = {
+        apiDigest: h("a"),
+        schemaDigest: h("b"),
+        configDigest: h("c"),
+    };
+    expect(deriveBuildId(selection, inputs, digests)).not.toBe(
+        deriveBuildId(selection, inputs, {
+            ...digests,
+            schemaDigest: h("d"),
+        }),
     );
+    expect(deriveBuildId(selection, inputs, digests)).not.toBe(
+        deriveBuildId(selection, inputs, {
+            ...digests,
+            configDigest: h("d"),
+        }),
+    );
+    expect(() =>
+        deriveBuildId(selection, inputs, { configDigest: h("c") }),
+    ).toThrow("requires API and schema");
+    expect(() =>
+        deriveBuildId({ preset: "node-agent", target }, inputs, digests),
+    ).toThrow("forbids server digests");
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-api-"));
     const artifactRoot = join(root, "server");
     const webRoot = join(root, "web");
     const apiRoot = join(root, "api");
     const schemaRoot = join(root, "schema");
+    const configRoot = join(root, "selected-config");
+    const agentConfigRoot = join(root, "agent-config");
     const agentRoot = join(root, "agent");
     try {
         await mkdir(join(artifactRoot, "bin"), { recursive: true });
         await mkdir(webRoot, { recursive: true });
         await mkdir(apiRoot, { recursive: true });
+        await mkdir(configRoot, { recursive: true });
+        await mkdir(agentConfigRoot, { recursive: true });
         await mkdir(join(agentRoot, "bin"), { recursive: true });
         for (const binary of ["rz-admin", "rz-monitor"]) {
             await writeFile(join(artifactRoot, "bin", binary), binary);
@@ -51,6 +75,16 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             completeSelectedApiContractForTest(selection),
         );
         await writeFile(join(apiRoot, "api.json"), validApi);
+        await writeFile(
+            join(configRoot, "config.json"),
+            canonicalJson(completeSelectedConfigForTest(selection)),
+        );
+        await writeFile(
+            join(agentConfigRoot, "config.json"),
+            canonicalJson(
+                completeSelectedConfigForTest({ preset: "node-agent", target }),
+            ),
+        );
         await produceSchemaContract(
             selection,
             join(import.meta.dir, ".."),
@@ -64,8 +98,10 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             webRoot,
             apiRoot,
             schemaRoot,
+            configRoot,
         });
         expect((server as any).apiDigest).toMatch(/^[0-9a-f]{64}$/);
+        expect((server as any).configDigest).toMatch(/^[0-9a-f]{64}$/);
         const forgedSchema = structuredClone(
             (await readSchemaContract(schemaRoot, selection)).contract,
         );
@@ -95,6 +131,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 webRoot,
                 apiRoot,
                 schemaRoot,
+                configRoot,
             }),
         ).rejects.toThrow("fresh-install SQL");
         await produceSchemaContract(
@@ -107,6 +144,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             { schemaDigest: h("a") },
             { schemaFingerprints: { admin: h("a"), monitor: h("b") } },
             { dataContractIds: { admin: h("a"), monitor: h("b") } },
+            { configDigest: h("a") },
         ]) {
             await expect(
                 produceReleaseManifest({
@@ -116,10 +154,27 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                     webRoot,
                     apiRoot,
                     schemaRoot,
+                    configRoot,
                     ...supplied,
                 } as any),
             ).rejects.toThrow("caller-supplied");
         }
+        await writeFile(join(configRoot, "config.json"), "{}");
+        await expect(
+            produceReleaseManifest({
+                ...inputs,
+                selection,
+                artifactRoot,
+                webRoot,
+                apiRoot,
+                schemaRoot,
+                configRoot,
+            }),
+        ).rejects.toThrow("reviewed descriptors");
+        await writeFile(
+            join(configRoot, "config.json"),
+            canonicalJson(completeSelectedConfigForTest(selection)),
+        );
 
         await writeFile(join(apiRoot, "api.json"), "{}");
         await expect(
@@ -130,6 +185,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 webRoot,
                 apiRoot,
                 schemaRoot,
+                configRoot,
             }),
         ).rejects.toThrow();
         await writeFile(join(apiRoot, "api.json"), validApi);
@@ -142,22 +198,17 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 webRoot,
                 apiRoot,
                 schemaRoot,
+                configRoot,
             }),
         ).rejects.toThrow("exactly api.json");
 
-        for (const apiInput of [
-            { apiRoot },
-            { apiDigest: h("a") },
-            { schemaRoot },
-            { schemaDigest: h("a") },
-            { schemaFingerprints: { admin: h("a"), monitor: h("b") } },
-            { dataContractIds: { admin: h("a"), monitor: h("b") } },
-        ]) {
+        for (const apiInput of [{ apiRoot }, { schemaRoot }]) {
             await expect(
                 produceReleaseManifest({
                     ...inputs,
                     selection: { preset: "node-agent", target },
                     artifactRoot: agentRoot,
+                    configRoot: agentConfigRoot,
                     ...apiInput,
                 } as any),
             ).rejects.toThrow("forbids");
@@ -166,6 +217,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             ...inputs,
             selection: { preset: "node-agent", target },
             artifactRoot: agentRoot,
+            configRoot: agentConfigRoot,
         });
         expect("apiDigest" in agent).toBeFalse();
     } finally {

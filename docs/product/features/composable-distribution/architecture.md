@@ -640,3 +640,7 @@ Selected configuration originates beside the three real Config definitions.
 Admin, Monitor Controller and Monitor Agent expose versioned descriptors before
 dotenv startup. Descriptors contain keys, types, requirement/default classes and
 named secret references, never environment values or secret literals.
+The producer combines exact reviewed descriptors into a composition-qualified
+`contracts/config/config.json`; Server contains only `access` and `monitor`,
+while Agent contains only `monitor-agent`. Manifest generation reads those
+canonical bytes through the stable-file boundary and derives `configDigest`.

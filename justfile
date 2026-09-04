@@ -180,7 +180,7 @@ clean:
 
 verify-distribution-manifest:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts
+    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts
 
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
@@ -199,6 +199,8 @@ verify-monitor-config-descriptors:
 verify-monitor-selected-contract:
     cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts
+    pnpm dlx bun@1.3.14 test distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts
     pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor.json
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json

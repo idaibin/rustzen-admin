@@ -15,9 +15,11 @@ import {
 } from "./release-manifest-artifacts.ts";
 import { readSelectedApiContract } from "./selected-contract.ts";
 import { readSchemaContract } from "./schema-contract.ts";
+import { readSelectedConfig } from "./selected-config.ts";
 import type {
     AgentManifest,
     BinaryDigest,
+    BuildContractDigests,
     ManifestBase,
     BuildInputs,
     Digest,
@@ -30,6 +32,7 @@ import type {
 export type {
     AgentManifest,
     BinaryDigest,
+    BuildContractDigests,
     ManifestBase,
     BuildInputs,
     Digest,
@@ -55,16 +58,15 @@ export async function produceReleaseManifest(
         "apiDigest" in input ||
         "schemaDigest" in input ||
         "schemaFingerprints" in input ||
-        "dataContractIds" in input
+        "dataContractIds" in input ||
+        "configDigest" in input
     )
         throw new Error("manifest forbids caller-supplied contract digests");
     if (
         plan.artifactClass === "node-agent" &&
         ("apiRoot" in input || "schemaRoot" in input)
     )
-        throw new Error(
-            "node-agent manifest forbids selected API digest inputs",
-        );
+        throw new Error("node-agent manifest forbids server contract roots");
     const apiDigest =
         plan.artifactClass === "server"
             ? (
@@ -81,6 +83,10 @@ export async function produceReleaseManifest(
                   input.selection,
               )
             : undefined;
+    const config = await readSelectedConfig(
+        required(input.configRoot, "configRoot"),
+        input.selection,
+    );
     const files = await readArtifactFiles(input.artifactRoot);
     const binaries = expectedBinaries(plan);
     const actualBinaries = files
@@ -111,11 +117,16 @@ export async function produceReleaseManifest(
         buildId: deriveBuildId(
             input.selection,
             buildInputs,
-            apiDigest,
-            schema?.sha256,
+            plan.artifactClass === "server"
+                ? {
+                      apiDigest,
+                      schemaDigest: schema!.sha256,
+                      configDigest: config.sha256,
+                  }
+                : { configDigest: config.sha256 },
         ),
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
-        configDigest: validHash(input.configDigest),
+        configDigest: config.sha256,
         configOwners: plan.configOwners,
         binaryDigests,
         files,
