@@ -15,6 +15,18 @@ pub(crate) struct ReleaseArgs {
     pub(crate) key_id: String,
 }
 
+#[derive(Debug, clap::Args)]
+pub(crate) struct ManifestPairArgs {
+    #[arg(long)]
+    pub(crate) manifest: PathBuf,
+    #[arg(long)]
+    pub(crate) envelope: PathBuf,
+    #[arg(long)]
+    pub(crate) trusted_public_key: PathBuf,
+    #[arg(long)]
+    pub(crate) key_id: String,
+}
+
 impl From<ReleaseArgs> for install::Inputs {
     fn from(value: ReleaseArgs) -> Self {
         Self {

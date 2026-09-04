@@ -29,6 +29,8 @@ pub use monitor::MonitorAgentConfig;
 pub use monitor::MonitorControllerConfig;
 #[cfg(feature = "reports")]
 pub use reports::ReportsConfig;
+#[cfg(feature = "monitor-agent")]
+pub use shared::canonical_monitor_endpoint;
 pub use shared::{ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present};
 
 /// Fixed retention period for Admin logs, task runs, metrics, events, and reports.

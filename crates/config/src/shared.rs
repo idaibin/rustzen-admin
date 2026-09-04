@@ -242,12 +242,32 @@ pub(crate) fn ensure_production_secret(
 pub(crate) fn ensure_http_url(name: &'static str, value: Option<&str>) -> Result<(), ConfigError> {
     ensure_optional_non_empty(name, value)?;
     if let Some(value) = value {
-        let parsed = url::Url::parse(value.trim()).map_err(|_| ConfigError::Invalid(name))?;
-        if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-            return Err(ConfigError::Invalid(name));
-        }
+        canonical_monitor_endpoint(value).map_err(|_| ConfigError::Invalid(name))?;
     }
     Ok(())
+}
+
+/// Canonical controller endpoint used by both the installer and the Agent.
+/// Public endpoints require HTTPS; loopback endpoints may use HTTP for local development.
+#[cfg(feature = "monitor-agent")]
+pub fn canonical_monitor_endpoint(value: &str) -> Result<String, ConfigError> {
+    let mut parsed = url::Url::parse(value.trim())
+        .map_err(|_| ConfigError::Invalid("RUSTZEN_MONITOR_CONTROLLER_URL"))?;
+    let local = matches!(parsed.host_str(), Some("127.0.0.1") | Some("::1"));
+    if parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+        || (!local && parsed.scheme() != "https")
+        || (local && !matches!(parsed.scheme(), "http" | "https"))
+    {
+        return Err(ConfigError::Invalid("RUSTZEN_MONITOR_CONTROLLER_URL"));
+    }
+    if parsed.path() == "/" {
+        parsed.set_path("");
+    }
+    Ok(parsed.to_string().trim_end_matches('/').to_owned())
 }
 
 #[cfg(test)]

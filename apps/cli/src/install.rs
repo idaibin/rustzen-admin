@@ -70,14 +70,14 @@ pub(super) struct BinaryDigest {
     pub(super) sha256: String,
     pub(super) source: String,
 }
-struct Loaded {
-    archive: Vec<u8>,
-    manifest_bytes: Vec<u8>,
-    envelope_bytes: Vec<u8>,
-    trusted_key: Vec<u8>,
-    key_id: String,
-    manifest: Manifest,
-    verified: Verified,
+pub(super) struct Loaded {
+    pub(super) archive: Vec<u8>,
+    pub(super) manifest_bytes: Vec<u8>,
+    pub(super) envelope_bytes: Vec<u8>,
+    pub(super) trusted_key: Vec<u8>,
+    pub(super) key_id: String,
+    pub(super) manifest: Manifest,
+    pub(super) verified: Verified,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -116,7 +116,7 @@ pub(super) struct Payload {
 pub fn verify(input: &Inputs) -> Result<Verified, String> {
     Ok(load(input)?.verified)
 }
-fn load(input: &Inputs) -> Result<Loaded, String> {
+pub(super) fn load(input: &Inputs) -> Result<Loaded, String> {
     if !valid_key_id(&input.key_id) {
         return Err("trusted key ID is invalid".into());
     }

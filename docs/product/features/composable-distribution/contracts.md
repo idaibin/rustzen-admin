@@ -159,12 +159,20 @@ exact equality, not an undefined version range. Each newly built pair requires
 current fixture certification and a fresh installation; no historical protocol
 fallback is added.
 
-Before node-agent installation/start, the operator supplies the target
-controller's signed Monitor manifest/profile through the same trusted release
-key mechanism. Verify and pin its protocol ID alongside the configured endpoint;
-reject a missing or incompatible profile before starting collection. Every Agent
-startup checks that pinned contract. Pair certification exercises
-both binaries with the shared fixture corpus, including mismatched protocol IDs.
+Before node-agent activation, run `rz prepare-monitor-agent-access` once. It
+prepares only `/opt/rz` directories and the retained manifest for the fixed
+`rz-monitor-agent` identity; the signed Agent binary remains `0755`. Then
+`rz pin-monitor-controller` receives the target Controller's signed production
+manifest/envelope, an independent trusted PEM, key ID and explicit endpoint. It
+writes only the fixed `/opt/rz/controller-profile.json` after verifying the Controller tuple
+and signature, then requires the Agent
+manifest protocol to match exactly. It writes one canonical root-owned profile
+with endpoint, both build IDs and manifest digests, protocol ID, key ID, and
+trusted-key fingerprint. Its mode is `0640`, root-owned and assigned to the
+explicit Agent group; tokens and payload-bundled keys are excluded. Repeating
+the same tuple is idempotent, while a different tuple never overwrites it. Every Agent
+startup checks that profile before logger or network initialization. Pair
+certification exercises both binaries with mismatched protocol fixtures.
 This offline gate certifies the declared pair, not that an arbitrary endpoint
 actually serves the supplied profile; endpoint provisioning remains the local
 operator's responsibility. No enrollment service or remote identity database.

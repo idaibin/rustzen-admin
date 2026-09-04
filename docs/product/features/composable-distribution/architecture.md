@@ -88,6 +88,13 @@ that declared best-effort collection contract in this composition refactor.
 An incident for missing reports indicates loss of observed reporting, not proof
 that a remote server powered off. Show last accepted report time and data gaps.
 
+An offline Controller-pairing gate binds a published Agent to a signed Monitor
+Controller declaration. `rz pin-monitor-controller` writes a root-owned,
+canonical profile after release and protocol verification; Agent startup reads
+it before logger or network construction. This certifies only the declared
+offline pair. It does not contact the endpoint or install users, units, tokens,
+or runtime activation.
+
 Monitor owns final Agent-token verification. Initially keep the current
 installation-wide shared Agent secret, supplied in Monitor/Agent configuration;
 the entry only forwards the dedicated header on the exact Agent-report route

@@ -2816,6 +2816,7 @@ dependencies = [
  "ed25519-dalek",
  "libc",
  "reqwest",
+ "rustzen-config",
  "rustzen-ipc",
  "serde",
  "serde_json",
@@ -2880,6 +2881,7 @@ version = "0.5.0"
 dependencies = [
  "axum",
  "chrono",
+ "libc",
  "reqwest",
  "rustzen-auth",
  "rustzen-config",

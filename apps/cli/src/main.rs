@@ -10,9 +10,10 @@ mod install_cli;
 mod install_crypto;
 mod install_fs;
 mod install_manifest;
+mod install_pairing;
 mod install_selection;
 mod operations;
-use install_cli::ReleaseArgs;
+use install_cli::{ManifestPairArgs, ReleaseArgs};
 use operations::{Context, Module, module_count, read_statuses};
 #[cfg(test)]
 use operations::{is_loopback_host, read_allowed_config};
@@ -67,6 +68,15 @@ enum Command {
         #[arg(long)]
         destination: PathBuf,
     },
+    /// Pin a signed Monitor Controller release to an already published Agent root.
+    PinMonitorController {
+        #[command(flatten)]
+        release: ManifestPairArgs,
+        #[arg(long)]
+        controller_endpoint: String,
+    },
+    /// Prepare fixed /opt/rz access for the rz-monitor-agent service account.
+    PrepareMonitorAgentAccess,
 }
 
 #[derive(Debug, Serialize)]
@@ -199,6 +209,33 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                 message,
             })?;
             emit(cli.json, "install-status", result);
+        }
+        Command::PinMonitorController { release, controller_endpoint } => {
+            let result = install_pairing::pin(&install_pairing::PinInputs {
+                manifest: release.manifest,
+                envelope: release.envelope,
+                trusted_key: release.trusted_public_key,
+                key_id: release.key_id,
+                endpoint: controller_endpoint,
+            })
+            .map_err(|message| CliError {
+                command: "pin-monitor-controller".into(),
+                code: "controller_pairing_failed",
+                message,
+            })?;
+            emit(cli.json, "pin-monitor-controller", json!(result));
+        }
+        Command::PrepareMonitorAgentAccess => {
+            install_pairing::prepare_access().map_err(|message| CliError {
+                command: "prepare-monitor-agent-access".into(),
+                code: "agent_access_prepare_failed",
+                message,
+            })?;
+            emit(
+                cli.json,
+                "prepare-monitor-agent-access",
+                json!({"root":"/opt/rz","identity":"rz-monitor-agent"}),
+            );
         }
     }
     Ok(())

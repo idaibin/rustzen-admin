@@ -1,4 +1,5 @@
 mod agent;
+mod controller_profile;
 #[path = "infra/logger.rs"]
 mod logger;
 pub mod protocol;
@@ -27,7 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     rustzen_config::load_dotenv_if_present()?;
-    let config = rustzen_config::MonitorAgentConfig::load()?;
+    let config = paired_config()?;
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "pairing"] {
+        return Ok(());
+    }
     // SAFETY: this runs before Tokio creates worker threads.
     unsafe { rustzen_config::initialize_process_timezone(config.timezone()) };
     let log_dir = config.log_dir();
@@ -42,6 +46,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _logging = init_logging(log_dir)?;
         agent::run_agent(node_id, endpoint, agent_token).await
     })
+}
+
+fn paired_config() -> Result<rustzen_config::MonitorAgentConfig, Box<dyn std::error::Error>> {
+    let config = rustzen_config::MonitorAgentConfig::load()?;
+    controller_profile::validate_profile(
+        &config.agent_root().join("controller-profile.json"),
+        &agent_controller_base(config.monitor_controller_url.as_deref(), config.admin_port()),
+        &config.agent_root(),
+    )?;
+    controller_profile::validate_running_binary(&config.agent_root())?;
+    Ok(config)
 }
 
 fn agent_controller_base(controller_url: Option<&str>, admin_port: u16) -> String {

@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
@@ -127,6 +127,7 @@ export async function stagedPayloadFixture(
     selection = kind === "server"
         ? monitorSelection
         : { preset: "node-agent", target: monitorSelection.target },
+    binarySource?: string,
 ) {
     const fixture = await releaseFixture(kind);
     const binaryRoot = join(fixture.root, "staging-binary");
@@ -134,7 +135,11 @@ export async function stagedPayloadFixture(
         kind === "server" ? ["rz-admin", "rz-monitor"] : ["rz-monitor-agent"];
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
     for (const name of names) {
-        await writeFile(join(binaryRoot, "bin", name), name);
+        if (binarySource && name === "rz-monitor-agent") {
+            await copyFile(binarySource, join(binaryRoot, "bin", name));
+        } else {
+            await writeFile(join(binaryRoot, "bin", name), name);
+        }
         await chmod(join(binaryRoot, "bin", name), 0o755);
     }
     const staged = await produceNativeStaging({
@@ -155,8 +160,9 @@ export async function stagedPayloadFixture(
 
 export async function agentManifestFixture(
     selection = { preset: "node-agent", target: monitorSelection.target },
+    binarySource?: string,
 ) {
-    const fixture = await stagedPayloadFixture("agent", selection);
+    const fixture = await stagedPayloadFixture("agent", selection, binarySource);
     const manifest = await produceReleaseManifest({
         ...manifestInputs,
         selection,

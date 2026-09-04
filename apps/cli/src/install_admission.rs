@@ -15,6 +15,29 @@ use std::{
 /// Every destination operation below it uses this descriptor, never a reopened parent path.
 pub(super) struct PrivateParent(File);
 
+/// Failure class for no-replace publication. Callers may inspect only a
+/// confirmed rename conflict: all I/O and durability failures remain failures.
+#[derive(Debug)]
+pub(super) enum PublishError {
+    Conflict,
+    Durability(String),
+    Io(String),
+    Fault(String),
+}
+
+impl std::fmt::Display for PublishError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Conflict => formatter.write_str("profile publication conflict"),
+            Self::Durability(message) | Self::Io(message) | Self::Fault(message) => {
+                formatter.write_str(message)
+            }
+        }
+    }
+}
+
+impl std::error::Error for PublishError {}
+
 impl PrivateParent {
     pub(super) fn open(path: &Path) -> Result<Self, String> {
         let file = open_directory_path(path)?;
@@ -90,6 +113,148 @@ impl PrivateParent {
     pub(super) fn sync(&self) -> Result<(), String> {
         self.0.sync_all().map_err(io)
     }
+
+    /// Publishes one fully written regular file in this already-open directory.
+    /// The final rename is no-replace, so concurrent publishers can only race to
+    /// publish identical bytes; callers inspect the winner for idempotence.
+    pub(super) fn publish_regular_noreplace(
+        &self,
+        destination: &str,
+        bytes: &[u8],
+        uid: u32,
+        gid: u32,
+        mode: u32,
+    ) -> Result<(), PublishError> {
+        let destination = name(destination).map_err(PublishError::Io)?;
+        for nonce in 0..32u32 {
+            profile_publish_fault("create")?;
+            let temporary = name(&format!(".rz-publish-{}-{nonce}", std::process::id()))
+                .map_err(PublishError::Io)?;
+            let raw = unsafe {
+                libc::openat(
+                    self.0.as_raw_fd(),
+                    temporary.as_ptr(),
+                    libc::O_WRONLY
+                        | libc::O_CREAT
+                        | libc::O_EXCL
+                        | libc::O_NOFOLLOW
+                        | libc::O_CLOEXEC,
+                    mode,
+                )
+            };
+            if raw < 0 {
+                if std::io::Error::last_os_error().raw_os_error() == Some(libc::EEXIST) {
+                    continue;
+                }
+                return Err(PublishError::Io("profile temporary publication failed".into()));
+            }
+            let mut file = unsafe { File::from_raw_fd(raw) };
+            let result = (|| {
+                profile_publish_fault("write")?;
+                if unsafe { libc::fchown(file.as_raw_fd(), uid, gid) } != 0
+                    || unsafe { libc::fchmod(file.as_raw_fd(), mode as libc::mode_t) } != 0
+                {
+                    return Err(PublishError::Io("profile ownership publication failed".into()));
+                }
+                use std::io::Write;
+                file.write_all(bytes).map_err(|error| PublishError::Io(io(error)))?;
+                profile_publish_fault("fsync")?;
+                file.sync_all().map_err(|error| PublishError::Durability(io(error)))?;
+                profile_publish_fault("rename")?;
+                self.rename_noreplace_cstr(&temporary, &destination)?;
+                profile_publish_fault("dirsync")?;
+                self.sync().map_err(PublishError::Durability)
+            })();
+            if result.is_err() {
+                unsafe { libc::unlinkat(self.0.as_raw_fd(), temporary.as_ptr(), 0) };
+            }
+            return result;
+        }
+        Err(PublishError::Conflict)
+    }
+
+    fn rename_noreplace_cstr(&self, from: &CString, to: &CString) -> Result<(), PublishError> {
+        #[cfg(target_os = "linux")]
+        {
+            if unsafe {
+                libc::syscall(
+                    libc::SYS_renameat2,
+                    self.0.as_raw_fd(),
+                    from.as_ptr(),
+                    self.0.as_raw_fd(),
+                    to.as_ptr(),
+                    libc::RENAME_NOREPLACE,
+                )
+            } != 0
+            {
+                return if std::io::Error::last_os_error().raw_os_error() == Some(libc::EEXIST) {
+                    Err(PublishError::Conflict)
+                } else {
+                    Err(PublishError::Io("profile publication failed".into()))
+                };
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (from, to);
+            Err(PublishError::Io("profile publication supports Linux only".into()))
+        }
+    }
+}
+
+fn profile_publish_fault(stage: &str) -> Result<(), PublishError> {
+    #[cfg(debug_assertions)]
+    if std::env::var("RUSTZEN_PROFILE_PUBLISH_FAULT").ok().as_deref() == Some(stage) {
+        return Err(PublishError::Fault(format!("debug profile publication fault at {stage}")));
+    }
+    Ok(())
+}
+
+/// Opens every absolute component through a directory descriptor and requires an
+/// immutable root-owned path. This is for installed roots, unlike `open`, whose
+/// parent may intentionally be a sticky temporary directory during tests.
+pub(super) fn validate_root_owned_path(path: &Path) -> Result<(), String> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        return Err("Agent root must be an absolute path".into());
+    };
+    let mut current = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open("/")
+        .map_err(io)?;
+    let root = current.metadata().map_err(io)?;
+    if root.uid() != 0 || root.mode() & 0o022 != 0 {
+        return Err("filesystem root is not a safe root-owned directory".into());
+    }
+    for part in absolute.components() {
+        let part = match part {
+            std::path::Component::RootDir | std::path::Component::CurDir => continue,
+            std::path::Component::ParentDir | std::path::Component::Prefix(_) => {
+                return Err("Agent root contains an unsafe path component".into());
+            }
+            std::path::Component::Normal(part) => part,
+        };
+        let part = CString::new(part.as_bytes()).map_err(|_| "Agent root is invalid")?;
+        let next = unsafe {
+            libc::openat(
+                current.as_raw_fd(),
+                part.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if next < 0 {
+            return Err("Agent root is unavailable".into());
+        }
+        current = unsafe { File::from_raw_fd(next) };
+        let metadata = current.metadata().map_err(io)?;
+        if !metadata.is_dir() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err("Agent root path must be root-owned and not group/world writable".into());
+        }
+    }
+    Ok(())
 }
 
 fn open_directory_path(path: &Path) -> Result<File, String> {

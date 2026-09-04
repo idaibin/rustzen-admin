@@ -145,6 +145,10 @@ impl MonitorAgentConfig {
         self.runtime.timezone()
     }
 
+    pub fn agent_root(&self) -> PathBuf {
+        PathBuf::from("/opt/rz")
+    }
+
     fn validate(&self) -> Result<(), ConfigError> {
         self.runtime.validate()?;
         let node_id =
@@ -158,6 +162,9 @@ impl MonitorAgentConfig {
             return Err(ConfigError::Invalid("RUSTZEN_MONITOR_NODE_ID"));
         }
         ensure_http_url("RUSTZEN_MONITOR_CONTROLLER_URL", self.monitor_controller_url.as_deref())?;
+        if self.runtime.requires_production_secrets() && self.monitor_controller_url.is_none() {
+            return Err(ConfigError::Empty("RUSTZEN_MONITOR_CONTROLLER_URL"));
+        }
         ensure_production_secret(
             &self.runtime,
             "RUSTZEN_MONITOR_AGENT_TOKEN",
@@ -251,6 +258,7 @@ mod tests {
     fn production_agent_validates_its_own_secret() {
         let mut agent = local_agent();
         agent.runtime.environment = "production".to_string();
+        agent.monitor_controller_url = Some("https://monitor.example".to_string());
         agent.monitor_agent_token = "production-agent-secret".to_string();
         agent.validate().expect("production Agent config without IPC or database fields");
         agent.monitor_agent_token = "replace-me".to_string();
@@ -265,7 +273,7 @@ mod tests {
             agent.monitor_controller_url = Some(url.to_string());
             assert!(agent.validate().is_err(), "accepted {url:?}");
         }
-        agent.monitor_controller_url = Some("http://monitor.example".to_string());
+        agent.monitor_controller_url = Some("http://127.0.0.1".to_string());
         agent.validate().expect("valid internal HTTP controller URL");
         agent.monitor_controller_url = Some("https://monitor.example".to_string());
         agent.validate().expect("valid remote controller URL");

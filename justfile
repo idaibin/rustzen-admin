@@ -205,6 +205,9 @@ verify-distribution-selected-release:
 verify-distribution-selected-installer:
     scripts/verify-selected-installer-linux.sh
 
+verify-monitor-agent-pairing:
+    scripts/verify-monitor-agent-pairing-linux.sh
+
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
