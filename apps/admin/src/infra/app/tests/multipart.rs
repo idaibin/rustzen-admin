@@ -26,46 +26,102 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()
         .merge(routes)
-        .layer(Extension(std::sync::Arc::new(DeployService::new(
-            pool.clone(),
-        ))))
-        .route_layer(middleware::from_fn_with_state(
-            (codec.clone(), TestLoader),
-            auth_middleware,
-        ))
+        .layer(Extension(std::sync::Arc::new(DeployService::new(pool.clone()))))
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool);
     let owner = codec.encode(1, "owner").expect("token");
 
     let boundary = "avatar-boundary";
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::RgbImage::new(2, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let mut avatar_body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"avatar.png\"\r\nContent-Type: image/png\r\n\r\n").into_bytes();
+    avatar_body.extend(png.into_inner());
+    avatar_body.extend(format!("\r\n--{boundary}--\r\n").into_bytes());
     let avatar_response = app
+        .clone()
+        .oneshot(
+            Request::post("/api/account/avatar")
+                .header("authorization", format!("Bearer {owner}"))
+                .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                .body(Body::from(avatar_body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(avatar_response.status(), StatusCode::OK);
+    let avatar_payload: serde_json::Value =
+        serde_json::from_slice(&to_bytes(avatar_response.into_body(), usize::MAX).await.unwrap())
+            .expect("avatar response");
+    let avatar_url = avatar_payload["data"].as_str().expect("avatar URL");
+    assert!(avatar_url.ends_with(".png"));
+    crate::common::files::remove_avatar_by_url(avatar_url).await.expect("avatar cleanup");
+
+    let boundary = "avatar-extension-spoof";
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::RgbImage::new(2, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let mut avatar_body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"avatar.svg\"\r\nContent-Type: image/svg+xml\r\n\r\n").into_bytes();
+    avatar_body.extend(png.into_inner());
+    avatar_body.extend(format!("\r\n--{boundary}--\r\n").into_bytes());
+    let spoofed_extension_response = app
+        .clone()
+        .oneshot(
+            Request::post("/api/account/avatar")
+                .header("authorization", format!("Bearer {owner}"))
+                .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                .body(Body::from(avatar_body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(spoofed_extension_response.status(), StatusCode::OK);
+    let avatar_payload: serde_json::Value = serde_json::from_slice(
+        &to_bytes(spoofed_extension_response.into_body(), usize::MAX).await.unwrap(),
+    )
+    .expect("avatar response");
+    let avatar_url = avatar_payload["data"].as_str().expect("avatar URL");
+    assert!(avatar_url.ends_with(".png"));
+    crate::common::files::remove_avatar_by_url(avatar_url).await.expect("avatar cleanup");
+
+    let svg_disguised_as_png = app
+        .clone()
+        .oneshot(
+            Request::post("/api/account/avatar")
+                .header("authorization", format!("Bearer {owner}"))
+                .header("content-type", "multipart/form-data; boundary=avatar-svg")
+                .body(multipart_body(
+                    "avatar-svg",
+                    &[(
+                        "file",
+                        Some("avatar.png"),
+                        "image/png",
+                        "<svg xmlns='http://www.w3.org/2000/svg'/>",
+                    )],
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_json_error(svg_disguised_as_png, StatusCode::BAD_REQUEST, 10002).await;
+
+    let application_oversized_avatar = "x".repeat(1024 * 1024 + 1);
+    let application_oversized_response = app
         .clone()
         .oneshot(
             Request::post("/api/account/avatar")
                 .header("authorization", format!("Bearer {owner}"))
                 .header(
                     "content-type",
-                    format!("multipart/form-data; boundary={boundary}"),
+                    "multipart/form-data; boundary=application-oversized-avatar",
                 )
                 .body(multipart_body(
-                    boundary,
-                    &[("file", Some("avatar.png"), "image/png", "png")],
+                    "application-oversized-avatar",
+                    &[("file", Some("avatar.png"), "image/png", &application_oversized_avatar)],
                 ))
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(avatar_response.status(), StatusCode::OK);
-    let avatar_payload: serde_json::Value = serde_json::from_slice(
-        &to_bytes(avatar_response.into_body(), usize::MAX)
-            .await
-            .unwrap(),
-    )
-    .expect("avatar response");
-    let avatar_url = avatar_payload["data"].as_str().expect("avatar URL");
-    assert!(avatar_url.ends_with(".png"));
-    crate::common::files::remove_avatar_by_url(avatar_url)
-        .await
-        .expect("avatar cleanup");
+    assert_json_error(application_oversized_response, StatusCode::PAYLOAD_TOO_LARGE, 10013).await;
 
     let oversized_avatar = "x".repeat(3 * 1024 * 1024 + 1024);
     let oversized_response = app
@@ -73,10 +129,7 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
         .oneshot(
             Request::post("/api/account/avatar")
                 .header("authorization", format!("Bearer {owner}"))
-                .header(
-                    "content-type",
-                    "multipart/form-data; boundary=oversized-avatar",
-                )
+                .header("content-type", "multipart/form-data; boundary=oversized-avatar")
                 .body(multipart_body(
                     "oversized-avatar",
                     &[("file", Some("avatar.png"), "image/png", &oversized_avatar)],
@@ -85,14 +138,7 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
         )
         .await
         .unwrap();
-    let oversized_status = oversized_response.status();
-    let oversized_content_type = oversized_response.headers().get("content-type").cloned();
-    let oversized_body = to_bytes(oversized_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    assert_eq!(oversized_status, StatusCode::PAYLOAD_TOO_LARGE);
-    assert_eq!(oversized_content_type.unwrap(), "text/plain; charset=utf-8");
-    assert!(!oversized_body.is_empty());
+    assert_json_error(oversized_response, StatusCode::PAYLOAD_TOO_LARGE, 10013).await;
 
     let invalid_deployment_id = app
         .clone()
@@ -109,12 +155,7 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
         invalid_deployment_id.headers().get("content-type").unwrap(),
         "text/plain; charset=utf-8"
     );
-    assert!(
-        !to_bytes(invalid_deployment_id.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert!(!to_bytes(invalid_deployment_id.into_body(), usize::MAX).await.unwrap().is_empty());
 
     let deployment_boundary = "deployment-boundary";
     let deployment_response = app
@@ -130,12 +171,7 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
                     &[
                         ("component", None, "text/plain", "release"),
                         ("version", None, "text/plain", "0.5.0"),
-                        (
-                            "file",
-                            Some("release.tar"),
-                            "application/octet-stream",
-                            "not-a-bundle",
-                        ),
+                        ("file", Some("release.tar"), "application/octet-stream", "not-a-bundle"),
                     ],
                 ))
                 .unwrap(),

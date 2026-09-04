@@ -18,6 +18,7 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
 hex = "0.4"
 ed25519-dalek = "2.2"
 rustzen-auth = { path = "../../crates/auth" }
