@@ -135,7 +135,7 @@ and commands in the design are not current working commands.
 | D55a | Activate with a placeholder token, invalid node/URL, profile mismatch, unsafe source, or conflicting env | Reject before activation; config/profile/unit bytes and metadata remain unchanged; token is absent from output. |
 | D55b | Activate valid production config | Publish only `/opt/rz/config/rz-monitor-agent.env` as `root:rz-monitor-agent 0640`; selected unit recorder sees daemon-reload, enable, start; no `rz.target` or deploy unit. |
 | D55d | Concurrent same and different activation tuples; fail each systemctl boundary | Same tuple serializes and reuses one activated marker without duplicate actions; different tuple conflicts; failure writes no marker and retry converges. |
-| D55c (next closure) | Installed arm64 Agent reports to a local mock | Not implemented by activation transaction: future fixture must record ready only after accepted/duplicate and keep 401/network failures unready. Real PID1 enable/start/restart remains Not verified. |
+| D55c (pending) | Installed arm64 Agent reports to controllable Controller/TLS fixtures | Unit and host-level Agent tests cover notification and transport semantics, but no installed arm64 Agent fixture has yet observed an `accepted`/`duplicate`/`401`/network sequence and its readiness socket together. Real PID1 enable/start/restart remains Not verified. |
 
 `D04` and `D08` use package/module reachability and emitted inventory, not only
 string scanning. Symbol strings can be stripped; common dependencies can be

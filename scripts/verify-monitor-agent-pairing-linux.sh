@@ -98,9 +98,11 @@ echo "\$*" >> $recorder_log
 case "\$1" in
   daemon-reload) : ;;
   enable|start) test "\$2" = rz-monitor-agent.service ;;
+  --no-block) test "\$2" = start && test "\$3" = rz-monitor-agent.service ;;
   *) exit 1 ;;
 esac
-test "\${RUSTZEN_SYSTEMCTL_FAIL:-}" != "\$1"
+stage="\$1"; test "\$stage" != --no-block || stage="\$2"
+test "\${RUSTZEN_SYSTEMCTL_FAIL:-}" != "\$stage"
 EOF
     chmod 0700 "$recorder"
     if ! RUSTZEN_SYSTEMCTL_RECORDER="$recorder" "$rz" --json activate-monitor-agent --config "$config_source" >"$base/activate.out" 2>&1; then
@@ -111,14 +113,14 @@ EOF
     cat > "$base/systemctl.expected" <<EOF
 daemon-reload
 enable rz-monitor-agent.service
-start rz-monitor-agent.service
+--no-block start rz-monitor-agent.service
 EOF
     cmp "$base/systemctl.expected" "$recorder_log"
     test "$(stat -c "%u:%g:%a" "$base/rz/config/rz-monitor-agent.env")" = 0:2345:640
     cmp "$base/rz/current/systemd/rz-monitor-agent.service" /etc/systemd/system/rz-monitor-agent.service
     marker="$base/rz/state/monitor-agent-activation.json"
     test "$(stat -c "%u:%g:%a" "$marker")" = 0:0:600
-    grep -F "\"state\":\"activated\"" "$marker"
+    grep -F "\"state\":\"published_and_start_queued\"" "$marker"
     snapshot_path() {
       value="$1"
       if [ ! -e "$value" ] && [ ! -L "$value" ]; then

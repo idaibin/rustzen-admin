@@ -177,6 +177,19 @@ This offline gate certifies the declared pair, not that an arbitrary endpoint
 actually serves the supplied profile; endpoint provisioning remains the local
 operator's responsibility. No enrollment service or remote identity database.
 
+The Agent unit uses system-service readiness as a report-delivery fact, not a process-start fact.
+After profile validation and startup, it emits a single `READY=1` notification only when the paired
+Controller returns `accepted` or `duplicate` for a report. A duplicate is a confirmed prior delivery.
+`stale`, `401`, other non-success responses, malformed response bodies, TLS failures, and network
+failures never emit readiness; later scheduled reports may do so. This signal stores no report data
+and does not replace Controller fencing or liveness.
+
+Activation publishes the verified config and unit, reloads systemd, enables the unit, then queues
+`systemctl --no-block start rz-monitor-agent.service`. Its marker means this exact tuple was
+published and start was accepted for queueing; it does not mean the service became ready or that the
+Controller was contacted. The activation lock is released after that bounded request. A real PID1
+must separately observe the later report-delivery readiness transition.
+
 ### Agent activation
 
 `rz activate-monitor-agent --config <root-only-file>` is the production

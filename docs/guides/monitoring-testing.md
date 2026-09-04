@@ -11,7 +11,7 @@ handler 和 SQLite 持久层验证以下边界：
 - `protocol::tests::validates_each_wire_field_at_its_declared_boundary` 覆盖身份、主机名、版本、CPU、字节数、序列号和挂载点的包含边界及越界值； malformed RFC3339 和空磁盘列表分别验证。
 - `agent::tests::agent_collection_maps_fixed_values_and_skips_invalid_devices` 验证固定 CPU、内存、多挂载点映射，并确认空路径、零容量、非法可用容量、伪文件系统、容器临时挂载、loop 设备和重复本地 bind mount 不会污染上报；真实 `/`、`/data` 与 `/var/lib/docker` 挂载仍保留，同源网络挂载不会被误合并。
 - `agent::tests::agent_send_report_observes_request_timeout` 及 `agent_response_statuses_and_failures_are_distinct` 覆盖超时、401、503、accepted、duplicate、stale 和坏响应；`next_sequence` 验证失败/过期不推进序列。独立 Agent 测试入口为 `just verify-monitor-agent`，Controller 的默认测试命令不包含 Agent 测试。
-- `agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes` 直接调用生产 `run_agent_loop`，通过可注入 collector/sender seam 验证 accepted、401、503、timeout、missed tick 的序列与调度行为。
+- `agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes` 直接调用生产 `run_agent_loop`，通过可注入 collector/sender/readiness seam 验证 accepted、duplicate 后只发送一次 readiness，401、503、timeout、stale 和 missed tick 不发送 readiness，同时保持既有序列与调度行为。
 - `app::tests::agent_report_route_returns_accepted_duplicate_and_stale_envelopes` 验证 Controller 上报 envelope，既有 route 测试验证 token-before-body、401 和 422。
 - `historical_duplicate_stale_and_retired_reports_bypass_clock_skew` 与 `historical_fenced_reports_return_200_statuses_but_new_sequence_is_422` 验证 fencing 先于时钟偏差：历史 duplicate/stale/retired 报告仍返回 200 且无副作用，新的 sequence 才返回 422。
 - `older_collected_at_is_stale_even_with_an_increasing_sequence`、`report_clock_skew_has_an_inclusive_five_minute_boundary` 验证 collection time 严格递增、五分钟允许偏差和远未来/过去拒绝；服务端 liveness 仍使用 receive time；`concurrent_replay_has_one_accept_and_one_duplicate` 验证 SQLite fencing 竞态不会产生重复样本或 500。
@@ -110,6 +110,9 @@ Using a file-backed SQLite database:
 - One collection contains CPU, memory, and each eligible real disk mount once per local block
   device; pseudo filesystems and ephemeral container mounts are absent.
 - Successful, rejected, and network-failed submissions all wait for the next scheduled interval.
+- The installed Agent sends its system-service readiness signal exactly once only after `accepted`
+  or `duplicate`; `401`, `stale`, malformed/other HTTP responses, TLS failures, and network failures
+  leave it unready.
 - No path persists, retries, or backfills an old sample.
 - Test scheduling with an injected interval/clock; do not sleep for real 30-second periods.
 

@@ -386,6 +386,14 @@ fi
 grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-monitor-agent' \
     "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
     || fail "Monitor Agent does not use the versioned Agent binary"
+grep -Fqx 'EnvironmentFile=/opt/rz/config/rz-monitor-agent.env' "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
+    || fail "Monitor Agent must use its selected configuration file"
+grep -Fqx 'Type=notify' "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
+    || fail "Monitor Agent must wait for a report-delivery readiness signal"
+grep -Fqx 'NotifyAccess=main' "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
+    || fail "Monitor Agent readiness must be emitted by its main process"
+grep -Fqx 'TimeoutStartSec=infinity' "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
+    || fail "Monitor Agent must keep retrying reports while unready"
 assert_equals "1" "$(grep -c '^ExecStart=' "$PROJECT_ROOT/deploy/rz-monitor-agent.service")" \
     "Monitor Agent ExecStart count"
 if grep -Fq 'rz-monitor agent' "$PROJECT_ROOT/deploy/rz-monitor-agent.service"; then

@@ -1,6 +1,6 @@
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { expect, test } from "bun:test";
 import {
     setArtifactAfterOpenHookForTest,
@@ -51,6 +51,9 @@ function validateSelectedUnitSemantics(
     requireExactDirective(agentBytes, "User", "rz-monitor-agent");
     requireExactDirective(agentBytes, "Group", "rz-monitor-agent");
     requireExactDirective(agentBytes, "UMask", "0027");
+    requireExactDirective(agentBytes, "Type", "notify");
+    requireExactDirective(agentBytes, "NotifyAccess", "main");
+    requireExactDirective(agentBytes, "TimeoutStartSec", "infinity");
     requireExactDirective(agentBytes, "Wants", "network-online.target");
     requireExactDirective(agentBytes, "StateDirectory", "rustzen-monitor-agent");
     requireExactDirective(agentBytes, "LogsDirectory", "rustzen-monitor-agent");
@@ -125,6 +128,11 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
         "ExecCondition",
     ])
         expect(selectedUnitBytes).not.toContain(forbidden);
+});
+
+test("checked-in Agent unit is byte-identical to the native layout authority", async () => {
+    const checkedIn = await readFile(resolve("deploy/rz-monitor-agent.service"), "utf8");
+    expect(checkedIn).toBe(nativeUnitBytes(agent)["systemd/rz-monitor-agent.service"]);
 });
 
 test("native unit semantics reject duplicate override directives", () => {

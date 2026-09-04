@@ -32,8 +32,13 @@ impl ActivationState {
     ) -> Result<Self, String> {
         let parent = PrivateParent::open(Path::new("/opt/rz/state"))?;
         let lock = parent.lock_exclusive(LOCK_NAME)?;
-        let marker =
-            Marker { build_id, config_sha256, state: "activated", unit_sha256, version: 1 };
+        let marker = Marker {
+            build_id,
+            config_sha256,
+            state: "published_and_start_queued",
+            unit_sha256,
+            version: 2,
+        };
         let bytes = serde_json::to_vec(&marker).map_err(|_| "activation marker encoding")?;
         Ok(Self { parent, _lock: lock, bytes })
     }

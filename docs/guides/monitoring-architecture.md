@@ -39,6 +39,12 @@ Agent owns only:
 - one report attempt every 30 seconds;
 - request logging.
 
+The installed service also owns one system-service readiness transition. It emits `READY=1` only
+after its first `accepted` or `duplicate` Controller response. A duplicate is delivery-confirmed by
+the Controller's fencing result; `stale`, authorization failures, malformed responses, TLS failures,
+and network failures do not transition readiness. The signal is sent at most once per process and
+does not add local report state.
+
 Agent has no SQLite database, policy engine, Incident state, report state, Outbox, inbound port, or
 Controller-managed configuration.
 
@@ -139,8 +145,10 @@ Current node state, active Incidents, and alert counters are never removed by re
 ## Failure boundaries
 
 - Controller or gateway unavailable: Agent logs the attempt and waits for the next interval; there
-  is no old-sample retry or backfill.
+  is no old-sample retry or backfill, and the service remains unready.
 - Invalid Agent credentials or payload: no monitoring mutation.
+- Only accepted or duplicate report responses make the installed Agent ready; `401`, `stale`, other
+  HTTP failures, malformed responses, TLS failures, and network failures cannot make it ready.
 - Fencing classifies duplicate, lower-sequence, retired-boot, and invalid takeover reports before
   clock-skew validation; only a report that could be accepted is rejected for an excessive skew.
 - Duplicate, stale, or retired boot: no online-time, sample, counter, or Incident mutation.

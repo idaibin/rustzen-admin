@@ -175,6 +175,50 @@ async fn agent_send_report_observes_request_timeout() {
     server.abort();
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn agent_sends_systemd_ready_notification_to_the_configured_socket() {
+    use tokio::{net::UnixDatagram, time::timeout};
+
+    let path = std::path::PathBuf::from(format!("/tmp/rz-ready-{}.sock", Uuid::new_v4()));
+    let receiver = UnixDatagram::bind(&path).unwrap();
+    notify_systemd_ready_at(path.clone()).await.unwrap();
+    let mut buffer = [0_u8; 64];
+    let received =
+        timeout(Duration::from_secs(1), receiver.recv(&mut buffer)).await.unwrap().unwrap();
+    assert_eq!(&buffer[..received], b"READY=1");
+    std::fs::remove_file(path).unwrap();
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn agent_sends_systemd_ready_notification_to_an_abstract_socket() {
+    let name = vec![b'r'; 107];
+    // SAFETY: the bound address and receive buffer are valid for the documented libc calls, and
+    // the descriptor is closed before the test returns.
+    unsafe {
+        let fd = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM | libc::O_CLOEXEC, 0);
+        assert!(fd >= 0, "cannot create abstract readiness receiver");
+        let mut address: libc::sockaddr_un = std::mem::zeroed();
+        address.sun_family = libc::AF_UNIX as libc::sa_family_t;
+        std::ptr::copy_nonoverlapping(
+            name.as_ptr(),
+            address.sun_path.as_mut_ptr().cast::<u8>().add(1),
+            name.len(),
+        );
+        let length =
+            (std::mem::offset_of!(libc::sockaddr_un, sun_path) + 1 + name.len()) as libc::socklen_t;
+        assert_eq!(libc::bind(fd, std::ptr::from_ref(&address).cast(), length), 0);
+
+        send_abstract_systemd_ready(&name).unwrap();
+        assert!(send_abstract_systemd_ready(&vec![b'x'; 108]).is_err());
+        let mut buffer = [0_u8; 64];
+        let received = libc::recv(fd, buffer.as_mut_ptr().cast(), buffer.len(), 0);
+        libc::close(fd);
+        assert_eq!(&buffer[..received as usize], b"READY=1");
+    }
+}
+
 #[tokio::test]
 async fn agent_send_report_uses_the_shared_http_contract() {
     use tokio::{
@@ -265,6 +309,65 @@ async fn agent_send_report_uses_the_shared_http_contract() {
     server.await.unwrap();
 }
 
+#[tokio::test]
+async fn agent_send_report_distinguishes_real_duplicate_401_and_tls_failures() {
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let duplicate_body = r#"{"code":0,"message":"Success","data":{"status":"duplicate"}}"#;
+    let duplicate_response = format!(
+        "HTTP/1.1 200 OK\r\nconnection: close\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{duplicate_body}",
+        duplicate_body.len()
+    );
+    let server = tokio::spawn(async move {
+        for response in [
+            duplicate_response,
+            "HTTP/1.1 401 Unauthorized\r\nconnection: close\r\ncontent-length: 0\r\n\r\n".into(),
+        ] {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            assert!(socket.read(&mut request).await.unwrap() > 0);
+            socket.write_all(response.as_bytes()).await.unwrap();
+        }
+    });
+    let client = Client::new();
+    let report = report("real-response-node", Uuid::new_v4(), 1, Utc::now(), 10.0, 10, 10);
+    assert_eq!(
+        send_report(&client, &format!("http://{address}{AGENT_REPORT_PATH}"), "token", &report)
+            .await,
+        Ok(AgentReportStatus::Duplicate)
+    );
+    assert!(
+        send_report(&client, &format!("http://{address}{AGENT_REPORT_PATH}"), "token", &report)
+            .await
+            .is_err()
+    );
+    server.await.unwrap();
+
+    let tls_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let tls_address = tls_listener.local_addr().unwrap();
+    let tls_fixture = tokio::spawn(async move {
+        let (mut socket, _) = tls_listener.accept().await.unwrap();
+        let mut client_hello = [0_u8; 1024];
+        assert!(socket.read(&mut client_hello).await.unwrap() > 0);
+    });
+    assert!(
+        send_report(
+            &client,
+            &format!("https://{tls_address}{AGENT_REPORT_PATH}"),
+            "token",
+            &report
+        )
+        .await
+        .is_err()
+    );
+    tls_fixture.await.unwrap();
+}
+
 #[tokio::test(start_paused = true)]
 async fn agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes() {
     use std::{
@@ -281,6 +384,8 @@ async fn agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes(
     ]);
     let calls = Arc::new(Mutex::new(Vec::new()));
     let calls_for_sender = calls.clone();
+    let readiness = Arc::new(Mutex::new(Vec::new()));
+    let readiness_for_callback = readiness.clone();
     let final_sequence = run_agent_loop(
         report_interval(),
         1,
@@ -294,6 +399,10 @@ async fn agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes(
                 outcome
             }
         },
+        move || {
+            readiness_for_callback.lock().unwrap().push(tokio::time::Instant::now());
+            async { Ok(()) }
+        },
     )
     .await
     .unwrap();
@@ -304,4 +413,44 @@ async fn agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes(
     assert_eq!(calls[2].0.duration_since(calls[1].0), Duration::from_secs(75));
     assert_eq!(calls[3].0.duration_since(calls[2].0), Duration::from_secs(15));
     assert_eq!(calls[4].0.duration_since(calls[3].0), Duration::from_secs(30));
+    assert_eq!(readiness.lock().unwrap().len(), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn agent_loop_stays_unready_until_duplicate_confirms_delivery() {
+    use std::{
+        collections::VecDeque,
+        sync::{Arc, Mutex},
+    };
+
+    let mut outcomes = VecDeque::from([
+        Err("401".to_string()),
+        Err("network".to_string()),
+        Ok(AgentReportStatus::Duplicate),
+        Ok(AgentReportStatus::Accepted),
+    ]);
+    let sequences = Arc::new(Mutex::new(Vec::new()));
+    let sequences_for_sender = sequences.clone();
+    let readiness = Arc::new(Mutex::new(0));
+    let readiness_for_callback = readiness.clone();
+    run_agent_loop(
+        report_interval(),
+        1,
+        Some(4),
+        |sequence| report("ready-node", Uuid::new_v4(), sequence, Utc::now(), 10.0, 10, 10),
+        move |report| {
+            sequences_for_sender.lock().unwrap().push(report.sequence);
+            let outcome = outcomes.pop_front().unwrap();
+            async move { outcome }
+        },
+        move || {
+            *readiness_for_callback.lock().unwrap() += 1;
+            async { Ok(()) }
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(*sequences.lock().unwrap(), [1, 1, 1, 2]);
+    assert_eq!(*readiness.lock().unwrap(), 1);
 }

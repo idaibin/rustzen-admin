@@ -13,26 +13,32 @@ use std::{
 use sysinfo::{Disks, System};
 use uuid::Uuid;
 
-async fn run_agent_loop<C, S, Fut>(
+async fn run_agent_loop<C, S, R, SendFut, ReadyFut>(
     mut interval: tokio::time::Interval,
     initial_sequence: u64,
     cycle_limit: Option<usize>,
     mut collector: C,
     mut sender: S,
+    mut report_ready: R,
 ) -> Result<u64, String>
 where
     C: FnMut(u64) -> AgentReport,
-    S: FnMut(AgentReport) -> Fut,
-    Fut: Future<Output = Result<AgentReportStatus, String>>,
+    S: FnMut(AgentReport) -> SendFut,
+    R: FnMut() -> ReadyFut,
+    SendFut: Future<Output = Result<AgentReportStatus, String>>,
+    ReadyFut: Future<Output = Result<(), String>>,
 {
     let mut sequence = initial_sequence;
     let mut cycles = 0;
+    let mut readiness_reported = false;
     loop {
         if cycle_limit.is_some_and(|limit| cycles >= limit) {
             return Ok(sequence);
         }
         interval.tick().await;
         let result = sender(collector(sequence)).await;
+        let delivery_confirmed =
+            matches!(result, Ok(AgentReportStatus::Accepted | AgentReportStatus::Duplicate));
         match &result {
             Ok(AgentReportStatus::Accepted | AgentReportStatus::Duplicate) => {
                 tracing::debug!(sequence, ?result, "Monitor Agent report accepted");
@@ -42,6 +48,17 @@ where
             }
             Err(error) => {
                 tracing::error!(sequence, %error, "Monitor Agent report failed; retaining sequence");
+            }
+        }
+        if delivery_confirmed && !readiness_reported {
+            match report_ready().await {
+                Ok(()) => {
+                    readiness_reported = true;
+                    tracing::info!(sequence, "Monitor Agent is ready after Controller delivery");
+                }
+                Err(error) => {
+                    tracing::warn!(sequence, %error, "Monitor Agent readiness notification failed");
+                }
             }
         }
         sequence = next_agent_sequence(
@@ -108,8 +125,83 @@ pub async fn run_agent(
         let token = sender_token.clone();
         async move { send_report(&client, &endpoint, &token, &report).await }
     };
-    run_agent_loop(report_interval(), 1, None, collector, sender).await?;
+    run_agent_loop(report_interval(), 1, None, collector, sender, notify_systemd_ready).await?;
     Ok(())
+}
+
+async fn notify_systemd_ready() -> Result<(), String> {
+    let Some(path) = std::env::var_os("NOTIFY_SOCKET") else {
+        return Ok(());
+    };
+    notify_systemd_ready_at(PathBuf::from(path)).await
+}
+
+#[cfg(unix)]
+async fn notify_systemd_ready_at(path: PathBuf) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if let Some(name) = std::os::unix::ffi::OsStrExt::as_bytes(path.as_os_str()).strip_prefix(b"@")
+    {
+        return send_abstract_systemd_ready(name);
+    }
+    let socket = tokio::net::UnixDatagram::unbound()
+        .map_err(|error| format!("cannot create readiness socket: {error}"))?;
+    socket.connect(path).map_err(|error| format!("cannot connect readiness socket: {error}"))?;
+    socket
+        .send(b"READY=1")
+        .await
+        .map_err(|error| format!("cannot send readiness notification: {error}"))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn send_abstract_systemd_ready(name: &[u8]) -> Result<(), String> {
+    use std::os::fd::RawFd;
+
+    if name.is_empty() {
+        return Err("systemd readiness socket name is invalid".into());
+    }
+    // SAFETY: the file descriptor is closed on every path below, and the sockaddr is fully
+    // initialized before its bounded byte slice is passed to sendto.
+    unsafe {
+        let fd: RawFd = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM | libc::O_CLOEXEC, 0);
+        if fd < 0 {
+            return Err(format!(
+                "cannot create readiness socket: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+        let mut address: libc::sockaddr_un = std::mem::zeroed();
+        let max_name = address.sun_path.len() - 1;
+        if name.len() > max_name {
+            libc::close(fd);
+            return Err("systemd readiness socket name is invalid".into());
+        }
+        address.sun_family = libc::AF_UNIX as libc::sa_family_t;
+        let destination = address.sun_path.as_mut_ptr().cast::<u8>();
+        std::ptr::copy_nonoverlapping(name.as_ptr(), destination.add(1), name.len());
+        let address_len =
+            (std::mem::offset_of!(libc::sockaddr_un, sun_path) + 1 + name.len()) as libc::socklen_t;
+        let sent = libc::sendto(
+            fd,
+            b"READY=1".as_ptr().cast(),
+            b"READY=1".len(),
+            libc::MSG_NOSIGNAL,
+            std::ptr::from_ref(&address).cast(),
+            address_len,
+        );
+        let result = if sent == b"READY=1".len() as isize {
+            Ok(())
+        } else {
+            Err(format!("cannot send readiness notification: {}", std::io::Error::last_os_error()))
+        };
+        libc::close(fd);
+        result
+    }
+}
+
+#[cfg(not(unix))]
+async fn notify_systemd_ready_at(_: PathBuf) -> Result<(), String> {
+    Err("system-service readiness notifications require a Unix socket".into())
 }
 
 fn report_interval() -> tokio::time::Interval {

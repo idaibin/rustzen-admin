@@ -47,7 +47,7 @@ pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
     for args in [
         ["daemon-reload"].as_slice(),
         ["enable", UNIT_NAME].as_slice(),
-        ["start", UNIT_NAME].as_slice(),
+        ["--no-block", "start", UNIT_NAME].as_slice(),
     ] {
         systemctl(args)?;
     }

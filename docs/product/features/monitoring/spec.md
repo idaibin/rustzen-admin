@@ -64,6 +64,13 @@ time, never the Agent collection time.
 If Controller is unavailable, Agent attempts the next scheduled report. Agent does not promise local
 history, offline alerting, backfill, or exactly-once delivery.
 
+When installed as a service, the Agent is not ready merely because its process started. It reports
+readiness only after its current process has received an `accepted` or `duplicate` response from the
+paired Controller. `duplicate` proves that the Controller already durably saw the same report, so it
+is a successful delivery outcome for readiness. `stale`, `401`, other HTTP failures, malformed
+responses, TLS failures, and network failures leave the Agent unready; later scheduled reports may
+still establish readiness. The Agent sends the ready signal once and keeps no local report history.
+
 ## Alert settings
 
 Monitoring has four global default settings:
@@ -163,6 +170,8 @@ The backend behavior is accepted when:
 10. Restarting Controller preserves nodes, retained data, global defaults, node overrides, counters,
     and incidents.
 11. No configurable-check, Agent-configuration, Agent-history, or legacy compatibility path remains.
+12. An installed Agent reports system-service readiness only after an `accepted` or `duplicate`
+    Controller response; credential and transport failures never fabricate readiness.
 
 The Monitoring behavior is source-resolved. Representative browser coverage and its
 limits are recorded in [local verification](../../../guides/local-verification.md);
