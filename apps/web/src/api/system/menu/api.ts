@@ -25,7 +25,7 @@ export const menuAPI = {
     },
     update: (id: number, data: Menu.UpdateRequest) => {
         return apiRequest<number, Menu.UpdateRequest>({
-            url: `/api/system/menus/${id}`,
+            url: `/api/system/menus/inventory/${id}`,
             method: "PUT",
             params: data,
         });
