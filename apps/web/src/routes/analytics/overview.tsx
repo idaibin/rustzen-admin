@@ -17,15 +17,14 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
-import { t } from "@/lib/i18n";
-
-import { CollectionPolicyStatus } from "./-collection-policy-status";
+import { t, useLocale } from "@/lib/i18n";
 
 export const Route = createFileRoute("/analytics/overview")({
     component: AnalyticsOverviewPage,
 });
 
 function AnalyticsOverviewPage() {
+    useLocale();
     const {
         data: overview,
         dataUpdatedAt,
@@ -47,7 +46,6 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
-                <CollectionPolicyStatus />
                 <DataState
                     kind="loading"
                     title={t("正在加载分析概览", "Loading analytics overview")}
@@ -66,7 +64,6 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
-                <CollectionPolicyStatus />
                 <DataState
                     kind="error"
                     title={
@@ -95,7 +92,6 @@ function AnalyticsOverviewPage() {
                     "View page, API, event, and visitor activity for the current instance.",
                 )}
             />
-            <CollectionPolicyStatus />
             <div className="flex flex-col gap-4">
                 <Typography.Text strong>{t("核心活动", "Core activity")}</Typography.Text>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

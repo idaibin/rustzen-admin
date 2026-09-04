@@ -14,15 +14,4 @@ export const insightsAPI = {
             method: contract.events.method,
             params,
         }),
-    collectionPolicy: () =>
-        apiRequest<Insights.CollectionPolicy>({
-            url: contract.collectionPolicy.path,
-            method: contract.collectionPolicy.method,
-        }),
-    updateCollectionPolicy: (params: Insights.CollectionPolicyUpdate) =>
-        apiRequest<Insights.CollectionPolicy, Insights.CollectionPolicyUpdate>({
-            url: contract.updateCollectionPolicy.path,
-            method: contract.updateCollectionPolicy.method,
-            params,
-        }),
 };

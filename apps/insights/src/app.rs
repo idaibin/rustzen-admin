@@ -486,6 +486,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn collection_policy_invalid_json_uses_api_error_envelope() {
+        let pool = test_pool().await;
+        let app = build_router(pool, SECRET).expect("router");
+        for (payload, expected) in [
+            ("{}", StatusCode::UNPROCESSABLE_ENTITY),
+            (
+                "{\"collectionEnabled\":\"invalid\",\"allowedOrigins\":[]}",
+                StatusCode::UNPROCESSABLE_ENTITY,
+            ),
+        ] {
+            let mut request = signed_request(
+                Method::PUT,
+                "/api/insights/collection-policy",
+                DelegatedAccess::protected("insights:manage"),
+                Body::from(payload),
+            );
+            request.headers_mut().insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), expected);
+            assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
+            let body = response_json(response).await;
+            assert!(body["code"].is_number());
+            assert!(body["message"].is_string());
+            assert_eq!(body["data"], Value::Null);
+        }
+    }
+
+    #[tokio::test]
     async fn collection_policy_put_configures_a_clean_install_without_sql() {
         let pool = test_pool_without_collection_policy().await;
         let app = build_router(pool.clone(), SECRET).expect("router");

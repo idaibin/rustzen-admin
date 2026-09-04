@@ -223,16 +223,21 @@ Non-goals:
 ## UI states and evidence
 
 The UI contract is [Analytics Collection Safety UI](../../../ui/features/analytics-collection-safety.md).
-It covers the existing Analytics overview/detail surfaces and the visible
-collection-status explanation where the current settings contract exposes one;
-it does not create a second settings system.
+It covers the existing Analytics overview/detail surfaces. They do not render a
+collection-policy status panel or fetch policy solely to display enabled state, project
+identifier, or allowed-origin count. Ingestion safety and the existing settings/permission
+boundary remain unchanged; this does not create a settings UI.
+
+Details filters by event type and page/API path. Text applies after the shared pause;
+selection changes apply immediately and reset pagination. Other reports clear and
+disable the path filter, so an obsolete path cannot exclude unrelated events.
 
 | State | User-visible meaning | Required behavior |
 | --- | --- | --- |
 | Loading | Analytics query is in progress. | Preserve shell and filters; never show zero as a placeholder. |
 | Populated | Retained data is available. | Show stable metrics/details with their time/path meaning. |
-| Empty | Query succeeded with no retained events in scope. | Explain the selected range and whether collection is enabled. |
-| Error | Query or collection-status read failed. | Show retry and keep last good data when available. |
+| Empty | Query succeeded with no retained events in scope. | Distinguish no retained activity from no match for the applied filters. |
+| Error | Activity query failed. | Show retry and keep last good data when available. |
 | Permission | Viewer lacks the requested Analytics read/manage capability. | Hide mutation actions and explain the boundary. |
 | Partial | A bounded diagnostic response has some unavailable summaries. | Identify missing categories; do not claim a complete report. |
 
