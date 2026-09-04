@@ -24,6 +24,7 @@ export type ManifestBase = {
     sourceIdentity: string;
     configDigest: string;
     nativeLayoutDigest: string;
+    protocolArtifactDigest: string;
     configOwners: string[];
     binaryDigests: BinaryDigest[];
     files: FileEntry[];
@@ -46,11 +47,11 @@ export type BuildInputs = {
     sourceIdentity: string;
     toolchain: string;
     selectedRoutes: string[];
-    protocolId?: string;
 };
 export type BuildContractDigests = {
     configDigest: string;
     nativeLayoutDigest: string;
+    protocolArtifactDigest: string;
     apiDigest?: string;
     schemaDigest?: string;
 };
@@ -62,4 +63,5 @@ export type ProduceInput = BuildInputs & {
     schemaRoot?: string;
     configRoot?: string;
     nativeRoot?: string;
+    protocolRoot?: string;
 };

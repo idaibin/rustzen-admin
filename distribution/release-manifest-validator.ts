@@ -33,6 +33,7 @@ const baseKeys = [
     "sourceIdentity",
     "configDigest",
     "nativeLayoutDigest",
+    "protocolArtifactDigest",
     "configOwners",
     "binaryDigests",
     "files",
@@ -143,6 +144,9 @@ function parseBase(
         configDigest: validHash(string(record.configDigest, "configDigest")),
         nativeLayoutDigest: validHash(
             string(record.nativeLayoutDigest, "nativeLayoutDigest"),
+        ),
+        protocolArtifactDigest: validHash(
+            string(record.protocolArtifactDigest, "protocolArtifactDigest"),
         ),
         configOwners: sortedStrings(record.configOwners, "configOwners"),
         binaryDigests: binaryDigests(record.binaryDigests),

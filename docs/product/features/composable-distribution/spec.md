@@ -165,6 +165,16 @@ The generated Monitor units retain service start limits and the Agent retains
 Recovery/`ExecCondition` wiring is omitted until the fresh-root
 installer/recovery closure exists.
 
+## Selected protocol artifact
+
+The selected protocol producer runs both Monitor Controller and Agent contract
+commands, requires identical canonical descriptor and digest output, and checks
+the pair against a reviewed version-controlled golden descriptor. It writes one
+composition-qualified `contracts/protocol/protocol.json` for each Monitor
+server or node-agent selection. Release-manifest callers provide its root, not a
+protocol ID; the manifest and build identity derive the verified digest. This
+does not claim archive, signing, installer, or live pairing completion.
+
 ## Design package
 
 - [Implementation plan and current progress](implementation.md)

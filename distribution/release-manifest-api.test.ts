@@ -11,6 +11,10 @@ import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
 import { produceNativeLayout } from "./native-layout.ts";
 import {
+    produceSelectedProtocol,
+    reviewedProtocolOutput,
+} from "./selected-protocol.ts";
+import {
     produceSchemaContract,
     readSchemaContract,
 } from "./schema-contract.ts";
@@ -23,7 +27,6 @@ const inputs = {
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
     selectedRoutes: ["login", "monitor"],
-    protocolId: h("d"),
 };
 
 test("server binds verified API bytes and Agent forbids API inputs", async () => {
@@ -32,6 +35,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
         schemaDigest: h("b"),
         configDigest: h("c"),
         nativeLayoutDigest: h("e"),
+        protocolArtifactDigest: h("f"),
     };
     expect(deriveBuildId(selection, inputs, digests)).not.toBe(
         deriveBuildId(selection, inputs, {
@@ -51,10 +55,17 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             nativeLayoutDigest: h("f"),
         }),
     );
+    expect(deriveBuildId(selection, inputs, digests)).not.toBe(
+        deriveBuildId(selection, inputs, {
+            ...digests,
+            protocolArtifactDigest: h("0"),
+        }),
+    );
     expect(() =>
         deriveBuildId(selection, inputs, {
             configDigest: h("c"),
             nativeLayoutDigest: h("e"),
+            protocolArtifactDigest: h("f"),
         }),
     ).toThrow("requires API and schema");
     expect(() =>
@@ -69,6 +80,8 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
     const agentConfigRoot = join(root, "agent-config");
     const nativeRoot = join(root, "native");
     const agentNativeRoot = join(root, "agent-native");
+    const protocolRoot = join(root, "protocol");
+    const agentProtocolRoot = join(root, "agent-protocol");
     const agentRoot = join(root, "agent");
     try {
         await mkdir(join(artifactRoot, "bin"), { recursive: true });
@@ -97,6 +110,18 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             { preset: "node-agent", target },
             agentNativeRoot,
         );
+        await produceSelectedProtocol(
+            selection,
+            protocolRoot,
+            reviewedProtocolOutput(),
+            reviewedProtocolOutput(),
+        );
+        await produceSelectedProtocol(
+            { preset: "node-agent", target },
+            agentProtocolRoot,
+            reviewedProtocolOutput(),
+            reviewedProtocolOutput(),
+        );
         await writeFile(
             join(agentConfigRoot, "config.json"),
             canonicalJson(
@@ -118,10 +143,40 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             schemaRoot,
             configRoot,
             nativeRoot,
+            protocolRoot,
         });
         expect((server as any).apiDigest).toMatch(/^[0-9a-f]{64}$/);
         expect((server as any).configDigest).toMatch(/^[0-9a-f]{64}$/);
         expect((server as any).nativeLayoutDigest).toMatch(/^[0-9a-f]{64}$/);
+        expect((server as any).protocolArtifactDigest).toMatch(
+            /^[0-9a-f]{64}$/,
+        );
+        expect((server as any).agentProtocolContractId).toMatch(
+            /^[0-9a-f]{64}$/,
+        );
+        expect((server as any).protocolArtifactDigest).not.toBe(
+            (server as any).agentProtocolContractId,
+        );
+        await writeFile(join(protocolRoot, "protocol.json"), "{}");
+        await expect(
+            produceReleaseManifest({
+                ...inputs,
+                selection,
+                artifactRoot,
+                webRoot,
+                apiRoot,
+                schemaRoot,
+                configRoot,
+                nativeRoot,
+                protocolRoot,
+            }),
+        ).rejects.toThrow("reviewed descriptor");
+        await produceSelectedProtocol(
+            selection,
+            protocolRoot,
+            reviewedProtocolOutput(),
+            reviewedProtocolOutput(),
+        );
         await writeFile(join(nativeRoot, "native-layout.json"), "{}");
         await expect(
             produceReleaseManifest({
@@ -133,6 +188,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             }),
         ).rejects.toThrow("selected generated source");
         await produceNativeLayout(selection, nativeRoot);
@@ -167,6 +223,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             }),
         ).rejects.toThrow("fresh-install SQL");
         await produceSchemaContract(
@@ -181,6 +238,9 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             { dataContractIds: { admin: h("a"), monitor: h("b") } },
             { configDigest: h("a") },
             { nativeLayoutDigest: h("a") },
+            { protocolArtifactDigest: h("a") },
+            { protocolId: h("a") },
+            { agentProtocolContractId: h("a") },
         ]) {
             await expect(
                 produceReleaseManifest({
@@ -192,6 +252,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                     ...supplied,
                 } as any),
             ).rejects.toThrow("caller-supplied");
@@ -207,6 +268,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             }),
         ).rejects.toThrow("reviewed descriptors");
         await writeFile(
@@ -225,6 +287,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             }),
         ).rejects.toThrow();
         await writeFile(join(apiRoot, "api.json"), validApi);
@@ -239,6 +302,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             }),
         ).rejects.toThrow("exactly api.json");
 
@@ -250,6 +314,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                     artifactRoot: agentRoot,
                     configRoot: agentConfigRoot,
                     nativeRoot: agentNativeRoot,
+                    protocolRoot: agentProtocolRoot,
                     ...apiInput,
                 } as any),
             ).rejects.toThrow("forbids");
@@ -260,6 +325,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             artifactRoot: agentRoot,
             configRoot: agentConfigRoot,
             nativeRoot: agentNativeRoot,
+            protocolRoot: agentProtocolRoot,
         });
         expect("apiDigest" in agent).toBeFalse();
     } finally {

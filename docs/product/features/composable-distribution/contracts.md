@@ -30,6 +30,7 @@ Routes and permissions are exported from the compiled Rust registration.
   "services": ["admin", "monitor"],
   "configDigest": "<selected config artifact sha256>",
   "nativeLayoutDigest": "<selected native layout artifact sha256>",
+  "protocolArtifactDigest": "<selected protocol artifact sha256>",
   "configOwners": ["access", "monitor"],
   "schemaFingerprints": {"admin": "<sha256>", "monitor": "<sha256>"},
   "dataContractIds": {"admin": "<descriptor sha256>", "monitor": "<descriptor sha256>"},
@@ -658,13 +659,23 @@ outcomes. The descriptor serializes those rules for release pairing;
 conformance tests bind descriptor fields to the shared runtime types and
 handlers.
 
+The selected protocol artifact is canonical JSON with `artifactClass`,
+`compositionId`, `descriptor`, `digest`, `preset`, and `version`; `descriptor`
+is the canonical descriptor byte string, preserving wire integers beyond the
+JavaScript safe-integer range. Its digest is SHA-256 of those descriptor bytes.
+It is accepted only when both real
+Controller and Agent command outputs parse as the same reviewed
+descriptor/digest pair. Server and node-agent artifacts have distinct
+compositions; caller-supplied protocol IDs, cross-class/stale artifacts, links,
+extra files, and changing files are rejected before manifest production.
+
 ### Selected API artifact
 
 Monitor P4 selected API output is canonical JSON, not full OpenAPI. It combines
 only the selected Admin route contracts and Monitor module manifest emitted by
 real registrations. Its SHA-256 is calculated from emitted artifact bytes;
 callers cannot provide an API digest. API, schema and configuration remain
-separate artifacts; configuration is still pending producer work.
+separate artifacts; protocol and native layout use their own selected artifacts.
 
 ### Selected schema artifact
 

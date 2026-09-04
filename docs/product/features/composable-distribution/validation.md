@@ -83,6 +83,7 @@ and commands in the design are not current working commands.
 | D08a | Compile Monitor Admin while full `apps/web/dist` is present | Build uses only `apps/admin/selected-web/<compositionId>`; missing or mismatched selected inventory fails before compilation and embedded assets contain no excluded API/capability sentinels |
 | D08b | Pass empty, unknown or custom Docker `DISTRIBUTION` | Docker fails before Web or binary build; omitted argument resolves only through the declared `full` default |
 | D08c | Monitor Docker output contains a binary in the wrong server/agent directory or an extra selected binary | Static Docker verifier rejects; server is exactly rz-admin/rz-monitor and Agent exactly rz-monitor-agent |
+| D08d | Protocol artifact has altered descriptor/digest/class/composition, extra file, link, or replacement during read | Controller/Agent output and reviewed golden must agree; canonical single-file reader rejects every mutation before manifest/build identity derivation. |
 | D09 | Run monitor for 10 minutes with request tracing | Only two server processes/ports; no probe/timer/config lookup for absent services |
 | D10 | Stop installed Monitor | Entry login works; authorized monitor navigation remains; API shows unavailable |
 | D11 | Change env to enable an absent module | Startup validation rejects it; cannot create route/schema/process |

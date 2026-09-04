@@ -652,3 +652,9 @@ The producer combines exact reviewed descriptors into a composition-qualified
 `contracts/config/config.json`; Server contains only `access` and `monitor`,
 while Agent contains only `monitor-agent`. Manifest generation reads those
 canonical bytes through the stable-file boundary and derives `configDigest`.
+
+The protocol producer uses the same stable single-file boundary. Both compiled
+Monitor targets emit the descriptor; their canonical descriptor/digest pair must
+match each other and the reviewed golden before a composition-qualified protocol
+artifact is published. The manifest derives the pairing ID and build input from
+that artifact, preventing caller substitution.

@@ -201,8 +201,10 @@ proof of a Linux release artifact or target-host operation.
 
 No release artifact, installation or externally delivered result is claimed.
 
-Monitor P4 protocol descriptor is in implementation: Controller and Agent produce the same
-shared canonical wire descriptor/digest for offline pairing; archive/signature/install remain closed.
+Monitor P4 protocol descriptor is implemented: Controller and Agent produce the
+same canonical wire descriptor/digest for offline pairing. The selected protocol
+artifact verifies both command outputs against its reviewed golden and supplies
+manifest/build identity directly; archive/signature/install remain closed.
 
 Monitor P4 selected API export is implemented and verified: contract-only Admin
 and Monitor commands expose real selected registrations before startup inputs.

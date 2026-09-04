@@ -17,6 +17,7 @@ import { readSelectedApiContract } from "./selected-contract.ts";
 import { readSchemaContract } from "./schema-contract.ts";
 import { readSelectedConfig } from "./selected-config.ts";
 import { readNativeLayout } from "./native-layout.ts";
+import { readSelectedProtocol } from "./selected-protocol.ts";
 import type {
     AgentManifest,
     BinaryDigest,
@@ -61,7 +62,10 @@ export async function produceReleaseManifest(
         "schemaFingerprints" in input ||
         "dataContractIds" in input ||
         "configDigest" in input ||
-        "nativeLayoutDigest" in input
+        "nativeLayoutDigest" in input ||
+        "protocolArtifactDigest" in input ||
+        "protocolId" in input ||
+        "agentProtocolContractId" in input
     )
         throw new Error("manifest forbids caller-supplied contract digests");
     if (
@@ -91,6 +95,10 @@ export async function produceReleaseManifest(
     );
     const nativeLayout = await readNativeLayout(
         required(input.nativeRoot, "nativeRoot"),
+        input.selection,
+    );
+    const protocol = await readSelectedProtocol(
+        required(input.protocolRoot, "protocolRoot"),
         input.selection,
     );
     const files = await readArtifactFiles(input.artifactRoot);
@@ -129,15 +137,18 @@ export async function produceReleaseManifest(
                       schemaDigest: schema!.sha256,
                       configDigest: config.sha256,
                       nativeLayoutDigest: nativeLayout.sha256,
+                      protocolArtifactDigest: protocol.sha256,
                   }
                 : {
                       configDigest: config.sha256,
                       nativeLayoutDigest: nativeLayout.sha256,
+                      protocolArtifactDigest: protocol.sha256,
                   },
         ),
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
         configDigest: config.sha256,
         nativeLayoutDigest: nativeLayout.sha256,
+        protocolArtifactDigest: protocol.sha256,
         configOwners: plan.configOwners,
         binaryDigests,
         files,
@@ -146,9 +157,7 @@ export async function produceReleaseManifest(
         const manifest = {
             ...base,
             artifactClass: "node-agent",
-            agentProtocolContractId: validHash(
-                required(input.protocolId, "protocolId"),
-            ),
+            agentProtocolContractId: protocol.protocol.digest,
         } as ReleaseManifest;
         parseReleaseManifest(manifest, input.selection);
         return manifest;
@@ -160,7 +169,7 @@ export async function produceReleaseManifest(
         artifactClass: "server",
         apiDigest: apiDigest!,
         agentProtocolContractId: plan.capabilities.includes("monitor")
-            ? validHash(required(input.protocolId, "protocolId"))
+            ? protocol.protocol.digest
             : undefined,
         schemaFingerprints: Object.fromEntries(
             Object.entries(schema!.contract.owners).map(([owner, value]) => [

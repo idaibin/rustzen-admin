@@ -1,116 +1,25 @@
-import {
-    chmod,
-    mkdtemp,
-    mkdir,
-    rm,
-    rename,
-    symlink,
-    writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { chmod, mkdir, rm, rename, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { completeSelectedApiContractForTest } from "./selected-contract.ts";
-import { produceSchemaContract } from "./schema-contract.ts";
-import { completeSelectedConfigForTest } from "./selected-config.ts";
-import { produceNativeLayout } from "./native-layout.ts";
 import {
     canonicalJson,
     canonicalManifestBytes,
     deriveBuildId,
     parseReleaseManifest,
     produceReleaseManifest,
-    validateServerAgentPair,
 } from "./release-manifest.ts";
 import {
     setArtifactAfterOpenHookForTest,
     setArtifactDirectoryHookForTest,
     setArtifactReadHookForTest,
 } from "./release-manifest-artifacts.ts";
-
-const selection = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
-const h = (letter: string) => letter.repeat(64);
-const inputs = {
-    releaseVersion: "0.5.0",
-    sourceIdentity: "git:abc",
-    toolchain: "rustc-1.90",
-    selectedRoutes: ["login", "monitor"],
-    protocolId: h("d"),
-};
-const contractDigests = {
-    apiDigest: h("a"),
-    schemaDigest: h("b"),
-    configDigest: h("c"),
-    nativeLayoutDigest: h("d"),
-};
-async function fixture(kind: "server" | "agent" = "server") {
-    const root = await mkdtemp(join(tmpdir(), "rz-manifest-"));
-    const artifactRoot = join(root, "artifact");
-    const webRoot = join(root, "web");
-    const apiRoot = join(root, "api");
-    const schemaRoot = join(root, "schema");
-    const configRoot = join(root, "selected-config");
-    const nativeRoot = join(root, "native");
-    const configSelection =
-        kind === "server"
-            ? selection
-            : { preset: "node-agent", target: selection.target };
-    await mkdir(configRoot, { recursive: true });
-    await writeFile(
-        join(configRoot, "config.json"),
-        canonicalJson(completeSelectedConfigForTest(configSelection)),
-    );
-    await produceNativeLayout(configSelection, nativeRoot);
-    await produceSchemaContract(
-        selection,
-        join(import.meta.dir, ".."),
-        schemaRoot,
-    );
-    await mkdir(apiRoot, { recursive: true });
-    await writeFile(
-        join(apiRoot, "api.json"),
-        canonicalJson(completeSelectedApiContractForTest(selection)),
-    );
-    await mkdir(join(artifactRoot, "bin"), { recursive: true });
-    await mkdir(join(artifactRoot, "config"), { recursive: true });
-    await writeFile(join(artifactRoot, "config", "rz.env"), "PORT=3000\n");
-    if (kind === "server") {
-        await writeFile(join(artifactRoot, "bin", "rz-admin"), "admin");
-        await writeFile(join(artifactRoot, "bin", "rz-monitor"), "monitor");
-        await chmod(join(artifactRoot, "bin", "rz-admin"), 0o755);
-        await chmod(join(artifactRoot, "bin", "rz-monitor"), 0o755);
-        await mkdir(join(webRoot, "assets"), { recursive: true });
-        await writeFile(join(webRoot, "index.html"), "<main>monitor</main>");
-        await writeFile(join(webRoot, "assets", "main.js"), "monitor");
-    } else {
-        await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
-        await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
-    }
-    return {
-        root,
-        artifactRoot,
-        webRoot,
-        apiRoot,
-        schemaRoot,
-        configRoot,
-        nativeRoot,
-    };
-}
-async function serverManifest() {
-    const f = await fixture();
-    const manifest = await produceReleaseManifest({
-        ...inputs,
-        selection,
-        releaseVersion: "0.5.0",
-        artifactRoot: f.artifactRoot,
-        webRoot: f.webRoot,
-        apiRoot: f.apiRoot,
-        schemaRoot: f.schemaRoot,
-        configRoot: f.configRoot,
-        nativeRoot: f.nativeRoot,
-    });
-    return { ...f, manifest };
-}
+import {
+    h,
+    manifestContractDigests as contractDigests,
+    manifestInputs as inputs,
+    monitorSelection as selection,
+    serverManifestFixture as serverManifest,
+} from "./release-manifest-fixtures.ts";
 
 describe("release manifest producer and validator", () => {
     test("uses UTF-16/JCS ordering and canonical parsed bytes", async () => {
@@ -186,6 +95,7 @@ describe("release manifest producer and validator", () => {
             schemaRoot,
             configRoot,
             nativeRoot,
+            protocolRoot,
             manifest,
         } = await serverManifest();
         try {
@@ -204,6 +114,7 @@ describe("release manifest producer and validator", () => {
                 schemaRoot,
                 configRoot,
                 nativeRoot,
+                protocolRoot,
             });
             expect((changed as any).webDigest.sha256).not.toBe(before);
             await writeFile(
@@ -222,6 +133,7 @@ describe("release manifest producer and validator", () => {
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                 }),
             ).rejects.toThrow("binary inventory");
             await rm(join(artifactRoot, "bin", "rz-reports"));
@@ -240,6 +152,7 @@ describe("release manifest producer and validator", () => {
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                 }),
             ).rejects.toThrow("changed");
             setArtifactReadHookForTest();
@@ -270,6 +183,7 @@ describe("release manifest producer and validator", () => {
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(
@@ -311,6 +225,7 @@ describe("release manifest producer and validator", () => {
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(afterOpenCount).toBe(0);
@@ -334,6 +249,7 @@ describe("release manifest producer and validator", () => {
                     schemaRoot,
                     configRoot,
                     nativeRoot,
+                    protocolRoot,
                 }),
             ).rejects.toThrow("symlink");
         } finally {
@@ -345,23 +261,9 @@ describe("release manifest producer and validator", () => {
         }
     });
 
-    test("rejects malformed file/envelope paths and validates monitor server-Agent protocol", async () => {
+    test("rejects malformed file/envelope paths", async () => {
         const { root, manifest } = await serverManifest();
-        const agentFixture = await fixture("agent");
         try {
-            const agent = await produceReleaseManifest({
-                ...inputs,
-                selection: { preset: "node-agent", target: selection.target },
-                releaseVersion: "0.5.0",
-                artifactRoot: agentFixture.artifactRoot,
-                configRoot: agentFixture.configRoot,
-                nativeRoot: agentFixture.nativeRoot,
-            });
-            validateServerAgentPair(manifest as any, agent as any);
-            (agent as any).agentProtocolContractId = h("9");
-            expect(() =>
-                validateServerAgentPair(manifest as any, agent as any),
-            ).toThrow("protocol");
             for (const path of [
                 "../bad",
                 "bin\\bad",
@@ -379,7 +281,6 @@ describe("release manifest producer and validator", () => {
             expect(() => parseReleaseManifest(duplicate, selection)).toThrow();
         } finally {
             await rm(root, { recursive: true, force: true });
-            await rm(agentFixture.root, { recursive: true, force: true });
         }
     });
 });

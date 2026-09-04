@@ -67,6 +67,7 @@ export const deriveBuildId = (
     const plan = resolveSelection(selection);
     const configDigest = validHash(digests.configDigest);
     const nativeLayoutDigest = validHash(digests.nativeLayoutDigest);
+    const protocolArtifactDigest = validHash(digests.protocolArtifactDigest);
     const apiDigest = digests.apiDigest;
     const schemaDigest = digests.schemaDigest;
     if (plan.artifactClass === "server") {
@@ -89,16 +90,13 @@ export const deriveBuildId = (
             ),
             configDigest,
             nativeLayoutDigest,
+            protocolArtifactDigest,
             ...(apiDigest === undefined
                 ? {}
                 : { apiDigest: validHash(apiDigest) }),
             ...(schemaDigest === undefined
                 ? {}
                 : { schemaDigest: validHash(schemaDigest) }),
-            protocolId:
-                inputs.protocolId === undefined
-                    ? undefined
-                    : validHash(inputs.protocolId),
         }),
     );
 };
