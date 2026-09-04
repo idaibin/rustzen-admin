@@ -2827,6 +2827,7 @@ dependencies = [
  "figment",
  "rustzen-runtime",
  "serde",
+ "serde_json",
  "url",
 ]
 

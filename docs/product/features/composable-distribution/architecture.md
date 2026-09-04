@@ -635,3 +635,8 @@ initialization migrations, records their byte hashes under the exact resolved
 owners, and derives versioned data-contract IDs from those hashes. The release
 manifest reads only canonical `contracts/schema/schema.json` bytes through the
 same stable-file boundary; callers cannot supply schema hashes or data IDs.
+
+Selected configuration originates beside the three real Config definitions.
+Admin, Monitor Controller and Monitor Agent expose versioned descriptors before
+dotenv startup. Descriptors contain keys, types, requirement/default classes and
+named secret references, never environment values or secret literals.

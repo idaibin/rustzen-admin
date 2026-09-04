@@ -1,7 +1,8 @@
 # Distribution, event and inbox contracts
 
-Status: proposed contracts. All new paths, fields and commands below require
-implementation; existing source is not evidence that these interfaces exist.
+Status: normative target with incremental implementation. Each implemented
+section names its executable evidence; unspecified distribution, signing and
+installation paths remain pending.
 
 ## Distribution identities
 
@@ -643,3 +644,11 @@ Monitor server schema evidence is canonical JSON under the exact `admin` and
 fresh-install SQL bytes. Its data-contract ID hashes a versioned descriptor of
 owner and schema fingerprint. Release-manifest callers provide only the verified
 schema artifact root; direct schema digests, fingerprints and data IDs are rejected.
+
+### Selected configuration descriptors
+
+`rz-admin`, `rz-monitor` and `rz-monitor-agent` expose `contract config selected`
+before dotenv or runtime initialization. Monitor server descriptors are owned by
+`access` and `monitor`; the Agent descriptor is owned only by `monitor-agent`.
+Fields describe names and validation classes without serializing values. The
+canonical combined artifact and manifest binding remain the next P4 closure.

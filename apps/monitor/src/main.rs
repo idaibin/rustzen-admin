@@ -31,6 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", selected_contract::selected_contract_json()?);
         return Ok(());
     }
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
+        println!("{}", serde_json::to_string(&rustzen_config::monitor_controller_contract())?);
+        return Ok(());
+    }
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
     let _ = command;

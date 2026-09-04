@@ -255,7 +255,8 @@ browser behavior and actual deployment are reported separately.
 
 Design is ready for implementation only after review issues are reconciled.
 Runtime acceptance requires the above relevant executable evidence; ten AI
-reviews cannot substitute for it. This task performs design only.
+reviews cannot substitute for it. Implemented rows require their named gates;
+unimplemented rows remain pending.
 
 Monitor P4 protocol evidence is produced by `just verify-monitor-protocol`,
 the Controller and Agent focused tests, and route-level conformance tests.
@@ -264,3 +265,4 @@ plus the Agent token, and check the fixed fencing fixture corpus.
 
 | D51 | Run the Monitor selected API producer with empty environment and temporary cwd; mutate a route, owner, namespace or artifact byte | Contract-only binaries remain deterministic; the producer rejects omissions/additions and records only verified artifact bytes |
 | D52 | Produce selected schema evidence from both final initialization migrations; mutate owner, digest, canonical bytes, file identity or artifact inventory | Manifest accepts only stable canonical schema evidence for exactly Admin and Monitor and derives every schema/data ID from it |
+| D53 | Build all three selected Config feature sets and run each descriptor command under empty environment from a temporary directory | Exact owner/consumer/key surfaces are emitted deterministically and no value or secret literal is present |

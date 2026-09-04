@@ -2,6 +2,7 @@
 
 #[cfg(any(feature = "admin", feature = "admin-monitor"))]
 mod admin;
+mod contract;
 #[cfg(feature = "insights")]
 mod insights;
 #[cfg(any(feature = "monitor-agent", feature = "monitor-controller"))]
@@ -9,6 +10,14 @@ mod monitor;
 #[cfg(feature = "reports")]
 mod reports;
 mod shared;
+
+pub use contract::ConfigContract;
+#[cfg(feature = "admin-monitor")]
+pub use contract::admin_monitor_contract;
+#[cfg(feature = "monitor-agent")]
+pub use contract::monitor_agent_contract;
+#[cfg(feature = "monitor-controller")]
+pub use contract::monitor_controller_contract;
 
 #[cfg(any(feature = "admin", feature = "admin-monitor"))]
 pub use admin::AdminConfig;

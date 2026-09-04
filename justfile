@@ -187,6 +187,15 @@ verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     bash -c 'cmp <(target/debug/rz-monitor contract protocol) <(target/debug/rz-monitor-agent contract protocol)'
 
+verify-monitor-config-descriptors:
+    cargo test -p rustzen-config --no-default-features --features admin-monitor
+    cargo test -p rustzen-config --no-default-features --features monitor-controller
+    cargo test -p rustzen-config --no-default-features --features monitor-agent
+    cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
+    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    bash -c 'cd /tmp && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-admin" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor-agent" contract config selected >/dev/null'
+
 verify-monitor-selected-contract:
     cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor

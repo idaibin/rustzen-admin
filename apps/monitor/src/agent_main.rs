@@ -22,6 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", protocol::contract_protocol_output());
         return Ok(());
     }
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
+        println!("{}", serde_json::to_string(&rustzen_config::monitor_agent_contract())?);
+        return Ok(());
+    }
     rustzen_config::load_dotenv_if_present()?;
     let config = rustzen_config::MonitorAgentConfig::load()?;
     // SAFETY: this runs before Tokio creates worker threads.

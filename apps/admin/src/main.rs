@@ -34,6 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", crate::infra::app::selected_contract_json()?);
         return Ok(());
     }
+    #[cfg(feature = "monitor-distribution")]
+    if command == Command::ContractConfigSelected {
+        println!("{}", serde_json::to_string(&rustzen_config::admin_monitor_contract())?);
+        return Ok(());
+    }
     // load env
     rustzen_config::load_dotenv_if_present()?;
     #[cfg(feature = "full")]
@@ -53,6 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Command::Serve => run_server().await,
             #[cfg(feature = "monitor-distribution")]
             Command::ContractSelected => unreachable!("contract mode exits before runtime startup"),
+            #[cfg(feature = "monitor-distribution")]
+            Command::ContractConfigSelected => {
+                unreachable!("contract mode exits before runtime startup")
+            }
             #[cfg(feature = "full")]
             Command::UpdateWorker(id) => DeployService::run_update_worker(id).await,
             #[cfg(feature = "full")]
@@ -70,6 +79,8 @@ enum Command {
     Serve,
     #[cfg(feature = "monitor-distribution")]
     ContractSelected,
+    #[cfg(feature = "monitor-distribution")]
+    ContractConfigSelected,
     #[cfg(feature = "full")]
     UpdateWorker(i64),
     #[cfg(feature = "full")]
@@ -86,6 +97,12 @@ impl Command {
             #[cfg(feature = "monitor-distribution")]
             [domain, mode] if domain == "contract" && mode == "selected" => {
                 Ok(Self::ContractSelected)
+            }
+            #[cfg(feature = "monitor-distribution")]
+            [domain, kind, mode]
+                if domain == "contract" && kind == "config" && mode == "selected" =>
+            {
+                Ok(Self::ContractConfigSelected)
             }
             #[cfg(feature = "full")]
             [mode] if mode == "openapi" => Ok(Self::OpenApi),
@@ -111,7 +128,7 @@ impl std::fmt::Display for CommandError {
         #[cfg(feature = "full")]
         let usage = "usage: rz-admin serve | rz-admin openapi | rz-admin update worker <release-id> | rz-admin update recover";
         #[cfg(not(feature = "full"))]
-        let usage = "usage: rz-admin serve | rz-admin contract selected";
+        let usage = "usage: rz-admin serve | rz-admin contract selected | rz-admin contract config selected";
         formatter.write_str(usage)
     }
 }
@@ -142,6 +159,12 @@ mod tests {
         assert_eq!(
             Command::parse(["contract".to_string(), "selected".to_string()]).ok(),
             Some(Command::ContractSelected)
+        );
+        #[cfg(feature = "monitor-distribution")]
+        assert_eq!(
+            Command::parse(["contract".to_string(), "config".to_string(), "selected".to_string()])
+                .ok(),
+            Some(Command::ContractConfigSelected)
         );
         #[cfg(feature = "monitor-distribution")]
         assert!(Command::parse(["openapi".to_string()]).is_err());
