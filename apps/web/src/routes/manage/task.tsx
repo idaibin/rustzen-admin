@@ -8,7 +8,7 @@ import {
     HistoryOutlined,
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Form, Modal, Space, Tag, Tooltip, Typography } from "antd";
 import { useMemo, useState } from "react";
@@ -23,6 +23,12 @@ import { localizeBuiltInTaskDescription, localizeBuiltInTaskName } from "@/lib/b
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
+import {
+    taskListRefreshInterval,
+    taskQueryKeys,
+    taskRunsRefreshInterval,
+} from "./-task-refresh";
+
 export const Route = createFileRoute("/manage/task")({
     component: TaskPage,
 });
@@ -32,8 +38,9 @@ const RUN_PAGE_SIZE = 10;
 function TaskPage() {
     const locale = useLocale();
     const { data, error, isPending, isFetching, refetch } = useQuery({
-        queryKey: ["manage", "task"],
+        queryKey: taskQueryKeys.list(),
         queryFn: manageAPI.task.list,
+        refetchInterval: (query) => taskListRefreshInterval(query.state.data?.data),
     });
     const rows = data?.data ?? [];
 
@@ -244,10 +251,11 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
     const [open, setOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const { data, error, isFetching, isPending, refetch } = useQuery({
-        queryKey: ["manage", "task", taskKey, "runs", currentPage],
+        queryKey: taskQueryKeys.runsPage(taskKey, currentPage),
         queryFn: () =>
             manageAPI.task.runs(taskKey, { current: currentPage, pageSize: RUN_PAGE_SIZE }),
         enabled: open,
+        refetchInterval: (query) => taskRunsRefreshInterval(open, query.state.data?.data),
     });
     const rows = data?.data ?? [];
 
@@ -383,6 +391,7 @@ function RunTaskDialog({
     onSuccess: () => void;
     disabled: boolean;
 }) {
+    const queryClient = useQueryClient();
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -390,6 +399,7 @@ function RunTaskDialog({
         setIsSubmitting(true);
         try {
             await manageAPI.task.run(record.taskKey);
+            await queryClient.invalidateQueries({ queryKey: taskQueryKeys.runs(record.taskKey) });
             appMessage.success(t("任务执行已提交", "Task run submitted"));
             setOpen(false);
             onSuccess();
