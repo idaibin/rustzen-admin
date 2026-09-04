@@ -87,24 +87,6 @@ CREATE INDEX idx_menus_module_active
     ON menus(module_id, is_active)
     WHERE module_id IS NOT NULL AND deleted_at IS NULL;
 
-CREATE TABLE dicts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dict_type TEXT NOT NULL,
-    label TEXT NOT NULL,
-    value TEXT NOT NULL,
-    status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2)),
-    description TEXT,
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at DATETIME
-);
-
-CREATE UNIQUE INDEX idx_dicts_label ON dicts(dict_type, label) WHERE deleted_at IS NULL;
-CREATE INDEX idx_dicts_status ON dicts(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_dicts_deleted_at ON dicts(deleted_at);
-CREATE INDEX idx_dicts_dict_type ON dicts(dict_type) WHERE deleted_at IS NULL;
-
 CREATE TABLE operation_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -246,15 +228,6 @@ SELECT u.id, r.id, CURRENT_TIMESTAMP
 FROM users u
 INNER JOIN roles r ON r.code = u.username
 WHERE u.username IN ('owner', 'admin', 'viewer');
-
-INSERT INTO dicts (dict_type, label, value, status, sort_order)
-VALUES
-    ('user_status', '启用', '1', 1, 1),
-    ('user_status', '禁用', '2', 1, 2),
-    ('user_status', '待审核', '3', 1, 3),
-    ('user_status', '已锁定', '4', 1, 4),
-    ('role_type', '系统角色', '1', 1, 1),
-    ('role_type', '自定义角色', '2', 1, 2);
 
 CREATE VIEW user_with_roles AS
 SELECT
