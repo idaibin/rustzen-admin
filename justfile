@@ -19,6 +19,20 @@ dev-web:
     cd apps/web && bun run dev
 
 # check
+# Composable selection only. These commands do not compile or certify a release.
+# Bun follows the existing apps/web runtime pin and is provisioned through pnpm.
+distribution-validate selection="distribution/fixtures/monitor.json":
+    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts validate --selection "{{selection}}"
+
+distribution-plan selection="distribution/fixtures/monitor.json":
+    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection "{{selection}}"
+
+distribution-release-gate selection="distribution/fixtures/monitor.json":
+    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts release-gate --selection "{{selection}}"
+
+verify-distribution-selection:
+    pnpm dlx bun@1.3.14 test distribution scripts/distribution-resolve.test.ts
+
 check:
     cd apps/web && bun install --frozen-lockfile
     cd apps/web && bun run vp fmt --check

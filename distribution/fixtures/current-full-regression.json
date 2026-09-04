@@ -1,0 +1,5 @@
+{
+    "schemaVersion": 1,
+    "preset": "current-full-regression",
+    "target": "x86_64-unknown-linux-musl"
+}
