@@ -1316,6 +1316,23 @@ export const listModuleMenuInventory = async (
     });
 };
 
+export const getUpdateMenuUrl = (id: number) => {
+    return `/api/system/menus/inventory/${id}`;
+};
+
+export const updateMenu = async (
+    id: number,
+    updateMenuPayload: UpdateMenuPayload,
+    options?: RequestInit,
+): Promise<ApiResponseI64> => {
+    return generatedApiRequest<ApiResponseI64>(getUpdateMenuUrl(id), {
+        ...options,
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(updateMenuPayload),
+    });
+};
+
 export const getGetMenuOptionsUrl = (params?: GetMenuOptionsParams) => {
     const normalizedParams = new URLSearchParams();
 
@@ -1339,23 +1356,6 @@ export const getMenuOptions = async (
     return generatedApiRequest<ApiResponseMenuOptionRespList>(getGetMenuOptionsUrl(params), {
         ...options,
         method: "GET",
-    });
-};
-
-export const getUpdateMenuUrl = (id: number) => {
-    return `/api/system/menus/${id}`;
-};
-
-export const updateMenu = async (
-    id: number,
-    updateMenuPayload: UpdateMenuPayload,
-    options?: RequestInit,
-): Promise<ApiResponseI64> => {
-    return generatedApiRequest<ApiResponseI64>(getUpdateMenuUrl(id), {
-        ...options,
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...options?.headers },
-        body: JSON.stringify(updateMenuPayload),
     });
 };
 

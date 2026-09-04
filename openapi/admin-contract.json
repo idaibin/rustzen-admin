@@ -1816,90 +1816,7 @@
         }
       }
     },
-    "/api/system/menus/options": {
-      "get": {
-        "operationId": "getMenuOptions",
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseMenuOptionRespList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid query parameters",
-            "content": {
-              "text/plain": {}
-            }
-          },
-          "401": {
-            "description": "Authentication required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing capability",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-rustzen-authorization": {
-          "capabilities": [
-            "system:menu:options"
-          ],
-          "mode": "require"
-        }
-      }
-    },
-    "/api/system/menus/{id}": {
+    "/api/system/menus/inventory/{id}": {
       "put": {
         "operationId": "updateMenu",
         "parameters": [
@@ -2008,7 +1925,92 @@
           ],
           "mode": "require"
         }
-      },
+      }
+    },
+    "/api/system/menus/options": {
+      "get": {
+        "operationId": "getMenuOptions",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMenuOptionRespList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "text/plain": {}
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-rustzen-authorization": {
+          "capabilities": [
+            "system:menu:options"
+          ],
+          "mode": "require"
+        }
+      }
+    },
+    "/api/system/menus/{id}": {
       "delete": {
         "operationId": "deleteMenu",
         "parameters": [
