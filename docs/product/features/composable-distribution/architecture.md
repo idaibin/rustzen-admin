@@ -614,3 +614,8 @@ belongs to P4, with explicit changed journey expectations and native validation.
 
 See [contracts](contracts.md) for normative error/retention details and
 [validation](validation.md) for the tests that make these claims reviewable.
+
+Monitor P4 keeps the Controller and Agent pair at one wire boundary: both
+binaries expose the same descriptor and digest, while request delivery remains
+through the Admin gateway. Pairing rejects unequal digests before a selected
+release can combine their artifacts.

@@ -200,3 +200,6 @@ distribution certification remain pending. A host dependency tree is not
 proof of a Linux release artifact or target-host operation.
 
 No release artifact, installation or externally delivered result is claimed.
+
+Monitor P4 protocol descriptor is in implementation: Controller and Agent produce the same
+shared canonical wire descriptor/digest for offline pairing; archive/signature/install remain closed.

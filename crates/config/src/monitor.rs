@@ -137,16 +137,6 @@ impl MonitorAgentConfig {
         self.admin_port.unwrap_or(DEFAULT_ADMIN_PORT)
     }
 
-    pub fn agent_reports_endpoint(&self) -> String {
-        let base = self
-            .monitor_controller_url
-            .as_deref()
-            .map(str::trim)
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("http://127.0.0.1:{}", self.admin_port()));
-        format!("{}/api/monitor/agent-reports", base.trim_end_matches('/'))
-    }
-
     pub fn log_dir(&self) -> PathBuf {
         self.runtime.log_dir()
     }
@@ -224,12 +214,7 @@ mod tests {
     #[cfg(feature = "monitor-agent")]
     #[test]
     fn local_agent_config_parses_only_agent_settings() {
-        let config = local_agent();
-
-        assert_eq!(
-            config.agent_reports_endpoint(),
-            "http://127.0.0.1:9801/api/monitor/agent-reports"
-        );
+        let _config = local_agent();
     }
 
     #[cfg(feature = "monitor-agent")]
@@ -284,10 +269,6 @@ mod tests {
         agent.validate().expect("valid internal HTTP controller URL");
         agent.monitor_controller_url = Some("https://monitor.example".to_string());
         agent.validate().expect("valid remote controller URL");
-        assert_eq!(
-            agent.agent_reports_endpoint(),
-            "https://monitor.example/api/monitor/agent-reports"
-        );
     }
 
     #[cfg(feature = "monitor-agent")]

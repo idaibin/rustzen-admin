@@ -256,3 +256,8 @@ browser behavior and actual deployment are reported separately.
 Design is ready for implementation only after review issues are reconciled.
 Runtime acceptance requires the above relevant executable evidence; ten AI
 reviews cannot substitute for it. This task performs design only.
+
+Monitor P4 protocol evidence is produced by `just verify-monitor-protocol`,
+the Controller and Agent focused tests, and route-level conformance tests.
+They build both binaries, compare descriptor output, exercise gateway delegation
+plus the Agent token, and check the fixed fencing fixture corpus.

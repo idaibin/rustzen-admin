@@ -4,10 +4,62 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use crate::protocol_contract::{
+    CONTRACT_PROTOCOL_SHA256, canonical_contract_descriptor, contract_protocol_digest,
+    contract_protocol_digest_for, contract_protocol_output, validate_protocol_pair,
+};
+
 /// Reports may be at most five minutes away from the Controller receive time.
 /// The bound is deliberately small for a 30-second reporting interval and
 /// prevents a bad Agent clock from distorting retention and daily statistics.
 pub const MAX_REPORT_CLOCK_SKEW_SECONDS: i64 = 5 * 60;
+pub const AGENT_REPORT_ROUTE: &str = "/agent-reports";
+pub const AGENT_REPORT_PATH: &str = "/api/monitor/agent-reports";
+pub const AGENT_REPORT_METHOD: &str = "POST";
+pub const MAX_AGENT_REPORT_BODY_BYTES: usize = 2 * 1024 * 1024;
+pub const MAX_NODE_ID_LEN: usize = 128;
+pub const MAX_HOSTNAME_LEN: usize = 253;
+pub const MAX_AGENT_VERSION_LEN: usize = 64;
+pub const MAX_MOUNT_POINT_LEN: usize = 256;
+pub const AGENT_REPORT_AUTH_HEADER: &str = "x-rustzen-monitor-agent-token";
+pub const AGENT_PROTOCOL_VERSION: u32 = 1;
+pub const RESPONSE_SUCCESS_CODE: i32 = 0;
+pub const RESPONSE_SUCCESS_MESSAGE: &str = "Success";
+pub fn agent_reports_endpoint(base: &str) -> String {
+    format!("{}{}", base.trim_end_matches('/'), AGENT_REPORT_PATH)
+}
+pub fn next_agent_sequence(sequence: u64, result: Result<AgentReportStatus, &str>) -> Option<u64> {
+    match result {
+        Ok(AgentReportStatus::Accepted | AgentReportStatus::Duplicate)
+            if sequence < i64::MAX as u64 =>
+        {
+            sequence.checked_add(1)
+        }
+        Ok(AgentReportStatus::Accepted | AgentReportStatus::Duplicate) => None,
+        Ok(AgentReportStatus::Stale) | Err(_) => Some(sequence),
+    }
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentResponseEnvelope {
+    pub code: i32,
+    pub message: String,
+    pub data: AgentResponseData,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentResponseData {
+    pub status: AgentReportStatus,
+}
+pub fn parse_agent_response(http_success: bool, body: &str) -> Result<AgentReportStatus, String> {
+    if !http_success {
+        return Err("controller returned non-success HTTP status".into());
+    }
+    let envelope: AgentResponseEnvelope =
+        serde_json::from_str(body).map_err(|e| format!("invalid controller response: {e}"))?;
+    if envelope.code != RESPONSE_SUCCESS_CODE || envelope.message != RESPONSE_SUCCESS_MESSAGE {
+        return Err(format!("controller rejected report: {}", envelope.message));
+    }
+    Ok(envelope.data.status)
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,7 +78,7 @@ pub struct AgentReport {
 impl AgentReport {
     pub fn validate(&self) -> Result<(), ReportValidationError> {
         if self.node_id.is_empty()
-            || self.node_id.len() > 128
+            || self.node_id.len() > MAX_NODE_ID_LEN
             || !self
                 .node_id
                 .bytes()
@@ -34,10 +86,12 @@ impl AgentReport {
         {
             return Err(ReportValidationError::InvalidNodeId);
         }
-        if self.hostname.trim().is_empty() || self.hostname.chars().count() > 253 {
+        if self.hostname.trim().is_empty() || self.hostname.chars().count() > MAX_HOSTNAME_LEN {
             return Err(ReportValidationError::InvalidHostname);
         }
-        if self.agent_version.trim().is_empty() || self.agent_version.chars().count() > 64 {
+        if self.agent_version.trim().is_empty()
+            || self.agent_version.chars().count() > MAX_AGENT_VERSION_LEN
+        {
             return Err(ReportValidationError::InvalidAgentVersion);
         }
         if self.sequence == 0 {
@@ -53,7 +107,7 @@ impl AgentReport {
         let mut mounts = HashSet::with_capacity(self.disks.len());
         for disk in &self.disks {
             let mount = disk.mount_point.trim();
-            if mount.is_empty() || mount.chars().count() > 256 {
+            if mount.is_empty() || mount.chars().count() > MAX_MOUNT_POINT_LEN {
                 return Err(ReportValidationError::InvalidMountPoint);
             }
             if !mounts.insert(mount) {

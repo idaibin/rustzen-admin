@@ -1,7 +1,6 @@
 use axum::extract::State;
 use chrono::{DateTime, Utc};
 use rustzen_storage::SqlitePool;
-use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tokio::sync::Notify;
 
@@ -12,7 +11,7 @@ use crate::{
         error::AppError,
     },
     middleware::require_agent_token,
-    protocol::{AgentReport, AgentReportStatus},
+    protocol::{AgentReport, AgentReportStatus, AgentResponseData, MAX_AGENT_REPORT_BODY_BYTES},
 };
 
 use super::{
@@ -26,25 +25,19 @@ pub(super) struct LockHook {
     pub(super) release: std::sync::Arc<Notify>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReportResult {
-    status: AgentReportStatus,
-}
-
 pub async fn submit(
     State(state): State<AppState>,
     request: axum::extract::Request,
-) -> AppResult<ReportResult> {
+) -> AppResult<AgentResponseData> {
     require_agent_token(request.headers(), state.agent_token.as_ref())?;
-    let body = axum::body::to_bytes(request.into_body(), 2 * 1024 * 1024)
+    let body = axum::body::to_bytes(request.into_body(), MAX_AGENT_REPORT_BODY_BYTES)
         .await
         .map_err(|_| AppError::unprocessable("invalid agent report body"))?;
     let report = serde_json::from_slice::<AgentReport>(&body)
         .map_err(|error| AppError::unprocessable(format!("invalid agent report: {error}")))?;
     let received_at = Utc::now();
     report.validate().map_err(|e| AppError::unprocessable(e.to_string()))?;
-    Ok(ApiResponse::success(ReportResult {
+    Ok(ApiResponse::success(AgentResponseData {
         status: record_at(&state.pool, report, received_at).await?,
     }))
 }

@@ -156,3 +156,15 @@ minimum-average-maximum, offline duration, and Incident counts.
 
 `/heartbeat`, every `/checks` route, check results, check testing, and check enable/disable routes
 are removed. No compatibility aliases are registered.
+
+## Versioned Agent protocol contract
+
+The shared Rust protocol module defines version 1 for `POST /api/monitor/agent-reports`:
+required JSON fields, token header, accepted/duplicate/stale statuses, sequence behavior,
+fencing before clock-skew validation, and limits. Conformance tests bind the descriptor to those
+runtime definitions. `rz-monitor contract protocol` and `rz-monitor-agent contract protocol`
+print the same descriptor bytes and SHA-256 digest without reading environment or database.
+
+Agent delivery goes through the Admin gateway. The Controller requires the gateway's signed
+public delegation and the Agent token header; Agent binaries do not directly authenticate to
+the Controller.

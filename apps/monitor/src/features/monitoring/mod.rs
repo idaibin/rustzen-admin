@@ -25,7 +25,7 @@ pub fn routes(
     router: ModuleRouter<AppState>,
 ) -> Result<ModuleRouter<AppState>, rustzen_ipc::ManifestError> {
     router
-        .post_public("/agent-reports", acceptance::submit)?
+        .post_public(crate::protocol::AGENT_REPORT_ROUTE, acceptance::submit)?
         .get_with_permission(
             "/overview",
             queries::overview,

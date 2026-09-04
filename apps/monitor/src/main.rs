@@ -5,6 +5,7 @@ mod features;
 mod infra;
 mod middleware;
 pub mod protocol;
+mod protocol_contract;
 
 use crate::{app::run_controller, infra::logger::init_logging};
 
@@ -20,6 +21,10 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 );
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "protocol"] {
+        println!("{}", protocol::contract_protocol_output());
+        return Ok(());
+    }
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
     let _ = command;

@@ -73,12 +73,17 @@ mod tests {
         http::{HeaderMap, Request, StatusCode},
         response::IntoResponse,
     };
-    use rustzen_ipc::AccessMode;
+    use rustzen_ipc::{AccessMode, DelegatedAccess, DelegatedContext, DelegationSigner};
+    use tower::ServiceExt;
     use uuid::Uuid;
 
     use crate::features::monitoring::{record_at, submit};
     use crate::infra::db::migrated_test_pool;
-    use crate::protocol::{AgentReport, ByteUsage};
+    use crate::protocol::{
+        AGENT_REPORT_AUTH_HEADER, AGENT_REPORT_METHOD, AGENT_REPORT_PATH, AGENT_REPORT_ROUTE,
+        AgentReport, AgentReportStatus, ByteUsage, MAX_AGENT_REPORT_BODY_BYTES,
+        parse_agent_response,
+    };
 
     use super::{AppState, build_app};
 
@@ -99,8 +104,8 @@ mod tests {
         }));
         assert_eq!(manifest.routes.len(), 13);
         assert!(manifest.routes.iter().any(|route| {
-            route.method == "POST"
-                && route.path == "/agent-reports"
+            route.method == AGENT_REPORT_METHOD
+                && route.path == AGENT_REPORT_ROUTE
                 && route.access == AccessMode::Public
                 && route.permission.is_none()
         }));
@@ -184,8 +189,7 @@ mod tests {
         let mut invalid_report = report;
         invalid_report.cpu_percent = 101.0;
         let mut headers = HeaderMap::new();
-        headers
-            .insert(crate::middleware::MONITOR_AGENT_TOKEN_HEADER, "agent-secret".parse().unwrap());
+        headers.insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
         let mut request = Request::new(Body::from(serde_json::to_vec(&invalid_report).unwrap()));
         *request.headers_mut() = headers;
         let invalid_pool = migrated_test_pool().await;
@@ -232,10 +236,7 @@ mod tests {
 
         async fn submit_report(state: AppState, report: &AgentReport) -> serde_json::Value {
             let mut request = Request::new(Body::from(serde_json::to_vec(report).unwrap()));
-            request.headers_mut().insert(
-                crate::middleware::MONITOR_AGENT_TOKEN_HEADER,
-                "agent-secret".parse().unwrap(),
-            );
+            request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
             let response = submit(State(state), request).await.unwrap().into_response();
             let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
             serde_json::from_slice(&body).unwrap()
@@ -279,10 +280,7 @@ mod tests {
 
         async fn post(state: &AppState, report: &AgentReport) -> axum::response::Response {
             let mut request = Request::new(Body::from(serde_json::to_vec(report).unwrap()));
-            request.headers_mut().insert(
-                crate::middleware::MONITOR_AGENT_TOKEN_HEADER,
-                "agent-secret".parse().unwrap(),
-            );
+            request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
             match submit(State(state.clone()), request).await {
                 Ok(value) => value.into_response(),
                 Err(error) => error.into_response(),
@@ -327,5 +325,71 @@ mod tests {
             .unwrap(),
             3
         );
+    }
+    fn delegated_headers() -> HeaderMap {
+        let context = DelegatedContext::new(
+            "wire-test",
+            None,
+            "monitor",
+            axum::http::Method::POST,
+            AGENT_REPORT_PATH,
+            DelegatedAccess::Public,
+        )
+        .unwrap();
+        DelegationSigner::new("rustzen-dev-ipc-token-change-in-production")
+            .unwrap()
+            .sign(&context)
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn agent_report_router_conforms_to_shared_wire_contract() {
+        let pool = migrated_test_pool().await;
+        let (router, _) = build_app(pool, "agent-secret".into()).unwrap();
+        let report = AgentReport {
+            node_id: "wire-node".into(),
+            boot_id: Uuid::new_v4(),
+            sequence: 1,
+            hostname: "wire-node".into(),
+            agent_version: "test".into(),
+            collected_at: chrono::Utc::now(),
+            cpu_percent: 1.0,
+            memory: ByteUsage { used_bytes: 1, total_bytes: 2 },
+            disks: vec![],
+        };
+        let mut request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(serde_json::to_vec(&report).unwrap()))
+            .unwrap();
+        *request.headers_mut() = delegated_headers();
+        request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+        let response = router.clone().oneshot(request).await.unwrap();
+        assert!(response.status().is_success(), "{}", response.status());
+        let bytes =
+            axum::body::to_bytes(response.into_body(), MAX_AGENT_REPORT_BODY_BYTES).await.unwrap();
+        assert_eq!(
+            parse_agent_response(true, std::str::from_utf8(&bytes).unwrap()).unwrap(),
+            AgentReportStatus::Accepted
+        );
+        let mut missing_request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(serde_json::to_vec(&report).unwrap()))
+            .unwrap();
+        *missing_request.headers_mut() = delegated_headers();
+        let missing = router.clone().oneshot(missing_request).await.unwrap();
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        let mut oversized_request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(vec![b'x'; MAX_AGENT_REPORT_BODY_BYTES + 1]))
+            .unwrap();
+        *oversized_request.headers_mut() = delegated_headers();
+        oversized_request
+            .headers_mut()
+            .insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+        let oversized = router.oneshot(oversized_request).await.unwrap();
+        assert_eq!(oversized.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 }

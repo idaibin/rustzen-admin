@@ -621,3 +621,9 @@ erased from a user's knowledge, but no new response treats old grants as current
 This adds a precise access lifecycle mechanism, not a second login system.
 No Cookie conversion or ticket service is required for the initial fetch-based
 client. User-facing auth failures and disabled-module states remain distinct.
+
+Monitor P4 protocol specification: the shared Rust module defines version 1
+request, response, limits, authentication header, sequence and fencing
+outcomes. The descriptor serializes those rules for release pairing;
+conformance tests bind descriptor fields to the shared runtime types and
+handlers.
