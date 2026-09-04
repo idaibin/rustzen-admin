@@ -627,5 +627,11 @@ database, or runtime initialization. Admin maps `documented_all_contracts()`;
 Monitor builds its `ModuleDefinition` and `routes()` manifest through one shared
 helper. The selection producer requires the exact reviewed Admin and Monitor
 owner, route, access and menu corpus, then writes a composition-qualified
-`contracts/api.json`. The release manifest hashes the canonical bytes it reads
+`contracts/api/api.json`. The release manifest hashes the canonical bytes it reads
 from that artifact.
+
+The selected schema producer reads the final Admin Monitor and Monitor
+initialization migrations, records their byte hashes under the exact resolved
+owners, and derives versioned data-contract IDs from those hashes. The release
+manifest reads only canonical `contracts/schema/schema.json` bytes through the
+same stable-file boundary; callers cannot supply schema hashes or data IDs.

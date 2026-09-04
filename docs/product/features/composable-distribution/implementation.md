@@ -209,3 +209,8 @@ and Monitor commands expose real selected registrations before startup inputs.
 The composition-qualified producer rejects deviations from the reviewed route
 corpus, and the release manifest binds the verified artifact bytes. Schema and
 configuration producers remain separate P4 work.
+
+Monitor P4 selected schema export is implemented from the two authoritative
+fresh-install migrations. The manifest derives schema fingerprints and
+data-contract IDs from the canonical artifact and binds its byte digest into the
+build identity. Configuration remains the next P4 producer closure.

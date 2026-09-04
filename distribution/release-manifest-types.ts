@@ -45,15 +45,13 @@ export type BuildInputs = {
     sourceIdentity: string;
     toolchain: string;
     selectedRoutes: string[];
-    schemaDigest: string;
     configDigest: string;
     protocolId?: string;
 };
 export type ProduceInput = BuildInputs & {
     selection: unknown;
     artifactRoot: string;
-    schemaFingerprints?: Record<string, string>;
-    dataContractIds?: Record<string, string>;
     webRoot?: string;
     apiRoot?: string;
+    schemaRoot?: string;
 };

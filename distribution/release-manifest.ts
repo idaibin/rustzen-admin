@@ -14,6 +14,7 @@ import {
     readWebDigest,
 } from "./release-manifest-artifacts.ts";
 import { readSelectedApiContract } from "./selected-contract.ts";
+import { readSchemaContract } from "./schema-contract.ts";
 import type {
     AgentManifest,
     BinaryDigest,
@@ -51,8 +52,15 @@ export async function produceReleaseManifest(
 ): Promise<ReleaseManifest> {
     const plan = resolveSelection(input.selection);
     if (
+        "apiDigest" in input ||
+        "schemaDigest" in input ||
+        "schemaFingerprints" in input ||
+        "dataContractIds" in input
+    )
+        throw new Error("manifest forbids caller-supplied contract digests");
+    if (
         plan.artifactClass === "node-agent" &&
-        ("apiRoot" in input || "apiDigest" in input)
+        ("apiRoot" in input || "schemaRoot" in input)
     )
         throw new Error(
             "node-agent manifest forbids selected API digest inputs",
@@ -65,6 +73,13 @@ export async function produceReleaseManifest(
                       input.selection,
                   )
               ).sha256
+            : undefined;
+    const schema =
+        plan.artifactClass === "server"
+            ? await readSchemaContract(
+                  required(input.schemaRoot, "schemaRoot"),
+                  input.selection,
+              )
             : undefined;
     const files = await readArtifactFiles(input.artifactRoot);
     const binaries = expectedBinaries(plan);
@@ -82,7 +97,6 @@ export async function produceReleaseManifest(
         source: "binary-file" as const,
     }));
     const buildInputs: BuildInputs = input;
-    validateInputOwners(input, plan);
     const base: ManifestBase = {
         manifestVersion: 1,
         releaseClass: plan.releaseClass,
@@ -94,7 +108,12 @@ export async function produceReleaseManifest(
         services: plan.services,
         compositionId: plan.compositionId,
         selectionDigest: selectionDigest(input.selection),
-        buildId: deriveBuildId(input.selection, buildInputs, apiDigest),
+        buildId: deriveBuildId(
+            input.selection,
+            buildInputs,
+            apiDigest,
+            schema?.sha256,
+        ),
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
         configDigest: validHash(input.configDigest),
         configOwners: plan.configOwners,
@@ -112,10 +131,8 @@ export async function produceReleaseManifest(
         parseReleaseManifest(manifest, input.selection);
         return manifest;
     }
-    if (!input.webRoot || !input.schemaFingerprints || !input.dataContractIds)
-        throw new Error(
-            "server producer requires selected Web, schema and data contracts",
-        );
+    if (!input.webRoot)
+        throw new Error("server producer requires selected Web contracts");
     const manifest: ReleaseManifest = {
         ...base,
         artifactClass: "server",
@@ -123,11 +140,18 @@ export async function produceReleaseManifest(
         agentProtocolContractId: plan.capabilities.includes("monitor")
             ? validHash(required(input.protocolId, "protocolId"))
             : undefined,
-        schemaFingerprints: hashMap(
-            input.schemaFingerprints,
-            "schemaFingerprints",
+        schemaFingerprints: Object.fromEntries(
+            Object.entries(schema!.contract.owners).map(([owner, value]) => [
+                owner,
+                value.schemaSha256,
+            ]),
         ),
-        dataContractIds: hashMap(input.dataContractIds, "dataContractIds"),
+        dataContractIds: Object.fromEntries(
+            Object.entries(schema!.contract.owners).map(([owner, value]) => [
+                owner,
+                value.dataContractId,
+            ]),
+        ),
         webDigest: await readWebDigest(input.webRoot),
     };
     parseReleaseManifest(manifest, input.selection);
@@ -149,33 +173,4 @@ function expectedBinaries(plan: Plan): string[] {
 function required(value: unknown, label: string): string {
     if (value === undefined) throw new Error(`${label} is required`);
     return nonempty(value, label);
-}
-function hashMap(value: unknown, label: string): Record<string, string> {
-    if (!value || typeof value !== "object" || Array.isArray(value))
-        throw new Error(`${label} must be an object`);
-    const record = value as Record<string, unknown>;
-    const keys = Object.keys(record).sort();
-    if (!keys.length) throw new Error(`${label} must not be empty`);
-    for (const key of keys) {
-        if (!key) throw new Error(`${label} has empty owner`);
-        validHash(nonempty(record[key], `${label}.${key}`));
-    }
-    return Object.fromEntries(keys.map((key) => [key, record[key] as string]));
-}
-
-function validateInputOwners(input: ProduceInput, plan: Plan): void {
-    if (plan.artifactClass !== "server") return;
-    const exact = (
-        value: Record<string, string> | undefined,
-        owners: string[],
-        label: string,
-    ) => {
-        if (
-            !value ||
-            canonicalJson(Object.keys(value).sort()) !== canonicalJson(owners)
-        )
-            throw new Error(`${label} owners differ from resolved selection`);
-    };
-    exact(input.schemaFingerprints, plan.schemaOwners, "schema");
-    exact(input.dataContractIds, plan.schemaOwners, "data");
 }

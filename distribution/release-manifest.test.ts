@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
+import { produceSchemaContract } from "./schema-contract.ts";
 import {
     canonicalJson,
     canonicalManifestBytes,
@@ -32,7 +33,6 @@ const inputs = {
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
     selectedRoutes: ["login", "monitor"],
-    schemaDigest: h("b"),
     configDigest: h("c"),
     protocolId: h("d"),
 };
@@ -41,6 +41,12 @@ async function fixture(kind: "server" | "agent" = "server") {
     const artifactRoot = join(root, "artifact");
     const webRoot = join(root, "web");
     const apiRoot = join(root, "api");
+    const schemaRoot = join(root, "schema");
+    await produceSchemaContract(
+        selection,
+        join(import.meta.dir, ".."),
+        schemaRoot,
+    );
     await mkdir(apiRoot, { recursive: true });
     await writeFile(
         join(apiRoot, "api.json"),
@@ -61,7 +67,7 @@ async function fixture(kind: "server" | "agent" = "server") {
         await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
     }
-    return { root, artifactRoot, webRoot, apiRoot };
+    return { root, artifactRoot, webRoot, apiRoot, schemaRoot };
 }
 async function serverManifest() {
     const f = await fixture();
@@ -72,8 +78,7 @@ async function serverManifest() {
         artifactRoot: f.artifactRoot,
         webRoot: f.webRoot,
         apiRoot: f.apiRoot,
-        schemaFingerprints: { admin: h("e"), monitor: h("f") },
-        dataContractIds: { admin: h("1"), monitor: h("2") },
+        schemaRoot: f.schemaRoot,
     });
     return { ...f, manifest };
 }
@@ -144,7 +149,7 @@ describe("release manifest producer and validator", () => {
     });
 
     test("reads selected artifacts, excludes polluted binaries and follows no links", async () => {
-        const { root, artifactRoot, webRoot, apiRoot, manifest } =
+        const { root, artifactRoot, webRoot, apiRoot, schemaRoot, manifest } =
             await serverManifest();
         try {
             expect(
@@ -159,8 +164,7 @@ describe("release manifest producer and validator", () => {
                 artifactRoot,
                 webRoot,
                 apiRoot,
-                schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                dataContractIds: { admin: h("1"), monitor: h("2") },
+                schemaRoot,
             });
             expect((changed as any).webDigest.sha256).not.toBe(before);
             await writeFile(
@@ -176,8 +180,7 @@ describe("release manifest producer and validator", () => {
                     artifactRoot,
                     webRoot,
                     apiRoot,
-                    schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                    dataContractIds: { admin: h("1"), monitor: h("2") },
+                    schemaRoot,
                 }),
             ).rejects.toThrow("binary inventory");
             await rm(join(artifactRoot, "bin", "rz-reports"));
@@ -193,8 +196,7 @@ describe("release manifest producer and validator", () => {
                     artifactRoot,
                     webRoot,
                     apiRoot,
-                    schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                    dataContractIds: { admin: h("1"), monitor: h("2") },
+                    schemaRoot,
                 }),
             ).rejects.toThrow("changed");
             setArtifactReadHookForTest();
@@ -222,8 +224,7 @@ describe("release manifest producer and validator", () => {
                     artifactRoot,
                     webRoot,
                     apiRoot,
-                    schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                    dataContractIds: { admin: h("1"), monitor: h("2") },
+                    schemaRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(
@@ -262,8 +263,7 @@ describe("release manifest producer and validator", () => {
                     artifactRoot,
                     webRoot,
                     apiRoot,
-                    schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                    dataContractIds: { admin: h("1"), monitor: h("2") },
+                    schemaRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(afterOpenCount).toBe(0);
@@ -284,8 +284,7 @@ describe("release manifest producer and validator", () => {
                     artifactRoot,
                     webRoot,
                     apiRoot,
-                    schemaFingerprints: { admin: h("e"), monitor: h("f") },
-                    dataContractIds: { admin: h("1"), monitor: h("2") },
+                    schemaRoot,
                 }),
             ).rejects.toThrow("symlink");
         } finally {

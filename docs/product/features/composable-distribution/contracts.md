@@ -633,5 +633,13 @@ handlers.
 Monitor P4 selected API output is canonical JSON, not full OpenAPI. It combines
 only the selected Admin route contracts and Monitor module manifest emitted by
 real registrations. Its SHA-256 is calculated from emitted artifact bytes;
-callers cannot provide an API digest. Schema and configuration artifacts remain
-separate P4 producer work.
+callers cannot provide an API digest. API, schema and configuration remain
+separate artifacts; configuration is still pending producer work.
+
+### Selected schema artifact
+
+Monitor server schema evidence is canonical JSON under the exact `admin` and
+`monitor` owners. Each schema fingerprint hashes the corresponding final
+fresh-install SQL bytes. Its data-contract ID hashes a versioned descriptor of
+owner and schema fingerprint. Release-manifest callers provide only the verified
+schema artifact root; direct schema digests, fingerprints and data IDs are rejected.
