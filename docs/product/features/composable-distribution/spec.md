@@ -149,6 +149,22 @@ the last two local contract corrections are recorded in [review](review.md).
 The coordinator considers the design ready for slice-by-slice implementation.
 No compiled distribution or runtime acceptance is claimed.
 
+## Selected native layout contract
+
+The current Monitor native-layout contract is a canonical generated artifact.
+The server selection declares only `rz.target`, `rz-admin.service`, and
+`rz-monitor.service`, with `rz-admin.env` and `rz-monitor.env` scoped to their
+respective consumers. The node-agent selection declares only
+`rz-monitor-agent.service` and `rz-monitor-agent.env`. It is bound to the
+resolver composition, artifact class and configuration owners, and rejects
+foreign, duplicate, missing or stale members before package work. Its verified
+byte digest is part of the release manifest and build identity. This is not yet
+installer publication or a replacement for the existing full-layout files.
+The generated Monitor units retain service start limits and the Agent retains
+`network-online.target`; every service names its distinct non-root identity.
+Recovery/`ExecCondition` wiring is omitted until the fresh-root
+installer/recovery closure exists.
+
 ## Design package
 
 - [Implementation plan and current progress](implementation.md)

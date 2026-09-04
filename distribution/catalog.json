@@ -11,7 +11,7 @@
                     "package": "rustzen-admin",
                     "binary": "rz-admin",
                     "status": "blocked",
-                    "reason": "Minimal Admin and the Monitor selected-Web producer are implemented; selected Admin API/schema, signed native packaging and runtime certification are not complete."
+                    "reason": "Minimal Admin, selected Web and selected API/schema/config/native contracts are implemented; signed native packaging, installation and runtime certification are not complete."
                 }
             ],
             "webRoots": [
@@ -37,7 +37,7 @@
                     "package": "rustzen-monitor",
                     "binary": "rz-monitor",
                     "status": "blocked",
-                    "reason": "Selected server configuration, protocol pairing and native packaging are not certified."
+                    "reason": "Selected Controller configuration and protocol contracts are implemented; signed native packaging, installation and runtime certification are not complete."
                 }
             ],
             "webRoots": [
@@ -200,7 +200,7 @@
                     "package": "rustzen-monitor",
                     "binary": "rz-monitor-agent",
                     "status": "blocked",
-                    "reason": "Controller pairing profile and signed native Agent packaging are not implemented."
+                    "reason": "Agent configuration, protocol and native layout contracts are implemented; signed Controller pairing profile packaging, Agent installation and runtime certification are not complete."
                 }
             ],
             "webRoots": [],

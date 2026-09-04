@@ -13,6 +13,7 @@ import { describe, expect, test } from "bun:test";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
+import { produceNativeLayout } from "./native-layout.ts";
 import {
     canonicalJson,
     canonicalManifestBytes,
@@ -40,6 +41,7 @@ const contractDigests = {
     apiDigest: h("a"),
     schemaDigest: h("b"),
     configDigest: h("c"),
+    nativeLayoutDigest: h("d"),
 };
 async function fixture(kind: "server" | "agent" = "server") {
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-"));
@@ -48,6 +50,7 @@ async function fixture(kind: "server" | "agent" = "server") {
     const apiRoot = join(root, "api");
     const schemaRoot = join(root, "schema");
     const configRoot = join(root, "selected-config");
+    const nativeRoot = join(root, "native");
     const configSelection =
         kind === "server"
             ? selection
@@ -57,6 +60,7 @@ async function fixture(kind: "server" | "agent" = "server") {
         join(configRoot, "config.json"),
         canonicalJson(completeSelectedConfigForTest(configSelection)),
     );
+    await produceNativeLayout(configSelection, nativeRoot);
     await produceSchemaContract(
         selection,
         join(import.meta.dir, ".."),
@@ -82,7 +86,15 @@ async function fixture(kind: "server" | "agent" = "server") {
         await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
     }
-    return { root, artifactRoot, webRoot, apiRoot, schemaRoot, configRoot };
+    return {
+        root,
+        artifactRoot,
+        webRoot,
+        apiRoot,
+        schemaRoot,
+        configRoot,
+        nativeRoot,
+    };
 }
 async function serverManifest() {
     const f = await fixture();
@@ -95,6 +107,7 @@ async function serverManifest() {
         apiRoot: f.apiRoot,
         schemaRoot: f.schemaRoot,
         configRoot: f.configRoot,
+        nativeRoot: f.nativeRoot,
     });
     return { ...f, manifest };
 }
@@ -172,6 +185,7 @@ describe("release manifest producer and validator", () => {
             apiRoot,
             schemaRoot,
             configRoot,
+            nativeRoot,
             manifest,
         } = await serverManifest();
         try {
@@ -189,6 +203,7 @@ describe("release manifest producer and validator", () => {
                 apiRoot,
                 schemaRoot,
                 configRoot,
+                nativeRoot,
             });
             expect((changed as any).webDigest.sha256).not.toBe(before);
             await writeFile(
@@ -206,6 +221,7 @@ describe("release manifest producer and validator", () => {
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                 }),
             ).rejects.toThrow("binary inventory");
             await rm(join(artifactRoot, "bin", "rz-reports"));
@@ -223,6 +239,7 @@ describe("release manifest producer and validator", () => {
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                 }),
             ).rejects.toThrow("changed");
             setArtifactReadHookForTest();
@@ -252,6 +269,7 @@ describe("release manifest producer and validator", () => {
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(
@@ -292,6 +310,7 @@ describe("release manifest producer and validator", () => {
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                 }),
             ).rejects.toThrow("directory changed");
             expect(afterOpenCount).toBe(0);
@@ -314,6 +333,7 @@ describe("release manifest producer and validator", () => {
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                 }),
             ).rejects.toThrow("symlink");
         } finally {
@@ -335,6 +355,7 @@ describe("release manifest producer and validator", () => {
                 releaseVersion: "0.5.0",
                 artifactRoot: agentFixture.artifactRoot,
                 configRoot: agentFixture.configRoot,
+                nativeRoot: agentFixture.nativeRoot,
             });
             validateServerAgentPair(manifest as any, agent as any);
             (agent as any).agentProtocolContractId = h("9");

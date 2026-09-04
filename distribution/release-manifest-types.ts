@@ -23,6 +23,7 @@ export type ManifestBase = {
     buildId: string;
     sourceIdentity: string;
     configDigest: string;
+    nativeLayoutDigest: string;
     configOwners: string[];
     binaryDigests: BinaryDigest[];
     files: FileEntry[];
@@ -49,6 +50,7 @@ export type BuildInputs = {
 };
 export type BuildContractDigests = {
     configDigest: string;
+    nativeLayoutDigest: string;
     apiDigest?: string;
     schemaDigest?: string;
 };
@@ -59,4 +61,5 @@ export type ProduceInput = BuildInputs & {
     apiRoot?: string;
     schemaRoot?: string;
     configRoot?: string;
+    nativeRoot?: string;
 };

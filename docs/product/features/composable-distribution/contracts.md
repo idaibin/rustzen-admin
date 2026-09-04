@@ -28,6 +28,9 @@ Routes and permissions are exported from the compiled Rust registration.
   "buildId": "<sha256 of exact canonical build plan>",
   "sourceIdentity": "<commit plus dirty-content identity for local artifacts>",
   "services": ["admin", "monitor"],
+  "configDigest": "<selected config artifact sha256>",
+  "nativeLayoutDigest": "<selected native layout artifact sha256>",
+  "configOwners": ["access", "monitor"],
   "schemaFingerprints": {"admin": "<sha256>", "monitor": "<sha256>"},
   "dataContractIds": {"admin": "<descriptor sha256>", "monitor": "<descriptor sha256>"},
   "agentProtocolContractId": "<selected Monitor wire-contract sha256>",
@@ -99,6 +102,32 @@ full DeployService, and never rolls back or restores a database. `rz.target` con
 only Admin and Monitor. An online-update recover executor is a later closure. Agent-to-controller
 wire compatibility is also checked against the advertised protocol version;
 shared schema identity does not establish network compatibility.
+
+### Selected native layout artifact
+
+The Monitor native-layout producer emits one canonical `native-layout.json` from
+the resolved selection, not from caller-provided unit or configuration hashes.
+For the Monitor server it contains exactly `rz.target`, `rz-admin.service`, and
+`rz-monitor.service`; the target wants only those two services. The services
+read `config/rz-admin.env` and `config/rz-monitor.env` respectively. The
+node-agent artifact contains only `rz-monitor-agent.service` and
+`config/rz-monitor-agent.env`.  Each configuration manifest names one consumer
+and only that consumer's reviewed variable keys; it contains no values or
+secrets. The generator is the selected-native source while the existing full
+deployment templates and installer remain outside this closure.
+
+The artifact binds `compositionId`, `artifactClass`, preset, resolver units and
+`configOwners`.  Its strict reader accepts one stable, non-link `native-layout.json`
+with canonical bytes and rejects unknown, missing, duplicate, stale-composition,
+or server/Agent-crossed members before packaging.
+Manifest callers provide `nativeRoot`; direct `nativeLayoutDigest` input is
+rejected. The manifest derives the digest from the stable canonical artifact and
+binds it into `buildId` for both Server and Agent.
+The generated source also exposes the exact unit bytes for a later writer. It
+uses a distinct non-root User/Group for Admin, Controller and Agent. It
+does not include recovery conditions: Monitor fresh-root installer/recovery
+publication is still unimplemented, so the old `rz-recovery.service` cannot be
+carried into this selected topology.
 
 agentProtocolContractId is required for node-agent and server selections with
 Monitor, and forbidden for other server selections. Derive it from the canonical

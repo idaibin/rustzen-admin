@@ -32,6 +32,7 @@ const baseKeys = [
     "buildId",
     "sourceIdentity",
     "configDigest",
+    "nativeLayoutDigest",
     "configOwners",
     "binaryDigests",
     "files",
@@ -140,6 +141,9 @@ function parseBase(
         buildId: validHash(string(record.buildId, "buildId")),
         sourceIdentity: nonempty(record.sourceIdentity, "sourceIdentity"),
         configDigest: validHash(string(record.configDigest, "configDigest")),
+        nativeLayoutDigest: validHash(
+            string(record.nativeLayoutDigest, "nativeLayoutDigest"),
+        ),
         configOwners: sortedStrings(record.configOwners, "configOwners"),
         binaryDigests: binaryDigests(record.binaryDigests),
         files: fileEntries(record.files),

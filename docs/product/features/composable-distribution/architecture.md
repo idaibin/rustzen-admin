@@ -527,6 +527,14 @@ and reads only its own secrets (pairwise keys are intentionally shared by their
 two endpoints). No shared runtime user grants Admin access to module databases.
 init-owner and runtime fixtures run under the final service identity.
 
+The initial selected-native artifact is generated from the reviewed native
+source, rather than adapting the legacy shared-configuration deployment
+templates. Monitor server output names only its target/Admin/Controller units
+and two consumer-scoped config files; node-agent output names only its Agent
+unit and Agent config file. The release manifest derives the native layout byte
+digest and includes it in the build identity. Installer publication remains a
+later closure.
+
 Record selected host-runtime prerequisites in the release manifest and native
 installation profile. Reports currently launches an external Chromium process;
 full/reports therefore require a tested browser executable/version, supporting

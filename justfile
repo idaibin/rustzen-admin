@@ -180,7 +180,13 @@ clean:
 
 verify-distribution-manifest:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts
+    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts distribution/native-layout.test.ts
+
+verify-distribution-native-layout:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/native-layout.test.ts
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor.json
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/node-agent.json
 
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor

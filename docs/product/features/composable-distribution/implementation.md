@@ -220,3 +220,9 @@ implemented. They are feature-specific, deterministic without environment or
 working-directory state, and contain no configuration values. Server and Agent
 canonical config artifacts are now produced from those outputs; the manifest
 derives and binds their byte digest instead of accepting `configDigest` input.
+
+The selected-native layout producer now emits and verifies canonical Monitor
+server and node-agent unit/config manifests. The release manifest derives their
+byte digest and binds it into the build identity. It deliberately does not alter
+the legacy deployment templates or installer; archive, signing and installation
+evidence remain P4 blockers.

@@ -9,6 +9,7 @@ import {
 } from "./release-manifest.ts";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
+import { produceNativeLayout } from "./native-layout.ts";
 import {
     produceSchemaContract,
     readSchemaContract,
@@ -30,6 +31,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
         apiDigest: h("a"),
         schemaDigest: h("b"),
         configDigest: h("c"),
+        nativeLayoutDigest: h("e"),
     };
     expect(deriveBuildId(selection, inputs, digests)).not.toBe(
         deriveBuildId(selection, inputs, {
@@ -43,8 +45,17 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             configDigest: h("d"),
         }),
     );
+    expect(deriveBuildId(selection, inputs, digests)).not.toBe(
+        deriveBuildId(selection, inputs, {
+            ...digests,
+            nativeLayoutDigest: h("f"),
+        }),
+    );
     expect(() =>
-        deriveBuildId(selection, inputs, { configDigest: h("c") }),
+        deriveBuildId(selection, inputs, {
+            configDigest: h("c"),
+            nativeLayoutDigest: h("e"),
+        }),
     ).toThrow("requires API and schema");
     expect(() =>
         deriveBuildId({ preset: "node-agent", target }, inputs, digests),
@@ -56,6 +67,8 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
     const schemaRoot = join(root, "schema");
     const configRoot = join(root, "selected-config");
     const agentConfigRoot = join(root, "agent-config");
+    const nativeRoot = join(root, "native");
+    const agentNativeRoot = join(root, "agent-native");
     const agentRoot = join(root, "agent");
     try {
         await mkdir(join(artifactRoot, "bin"), { recursive: true });
@@ -79,6 +92,11 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             join(configRoot, "config.json"),
             canonicalJson(completeSelectedConfigForTest(selection)),
         );
+        await produceNativeLayout(selection, nativeRoot);
+        await produceNativeLayout(
+            { preset: "node-agent", target },
+            agentNativeRoot,
+        );
         await writeFile(
             join(agentConfigRoot, "config.json"),
             canonicalJson(
@@ -99,9 +117,25 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             apiRoot,
             schemaRoot,
             configRoot,
+            nativeRoot,
         });
         expect((server as any).apiDigest).toMatch(/^[0-9a-f]{64}$/);
         expect((server as any).configDigest).toMatch(/^[0-9a-f]{64}$/);
+        expect((server as any).nativeLayoutDigest).toMatch(/^[0-9a-f]{64}$/);
+        await writeFile(join(nativeRoot, "native-layout.json"), "{}");
+        await expect(
+            produceReleaseManifest({
+                ...inputs,
+                selection,
+                artifactRoot,
+                webRoot,
+                apiRoot,
+                schemaRoot,
+                configRoot,
+                nativeRoot,
+            }),
+        ).rejects.toThrow("selected generated source");
+        await produceNativeLayout(selection, nativeRoot);
         const forgedSchema = structuredClone(
             (await readSchemaContract(schemaRoot, selection)).contract,
         );
@@ -132,6 +166,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 apiRoot,
                 schemaRoot,
                 configRoot,
+                nativeRoot,
             }),
         ).rejects.toThrow("fresh-install SQL");
         await produceSchemaContract(
@@ -145,6 +180,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             { schemaFingerprints: { admin: h("a"), monitor: h("b") } },
             { dataContractIds: { admin: h("a"), monitor: h("b") } },
             { configDigest: h("a") },
+            { nativeLayoutDigest: h("a") },
         ]) {
             await expect(
                 produceReleaseManifest({
@@ -155,6 +191,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                     apiRoot,
                     schemaRoot,
                     configRoot,
+                    nativeRoot,
                     ...supplied,
                 } as any),
             ).rejects.toThrow("caller-supplied");
@@ -169,6 +206,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 apiRoot,
                 schemaRoot,
                 configRoot,
+                nativeRoot,
             }),
         ).rejects.toThrow("reviewed descriptors");
         await writeFile(
@@ -186,6 +224,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 apiRoot,
                 schemaRoot,
                 configRoot,
+                nativeRoot,
             }),
         ).rejects.toThrow();
         await writeFile(join(apiRoot, "api.json"), validApi);
@@ -199,6 +238,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 apiRoot,
                 schemaRoot,
                 configRoot,
+                nativeRoot,
             }),
         ).rejects.toThrow("exactly api.json");
 
@@ -209,6 +249,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                     selection: { preset: "node-agent", target },
                     artifactRoot: agentRoot,
                     configRoot: agentConfigRoot,
+                    nativeRoot: agentNativeRoot,
                     ...apiInput,
                 } as any),
             ).rejects.toThrow("forbids");
@@ -218,6 +259,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             selection: { preset: "node-agent", target },
             artifactRoot: agentRoot,
             configRoot: agentConfigRoot,
+            nativeRoot: agentNativeRoot,
         });
         expect("apiDigest" in agent).toBeFalse();
     } finally {

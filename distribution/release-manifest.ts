@@ -16,6 +16,7 @@ import {
 import { readSelectedApiContract } from "./selected-contract.ts";
 import { readSchemaContract } from "./schema-contract.ts";
 import { readSelectedConfig } from "./selected-config.ts";
+import { readNativeLayout } from "./native-layout.ts";
 import type {
     AgentManifest,
     BinaryDigest,
@@ -59,7 +60,8 @@ export async function produceReleaseManifest(
         "schemaDigest" in input ||
         "schemaFingerprints" in input ||
         "dataContractIds" in input ||
-        "configDigest" in input
+        "configDigest" in input ||
+        "nativeLayoutDigest" in input
     )
         throw new Error("manifest forbids caller-supplied contract digests");
     if (
@@ -85,6 +87,10 @@ export async function produceReleaseManifest(
             : undefined;
     const config = await readSelectedConfig(
         required(input.configRoot, "configRoot"),
+        input.selection,
+    );
+    const nativeLayout = await readNativeLayout(
+        required(input.nativeRoot, "nativeRoot"),
         input.selection,
     );
     const files = await readArtifactFiles(input.artifactRoot);
@@ -122,11 +128,16 @@ export async function produceReleaseManifest(
                       apiDigest,
                       schemaDigest: schema!.sha256,
                       configDigest: config.sha256,
+                      nativeLayoutDigest: nativeLayout.sha256,
                   }
-                : { configDigest: config.sha256 },
+                : {
+                      configDigest: config.sha256,
+                      nativeLayoutDigest: nativeLayout.sha256,
+                  },
         ),
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
         configDigest: config.sha256,
+        nativeLayoutDigest: nativeLayout.sha256,
         configOwners: plan.configOwners,
         binaryDigests,
         files,

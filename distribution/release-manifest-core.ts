@@ -66,6 +66,7 @@ export const deriveBuildId = (
 ): string => {
     const plan = resolveSelection(selection);
     const configDigest = validHash(digests.configDigest);
+    const nativeLayoutDigest = validHash(digests.nativeLayoutDigest);
     const apiDigest = digests.apiDigest;
     const schemaDigest = digests.schemaDigest;
     if (plan.artifactClass === "server") {
@@ -87,6 +88,7 @@ export const deriveBuildId = (
                 "selectedRoutes",
             ),
             configDigest,
+            nativeLayoutDigest,
             ...(apiDigest === undefined
                 ? {}
                 : { apiDigest: validHash(apiDigest) }),
