@@ -1,0 +1,191 @@
+import { useMutation } from "@tanstack/react-query";
+import { Alert, Button, Form, Input, Modal, Select, Switch } from "antd";
+import { useEffect, useState } from "react";
+
+import { appMessage, reportsAPI } from "@/api";
+import { t } from "@/lib/i18n";
+
+export function ScheduleDialog({
+    flowOptions,
+    schedule,
+    onSaved,
+}: {
+    flowOptions: Reports.FlowOption[];
+    schedule?: Reports.Schedule;
+    onSaved: () => Promise<unknown>;
+}) {
+    const [open, setOpen] = useState(false);
+    const [flowId, setFlowId] = useState("");
+    const [cadence, setCadence] = useState<Reports.ScheduleCadence>("daily");
+    const [weekday, setWeekday] = useState<number>(1);
+    const [dueTime, setDueTime] = useState("09:00");
+    const [inputJson, setInputJson] = useState("{}");
+    const [description, setDescription] = useState("");
+    const [enabled, setEnabled] = useState(true);
+
+    useEffect(() => {
+        if (!open) return;
+        setFlowId(schedule?.flowId ?? flowOptions.find((flow) => flow.enabled)?.id ?? "");
+        setCadence(schedule?.cadence ?? "daily");
+        setWeekday(schedule?.weekday ?? 1);
+        setDueTime(schedule?.dueTime ?? "09:00");
+        setInputJson(JSON.stringify(schedule?.input ?? {}, null, 2));
+        setDescription(schedule?.description ?? "");
+        setEnabled(schedule?.enabled ?? true);
+    }, [flowOptions, open, schedule]);
+
+    const mutation = useMutation({
+        mutationFn: (input: Reports.SaveSchedule) =>
+            schedule
+                ? reportsAPI.updateSchedule(schedule.id, input)
+                : reportsAPI.createSchedule(input),
+        onSuccess: async () => {
+            await onSaved();
+            appMessage.success(
+                schedule
+                    ? t("计划已更新", "Schedule updated")
+                    : t("计划已创建", "Schedule created"),
+            );
+            setOpen(false);
+        },
+    });
+
+    const save = () => {
+        try {
+            const input = JSON.parse(inputJson) as Record<string, unknown>;
+            if (!input || Array.isArray(input) || typeof input !== "object") throw new Error();
+            if (!flowId || !dueTime || (cadence === "weekly" && (weekday < 0 || weekday > 6))) {
+                throw new Error();
+            }
+            const selectedFlow = flowOptions.find((flow) => flow.id === flowId);
+            if (!selectedFlow?.enabled) {
+                throw new Error(t("所选流程目标已停用。", "The selected flow target is disabled."));
+            }
+            mutation.mutate({
+                flowId,
+                cadence,
+                weekday: cadence === "weekly" ? weekday : undefined,
+                dueTime,
+                input,
+                description: description.trim(),
+                enabled,
+            });
+        } catch {
+            appMessage.error(
+                t(
+                    "请填写完整的计划字段，并提供有效的 JSON 对象。",
+                    "Complete the schedule fields and provide a valid JSON object.",
+                ),
+            );
+        }
+    };
+
+    return (
+        <>
+            <Button
+                type={schedule ? "link" : "primary"}
+                onClick={() => setOpen(true)}
+                disabled={!flowOptions.some((flow) => flow.enabled)}
+            >
+                {schedule ? t("编辑", "Edit") : t("新建计划", "New schedule")}
+            </Button>
+            <Modal
+                open={open}
+                title={
+                    schedule
+                        ? t("编辑定时报表计划", "Edit scheduled report")
+                        : t("新建定时报表计划", "New scheduled report")
+                }
+                onCancel={() => setOpen(false)}
+                footer={null}
+                width={760}
+                destroyOnHidden
+            >
+                <Alert
+                    className="mb-4"
+                    type="warning"
+                    showIcon
+                    message={t(
+                        "不要提交密码、Token、密钥或其他敏感信息。",
+                        "Do not submit passwords, tokens, keys, or other sensitive information.",
+                    )}
+                />
+                <Form layout="vertical">
+                    <Form.Item label={t("流程", "Template")} required>
+                        <Select
+                            value={flowId || undefined}
+                            onChange={(value) => setFlowId(value)}
+                            options={flowOptions.map((flow) => ({
+                                value: flow.id,
+                                label: flow.enabled
+                                    ? flow.name
+                                    : `${flow.name} (${t("目标已停用", "Target disabled")})`,
+                                disabled: !flow.enabled,
+                            }))}
+                            placeholder={t("选择流程", "Select a template")}
+                        />
+                    </Form.Item>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Form.Item label={t("频率", "Cadence")} required>
+                            <Select
+                                value={cadence}
+                                onChange={(value: Reports.ScheduleCadence) => setCadence(value)}
+                                options={[
+                                    { value: "daily", label: t("每日", "Daily") },
+                                    { value: "weekly", label: t("每周", "Weekly") },
+                                ]}
+                            />
+                        </Form.Item>
+                        {cadence === "weekly" ? (
+                            <Form.Item label={t("星期", "Weekday")} required>
+                                <Select
+                                    value={weekday}
+                                    onChange={(value) => setWeekday(value)}
+                                    options={[
+                                        { value: 0, label: t("周一", "Monday") },
+                                        { value: 1, label: t("周二", "Tuesday") },
+                                        { value: 2, label: t("周三", "Wednesday") },
+                                        { value: 3, label: t("周四", "Thursday") },
+                                        { value: 4, label: t("周五", "Friday") },
+                                        { value: 5, label: t("周六", "Saturday") },
+                                        { value: 6, label: t("周日", "Sunday") },
+                                    ]}
+                                />
+                            </Form.Item>
+                        ) : null}
+                    </div>
+                    <Form.Item label={t("本地执行时间", "Local due time")} required>
+                        <Input
+                            type="time"
+                            value={dueTime}
+                            onChange={(event) => setDueTime(event.target.value)}
+                        />
+                    </Form.Item>
+                    <Form.Item label={t("安全输入 JSON", "Safe input JSON")}>
+                        <Input.TextArea
+                            className="font-mono text-xs"
+                            rows={7}
+                            value={inputJson}
+                            onChange={(event) => setInputJson(event.target.value)}
+                        />
+                    </Form.Item>
+                    <Form.Item label={t("描述", "Description")}>
+                        <Input
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                        />
+                    </Form.Item>
+                    <Form.Item label={t("启用计划", "Enable schedule")}>
+                        <Switch checked={enabled} onChange={setEnabled} />
+                    </Form.Item>
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={() => setOpen(false)}>{t("取消", "Cancel")}</Button>
+                        <Button type="primary" loading={mutation.isPending} onClick={save}>
+                            {t("校验并保存", "Validate and save")}
+                        </Button>
+                    </div>
+                </Form>
+            </Modal>
+        </>
+    );
+}
