@@ -69,7 +69,21 @@ impl AccountService {
             &request.confirm_password,
         )?;
 
-        AccountRepository::update_password(pool, user_id, &password_hash).await?;
+        if !AccountRepository::update_password(
+            pool,
+            user_id,
+            &current.password_hash,
+            &password_hash,
+        )
+        .await?
+        {
+            AuthService::logout(user_id);
+            return if AccountRepository::find_password_hash_by_id(pool, user_id).await?.is_some() {
+                Err(ServiceError::InvalidCurrentPassword)
+            } else {
+                Err(ServiceError::NotFound("User".to_string()))
+            };
+        }
         AuthService::logout(user_id);
         Ok(())
     }

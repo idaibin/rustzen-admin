@@ -90,18 +90,23 @@ impl AccountRepository {
     pub async fn update_password(
         pool: &SqlitePool,
         user_id: i64,
-        password_hash: &str,
-    ) -> Result<(), ServiceError> {
-        sqlx::query("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
-            .bind(password_hash)
-            .bind(Utc::now().naive_utc())
-            .bind(user_id)
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error in update_password, user_id={}: {:?}", user_id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-        Ok(())
+        expected_password_hash: &str,
+        new_password_hash: &str,
+    ) -> Result<bool, ServiceError> {
+        let result = sqlx::query(
+            "UPDATE users SET password_hash = ?, updated_at = ?
+             WHERE id = ? AND deleted_at IS NULL AND password_hash = ?",
+        )
+        .bind(new_password_hash)
+        .bind(Utc::now().naive_utc())
+        .bind(user_id)
+        .bind(expected_password_hash)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error in update_password, user_id={}: {:?}", user_id, e);
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(result.rows_affected() > 0)
     }
 }
