@@ -10,7 +10,7 @@ test("reports templates can be reached by either flow or schedule viewers", () =
 });
 
 test("other routes keep one explicit capability", () => {
-    expect(getRouteCapabilityCodes("/monitoring/checks")).toEqual(["monitor:check:view"]);
+    expect(getRouteCapabilityCodes("/monitoring/summaries")).toEqual(["monitor:node:view"]);
 });
 
 test("incident routes require the incident viewer capability", () => {

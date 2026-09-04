@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge, Button, Card, Progress, Typography, theme } from "antd";
+import { Button, Card, Progress, Typography, theme } from "antd";
 import type { ReactNode } from "react";
 
 import { dashboardAPI, systemAPI } from "@/api";
@@ -17,7 +17,7 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export const Route = createFileRoute("/")({
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
+    useLocale();
     return (
         <div className="flex min-h-full flex-col gap-5">
             <PageHeader
@@ -44,6 +45,7 @@ function DashboardPage() {
 }
 
 function SystemResourceCards() {
+    useLocale();
     const canViewSystemStatus = useAuthStore((state) =>
         state.checkPermissions("system:status:view"),
     );
@@ -81,7 +83,7 @@ function SystemResourceCards() {
         : [];
 
     return (
-        <Card className="page-panel h-full" styles={{ body: { padding: 24 } }}>
+        <Card className="page-panel h-full" variant="outlined" styles={{ body: { padding: 24 } }}>
             <div className="mb-6">
                 <Typography.Title level={5} className="!mb-1.5">
                     {t("系统运行状况", "System health")}
@@ -134,6 +136,7 @@ function SystemResourceCards() {
 }
 
 function ModuleHealthCards() {
+    useLocale();
     const { token } = theme.useToken();
     const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
         queryKey: ["dashboard", "modules"],
@@ -142,7 +145,7 @@ function ModuleHealthCards() {
     });
 
     return (
-        <Card className="page-panel h-full" styles={{ body: { padding: 24 } }}>
+        <Card className="page-panel h-full" variant="outlined" styles={{ body: { padding: 24 } }}>
             <div className="mb-6">
                 <Typography.Title level={5} className="!mb-1.5">
                     {t("运行模块", "Runtime modules")}
@@ -163,57 +166,60 @@ function ModuleHealthCards() {
                 updatedAt={dataUpdatedAt}
                 onRetry={() => void refetch()}
             >
-                <div className="grid gap-2">
+                <div className="module-health-grid grid gap-3 md:grid-cols-3 xl:grid-cols-1">
                     {(["monitor", "insights", "reports"] as const).map((module) => {
                         const health = data?.find((item) => item.module === module);
                         const available = health?.available ?? false;
                         const moduleMeta = {
                             monitor: {
                                 label: t("监控", "Monitor"),
-                                description: t("节点与服务监控", "Node and service monitoring"),
                                 icon: <CloudServerOutlined />,
                             },
                             insights: {
                                 label: t("分析", "Insights"),
-                                description: t("访问与事件分析", "Traffic and event analytics"),
                                 icon: <BarChartOutlined />,
                             },
                             reports: {
-                                label: t("报表", "Reports"),
-                                description: t("运营数据报表", "Operational data reports"),
+                                label: t("自动化", "Automation"),
                                 icon: <FileTextOutlined />,
                             },
                         }[module];
                         return (
                             <div
                                 key={module}
-                                className="flex min-h-16 items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60"
+                                aria-label={`${moduleMeta.label}：${available ? t("运行中", "Online") : t("不可用", "Unavailable")}`}
+                                className="module-health-item flex min-h-20 min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-3"
+                                style={{
+                                    borderColor: token.colorBorderSecondary,
+                                }}
                             >
                                 <span
                                     className="flex size-9 shrink-0 items-center justify-center rounded-lg text-base"
                                     style={{
-                                        color: available ? token.colorSuccess : token.colorError,
-                                        background: available
-                                            ? token.colorSuccessBg
-                                            : token.colorErrorBg,
+                                        color: token.colorPrimary,
+                                        background: token.colorFillTertiary,
                                     }}
                                 >
                                     {moduleMeta.icon}
                                 </span>
-                                <div className="min-w-0 flex-1">
-                                    <Typography.Text strong>{moduleMeta.label}</Typography.Text>
-                                    <div className="truncate text-xs text-muted-foreground">
-                                        {moduleMeta.description}
+                                <div className="min-w-0">
+                                    <Typography.Text strong ellipsis>
+                                        {moduleMeta.label}
+                                    </Typography.Text>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <span
+                                            className="size-1.5 rounded-full"
+                                            style={{
+                                                background: available
+                                                    ? token.colorSuccess
+                                                    : token.colorError,
+                                            }}
+                                        />
+                                        {available
+                                            ? t("运行中", "Online")
+                                            : t("不可用", "Unavailable")}
                                     </div>
                                 </div>
-                                <Badge
-                                    status={available ? "success" : "error"}
-                                    text={
-                                        available
-                                            ? t("运行中", "Online")
-                                            : t("不可用", "Unavailable")
-                                    }
-                                />
                             </div>
                         );
                     })}
@@ -224,6 +230,7 @@ function ModuleHealthCards() {
 }
 
 function AccountMetricCards() {
+    useLocale();
     const {
         data: stats,
         dataUpdatedAt,
@@ -264,14 +271,6 @@ function AccountMetricCards() {
 
     return (
         <section>
-            <div className="mb-4">
-                <Typography.Title level={5} className="!mb-1.5">
-                    {t("账号概览", "Account overview")}
-                </Typography.Title>
-                <Typography.Text type="secondary">
-                    {t("当前账号规模与活跃情况。", "Current account volume and activity.")}
-                </Typography.Text>
-            </div>
             <DashboardQueryBoundary
                 isPending={isPending}
                 error={error}

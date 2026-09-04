@@ -12,7 +12,7 @@ import { Button, Card, Progress, Statistic, Tag, Typography } from "antd";
 import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { PageHeader } from "@/components/page/page-header";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 
 import { ModuleLogDiagnostics } from "./-module-log-diagnostics";
 
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/system/status")({
 });
 
 function SystemStatusPage() {
+    useLocale();
     const { data, isError, isLoading, refetch } = useQuery({
         queryKey: ["system", "status"],
         queryFn: systemAPI.status.overview,
@@ -94,7 +95,9 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                             value={formatBytes(storage.database.totalBytes)}
                             styles={{ content: { fontSize: 28 } }}
                         />
-                        <Tag className="mt-4">{t("SQLite 数据库", "SQLite database")}</Tag>
+                        <Typography.Text type="secondary" className="mt-4 block text-sm">
+                            {t("SQLite 数据库", "SQLite database")}
+                        </Typography.Text>
                         <Progress className="mt-5" percent={100} showInfo={false} />
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
                             <span>

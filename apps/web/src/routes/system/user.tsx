@@ -1,6 +1,6 @@
 import { EditOutlined, MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
     Avatar,
@@ -15,7 +15,7 @@ import {
     type FormProps,
     type MenuProps,
 } from "antd";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
@@ -23,6 +23,8 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { getEnableOptions } from "@/constant/options";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilteredPage } from "@/hooks/use-filtered-page";
 import { localizeBuiltInRoleName, localizeBuiltInUserName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
@@ -63,61 +65,39 @@ interface UserDialogValues {
 }
 
 function UserPage() {
+    useLocale();
+    const queryClient = useQueryClient();
     const currentUserId = useAuthStore((state) => state.userInfo?.id);
-    const [currentPage, setCurrentPage] = useState(1);
     const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
-    const [realName, setRealName] = useState("");
     const [status, setStatus] = useState("all");
-    const [filters, setFilters] = useState({
-        username: "",
-        email: "",
-        realName: "",
-        status: "all",
-    });
+    const [isComposing, setIsComposing] = useState(false);
+    const debouncedUsername = useDebouncedValue(username.trim(), 300, !isComposing);
+    const [currentPage, setCurrentPage] = useFilteredPage(
+        JSON.stringify([debouncedUsername, status]),
+    );
     const params = useMemo<User.QueryParams>(
         () => ({
             current: currentPage,
             pageSize: PAGE_SIZE,
-            username: filters.username || undefined,
-            email: filters.email || undefined,
-            realName: filters.realName || undefined,
-            status: filters.status,
+            username: debouncedUsername || undefined,
+            status,
         }),
-        [currentPage, filters],
+        [currentPage, debouncedUsername, status],
     );
 
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "user", params],
         queryFn: () => systemAPI.user.list(params),
+        staleTime: 0,
     });
 
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
     const hasData = data !== undefined;
 
-    const search = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setCurrentPage(1);
-        setFilters({
-            username: username.trim(),
-            email: email.trim(),
-            realName: realName.trim(),
-            status,
-        });
-    };
-
-    const reset = () => {
-        setUsername("");
-        setEmail("");
-        setRealName("");
-        setStatus("all");
-        setCurrentPage(1);
-        setFilters({ username: "", email: "", realName: "", status: "all" });
-    };
-
     const refresh = () => {
-        void refetch();
+        void queryClient.invalidateQueries({ queryKey: ["system", "user"] });
+        void queryClient.invalidateQueries({ queryKey: ["system", "role"] });
     };
 
     const columns: ProColumns<User.Item>[] = [
@@ -202,9 +182,41 @@ function UserPage() {
         },
     ];
 
+    const searchControls = (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Input
+                aria-label={t("用户名", "Username")}
+                style={{ width: 200, maxWidth: "100%" }}
+                allowClear
+                value={username}
+                placeholder={t("用户名", "Username")}
+                onChange={(event) => setUsername(event.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+            />
+            <Select
+                style={{ width: 132, maxWidth: "100%" }}
+                aria-label={t("账号状态", "Account status")}
+                value={status}
+                onChange={(value) => {
+                    setStatus(value);
+                    setCurrentPage(1);
+                }}
+                options={[
+                    { value: "all", label: t("全部状态", "All statuses") },
+                    ...getEnableOptions().map((item) => ({
+                        value: String(item.value),
+                        label: item.label,
+                    })),
+                ]}
+            />
+        </div>
+    );
+
     if (!data && isPending) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("用户列表", "Users")}
                 description={t(
                     "管理账号、角色和账号状态。",
@@ -219,6 +231,7 @@ function UserPage() {
     if (!data && error) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("用户列表", "Users")}
                 description={t(
                     "管理账号、角色和账号状态。",
@@ -252,11 +265,14 @@ function UserPage() {
 
     return (
         <PageCard
+            toolbar={searchControls}
             title={t("用户列表", "Users")}
             description={t(
                 "管理账号、角色和账号状态。",
                 "Manage accounts, roles, and account status.",
             )}
+            className="!h-auto"
+            contentClassName="!flex-none"
             actions={
                 <AuthWrap code="system:user:create">
                     <UserDialog mode="create" onSuccess={refresh}>
@@ -265,49 +281,6 @@ function UserPage() {
                         </Button>
                     </UserDialog>
                 </AuthWrap>
-            }
-            toolbar={
-                <form className="grid gap-3 md:grid-cols-5" onSubmit={search}>
-                    <Input
-                        aria-label={t("用户名", "Username")}
-                        value={username}
-                        placeholder={t("用户名", "Username")}
-                        onChange={(event) => setUsername(event.target.value)}
-                    />
-                    <Input
-                        aria-label={t("邮箱", "Email")}
-                        value={email}
-                        placeholder={t("邮箱", "Email")}
-                        onChange={(event) => setEmail(event.target.value)}
-                    />
-                    <Input
-                        aria-label={t("真实姓名", "Real name")}
-                        value={realName}
-                        placeholder={t("真实姓名", "Real name")}
-                        onChange={(event) => setRealName(event.target.value)}
-                    />
-                    <Select
-                        className="w-full"
-                        aria-label={t("账号状态", "Account status")}
-                        value={status}
-                        onChange={setStatus}
-                        options={[
-                            { value: "all", label: t("全部状态", "All statuses") },
-                            ...getEnableOptions().map((item) => ({
-                                value: String(item.value),
-                                label: item.label,
-                            })),
-                        ]}
-                    />
-                    <div className="flex gap-2">
-                        <Button type="primary" htmlType="submit" disabled={isFetching}>
-                            {t("查询", "Search")}
-                        </Button>
-                        <Button type="default" disabled={isFetching} onClick={reset}>
-                            {t("重置", "Reset")}
-                        </Button>
-                    </div>
-                </form>
             }
         >
             {hasData && error && !isFetching ? (
@@ -339,6 +312,7 @@ function UserPage() {
                         pageSize: PAGE_SIZE,
                         total,
                         showSizeChanger: false,
+                        hideOnSinglePage: true,
                         onChange: (page) => setCurrentPage(page),
                     }}
                     locale={{

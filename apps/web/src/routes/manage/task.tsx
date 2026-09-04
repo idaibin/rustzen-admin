@@ -23,11 +23,7 @@ import { localizeBuiltInTaskDescription, localizeBuiltInTaskName } from "@/lib/b
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
-import {
-    taskListRefreshInterval,
-    taskQueryKeys,
-    taskRunsRefreshInterval,
-} from "./-task-refresh";
+import { taskListRefreshInterval, taskQueryKeys, taskRunsRefreshInterval } from "./-task-refresh";
 
 export const Route = createFileRoute("/manage/task")({
     component: TaskPage,
@@ -61,7 +57,6 @@ function TaskPage() {
                 title: t("描述", "Description"),
                 dataIndex: "description",
                 key: "description",
-                width: 200,
                 render: (_: unknown, row: Task.Item) => {
                     const description =
                         localizeBuiltInTaskDescription(row.taskKey, row.description) || "-";
@@ -121,8 +116,9 @@ function TaskPage() {
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 88,
-                align: "left",
+                width: 72,
+                fixed: "right",
+                align: "center",
                 render: (_: unknown, row: Task.Item) => (
                     <TaskActions record={row} onTaskUpdated={refetch} isFetching={isFetching} />
                 ),
@@ -194,7 +190,7 @@ function TaskPage() {
                 "View scheduling status and run maintenance tasks manually.",
             )}
         >
-            <DataTableShell ariaLabel={t("维护任务", "Maintenance tasks table")}>
+            <DataTableShell fill ariaLabel={t("维护任务", "Maintenance tasks table")}>
                 <ProTable<Task.Item>
                     rowKey="taskKey"
                     columns={columns}
@@ -203,6 +199,7 @@ function TaskPage() {
                     search={false}
                     options={false}
                     pagination={false}
+                    scroll={{ y: "100%" }}
                     toolBarRender={false}
                     tableAlertOptionRender={false}
                     locale={{
@@ -255,6 +252,7 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
         queryFn: () =>
             manageAPI.task.runs(taskKey, { current: currentPage, pageSize: RUN_PAGE_SIZE }),
         enabled: open,
+        staleTime: 0,
         refetchInterval: (query) => taskRunsRefreshInterval(open, query.state.data?.data),
     });
     const rows = data?.data ?? [];

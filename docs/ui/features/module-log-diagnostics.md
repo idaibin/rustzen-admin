@@ -29,9 +29,9 @@ does not authorize arbitrary filesystem browsing or a second log database.
 
 ## Surface and layout contract
 
-- Keep one `PageHeader` for System Status. Add a diagnostics `PageCard` below
-  the existing resource/storage summary; do not rename or replace the separate
-  `/manage/log` operation-log page.
+- Keep one `PageHeader` for System Status. Preserve the source order of
+  `StorageCard`, `ResourceCard`, then `ModuleLogDiagnostics`; do not rename or
+  replace the separate `/manage/log` operation-log page.
 - The diagnostics panel begins with a fixed module selector and file/date
   metadata table. Selecting a file opens a bounded reverse-cursor tail Drawer or detail region
   that owns its vertical scroll; the page owns no nested horizontal scroll.
@@ -46,6 +46,12 @@ does not authorize arbitrary filesystem browsing or a second log database.
 - At narrow widths, module/file controls stack, metadata columns reduce to
   prefix/date/size/status/action essentials, and the detail Drawer retains a
   reachable close and confirmation action.
+
+The module and date filters occupy the diagnostics heading upper right and apply
+on change. Refresh, backup and cleanup remain explicit actions. Limits/help text sits
+below the heading; it does not stretch the filter group. A short log-file list uses
+natural height without an internal vertical scrollbar, while the page owns vertical
+scrolling and the table bounds horizontal overflow. Filter changes clear selection.
 
 ## Component and data-owner mapping
 

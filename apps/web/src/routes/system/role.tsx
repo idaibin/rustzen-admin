@@ -1,6 +1,6 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
     Button,
@@ -24,13 +24,15 @@ import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { getEnableOptions } from "@/constant/options";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilteredPage } from "@/hooks/use-filtered-page";
 import {
     localizeBuiltInMenuName,
     localizeBuiltInRoleDescription,
     localizeBuiltInRoleName,
 } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 
 import { deriveRoleDeletionState } from "./-role-delete-state";
 
@@ -50,15 +52,19 @@ interface RoleFormValues {
 }
 
 function RolePage() {
-    const [currentPage, setCurrentPage] = useState(1);
+    useLocale();
+    const queryClient = useQueryClient();
     const [roleName, setRoleName] = useState("");
     const [roleCode, setRoleCode] = useState("");
     const [status, setStatus] = useState("all");
-    const [filters, setFilters] = useState({
-        roleName: "",
-        roleCode: "",
-        status: "all",
-    });
+    const [isComposing, setIsComposing] = useState(false);
+    const appliedName = useDebouncedValue(roleName.trim(), 300, !isComposing);
+    const appliedCode = useDebouncedValue(roleCode.trim(), 300, !isComposing);
+    const filters = useMemo(
+        () => ({ roleName: appliedName, roleCode: appliedCode, status }),
+        [appliedName, appliedCode, status],
+    );
+    const [currentPage, setCurrentPage] = useFilteredPage(JSON.stringify(filters));
     const params = useMemo<Role.QueryParams>(
         () => ({
             current: currentPage,
@@ -73,31 +79,16 @@ function RolePage() {
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "role", params],
         queryFn: () => systemAPI.role.list(params),
+        staleTime: 0,
     });
 
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
 
-    const search = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setCurrentPage(1);
-        setFilters({
-            roleName: roleName.trim(),
-            roleCode: roleCode.trim(),
-            status,
-        });
-    };
-
-    const reset = () => {
-        setRoleName("");
-        setRoleCode("");
-        setStatus("all");
-        setCurrentPage(1);
-        setFilters({ roleName: "", roleCode: "", status: "all" });
-    };
-
     const refresh = () => {
-        void refetch();
+        void queryClient.invalidateQueries({ queryKey: ["system", "role"] });
+        void queryClient.invalidateQueries({ queryKey: ["system", "user"] });
+        void queryClient.invalidateQueries({ queryKey: ["system", "roles", "options"] });
     };
 
     const columns: ProColumns<Role.Item>[] = [
@@ -187,9 +178,48 @@ function RolePage() {
         },
     ];
 
+    const searchControls = (
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+            <Input
+                allowClear
+                style={{ width: 168, maxWidth: "100%" }}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                aria-label={t("角色名称", "Role name")}
+                value={roleName}
+                placeholder={t("角色名称", "Role name")}
+                onChange={(event) => setRoleName(event.target.value)}
+            />
+            <Input
+                allowClear
+                style={{ width: 168, maxWidth: "100%" }}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                aria-label={t("角色编码", "Role code")}
+                value={roleCode}
+                placeholder={t("角色编码", "Role code")}
+                onChange={(event) => setRoleCode(event.target.value)}
+            />
+            <Select
+                style={{ width: 132, maxWidth: "100%" }}
+                aria-label={t("角色状态", "Role status")}
+                value={status}
+                onChange={setStatus}
+                options={[
+                    { value: "all", label: t("全部状态", "All statuses") },
+                    ...getEnableOptions().map((item) => ({
+                        value: String(item.value),
+                        label: item.label,
+                    })),
+                ]}
+            />
+        </div>
+    );
+
     if (!data && isPending) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("角色管理", "Role management")}
                 description={t(
                     "管理角色定义和权限分配。",
@@ -204,6 +234,7 @@ function RolePage() {
     if (!data && error) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("角色管理", "Role management")}
                 description={t(
                     "管理角色定义和权限分配。",
@@ -237,6 +268,7 @@ function RolePage() {
 
     return (
         <PageCard
+            toolbar={searchControls}
             title={t("角色管理", "Role management")}
             description={t(
                 "管理角色定义和权限分配。",
@@ -250,43 +282,6 @@ function RolePage() {
                         </Button>
                     </RoleDialog>
                 </AuthWrap>
-            }
-            toolbar={
-                <form className="grid gap-3 md:grid-cols-4" onSubmit={search}>
-                    <Input
-                        aria-label={t("角色名称", "Role name")}
-                        value={roleName}
-                        placeholder={t("角色名称", "Role name")}
-                        onChange={(event) => setRoleName(event.target.value)}
-                    />
-                    <Input
-                        aria-label={t("角色编码", "Role code")}
-                        value={roleCode}
-                        placeholder={t("角色编码", "Role code")}
-                        onChange={(event) => setRoleCode(event.target.value)}
-                    />
-                    <Select
-                        className="w-full"
-                        aria-label={t("角色状态", "Role status")}
-                        value={status}
-                        onChange={setStatus}
-                        options={[
-                            { value: "all", label: t("全部状态", "All statuses") },
-                            ...getEnableOptions().map((item) => ({
-                                value: String(item.value),
-                                label: item.label,
-                            })),
-                        ]}
-                    />
-                    <div className="flex gap-2">
-                        <Button type="primary" htmlType="submit" disabled={isFetching}>
-                            {t("查询", "Search")}
-                        </Button>
-                        <Button type="default" onClick={reset} disabled={isFetching}>
-                            {t("重置", "Reset")}
-                        </Button>
-                    </div>
-                </form>
             }
         >
             <ProTable<Role.Item>

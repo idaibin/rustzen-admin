@@ -10,7 +10,9 @@ import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { t } from "@/lib/i18n";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { t, useLocale } from "@/lib/i18n";
 import { useLocalStore } from "@/store/useLocalStore";
 
 export const Route = createFileRoute("/manage/log")({
@@ -22,6 +24,7 @@ const ALL_ACTION = "all";
 const PAGE_SIZE = 20;
 
 function LogPage() {
+    useLocale();
     const actionOptions = [
         { label: t("全部", "All"), value: ALL_ACTION },
         { label: t("登录", "Sign-in"), value: DEFAULT_ACTION },
@@ -35,8 +38,11 @@ function LogPage() {
     const actionType = savedActionType || DEFAULT_ACTION;
     const selectedAction = actionType === ALL_ACTION ? undefined : actionType;
     const [searchInput, setSearchInput] = useState("");
-    const [searchKeyword, setSearchKeyword] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
+    const [isComposing, setIsComposing] = useState(false);
+    const searchKeyword = useDebouncedValue(searchInput.trim(), 300, !isComposing);
+    const [currentPage, setCurrentPage] = useFilteredPage(
+        JSON.stringify([actionType, searchKeyword]),
+    );
 
     const params = useMemo<Log.QueryParams>(
         () => ({
@@ -50,6 +56,7 @@ function LogPage() {
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["manage", "log", params],
         queryFn: () => manageAPI.log.list(params),
+        staleTime: 0,
     });
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
@@ -66,17 +73,6 @@ function LogPage() {
 
     const updateAction = (value: string) => {
         setActionType(value);
-        setCurrentPage(1);
-    };
-
-    const submitSearch = () => {
-        setSearchKeyword(searchInput.trim());
-        setCurrentPage(1);
-    };
-
-    const clearSearch = () => {
-        setSearchInput("");
-        setSearchKeyword("");
         setCurrentPage(1);
     };
 
@@ -102,32 +98,17 @@ function LogPage() {
                 options={actionOptions}
                 onChange={updateAction}
             />
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Input.Search
-                    prefix={<SearchOutlined />}
-                    aria-label={t("搜索用户或 IP", "Search by user or IP")}
-                    value={searchInput}
-                    placeholder={t("搜索用户或 IP", "Search by user or IP")}
-                    style={{ width: "100%", minWidth: 220 }}
-                    onChange={(event) => {
-                        const value = event.target.value;
-                        setSearchInput(value);
-                        if (!value) {
-                            setSearchKeyword("");
-                            setCurrentPage(1);
-                        }
-                    }}
-                    onSearch={submitSearch}
-                />
-                <Button type="default" onClick={submitSearch}>
-                    {t("查询", "Search")}
-                </Button>
-                {searchKeyword ? (
-                    <Button type="default" onClick={clearSearch}>
-                        {t("清除", "Clear")}
-                    </Button>
-                ) : null}
-            </div>
+            <Input
+                prefix={<SearchOutlined />}
+                aria-label={t("搜索用户或 IP", "Search by user or IP")}
+                placeholder={t("搜索用户或 IP", "Search by user or IP")}
+                value={searchInput}
+                allowClear
+                style={{ width: 220, maxWidth: "100%" }}
+                onChange={(event) => setSearchInput(event.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+            />
         </div>
     );
 

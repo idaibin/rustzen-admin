@@ -9,7 +9,17 @@ authoritative for runtime and repository structure.
 
 ## Product boundary
 
-RustZen Admin is primarily a lightweight, self-hosted operations and
+Future distribution direction (authorized 2026-09-03): the complete template
+must also support physically pruned product distributions, including server
+monitoring alone, with an optional durable message center and realtime delivery.
+The [composable-distribution design](features/composable-distribution/spec.md)
+defines the candidate boundaries and acceptance. The four-service descriptions
+below remain current implementation facts until that design is implemented;
+the new direction does not imply an OS, plugin platform or additional product
+families. Its ten external review rounds are complete; the linked record separates
+the final local corrections from unexecuted implementation/runtime acceptance.
+
+Rustzen Admin is primarily a lightweight, self-hosted operations and
 administration product for developer-operators and small technical teams. It is
 secondarily a structured Rust full-stack reference implementation; product
 journeys take priority over generic framework demonstrations.
@@ -20,7 +30,7 @@ version and one rollback boundary:
 
 - Admin owns identity, RBAC, module control, release management, and the Web
   application.
-- Monitoring owns managed nodes, metrics, probes, and incidents.
+- Monitoring owns managed nodes, resource metrics, alerts, incidents, and daily summaries.
 - Analytics owns product-event collection and analysis.
 - Reports owns target-backed browser filling templates and runs.
 
@@ -55,7 +65,7 @@ Product decisions follow these principles:
 - Admin performs day-to-day operations without owner-only release authority.
 - Viewer reads the concrete module capabilities granted by the module
   Manifests.
-- An operator can inspect module health, monitor nodes and checks, query
+- An operator can inspect module health, monitor nodes and resource metrics, query
   analytics observations, and execute or inspect report-filling runs without
   leaving the Admin console.
 
@@ -74,7 +84,7 @@ The retained end-to-end journeys are:
 
 - Admin: sign in, inspect system state, manage users and roles, control modules,
   inspect operations, and manage releases within owner/admin/viewer boundaries.
-- Monitoring: inspect health, nodes, recent metrics, checks, and incident state,
+- Monitoring: inspect health, nodes, recent metrics, alerts, and incident state,
   with missing data distinguishable from healthy empty data.
 - Analytics: inspect installation-wide activity and raw details without a query
   or collection failure blocking other product areas.
@@ -90,15 +100,53 @@ write-only-input boundary is specified, implemented, and verified.
 Across those journeys, loading, empty, validation, permission, business-error,
 retry, audit, interruption, and recovery results must remain explicit.
 
+## Console interaction requirements
+
+Confirmed product requirements for the current console:
+
+- Existing list filters apply automatically; operators do not submit a Search or
+  Reset action. Text input applies after a 300 ms pause, composition candidates do
+  not query, clearing applies immediately, and selection/date changes apply immediately.
+- A changed applied filter starts at page one before the request. Loading and failures
+  preserve editable filters and keyboard focus; failures expose retry rather than false empty data.
+- User management offers username and account-status filters only. Removing email
+  and real-name filters does not remove those user fields from forms or results.
+- Role, menu, operation-log, incident, analytics-detail, and module-log lists retain
+  their current filter meanings. Log export uses the applied list conditions.
+- Daily summaries present the retained per-node reports without a node-ID search.
+- The Nodes page owns Add node onboarding and Global settings actions. The independent
+  Alert Settings menu/page is removed. Add node generates target-host Agent setup
+  instructions and verifies registration through real reports; it creates no empty records.
+- The four global alert settings form one drawer configuration task and one Save operation.
+  Node overrides, inheritance, permission gates, validation, and alert evaluation are unchanged.
+- Analytics overview/details show observed activity without a collection-policy status
+  panel or a policy-status read solely for display. Removing that panel does not disable
+  ingestion policy, allowed-origin enforcement, or backend management permissions.
+- Dashboard keeps four account totals, a permission-gated CPU/memory/disk summary,
+  and textual availability for the three modules. No extra metrics or trends are implied.
+
+Acceptance IDs: CON-01 automatic filters and immediate clearing; CON-02 page-one
+queries and retained input focus; CON-03 user filter scope and no Daily Summaries
+search; CON-04 one alert configuration task; CON-05 activity-only Analytics surfaces;
+CON-06 factual Dashboard scope. The [UI index](../ui/index.md) maps these behaviors
+to route composition. Root [DESIGN.md](../../DESIGN.md) owns shared appearance,
+placement, responsive layout, and component semantics. These requirements do not
+change backend APIs, permissions, release scope, or independently bump the version.
+
 ## Product language
+
+Confirmed display names: **自动化 / Automation** for the Reports-owned module,
+and **告警事件 / Alert incidents** for `/monitoring/incidents`. Navigation,
+page search, module status, headings and state messages use these names.
+Internal service names, routes, permissions, child-page names and browser
+execution scope remain unchanged.
 
 | Product term | Current meaning | Product owner |
 | --- | --- | --- |
 | Admin | Control plane, identity, RBAC, release, and Web host. | Admin |
-| Monitoring | Node, metric, probe, and incident operations. | Monitoring |
+| Monitoring | Node, resource metric, alert, incident, and daily-summary operations. | Monitoring |
 | Analytics | Instance-wide event overview and detail queries. | Analytics |
-| Reports | Target systems, browser filling templates, runs, artifacts, and live frames. | Reports |
-| Automation | An internal Reports capability, not a separately shipped module. | Reports |
+| Automation | Target systems, browser filling templates, runs, artifacts, and live frames. Display name of the Reports-owned module, not a separately shipped module. | Reports |
 | Report Center | A possible future cross-module report catalog. It is not implemented. | Deferred |
 
 Technical ownership and stable internal names are defined in
@@ -110,9 +158,9 @@ Technical ownership and stable internal names are defined in
 | Product area | Internal name | Current purpose | Direction | Explicit non-goal |
 | --- | --- | --- | --- | --- |
 | Admin | Admin | Trusted control plane for identity, RBAC, module state, system status, operations, and releases. | Clarify installation, access, diagnosis, update, and recovery. | ERP, generic CRUD generation, low-code admin, or workflow builder. |
-| Monitoring | Monitor | Managed-node, metric, probe, and incident operations. | Improve the path from signal to actionable incident for small installations. | Full APM, tracing, log warehouse, or cloud orchestrator. |
+| Monitoring | Monitor | Managed-node, resource metric, alert, incident, and daily-summary operations. | Improve the path from signal to actionable incident for small installations. | Full APM, tracing, log warehouse, or cloud orchestrator. |
 | Analytics | Insights | Lightweight installation-wide activity collection, overview, detail, and retention. | Make the retained signals useful before adding event families or segmentation. | Marketing automation, general BI, warehouse, or multi-tenant analytics. |
-| Reports | Reports | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
+| Automation | Reports | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
 
 ## Confirmed decisions
 
@@ -158,13 +206,19 @@ The evidence and path-level comparison are recorded in
 
 ### Monitoring
 
-Retain and extend the current Monitor implementation. The former
-`rustzen-inspect` is a behavior reference for alert policies, agent-side
-collection, time-drift handling, and period reports. Do not copy its Admin,
-system, project, deployment, permission, or runtime-layout layers.
+Monitoring is defined by
+[`features/monitoring/spec.md`](./features/monitoring/spec.md). It uses
+the current Monitoring surface with a lightweight fixed-metric Agent and a
+Controller-owned 30-day data, policy, incident, and report model. Agents report
+CPU, memory, and per-mount disk usage every 30 seconds; they do not receive
+configuration or execute configurable checks.
 
-Alert policy management and period reports are separate future feature slices;
-they are not authorized by this foundation specification alone.
+The former `rustzen-inspect` remains only a behavior and failure-scenario
+reference. Do not copy its Admin, system, project, deployment, permission,
+runtime-layout, protocol, or database layers. Monitoring alert policies and
+reports are authorized only within the Monitoring central ownership and
+retention rules. Notification delivery and reports beyond the 30-day data
+window are not Monitoring capabilities.
 
 ### Analytics
 
@@ -252,8 +306,10 @@ behavior. They do not justify a fifth process or a new contract crate today.
 - Rejected: copying a former repository's Admin shell, authentication, RBAC,
   deployment, or directory layout into a module.
 - Deferred: multi-project Analytics, Reports credentials/datasets/
-  expression-group DSL/notifications/webhooks, Monitoring alert policies and
-  period reports, Report Center, and a fifth process.
+  expression-group DSL/notifications/webhooks, Monitoring notification delivery
+  and reports beyond its 30-day window, Report Center, and a fifth process.
+  Monitoring global/node thresholds and daily summaries are implemented within
+  the current central-monitoring scope.
 
 ## Development horizon and success signals
 
