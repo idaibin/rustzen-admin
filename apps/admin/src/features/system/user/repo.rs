@@ -182,20 +182,32 @@ impl UserRepository {
 
     /// Soft delete user
     pub async fn soft_delete(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
+        let mut tx = pool.begin().await.map_err(|error| {
+            tracing::error!(%error, "Failed to begin user deletion");
+            ServiceError::DatabaseQueryFailed
+        })?;
         let result = sqlx::query(
             "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(Utc::now().naive_utc())
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| {
             tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
             ServiceError::DatabaseQueryFailed
         })?;
 
-        Ok(result.rows_affected() > 0)
+        let deleted = result.rows_affected() > 0;
+        if deleted {
+            Self::insert_user_roles(&mut tx, id, &[]).await?;
+        }
+        tx.commit().await.map_err(|error| {
+            tracing::error!(%error, "Failed to commit user deletion");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        Ok(deleted)
     }
 
     /// Set user roles (replace all existing roles)
@@ -458,6 +470,62 @@ fn classify_user_unique_conflict(
 #[cfg(test)]
 mod tests {
     use super::{UserUniqueConflict, classify_user_unique_conflict};
+
+    #[tokio::test]
+    async fn deleting_user_releases_roles_atomically() {
+        use super::UserRepository;
+        use crate::features::system::role::repo::{RoleRepository, SoftDeleteOutcome};
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        crate::infra::db::run_migrations(&pool).await.unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("PRAGMA foreign_keys").fetch_one(&pool).await.unwrap(),
+            1
+        );
+        let role: i64 = sqlx::query_scalar("INSERT INTO roles (name, code, status, is_system) VALUES ('Temporary', 'delete_test', 1, FALSE) RETURNING id")
+            .fetch_one(&pool).await.unwrap();
+        let user: i64 = sqlx::query_scalar("INSERT INTO users (username, email, password_hash, status, is_system) VALUES ('delete_test', 'delete@test.local', 'unused', 1, FALSE) RETURNING id")
+            .fetch_one(&pool).await.unwrap();
+        let mut tx = pool.begin().await.unwrap();
+        UserRepository::insert_user_roles(&mut tx, user, &[role]).await.unwrap();
+        tx.commit().await.unwrap();
+        sqlx::query("CREATE TRIGGER fail_role_cleanup BEFORE DELETE ON user_roles BEGIN SELECT RAISE(ABORT, 'test cleanup failure'); END")
+            .execute(&pool).await.unwrap();
+        assert!(UserRepository::soft_delete(&pool, user).await.is_err());
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM users WHERE id = ? AND deleted_at IS NULL"
+            )
+            .bind(user)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            1
+        );
+        assert_eq!(RoleRepository::get_role_user_count(&pool, role).await.unwrap(), 1);
+        sqlx::query("DROP TRIGGER fail_role_cleanup").execute(&pool).await.unwrap();
+        assert!(UserRepository::soft_delete(&pool, user).await.unwrap());
+        assert!(!UserRepository::soft_delete(&pool, user).await.unwrap());
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM users WHERE id = ? AND deleted_at IS NOT NULL"
+            )
+            .bind(user)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            1
+        );
+        assert_eq!(RoleRepository::get_role_user_count(&pool, role).await.unwrap(), 0);
+        assert_eq!(
+            RoleRepository::soft_delete(&pool, role).await.unwrap(),
+            SoftDeleteOutcome::Deleted
+        );
+        pool.close().await;
+    }
 
     #[test]
     fn classify_user_unique_conflict_returns_username_for_sqlite_username_message() {
