@@ -709,5 +709,16 @@ links, devices, directories, reordered members and trailing bytes. The reader
 validates the archive against the selected composition and hashes canonical
 manifest bytes. Member paths are scalar Unicode encoded as UTF-8; ustar name
 and prefix limits are respectively 100 and 155 bytes. The detached Ed25519
-envelope is outside the archive; signing and publication remain pending and
-are not implied by this archive contract.
+envelope is outside the archive and binds the release triplet below.
+
+### Detached selected-release envelope
+
+Publication creates a private, atomically renamed three-file release directory:
+`archive.tar`, canonical `release-manifest.json`, and
+`signature-envelope.json`. The envelope is canonical JSON with exactly
+`payload` and base64 `signature`. Its Ed25519 payload fixes the selected-release
+domain, key ID, release class/version, target, artifact class, composition and
+build IDs, archive and manifest SHA-256 values, and the Agent protocol ID.
+Verification receives an independent trusted public key and matching key ID;
+it never obtains trust material from the release directory. Production signing
+requires a production manifest. Installer extraction remains a later boundary.

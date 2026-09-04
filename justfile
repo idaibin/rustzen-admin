@@ -197,6 +197,11 @@ verify-distribution-canonical-archive:
     pnpm dlx bun@1.3.14 test distribution/canonical-archive.test.ts distribution/canonical-archive-boundaries.test.ts
     scripts/verify-canonical-archive-linux.sh
 
+verify-distribution-selected-release:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/release-envelope.test.ts distribution/release-publisher.test.ts scripts/distribution-publish-selected-release.integration.test.ts
+    scripts/verify-selected-release-linux.sh
+
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent

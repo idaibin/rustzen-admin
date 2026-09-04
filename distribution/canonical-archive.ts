@@ -56,7 +56,8 @@ export function readCanonicalArchive(
     bytes: Uint8Array,
     selection: unknown,
 ): ReadCanonicalArchive {
-    if (bytes.length < BLOCK * 2 || bytes.length % BLOCK)
+    const source = new Uint8Array(bytes);
+    if (source.length < BLOCK * 2 || source.length % BLOCK)
         throw new Error("archive block length is invalid");
     const members: Array<{
         path: string;
@@ -64,12 +65,12 @@ export function readCanonicalArchive(
         mode: "0644" | "0755";
     }> = [];
     let offset = 0;
-    while (offset < bytes.length) {
-        const block = bytes.slice(offset, offset + BLOCK);
+    while (offset < source.length) {
+        const block = source.slice(offset, offset + BLOCK);
         if (zero(block)) {
             if (
-                !zero(bytes.slice(offset + BLOCK, offset + BLOCK * 2)) ||
-                offset + BLOCK * 2 !== bytes.length
+                !zero(source.slice(offset + BLOCK, offset + BLOCK * 2)) ||
+                offset + BLOCK * 2 !== source.length
             )
                 throw new Error(
                     "archive must end with exactly two zero blocks",
@@ -78,17 +79,17 @@ export function readCanonicalArchive(
         }
         const parsed = parseHeader(block);
         offset += BLOCK;
-        if (parsed.size > bytes.length - offset)
+        if (parsed.size > source.length - offset)
             throw new Error("archive member size exceeds input");
-        const content = bytes.slice(offset, offset + parsed.size);
+        const content = source.slice(offset, offset + parsed.size);
         offset += parsed.size;
         const pad = padding(parsed.size);
-        if (!zero(bytes.slice(offset, offset + pad)))
+        if (!zero(source.slice(offset, offset + pad)))
             throw new Error("archive padding must be zero");
         offset += pad;
         members.push({ path: parsed.path, bytes: content, mode: parsed.mode });
     }
-    if (!members.length || offset !== bytes.length - BLOCK * 2)
+    if (!members.length || offset !== source.length - BLOCK * 2)
         throw new Error("archive has no canonical members");
     const manifestMember = members.at(-1);
     if (
