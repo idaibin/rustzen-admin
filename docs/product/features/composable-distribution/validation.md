@@ -86,7 +86,7 @@ and commands in the design are not current working commands.
 | D11 | Change env to enable an absent module | Startup validation rejects it; cannot create route/schema/process |
 | D12 | Mix full Web assets with monitor backend | Digest mismatch blocks feature bootstrap before business requests |
 | D13 | Tamper signature/member/hash/path or inject unknown unit | Installer fails before switching or executing archive content |
-| D14 | Wrong target / composition / build / schema identity | Reject installation or same-build recovery without DB mutation |
+| D14 | Wrong target / composition / build / schema identity | Reject installation or same archive/envelope/manifest tuple fresh-root journal continuation without DB mutation |
 | D15 | Selected services start in either monitor order | Eventually ready; no dependency on omitted services |
 | D16 | Full-to-monitor attempt on existing root | Reject; instruct fresh-root workflow; preserve data and prior installation |
 | D17 | Crash during fresh publication; resume same exact build | Local CLI journal resumes only its owned selected files/units without deploy tables or historical DB restore |
@@ -101,6 +101,8 @@ and commands in the design are not current working commands.
 | D26 | Inject forbidden default feature, OpenAPI component, config key, daily timer or build-script output | Each binary's inventory/closure rejects the leak before packaging, even if another selected process needs that owner |
 | D27 | Keep buildId but change Web bytes/digest | HTML/backend webDigest mismatch blocks bootstrap; final file signatures and entry integrity also checked |
 | D28 | node-agent with Web/server fields; server missing schema owner | Discriminated manifest validation fails before installation writes |
+| D28a | Canonical manifest producer/validator receives unknown/duplicate/escaped/link/mode/size/hash fields, server-Agent mixing or a digest without its actual source discriminator | Reject before archive/signature/install; canonical resolver, selected-Web file table and binary byte digest inputs are the only accepted sources |
+| D28b | Monitor recovery journal has a changed archive/envelope/manifest tuple, an occupied root, `rz-recovery.service`, a non-Admin/Monitor target member, or a rollback/DB-restore action | Reject; P4 permits only same-tuple fresh-root continuation and keeps the release gate closed |
 | D29 | Same DDL but different build or data semantics; legacy compatibility field supplied | Existing-root reuse and unsupported fields rejected; use final fresh baseline |
 | D30 | Excluded route has lazy side effect/glob; excluded asset exists in source public | Selected generator directory, Vite graph and copied file inventory exclude all sentinels |
 | D31 | Remove used backend operation or import excluded client through shared selector | Frontend operation/schema pairing or owner gate fails before release |

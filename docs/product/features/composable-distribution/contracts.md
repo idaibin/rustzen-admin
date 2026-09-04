@@ -49,6 +49,31 @@ The manifest is a discriminated union, not a server object with empty Agent
 fields. Both classes require version, target, class, composition/build identity,
 file inventory and signature. Historical rollback compatibility fields are rejected.
 
+
+### Canonical manifest core
+
+P4's canonical core accepts only UTF-8 canonical JSON: object keys sort by UTF-16 code units (the ECMAScript/JCS ordering), arrays retain their declared order, and no whitespace is emitted. Its
+`selectionDigest` is SHA-256 of the canonical resolver plan, `webDigest` is
+SHA-256 of the canonical `{path,sha256}` table read from verified selected-Web files, and each binary/file digest
+is SHA-256 of bytes read from the named producer output. Digest records carry a
+required source discriminator (`resolved-selection`, `selected-web-files`,
+or `binary-file`); handwritten values with a missing or cross-purpose source are
+rejected before a packager can consume them.
+
+The manifest producer accepts only builder-created, current-user-private, quiescent
+staging. Node has no portable `openat`: the producer therefore uses no-link directory
+and same-descriptor identity checks as an accidental-change guard, not as a general
+adversarial archive reader. Untrusted tar extraction safety belongs to the installer
+closure.
+
+Each `files` entry is exactly `{path,type:"file",mode,size,sha256}`. Paths are
+relative POSIX paths with no empty, dot or parent segments; links, directories,
+devices and implicit archive members are not valid file entries. Mode is exactly
+`0755` for `bin/*` and `0644` for other members. The canonical core rejects
+unknown fields, duplicate paths, noncanonical digest spelling, invalid sizes and
+out-of-class binary inventories. It does not sign, archive or install anything;
+those remain P4 producer stages and the release gate remains closed.
+
 | Field / behavior | server | node-agent |
 | --- | --- | --- |
 | capabilities | access plus exact selected product closure | Exactly monitor-agent; no access/server product IDs |
@@ -59,7 +84,13 @@ file inventory and signature. Historical rollback compatibility fields are rejec
 | fresh installation identity | Exact signed build/class/composition/target and current schema/data contracts | Exact signed build/class/composition/target and current Agent config/protocol |
 
 No omitted field is inferred as an empty server contract. Cross-class packages
-and extra owner fields are rejected before install writes. Agent-to-controller
+and extra owner fields are rejected before install writes.
+
+For Monitor P4, recovery is only a root-owned fresh-install journal: it may resume
+the same archive, signature envelope and manifest tuple in the same fresh root after
+revalidating every input. It creates no `rz-recovery.service`, does not reuse the
+full DeployService, and never rolls back or restores a database. `rz.target` contains
+only Admin and Monitor. An online-update recover executor is a later closure. Agent-to-controller
 wire compatibility is also checked against the advertised protocol version;
 shared schema identity does not establish network compatibility.
 

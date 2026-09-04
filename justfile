@@ -177,3 +177,7 @@ bump-version VERSION:
 # Clean build outputs
 clean:
     rm -rf target apps/web/dist .rustzen-admin
+
+verify-distribution-manifest:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts

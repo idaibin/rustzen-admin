@@ -268,7 +268,11 @@ Stages:
    schema, generated files/cfg/env/native links and dependency inventories.
 5. Compare actual inventories and dependency graphs with the resolved plan.
 6. Package exactly the enumerated files; reject extra entries and path escapes.
-7. Generate and sign a release manifest binding all file hashes, build identity,
+7. Generate the canonical manifest core from resolver output, verified selected
+   Web inventory bytes and binary/file byte reads. It discriminates server and
+   node-agent inputs before packaging; signing and archive assembly consume its
+   exact bytes only after their own P4 gates pass.
+8. Generate and sign a release manifest binding all file hashes, build identity,
    schema fingerprints and composition identity.
 
 This applies the OpenTelemetry Collector Builder's explicit-distribution idea
@@ -558,15 +562,22 @@ actual state, use one exclusive lock and never overwrite an unrelated destinatio
 If the journal/build identity differs, fail closed without database mutation.
 No existing product database is restored or deleted.
 
+Native artifact staging is builder-created, current-user-private and quiescent. Its
+same-descriptor `O_NOFOLLOW` and identity checks detect ordinary replacement and links,
+but do not claim portable `openat`-grade protection against a hostile same-UID writer.
+Untrusted archive extraction safety remains an installer closure.
+
 Keep the reviewed trust boundaries: private root staging, same-file-object signature
 verification/extraction, descriptor-relative no-link writes, exact content digests,
 per-service non-root identities and root-only trust/unit/journal ownership. A stable
 launcher outside the product current link invokes the exact verified executor;
 a damaged executor leaves recovery stopped rather than selecting an older version.
-Selected services require and follow a finite-time recovery oneshot. Recovery never
-starts or waits for services ordered after itself; a separate verification job
-checks their actual identities/readiness after normal target startup. Reload the
-service manager after unit publication, and reject mixed unit/executable identities.
+For Monitor P4, recovery is journal-driven fresh-root continuation for the same
+archive/envelope/manifest tuple only. It does not introduce `rz-recovery.service`,
+does not extract the full DeployService, and cannot roll back or restore databases.
+`rz.target` contains only Admin and Monitor; reload the service manager after unit
+publication and reject mixed unit/executable identities. Online-update recovery is a
+later, separate executor closure.
 
 Optional release-ui remains a restricted caller for signed-bundle staging and
 explicit fresh-destination installation. It must not imply retaining data across
