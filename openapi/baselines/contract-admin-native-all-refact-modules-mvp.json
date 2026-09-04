@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "RustZen Admin contract trial",
+    "title": "Rustzen Admin contract trial",
     "version": "0.5.0"
   },
   "paths": {

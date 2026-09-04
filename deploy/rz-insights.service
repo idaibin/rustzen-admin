@@ -1,5 +1,5 @@
 [Unit]
-Description=RustZen Insights Worker
+Description=Rustzen Insights Worker
 After=network.target rz-recovery.service
 PartOf=rz.target
 StartLimitIntervalSec=60

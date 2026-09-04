@@ -1,4 +1,4 @@
-//! Internal contracts shared by the four RustZen backend applications.
+//! Internal contracts shared by the four Rustzen backend applications.
 
 mod delegation;
 mod extract;

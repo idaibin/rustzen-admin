@@ -22,7 +22,7 @@
 
 ## Boundaries
 
-- RustZen classification: Web/Rust A-class reference layout.
+- Rustzen classification: Web/Rust A-class reference layout.
 - Shared auth and permission capability code lives in `crates/auth/`.
 - Shared Manifest, route, and delegation contracts live in `crates/ipc/`.
 - Backends live in `apps/admin/`, `apps/monitor/`, `apps/insights/`, and
@@ -42,16 +42,21 @@
 
 ## Working Rules
 
-- Prefer the smallest viable change.
-- Use `.codex/` as the local task workspace. Keep unfinished cross-session handoffs
-  under `.codex/handoffs/<task-id>.md` and raw review packages, responses, ledgers,
-  and attachments under `.codex/reviews/<review-id>/`; both directories are ignored.
-  Put only explicitly requested, sanitized, durable artifacts under `docs/`.
-- Do not add fallback or compatibility logic.
+- Versioning belongs to `rustzen-admin` independently of `ops-suite` and former
+  standalone products. Follow this repository's `CHANGELOG.md` and explicitly
+  approved release plan; keep unreleased work under `Unreleased` without an implicit
+  version bump. Synchronize the workspace, Web package, lockfile, and current
+  examples only when a version change is authorized.
+- This repository is an initialization template. Maintain only the final fresh-install baseline;
+  compatibility with any earlier release, schema, protocol, configuration, path, or persisted data
+  is out of scope.
+- When a schema changes, update that application's existing initialization migration directly. Do
+  not add sequential upgrade migrations, legacy data conversion, dual-read or dual-write paths,
+  fallback branches, rollback compatibility, or old-database support.
+- Acceptance starts from a newly initialized database. Do not delete an existing database during
+  implementation unless the user explicitly requests that destructive action.
 - Keep stable product decisions in `docs/product/product.md`; keep stable
   implementation facts and rules in `docs/architecture.md` and `docs/guides/`.
-- Keep subdirectory `AGENTS.md` files thin.
 - Do not use `docs/reference/` or `docs/history/` as default implementation truth.
 - SQLite is the default storage backend.
 - Update code, docs, and commands together when structure changes.
-- Keep task completion tied to the task's verification commands before updating status.

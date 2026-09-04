@@ -23,14 +23,14 @@ in source code, and runtime structure remains grounded in
 | --- | --- | --- |
 | [product.md](./product/product.md) | Current product fact | Defines product positioning, direction, module purposes, scope, non-goals, and decision status. |
 | [product/index.md](./product/index.md) | Current product index | Lists independently consumable feature specifications and readiness. |
-| [monitor-incident-diagnostics](./product/features/monitor-incident-diagnostics/spec.md) | Current product specification | Defines read-only Monitor incident list/detail behavior and evidence states. |
+| [composable-distribution](./product/features/composable-distribution/spec.md) | Reviewed future design | Full and physically pruned distributions, optional inbox/SSE, contracts, 95 planned cases and ten completed review rounds; not implemented. |
+| [monitoring](./product/features/monitoring/spec.md) | Current product specification | Defines central Agent reports, node resources, alerts, incidents, retention, and daily summaries. |
 | [analytics-collection-safety](./product/features/analytics-collection-safety/spec.md) | Current product specification | Defines explicit opt-in, key/origin validation, bounded event collection, and privacy-safe defaults. |
 | [scheduled-report-automation](./product/features/scheduled-report-automation/spec.md) | Current product specification | Defines daily/weekly Reports scheduling with missed-occurrence skip semantics. |
 | [module-log-diagnostics](./product/features/module-log-diagnostics/spec.md) | Current product specification | Defines fixed module log viewing, bounded Blob archive integrity, and preview-confirm cleanup. |
 | [role-definition-management](./product/features/role-definition-management/spec.md) | Current product specification | Defines custom-role behavior, permission safety, failure states, and acceptance. |
 | [user-role-assignment-readiness](./product/features/user-role-assignment-readiness/spec.md) | Current product specification | Defines role retrieval and assignment readiness in user dialogs. |
 | [ui/index.md](./ui/index.md) | Current UI feature index | Lists independently consumable UI contracts and their product basis. |
-| [monitor-incident-diagnostics UI](./ui/features/monitor-incident-diagnostics.md) | Current UI specification | Defines Monitoring incident list/detail composition, states, responsive behavior, and accessibility. |
 | [analytics-collection-safety UI](./ui/features/analytics-collection-safety.md) | Current UI specification | Defines Analytics overview/detail states and collection-status presentation boundary. |
 | [scheduled-report-automation UI](./ui/features/scheduled-report-automation.md) | Current UI specification | Defines Reports schedule panel/form, run linkage, states, and responsive behavior. |
 | [module-log-diagnostics UI](./ui/features/module-log-diagnostics.md) | Current UI specification | Defines System Status process-log diagnostics, backup, cleanup, and partial-result states. |

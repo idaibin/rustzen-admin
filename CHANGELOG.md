@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Preserve every module navigation page when multiple pages share one capability;
+  presentation overrides now address navigation inventory IDs through
+  `PUT /api/system/menus/inventory/{id}` without changing permission grants.
+- Isolate Reports browser profiles per execution and close browsers on setup
+  failure as well as normal completion; remove owned profiles after shutdown.
+- Extend local verification for Monitoring gateway/RBAC/alert-policy journeys,
+  Reports daily/weekly schedule lifecycle, and concurrent browser execution.
 - Repositioned `rustzen-admin` as a self-hosted product first and a structured
   Rust full-stack reference implementation second.
 - Enforced non-empty user-role and custom-role permission assignments at the
@@ -35,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remove user-role assignments atomically when deleting a user, and return the
+  shared JSON error envelope for invalid Insights collection-policy fields.
+- Validate uploaded avatars by decoding PNG/JPEG content and derive their stored
+  extension from the detected format.
+- Restore search-result clicks, Dashboard locale updates, custom navigation
+  titles, and fresh task history after execution.
+- Drain Reports executions on SIGTERM/SIGINT, close owned browsers, and persist
+  interrupted runs before exiting.
+- Emit portable release archives without macOS extended attributes; repair the
+  installer signature fallback when `xxd` is unavailable, including UTF-8 locales.
 - Restored lint and TypeScript checks for the Vite configuration while
   preserving the TanStack Router, React, and Tailwind plugin order.
 - Retired stale core route permissions during startup sync while preserving

@@ -1,5 +1,5 @@
 [Unit]
-Description=RustZen Admin
+Description=Rustzen Admin
 After=network.target rz-recovery.service
 PartOf=rz.target
 StartLimitIntervalSec=60

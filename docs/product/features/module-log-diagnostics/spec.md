@@ -2,7 +2,7 @@
 
 ## Goal and implementation slice
 
-Give an owner a safe way to inspect the four local RustZen service log files,
+Give an owner a safe way to inspect the four local Rustzen service log files,
 download a bounded verified external archive, and remove expired files without confusing
 process logs with Admin operation logs. The fixed scope is `admin`, `monitor`,
 `insights`, and `reports` under the configured runtime log directory.

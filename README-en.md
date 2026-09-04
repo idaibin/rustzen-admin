@@ -2,7 +2,7 @@
 
 [简体中文](./README.md) | English
 
-`rustzen-admin` provides the RustZen Admin, Monitor, Insights, and Reports
+`rustzen-admin` provides the Rustzen Admin, Monitor, Insights, and Reports
 runtime in one source repository and one signed release bundle.
 
 A lightweight operations and administration product for small self-hosted

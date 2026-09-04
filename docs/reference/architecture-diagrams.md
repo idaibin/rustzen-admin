@@ -16,7 +16,7 @@ flowchart LR
     Monitor --> MonitorDb["monitor.db"]
     Insights --> InsightsDb["insights.db"]
     Reports --> ReportsDb["reports.db"]
-    Agent["optional rz-monitor agent"] --> Admin
+    Agent["optional rz-monitor-agent"] --> Admin
 ```
 
 All four server processes are members of one `rz.target` and one signed release

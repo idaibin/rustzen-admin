@@ -12,6 +12,11 @@ Rules for Rust backend work under `apps/admin/`, `apps/monitor/`,
 - Applications do not call another application's repo or database.
 - Shared request contracts and HMAC delegation live in `crates/ipc/`; shared
   auth policy lives in `crates/auth/`.
+- Admin has two mutually exclusive source compositions. The default `full`
+  feature retains the complete current Admin behavior. The
+  `monitor-distribution` feature retains access, selected navigation, Monitor
+  gateway and Web hosting, and uses `migrations/sqlite-monitor` as its final
+  fresh-install schema. Validate it with `just verify-monitor-admin`.
 
 ## Feature layers
 
@@ -40,13 +45,11 @@ persistence; Admin `features/dashboard/` is the current intentional exception.
 ## Persistence and configuration
 
 - SQL must be explicit; do not use `SELECT *`.
-- Schema changes require a forward migration in the owning application. A
-  published `0001_*.sql` baseline is immutable: never edit, reorder, or rewrite
-  it. Add the next numbered migration (for example `0002_*.sql`) for a new
-  schema change, and test both the migration chain and the resulting contract.
-  Local reset/recreate remains available through `just reset-db`, but it does
-  not permit changing an already-published migration or pretending that a
-  forward migration is a baseline rewrite.
+- This initialization template keeps only the final fresh-install schema. Update
+  the owning application's initialization migration directly, as required by
+  root `AGENTS.md`; do not add upgrade migrations or legacy-data conversion.
+  Validate with a newly created database. Existing local databases must not be
+  deleted without an explicit user request.
 - Use `crates/storage/` for shared SQLite connection and maintenance behavior.
 - Use the focused config type from `crates/config/`; a process must not parse
   settings owned only by another process.
@@ -75,6 +78,10 @@ request-scoped HMAC delegation. It must not:
 
 ## General rules
 
+- `just check` runs Rust cases with `--test-threads=1`: independent Admin test
+  databases currently share the process-global permission cache. Direct full
+  workspace tests must use the same flag. Concurrency tests still exercise
+  parallel tasks inside each case; serialization is not a concurrency proof.
 - Use `snake_case` for Rust and database names.
 - Use `camelCase` for frontend-facing JSON, normally through
   `#[serde(rename_all = "camelCase")]`.

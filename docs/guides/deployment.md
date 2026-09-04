@@ -8,13 +8,19 @@ single-binary fallback.
 ## Local commands
 
 ```bash
-cargo test --workspace
+cargo test --workspace -- --test-threads=1
 just check
 just build-native
 just build
 just verify-services
+just verify-monitor-admin
+just verify-reports-linux
 git diff --check
 ```
+
+`just verify-monitor-admin` certifies the local minimal Admin source/build
+boundary. It does not assemble or install a selected distribution; selected Web,
+systemd inventory and signed native packaging are separate later gates.
 
 `just build-native` builds the Web application, four optimized server binaries,
 and the non-resident `rz` operations CLI for the current machine. `just build`
@@ -43,6 +49,7 @@ target/rz/rz-<version>-<x86_64|aarch64>.tar
     │   ├── rz-insights.service
     │   └── rz-reports.service
     ├── config/rz.env
+    ├── config/rz-reports.env
     └── setup-layout.sh
 ```
 
@@ -85,10 +92,10 @@ one relative link:
 /opt/rz/
 ├── current -> releases/<version>
 ├── releases/<version>/bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
-├── config/rz.env
-├── data/db/{admin,monitor,insights,reports}.db
+├── config/{rz.env,rz-reports.env}
+├── data/db/{admin,monitor,insights}.db
 ├── data/releases/rz-<version>-<arch>.tar
-└── data/reports/
+└── data/reports/db/reports.db
 ```
 
 `setup-layout.sh` is initial-install only. If `current` already exists it fails
@@ -96,8 +103,8 @@ closed; every upgrade must use the Admin release worker so database backups,
 health gates, the rollback journal, and the single-release boundary cannot be
 bypassed. The installer links six units into systemd, reloads the daemon, and
 enables `rz.target` without starting placeholder production secrets. After
-setting the seven required production values in `config/rz.env`, start the
-server set with:
+replacing every remaining placeholder in `config/rz.env` and
+`config/rz-reports.env`, start the server set with:
 
 ```bash
 systemctl enable --now rz.target
@@ -135,8 +142,9 @@ are neither retained nor emitted.
 
 ## Configuration
 
-The release environment template contains seven non-empty production values:
-environment, runtime root, JWT secret, IPC token, Monitor Agent token, bundle
+The release environment template contains eight non-empty production values:
+environment, runtime root, JWT secret, IPC token, Monitor Agent token, Monitor
+node ID, bundle
 signature enforcement, and the public verification key. Ports, database paths,
 pool limits, logging, timezone, retention, and task timeout use code defaults
 unless explicitly overridden. Do not add blank optional values; an absent
@@ -154,7 +162,7 @@ Supported optional overrides are:
 - `RUSTZEN_JWT_EXPIRATION`, `RUSTZEN_TIMEZONE`,
   `RUSTZEN_TASK_RUN_TIMEOUT_SECONDS`
 - `RUSTZEN_MONITOR_CONTROLLER_URL` for a remote Monitor Agent; its default is
-  the local Admin heartbeat endpoint
+  the local Admin agent-report endpoint
 
 ## Apply, recovery, and rollback
 
@@ -187,14 +195,40 @@ inside the recovery transaction, removes the journal, then requeues the four
 services. A durable sentinel prevents them from starting if recovery or
 requeue fails.
 
+Manual deletion and expired-release cleanup remove the stored bundle before
+soft-deleting its database row. A missing bundle is treated as already removed;
+any other file-removal failure leaves the row visible so the operation can be
+diagnosed and retried instead of creating an untracked orphan file.
+
 ## Runtime and performance evidence
 
-`just verify-services` uses release binaries and covers Admin-only login with all
+`just verify-services` uses release controller/service binaries plus an
+independently built `rz-monitor-agent` binary and covers Admin-only login with all
 modules down, persisted Monitor Agent submission through Admin, all 24 service
 startup orders, independent process termination, disabled/unavailable gateway
 envelopes with surviving module requests, direct delegation rejection, all four
 database corruption/restore boundaries, and the Manifest
 service-restart/route-change/incompatible HTTP contract.
+
+The worker verifier also exercises Monitoring shared-capability navigation,
+owner/viewer policy access, report fencing, alert/recovery transitions, pagination,
+and daily/weekly Reports schedule lifecycle. `just verify-modules-mvp` uses the
+same scenarios with debug binaries. Latency evidence records the actual requested
+build profile (`release`, `debug`, or `unspecified`), so a debug run must not be
+reported as a production benchmark.
+
+`just verify-automation-browser <browser-path>` verifies real form submission,
+step audit, screenshot/live-frame output, cancellation, overlapping runs, overall
+run timeout, and owned-profile cleanup using a fresh disposable database. It
+requires the browser executable and `sqlite3` for the bounded timeout fixture.
+
+`just verify-reports-linux` runs the x86_64 Reports binary in a Colima/Docker
+Debian container as `rz-reports`. It verifies signed delegated requests, a real
+Chromium screenshot, user namespaces, WAL files, recovery blocking, log
+ownership, and cleanup. On an Apple Silicon host the amd64 container requires
+an unconfined outer Docker profile for emulation, so this check reports browser
+seccomp and real systemd as **Not verified**; validate both on a confined native
+Linux system before production acceptance.
 
 The 2026-07-15 same-host benchmark used protected
 `GET /api/monitor/nodes`, concurrency 32, 128 warm-up requests and 320 measured
@@ -209,3 +243,17 @@ requests per path. Results in milliseconds:
 The p95 overhead is below the 2 ms investigation gate. The latest machine-local
 JSON evidence is written to `target/rz/gateway-latency.json` by the verification
 target.
+
+Reports runs as the dedicated unprivileged `rz-reports` user. The installer
+creates that account and grants it only `data/reports` (including the database
+and browser directories) plus `logs/reports`; `rz-reports.service` keeps Chromium sandboxing enabled and uses systemd
+privilege restrictions. Do not run Reports browser execution as root or add
+Chromium `--no-sandbox` to production configuration.
+Linux hosts must permit unprivileged user namespaces for Chromium's user
+namespace sandbox. A host that disallows them rejects the browser run; it must
+not be relaxed by adding `--no-sandbox`.
+
+Set `RUSTZEN_TIMEZONE` in `config/rz-reports.env` to the installation timezone;
+Reports scheduling treats that value as authoritative. Keep it consistent with
+`config/rz.env`, and keep the Reports `RUSTZEN_IPC_TOKEN` equal to the shared
+service token so delegated requests remain verifiable.

@@ -30,7 +30,7 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 );
 
 #[derive(Debug, Parser)]
-#[command(name = "rz", version, about = "Read-only operations CLI for a RustZen installation")]
+#[command(name = "rz", version, about = "Read-only operations CLI for a Rustzen installation")]
 struct Cli {
     /// Emit the stable JSON envelope on stdout.
     #[arg(long, global = true)]

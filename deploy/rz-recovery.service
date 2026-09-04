@@ -1,5 +1,5 @@
 [Unit]
-Description=RustZen Interrupted Update Recovery
+Description=Rustzen Interrupted Update Recovery
 After=network.target
 Before=rz-admin.service rz-monitor.service rz-insights.service rz-reports.service
 PartOf=rz.target

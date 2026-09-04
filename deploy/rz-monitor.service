@@ -1,5 +1,5 @@
 [Unit]
-Description=RustZen Monitor Controller
+Description=Rustzen Monitor Controller
 After=network.target rz-recovery.service
 PartOf=rz.target
 StartLimitIntervalSec=60

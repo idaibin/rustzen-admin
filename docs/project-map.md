@@ -76,7 +76,7 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `apps/monitor/src/features/` | Heartbeat, nodes, metrics, and service monitoring; incident and setting internals support the retained overview and probes. | You change Monitoring behavior. |
+| `apps/monitor/src/features/` | Agent reports, node resources, metrics, alerts, incidents, settings, and daily summaries. | You change Monitoring behavior. |
 | `apps/monitor/migrations/` | Monitor-owned schema. | You change Monitor persistence. |
 | `apps/monitor/module.toml` | Monitor metadata and default menu only. | You change module presentation metadata. |
 | `apps/insights/src/features/` | Single-project tracking, instance-wide overview/details, and retention settings. | You change Analytics behavior. |
@@ -142,7 +142,7 @@ authority unless an existing generated pipeline or an explicit task introduces o
 
 | Capability or product job | Canonical definition and access | Representative consumers | Boundary and evidence |
 | --- | --- | --- | --- |
-| Module route and Manifest | `ModuleRouter`, `Require` in `crates/ipc/src/router.rs`, exported by `crates/ipc/src/lib.rs` | Monitor checks/metrics; Insights overview/query; Reports automation | Reuse for module routes; Rust registration is the only method/path/access/capability source. Tested in `crates/ipc`. |
+| Module route and Manifest | `ModuleRouter`, `Require` in `crates/ipc/src/router.rs`, exported by `crates/ipc/src/lib.rs` | Monitor nodes/metrics/incidents; Insights overview/query; Reports automation | Reuse for module routes; Rust registration is the only method/path/access/capability source. Tested in `crates/ipc`. |
 | Service health | `HealthResponse` in `crates/ipc/src/health.rs` | Four service health producers; Admin deploy health gate | Reuse for the fixed release health contract; module-specific diagnostics stay local. |
 | Authentication and capabilities | `crates/auth/src/` exports | Admin permission checks and three module routers | Reuse policy and constants; business authorization decisions remain with the owner. |
 | SQLite connection and maintenance | `crates/storage/src/{sqlite,maintenance}.rs`, exported by `crates/storage/src/lib.rs` | Four databases and retention jobs | Reuse mechanics; schemas, SQL, and retention selection stay application-owned. |

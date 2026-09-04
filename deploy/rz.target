@@ -1,5 +1,5 @@
 [Unit]
-Description=RustZen Server Services
+Description=Rustzen Server Services
 Wants=rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service
 After=network.target
 

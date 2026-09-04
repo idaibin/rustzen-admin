@@ -1,6 +1,6 @@
 # Former Product Comparison
 
-This document records live former-product evidence for future RustZen Admin
+This document records live former-product evidence for future Rustzen Admin
 module work. It is a comparison input, not current runtime authority.
 
 ## Evidence basis

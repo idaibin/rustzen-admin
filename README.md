@@ -2,7 +2,7 @@
 
 简体中文 | [English](./README-en.md)
 
-`rustzen-admin` 在一个源码仓库和一个签名发布包中提供 RustZen Admin、Monitor、Insights 和 Reports 运行时。
+`rustzen-admin` 在一个源码仓库和一个签名发布包中提供 Rustzen Admin、Monitor、Insights 和 Reports 运行时。
 
 这是一个面向小型自托管环境的轻量运维与管理产品，同时也是结构化的 Rust 全栈参考实现。
 

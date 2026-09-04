@@ -115,7 +115,6 @@ mod contract_tests {
                 ("RUSTZEN_IPC_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_AGENT_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_NODE_ID", "replace-me"),
-                ("RUSTZEN_REPORTS_CREDENTIAL_KEY", "replace-me"),
                 ("RUSTZEN_DEPLOY_SIGNATURE_REQUIRED", "true"),
                 ("RUSTZEN_DEPLOY_VERIFY_KEY", "replace-me"),
             ]

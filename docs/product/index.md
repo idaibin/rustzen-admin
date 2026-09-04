@@ -7,7 +7,19 @@ repository (`idaibin/forgeway`) owns cross-project templates and review records;
 this repository keeps only the current product contract and its implementation
 handoff.
 
+The current [console interaction requirements](./product.md#console-interaction-requirements)
+cover automatic filters, user search scope, unified alert configuration, Analytics
+status-panel removal, and Dashboard scope. Route acceptance is mapped in the
+[UI index](../ui/index.md#current-console-route-contract).
+
 ## Shared implementation contract
+
+The [composable-distribution design](features/composable-distribution/spec.md)
+records the authorized future full/pruned deployment direction and optional
+notifications. It is a reviewed design, not a delivered feature; its
+[review record](features/composable-distribution/review.md) tracks the requested
+ten completed ChatGPT rounds and final local corrections separately from
+unexecuted runtime acceptance.
 
 ### Actors and capabilities
 
@@ -72,9 +84,9 @@ log content and lifecycle.
 
 | Product area | Feature slice | Product specification | UI specification | Status |
 | --- | --- | --- | --- | --- |
-| Monitoring | Central node monitoring | [monitoring](./features/monitoring/spec.md) | [Monitoring UI](../ui/features/monitoring.md) | Local gateway/service scenarios verified; full visual/deployment acceptance pending |
-| Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Implemented; source-resolved; runtime Not verified |
-| Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Implemented; source-resolved; runtime Not verified |
+| Monitoring | Central node monitoring | [monitoring](./features/monitoring/spec.md) | [Monitoring UI](../ui/features/monitoring.md) | Local gateway/service scenarios and representative browser journeys verified; full visual/deployment acceptance pending |
+| Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Local worker collection/query contract verified; production host-tracker acceptance pending |
+| Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Local schedules and real browser execution verified; deployed scheduling acceptance pending |
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
 | Admin | Role definition management | [role-definition-management](./features/role-definition-management/spec.md) | [role-definition-management UI](../ui/features/role-definition-management.md) | Ready |
 | Admin | User role assignment readiness | [user-role-assignment-readiness](./features/user-role-assignment-readiness/spec.md) | [user-role-assignment-readiness UI](../ui/features/user-role-assignment-readiness.md) | Ready |
@@ -82,6 +94,11 @@ log content and lifecycle.
 Each row is independently loadable. Implementing one slice does not require
 loading a sibling specification. The root `DESIGN.md` and the shared state and
 permission contract above are the only shared prerequisites.
+
+The linked local verification includes fresh-database runs from 2026-09-03 and
+the final focused reruns from 2026-09-04;
+see [local verification scope](../guides/local-verification.md). It is not a release
+or a deployment approval.
 
 ## Consumer read contract
 
