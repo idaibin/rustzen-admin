@@ -26,8 +26,6 @@ use crate::{
 
 #[cfg(feature = "full")]
 use axum::Extension;
-#[cfg(feature = "monitor-distribution")]
-use axum::response::{IntoResponse, Response};
 use axum::{
     Router,
     http::{
@@ -134,10 +132,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let admin_routes = admin_routes.nest_service(&avatars_prefix, avatars_service);
     #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&uploads_prefix, uploads_service);
-    #[cfg(feature = "full")]
+    #[cfg(any(feature = "full", feature = "monitor-distribution"))]
     let admin_routes = admin_routes.fallback(crate::infra::web::serve);
-    #[cfg(feature = "monitor-distribution")]
-    let admin_routes = admin_routes.fallback(monitor_distribution_not_found);
     let admin_routes = admin_routes.layer(admin_cors());
     let app = Router::new()
         // Keep module-owned CORS responses outside the Admin-wide CORS layer.
@@ -153,19 +149,6 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-#[cfg(feature = "monitor-distribution")]
-async fn monitor_distribution_not_found() -> Response {
-    (
-        axum::http::StatusCode::NOT_FOUND,
-        axum::Json(serde_json::json!({
-            "code": 10001,
-            "message": "API route not found.",
-            "data": null,
-        })),
-    )
-        .into_response()
 }
 
 #[cfg(all(test, feature = "monitor-distribution"))]
@@ -216,8 +199,8 @@ mod monitor_distribution_tests {
     }
 
     #[tokio::test]
-    async fn unmatched_paths_return_json_instead_of_the_full_web_shell() {
-        let response = monitor_distribution_not_found().await;
+    async fn omitted_api_paths_do_not_fall_through_to_the_selected_web_shell() {
+        let response = crate::infra::web::serve("/api/manage/tasks".parse().expect("uri")).await;
         assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
         assert_eq!(response.headers()[axum::http::header::CONTENT_TYPE], "application/json");
         let body = to_bytes(response.into_body(), usize::MAX).await.expect("response body");

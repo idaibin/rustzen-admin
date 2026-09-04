@@ -8,8 +8,7 @@ const forbidden = new Set([
     "hex",
     "image",
     "libc",
-    "mime_guess",
-    "rust-embed",
+
     "sysinfo",
     "tar",
 ]);
@@ -65,7 +64,7 @@ try {
         throw new Error(`cargo feature tree failed: ${new TextDecoder().decode(featureResult.stderr)}`);
     const enabledFeatures = new TextDecoder().decode(featureResult.stdout);
     if (enabledFeatures.includes('tower-http feature "fs"'))
-        throw new Error("minimal Admin enables tower-http/fs for full Web asset serving");
+        throw new Error("minimal Admin enables tower-http/fs for filesystem-backed full Web asset serving");
     console.log(
         JSON.stringify(
             {

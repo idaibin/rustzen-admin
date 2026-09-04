@@ -75,10 +75,12 @@ and commands in the design are not current working commands.
 | D02 | Unknown feature / cycle / unsupported custom selection | Fail before build/install writes |
 | D03 | Build full then monitor using the same source checkout | No stale full Web assets or generated schema in monitor output |
 | D04 | Inspect monitor Rust dependency graph | No feature-owned Insights/Reports/browser automation or Admin deploy/task dependencies |
-| D05 | Inspect tar and native install | Exact allowlisted files/units/directories; no excluded executable, config or image |
+| D05 | Inspect tar and native install | Exact allowlisted files/units/directories; no excluded executable, config or image. The Monitor native producer binds its descriptor, selected Web inventory and package manifest to one composition ID before signing. |
 | D06 | Fresh monitor database initialization | Only access and Monitor tables/indexes/seeds; no notifications/tasks/deploy/unused dictionary tables |
 | D07 | Owner calls every excluded namespace | 404 JSON/API failure, never 200 SPA or privileged fallback |
 | D08 | Inspect compiled Web entry + all lazy chunks/maps/assets | No excluded route/API/search/nav/product module in graph. The Monitor producer records Vite module IDs and emitted files, validates them against the resolver-derived route/public allowlist, then scans text as a secondary sentinel check. Its mutation suite rejects excluded, foreign-composition, relative or absolute-escape source modules; unknown dependency or virtual module IDs; dynamically composed namespaces; extra static assets; and symbolic links at every output/generated/API-source path ancestor, as well as every inventory identity/list field drift. The selected Vite output is composition-qualified and never reuses `apps/web/dist`. |
+| D08a | Compile Monitor Admin while full `apps/web/dist` is present | Build uses only `apps/admin/selected-web/<compositionId>`; missing or mismatched selected inventory fails before compilation and embedded assets contain no excluded API/capability sentinels |
+| D08b | Pass empty, unknown or custom Docker `DISTRIBUTION` | Docker fails before Web or binary build; omitted argument resolves only through the declared `full` default |
 | D09 | Run monitor for 10 minutes with request tracing | Only two server processes/ports; no probe/timer/config lookup for absent services |
 | D10 | Stop installed Monitor | Entry login works; authorized monitor navigation remains; API shows unavailable |
 | D11 | Change env to enable an absent module | Startup validation rejects it; cannot create route/schema/process |

@@ -6,11 +6,29 @@ use axum::{
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
+#[cfg(feature = "full")]
 #[folder = "../web/dist"]
-struct WebAssets;
+struct FullWebAssets;
+
+#[cfg(feature = "monitor-distribution")]
+#[derive(RustEmbed)]
+#[folder = "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/dist"]
+struct MonitorWebAssets;
+
+#[cfg(feature = "full")]
+type WebAssets = FullWebAssets;
+#[cfg(feature = "monitor-distribution")]
+type WebAssets = MonitorWebAssets;
+
+#[cfg(feature = "monitor-distribution")]
+const SELECTED_WEB_INVENTORY: &str = include_str!(
+    "../../selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/inventory.json"
+);
 
 pub async fn serve(uri: Uri) -> Response {
-    if uri.path().starts_with("/api/") {
+    #[cfg(feature = "monitor-distribution")]
+    debug_assert!(SELECTED_WEB_INVENTORY.contains("\"preset\": \"monitor\""));
+    if uri.path() == "/api" || uri.path().starts_with("/api/") {
         return Response::builder()
             .status(StatusCode::NOT_FOUND)
             .header(header::CONTENT_TYPE, "application/json")
@@ -51,6 +69,8 @@ mod tests {
     };
 
     use super::serve;
+    #[cfg(feature = "monitor-distribution")]
+    use super::{SELECTED_WEB_INVENTORY, WebAssets};
 
     #[tokio::test]
     async fn embedded_release_contains_index_and_spa_fallback() {
@@ -64,8 +84,41 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "monitor-distribution")]
+    #[test]
+    fn monitor_embed_is_composition_qualified_and_excludes_full_capabilities() {
+        assert!(SELECTED_WEB_INVENTORY.contains("\"compositionId\": \"8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b\""));
+        for asset in WebAssets::iter() {
+            let bytes = WebAssets::get(asset.as_ref()).expect("embedded asset").data;
+            let text = String::from_utf8_lossy(&bytes);
+            for forbidden in [
+                "/api/insights",
+                "/api/reports",
+                "/api/manage",
+                "ReactQueryDevtools",
+                "TanStackRouterDevtools",
+            ] {
+                assert!(
+                    !text.contains(forbidden),
+                    "selected embedded asset {asset} contains {forbidden}"
+                );
+            }
+        }
+    }
+
     #[tokio::test]
     async fn unknown_api_paths_never_fall_through_to_spa_html() {
+        for path in ["/api", "/api?x=1", "/api/unknown", "/api/manage/tasks"] {
+            let response = serve(path.parse::<Uri>().expect("uri")).await;
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+            assert_eq!(
+                response.headers().get("content-type").and_then(|value| value.to_str().ok()),
+                Some("application/json"),
+                "{path}"
+            );
+            let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+            assert!(!body.windows(5).any(|window| window == b"<html"), "{path}");
+        }
         let response = serve("/api/manage/tasks".parse::<Uri>().expect("uri")).await;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
         assert_eq!(

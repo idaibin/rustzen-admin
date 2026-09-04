@@ -21,7 +21,7 @@ full = [
     "dep:tar",
     "tower-http/fs",
 ]
-monitor-distribution = ["rustzen-config/admin-monitor"]
+monitor-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
 
 [[bin]]
 name = "rz-admin"

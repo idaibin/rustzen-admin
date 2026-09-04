@@ -17,7 +17,14 @@ verify-monitor-agent:
     cargo clippy -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent -- -D warnings
     pnpm dlx bun@1.3.14 scripts/distribution-verify-agent.ts
 
+prepare-monitor-embed:
+    pnpm dlx bun@1.3.14 scripts/distribution-build-web.ts --selection distribution/fixtures/monitor.json
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/monitor.json
+    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "apps/admin/selected-web/$composition/inventory.json"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
+
 verify-monitor-admin:
+    pnpm dlx bun@1.3.14 test scripts/distribution-verify-docker.test.ts
+    just prepare-monitor-embed
     cargo test -p rustzen-config --no-default-features --features admin-monitor
     cargo test -p rustzen-admin --no-default-features --features monitor-distribution -- --test-threads=1
     cargo clippy -p rustzen-admin --no-default-features --features monitor-distribution -- -D warnings

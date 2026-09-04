@@ -106,7 +106,7 @@ export default defineConfig({
         ? {
               outDir: selectedOutput,
               emptyOutDir: true,
-              rollupOptions: { input: selectedPath("main.tsx") },
+              rollupOptions: { input: selectedPath("index.html") },
           }
         : undefined,
 });

@@ -28,6 +28,7 @@ describe("selected monitor Web inventory", () => {
         expect(verify().exitCode).toBe(0);
         const cleanInventory = await Bun.file(inventoryPath).json() as { moduleIds: string[] };
         expect(cleanInventory.moduleIds).toContain("\0vite/preload-helper.js");
+        expect(cleanInventory.moduleIds).toContain("\0vite/modulepreload-polyfill.js");
         expect(cleanInventory.moduleIds.some((id) => id.startsWith("apps/web/node_modules/react/"))).toBe(true);
         expect(cleanInventory.moduleIds.some((id) => id.split("?", 1)[0] === "apps/web/src/api/request.ts")).toBe(true);
         expect(cleanInventory.moduleIds.some((id) => id.split("?", 1)[0] === "apps/web/src/components/theme-provider.tsx")).toBe(true);

@@ -53,6 +53,10 @@ await Bun.write(join(generatedRoot, "layout.tsx"), await Bun.file(join(webRoot, 
 await Bun.write(join(generatedRoot, "auth-store.ts"), await Bun.file(join(webRoot, "src/distribution/monitor-auth-store.ts")).text());
 await Bun.write(join(generatedRoot, "menu-query-options.ts"), await Bun.file(join(webRoot, "src/distribution/monitor-menu-query-options.ts")).text());
 await Bun.write(
+    join(generatedRoot, "index.html"),
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
+);
+await Bun.write(
     join(generatedRoot, "main.tsx"),
     (await Bun.file(join(webRoot, "src/main.tsx")).text()).replace(
         'from "./routeTree.gen"',
@@ -77,6 +81,15 @@ const build = Bun.spawnSync(command, {
 if (build.exitCode !== 0) process.exit(build.exitCode ?? 1);
 
 const viteInventory = await Bun.file(viteInventoryPath).json();
+if (!viteInventory || typeof viteInventory !== "object" || !Array.isArray(viteInventory.emittedFiles))
+    throw new Error("Vite did not emit a valid selected Web bundle inventory");
+const mainEntry = viteInventory.emittedFiles.find((file: unknown) => typeof file === "string" && /^assets\/index-[^/]+\.js$/.test(file));
+if (typeof mainEntry !== "string") throw new Error("selected Web bundle has no main entry chunk");
+await rm(join(outputRoot, "dist", ".selected-web"), { recursive: true, force: true });
+await Bun.write(
+    join(outputRoot, "dist", "index.html"),
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title></head><body><div id="root"></div><script type="module" src="/${mainEntry}"></script></body></html>`,
+);
 const emittedFiles = await listFiles(join(outputRoot, "dist"));
 
 const output = {

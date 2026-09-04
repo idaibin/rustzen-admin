@@ -8,5 +8,5 @@ pub mod password;
 pub mod permission;
 #[cfg(feature = "full")]
 pub mod system_info;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "monitor-distribution"))]
 pub mod web;

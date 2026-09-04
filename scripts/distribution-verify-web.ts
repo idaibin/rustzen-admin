@@ -177,7 +177,7 @@ function assertModuleIds(moduleIds: string[], compositionId: string) {
         if (!id || id.includes("\\") || isAbsolute(id) || id.startsWith(".") || id.split("/").some((part) => part === ".."))
             throw new Error(`selected Web module inventory contains an unsafe module ID: ${rawId}`);
         if (id.startsWith("\0")) {
-            if (id !== "\0vite/preload-helper.js") throw new Error(`selected Web module inventory contains an unknown virtual ID: ${rawId}`);
+            if (!["\0vite/preload-helper.js", "\0vite/modulepreload-polyfill.js"].includes(id)) throw new Error(`selected Web module inventory contains an unknown virtual ID: ${rawId}`);
             continue;
         }
         if (id.startsWith(generatedPrefix)) {

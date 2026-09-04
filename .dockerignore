@@ -9,3 +9,5 @@ apps/web/dist
 apps/web/dist-*.zip
 logs
 uploads
+
+apps/admin/selected-web
