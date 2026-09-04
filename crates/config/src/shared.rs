@@ -213,6 +213,17 @@ pub(crate) fn ensure_required_non_empty(
     if value.trim().is_empty() { Err(ConfigError::Empty(name)) } else { Ok(()) }
 }
 
+/// Tokens placed in a systemd EnvironmentFile must be unquoted single-line
+/// values. Keep the alphabet deliberately narrow so the same validation is
+/// applied by installer and Agent runtime.
+pub fn valid_monitor_agent_token(value: &str) -> bool {
+    value.len() >= 16
+        && !matches!(value, "placeholder" | "changeme" | "default" | "replace-me")
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'~'))
+}
+
 pub(crate) fn ensure_optional_non_empty(
     name: &'static str,
     value: Option<&str>,

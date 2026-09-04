@@ -80,12 +80,18 @@ Keep actions mounted during node-list loading and error. Add node is manager-onl
 Global settings is readable with monitor:node:view and editable with monitor:manage.
 Remove the independent Alert Settings route, sidebar entry and page-search result.
 
-Add node opens an Ant Design Drawer with node ID and console URL fields, inline
-validation, Generate setup command, a copyable Bash command and Check connection.
-Explain target-host installation, reachability and locally entered Agent token.
-Never label command generation as registration success. Show connected, waiting
-and failed checks distinctly; editing fields invalidates the generated command.
+Add node opens an informational Ant Design Drawer with ordered signed-install
+prerequisites. Until the console can securely supply the release files and provision
+the target-host root-only secret, it exposes no node/URL/token form, generated command,
+copy action or connection action; its primary execution action remains disabled.
 
 Global settings opens a Drawer with one four-control configuration form, one Save
 and the last-update time. Closing either drawer returns to the node list and
 discards unsaved form state. Drawers fit mobile width and preserve keyboard focus.
+## Node onboarding availability
+
+The Nodes Drawer is informational until the Web product has a secure delivery path for
+signed release files and a root-only secret provisioning boundary. It presents ordered
+Ant Design steps for archive, manifest, envelope, trusted key, key ID, root-only config
+format, and CLI phases. Its primary execution action is disabled. It contains no copied
+shell block, token field, token value, or direct Agent command.

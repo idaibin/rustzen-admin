@@ -52,6 +52,13 @@ function validateSelectedUnitSemantics(
     requireExactDirective(agentBytes, "Group", "rz-monitor-agent");
     requireExactDirective(agentBytes, "UMask", "0027");
     requireExactDirective(agentBytes, "Wants", "network-online.target");
+    requireExactDirective(agentBytes, "StateDirectory", "rustzen-monitor-agent");
+    requireExactDirective(agentBytes, "LogsDirectory", "rustzen-monitor-agent");
+    requireExactDirective(
+        agentBytes,
+        "Environment",
+        "RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent",
+    );
     requireExactDirective(
         serverBytes["systemd/rz.target"],
         "Wants",

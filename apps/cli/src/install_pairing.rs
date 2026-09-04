@@ -146,7 +146,7 @@ fn controller_manifest(input: &PinInputs) -> Result<Controller, String> {
     Ok(Controller { manifest, manifest_bytes, trusted_key })
 }
 
-fn agent_manifest(root: &Path) -> Result<(Manifest, Vec<u8>), String> {
+pub(super) fn agent_manifest(root: &Path) -> Result<(Manifest, Vec<u8>), String> {
     validate_root_owned_path(root)?;
     let meta = fs::symlink_metadata(root).map_err(|_| "Agent root is unavailable")?;
     if meta.file_type().is_symlink()
@@ -197,7 +197,38 @@ fn agent_manifest(root: &Path) -> Result<(Manifest, Vec<u8>), String> {
     Ok((manifest, bytes))
 }
 
-fn service_gid() -> Result<u32, String> {
+pub(super) fn validate_current_agent_binary(
+    root: &Path,
+    manifest: &Manifest,
+) -> Result<(), String> {
+    let target =
+        fs::read_link(root.join("current")).map_err(|_| "Agent current link is missing")?;
+    let target = target.to_str().ok_or("Agent current link is invalid")?;
+    if target != format!("releases/{}/payload", manifest.build_id) {
+        return Err("Agent current link differs from retained manifest".into());
+    }
+    let binary = root.join(target).join("bin/rz-monitor-agent");
+    let metadata = fs::symlink_metadata(&binary).map_err(|_| "Agent binary is unavailable")?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_file()
+        || metadata.uid() != 0
+        || metadata.mode() & 0o777 != 0o755
+    {
+        return Err("Agent binary is unsafe".into());
+    }
+    let expected = manifest
+        .binary_digests
+        .iter()
+        .find(|entry| entry.path == "bin/rz-monitor-agent")
+        .ok_or("Agent binary digest is unavailable")?;
+    let bytes = read_regular(&binary, 256 * 1024 * 1024)?;
+    if expected.sha256 != hash(&bytes) {
+        return Err("Agent binary digest differs from retained manifest".into());
+    }
+    Ok(())
+}
+
+pub(super) fn service_gid() -> Result<u32, String> {
     let mut group = std::mem::MaybeUninit::<libc::group>::uninit();
     let mut buffer = vec![0u8; 16 * 1024];
     let mut found = std::ptr::null_mut();
@@ -292,7 +323,7 @@ fn configure_agent_group_access(root: &Path, build: &str, gid: u32) -> Result<()
 /// Verify the service account can traverse every fixed component before its
 /// profile is written. The pairing command never repairs an ancestor it does
 /// not own.
-fn validate_agent_traversal(root: &Path, gid: u32) -> Result<(), String> {
+pub(super) fn validate_agent_traversal(root: &Path, gid: u32) -> Result<(), String> {
     let mut current = PathBuf::from("/");
     for component in root.components() {
         let std::path::Component::Normal(component) = component else {

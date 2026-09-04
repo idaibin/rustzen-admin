@@ -170,16 +170,20 @@ that coverage does not certify every visual, permission, pagination, or deployme
 
 ## Node onboarding
 
-Nodes exposes Add node to monitor:manage users. Operators enter a unique node ID
-(1–128 ASCII letters, digits, dots, underscores or hyphens) and a reachable
-HTTP(S) console URL. The generated Bash command starts an already installed
-OS/architecture-matched rz-monitor-agent binary; the shared Agent token is entered
-on the target host, never collected or stored by the Web form.
+Nodes exposes Add node to monitor:manage users. Production onboarding is an offline,
+signed installation flow: apply the signed node-agent archive with its manifest,
+envelope, trusted public key and key ID; create the fixed service identity; prepare
+access; pin the signed Controller tuple; provision a root-only four-key source file;
+then activate the selected unit. The console does not receive the archive paths or
+signature inputs, so it must show these actionable prerequisites and must not generate
+a direct `rz-monitor-agent` command. A token is never rendered, copied, logged, or
+placed in an argv value. Production Controller endpoints are HTTPS-only; HTTP is
+limited to loopback development configurations.
 
-The first accepted Agent report registers a node. Generating setup commands
-does not register an empty node. Check connection reads the actual node list
-and distinguishes connected, waiting and request failure. Known duplicate IDs
-are rejected. Agent startup, authentication and reporting remain the existing contract.
+The first accepted Agent report registers a node. Viewing prerequisites does not
+register an empty node. Connection actions remain unavailable until the signed inputs
+and local secret boundary are integrated. Agent startup, authentication and reporting
+remain the existing contract.
 
 Global settings is part of Nodes, with no independent menu/page. Reading requires
 monitor:node:view; saving requires monitor:manage. The four defaults share one

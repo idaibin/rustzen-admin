@@ -115,8 +115,9 @@ Confirmed product requirements for the current console:
   their current filter meanings. Log export uses the applied list conditions.
 - Daily summaries present the retained per-node reports without a node-ID search.
 - The Nodes page owns Add node onboarding and Global settings actions. The independent
-  Alert Settings menu/page is removed. Add node generates target-host Agent setup
-  instructions and verifies registration through real reports; it creates no empty records.
+  Alert Settings menu/page is removed. Add node presents the signed offline Agent
+  installation prerequisites and verifies registration through real reports; it creates no
+  empty records and never displays a token or a direct Agent-start command.
 - The four global alert settings form one drawer configuration task and one Save operation.
   Node overrides, inheritance, permission gates, validation, and alert evaluation are unchanged.
 - Analytics overview/details show observed activity without a collection-policy status

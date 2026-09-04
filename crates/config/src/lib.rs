@@ -2,6 +2,8 @@
 
 #[cfg(any(feature = "admin", feature = "admin-monitor"))]
 mod admin;
+#[cfg(feature = "monitor-agent")]
+mod agent_activation;
 mod contract;
 #[cfg(feature = "insights")]
 mod insights;
@@ -21,6 +23,11 @@ pub use contract::monitor_controller_contract;
 
 #[cfg(any(feature = "admin", feature = "admin-monitor"))]
 pub use admin::AdminConfig;
+#[cfg(feature = "monitor-agent")]
+pub use agent_activation::{
+    AgentEnvironment, ControllerProfile, parse_agent_environment_bytes, read_agent_environment,
+    read_controller_profile,
+};
 #[cfg(feature = "insights")]
 pub use insights::InsightsConfig;
 #[cfg(feature = "monitor-agent")]
@@ -31,7 +38,9 @@ pub use monitor::MonitorControllerConfig;
 pub use reports::ReportsConfig;
 #[cfg(feature = "monitor-agent")]
 pub use shared::canonical_monitor_endpoint;
-pub use shared::{ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present};
+pub use shared::{
+    ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present, valid_monitor_agent_token,
+};
 
 /// Fixed retention period for Admin logs, task runs, metrics, events, and reports.
 pub const RETENTION_DAYS: u64 = 30;

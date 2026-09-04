@@ -110,8 +110,61 @@ impl PrivateParent {
             .join(std::str::from_utf8(value.as_bytes()).map_err(|_| "invalid path")?))
     }
 
+    pub(super) fn open_child_directory(&self, value: &str) -> Result<Self, String> {
+        let value = name(value)?;
+        let raw = unsafe {
+            libc::openat(
+                self.0.as_raw_fd(),
+                value.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if raw < 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        let file = unsafe { File::from_raw_fd(raw) };
+        let metadata = file.metadata().map_err(io)?;
+        if !metadata.is_dir() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err("destination parent must be root-owned and not group/world writable".into());
+        }
+        Ok(Self(file))
+    }
+
     pub(super) fn sync(&self) -> Result<(), String> {
         self.0.sync_all().map_err(io)
+    }
+
+    pub(super) fn metadata(&self) -> Result<std::fs::Metadata, String> {
+        self.0.metadata().map_err(io)
+    }
+
+    pub(super) fn lock_exclusive(&self, value: &str) -> Result<File, String> {
+        let value = name(value)?;
+        let raw = unsafe {
+            libc::openat(
+                self.0.as_raw_fd(),
+                value.as_ptr(),
+                libc::O_RDWR | libc::O_CREAT | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if raw < 0 {
+            return Err("activation lock could not be opened".into());
+        }
+        let file = unsafe { File::from_raw_fd(raw) };
+        let metadata = file.metadata().map_err(io)?;
+        if !metadata.is_file()
+            || metadata.uid() != 0
+            || metadata.gid() != 0
+            || metadata.mode() & 0o777 != 0o600
+        {
+            return Err("activation lock is unsafe".into());
+        }
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err("activation lock could not be acquired".into());
+        }
+        self.sync()?;
+        Ok(file)
     }
 
     /// Publishes one fully written regular file in this already-open directory.

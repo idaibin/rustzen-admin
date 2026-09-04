@@ -177,6 +177,26 @@ This offline gate certifies the declared pair, not that an arbitrary endpoint
 actually serves the supplied profile; endpoint provisioning remains the local
 operator's responsibility. No enrollment service or remote identity database.
 
+### Agent activation
+
+`rz activate-monitor-agent --config <root-only-file>` is the production
+activation input. The source is a regular, non-symlink root-owned file without
+group/world write access, so its token is never an argv value. Its only keys are
+`RUSTZEN_ENV`, `RUSTZEN_MONITOR_NODE_ID`, `RUSTZEN_MONITOR_CONTROLLER_URL` and
+`RUSTZEN_MONITOR_AGENT_TOKEN`. Production requires `RUSTZEN_ENV=production`, a
+valid node ID, a canonical HTTPS URL byte-equal to the paired profile endpoint,
+and a nonempty non-placeholder token. Activation atomically publishes
+`/opt/rz/config/rz-monitor-agent.env` as root:rz-monitor-agent `0640`, rejects
+different existing config bytes, and never exposes the token in output, profile
+or logs. It installs only the selected `rz-monitor-agent.service`, never an old
+deploy unit or a member of `rz.target`.
+
+Activation holds one root-owned `/opt/rz/state/.monitor-agent-activation.lock` through unit
+publication and systemctl. It writes a canonical root-only activated marker only
+after all three systemctl actions succeed. Same tuples wait and return from that
+marker without repeating systemctl; different tuples conflict. A failed action
+writes no marker, so retry converges from identical published bytes.
+
 releaseClass is required: production or test. Production tools reject test
 artifacts/current-full-regression regardless of key trust. The full preset must
 match its exact declared feature closure; a preset label cannot override omitted

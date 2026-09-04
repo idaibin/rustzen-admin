@@ -95,6 +95,27 @@ it before logger or network construction. This certifies only the declared
 offline pair. It does not contact the endpoint or install users, units, tokens,
 or runtime activation.
 
+## Node-Agent activation
+
+Activation follows apply, access preparation and Controller pairing. `rz
+activate-monitor-agent --config <root-only-file>` validates the signed current
+payload, fixed profile and root-owned source config, then atomically publishes
+only `/opt/rz/config/rz-monitor-agent.env` as `root:rz-monitor-agent 0640` and
+installs the exact selected native Agent unit. The unit is independent of
+`rz.target`. Production config requires production mode, a node ID, a canonical
+Controller URL exactly equal to the profile endpoint, and a non-placeholder
+Agent token. The token is neither placed in the profile nor output or logs.
+
+The selected Agent unit declares fixed systemd state and log directories and passes a
+fixed runtime root to the process. The service identity can write only those
+systemd-managed directories; `/opt/rz` stays root-owned except for read-only
+configuration group access required at startup.
+
+Production uses systemctl daemon-reload, enable and start for that exact unit.
+A fixture may use a debug/test recorder seam. It does not claim readiness from
+a started process: readiness requires an accepted or duplicate real report.
+PID1 enable/start/restart remains deployment verification work.
+
 Monitor owns final Agent-token verification. Initially keep the current
 installation-wide shared Agent secret, supplied in Monitor/Agent configuration;
 the entry only forwards the dedicated header on the exact Agent-report route

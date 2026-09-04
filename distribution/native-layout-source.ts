@@ -29,8 +29,9 @@ const service = (
     config: string,
     command: string,
     target: boolean,
+    agent = false,
 ) =>
-    `[Unit]\nDescription=${description}\nWants=network-online.target\nAfter=network-online.target${target ? "\nPartOf=rz.target" : ""}\nStartLimitIntervalSec=60\nStartLimitBurst=5\n\n[Service]\nType=simple\nUser=${identity}\nGroup=${identity}\nUMask=0027\nEnvironmentFile=/opt/rz/config/${config}\nExecStart=/opt/rz/current/bin/${command}\nWorkingDirectory=/opt/rz\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=${target ? "rz.target" : "multi-user.target"}\n`;
+    `[Unit]\nDescription=${description}\nWants=network-online.target\nAfter=network-online.target${target ? "\nPartOf=rz.target" : ""}\nStartLimitIntervalSec=60\nStartLimitBurst=5\n\n[Service]\nType=simple\nUser=${identity}\nGroup=${identity}\nUMask=0027\nEnvironmentFile=/opt/rz/config/${config}${agent ? "\nStateDirectory=rustzen-monitor-agent\nLogsDirectory=rustzen-monitor-agent\nEnvironment=RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent" : ""}\nExecStart=/opt/rz/current/bin/${command}\nWorkingDirectory=/opt/rz\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=${target ? "rz.target" : "multi-user.target"}\n`;
 
 type Descriptor = { consumer: string; fields: Array<{ key: string }> };
 const config = (selection: unknown, owner: string): NativeConfig => {
@@ -87,6 +88,7 @@ export function nativeUnitBytes(
                 "rz-monitor-agent.env",
                 "rz-monitor-agent",
                 false,
+                true,
             ),
         };
     throw new Error("native layout supports only monitor server or node-agent");

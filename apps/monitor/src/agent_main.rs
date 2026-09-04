@@ -49,7 +49,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn paired_config() -> Result<rustzen_config::MonitorAgentConfig, Box<dyn std::error::Error>> {
+    let environment = controller_profile::validate_agent_env(std::path::Path::new("/opt/rz"))?;
     let config = rustzen_config::MonitorAgentConfig::load()?;
+    if config.runtime.environment != environment.environment
+        || config.node_id()? != environment.node_id
+        || config.monitor_agent_token != environment.token
+        || config
+            .monitor_controller_url
+            .as_deref()
+            .and_then(|value| rustzen_config::canonical_monitor_endpoint(value).ok())
+            .as_deref()
+            != Some(environment.endpoint.as_str())
+    {
+        return Err("Agent runtime configuration differs from activated environment".into());
+    }
     controller_profile::validate_profile(
         &config.agent_root().join("controller-profile.json"),
         &agent_controller_base(config.monitor_controller_url.as_deref(), config.admin_port()),

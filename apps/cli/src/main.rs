@@ -5,6 +5,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 mod install;
+mod install_activation;
+mod install_activation_state;
 mod install_admission;
 mod install_cli;
 mod install_crypto;
@@ -77,6 +79,12 @@ enum Command {
     },
     /// Prepare fixed /opt/rz access for the rz-monitor-agent service account.
     PrepareMonitorAgentAccess,
+    /// Publish validated Agent configuration and activate its selected native unit.
+    ActivateMonitorAgent {
+        /// Root-only file containing the production Agent environment values.
+        #[arg(long)]
+        config: PathBuf,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -236,6 +244,16 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                 "prepare-monitor-agent-access",
                 json!({"root":"/opt/rz","identity":"rz-monitor-agent"}),
             );
+        }
+        Command::ActivateMonitorAgent { config } => {
+            let result =
+                install_activation::activate(&install_activation::ActivationInput { config })
+                    .map_err(|message| CliError {
+                        command: "activate-monitor-agent".into(),
+                        code: "agent_activation_failed",
+                        message,
+                    })?;
+            emit(cli.json, "activate-monitor-agent", json!(result));
         }
     }
     Ok(())

@@ -145,6 +145,13 @@ the canonical design-source theme for the 1920x1080 page suite.
 
 ## Typography
 
+### Nodes onboarding
+
+The Nodes onboarding drawer uses Ant Design ordered steps. It never renders a secret
+input, copied shell block, token, or direct Agent-start command. The execution primary
+action remains disabled while the console cannot obtain signed release files or provision
+a local root-only secret.
+
 Use the declared system-compatible sans-serif tokens. Do not use marketing display type
 inside the authenticated console.
 

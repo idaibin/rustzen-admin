@@ -132,6 +132,10 @@ and commands in the design are not current working commands.
 | D48 | Relabel incomplete fixture full; publish/install test-only selection | Production tools reject fixture and nonexact full closure; only test harness accepts test artifacts |
 | D49 | Authorized bundle A replaced by valid B before root snapshot; reuse request ID with B | Exact authorized digest/build tuple rejects before service stop; identical A retry dedupes |
 | D50 | Protocol-v1 controller profile paired with v1/v2 Agent; alter emitted descriptor | v1 fixture passes; v2/missing profile fails pairing/install/start; code/descriptor mismatch fails build; no first-report discovery dependency |
+| D55a | Activate with a placeholder token, invalid node/URL, profile mismatch, unsafe source, or conflicting env | Reject before activation; config/profile/unit bytes and metadata remain unchanged; token is absent from output. |
+| D55b | Activate valid production config | Publish only `/opt/rz/config/rz-monitor-agent.env` as `root:rz-monitor-agent 0640`; selected unit recorder sees daemon-reload, enable, start; no `rz.target` or deploy unit. |
+| D55d | Concurrent same and different activation tuples; fail each systemctl boundary | Same tuple serializes and reuses one activated marker without duplicate actions; different tuple conflicts; failure writes no marker and retry converges. |
+| D55c (next closure) | Installed arm64 Agent reports to a local mock | Not implemented by activation transaction: future fixture must record ready only after accepted/duplicate and keep 401/network failures unready. Real PID1 enable/start/restart remains Not verified. |
 
 `D04` and `D08` use package/module reachability and emitted inventory, not only
 string scanning. Symbol strings can be stripped; common dependencies can be

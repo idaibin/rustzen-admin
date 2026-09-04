@@ -1,5 +1,4 @@
 use crate::protocol_contract::CONTRACT_PROTOCOL_SHA256;
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
     fs::OpenOptions,
@@ -10,51 +9,52 @@ use std::{
 
 const MAX_PROFILE_BYTES: u64 = 16 * 1024;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ControllerProfile {
-    version: u8,
-    endpoint: String,
-    controller_build_id: String,
-    controller_composition_id: String,
-    agent_build_id: String,
-    protocol_id: String,
-    key_id: String,
-    key_fingerprint: String,
-    manifest_sha256: String,
-    agent_manifest_sha256: String,
-}
-
 pub fn validate_profile(
     path: &Path,
     configured_endpoint: &str,
     agent_root: &Path,
 ) -> Result<(), String> {
-    let bytes = read_root_owned_regular(path, MAX_PROFILE_BYTES)
-        .map_err(|error| format!("profile: {error}"))?;
-    let value: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|_| "controller profile is invalid JSON")?;
-    if canonical_json(&value)? != bytes {
-        return Err("controller profile bytes are not canonical".into());
-    }
-    let profile: ControllerProfile =
-        serde_json::from_value(value).map_err(|_| "controller profile fields are invalid")?;
+    let metadata = std::fs::symlink_metadata(path).map_err(|_| "controller profile is missing")?;
+    let profile = rustzen_config::read_controller_profile(path, metadata.gid())?;
     if profile.version != 1
         || !same_endpoint(&profile.endpoint, configured_endpoint)
         || rustzen_config::canonical_monitor_endpoint(&profile.endpoint).is_err()
         || profile.protocol_id != CONTRACT_PROTOCOL_SHA256
-        || !hash(&profile.controller_build_id)
-        || !hash(&profile.controller_composition_id)
-        || !hash(&profile.agent_build_id)
-        || !hash(&profile.manifest_sha256)
-        || !hash(&profile.agent_manifest_sha256)
-        || !hash(&profile.key_fingerprint)
-        || !key_id(&profile.key_id)
         || !matches_agent_release(agent_root, &profile)
     {
         return Err("controller profile does not match this Agent configuration".into());
     }
     Ok(())
+}
+
+/// The systemd environment file is part of the local activation boundary. Check
+/// it before logging or Tokio so a service account cannot start from an unsafe
+/// replacement even when its inherited variables look valid.
+pub fn validate_agent_env(agent_root: &Path) -> Result<rustzen_config::AgentEnvironment, String> {
+    let path = agent_root.join("config/rz-monitor-agent.env");
+    let profile_meta = std::fs::symlink_metadata(agent_root.join("controller-profile.json"))
+        .map_err(|_| "Agent profile is missing or unsafe")?;
+    let profile = rustzen_config::read_controller_profile(
+        &agent_root.join("controller-profile.json"),
+        profile_meta.gid(),
+    )?;
+    let environment = rustzen_config::read_agent_environment(&path, profile_meta.gid())?;
+    if environment.endpoint != profile.endpoint
+        || std::env::var("RUSTZEN_ENV").ok().as_deref() != Some(environment.environment.as_str())
+        || std::env::var("RUSTZEN_MONITOR_NODE_ID").ok().as_deref()
+            != Some(environment.node_id.as_str())
+        || std::env::var("RUSTZEN_MONITOR_CONTROLLER_URL")
+            .ok()
+            .as_deref()
+            .and_then(|value| rustzen_config::canonical_monitor_endpoint(value).ok())
+            .as_deref()
+            != Some(environment.endpoint.as_str())
+        || std::env::var("RUSTZEN_MONITOR_AGENT_TOKEN").ok().as_deref()
+            != Some(environment.token.as_str())
+    {
+        return Err("Agent inherited environment differs from activated config".into());
+    }
+    Ok(environment)
 }
 
 /// The Agent is only valid when the executing inode is the published current
@@ -100,7 +100,7 @@ pub fn validate_running_binary(agent_root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn matches_agent_release(root: &Path, profile: &ControllerProfile) -> bool {
+fn matches_agent_release(root: &Path, profile: &rustzen_config::ControllerProfile) -> bool {
     match std::fs::symlink_metadata(root) {
         Ok(value)
             if !value.file_type().is_symlink()
@@ -234,17 +234,6 @@ fn canonical_json(value: &serde_json::Value) -> Result<Vec<u8>, String> {
 fn same_endpoint(left: &str, right: &str) -> bool {
     rustzen_config::canonical_monitor_endpoint(left).ok()
         == rustzen_config::canonical_monitor_endpoint(right).ok()
-}
-fn hash(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
-}
-fn key_id(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 64
-        && value
-            .bytes()
-            .enumerate()
-            .all(|(i, b)| b.is_ascii_alphanumeric() || (i != 0 && matches!(b, b'.' | b'_' | b'-')))
 }
 
 #[cfg(test)]

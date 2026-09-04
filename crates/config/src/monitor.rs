@@ -96,7 +96,13 @@ impl MonitorControllerConfig {
             "RUSTZEN_MONITOR_AGENT_TOKEN",
             &self.monitor_agent_token,
             crate::shared::DEFAULT_MONITOR_AGENT_TOKEN,
-        )
+        )?;
+        if self.runtime.requires_production_secrets()
+            && !crate::shared::valid_monitor_agent_token(&self.monitor_agent_token)
+        {
+            return Err(ConfigError::Invalid("RUSTZEN_MONITOR_AGENT_TOKEN"));
+        }
+        Ok(())
     }
 }
 
@@ -162,6 +168,14 @@ impl MonitorAgentConfig {
             return Err(ConfigError::Invalid("RUSTZEN_MONITOR_NODE_ID"));
         }
         ensure_http_url("RUSTZEN_MONITOR_CONTROLLER_URL", self.monitor_controller_url.as_deref())?;
+        if self.runtime.requires_production_secrets()
+            && self
+                .monitor_controller_url
+                .as_deref()
+                .is_some_and(|url| !url.trim().starts_with("https://"))
+        {
+            return Err(ConfigError::Invalid("RUSTZEN_MONITOR_CONTROLLER_URL"));
+        }
         if self.runtime.requires_production_secrets() && self.monitor_controller_url.is_none() {
             return Err(ConfigError::Empty("RUSTZEN_MONITOR_CONTROLLER_URL"));
         }
@@ -170,7 +184,13 @@ impl MonitorAgentConfig {
             "RUSTZEN_MONITOR_AGENT_TOKEN",
             &self.monitor_agent_token,
             crate::shared::DEFAULT_MONITOR_AGENT_TOKEN,
-        )
+        )?;
+        if self.runtime.requires_production_secrets()
+            && !crate::shared::valid_monitor_agent_token(&self.monitor_agent_token)
+        {
+            return Err(ConfigError::Invalid("RUSTZEN_MONITOR_AGENT_TOKEN"));
+        }
+        Ok(())
     }
 }
 
@@ -275,6 +295,11 @@ mod tests {
         }
         agent.monitor_controller_url = Some("http://127.0.0.1".to_string());
         agent.validate().expect("valid internal HTTP controller URL");
+        agent.runtime.environment = "production".to_string();
+        assert!(agent.validate().is_err(), "production rejects IPv4 HTTP");
+        agent.monitor_controller_url = Some("http://[::1]".to_string());
+        assert!(agent.validate().is_err(), "production rejects IPv6 HTTP");
+        agent.runtime.environment = "development".to_string();
         agent.monitor_controller_url = Some("https://monitor.example".to_string());
         agent.validate().expect("valid remote controller URL");
     }
