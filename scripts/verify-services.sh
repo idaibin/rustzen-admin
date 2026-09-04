@@ -7,6 +7,7 @@ MONITOR="${2:-target/release/rz-monitor}"
 INSIGHTS="${3:-target/release/rz-insights}"
 REPORTS="${4:-target/release/rz-reports}"
 CLI="${5:-target/release/rz}"
+AGENT="${6:-target/release/rz-monitor-agent}"
 
 absolute_binary() {
     case "$1" in
@@ -20,8 +21,9 @@ MONITOR="$(absolute_binary "$MONITOR")"
 INSIGHTS="$(absolute_binary "$INSIGHTS")"
 REPORTS="$(absolute_binary "$REPORTS")"
 CLI="$(absolute_binary "$CLI")"
+AGENT="$(absolute_binary "$AGENT")"
 
-for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI"; do
+for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI" "$AGENT"; do
     if [ ! -x "$binary" ]; then
         echo "verify-services: missing executable: $binary" >&2
         exit 1
@@ -48,6 +50,7 @@ export RUSTZEN_REPORTS_PORT=$((BASE_PORT + 3))
 export RUSTZEN_JWT_SECRET=local-service-verification-jwt-secret
 export RUSTZEN_IPC_TOKEN=local-service-verification-ipc-secret
 export RUSTZEN_MONITOR_AGENT_TOKEN=local-service-verification-agent-secret
+export RUSTZEN_MONITOR_NODE_ID=verify-monitor-node
 export RUSTZEN_MONITOR_CONTROLLER_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT"
 export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$PROJECT_ROOT/target/rz/gateway-latency.json}"
 export RUST_LOG=warn
@@ -74,7 +77,7 @@ start_service() {
         monitor) "$MONITOR" controller >"$log" 2>&1 & ;;
         insights) "$INSIGHTS" serve >"$log" 2>&1 & ;;
         reports) "$REPORTS" serve >"$log" 2>&1 & ;;
-        monitor_agent) "$MONITOR" agent >"$log" 2>&1 & ;;
+        monitor_agent) "$AGENT" >"$log" 2>&1 & ;;
         *) echo "verify-services: unknown service $name" >&2; exit 1 ;;
     esac
     pid=$!
@@ -365,7 +368,7 @@ while [ "$agent_count" -lt 100 ]; do
     sleep 0.1
 done
 if [ -z "${agent_nodes_after:-}" ] || [ "$agent_nodes_after" -le "$agent_nodes_before" ]; then
-    echo "verify-services: Monitor Agent heartbeat was not persisted through Admin" >&2
+    echo "verify-services: Monitor Agent report was not persisted through Admin" >&2
     dump_logs
     exit 1
 fi

@@ -48,7 +48,11 @@ distribution-release-gate selection="distribution/fixtures/monitor.json":
 verify-distribution-selection:
     pnpm dlx bun@1.3.14 test distribution scripts/distribution-resolve.test.ts
 
+verify-service-wiring:
+    scripts/test-verify-services.sh
+
 check:
+    just verify-service-wiring
     cd apps/web && bun install --frozen-lockfile
     cd apps/web && bun run vp fmt --check
     cd apps/web && bun run vp lint
@@ -65,11 +69,13 @@ verify-services:
     cargo test -p rustzen-admin changed_manifest_swaps_after_commit_and_invalid_change_rolls_back
     cargo test -p rustzen-admin warm_gateway_streams_with_memory_auth_and_a_closed_database
     cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
-    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz
+    cargo build --release -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz target/release/rz-monitor-agent
 
 verify-modules-mvp:
     cargo build --workspace
-    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent
 
 # Admin-native route contract. Rust registration is the authority; this artifact
 # is a derived input for client generation and compatibility checks. Module
