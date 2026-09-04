@@ -1,6 +1,6 @@
 # Architecture
 
-`rustzen-admin` is the source authority for the RustZen Admin, Monitor,
+`rustzen-admin` is the source authority for the Rustzen Admin, Monitor,
 Insights, and Reports runtime. It is a Web/Rust A-class monorepo that produces
 four independent server binaries in one signed release bundle, with one
 version and one rollback boundary.
@@ -10,6 +10,13 @@ It is a fifth executable entry point, not a fifth service: it owns no database,
 has no systemd unit, and does not change the four server failure domains.
 
 ## Ownership
+
+Admin persists the unique capability catalog in `menus` and module navigation in
+`module_navigation`. Navigation identity is `(module_id, module_menu_code)`;
+its `code` references a capability name without defining another capability.
+Manifest reconciliation updates both projections atomically. This permits
+Monitoring Overview/Settings and Nodes/Summaries to share read permissions while
+retaining independent navigation, visibility, and presentation overrides.
 
 - `apps/admin/` owns the Admin API, authentication and RBAC persistence, the
   in-memory module registry and gateway, release management, Admin migrations,
@@ -76,8 +83,23 @@ addition.
 | Insights | `rz-insights serve` | `127.0.0.1:9803` | `data/db/insights.db` |
 | Reports | `rz-reports serve` | `127.0.0.1:9804` | `data/db/reports.db` |
 
-`rz-monitor agent` is an optional managed-node process. It reports to the
+`rz-monitor-agent` is an optional managed-node process. It reports to the
 Monitor Controller and is intentionally not part of the server `rz.target`.
+It collects a fixed CPU, memory, and per-mount disk payload every 30 seconds and
+submits it to the Controller. It has no configurable check/task runtime, policy
+engine, incident store, report engine, historical query owner, Outbox, or
+configuration synchronization channel.
+
+The Monitor Controller is the monitoring-data, policy, incident, and report
+authority. It stores the latest state and up to 30 days of raw resource samples,
+evaluates resource policies as samples arrive, and independently evaluates node
+offline state when reports are missing. The terminal product behavior and
+retention boundary are fixed in
+`docs/product/features/monitoring/spec.md`; the Monitoring Rust protocol and
+schemas implement that contract.
+The terminal implementation structure, public and protected API, and executable
+test matrix are defined in `docs/guides/monitoring-architecture.md`,
+`docs/guides/monitoring-api.md`, and `docs/guides/monitoring-testing.md`.
 
 Each server owns only its database and migrations. A module failure leaves
 Admin login and the other module processes available. systemd restarts each

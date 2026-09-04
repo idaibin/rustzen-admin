@@ -21,10 +21,6 @@ impl fmt::Display for AppError {
 impl std::error::Error for AppError {}
 
 impl AppError {
-    pub fn invalid_input(message: impl Into<String>) -> Self {
-        Self { status: StatusCode::BAD_REQUEST, code: 40002, message: message.into() }
-    }
-
     pub fn unprocessable(message: impl Into<String>) -> Self {
         Self { status: StatusCode::UNPROCESSABLE_ENTITY, code: 40002, message: message.into() }
     }
@@ -87,18 +83,6 @@ mod tests {
 
     #[tokio::test]
     async fn module_errors_preserve_the_existing_admin_proxy_contract() {
-        let (status, body) =
-            response(AppError::invalid_input("agentId and hostname are required")).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(
-            body,
-            serde_json::json!({
-                "code": 40002,
-                "message": "agentId and hostname are required",
-                "data": null
-            })
-        );
-
         let (status, body) = response(AppError::not_found("node")).await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(

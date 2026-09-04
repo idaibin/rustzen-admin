@@ -21,17 +21,17 @@ sort_order = 20
 permission = "monitor:node:view"
 
 [[menus]]
-code = "checks"
-title = "服务监控"
-path = "/monitoring/checks"
-icon = "monitor"
-sort_order = 30
-permission = "monitor:check:view"
-
-[[menus]]
 code = "incidents"
-title = "监控事件"
+title = "告警事件"
 path = "/monitoring/incidents"
 icon = "monitor"
-sort_order = 40
+sort_order = 30
 permission = "monitor:incident:view"
+
+[[menus]]
+code = "summaries"
+title = "日报"
+path = "/monitoring/summaries"
+icon = "monitor"
+sort_order = 50
+permission = "monitor:node:view"

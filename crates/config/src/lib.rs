@@ -1,14 +1,24 @@
-//! Focused runtime configuration for the four RustZen applications.
+//! Focused runtime configuration for the four Rustzen applications.
 
+#[cfg(any(feature = "admin", feature = "admin-monitor"))]
 mod admin;
+#[cfg(feature = "insights")]
 mod insights;
+#[cfg(any(feature = "monitor-agent", feature = "monitor-controller"))]
 mod monitor;
+#[cfg(feature = "reports")]
 mod reports;
 mod shared;
 
+#[cfg(any(feature = "admin", feature = "admin-monitor"))]
 pub use admin::AdminConfig;
+#[cfg(feature = "insights")]
 pub use insights::InsightsConfig;
-pub use monitor::{MonitorAgentConfig, MonitorControllerConfig};
+#[cfg(feature = "monitor-agent")]
+pub use monitor::MonitorAgentConfig;
+#[cfg(feature = "monitor-controller")]
+pub use monitor::MonitorControllerConfig;
+#[cfg(feature = "reports")]
 pub use reports::ReportsConfig;
 pub use shared::{ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present};
 
@@ -28,13 +38,16 @@ pub unsafe fn initialize_process_timezone(timezone: &str) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "admin"))]
 mod contract_tests {
     use figment::{Figment, providers::Serialized};
     use serde::Serialize;
 
-    use crate::{AdminConfig, MonitorControllerConfig};
+    use crate::AdminConfig;
+    #[cfg(feature = "monitor-controller")]
+    use crate::MonitorControllerConfig;
 
+    #[cfg(feature = "monitor-controller")]
     #[derive(Serialize)]
     struct EndpointOverrides<'a> {
         internal_host: &'a str,
@@ -49,6 +62,7 @@ mod contract_tests {
         sqlite_path: &'a str,
     }
 
+    #[cfg(feature = "monitor-controller")]
     #[test]
     fn admin_and_monitor_derive_the_same_fixed_service_endpoint() {
         let overrides = EndpointOverrides { internal_host: "127.0.0.9", monitor_port: 19082 };
@@ -100,6 +114,7 @@ mod contract_tests {
                 ("RUSTZEN_JWT_SECRET", "replace-me"),
                 ("RUSTZEN_IPC_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_AGENT_TOKEN", "replace-me"),
+                ("RUSTZEN_MONITOR_NODE_ID", "replace-me"),
                 ("RUSTZEN_REPORTS_CREDENTIAL_KEY", "replace-me"),
                 ("RUSTZEN_DEPLOY_SIGNATURE_REQUIRED", "true"),
                 ("RUSTZEN_DEPLOY_VERIFY_KEY", "replace-me"),

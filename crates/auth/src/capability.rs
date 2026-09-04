@@ -118,7 +118,6 @@ mod role_policy_tests {
         for capability in [
             "monitor:overview:view",
             "monitor:node:view",
-            "monitor:check:view",
             "monitor:incident:view",
             "insights:overview:view",
             "insights:event:view",
@@ -141,9 +140,7 @@ pub mod dashboard {
 pub mod monitor {
     pub const OVERVIEW_VIEW: &str = "monitor:overview:view";
     pub const NODE_VIEW: &str = "monitor:node:view";
-    pub const CHECK_VIEW: &str = "monitor:check:view";
     pub const INCIDENT_VIEW: &str = "monitor:incident:view";
-    pub const CHECK_MANAGE: &str = "monitor:check:manage";
     pub const MANAGE: &str = "monitor:manage";
 }
 

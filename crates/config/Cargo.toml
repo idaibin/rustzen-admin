@@ -5,6 +5,15 @@ edition = "2024"
 license.workspace = true
 publish = false
 
+[features]
+default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"]
+admin = []
+admin-monitor = []
+insights = []
+monitor-controller = []
+monitor-agent = []
+reports = []
+
 [dependencies]
 dotenvy = "0.15"
 figment = { version = "0.10.19", features = ["env"] }

@@ -4,8 +4,9 @@ mod config;
 mod features;
 mod infra;
 mod middleware;
+pub mod protocol;
 
-use crate::{app::run_controller, features::heartbeat::run_agent, infra::logger::init_logging};
+use crate::{app::run_controller, infra::logger::init_logging};
 
 #[used]
 #[unsafe(no_mangle)]
@@ -21,10 +22,8 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
-    match command {
-        Command::Controller => run_controller_process(),
-        Command::Agent => run_agent_process(),
-    }
+    let _ = command;
+    run_controller_process()
 }
 
 fn run_controller_process() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,31 +38,15 @@ fn run_controller_process() -> Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-fn run_agent_process() -> Result<(), Box<dyn std::error::Error>> {
-    let config = config::agent();
-    // SAFETY: this runs before Tokio creates worker threads.
-    unsafe { rustzen_config::initialize_process_timezone(config.timezone()) };
-    let log_dir = config.log_dir();
-    let endpoint = config.heartbeat_endpoint();
-    let agent_token = config.monitor_agent_token.clone();
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
-    runtime.block_on(async move {
-        let _logging = init_logging(log_dir)?;
-        run_agent(endpoint, agent_token).await
-    })
-}
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Command {
     Controller,
-    Agent,
 }
 
 impl Command {
     fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, CommandError> {
         match args.into_iter().collect::<Vec<_>>().as_slice() {
             [mode] if mode == "controller" => Ok(Self::Controller),
-            [mode] if mode == "agent" => Ok(Self::Agent),
             _ => Err(CommandError),
         }
     }
@@ -74,7 +57,7 @@ struct CommandError;
 
 impl std::fmt::Display for CommandError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("usage: rz-monitor controller | rz-monitor agent")
+        formatter.write_str("usage: rz-monitor controller")
     }
 }
 
@@ -85,9 +68,9 @@ mod tests {
     use super::{Command, CommandError};
 
     #[test]
-    fn parses_controller_and_agent_modes() {
+    fn parses_controller_mode_only() {
         assert_eq!(Command::parse(["controller".to_string()]).ok(), Some(Command::Controller));
-        assert_eq!(Command::parse(["agent".to_string()]).ok(), Some(Command::Agent));
+        assert!(Command::parse(["agent".to_string()]).is_err());
         assert!(matches!(Command::parse(std::iter::empty()), Err(CommandError)));
         assert!(Command::parse(["monitor".to_string(), "controller".to_string()]).is_err());
     }
@@ -96,6 +79,5 @@ mod tests {
     fn local_monitor_startup_configurations_are_valid_and_mode_focused() {
         rustzen_config::MonitorControllerConfig::local()
             .expect("local Monitor Controller startup config");
-        rustzen_config::MonitorAgentConfig::local().expect("local Monitor Agent startup config");
     }
 }

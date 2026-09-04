@@ -8,7 +8,15 @@ pub(crate) const DEFAULT_DB_MAX_CONN: u32 = 4;
 pub(crate) const DEFAULT_DB_MIN_CONN: u32 = 1;
 pub(crate) const DEFAULT_DB_CONN_TIMEOUT: u64 = 10;
 pub(crate) const DEFAULT_DB_IDLE_TIMEOUT: u64 = 600;
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "reports"
+))]
 pub(crate) const DEFAULT_IPC_TOKEN: &str = "rustzen-dev-ipc-token-change-in-production";
+#[cfg(any(feature = "monitor-controller", feature = "monitor-agent"))]
 pub(crate) const DEFAULT_MONITOR_AGENT_TOKEN: &str =
     "rustzen-dev-monitor-agent-token-change-in-production";
 pub(crate) const RELEASE_SECRET_PLACEHOLDER: &str = "replace-me";
@@ -182,10 +190,18 @@ pub(crate) fn default_runtime_root() -> String {
     DEFAULT_RUNTIME_ROOT.to_string()
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "reports"
+))]
 pub(crate) fn default_ipc_token() -> String {
     DEFAULT_IPC_TOKEN.to_string()
 }
 
+#[cfg(any(feature = "monitor-controller", feature = "monitor-agent"))]
 pub(crate) fn default_monitor_agent_token() -> String {
     DEFAULT_MONITOR_AGENT_TOKEN.to_string()
 }
@@ -222,6 +238,7 @@ pub(crate) fn ensure_production_secret(
     Ok(())
 }
 
+#[cfg(feature = "monitor-agent")]
 pub(crate) fn ensure_http_url(name: &'static str, value: Option<&str>) -> Result<(), ConfigError> {
     ensure_optional_non_empty(name, value)?;
     if let Some(value) = value {
