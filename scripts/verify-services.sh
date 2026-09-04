@@ -40,7 +40,11 @@ export RUSTZEN_ENV=development
 export RUSTZEN_ADMIN_SQLITE_PATH=./data/db/admin.db
 export RUSTZEN_MONITOR_SQLITE_PATH=./data/db/monitor.db
 export RUSTZEN_INSIGHTS_SQLITE_PATH=./data/db/insights.db
-export RUSTZEN_REPORTS_SQLITE_PATH=./data/db/reports.db
+export RUSTZEN_REPORTS_SQLITE_PATH=./data/reports/db/reports.db
+# The schedule fixture computes its daily/weekly slots in UTC. Keep this
+# disposable verifier explicit rather than coupling it to an installation's
+# product timezone.
+export RUSTZEN_TIMEZONE=UTC
 export RUSTZEN_ADMIN_HOST=127.0.0.1
 export RUSTZEN_ADMIN_PORT="$BASE_PORT"
 export RUSTZEN_INTERNAL_HOST=127.0.0.1
@@ -436,7 +440,10 @@ expect_corrupt_start_failure() {
 verify_database_isolation() {
     db_service="$1"
     database="$2"
-    path="$ROOT/data/db/$database.db"
+    case "$db_service" in
+        reports) path="$ROOT/data/reports/db/reports.db" ;;
+        *) path="$ROOT/data/db/$database.db" ;;
+    esac
     backup="$ROOT/backups/$database.db"
     PHASE="database-$db_service"
 
@@ -468,12 +475,16 @@ verify_database_isolation insights insights
 verify_database_isolation reports reports
 verify_database_isolation admin admin
 
-for database in admin monitor insights reports; do
+for database in admin monitor insights; do
     [ -s "$ROOT/data/db/$database.db" ] || {
         echo "verify-services: missing restored database $database" >&2
         exit 1
     }
 done
+[ -s "$ROOT/data/reports/db/reports.db" ] || {
+    echo "verify-services: missing restored database reports" >&2
+    exit 1
+}
 
 echo "verify-services: Admin-alone login, Agent persistence, 24 startup orders, rz status, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
 echo "verify-services: latency evidence: $RUSTZEN_GATEWAY_LATENCY_OUTPUT"

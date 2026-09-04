@@ -332,17 +332,28 @@ mod tests {
             .unwrap();
         assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
 
+        let schedule_count_before: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM automation_schedules")
+                .fetch_one(&state.pool)
+                .await
+                .unwrap();
         let sensitive = app
             .clone()
             .oneshot(request(
                 Method::POST,
                 "/api/reports/schedules",
                 "reports:schedule:manage",
-                json!({"flowId":flow_id,"cadence":"daily","dueTime":"23:59","input":{"accessToken":"secret"}}),
+                json!({"flowId":flow_id,"cadence":"daily","dueTime":"23:59","input":{"userPasswordValue":"secret"}}),
             ))
             .await
             .unwrap();
         assert_eq!(sensitive.status(), StatusCode::BAD_REQUEST);
+        let schedule_count_after: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM automation_schedules")
+                .fetch_one(&state.pool)
+                .await
+                .unwrap();
+        assert_eq!(schedule_count_after, schedule_count_before);
 
         let updated = body(
             app.clone()

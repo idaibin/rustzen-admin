@@ -1,5 +1,9 @@
 # Scheduled Report Automation
 
+The owning module is presented to users as **自动化 / Automation**. `Reports`
+remains its internal service name; target-backed browser execution, routes,
+permissions, templates and run data are unchanged.
+
 ## Goal and implementation slice
 
 Allow an operator to repeat an existing Reports flow on a predictable daily or
@@ -12,6 +16,34 @@ The current Reports worker already claims queued runs and retains steps,
 artifacts, live frames, cancellation, and cleanup. This slice adds the
 smallest scheduling policy around that loop and keeps browser execution owned
 by Reports.
+
+Reports browser execution runs under the dedicated unprivileged `rz-reports`
+service account with Chromium sandboxing enabled. A screenshot is rejected when
+it exceeds 4,000,000 pixels or 4 MiB, and one run may retain at most 16 MiB of
+screenshot artifacts; rejected captures leave no artifact row or temporary
+file. These execution limits apply equally to ordinary and scheduled runs.
+
+## Current implementation and verification status
+
+The Reports service and the Reports Templates route now implement this slice:
+daily/weekly schedule CRUD, enable/disable, schedule-only view/manage
+capabilities, installation-timezone readback, durable occurrence decisions,
+and the `enqueued`-to-run link are present. The user-facing module name is
+**自动化 / Automation** while Reports remains the service, route, capability,
+template, and run-data owner.
+
+Repository tests cover scheduler timing, idempotency, stale-snapshot handling,
+and persistence. The focused worker verifier is the HTTP acceptance seam for
+daily/weekly CRUD, direct capability denial, real due occurrence readback,
+`enqueued`/`skipped` decisions, and run linkage. The browser verifier covers
+the Reports execution browser, real screenshot artifacts, cleanup, and
+schedule-only delegated permission requests; the Web seam test fixes the
+route's selector and schedule view/manage gates. The four-service verifier
+covers startup ordering, failure isolation, gateway contracts, and each
+service database restore. A Colima Debian/amd64 run covers Reports as an
+unprivileged user with browser user namespaces, WAL files, recovery blocking,
+logs, and screenshots. The rendered Web route, a real systemd boot, and browser
+seccomp under a confined native Linux host remain **Not verified**.
 
 ## Users and scenarios
 
@@ -132,6 +164,9 @@ Non-goals:
   timestamps remain unmodified UTC values.
 - Secret-looking fields remain rejected by the existing Reports input policy;
   scheduling must not create a path around that boundary.
+- Credential-shaped input names, including `password`, `pwd`, `pass`, `token`,
+  `secret`, `auth`, `bearer`, and `key` aliases with prefixes or suffixes, are
+  rejected before a schedule or run is persisted.
 
 ## UI states and evidence
 
@@ -206,9 +241,9 @@ policy removes them.
 | --- | --- | --- |
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
-| HTTP | Real delegated create/list/update/trigger requests | Owner/admin/viewer boundaries and run linkage are observable. |
-| Browser | Required Reports templates/runs state matrix | Form validation, processing, retry, run links, partial outcomes, and responsive behavior pass. |
-| Runtime/deployment | four-service startup and clock/timezone scenario | `Not verified` until the release environment is started. |
+| HTTP | Focused worker verifier creates, lists, reads, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, `enqueued`/`skipped`, and run linkage are observable locally. |
+| Browser | Reports browser verifier plus schedule permission seam | Real target-backed execution, screenshots, limits, cleanup, and direct schedule-only viewer/manager requests pass; rendered Templates/Runs Web visual matrix remains **Not verified**. |
+| Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
@@ -237,6 +272,7 @@ policy removes them.
 ## Ready for scheduled report automation implementation
 
 The cadence, skip policy, run ownership, permission boundary, failure semantics,
-non-goals, and acceptance are fixed. The linked UI contract is ready for
-frontend implementation. Browser, HTTP, timezone, deployment, and external
-delivery evidence remain `Not verified` until exercised.
+and non-goals are implemented in the current Reports/Web slice. Focused local
+Rust, HTTP, and script seams are required before this status can be claimed.
+Rendered browser UI, real systemd installation, native-host browser seccomp,
+and external delivery remain **Not verified** until separately exercised.

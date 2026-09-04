@@ -4,6 +4,8 @@ set -eu
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/rz}"
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
+REPORTS_USER="${RUSTZEN_REPORTS_USER:-rz-reports}"
+REPORTS_GROUP="${RUSTZEN_REPORTS_GROUP:-}"
 MANAGED_UNITS="rz.target rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service"
 REQUIRED_FILES="
 bin/rz
@@ -18,6 +20,7 @@ systemd/rz-monitor.service
 systemd/rz-insights.service
 systemd/rz-reports.service
 config/rz.env
+config/rz-reports.env
 setup-layout.sh
 "
 
@@ -28,6 +31,16 @@ CANDIDATE_DIR=""
 fail() {
     echo "setup-layout: $*" >&2
     exit 1
+}
+
+group_exists() {
+    if command -v getent >/dev/null 2>&1; then
+        getent group "$1" >/dev/null 2>&1
+    elif command -v dscl >/dev/null 2>&1; then
+        dscl . -read "/Groups/$1" >/dev/null 2>&1
+    else
+        return 1
+    fi
 }
 
 cleanup() {
@@ -63,13 +76,13 @@ hex_to_binary() {
         printf '%s' "$value" | xxd -r -p
         return
     fi
-    printf '%s\n' "$value" | awk '
+    printf '%s\n' "$value" | LC_ALL=C awk '
         function nibble(character) {
             return index("0123456789abcdef", character) - 1
         }
         {
-            for (index = 1; index <= length($0); index += 2) {
-                printf "%c", nibble(substr($0, index, 1)) * 16 + nibble(substr($0, index + 1, 1))
+            for (offset = 1; offset <= length($0); offset += 2) {
+                printf "%c", nibble(substr($0, offset, 1)) * 16 + nibble(substr($0, offset + 1, 1))
             }
         }
     '
@@ -286,7 +299,7 @@ while IFS= read -r entry || [ -n "$entry" ]; do
         "$ROOT_NAME/systemd/rz-monitor.service"|\
         "$ROOT_NAME/systemd/rz-insights.service"|\
         "$ROOT_NAME/systemd/rz-reports.service"|\
-        "$ROOT_NAME/config/rz.env"|"$ROOT_NAME/setup-layout.sh")
+        "$ROOT_NAME/config/rz.env"|"$ROOT_NAME/config/rz-reports.env"|"$ROOT_NAME/setup-layout.sh")
             ;;
         *)
             fail "bundle contains an unexpected path: $entry"
@@ -359,6 +372,10 @@ if [ -L "$INSTALL_ROOT/config/rz.env" ] || \
    { [ -e "$INSTALL_ROOT/config/rz.env" ] && [ ! -f "$INSTALL_ROOT/config/rz.env" ]; }; then
     fail "existing config is not a regular file: $INSTALL_ROOT/config/rz.env"
 fi
+if [ -L "$INSTALL_ROOT/config/rz-reports.env" ] || \
+   { [ -e "$INSTALL_ROOT/config/rz-reports.env" ] && [ ! -f "$INSTALL_ROOT/config/rz-reports.env" ]; }; then
+    fail "existing Reports config is not a regular file: $INSTALL_ROOT/config/rz-reports.env"
+fi
 for unit in $MANAGED_UNITS; do
     destination="$SYSTEMD_DIR/$unit"
     if [ -e "$destination" ] && [ ! -L "$destination" ]; then
@@ -369,6 +386,24 @@ if [ "${SYSTEMCTL_BIN#*/}" != "$SYSTEMCTL_BIN" ]; then
     [ -x "$SYSTEMCTL_BIN" ] || fail "systemctl command is not executable: $SYSTEMCTL_BIN"
 elif ! command -v "$SYSTEMCTL_BIN" >/dev/null 2>&1; then
     fail "systemctl command was not found: $SYSTEMCTL_BIN"
+fi
+
+if ! id "$REPORTS_USER" >/dev/null 2>&1; then
+    if [ "$(id -u)" -ne 0 ]; then
+        fail "reports service account is missing: $REPORTS_USER"
+    fi
+    command -v useradd >/dev/null 2>&1 || fail "useradd is required to create $REPORTS_USER"
+    command -v groupadd >/dev/null 2>&1 || fail "groupadd is required to create rz-reports"
+    if ! group_exists rz-reports; then
+        groupadd --system rz-reports
+    fi
+    useradd --system --gid rz-reports --home-dir "$INSTALL_ROOT/data/reports" --shell /usr/sbin/nologin "$REPORTS_USER"
+fi
+if [ -z "$REPORTS_GROUP" ]; then
+    REPORTS_GROUP="$(id -gn "$REPORTS_USER")"
+fi
+if ! group_exists "$REPORTS_GROUP"; then
+    fail "reports service group is missing: $REPORTS_GROUP"
 fi
 
 INSTALL_LOCK="$INSTALL_ROOT/.setup-layout.lock"
@@ -385,6 +420,13 @@ mkdir -p \
     "$INSTALL_ROOT/data/uploads" \
     "$INSTALL_ROOT/data/avatars" \
     "$INSTALL_ROOT/logs"
+chmod 0755 "$INSTALL_ROOT" "$INSTALL_ROOT/releases"
+chmod 0700 "$INSTALL_ROOT/config"
+chmod 0711 "$INSTALL_ROOT/data" "$INSTALL_ROOT/logs"
+mkdir -p "$INSTALL_ROOT/logs/reports"
+mkdir -p "$INSTALL_ROOT/data/reports/db"
+chown "$REPORTS_USER:$REPORTS_GROUP" "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db" "$INSTALL_ROOT/logs/reports"
+chmod 0750 "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db" "$INSTALL_ROOT/logs/reports"
 
 RELEASE_DIR="$INSTALL_ROOT/releases/$VERSION"
 if [ -e "$RELEASE_DIR" ] || [ -L "$RELEASE_DIR" ]; then
@@ -403,12 +445,18 @@ for unit in $MANAGED_UNITS; do
     install -m 0644 "$SOURCE_ROOT/systemd/$unit" "$CANDIDATE_DIR/systemd/$unit"
 done
 install -m 0600 "$SOURCE_ROOT/config/rz.env" "$CANDIDATE_DIR/config/rz.env"
+install -m 0600 "$SOURCE_ROOT/config/rz-reports.env" "$CANDIDATE_DIR/config/rz-reports.env"
 install -m 0755 "$SOURCE_ROOT/setup-layout.sh" "$CANDIDATE_DIR/setup-layout.sh"
 mv "$CANDIDATE_DIR" "$RELEASE_DIR"
 CANDIDATE_DIR=""
+chmod 0755 "$RELEASE_DIR" "$RELEASE_DIR/bin" "$RELEASE_DIR/systemd"
+chmod 0700 "$RELEASE_DIR/config"
 
 if [ ! -e "$INSTALL_ROOT/config/rz.env" ]; then
     install -m 0600 "$SOURCE_ROOT/config/rz.env" "$INSTALL_ROOT/config/rz.env"
+fi
+if [ ! -e "$INSTALL_ROOT/config/rz-reports.env" ]; then
+    install -m 0600 "$SOURCE_ROOT/config/rz-reports.env" "$INSTALL_ROOT/config/rz-reports.env"
 fi
 
 STORED_BUNDLE="$INSTALL_ROOT/data/releases/rz-$VERSION-$ARCH.tar"
@@ -438,5 +486,5 @@ done
 "$SYSTEMCTL_BIN" daemon-reload
 "$SYSTEMCTL_BIN" enable rz.target
 
-echo "Installed RustZen $VERSION ($ARCH) at $RELEASE_DIR"
-echo "Set production secrets in $INSTALL_ROOT/config/rz.env, then run: systemctl enable --now rz.target"
+echo "Installed Rustzen $VERSION ($ARCH) at $RELEASE_DIR"
+echo "Set production secrets and RUSTZEN_TIMEZONE in $INSTALL_ROOT/config/rz.env and $INSTALL_ROOT/config/rz-reports.env. Keep RUSTZEN_IPC_TOKEN identical in both files, then run: systemctl enable --now rz.target"

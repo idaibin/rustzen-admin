@@ -9,7 +9,7 @@ use crate::shared::{
 
 const DEFAULT_INTERNAL_HOST: &str = "127.0.0.1";
 const DEFAULT_REPORTS_PORT: u16 = 9804;
-const DEFAULT_REPORTS_SQLITE_PATH: &str = "./data/db/reports.db";
+const DEFAULT_REPORTS_SQLITE_PATH: &str = "./data/reports/db/reports.db";
 const DEFAULT_CREDENTIAL_KEY: &str = "rustzen-development-credential-key";
 
 #[derive(Debug, Clone, Deserialize)]
@@ -72,7 +72,7 @@ impl ReportsConfig {
     }
 
     pub fn log_dir(&self) -> PathBuf {
-        self.runtime.log_dir()
+        self.runtime.log_dir().join("reports")
     }
 
     pub fn timezone(&self) -> &str {
@@ -134,7 +134,7 @@ mod tests {
         let config = ReportsConfig::local().expect("local Reports config");
 
         assert_eq!(config.bind_address(), "127.0.0.1:9804");
-        assert!(config.database_path().ends_with("data/db/reports.db"));
+        assert!(config.database_path().ends_with("data/reports/db/reports.db"));
         assert_eq!(config.database.db_idle_timeout, None);
     }
 

@@ -63,19 +63,21 @@ check:
     cargo fmt --all -- --check
     cargo check --workspace
     cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
+    # Admin fixtures share a process-global permission cache across independent databases.
+    # Serialize test cases; each concurrency test still runs its own parallel tasks.
+    cargo test --workspace -- --test-threads=1
 
 verify-services:
     cargo test -p rustzen-admin changed_manifest_swaps_after_commit_and_invalid_change_rolls_back
     cargo test -p rustzen-admin warm_gateway_streams_with_memory_auth_and_a_closed_database
     cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
     cargo build --release -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
-    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz target/release/rz-monitor-agent
+    RUSTZEN_VERIFY_BUILD_PROFILE=release scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz target/release/rz-monitor-agent
 
 verify-modules-mvp:
     cargo build --workspace
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
-    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent
+    RUSTZEN_VERIFY_BUILD_PROFILE=debug scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent
 
 # Admin-native route contract. Rust registration is the authority; this artifact
 # is a derived input for client generation and compatibility checks. Module
@@ -112,13 +114,16 @@ verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
 
+verify-reports-linux:
+    scripts/verify-reports-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"
 
 # Reset local sqlite database and let migrations re-run on next startup.
 reset-db:
-    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights reports; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done; rm -f "${runtime_root}/data/rustzen.db" "${runtime_root}/data/rustzen.db-shm" "${runtime_root}/data/rustzen.db-wal"
+    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done; rm -f "${runtime_root}/data/reports/db/reports.db" "${runtime_root}/data/reports/db/reports.db-shm" "${runtime_root}/data/reports/db/reports.db-wal" "${runtime_root}/data/rustzen.db" "${runtime_root}/data/rustzen.db-shm" "${runtime_root}/data/rustzen.db-wal"
 
 # Build all (production)
 build:
@@ -142,6 +147,7 @@ build-web:
 build-config:
     mkdir -p target/rz/config target/rz/systemd
     cp .env.example target/rz/config/rz.env
+    cp .env.reports.example target/rz/config/rz-reports.env
     VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/config/rz.env
     cp deploy/rz.target deploy/rz-recovery.service deploy/rz-admin.service deploy/rz-monitor.service deploy/rz-insights.service deploy/rz-reports.service target/rz/systemd/
     cp deploy/setup-layout.sh target/rz/setup-layout.sh

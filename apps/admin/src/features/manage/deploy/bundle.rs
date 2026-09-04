@@ -359,7 +359,11 @@ fn validate_file_set(
         .iter()
         .map(|name| format!("{root}/bin/{name}"))
         .chain(SYSTEMD_FILES.iter().map(|name| format!("{root}/systemd/{name}")))
-        .chain([format!("{root}/config/rz.env"), format!("{root}/setup-layout.sh")])
+        .chain([
+            format!("{root}/config/rz.env"),
+            format!("{root}/config/rz-reports.env"),
+            format!("{root}/setup-layout.sh"),
+        ])
         .collect::<BTreeSet<_>>();
     let actual = files.keys().cloned().collect::<BTreeSet<_>>();
     if actual != expected {
@@ -455,6 +459,11 @@ fn validate_support_files(
     let (config_mode, config) = file(files, &format!("{root}/config/rz.env"))?;
     if config_mode & 0o111 != 0 || config.is_empty() {
         return Err(invalid("Release bundle config/rz.env is invalid"));
+    }
+    let (reports_config_mode, reports_config) =
+        file(files, &format!("{root}/config/rz-reports.env"))?;
+    if reports_config_mode & 0o111 != 0 || reports_config.is_empty() {
+        return Err(invalid("Release bundle config/rz-reports.env is invalid"));
     }
     let (script_mode, script) = file(files, &format!("{root}/setup-layout.sh"))?;
     if script_mode & 0o111 == 0 || !script.starts_with(b"#!/") {
@@ -634,6 +643,12 @@ pub(crate) mod tests {
                 &format!("{root}/config/rz.env"),
                 0o600,
                 b"RUSTZEN_ENV=production\n",
+            );
+            append(
+                &mut builder,
+                &format!("{root}/config/rz-reports.env"),
+                0o600,
+                b"RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_REPORTS_CREDENTIAL_KEY=replace-me\n",
             );
             append(&mut builder, &format!("{root}/setup-layout.sh"), 0o755, b"#!/bin/sh\n");
             builder.finish().expect("finish tar");

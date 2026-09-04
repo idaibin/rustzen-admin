@@ -1,5 +1,9 @@
 # Scheduled Report Automation UI
 
+The Reports-owned module displays as **自动化 / Automation** in the sidebar,
+page search and module-status surfaces. Routes remain `/reports/*`; this naming
+change does not expand browser execution or rename existing child pages.
+
 ## Profile, authority, and selected source
 
 - Profile: **Feature UI**.
@@ -16,13 +20,35 @@
 - Target: schedule list/form integrated with existing Templates/Runs surfaces
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. New schedule runtime captures are `Not verified` until
-  implementation.
+  zh-CN/en-US. The route-local schedule panel and API client are implemented;
+  rendered runtime captures remain **Not verified**.
 
 The selected source proves current PageCard, table, form, Modal, run-detail,
 and DataState ownership. It does not authorize a new workflow builder, a new
 page shell, or exact schedule-specific geometry; the schedule panel remains a
 route-local adaptation.
+
+Screenshot artifacts remain bounded backend evidence: failed oversize capture
+is shown through the existing run failure evidence and does not create a fake
+artifact or partial download surface.
+
+## Current implementation and verification status
+
+`apps/web/src/routes/reports/templates.tsx` renders the schedule panel behind
+`reports:schedule:view`; its create, edit, enable/disable, and delete controls
+remain behind `reports:schedule:manage`. The route reads the stable
+`checkPermissions` selector before deriving schedule state, so a schedule-only
+viewer can reach the panel without receiving flow-management actions. The
+panel renders daily/weekly values, installation timezone, next due, and the
+latest occurrence; only an occurrence with `runId` exposes the existing run
+link.
+
+The static seam test verifies that selector and gate composition. The Reports
+browser verifier separately verifies schedule-only viewer/manager delegated
+HTTP access while exercising the existing target-backed browser runner. It
+does not produce a visual capture of the Web Templates route. Desktop/narrow,
+light/dark, keyboard, localization wrapping, and the complete rendered state
+matrix are therefore **Not verified**.
 
 ## Surface and layout contract
 
@@ -106,10 +132,10 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
-| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | `Not verified`: schedule panel not yet rendered | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; desktop/narrow composition check |
-| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | `Not verified`: cadence validation and timezone copy not yet exercised | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
-| SR-UI-003 | `source-extracted`: current DataState and run outcome tags | `Not verified`: processing/partial/skipped states not yet rendered | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
-| SR-UI-004 | `source-extracted`: existing run detail linkage | `Not verified`: schedule-to-run evidence not yet rendered | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
+| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Implemented source; rendered desktop/narrow composition **Not verified** | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; desktop/narrow composition check |
+| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
+| SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
+| SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
 
 Exact new geometry, computed styles, and runtime schedule outcomes are
 `Not verified` until implementation and browser capture.
@@ -135,6 +161,7 @@ feedback, confirmation, run detail, and theme semantics.
 ## Ready for dev-frontend scheduled report automation
 
 The selected source, layout ownership, component mapping, states, permission
-visibility, responsive/accessibility rules, and acceptance IDs are fixed. The
-slice is **Ready for dev-frontend**. Scheduler HTTP behavior, timezone/runtime
-evidence, final geometry, and two-pass browser review remain `Not verified`.
+visibility, responsive/accessibility rules, and acceptance IDs are implemented
+in the current Reports/Web slice. Scheduler HTTP behavior is verified by the
+focused Reports worker seam; final geometry and two-pass rendered browser
+review remain **Not verified**.

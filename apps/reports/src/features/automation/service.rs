@@ -433,7 +433,7 @@ fn is_sensitive_key(key: &str) -> bool {
         .filter(|character| character.is_ascii_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect::<String>();
-    let contains_sensitive_name = [
+    if [
         "password",
         "passwd",
         "token",
@@ -443,13 +443,14 @@ fn is_sensitive_key(key: &str) -> bool {
         "cookie",
         "apikey",
         "privatekey",
+        "bearer",
+        "passcode",
     ]
     .into_iter()
-    .any(|name| normalized.starts_with(name) || normalized.ends_with(name));
-    if contains_sensitive_name {
+    .any(|word| normalized.starts_with(word) || normalized.ends_with(word))
+    {
         return true;
     }
-
     let mut words = Vec::new();
     let mut word = String::new();
     let mut previous_was_lowercase_or_digit = false;
@@ -476,6 +477,9 @@ fn is_sensitive_key(key: &str) -> bool {
         matches!(
             word.as_str(),
             "key"
+                | "pwd"
+                | "pass"
+                | "auth"
                 | "password"
                 | "passwd"
                 | "token"
@@ -484,6 +488,10 @@ fn is_sensitive_key(key: &str) -> bool {
                 | "credentials"
                 | "authorization"
                 | "cookie"
+                | "apikey"
+                | "privatekey"
+                | "bearer"
+                | "passcode"
         )
     })
 }
@@ -564,7 +572,44 @@ mod tests {
         assert!(reject_sensitive_input(&json!({"passwordValue": "secret"})).is_err());
         assert!(reject_sensitive_input(&json!({"token_value": "secret"})).is_err());
         assert!(reject_sensitive_template("{{input.apiKeyValue}}").is_err());
+        for key in ["pwd", "passCode", "authHeader", "bearerToken", "user_pwd"] {
+            let mut input = json!({});
+            input.as_object_mut().expect("object").insert(key.into(), json!("secret"));
+            assert!(reject_sensitive_input(&input).is_err(), "{key}");
+        }
+        for key in
+            ["APIKey", "apikey", "privatekey", "passwordvalue", "JWTToken", "HTTPAuthorization"]
+        {
+            let mut input = json!({});
+            input.as_object_mut().expect("object").insert(key.into(), json!("secret"));
+            assert!(reject_sensitive_input(&input).is_err(), "{key}");
+        }
+        for key in [
+            "userPasswordValue",
+            "storedTokenValue",
+            "clientSecretValue",
+            "serviceCredentialValue",
+            "sessionCookieValue",
+        ] {
+            let mut input = json!({});
+            input.as_object_mut().expect("object").insert(key.into(), json!("secret"));
+            assert!(reject_sensitive_input(&input).is_err(), "{key}");
+        }
+        for key in ["passengerCount", "passportNumber", "authorName", "authenticationStatus"] {
+            let mut input = json!({});
+            input.as_object_mut().expect("object").insert(key.into(), json!("allowed"));
+            assert!(reject_sensitive_input(&input).is_ok(), "{key}");
+        }
         assert!(reject_sensitive_input(&json!({"monkey": "allowed"})).is_ok());
+        assert!(
+            reject_sensitive_input(&json!({
+                "passengerCount": 2,
+                "passportNumber": "P123",
+                "authorName": "Ada",
+                "authenticationStatus": "verified",
+            }))
+            .is_ok()
+        );
         assert!(reject_sensitive_input(&json!({"username": "owner", "value": "42"})).is_ok());
     }
 

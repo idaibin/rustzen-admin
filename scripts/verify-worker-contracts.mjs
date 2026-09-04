@@ -518,6 +518,129 @@ const reportRun = await responseData(
 );
 if (reportRun.status !== "queued") throw new Error("Report filling run was not queued");
 
+const reportsRuntimeRoot = required("RUSTZEN_RUNTIME_ROOT");
+const reportsDatabase = `${reportsRuntimeRoot}/data/reports/db/reports.db`;
+const scheduleSettings = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", "/api/reports/settings", "reports:schedule:view"),
+        200,
+        "schedule installation settings",
+    ),
+    "schedule installation settings",
+);
+if (scheduleSettings.timezone !== "UTC") {
+    throw new Error(`worker verifier requires its UTC fixture timezone, got ${scheduleSettings.timezone}`);
+}
+
+const utcParts = (date) => ({
+    dueTime: `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`,
+    weekday: (date.getUTCDay() + 6) % 7,
+});
+const waitForScheduleDecision = async (id, decision) => {
+    const path = `/api/reports/schedules/${id}`;
+    for (let attempt = 0; attempt < 360; attempt += 1) {
+        const current = await responseData(
+            await expectStatus(
+                await directRequest(reportsBase, "reports", path, "reports:schedule:view"),
+                200,
+                `read ${decision} schedule`,
+            ),
+            `read ${decision} schedule`,
+        );
+        if (current.lastOccurrence?.decision === decision) return current;
+        await Bun.sleep(250);
+    }
+    throw new Error(`schedule ${id} did not record ${decision} within 90 seconds`);
+};
+const backdateScheduleFixture = (id, dueTime) => {
+    // This disposable service-verification database makes a post-downtime slot
+    // deterministic. HTTP owns every public schedule transition and readback.
+    const result = Bun.spawnSync([
+        "sqlite3",
+        reportsDatabase,
+        `UPDATE automation_schedules SET due_time='${dueTime}', effective_at='2000-01-01T00:00:00+00:00' WHERE id='${id}';`,
+    ]);
+    if (result.exitCode !== 0) {
+        throw new Error(`could not prepare missed schedule fixture: ${result.stderr.toString()}`);
+    }
+};
+const createSchedule = async (cadence, input) => responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", "/api/reports/schedules", "reports:schedule:manage", {
+            method: "POST",
+            body: JSON.stringify(input),
+        }),
+        200,
+        `${cadence} schedule creation`,
+    ),
+    `${cadence} schedule creation`,
+);
+const scheduleList = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", "/api/reports/schedules", "reports:schedule:view"),
+        200,
+        "schedule list",
+    ),
+    "schedule list",
+);
+if (!Array.isArray(scheduleList)) throw new Error("schedule list was not an array");
+
+const nextMinute = new Date(Date.now() + 60_000);
+nextMinute.setUTCSeconds(0, 0);
+const dailyInput = { flowId: flow.id, cadence: "daily", weekday: null, dueTime: utcParts(nextMinute).dueTime, input: {}, enabled: false };
+const daily = await createSchedule("daily", dailyInput);
+if (daily.enabled || daily.nextDue !== null || daily.cadence !== "daily") {
+    throw new Error("daily: disabled schedule state mismatch");
+}
+const dailyPath = `/api/reports/schedules/${daily.id}`;
+const readDaily = await responseData(
+    await expectStatus(
+        await directRequest(reportsBase, "reports", dailyPath, "reports:schedule:view"),
+        200,
+        "daily schedule read",
+    ),
+    "daily schedule read",
+);
+if (readDaily.id !== daily.id) throw new Error("daily schedule readback mismatched its created id");
+await expectStatus(await directRequest(reportsBase, "reports", dailyPath, "reports:schedule:view", {
+    method: "PUT", body: JSON.stringify(dailyInput),
+}), 403, "schedule read capability cannot mutate");
+const enabledDaily = await responseData(await expectStatus(await directRequest(
+    reportsBase, "reports", dailyPath, "reports:schedule:manage",
+    { method: "PUT", body: JSON.stringify({ ...dailyInput, enabled: true }) },
+), 200, "enable daily schedule"), "enabled daily schedule");
+if (!enabledDaily.enabled || !enabledDaily.nextDue || !enabledDaily.timezone) {
+    throw new Error("daily: enabled schedule lacks next occurrence/timezone");
+}
+const enqueuedDaily = await waitForScheduleDecision(daily.id, "enqueued");
+if (!enqueuedDaily.lastOccurrence?.runId || enqueuedDaily.lastRun?.id !== enqueuedDaily.lastOccurrence.runId) {
+    throw new Error(`daily enqueued occurrence lost its run linkage: ${JSON.stringify(enqueuedDaily)}`);
+}
+
+const missedMoment = new Date(Date.now() - 120_000);
+const weeklyParts = utcParts(missedMoment);
+const weeklyInput = { flowId: flow.id, cadence: "weekly", weekday: weeklyParts.weekday, dueTime: weeklyParts.dueTime, input: {}, enabled: true };
+const weekly = await createSchedule("weekly", weeklyInput);
+backdateScheduleFixture(weekly.id, weeklyParts.dueTime);
+const skippedWeekly = await waitForScheduleDecision(weekly.id, "skipped");
+if (skippedWeekly.lastOccurrence?.reason !== "missed" || skippedWeekly.lastOccurrence.runId || skippedWeekly.lastRun) {
+    throw new Error(`weekly missed occurrence had an invalid run relationship: ${JSON.stringify(skippedWeekly)}`);
+}
+const disabledWeekly = await responseData(await expectStatus(await directRequest(
+    reportsBase, "reports", `/api/reports/schedules/${weekly.id}`, "reports:schedule:manage",
+    { method: "PUT", body: JSON.stringify({ ...weeklyInput, enabled: false }) },
+), 200, "disable weekly schedule"), "disabled weekly schedule");
+if (disabledWeekly.enabled || disabledWeekly.nextDue !== null) throw new Error("weekly schedule did not disable");
+
+for (const id of [daily.id, weekly.id]) {
+    const path = `/api/reports/schedules/${id}`;
+    await expectStatus(await directRequest(reportsBase, "reports", path, "reports:schedule:manage", {
+        method: "DELETE",
+    }), 200, "remove verification schedule");
+    await expectStatus(await directRequest(reportsBase, "reports", path, "reports:schedule:view"), 404, "removed schedule");
+}
+console.log("Reports daily/weekly schedule CRUD, enable/disable, permissions, occurrence decisions and run linkage verified");
+
 function percentile(values, quantile) {
     const sorted = [...values].sort((left, right) => left - right);
     return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * quantile) - 1)];
@@ -575,7 +698,7 @@ const overhead = {
 const latency = {
     measuredAt: new Date().toISOString(),
     endpoint: "GET /api/monitor/nodes",
-    buildProfile: "release",
+    buildProfile: process.env.RUSTZEN_VERIFY_BUILD_PROFILE ?? "unspecified",
     host: "127.0.0.1",
     concurrency,
     warmupRequestsPerPath: concurrency * 4,

@@ -45,6 +45,10 @@ if [ ! -f "$OUTPUT_DIR/config/rz.env" ]; then
   echo "missing generated release config: $OUTPUT_DIR/config/rz.env" >&2
   exit 1
 fi
+if [ ! -f "$OUTPUT_DIR/config/rz-reports.env" ]; then
+  echo "missing generated Reports release config: $OUTPUT_DIR/config/rz-reports.env" >&2
+  exit 1
+fi
 
 mkdir -p "$OUTPUT_DIR"
 STAGING=$(mktemp -d "${OUTPUT_DIR}/.bundle.XXXXXX")
@@ -59,9 +63,12 @@ for unit in rz.target rz-recovery.service rz-admin.service rz-monitor.service rz
   install -m 0644 "deploy/$unit" "$ROOT/systemd/$unit"
 done
 install -m 0600 "$OUTPUT_DIR/config/rz.env" "$ROOT/config/rz.env"
+install -m 0600 "$OUTPUT_DIR/config/rz-reports.env" "$ROOT/config/rz-reports.env"
 install -m 0755 deploy/setup-layout.sh "$ROOT/setup-layout.sh"
 
 BUNDLE="$OUTPUT_DIR/$ROOT_NAME.tar"
 rm -f "$BUNDLE"
-tar -cf "$BUNDLE" -C "$STAGING" "$ROOT_NAME"
+# Emit the same portable headers on BSD tar and GNU tar. macOS file metadata
+# otherwise produces extended headers that the strict Linux installer rejects.
+COPYFILE_DISABLE=1 tar --format=ustar -cf "$BUNDLE" -C "$STAGING" "$ROOT_NAME"
 printf '%s\n' "$BUNDLE"

@@ -10,6 +10,7 @@ const token = process.env.RUSTZEN_IPC_TOKEN;
 if (!reportsPort || !fixturePort || !token) throw new Error("Automation verification environment is incomplete");
 const reportsBase = `http://127.0.0.1:${reportsPort}`;
 const verifierId = "1";
+const expectedTimezone = process.env.RUSTZEN_EXPECT_TIMEZONE;
 let submitted = "";
 const fixture = createServer((request, response) => {
   if (request.method === "POST") {
@@ -20,6 +21,11 @@ const fixture = createServer((request, response) => {
       response.writeHead(200, { "content-type": "text/html" });
       response.end(`<main id="received">Received ${submitted}</main>`);
     });
+    return;
+  }
+  if (request.url === "/tall") {
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end('<main style="width:2000px;height:2500px">Too tall to capture</main>');
     return;
   }
   response.writeHead(200, { "content-type": "text/html" });
@@ -48,8 +54,21 @@ async function call(path, capability, method = "GET", body) {
   const payload = await response.json();
   return payload.data;
 }
+async function expectStatus(path, capability, expectedStatus, method = "GET", body) {
+  const response = await fetch(`${reportsBase}${path}`, { method, headers: headers(new URL(`${reportsBase}${path}`).pathname, capability, method), ...(body ? { body: JSON.stringify(body) } : {}) });
+  if (response.status !== expectedStatus) {
+    throw new Error(`${method} ${path} with ${capability}: expected ${expectedStatus}, got ${response.status}: ${await response.text()}`);
+  }
+  return response;
+}
 
 try {
+  if (expectedTimezone) {
+    const settings = await call("/api/reports/settings", "reports:schedule:view");
+    if (settings.timezone !== expectedTimezone) {
+      throw new Error(`Reports timezone mismatch: expected ${expectedTimezone}, got ${settings.timezone}`);
+    }
+  }
   const system = await call("/api/reports/systems", "reports:system:manage", "POST", { name: "Browser fixture", baseUrl: `http://127.0.0.1:${fixturePort}` });
   const flow = await call("/api/reports/flows", "reports:flow:manage", "POST", { systemId: system.id, name: "Real form submission", steps: [
     { action: "goto", url: "/" },
@@ -62,6 +81,13 @@ try {
     { action: "assertText", selector: "#received", text: "Rustzen+MVP" },
     { action: "screenshot", name: "submitted" },
   ] });
+  const scheduleOnlyInput = { flowId: flow.id, cadence: "daily", weekday: null, dueTime: "23:59", input: {}, enabled: false };
+  await expectStatus("/api/reports/schedules", "reports:schedule:view", 200);
+  await expectStatus("/api/reports/flow-options", "reports:schedule:view", 200);
+  await expectStatus("/api/reports/schedules", "reports:schedule:view", 403, "POST", scheduleOnlyInput);
+  const scheduleManager = await call("/api/reports/schedules", "reports:schedule:manage", "POST", scheduleOnlyInput);
+  await expectStatus(`/api/reports/schedules/${scheduleManager.id}`, "reports:schedule:manage", 200, "DELETE");
+  console.log("Schedule-only viewer/manager delegated permissions passed");
   const run = await call("/api/reports/runs", "reports:run:manage", "POST", { flowId: flow.id, input: { title: "Rustzen MVP" } });
   let current;
   for (let attempt = 0; attempt < 600; attempt += 1) {
@@ -89,6 +115,37 @@ try {
   if (!liveResponse.ok || !liveResponse.headers.get("content-type")?.startsWith("image/png") || (await liveResponse.arrayBuffer()).byteLength === 0) {
     throw new Error(`Live frame endpoint failed: ${liveResponse.status}`);
   }
+
+  const tallFlow = await call("/api/reports/flows", "reports:flow:manage", "POST", {
+    systemId: system.id,
+    name: "Tall screenshot rejection",
+    steps: [
+      { action: "goto", url: "/tall" },
+      { action: "screenshot", name: "too-tall" },
+    ],
+  });
+  const tallRun = await call("/api/reports/runs", "reports:run:manage", "POST", {
+    flowId: tallFlow.id,
+    input: {},
+  });
+  let tallResult;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    tallResult = await call(`/api/reports/runs/${tallRun.id}`, "reports:run:view");
+    if (!["queued", "running", "cancelling"].includes(tallResult.status)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  if (tallResult?.status !== "failed" || !tallResult.error?.includes("screenshot exceeds pixel limit")) {
+    throw new Error(`Tall screenshot was not rejected by pixel preflight: ${JSON.stringify(tallResult)}`);
+  }
+  const tallArtifacts = await call(`/api/reports/runs/${tallRun.id}/artifacts`, "reports:run:view");
+  if (tallArtifacts.some(artifact => artifact.kind === "screenshot")) {
+    throw new Error(`Tall screenshot persisted an artifact: ${JSON.stringify(tallArtifacts)}`);
+  }
+  const tallFiles = await readdir(join(process.env.RUSTZEN_RUNTIME_ROOT, "data", "reports", tallRun.id));
+  if (tallFiles.some(name => name.endsWith(".tmp") || name.startsWith("too-tall-") || name.startsWith("browser-"))) {
+    throw new Error(`Tall screenshot left a temporary, screenshot, or profile file: ${JSON.stringify(tallFiles)}`);
+  }
+  console.log(`Tall screenshot preflight rejection passed: ${tallRun.id}`);
 
   submitted = "";
   const cancellationFlow = await call("/api/reports/flows", "reports:flow:manage", "POST", {
@@ -165,7 +222,7 @@ try {
   if (!runtimeRoot) throw new Error("Runtime root required for profile cleanup verification");
   // This verifier owns a fresh disposable database. Shorten only its run budget
   // to exercise process/profile cleanup when the overall deadline expires.
-  execFileSync("sqlite3", [join(runtimeRoot, "data", "db", "reports.db"),
+  execFileSync("sqlite3", [join(runtimeRoot, "data", "reports", "db", "reports.db"),
     "PRAGMA busy_timeout=5000; UPDATE automation_settings SET max_run_timeout_seconds=2;"]);
   const timedRun = await call("/api/reports/runs", "reports:run:manage", "POST", {
     flowId: cancellationFlow.id, input: {},

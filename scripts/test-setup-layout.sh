@@ -2,6 +2,8 @@
 set -eu
 
 PROJECT_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+export RUSTZEN_REPORTS_USER="${RUSTZEN_REPORTS_USER:-$(id -un)}"
+export RUSTZEN_REPORTS_GROUP="${RUSTZEN_REPORTS_GROUP:-$(id -gn)}"
 INSTALLER="$PROJECT_ROOT/deploy/setup-layout.sh"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/rz-setup-layout-test.XXXXXX")"
 TEST_ROOT="$(CDPATH= cd -- "$TEST_ROOT" && pwd -P)"
@@ -96,6 +98,8 @@ make_bundle() {
     printf 'RUSTZEN_ENV=production\nRUSTZEN_JWT_SECRET=%s\nRUSTZEN_DEPLOY_VERIFY_KEY=%s\n' \
         "$version" "$VERIFY_KEY" \
         >"$release_root/config/rz.env"
+    printf 'RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=%s\nRUSTZEN_REPORTS_CREDENTIAL_KEY=%s\n' "$version" "$version" \
+        >"$release_root/config/rz-reports.env"
     cp "$INSTALLER" "$release_root/setup-layout.sh"
     chmod 0755 "$release_root/setup-layout.sh"
 
@@ -122,7 +126,7 @@ run_installer() {
         SYSTEMCTL_BIN="$systemctl_bin" \
         SYSTEMCTL_LOG="$systemctl_log" \
         RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" \
-        sh "$INSTALLER" "$bundle" >/dev/null
+        sh "$INSTALLER" "$bundle" >"$TEST_ROOT/initial-install.stdout"
 }
 
 expect_install_failure() {
@@ -167,6 +171,29 @@ TEST_COUNT=$((TEST_COUNT + 1))
 
 assert_equals "releases/1.2.3" "$(readlink "$INSTALL_ROOT_ONE/current")" \
     "initial current link"
+assert_file_contains "$INSTALL_ROOT_ONE/config/rz.env" \
+    "$TEST_ROOT/initial-install.stdout" "main config prompt"
+assert_file_contains "$INSTALL_ROOT_ONE/config/rz-reports.env" \
+    "$TEST_ROOT/initial-install.stdout" "Reports config prompt"
+assert_file_contains "Keep RUSTZEN_IPC_TOKEN identical in both files" \
+    "$TEST_ROOT/initial-install.stdout" "IPC token prompt"
+assert_file_contains "RUSTZEN_TIMEZONE" \
+    "$TEST_ROOT/initial-install.stdout" "timezone prompt"
+assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE")" "install root mode"
+assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE/releases")" "releases root mode"
+assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3")" "release mode"
+assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/bin")" \
+    "release bin mode"
+assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/systemd")" \
+    "release systemd mode"
+assert_equals "700" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/config")" \
+    "release config directory mode"
+assert_equals "700" "$(file_mode "$INSTALL_ROOT_ONE/config")" "shared config directory mode"
+assert_equals "711" "$(file_mode "$INSTALL_ROOT_ONE/data")" "data traversal mode"
+assert_equals "711" "$(file_mode "$INSTALL_ROOT_ONE/logs")" "logs traversal mode"
+assert_equals "750" "$(file_mode "$INSTALL_ROOT_ONE/data/reports")" "Reports data mode"
+assert_equals "750" "$(file_mode "$INSTALL_ROOT_ONE/data/reports/db")" "Reports database mode"
+assert_equals "750" "$(file_mode "$INSTALL_ROOT_ONE/logs/reports")" "Reports logs mode"
 for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
     path="$INSTALL_ROOT_ONE/releases/1.2.3/bin/$binary"
     assert_exists "$path"
@@ -176,6 +203,8 @@ assert_equals "755" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/setup-layout.
     "installer mode"
 assert_equals "600" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/config/rz.env")" \
     "release config mode"
+assert_equals "600" "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/config/rz-reports.env")" \
+    "Reports release config mode"
 for unit in rz.target rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service; do
     assert_equals "644" \
         "$(file_mode "$INSTALL_ROOT_ONE/releases/1.2.3/systemd/$unit")" \
@@ -183,6 +212,8 @@ for unit in rz.target rz-recovery.service rz-admin.service rz-monitor.service rz
 done
 assert_equals "600" "$(file_mode "$INSTALL_ROOT_ONE/config/rz.env")" \
     "shared config mode"
+assert_equals "600" "$(file_mode "$INSTALL_ROOT_ONE/config/rz-reports.env")" \
+    "Reports config mode"
 for directory in data/db data/releases data/reports data/uploads data/avatars logs; do
     [ -d "$INSTALL_ROOT_ONE/$directory" ] || fail "missing shared directory: $directory"
 done
@@ -338,6 +369,17 @@ grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-insights serve' \
     "$PROJECT_ROOT/deploy/rz-insights.service" || fail "Insights ExecStart is invalid"
 grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-reports serve' \
     "$PROJECT_ROOT/deploy/rz-reports.service" || fail "Reports ExecStart is invalid"
+for directive in \
+    'User=rz-reports' \
+    'Group=rz-reports' \
+    'EnvironmentFile=/opt/rz/config/rz-reports.env' \
+    'NoNewPrivileges=yes' \
+    'PrivateTmp=yes' \
+    'ProtectSystem=strict' \
+    'ReadWritePaths=/opt/rz/data/reports /opt/rz/logs/reports'; do
+    grep -Fqx "$directive" "$PROJECT_ROOT/deploy/rz-reports.service" \
+        || fail "Reports unit is missing: $directive"
+done
 if grep -Fq 'rz-monitor-agent.service' "$PROJECT_ROOT/deploy/rz.target"; then
     fail "Monitor Agent must not be part of rz.target"
 fi

@@ -81,7 +81,7 @@ addition.
 | Admin | `rz-admin serve` | `0.0.0.0:9801` | `data/db/admin.db` |
 | Monitor | `rz-monitor controller` | `127.0.0.1:9802` | `data/db/monitor.db` |
 | Insights | `rz-insights serve` | `127.0.0.1:9803` | `data/db/insights.db` |
-| Reports | `rz-reports serve` | `127.0.0.1:9804` | `data/db/reports.db` |
+| Reports | `rz-reports serve` | `127.0.0.1:9804` | `data/reports/db/reports.db` |
 
 `rz-monitor-agent` is an optional managed-node process. It reports to the
 Monitor Controller and is intentionally not part of the server `rz.target`.
@@ -104,6 +104,10 @@ test matrix are defined in `docs/guides/monitoring-architecture.md`,
 Each server owns only its database and migrations. A module failure leaves
 Admin login and the other module processes available. systemd restarts each
 service independently.
+
+Reports uses one final fresh-install migration baseline. Schedule tables belong
+in that baseline with the rest of the Reports schema; Reports does not retain
+sequential upgrade migrations or legacy-schema compatibility paths.
 
 ## Module contract and gateway
 
@@ -199,9 +203,9 @@ and installs an immutable release directory:
 ├── current -> releases/<version>
 ├── releases/<version>/bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
 ├── config/rz.env
-├── data/db/{admin,monitor,insights,reports}.db
+├── data/db/{admin,monitor,insights}.db
 ├── data/releases/rz-<version>-<arch>.tar
-└── data/reports/
+└── data/reports/db/reports.db
 ```
 
 `rz.target` uses `Wants=` for recovery and the four server services. The four
