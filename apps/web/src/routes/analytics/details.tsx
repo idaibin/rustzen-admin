@@ -14,8 +14,10 @@ import { useFilteredPage } from "@/hooks/use-filtered-page";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
+import { projectEventTarget, type EventTargetKind } from "./-event-target";
+
 type EventRow = Insights.Event;
-type EventKindFilter = "all" | "page" | "api" | "other";
+type EventKindFilter = "all" | EventTargetKind;
 
 export const Route = createFileRoute("/analytics/details")({
     component: AnalyticsEventsPage,
@@ -238,14 +240,8 @@ function AnalyticsEventsPage() {
     );
 }
 
-function eventKind(event: EventRow): Exclude<EventKindFilter, "all"> {
-    if (event.eventName === "page_view") return "page";
-    if (event.eventName === "api_request") return "api";
-    return "other";
-}
-
 function EventKindTag({ event }: { event: EventRow }) {
-    const kind = eventKind(event);
+    const kind = projectEventTarget(event).kind;
     const meta = {
         page: { color: "blue", label: t("页面访问", "Page visit") },
         api: { color: "cyan", label: t("接口请求", "API request") },
@@ -255,28 +251,28 @@ function EventKindTag({ event }: { event: EventRow }) {
 }
 
 function EventTarget({ event }: { event: EventRow }) {
-    const kind = eventKind(event);
-    if (kind === "page") {
+    const target = projectEventTarget(event);
+    if (target.kind === "page") {
         return (
             <div>
-                <div className="truncate font-mono text-xs">{event.pagePath || "-"}</div>
-                {event.referrer ? (
+                <div className="truncate font-mono text-xs">{target.pagePath || "-"}</div>
+                {target.referrer ? (
                     <div className="truncate text-xs text-muted-foreground">
-                        {t("来源", "Referrer")}：{event.referrer}
+                        {t("来源", "Referrer")}：{target.referrer}
                     </div>
                 ) : null}
             </div>
         );
     }
-    if (kind === "api") {
+    if (target.kind === "api") {
         return (
             <div className="flex min-w-0 items-center gap-2">
-                <Tag>{event.apiMethod || "API"}</Tag>
-                <span className="truncate font-mono text-xs">{event.apiPath || "-"}</span>
+                <Tag>{target.apiMethod || "API"}</Tag>
+                <span className="truncate font-mono text-xs">{target.apiPath || "-"}</span>
             </div>
         );
     }
-    return <span className="font-mono text-xs">{event.eventName}</span>;
+    return <span className="font-mono text-xs">{target.eventName}</span>;
 }
 
 function EventResultTag({ event }: { event: EventRow }) {

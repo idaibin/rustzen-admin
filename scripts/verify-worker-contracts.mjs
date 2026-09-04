@@ -444,6 +444,13 @@ const details = await responseData(
 if (!details.success || details.total !== 3) {
     throw new Error(`unexpected Insights details: ${JSON.stringify(details)}`);
 }
+for (const event of details.data ?? []) {
+    for (const field of ["pagePath", "apiPath", "referrer"]) {
+        if (typeof event[field] === "string" && /[?#]/.test(event[field])) {
+            throw new Error(`Insights details exposed an unsafe ${field}: ${event[field]}`);
+        }
+    }
+}
 
 const trackerScript = await expectStatus(
     await directRequest(insightsBase, "insights", "/api/insights/tracker.js", "public"),

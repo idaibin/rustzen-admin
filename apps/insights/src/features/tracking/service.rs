@@ -563,14 +563,7 @@ fn clean_path(value: Option<String>, name: &str) -> Result<Option<String>, AppEr
 }
 
 fn clean_referrer(value: Option<String>) -> Result<Option<String>, AppError> {
-    let value = clean_optional(value, 2000)?;
-    if value.as_deref().is_some_and(|value| value.contains(['?', '#'])) {
-        return Err(AppError::input_rejection(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "referrer must not contain query or hash",
-        ));
-    }
-    Ok(value)
+    clean_path(value, "referrer")
 }
 
 fn required(value: String, name: &str, max: usize) -> Result<String, AppError> {

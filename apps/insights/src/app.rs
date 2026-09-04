@@ -412,6 +412,100 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn event_paths_with_queries_or_fragments_are_rejected_before_persistence() {
+        let app = build_router(test_pool().await, SECRET).expect("router");
+        let accepted = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                "/api/insights/track",
+                DelegatedAccess::Public,
+                json!({
+                    "eventName": "page_view",
+                    "visitorId": "safe-path",
+                    "pagePath": "/analytics/details",
+                    "referrer": "/analytics/overview"
+                }),
+            ))
+            .await
+            .expect("track safe pathname");
+        assert_eq!(accepted.status(), StatusCode::OK);
+
+        for payload in [
+            json!({
+                "eventName": "page_view",
+                "visitorId": "unsafe-page-path",
+                "pagePath": "/analytics/details?token=secret"
+            }),
+            json!({
+                "eventName": "api_request",
+                "visitorId": "unsafe-api-path",
+                "apiPath": "/api/insights/events#fragment"
+            }),
+            json!({
+                "eventName": "page_view",
+                "visitorId": "unsafe-referrer",
+                "pagePath": "/analytics/details",
+                "referrer": "/analytics/overview?token=secret"
+            }),
+            json!({
+                "eventName": "page_view",
+                "visitorId": "absolute-referrer",
+                "pagePath": "/analytics/details",
+                "referrer": "https://outside.example/analytics"
+            }),
+            json!({
+                "eventName": "page_view",
+                "visitorId": "free-text-referrer",
+                "pagePath": "/analytics/details",
+                "referrer": "copied browser text"
+            }),
+            json!({
+                "eventName": "page_view",
+                "visitorId": "newline-referrer",
+                "pagePath": "/analytics/details",
+                "referrer": "/analytics/overview\nsecret"
+            }),
+            json!({
+                "eventName": "page_view",
+                "visitorId": "control-referrer",
+                "pagePath": "/analytics/details",
+                "referrer": "/analytics/overview\u{0000}secret"
+            }),
+        ] {
+            let rejected = app
+                .clone()
+                .oneshot(json_request(
+                    Method::POST,
+                    "/api/insights/track",
+                    DelegatedAccess::Public,
+                    payload,
+                ))
+                .await
+                .expect("reject unsafe pathname data");
+            assert_eq!(rejected.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let queried = app
+            .oneshot(signed_request(
+                Method::GET,
+                "/api/insights/events",
+                DelegatedAccess::protected("insights:event:view"),
+                Body::empty(),
+            ))
+            .await
+            .expect("query safe pathname");
+        let body = response_json(queried).await;
+        assert_eq!(body["data"]["total"], 1);
+        let event = &body["data"]["data"][0];
+        assert_eq!(event["pagePath"], "/analytics/details");
+        assert_eq!(event["referrer"], "/analytics/overview");
+        assert_eq!(event["properties"], json!({}));
+        assert!(!body.to_string().contains("token=secret"));
+        assert!(!body.to_string().contains("#fragment"));
+    }
+
+    #[tokio::test]
     async fn collection_policy_requires_the_manage_capability() {
         let app = build_router(test_pool().await, SECRET).expect("router");
         let unsigned = app
