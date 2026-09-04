@@ -1,7 +1,5 @@
 export type DigestSource =
-    | "resolved-selection"
-    | "selected-web-files"
-    | "binary-file";
+    "resolved-selection" | "selected-web-files" | "binary-file";
 export type Digest = { sha256: string; source: DigestSource; path?: string };
 export type BinaryDigest = Digest & { path: string };
 export type FileEntry = {
@@ -24,7 +22,6 @@ export type ManifestBase = {
     selectionDigest: Digest;
     buildId: string;
     sourceIdentity: string;
-    apiDigest: string;
     configDigest: string;
     configOwners: string[];
     binaryDigests: BinaryDigest[];
@@ -36,6 +33,7 @@ export type ServerManifest = ManifestBase & {
     schemaFingerprints: Record<string, string>;
     dataContractIds: Record<string, string>;
     webDigest: Digest;
+    apiDigest: string;
 };
 export type AgentManifest = ManifestBase & {
     artifactClass: "node-agent";
@@ -47,7 +45,6 @@ export type BuildInputs = {
     sourceIdentity: string;
     toolchain: string;
     selectedRoutes: string[];
-    apiDigest: string;
     schemaDigest: string;
     configDigest: string;
     protocolId?: string;
@@ -58,4 +55,5 @@ export type ProduceInput = BuildInputs & {
     schemaFingerprints?: Record<string, string>;
     dataContractIds?: Record<string, string>;
     webRoot?: string;
+    apiRoot?: string;
 };

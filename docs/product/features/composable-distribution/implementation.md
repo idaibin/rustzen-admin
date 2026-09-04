@@ -203,3 +203,9 @@ No release artifact, installation or externally delivered result is claimed.
 
 Monitor P4 protocol descriptor is in implementation: Controller and Agent produce the same
 shared canonical wire descriptor/digest for offline pairing; archive/signature/install remain closed.
+
+Monitor P4 selected API export is implemented and verified: contract-only Admin
+and Monitor commands expose real selected registrations before startup inputs.
+The composition-qualified producer rejects deviations from the reviewed route
+corpus, and the release manifest binds the verified artifact bytes. Schema and
+configuration producers remain separate P4 work.

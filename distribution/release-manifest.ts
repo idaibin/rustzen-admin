@@ -13,6 +13,7 @@ import {
     readArtifactFiles,
     readWebDigest,
 } from "./release-manifest-artifacts.ts";
+import { readSelectedApiContract } from "./selected-contract.ts";
 import type {
     AgentManifest,
     BinaryDigest,
@@ -45,37 +46,26 @@ export {
     sha256,
 } from "./release-manifest-core.ts";
 
-const baseKeys = [
-    "manifestVersion",
-    "releaseClass",
-    "releaseVersion",
-    "target",
-    "artifactClass",
-    "preset",
-    "capabilities",
-    "services",
-    "compositionId",
-    "selectionDigest",
-    "buildId",
-    "sourceIdentity",
-    "apiDigest",
-    "configDigest",
-    "configOwners",
-    "binaryDigests",
-    "files",
-    "agentProtocolContractId",
-];
-const serverKeys = [
-    ...baseKeys,
-    "schemaFingerprints",
-    "dataContractIds",
-    "webDigest",
-];
-
 export async function produceReleaseManifest(
     input: ProduceInput,
 ): Promise<ReleaseManifest> {
     const plan = resolveSelection(input.selection);
+    if (
+        plan.artifactClass === "node-agent" &&
+        ("apiRoot" in input || "apiDigest" in input)
+    )
+        throw new Error(
+            "node-agent manifest forbids selected API digest inputs",
+        );
+    const apiDigest =
+        plan.artifactClass === "server"
+            ? (
+                  await readSelectedApiContract(
+                      required(input.apiRoot, "apiRoot"),
+                      input.selection,
+                  )
+              ).sha256
+            : undefined;
     const files = await readArtifactFiles(input.artifactRoot);
     const binaries = expectedBinaries(plan);
     const actualBinaries = files
@@ -104,9 +94,8 @@ export async function produceReleaseManifest(
         services: plan.services,
         compositionId: plan.compositionId,
         selectionDigest: selectionDigest(input.selection),
-        buildId: deriveBuildId(input.selection, buildInputs),
+        buildId: deriveBuildId(input.selection, buildInputs, apiDigest),
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
-        apiDigest: validHash(input.apiDigest),
         configDigest: validHash(input.configDigest),
         configOwners: plan.configOwners,
         binaryDigests,
@@ -130,6 +119,7 @@ export async function produceReleaseManifest(
     const manifest: ReleaseManifest = {
         ...base,
         artifactClass: "server",
+        apiDigest: apiDigest!,
         agentProtocolContractId: plan.capabilities.includes("monitor")
             ? validHash(required(input.protocolId, "protocolId"))
             : undefined,

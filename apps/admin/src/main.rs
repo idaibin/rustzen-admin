@@ -28,9 +28,14 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 );
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let command = Command::parse(std::env::args().skip(1))?;
+    #[cfg(feature = "monitor-distribution")]
+    if command == Command::ContractSelected {
+        println!("{}", crate::infra::app::selected_contract_json()?);
+        return Ok(());
+    }
     // load env
     rustzen_config::load_dotenv_if_present()?;
-    let command = Command::parse(std::env::args().skip(1))?;
     #[cfg(feature = "full")]
     if command == Command::OpenApi {
         println!("{}", openapi::normalized_json()?);
@@ -46,6 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match command {
             Command::Serve => run_server().await,
+            #[cfg(feature = "monitor-distribution")]
+            Command::ContractSelected => unreachable!("contract mode exits before runtime startup"),
             #[cfg(feature = "full")]
             Command::UpdateWorker(id) => DeployService::run_update_worker(id).await,
             #[cfg(feature = "full")]
@@ -61,6 +68,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum Command {
     Serve,
+    #[cfg(feature = "monitor-distribution")]
+    ContractSelected,
     #[cfg(feature = "full")]
     UpdateWorker(i64),
     #[cfg(feature = "full")]
@@ -74,6 +83,10 @@ impl Command {
         let args = args.into_iter().collect::<Vec<_>>();
         match args.as_slice() {
             [mode] if mode == "serve" => Ok(Self::Serve),
+            #[cfg(feature = "monitor-distribution")]
+            [domain, mode] if domain == "contract" && mode == "selected" => {
+                Ok(Self::ContractSelected)
+            }
             #[cfg(feature = "full")]
             [mode] if mode == "openapi" => Ok(Self::OpenApi),
             #[cfg(feature = "full")]
@@ -98,7 +111,7 @@ impl std::fmt::Display for CommandError {
         #[cfg(feature = "full")]
         let usage = "usage: rz-admin serve | rz-admin openapi | rz-admin update worker <release-id> | rz-admin update recover";
         #[cfg(not(feature = "full"))]
-        let usage = "usage: rz-admin serve";
+        let usage = "usage: rz-admin serve | rz-admin contract selected";
         formatter.write_str(usage)
     }
 }
@@ -125,6 +138,11 @@ mod tests {
             Some(Command::UpdateRecover)
         );
         assert!(Command::parse(["monitor".to_string(), "controller".to_string()]).is_err());
+        #[cfg(feature = "monitor-distribution")]
+        assert_eq!(
+            Command::parse(["contract".to_string(), "selected".to_string()]).ok(),
+            Some(Command::ContractSelected)
+        );
         #[cfg(feature = "monitor-distribution")]
         assert!(Command::parse(["openapi".to_string()]).is_err());
         assert!(Command::parse(std::iter::empty()).is_err());

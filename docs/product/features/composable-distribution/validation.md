@@ -261,3 +261,5 @@ Monitor P4 protocol evidence is produced by `just verify-monitor-protocol`,
 the Controller and Agent focused tests, and route-level conformance tests.
 They build both binaries, compare descriptor output, exercise gateway delegation
 plus the Agent token, and check the fixed fencing fixture corpus.
+
+| D51 | Run the Monitor selected API producer with empty environment and temporary cwd; mutate a route, owner, namespace or artifact byte | Contract-only binaries remain deterministic; the producer rejects omissions/additions and records only verified artifact bytes |

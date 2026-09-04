@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
 use axum::{Json, Router, extract::State, routing::get};
-use rustzen_ipc::{
-    DelegationVerifier, HealthResponse, ModuleDefinition, ModuleManifest, ModuleRouter,
-};
+use rustzen_ipc::{HealthResponse, ModuleManifest};
 use rustzen_storage::SqlitePool;
 
-use crate::{config, features, infra};
-
-const MODULE_TOML: &str = include_str!("../module.toml");
+use crate::{config, features, infra, module_routes::build_module_routes};
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -35,13 +31,8 @@ pub(crate) fn build_app(
     pool: SqlitePool,
     agent_token: String,
 ) -> Result<(Router, ModuleManifest), Box<dyn std::error::Error>> {
-    let definition = ModuleDefinition::from_toml(MODULE_TOML)?;
-    let module_id = definition.module.id.clone();
-    let api_prefix = definition.module.api_prefix.clone();
-    let verifier = DelegationVerifier::new(&config::controller().ipc_token)?;
-    let module_router =
-        features::monitoring::routes(ModuleRouter::<AppState>::new(module_id, verifier))?;
-    let (module_routes, manifest) = module_router.build(&definition, env!("CARGO_PKG_VERSION"))?;
+    let (module_routes, manifest) = build_module_routes(&config::controller().ipc_token)?;
+    let api_prefix = manifest.api_prefix.clone();
     let state = AppState {
         pool,
         agent_token: Arc::from(agent_token),

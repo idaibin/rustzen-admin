@@ -627,3 +627,11 @@ request, response, limits, authentication header, sequence and fencing
 outcomes. The descriptor serializes those rules for release pairing;
 conformance tests bind descriptor fields to the shared runtime types and
 handlers.
+
+### Selected API artifact
+
+Monitor P4 selected API output is canonical JSON, not full OpenAPI. It combines
+only the selected Admin route contracts and Monitor module manifest emitted by
+real registrations. Its SHA-256 is calculated from emitted artifact bytes;
+callers cannot provide an API digest. Schema and configuration artifacts remain
+separate P4 producer work.

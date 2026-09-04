@@ -31,7 +31,6 @@ const baseKeys = [
     "selectionDigest",
     "buildId",
     "sourceIdentity",
-    "apiDigest",
     "configDigest",
     "configOwners",
     "binaryDigests",
@@ -40,6 +39,7 @@ const baseKeys = [
 ];
 const serverKeys = [
     ...baseKeys,
+    "apiDigest",
     "schemaFingerprints",
     "dataContractIds",
     "webDigest",
@@ -78,6 +78,7 @@ export function parseReleaseManifest(
                       "selected-web-files",
                       "webDigest",
                   ),
+                  apiDigest: validHash(string(record.apiDigest, "apiDigest")),
               }
             : {
                   ...base,
@@ -138,7 +139,6 @@ function parseBase(
         ),
         buildId: validHash(string(record.buildId, "buildId")),
         sourceIdentity: nonempty(record.sourceIdentity, "sourceIdentity"),
-        apiDigest: validHash(string(record.apiDigest, "apiDigest")),
         configDigest: validHash(string(record.configDigest, "configDigest")),
         configOwners: sortedStrings(record.configOwners, "configOwners"),
         binaryDigests: binaryDigests(record.binaryDigests),

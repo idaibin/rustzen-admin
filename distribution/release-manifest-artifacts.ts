@@ -11,6 +11,7 @@ type Identity = {
     mtimeNs: bigint;
     ctimeNs: bigint;
 };
+type ScannedFile = { entry: FileEntry; bytes: Uint8Array };
 let beforeDirectoryHook: ((path: string) => Promise<void> | void) | undefined;
 export const setArtifactDirectoryHookForTest = (
     hook?: (path: string) => Promise<void> | void,
@@ -31,11 +32,27 @@ export const setArtifactReadHookForTest = (
     beforeOpenHook = hook;
 };
 export async function readArtifactFiles(root: string): Promise<FileEntry[]> {
+    return (await scanArtifactFiles(root)).map((file) => file.entry);
+}
+export async function readSingleArtifactFile(
+    root: string,
+    expectedPath: string,
+): Promise<ScannedFile> {
+    const files = await scanArtifactFiles(root);
+    if (files.length !== 1 || files[0].entry.path !== expectedPath)
+        throw new Error(`artifact must contain exactly ${expectedPath}`);
+    return files[0];
+}
+async function scanArtifactFiles(root: string): Promise<ScannedFile[]> {
     const base = resolve(root);
     const parents = await directoryIdentities(base);
     try {
         return (await walk(base, base, parents)).sort((a, b) =>
-            a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+            a.entry.path < b.entry.path
+                ? -1
+                : a.entry.path > b.entry.path
+                  ? 1
+                  : 0,
         );
     } finally {
         await verifyDirectories(parents);
@@ -51,8 +68,8 @@ async function walk(
     root: string,
     directory: string,
     parents: Map<string, Identity & { real: string }>,
-): Promise<FileEntry[]> {
-    const result: FileEntry[] = [];
+): Promise<ScannedFile[]> {
+    const result: ScannedFile[] = [];
     await beforeDirectoryHook?.(directory);
     await verifyDirectory(directory, parents);
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -92,11 +109,16 @@ async function walk(
             if (mode !== 0o644n && mode !== 0o755n)
                 throw new Error(`artifact file has invalid mode: ${path}`);
             result.push({
-                path: checkedPath(relative(root, path).split(sep).join("/")),
-                type: "file",
-                mode: mode === 0o755n ? "0755" : "0644",
-                size: Number(opened.size),
-                sha256: sha256(bytes),
+                entry: {
+                    path: checkedPath(
+                        relative(root, path).split(sep).join("/"),
+                    ),
+                    type: "file",
+                    mode: mode === 0o755n ? "0755" : "0644",
+                    size: Number(opened.size),
+                    sha256: sha256(bytes),
+                },
+                bytes,
             });
         } finally {
             await handle.close();

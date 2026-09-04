@@ -61,6 +61,7 @@ export const selectionDigest = (selection: unknown): Digest => ({
 export const deriveBuildId = (
     selection: unknown,
     inputs: BuildInputs,
+    apiDigest?: string,
 ): string =>
     sha256(
         canonicalJson({
@@ -72,9 +73,11 @@ export const deriveBuildId = (
                 inputs.selectedRoutes,
                 "selectedRoutes",
             ),
-            apiDigest: validHash(inputs.apiDigest),
             schemaDigest: validHash(inputs.schemaDigest),
             configDigest: validHash(inputs.configDigest),
+            ...(apiDigest === undefined
+                ? {}
+                : { apiDigest: validHash(apiDigest) }),
             protocolId:
                 inputs.protocolId === undefined
                     ? undefined

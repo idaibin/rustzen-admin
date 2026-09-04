@@ -347,7 +347,7 @@ pub(crate) fn documented_protected_routes()
     routes.into_parts()
 }
 
-#[cfg(any(feature = "full", test))]
+#[cfg(any(feature = "full", feature = "monitor-distribution", test))]
 pub(crate) fn documented_all_contracts() -> Vec<crate::infra::contract::RouteContract> {
     let (_, mut contracts) = documented_protected_routes();
     let (_, public_contracts) = public_auth_routes().into_parts();
@@ -367,3 +367,8 @@ fn server_addr() -> String {
 
 #[cfg(all(test, feature = "full"))]
 mod tests;
+
+#[cfg(feature = "monitor-distribution")]
+mod selected_contract;
+#[cfg(feature = "monitor-distribution")]
+pub(crate) use selected_contract::selected_contract_json;

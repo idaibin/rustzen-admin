@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import {
     canonicalJson,
     canonicalManifestBytes,
@@ -31,7 +32,6 @@ const inputs = {
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
     selectedRoutes: ["login", "monitor"],
-    apiDigest: h("a"),
     schemaDigest: h("b"),
     configDigest: h("c"),
     protocolId: h("d"),
@@ -40,6 +40,12 @@ async function fixture(kind: "server" | "agent" = "server") {
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-"));
     const artifactRoot = join(root, "artifact");
     const webRoot = join(root, "web");
+    const apiRoot = join(root, "api");
+    await mkdir(apiRoot, { recursive: true });
+    await writeFile(
+        join(apiRoot, "api.json"),
+        canonicalJson(completeSelectedApiContractForTest(selection)),
+    );
     await mkdir(join(artifactRoot, "bin"), { recursive: true });
     await mkdir(join(artifactRoot, "config"), { recursive: true });
     await writeFile(join(artifactRoot, "config", "rz.env"), "PORT=3000\n");
@@ -55,7 +61,7 @@ async function fixture(kind: "server" | "agent" = "server") {
         await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
     }
-    return { root, artifactRoot, webRoot };
+    return { root, artifactRoot, webRoot, apiRoot };
 }
 async function serverManifest() {
     const f = await fixture();
@@ -65,6 +71,7 @@ async function serverManifest() {
         releaseVersion: "0.5.0",
         artifactRoot: f.artifactRoot,
         webRoot: f.webRoot,
+        apiRoot: f.apiRoot,
         schemaFingerprints: { admin: h("e"), monitor: h("f") },
         dataContractIds: { admin: h("1"), monitor: h("2") },
     });
@@ -137,7 +144,7 @@ describe("release manifest producer and validator", () => {
     });
 
     test("reads selected artifacts, excludes polluted binaries and follows no links", async () => {
-        const { root, artifactRoot, webRoot, manifest } =
+        const { root, artifactRoot, webRoot, apiRoot, manifest } =
             await serverManifest();
         try {
             expect(
@@ -151,6 +158,7 @@ describe("release manifest producer and validator", () => {
                 releaseVersion: "0.5.0",
                 artifactRoot,
                 webRoot,
+                apiRoot,
                 schemaFingerprints: { admin: h("e"), monitor: h("f") },
                 dataContractIds: { admin: h("1"), monitor: h("2") },
             });
@@ -167,6 +175,7 @@ describe("release manifest producer and validator", () => {
                     releaseVersion: "0.5.0",
                     artifactRoot,
                     webRoot,
+                    apiRoot,
                     schemaFingerprints: { admin: h("e"), monitor: h("f") },
                     dataContractIds: { admin: h("1"), monitor: h("2") },
                 }),
@@ -183,6 +192,7 @@ describe("release manifest producer and validator", () => {
                     releaseVersion: "0.5.0",
                     artifactRoot,
                     webRoot,
+                    apiRoot,
                     schemaFingerprints: { admin: h("e"), monitor: h("f") },
                     dataContractIds: { admin: h("1"), monitor: h("2") },
                 }),
@@ -211,6 +221,7 @@ describe("release manifest producer and validator", () => {
                     releaseVersion: "0.5.0",
                     artifactRoot,
                     webRoot,
+                    apiRoot,
                     schemaFingerprints: { admin: h("e"), monitor: h("f") },
                     dataContractIds: { admin: h("1"), monitor: h("2") },
                 }),
@@ -250,6 +261,7 @@ describe("release manifest producer and validator", () => {
                     releaseVersion: "0.5.0",
                     artifactRoot,
                     webRoot,
+                    apiRoot,
                     schemaFingerprints: { admin: h("e"), monitor: h("f") },
                     dataContractIds: { admin: h("1"), monitor: h("2") },
                 }),
@@ -271,6 +283,7 @@ describe("release manifest producer and validator", () => {
                     releaseVersion: "0.5.0",
                     artifactRoot,
                     webRoot,
+                    apiRoot,
                     schemaFingerprints: { admin: h("e"), monitor: h("f") },
                     dataContractIds: { admin: h("1"), monitor: h("2") },
                 }),

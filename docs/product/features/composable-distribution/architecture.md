@@ -619,3 +619,13 @@ Monitor P4 keeps the Controller and Agent pair at one wire boundary: both
 binaries expose the same descriptor and digest, while request delivery remains
 through the Admin gateway. Pairing rejects unequal digests before a selected
 release can combine their artifacts.
+
+### Selected API producer
+
+Contract-only Admin and Monitor commands execute before dotenv, configuration,
+database, or runtime initialization. Admin maps `documented_all_contracts()`;
+Monitor builds its `ModuleDefinition` and `routes()` manifest through one shared
+helper. The selection producer requires the exact reviewed Admin and Monitor
+owner, route, access and menu corpus, then writes a composition-qualified
+`contracts/api.json`. The release manifest hashes the canonical bytes it reads
+from that artifact.
