@@ -112,7 +112,9 @@ four services and leaves `data/recovery-blocked` in place if interrupted-update
 recovery fails.
 
 `rz-monitor-agent.service` is installed only on managed nodes, runs
-`rz-monitor agent`, and is not part of `rz.target`.
+`rz-monitor-agent`, and is not part of `rz.target`. Build it separately with
+`cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent`.
+The server bundle does not include this collector binary.
 
 `rz` has no systemd unit and is not a service alias. It is upgraded and rolled
 back only with the same signed release and `current` link as the four servers.

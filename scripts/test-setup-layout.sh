@@ -341,9 +341,14 @@ grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-reports serve' \
 if grep -Fq 'rz-monitor-agent.service' "$PROJECT_ROOT/deploy/rz.target"; then
     fail "Monitor Agent must not be part of rz.target"
 fi
-grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-monitor agent' \
+grep -Fqx 'ExecStart=/opt/rz/current/bin/rz-monitor-agent' \
     "$PROJECT_ROOT/deploy/rz-monitor-agent.service" \
-    || fail "Monitor Agent does not use the versioned Monitor binary"
+    || fail "Monitor Agent does not use the versioned Agent binary"
+assert_equals "1" "$(grep -c '^ExecStart=' "$PROJECT_ROOT/deploy/rz-monitor-agent.service")" \
+    "Monitor Agent ExecStart count"
+if grep -Fq 'rz-monitor agent' "$PROJECT_ROOT/deploy/rz-monitor-agent.service"; then
+    fail "Monitor Agent must not use the rejected rz-monitor agent subcommand"
+fi
 TEST_COUNT=$((TEST_COUNT + 1))
 
 echo "setup-layout integration tests passed ($TEST_COUNT groups)"

@@ -8,7 +8,7 @@ StartLimitBurst=5
 [Service]
 Type=simple
 EnvironmentFile=/opt/rz/config/rz.env
-ExecStart=/opt/rz/current/bin/rz-monitor agent
+ExecStart=/opt/rz/current/bin/rz-monitor-agent
 WorkingDirectory=/opt/rz
 Restart=on-failure
 RestartSec=5
