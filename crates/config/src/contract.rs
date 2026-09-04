@@ -20,6 +20,7 @@ pub struct ConfigField {
     pub secret_ref: Option<&'static str>,
 }
 
+#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
 fn field(
     key: &'static str,
     value_type: &'static str,
@@ -28,6 +29,7 @@ fn field(
 ) -> ConfigField {
     ConfigField { key, value_type, required, default_class, secret_ref: None }
 }
+#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
 fn secret(key: &'static str, secret_ref: &'static str) -> ConfigField {
     ConfigField {
         key,
@@ -37,6 +39,7 @@ fn secret(key: &'static str, secret_ref: &'static str) -> ConfigField {
         secret_ref: Some(secret_ref),
     }
 }
+#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
 fn runtime_fields() -> Vec<ConfigField> {
     vec![
         field("RUSTZEN_ENV", "environment", false, "built-in"),
@@ -53,6 +56,7 @@ fn database_fields() -> Vec<ConfigField> {
         field("RUSTZEN_DB_MIN_CONN", "integer", false, "built-in"),
     ]
 }
+#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
 fn contract(
     owner: &'static str,
     consumer: &'static str,
@@ -105,7 +109,10 @@ pub fn monitor_agent_contract() -> ConfigContract {
     contract("monitor-agent", "rz-monitor-agent", fields)
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent")
+))]
 mod tests {
     fn keys(contract: &super::ConfigContract) -> Vec<&str> {
         contract.fields.iter().map(|field| field.key).collect()
