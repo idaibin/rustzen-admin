@@ -90,7 +90,7 @@ that a remote server powered off. Show last accepted report time and data gaps.
 
 An offline Controller-pairing gate binds a published Agent to a signed Monitor
 Controller declaration. `rz pin-monitor-controller` writes a root-owned,
-canonical profile after release and protocol verification; Agent startup reads
+canonical profile after release and protocol verification; deployed production Agent startup reads
 it before logger or network construction. This certifies only the declared
 offline pair. It does not contact the endpoint or install users, units, tokens,
 or runtime activation.

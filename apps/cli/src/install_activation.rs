@@ -296,7 +296,7 @@ fn systemctl(args: &[&str]) -> Result<(), String> {
     let binary = std::env::var_os("RUSTZEN_SYSTEMCTL_RECORDER")
         .unwrap_or_else(|| "/usr/bin/systemctl".into());
     #[cfg(not(debug_assertions))]
-    let binary = "/usr/bin/systemctl".into();
+    let binary = std::ffi::OsString::from("/usr/bin/systemctl");
     let status =
         Command::new(binary).args(args).status().map_err(|_| "systemctl invocation failed")?;
     if status.success() { Ok(()) } else { Err("systemctl activation failed".into()) }

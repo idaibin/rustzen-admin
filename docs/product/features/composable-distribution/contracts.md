@@ -171,7 +171,8 @@ with endpoint, both build IDs and manifest digests, protocol ID, key ID, and
 trusted-key fingerprint. Its mode is `0640`, root-owned and assigned to the
 explicit Agent group; tokens and payload-bundled keys are excluded. Repeating
 the same tuple is idempotent, while a different tuple never overwrites it. Every Agent
-startup checks that profile before logger or network initialization. Pair
+deployed production startup checks that profile before logger or network initialization. Local
+development keeps the direct Agent command available without installed `/opt/rz` state. Pair
 certification exercises both binaries with mismatched protocol fixtures.
 This offline gate certifies the declared pair, not that an arbitrary endpoint
 actually serves the supplied profile; endpoint provisioning remains the local

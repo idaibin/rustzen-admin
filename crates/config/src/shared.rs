@@ -134,7 +134,7 @@ impl RuntimeConfig {
         ensure_optional_non_empty("RUSTZEN_TIMEZONE", self.timezone.as_deref())
     }
 
-    pub(crate) fn requires_production_secrets(&self) -> bool {
+    pub fn requires_production_secrets(&self) -> bool {
         matches!(self.environment.trim().to_ascii_lowercase().as_str(), "production" | "prod")
             || self.runtime_root.trim() == "."
     }

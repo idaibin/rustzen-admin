@@ -49,8 +49,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn paired_config() -> Result<rustzen_config::MonitorAgentConfig, Box<dyn std::error::Error>> {
-    let environment = controller_profile::validate_agent_env(std::path::Path::new("/opt/rz"))?;
     let config = rustzen_config::MonitorAgentConfig::load()?;
+    if !config.runtime.requires_production_secrets() {
+        return Ok(config);
+    }
+    let environment = controller_profile::validate_agent_env(std::path::Path::new("/opt/rz"))?;
     if config.runtime.environment != environment.environment
         || config.node_id()? != environment.node_id
         || config.monitor_agent_token != environment.token

@@ -22,6 +22,7 @@ pub(super) enum PublishError {
     Conflict,
     Durability(String),
     Io(String),
+    #[cfg(debug_assertions)]
     Fault(String),
 }
 
@@ -29,9 +30,9 @@ impl std::fmt::Display for PublishError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Conflict => formatter.write_str("profile publication conflict"),
-            Self::Durability(message) | Self::Io(message) | Self::Fault(message) => {
-                formatter.write_str(message)
-            }
+            Self::Durability(message) | Self::Io(message) => formatter.write_str(message),
+            #[cfg(debug_assertions)]
+            Self::Fault(message) => formatter.write_str(message),
         }
     }
 }
@@ -256,10 +257,10 @@ impl PrivateParent {
     }
 }
 
-fn profile_publish_fault(stage: &str) -> Result<(), PublishError> {
+fn profile_publish_fault(_stage: &str) -> Result<(), PublishError> {
     #[cfg(debug_assertions)]
-    if std::env::var("RUSTZEN_PROFILE_PUBLISH_FAULT").ok().as_deref() == Some(stage) {
-        return Err(PublishError::Fault(format!("debug profile publication fault at {stage}")));
+    if std::env::var("RUSTZEN_PROFILE_PUBLISH_FAULT").ok().as_deref() == Some(_stage) {
+        return Err(PublishError::Fault(format!("debug profile publication fault at {_stage}")));
     }
     Ok(())
 }
