@@ -18,6 +18,7 @@ impl ModuleRepository {
         Ok(rows.into_iter().collect())
     }
 
+    #[cfg(feature = "full")]
     pub async fn set_enabled(
         pool: &SqlitePool,
         module: &str,
@@ -42,14 +43,13 @@ impl ModuleRepository {
     ) -> Result<Vec<RuntimeMenuResponse>, ServiceError> {
         sqlx::query_as::<_, NavigationMenuRow>(
             "SELECT module_id, module_menu_code, name, path, icon, sort_order, code
-             FROM menus
+             FROM module_navigation
              WHERE module_id IS NOT NULL
                AND module_menu_code IS NOT NULL
                AND path IS NOT NULL
                AND icon IS NOT NULL
                AND is_active = TRUE
                AND status = 1
-               AND deleted_at IS NULL
              ORDER BY sort_order, module_menu_code",
         )
         .fetch_all(pool)

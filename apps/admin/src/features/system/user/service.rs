@@ -1,9 +1,11 @@
+#[cfg(feature = "full")]
+use super::types::UserDashboardCounts;
 use super::{
     repo::UserRepository,
     types::{
         CreateUserCommand, CreateUserRequest, UpdateUserPasswordPayload, UpdateUserPayload,
-        UpdateUserStatusPayload, UserDashboardCounts, UserItemResp, UserListQuery, UserOptionResp,
-        UserOptionsQuery, UserQuery,
+        UpdateUserStatusPayload, UserItemResp, UserListQuery, UserOptionResp, UserOptionsQuery,
+        UserQuery,
     },
 };
 use crate::{
@@ -186,6 +188,7 @@ impl UserService {
         Ok(updated)
     }
 
+    #[cfg(feature = "full")]
     pub async fn dashboard_counts(pool: &SqlitePool) -> Result<UserDashboardCounts, ServiceError> {
         UserRepository::dashboard_counts(pool).await
     }

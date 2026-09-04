@@ -8,6 +8,7 @@ use sqlx::SqlitePool;
 pub struct AccountRepository;
 
 impl AccountRepository {
+    #[cfg(feature = "full")]
     pub async fn update_avatar(
         pool: &SqlitePool,
         user_id: i64,

@@ -25,7 +25,7 @@ const DEFAULT_OWNER_USERNAME: &str = "owner";
 mod capabilities;
 mod navigation;
 mod roles;
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod tests;
 
 use capabilities::{
@@ -35,9 +35,9 @@ use capabilities::{
 use navigation::reconcile_navigation;
 use roles::{database_error, load_permission_cache_snapshot, sync_builtin_roles};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 use capabilities::*;
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 use roles::builtin_role_permission_codes;
 
 struct BuiltinRoleSeed {

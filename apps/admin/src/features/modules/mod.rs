@@ -6,16 +6,27 @@ pub mod service;
 pub mod types;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
-use axum::routing::{get, put};
+use axum::routing::get;
+#[cfg(feature = "full")]
+use axum::routing::put;
+#[cfg(feature = "full")]
 use rustzen_auth::capability::{dashboard, system_module};
 
-use self::{
-    handler::{dashboard, list, navigation, update},
-    service::ModuleControlState,
-};
+#[cfg(feature = "full")]
+use self::handler::{dashboard, list, update};
+use self::{handler::navigation, service::ModuleControlState};
 
 pub fn control_routes() -> ContractRouter<ModuleControlState> {
-    ContractRouter::new()
+    let router = ContractRouter::new()
+        .get(
+            "/api/system/modules/navigation",
+            OperationDescriptor::GetModuleNavigation,
+            AccessPolicy::Authenticated,
+            get(navigation),
+        )
+        .expect("static module control contract");
+    #[cfg(feature = "full")]
+    let router = router
         .get(
             "/api/system/modules",
             OperationDescriptor::ListModules,
@@ -31,17 +42,11 @@ pub fn control_routes() -> ContractRouter<ModuleControlState> {
         )
         .expect("static module control contract")
         .get(
-            "/api/system/modules/navigation",
-            OperationDescriptor::GetModuleNavigation,
-            AccessPolicy::Authenticated,
-            get(navigation),
-        )
-        .expect("static module control contract")
-        .get(
             "/api/dashboard/modules",
             OperationDescriptor::GetDashboardModules,
             AccessPolicy::Require(dashboard::VIEW),
             get(dashboard),
         )
-        .expect("static module control contract")
+        .expect("static module control contract");
+    router
 }

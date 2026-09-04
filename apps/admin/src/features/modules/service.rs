@@ -8,13 +8,12 @@ use sqlx::SqlitePool;
 
 use crate::{common::error::ServiceError, infra::permission::PermissionService};
 
+#[cfg(feature = "full")]
+use super::types::{ModuleHealthResponse, ModuleStatusResponse};
 use super::{
     registry::ModuleRegistry,
     repo::ModuleRepository,
-    types::{
-        ModuleCondition, ModuleHealthResponse, ModuleRuntime, ModuleSpec, ModuleStatusResponse,
-        RuntimeMenuResponse,
-    },
+    types::{ModuleCondition, ModuleSpec, RuntimeMenuResponse},
 };
 
 const SYNC_INTERVAL: Duration = Duration::from_secs(10);
@@ -26,6 +25,7 @@ pub struct ModuleControlState {
     pub registry: ModuleRegistry,
     pub client: reqwest::Client,
     pub signer: DelegationSigner,
+    #[cfg(feature = "full")]
     pub enabled_update: Arc<tokio::sync::Mutex<()>>,
 }
 
@@ -37,31 +37,38 @@ impl ModuleControlState {
     ) -> Result<Self, ServiceError> {
         let enabled = ModuleRepository::load_enabled(&pool).await?;
         let registry = ModuleRegistry::new(ModuleSpec::fixed(), &enabled);
-        Ok(Self { pool, registry, client, signer, enabled_update: Arc::default() })
+        Ok(Self {
+            pool,
+            registry,
+            client,
+            signer,
+            #[cfg(feature = "full")]
+            enabled_update: Arc::default(),
+        })
     }
 }
 
 pub struct ModuleService;
 
 impl ModuleService {
+    #[cfg(feature = "full")]
     pub fn statuses(state: &ModuleControlState) -> Vec<ModuleStatusResponse> {
         state.registry.snapshot().statuses()
     }
 
+    #[cfg(feature = "full")]
     pub fn dashboard_health(state: &ModuleControlState) -> Vec<ModuleHealthResponse> {
         let snapshot = state.registry.snapshot();
-        ["monitor", "insights", "reports"]
+        snapshot
+            .display_modules()
             .into_iter()
-            .map(|module| {
-                let runtime = snapshot.modules().get(module);
-                ModuleHealthResponse {
-                    module,
-                    available: runtime.is_some_and(ModuleRuntime::available),
-                    release_version: runtime
-                        .filter(|runtime| runtime.available())
-                        .and_then(|runtime| runtime.manifest.as_deref())
-                        .map(|manifest| manifest.release_version.clone()),
-                }
+            .map(|runtime| ModuleHealthResponse {
+                module: runtime.spec.id,
+                available: runtime.available(),
+                release_version: Some(runtime)
+                    .filter(|runtime| runtime.available())
+                    .and_then(|runtime| runtime.manifest.as_deref())
+                    .map(|manifest| manifest.release_version.clone()),
             })
             .collect()
     }
@@ -89,6 +96,7 @@ impl ModuleService {
             .collect())
     }
 
+    #[cfg(feature = "full")]
     pub async fn set_enabled(
         state: &ModuleControlState,
         module: &str,
@@ -245,7 +253,7 @@ fn validate_fixed_manifest(spec: &ModuleSpec, manifest: &ModuleManifest) -> Resu
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod tests {
     use std::{
         collections::BTreeMap,
@@ -313,14 +321,14 @@ mod tests {
             ModuleService::navigation(&state, &unauthorized).await.expect("navigation").is_empty()
         );
 
-        sqlx::query("UPDATE menus SET status = 2 WHERE module_id = 'monitor'")
+        sqlx::query("UPDATE module_navigation SET status = 2 WHERE module_id = 'monitor'")
             .execute(&state.pool)
             .await
             .expect("hide menu");
         assert!(
             ModuleService::navigation(&state, &authorized).await.expect("navigation").is_empty()
         );
-        sqlx::query("UPDATE menus SET status = 1 WHERE module_id = 'monitor'")
+        sqlx::query("UPDATE module_navigation SET status = 1 WHERE module_id = 'monitor'")
             .execute(&state.pool)
             .await
             .expect("restore menu");
@@ -328,6 +336,37 @@ mod tests {
         ModuleService::set_enabled(&state, "monitor", false).await.expect("disable");
         assert!(
             ModuleService::navigation(&state, &authorized).await.expect("navigation").is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn status_and_dashboard_health_follow_fixed_module_order() {
+        let state = ModuleControlState {
+            pool: SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect("sqlite::memory:")
+                .await
+                .expect("pool"),
+            registry: ModuleRegistry::new(ModuleSpec::fixed(), &BTreeMap::new()),
+            client: reqwest::Client::new(),
+            signer: DelegationSigner::new("secret").expect("signer"),
+            enabled_update: Arc::default(),
+        };
+        let expected = ["monitor", "insights", "reports"];
+        assert_eq!(
+            ModuleSpec::fixed().into_iter().map(|spec| spec.id).collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            ModuleService::statuses(&state).into_iter().map(|status| status.id).collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            ModuleService::dashboard_health(&state)
+                .into_iter()
+                .map(|health| health.module)
+                .collect::<Vec<_>>(),
+            expected
         );
     }
 

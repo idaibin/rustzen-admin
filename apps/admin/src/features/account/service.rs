@@ -2,15 +2,15 @@ use super::{
     repo::AccountRepository,
     types::{ChangeAccountPasswordRequest, UpdateAccountProfileRequest},
 };
+#[cfg(feature = "full")]
+use crate::common::files::{remove_avatar_by_url, save_avatar};
 use crate::{
-    common::{
-        error::ServiceError,
-        files::{remove_avatar_by_url, save_avatar},
-    },
+    common::error::ServiceError,
     features::auth::{service::AuthService, types::UserInfoResp},
     infra::password::PasswordUtils,
 };
 
+#[cfg(feature = "full")]
 use axum::extract::Multipart;
 use sqlx::SqlitePool;
 
@@ -18,6 +18,7 @@ use sqlx::SqlitePool;
 pub struct AccountService;
 
 impl AccountService {
+    #[cfg(feature = "full")]
     pub async fn update_avatar(
         pool: &SqlitePool,
         user_id: i64,

@@ -9,6 +9,21 @@ dev-server:
 dev-monitor:
     cargo run -p rustzen-monitor -- controller
 
+dev-monitor-agent:
+    cargo run -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+
+verify-monitor-agent:
+    cargo test -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    cargo clippy -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent -- -D warnings
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-agent.ts
+
+verify-monitor-admin:
+    cargo test -p rustzen-config --no-default-features --features admin-monitor
+    cargo test -p rustzen-admin --no-default-features --features monitor-distribution -- --test-threads=1
+    cargo clippy -p rustzen-admin --no-default-features --features monitor-distribution -- -D warnings
+    cargo build -p rustzen-admin --no-default-features --features monitor-distribution
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-admin.ts
+
 dev-insights:
     cargo run -p rustzen-insights -- serve
 

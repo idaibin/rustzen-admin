@@ -6,5 +6,7 @@ pub mod db;
 pub mod logger;
 pub mod password;
 pub mod permission;
+#[cfg(feature = "full")]
 pub mod system_info;
+#[cfg(feature = "full")]
 pub mod web;

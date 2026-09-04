@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use rustzen_ipc::{AccessMode, ModuleManifest};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "full")]
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::infra::config::CONFIG;
 
@@ -15,11 +17,15 @@ pub struct ModuleSpec {
 
 impl ModuleSpec {
     pub fn fixed() -> Vec<Self> {
-        vec![
-            Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() },
+        #[allow(unused_mut)]
+        let mut modules =
+            vec![Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() }];
+        #[cfg(feature = "full")]
+        modules.extend([
             Self { id: "insights", name: "分析", base_url: CONFIG.insights_base_url() },
             Self { id: "reports", name: "报表", base_url: CONFIG.reports_base_url() },
-        ]
+        ]);
+        modules
     }
 }
 
@@ -54,6 +60,7 @@ impl ModuleRuntime {
         }
     }
 
+    #[cfg(feature = "full")]
     pub fn compatible(&self) -> bool {
         self.manifest.is_some() && self.condition != ModuleCondition::Incompatible
     }
@@ -63,6 +70,7 @@ impl ModuleRuntime {
     }
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleStatusResponse {
@@ -76,6 +84,7 @@ pub struct ModuleStatusResponse {
     pub error: Option<String>,
 }
 
+#[cfg(feature = "full")]
 impl From<&ModuleRuntime> for ModuleStatusResponse {
     fn from(runtime: &ModuleRuntime) -> Self {
         Self {
@@ -94,6 +103,7 @@ impl From<&ModuleRuntime> for ModuleStatusResponse {
     }
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleHealthResponse {
@@ -102,6 +112,7 @@ pub struct ModuleHealthResponse {
     pub release_version: Option<String>,
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateModuleRequest {
@@ -137,7 +148,7 @@ pub enum GatewayLookup {
     ServiceUnavailable,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod tests {
     use super::ModuleHealthResponse;
 
@@ -155,6 +166,19 @@ mod tests {
                 "available": true,
                 "releaseVersion": "1.2.3",
             })
+        );
+    }
+}
+
+#[cfg(all(test, feature = "monitor-distribution"))]
+mod monitor_distribution_tests {
+    use super::ModuleSpec;
+
+    #[test]
+    fn fixed_module_order_contains_only_monitor() {
+        assert_eq!(
+            ModuleSpec::fixed().into_iter().map(|spec| spec.id).collect::<Vec<_>>(),
+            ["monitor"]
         );
     }
 }

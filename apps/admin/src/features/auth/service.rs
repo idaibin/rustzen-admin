@@ -1,22 +1,25 @@
+#[cfg(feature = "full")]
+use super::types::LoginAuditCommand;
 use super::{
     repo::AuthRepository,
-    types::{
-        AuthUserRow, LoginAuditCommand, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus,
-    },
+    types::{AuthUserRow, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
 };
+#[cfg(feature = "full")]
+use crate::features::manage::log::{service::LogService, types::LogWriteCommand};
 use crate::{
     common::error::ServiceError,
-    features::manage::log::{service::LogService, types::LogWriteCommand},
     infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 
 use sqlx::SqlitePool;
+#[cfg(feature = "full")]
 use std::time::Instant;
 
 /// Auth service for login and current-user session operations.
 pub struct AuthService;
 
 impl AuthService {
+    #[cfg(feature = "full")]
     pub async fn login_with_audit(
         pool: &SqlitePool,
         username: &str,
@@ -136,6 +139,7 @@ impl AuthService {
         PermissionService::clear_user_cache(user_id);
     }
 
+    #[cfg(feature = "full")]
     async fn record_login_operation(
         pool: &SqlitePool,
         user_id: i64,
@@ -221,6 +225,7 @@ impl AuthService {
     }
 }
 
+#[cfg(feature = "full")]
 fn login_failure_description(error: &ServiceError) -> &'static str {
     match error {
         ServiceError::InvalidCredentials => "用户名或密码错误",
@@ -231,7 +236,7 @@ fn login_failure_description(error: &ServiceError) -> &'static str {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod login_description_tests {
     use super::login_failure_description;
     use crate::common::error::ServiceError;

@@ -138,6 +138,7 @@ pub struct CreateUserCommand {
     pub role_ids: Vec<i64>,
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone)]
 pub struct UserDashboardCounts {
     pub total_users: i64,

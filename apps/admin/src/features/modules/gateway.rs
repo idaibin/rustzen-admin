@@ -205,7 +205,7 @@ fn status_error(status: StatusCode, code: i32, message: impl Into<String>) -> Re
         .into_response()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod tests {
     use std::{collections::BTreeMap, sync::Arc};
 

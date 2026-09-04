@@ -85,6 +85,7 @@ pub struct UserInfoResp {
 }
 
 /// Service command for recording login audit metadata.
+#[cfg(feature = "full")]
 #[derive(Debug, Clone)]
 pub struct LoginAuditCommand {
     pub ip_address: String,

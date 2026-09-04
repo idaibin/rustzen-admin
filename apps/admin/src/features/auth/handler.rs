@@ -1,6 +1,8 @@
+#[cfg(feature = "full")]
+use super::types::LoginAuditCommand;
 use super::{
     service::AuthService,
-    types::{LoginAuditCommand, LoginRequest, LoginResp, UserInfoResp},
+    types::{LoginRequest, LoginResp, UserInfoResp},
 };
 use crate::common::api::{ApiResponse, AppResult};
 
@@ -14,26 +16,30 @@ use sqlx::SqlitePool;
 use std::net::SocketAddr;
 
 /// Login with username/password
-#[tracing::instrument(name = "login", skip(pool, addr, headers, request))]
+#[tracing::instrument(name = "login", skip(pool, _addr, _headers, request))]
 pub async fn login(
     State(pool): State<SqlitePool>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    headers: HeaderMap,
+    ConnectInfo(_addr): ConnectInfo<SocketAddr>,
+    _headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResp> {
     let LoginRequest { username, password } = request;
+    #[cfg(feature = "full")]
     let audit_command = LoginAuditCommand {
-        ip_address: addr.ip().to_string(),
-        user_agent: headers
+        ip_address: _addr.ip().to_string(),
+        user_agent: _headers
             .get("user-agent")
             .and_then(|h| h.to_str().ok())
             .unwrap_or("Unknown")
             .to_string(),
     };
 
-    Ok(ApiResponse::success(
-        AuthService::login_with_audit(&pool, &username, &password, audit_command).await?,
-    ))
+    #[cfg(feature = "full")]
+    let response =
+        AuthService::login_with_audit(&pool, &username, &password, audit_command).await?;
+    #[cfg(feature = "monitor-distribution")]
+    let response = AuthService::login(&pool, &username, &password).await?;
+    Ok(ApiResponse::success(response))
 }
 
 /// Get current user info with roles and menus

@@ -4,25 +4,30 @@ pub mod service;
 pub mod types;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
-use axum::{
-    extract::DefaultBodyLimit,
-    routing::{post, put},
-};
+use axum::routing::put;
+#[cfg(feature = "full")]
+use axum::{extract::DefaultBodyLimit, routing::post};
 use sqlx::SqlitePool;
 
-use handler::{change_password, update_avatar, update_profile};
+#[cfg(feature = "full")]
+use handler::update_avatar;
+use handler::{change_password, update_profile};
 
+#[cfg(feature = "full")]
 const AVATAR_MULTIPART_MAX_SIZE: usize = 1024 * 1024 + 64 * 1024;
 
 pub fn account_routes() -> ContractRouter<SqlitePool> {
-    ContractRouter::new()
+    let routes = ContractRouter::new();
+    #[cfg(feature = "full")]
+    let routes = routes
         .post(
             "/avatar",
             OperationDescriptor::UpdateAccountAvatar,
             AccessPolicy::Authenticated,
             post(update_avatar).layer(DefaultBodyLimit::max(AVATAR_MULTIPART_MAX_SIZE)),
         )
-        .expect("static account contract")
+        .expect("static account contract");
+    routes
         .put(
             "/profile",
             OperationDescriptor::UpdateAccountProfile,
