@@ -83,6 +83,11 @@ those remain P4 producer stages and the release gate remains closed.
 | inventory/bootstrap | Authenticated installation API and selected Web | Local CLI only; no Web/API listener |
 | fresh installation identity | Exact signed build/class/composition/target and current schema/data contracts | Exact signed build/class/composition/target and current Agent config/protocol |
 
+Docker Monitor producer output is physically separated before any archive work:
+`/out/server/bin` contains exactly `rz-admin` and `rz-monitor`; `/out/agent/bin`
+contains exactly `rz-monitor-agent`. Full remains `/out/bin` with its five binaries.
+This is a build-output boundary only; manifest, archive, signing and installation remain P4 work.
+
 No omitted field is inferred as an empty server contract. Cross-class packages
 and extra owner fields are rejected before install writes.
 

@@ -122,7 +122,7 @@ This verifies the backend composition and the declared essential Web root
 contract; P3 still owns generation and physical verification of the selected
 Web bundle and selected API artifact.
 
-The Monitor native producer embeds only the verified composition-qualified copy at `apps/admin/selected-web/<compositionId>/dist`; the generic `apps/web/dist` is used only by the full composition. The Admin build script rejects a missing selected inventory, a composition mismatch, or an absent selected `index.html`. Docker validates `DISTRIBUTION` as exactly `full` or `monitor`; the Monitor branch builds and verifies selected Web before copying it to that embedded directory and compiling the Admin binary.
+The Monitor native producer embeds only the verified composition-qualified copy at `apps/admin/selected-web/<compositionId>/dist`; the generic `apps/web/dist` is used only by the full composition. The Admin build script rejects a missing selected inventory, a composition mismatch, or an absent selected `index.html`. Docker validates `DISTRIBUTION` as exactly `full` or `monitor`. Monitor physically emits server `rz-admin`/`rz-monitor` to `/out/server/bin` and Agent `rz-monitor-agent` to `/out/agent/bin`; full retains the five-binary `/out/bin` output. The Monitor branch builds and verifies selected Web before copying it to that embedded directory and compiling the Admin binary.
 
 The P3 Monitor Web producer resolves `distribution/fixtures/monitor.json`, copies
 only the access and Monitor route allowlist into

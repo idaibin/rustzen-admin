@@ -63,7 +63,7 @@ COPY apps/monitor apps/monitor
 COPY apps/insights apps/insights
 COPY apps/reports apps/reports
 
-RUN mkdir -p /out/bin
+RUN if [ "${DISTRIBUTION}" = "monitor" ]; then mkdir -p /out/server/bin /out/agent/bin; else mkdir -p /out/bin; fi
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
     --mount=type=cache,target=/app/target \
@@ -72,11 +72,11 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
         cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features monitor-distribution && \
         cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-monitor --no-default-features --features controller --bin rz-monitor && \
         cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/bin/rz-admin" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/bin/rz-monitor" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor-agent" "/out/bin/rz-monitor-agent"; \
+        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/server/bin/rz-admin" && \
+        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/server/bin/rz-monitor" && \
+        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor-agent" "/out/agent/bin/rz-monitor-agent"; \
     elif [ "${TARGET_TRIPLE}" = "aarch64-unknown-linux-gnu" ]; then \
-        cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
+        cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports && \
         install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz" "/out/bin/rz" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/bin/rz-admin" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/bin/rz-monitor" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/out/bin/rz-insights" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-reports" "/out/bin/rz-reports"; \
     else \
         RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports && \
