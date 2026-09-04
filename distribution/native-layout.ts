@@ -34,7 +34,14 @@ export async function readNativeLayout(
     selection: unknown,
 ): Promise<{ layout: NativeLayout; sha256: string }> {
     const file = await readSingleArtifactFile(root, "native-layout.json");
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(file.bytes);
+    return parseNativeLayoutBytes(file.bytes, selection);
+}
+
+export function parseNativeLayoutBytes(
+    bytes: Uint8Array,
+    selection: unknown,
+): { layout: NativeLayout; sha256: string } {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     let value: unknown;
     try {
         value = JSON.parse(text);
@@ -44,7 +51,7 @@ export async function readNativeLayout(
     const layout = parseNativeLayout(value, selection);
     if (text !== canonicalJson(layout))
         throw new Error("native layout is not canonical");
-    return { layout, sha256: sha256(file.bytes) };
+    return { layout, sha256: sha256(bytes) };
 }
 
 export function parseNativeLayout(

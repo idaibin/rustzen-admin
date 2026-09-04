@@ -41,7 +41,29 @@ export async function readSchemaContract(
     repositoryRoot = resolve(import.meta.dir, ".."),
 ): Promise<{ contract: SchemaContract; sha256: string }> {
     const file = await readSingleArtifactFile(root, "schema.json");
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(file.bytes);
+    return parseSchemaBytes(file.bytes, selectionInput, repositoryRoot);
+}
+
+export async function parseSchemaBytes(
+    bytes: Uint8Array,
+    selectionInput: unknown,
+    repositoryRoot = resolve(import.meta.dir, ".."),
+): Promise<{ contract: SchemaContract; sha256: string }> {
+    const parsed = parseSchemaArtifactBytes(bytes, selectionInput);
+    const expected = await schemaOwners(selectionInput, repositoryRoot);
+    if (canonicalJson(parsed.contract.owners) !== canonicalJson(expected))
+        throw new Error(
+            "selected schema artifact differs from fresh-install SQL",
+        );
+    return parsed;
+}
+
+/** Parses only the already-stable artifact bytes; it never reads repository state. */
+export function parseSchemaArtifactBytes(
+    bytes: Uint8Array,
+    selectionInput: unknown,
+): { contract: SchemaContract; sha256: string } {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     let value: unknown;
     try {
         value = JSON.parse(text);
@@ -51,12 +73,7 @@ export async function readSchemaContract(
     const contract = parseSchemaContract(value, selectionInput);
     if (text !== canonicalJson(contract))
         throw new Error("selected schema artifact is not canonical");
-    const expected = await schemaOwners(selectionInput, repositoryRoot);
-    if (canonicalJson(contract.owners) !== canonicalJson(expected))
-        throw new Error(
-            "selected schema artifact differs from fresh-install SQL",
-        );
-    return { contract, sha256: sha256(file.bytes) };
+    return { contract, sha256: sha256(bytes) };
 }
 
 async function schemaOwners(selectionInput: unknown, repositoryRoot: string) {

@@ -1,32 +1,24 @@
-import { resolveSelection } from "./resolver.ts";
+import { parseNativeLayoutBytes } from "./native-layout.ts";
 import { parseReleaseManifest } from "./release-manifest-validator.ts";
+import { readArtifactFileTree } from "./release-manifest-artifacts.ts";
 import {
     canonicalJson,
     deriveBuildId,
+    filesDigest,
     nonempty,
     selectionDigest,
     sha256,
-    sortedStrings,
-    validHash,
 } from "./release-manifest-core.ts";
-import {
-    readArtifactFiles,
-    readWebDigest,
-} from "./release-manifest-artifacts.ts";
-import { readSelectedApiContract } from "./selected-contract.ts";
-import { readSchemaContract } from "./schema-contract.ts";
-import { readSelectedConfig } from "./selected-config.ts";
-import { readNativeLayout } from "./native-layout.ts";
-import { readSelectedProtocol } from "./selected-protocol.ts";
+import { parseSelectedApiBytes } from "./selected-contract-validator.ts";
+import { parseSelectedConfigBytes } from "./selected-config.ts";
+import { parseSelectedProtocolBytes } from "./selected-protocol.ts";
+import { resolveSelection } from "./resolver.ts";
+import { parseSchemaArtifactBytes } from "./schema-contract.ts";
 import type {
     AgentManifest,
     BinaryDigest,
-    BuildContractDigests,
-    ManifestBase,
     BuildInputs,
-    Digest,
-    DigestSource,
-    FileEntry,
+    ManifestBase,
     ProduceInput,
     ReleaseManifest,
     ServerManifest,
@@ -35,11 +27,11 @@ export type {
     AgentManifest,
     BinaryDigest,
     BuildContractDigests,
-    ManifestBase,
     BuildInputs,
     Digest,
     DigestSource,
     FileEntry,
+    ManifestBase,
     ProduceInput,
     ReleaseManifest,
     ServerManifest,
@@ -56,67 +48,148 @@ export async function produceReleaseManifest(
     input: ProduceInput,
 ): Promise<ReleaseManifest> {
     const plan = resolveSelection(input.selection);
+    for (const forbidden of [
+        "apiDigest",
+        "schemaDigest",
+        "schemaFingerprints",
+        "dataContractIds",
+        "configDigest",
+        "nativeLayoutDigest",
+        "protocolArtifactDigest",
+        "protocolId",
+        "agentProtocolContractId",
+        "artifactRoot",
+        "webRoot",
+        "apiRoot",
+        "schemaRoot",
+        "configRoot",
+        "nativeRoot",
+        "protocolRoot",
+        "payloadRoot",
+    ])
+        if (forbidden in input)
+            throw new Error(
+                "manifest forbids caller-supplied contract digests",
+            );
+    const staging = input.staging;
+    if (!staging || typeof staging !== "object")
+        throw new Error("manifest requires strict staging reference");
     if (
-        "apiDigest" in input ||
-        "schemaDigest" in input ||
-        "schemaFingerprints" in input ||
-        "dataContractIds" in input ||
-        "configDigest" in input ||
-        "nativeLayoutDigest" in input ||
-        "protocolArtifactDigest" in input ||
-        "protocolId" in input ||
-        "agentProtocolContractId" in input
+        canonicalJson(Object.keys(staging).sort()) !==
+        canonicalJson([
+            "artifactClass",
+            "buildId",
+            "files",
+            "root",
+            "sha256",
+            "target",
+        ])
     )
-        throw new Error("manifest forbids caller-supplied contract digests");
+        throw new Error("staging reference fields are invalid");
     if (
-        plan.artifactClass === "node-agent" &&
-        ("apiRoot" in input || "schemaRoot" in input)
+        staging.target !== plan.target ||
+        staging.artifactClass !== plan.artifactClass
     )
-        throw new Error("node-agent manifest forbids server contract roots");
-    const apiDigest =
-        plan.artifactClass === "server"
-            ? (
-                  await readSelectedApiContract(
-                      required(input.apiRoot, "apiRoot"),
-                      input.selection,
-                  )
-              ).sha256
-            : undefined;
-    const schema =
-        plan.artifactClass === "server"
-            ? await readSchemaContract(
-                  required(input.schemaRoot, "schemaRoot"),
-                  input.selection,
-              )
-            : undefined;
-    const config = await readSelectedConfig(
-        required(input.configRoot, "configRoot"),
+        throw new Error("staging reference selection mismatch");
+    if (
+        !staging.root.endsWith(
+            `/${staging.buildId}/${staging.target}/${staging.artifactClass}/payload`,
+        )
+    )
+        throw new Error("staging root does not match reference tuple");
+    const snapshot = await readArtifactFileTree(staging.root);
+    if (
+        canonicalJson(snapshot.map((file) => file.entry)) !==
+            canonicalJson(staging.files) ||
+        sha256(canonicalJson(staging.files)) !== staging.sha256
+    )
+        throw new Error("staging reference inventory differs from payload");
+    const byPath = new Map(snapshot.map((file) => [file.entry.path, file]));
+    const get = (path: string) => {
+        const value = byPath.get(path);
+        if (!value) throw new Error(`payload is missing ${path}`);
+        return value;
+    };
+    const config = get("contracts/config/config.json");
+    const native = get("contracts/native/native-layout.json");
+    const protocol = get("contracts/protocol/protocol.json");
+    parseSelectedConfigBytes(config.bytes, input.selection);
+    const nativeLayout = parseNativeLayoutBytes(native.bytes, input.selection);
+    const selectedProtocol = parseSelectedProtocolBytes(
+        protocol.bytes,
         input.selection,
     );
-    const nativeLayout = await readNativeLayout(
-        required(input.nativeRoot, "nativeRoot"),
-        input.selection,
-    );
-    const protocol = await readSelectedProtocol(
-        required(input.protocolRoot, "protocolRoot"),
-        input.selection,
-    );
-    const files = await readArtifactFiles(input.artifactRoot);
     const binaries = expectedBinaries(plan);
-    const actualBinaries = files
-        .filter((file) => file.path.startsWith("bin/"))
-        .map((file) => file.path)
+    const actualBinaries = snapshot
+        .filter((file) => file.entry.path.startsWith("bin/"))
+        .map((file) => file.entry.path)
         .sort();
     if (canonicalJson(actualBinaries) !== canonicalJson(binaries))
         throw new Error(
             "artifact binary inventory does not match selected class",
         );
-    const binaryDigests = binaries.map((path) => ({
-        path,
-        sha256: files.find((file) => file.path === path)!.sha256,
-        source: "binary-file" as const,
-    }));
-    const buildInputs: BuildInputs = input;
+    const server = plan.artifactClass === "server";
+    let apiDigest: string | undefined,
+        schema: ReturnType<typeof parseSchemaArtifactBytes> | undefined;
+    if (server) {
+        const api = get("contracts/api/api.json");
+        const schemaFile = get("contracts/schema/schema.json");
+        parseSelectedApiBytes(api.bytes, input.selection);
+        apiDigest = api.entry.sha256;
+        schema = parseSchemaArtifactBytes(schemaFile.bytes, input.selection);
+        const web = snapshot.filter((file) =>
+            file.entry.path.startsWith("web/"),
+        );
+        if (!web.length) throw new Error("server payload requires web files");
+    }
+    const expectedUnits = nativeLayout.layout.units
+        .map((unit) => unit.path)
+        .sort();
+    const actualUnits = snapshot
+        .filter((file) => file.entry.path.startsWith("systemd/"))
+        .map((file) => ({ path: file.entry.path, sha256: file.entry.sha256 }))
+        .sort((a, b) => a.path.localeCompare(b.path));
+    if (
+        canonicalJson(actualUnits) !==
+            canonicalJson(nativeLayout.layout.units) ||
+        canonicalJson(actualUnits.map((x) => x.path)) !==
+            canonicalJson(expectedUnits)
+    )
+        throw new Error("payload units differ from native layout");
+    const fixedPaths = [
+        ...binaries,
+        "contracts/config/config.json",
+        "contracts/native/native-layout.json",
+        "contracts/protocol/protocol.json",
+        ...expectedUnits,
+        ...(server
+            ? ["contracts/api/api.json", "contracts/schema/schema.json"]
+            : []),
+    ];
+    const unexpected = snapshot.some(
+        (file) =>
+            !fixedPaths.includes(file.entry.path) &&
+            !(server && file.entry.path.startsWith("web/")),
+    );
+    if (
+        unexpected ||
+        fixedPaths.some((path) => !byPath.has(path)) ||
+        (!server && snapshot.some((file) => file.entry.path.startsWith("web/")))
+    )
+        throw new Error("payload inventory differs from selected class");
+    const digests = {
+        configDigest: config.entry.sha256,
+        nativeLayoutDigest: native.entry.sha256,
+        protocolArtifactDigest: protocol.entry.sha256,
+        ...(server ? { apiDigest, schemaDigest: schema!.sha256 } : {}),
+    };
+    const buildId = deriveBuildId(
+        input.selection,
+        input as BuildInputs,
+        digests,
+    );
+    if (buildId !== staging.buildId)
+        throw new Error("staging buildId differs from verified contracts");
     const base: ManifestBase = {
         manifestVersion: 1,
         releaseClass: plan.releaseClass,
@@ -128,49 +201,36 @@ export async function produceReleaseManifest(
         services: plan.services,
         compositionId: plan.compositionId,
         selectionDigest: selectionDigest(input.selection),
-        buildId: deriveBuildId(
-            input.selection,
-            buildInputs,
-            plan.artifactClass === "server"
-                ? {
-                      apiDigest,
-                      schemaDigest: schema!.sha256,
-                      configDigest: config.sha256,
-                      nativeLayoutDigest: nativeLayout.sha256,
-                      protocolArtifactDigest: protocol.sha256,
-                  }
-                : {
-                      configDigest: config.sha256,
-                      nativeLayoutDigest: nativeLayout.sha256,
-                      protocolArtifactDigest: protocol.sha256,
-                  },
-        ),
+        buildId,
         sourceIdentity: nonempty(input.sourceIdentity, "sourceIdentity"),
-        configDigest: config.sha256,
-        nativeLayoutDigest: nativeLayout.sha256,
-        protocolArtifactDigest: protocol.sha256,
+        configDigest: config.entry.sha256,
+        nativeLayoutDigest: native.entry.sha256,
+        protocolArtifactDigest: protocol.entry.sha256,
         configOwners: plan.configOwners,
-        binaryDigests,
-        files,
+        binaryDigests: binaries.map((path) => ({
+            path,
+            sha256: get(path).entry.sha256,
+            source: "binary-file" as const,
+        })),
+        files: snapshot.map((file) => file.entry),
     };
-    if (plan.artifactClass === "node-agent") {
+    if (!server) {
         const manifest = {
             ...base,
             artifactClass: "node-agent",
-            agentProtocolContractId: protocol.protocol.digest,
+            agentProtocolContractId: selectedProtocol.protocol.digest,
         } as ReleaseManifest;
         parseReleaseManifest(manifest, input.selection);
         return manifest;
     }
-    if (!input.webRoot)
-        throw new Error("server producer requires selected Web contracts");
+    const web = snapshot
+        .filter((file) => file.entry.path.startsWith("web/"))
+        .map((file) => ({ ...file.entry, path: file.entry.path.slice(4) }));
     const manifest: ReleaseManifest = {
         ...base,
         artifactClass: "server",
         apiDigest: apiDigest!,
-        agentProtocolContractId: plan.capabilities.includes("monitor")
-            ? protocol.protocol.digest
-            : undefined,
+        agentProtocolContractId: selectedProtocol.protocol.digest,
         schemaFingerprints: Object.fromEntries(
             Object.entries(schema!.contract.owners).map(([owner, value]) => [
                 owner,
@@ -183,25 +243,18 @@ export async function produceReleaseManifest(
                 value.dataContractId,
             ]),
         ),
-        webDigest: await readWebDigest(input.webRoot),
+        webDigest: { sha256: filesDigest(web), source: "selected-web-files" },
     };
     parseReleaseManifest(manifest, input.selection);
     return manifest;
 }
-
 export {
     canonicalManifestBytes,
     parseReleaseManifest,
     validateServerAgentPair,
 } from "./release-manifest-validator.ts";
-
-type Plan = ReturnType<typeof resolveSelection>;
-function expectedBinaries(plan: Plan): string[] {
+function expectedBinaries(plan: ReturnType<typeof resolveSelection>): string[] {
     if (plan.artifactClass === "node-agent") return ["bin/rz-monitor-agent"];
     if (plan.preset === "monitor") return ["bin/rz-admin", "bin/rz-monitor"];
     throw new Error("producer supports only monitor server or node-agent");
-}
-function required(value: unknown, label: string): string {
-    if (value === undefined) throw new Error(`${label} is required`);
-    return nonempty(value, label);
 }

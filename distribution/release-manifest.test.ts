@@ -96,6 +96,8 @@ describe("release manifest producer and validator", () => {
             configRoot,
             nativeRoot,
             protocolRoot,
+            payloadRoot,
+            staging,
             manifest,
         } = await serverManifest();
         try {
@@ -103,40 +105,32 @@ describe("release manifest producer and validator", () => {
                 (manifest as any).binaryDigests.map((x: any) => x.path),
             ).toEqual(["bin/rz-admin", "bin/rz-monitor"]);
             const before = (manifest as any).webDigest.sha256;
-            await writeFile(join(webRoot, "assets", "main.js"), "changed");
-            const changed = await produceReleaseManifest({
-                ...inputs,
-                selection,
-                releaseVersion: "0.5.0",
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            });
-            expect((changed as any).webDigest.sha256).not.toBe(before);
             await writeFile(
-                join(artifactRoot, "bin", "rz-reports"),
-                "pollution",
+                join(payloadRoot, "web", "assets", "main.js"),
+                "changed",
             );
-            await chmod(join(artifactRoot, "bin", "rz-reports"), 0o755);
             await expect(
                 produceReleaseManifest({
                     ...inputs,
                     selection,
                     releaseVersion: "0.5.0",
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging,
                 }),
-            ).rejects.toThrow("binary inventory");
-            await rm(join(artifactRoot, "bin", "rz-reports"));
+            ).rejects.toThrow("inventory");
+            await writeFile(
+                join(payloadRoot, "bin", "rz-reports"),
+                "pollution",
+            );
+            await chmod(join(payloadRoot, "bin", "rz-reports"), 0o755);
+            await expect(
+                produceReleaseManifest({
+                    ...inputs,
+                    selection,
+                    releaseVersion: "0.5.0",
+                    staging,
+                }),
+            ).rejects.toThrow("inventory");
+            await rm(join(payloadRoot, "bin", "rz-reports"));
             setArtifactReadHookForTest(async (path) => {
                 if (path.endsWith("rz-monitor"))
                     await writeFile(path, "changed");
@@ -146,13 +140,7 @@ describe("release manifest producer and validator", () => {
                     ...inputs,
                     selection,
                     releaseVersion: "0.5.0",
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging,
                 }),
             ).rejects.toThrow("changed");
             setArtifactReadHookForTest();
@@ -164,12 +152,12 @@ describe("release manifest producer and validator", () => {
                 opened.push(path);
             });
             setArtifactDirectoryHookForTest(async (path) => {
-                if (path === artifactRoot) {
+                if (path === payloadRoot) {
                     await rename(
-                        join(artifactRoot, "bin"),
-                        join(artifactRoot, "bin-old"),
+                        join(payloadRoot, "bin"),
+                        join(payloadRoot, "bin-old"),
                     );
-                    await symlink(external, join(artifactRoot, "bin"));
+                    await symlink(external, join(payloadRoot, "bin"));
                 }
             });
             await expect(
@@ -177,13 +165,7 @@ describe("release manifest producer and validator", () => {
                     ...inputs,
                     selection,
                     releaseVersion: "0.5.0",
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging,
                 }),
             ).rejects.toThrow("directory changed");
             expect(
@@ -191,13 +173,13 @@ describe("release manifest producer and validator", () => {
             ).toBeFalse();
             setArtifactDirectoryHookForTest();
             setArtifactReadHookForTest();
-            await rm(join(artifactRoot, "bin"));
+            await rm(join(payloadRoot, "bin"));
             await rename(
-                join(artifactRoot, "bin-old"),
-                join(artifactRoot, "bin"),
+                join(payloadRoot, "bin-old"),
+                join(payloadRoot, "bin"),
             );
-            await writeFile(join(artifactRoot, "bin", "rz-monitor"), "monitor");
-            await chmod(join(artifactRoot, "bin", "rz-monitor"), 0o755);
+            await writeFile(join(payloadRoot, "bin", "rz-monitor"), "monitor");
+            await chmod(join(payloadRoot, "bin", "rz-monitor"), 0o755);
             let afterOpenCount = 0;
             setArtifactAfterOpenHookForTest((path) => {
                 if (path.endsWith("rz-admin")) {
@@ -208,10 +190,10 @@ describe("release manifest producer and validator", () => {
             setArtifactReadHookForTest(async (path) => {
                 if (path.endsWith("rz-admin")) {
                     await rename(
-                        join(artifactRoot, "bin"),
-                        join(artifactRoot, "bin-open-old"),
+                        join(payloadRoot, "bin"),
+                        join(payloadRoot, "bin-open-old"),
                     );
-                    await symlink(external, join(artifactRoot, "bin"));
+                    await symlink(external, join(payloadRoot, "bin"));
                 }
             });
             await expect(
@@ -219,37 +201,25 @@ describe("release manifest producer and validator", () => {
                     ...inputs,
                     selection,
                     releaseVersion: "0.5.0",
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging,
                 }),
             ).rejects.toThrow("directory changed");
             expect(afterOpenCount).toBe(0);
             setArtifactAfterOpenHookForTest();
             setArtifactReadHookForTest();
-            await rm(join(artifactRoot, "bin"));
+            await rm(join(payloadRoot, "bin"));
             await rename(
-                join(artifactRoot, "bin-open-old"),
-                join(artifactRoot, "bin"),
+                join(payloadRoot, "bin-open-old"),
+                join(payloadRoot, "bin"),
             );
-            await rm(join(artifactRoot, "bin", "rz-monitor"));
-            await symlink("rz-admin", join(artifactRoot, "bin", "rz-monitor"));
+            await rm(join(payloadRoot, "bin", "rz-monitor"));
+            await symlink("rz-admin", join(payloadRoot, "bin", "rz-monitor"));
             await expect(
                 produceReleaseManifest({
                     ...inputs,
                     selection,
                     releaseVersion: "0.5.0",
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging,
                 }),
             ).rejects.toThrow("symlink");
         } finally {

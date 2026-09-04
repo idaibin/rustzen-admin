@@ -1,6 +1,8 @@
 # Composable distribution implementation plan
 
 Status: execution started; complete distributions are not yet implemented.
+The native producer reads stable non-link input bytes, emits units through
+`nativeUnitBytes`, and never copies configuration values.
 Authority: the user's implementation request and the current root AGENTS.md.
 The reviewed design supplies the target composition; this plan supplies the
 implementation order, present evidence and current-rule corrections.

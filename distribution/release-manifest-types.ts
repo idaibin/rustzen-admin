@@ -1,5 +1,7 @@
 export type DigestSource =
-    "resolved-selection" | "selected-web-files" | "binary-file";
+    | "resolved-selection"
+    | "selected-web-files"
+    | "binary-file";
 export type Digest = { sha256: string; source: DigestSource; path?: string };
 export type BinaryDigest = Digest & { path: string };
 export type FileEntry = {
@@ -57,11 +59,13 @@ export type BuildContractDigests = {
 };
 export type ProduceInput = BuildInputs & {
     selection: unknown;
-    artifactRoot: string;
-    webRoot?: string;
-    apiRoot?: string;
-    schemaRoot?: string;
-    configRoot?: string;
-    nativeRoot?: string;
-    protocolRoot?: string;
+    staging?: {
+        root: string;
+        files: FileEntry[];
+        sha256: string;
+        buildId: string;
+        target: string;
+        artifactClass: "server" | "node-agent";
+    };
+    [key: string]: unknown;
 };

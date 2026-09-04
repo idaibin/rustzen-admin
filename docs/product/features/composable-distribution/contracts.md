@@ -2,7 +2,10 @@
 
 Status: normative target with incremental implementation. Each implemented
 section names its executable evidence; unspecified distribution, signing and
-installation paths remain pending.
+installation paths remain pending. The release manifest accepts one strict
+staging reference (root, tuple, files and inventory digest), then verifies its
+single stable snapshot has only selected binaries, contracts, native units and
+server `web/**`.
 
 ## Distribution identities
 

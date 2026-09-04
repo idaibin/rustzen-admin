@@ -1,6 +1,9 @@
 # Implementation sequence and acceptance
 
-Status: planned tests and implementation gates; no test below is claimed run.
+Status: planned tests and implementation gates; only evidence explicitly named
+below is claimed complete. Native staging tests cover exact inventory, stable
+reads, no replacement, publish locking, temporary cleanup and manifest snapshot
+binding.
 
 Execution progress and the current fresh-only repository policy are tracked in
 [implementation](implementation.md). Tests concerning historical upgrades or

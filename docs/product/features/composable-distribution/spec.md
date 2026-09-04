@@ -1,6 +1,9 @@
 # Composable distributions and notifications
 
 Status: implementation underway; P1 selection and P2 minimal Admin backend are complete.
+Selected native staging emits only the resolver-selected payload into
+`target/distributions/.native-staging/<buildId>/<target>/<artifactClass>/payload`; it excludes
+secret environment values, installer state, archive envelopes and non-selected services.
 Decision date: 2026-09-03.
 
 The user has authorized architecture design for a complete distribution and

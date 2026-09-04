@@ -10,6 +10,7 @@ import {
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
 import { produceNativeLayout } from "./native-layout.ts";
+import { produceNativeStaging } from "./native-staging.ts";
 import {
     produceSelectedProtocol,
     reviewedProtocolOutput,
@@ -133,17 +134,37 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             join(import.meta.dir, ".."),
             schemaRoot,
         );
+        let stageSequence = 0;
+        const stageServer = async () =>
+            produceNativeStaging({
+                ...inputs,
+                selection,
+                outputParent: join(root, `staged-${stageSequence++}`),
+                trustedRoot: root,
+                binaryRoot: artifactRoot,
+                webRoot,
+                apiRoot,
+                schemaRoot,
+                configRoot,
+                nativeRoot,
+                protocolRoot,
+            });
+        const stageAgent = async () =>
+            produceNativeStaging({
+                ...inputs,
+                selection: { preset: "node-agent", target },
+                outputParent: join(root, `staged-${stageSequence++}`),
+                trustedRoot: root,
+                binaryRoot: agentRoot,
+                configRoot: agentConfigRoot,
+                nativeRoot: agentNativeRoot,
+                protocolRoot: agentProtocolRoot,
+            });
 
         const server = await produceReleaseManifest({
             ...inputs,
             selection,
-            artifactRoot,
-            webRoot,
-            apiRoot,
-            schemaRoot,
-            configRoot,
-            nativeRoot,
-            protocolRoot,
+            staging: await stageServer(),
         });
         expect((server as any).apiDigest).toMatch(/^[0-9a-f]{64}$/);
         expect((server as any).configDigest).toMatch(/^[0-9a-f]{64}$/);
@@ -158,19 +179,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             (server as any).agentProtocolContractId,
         );
         await writeFile(join(protocolRoot, "protocol.json"), "{}");
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow("reviewed descriptor");
+        await expect(stageServer()).rejects.toThrow("reviewed descriptor");
         await produceSelectedProtocol(
             selection,
             protocolRoot,
@@ -178,19 +187,9 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             reviewedProtocolOutput(),
         );
         await writeFile(join(nativeRoot, "native-layout.json"), "{}");
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow("selected generated source");
+        await expect(stageServer()).rejects.toThrow(
+            "selected generated source",
+        );
         await produceNativeLayout(selection, nativeRoot);
         const forgedSchema = structuredClone(
             (await readSchemaContract(schemaRoot, selection)).contract,
@@ -213,19 +212,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             join(schemaRoot, "schema.json"),
             canonicalJson(forgedSchema),
         );
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow("fresh-install SQL");
+        await expect(stageServer()).rejects.toThrow("fresh-install SQL");
         await produceSchemaContract(
             selection,
             join(import.meta.dir, ".."),
@@ -246,75 +233,30 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
                 produceReleaseManifest({
                     ...inputs,
                     selection,
-                    artifactRoot,
-                    webRoot,
-                    apiRoot,
-                    schemaRoot,
-                    configRoot,
-                    nativeRoot,
-                    protocolRoot,
+                    staging: await stageServer(),
                     ...supplied,
                 } as any),
             ).rejects.toThrow("caller-supplied");
         }
         await writeFile(join(configRoot, "config.json"), "{}");
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow("reviewed descriptors");
+        await expect(stageServer()).rejects.toThrow("reviewed descriptors");
         await writeFile(
             join(configRoot, "config.json"),
             canonicalJson(completeSelectedConfigForTest(selection)),
         );
 
         await writeFile(join(apiRoot, "api.json"), "{}");
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow();
+        await expect(stageServer()).rejects.toThrow();
         await writeFile(join(apiRoot, "api.json"), validApi);
         await writeFile(join(apiRoot, "extra.json"), "{}");
-        await expect(
-            produceReleaseManifest({
-                ...inputs,
-                selection,
-                artifactRoot,
-                webRoot,
-                apiRoot,
-                schemaRoot,
-                configRoot,
-                nativeRoot,
-                protocolRoot,
-            }),
-        ).rejects.toThrow("exactly api.json");
+        await expect(stageServer()).rejects.toThrow("exactly api.json");
 
         for (const apiInput of [{ apiRoot }, { schemaRoot }]) {
             await expect(
                 produceReleaseManifest({
                     ...inputs,
                     selection: { preset: "node-agent", target },
-                    artifactRoot: agentRoot,
-                    configRoot: agentConfigRoot,
-                    nativeRoot: agentNativeRoot,
-                    protocolRoot: agentProtocolRoot,
+                    staging: await stageAgent(),
                     ...apiInput,
                 } as any),
             ).rejects.toThrow("forbids");
@@ -322,10 +264,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
         const agent = await produceReleaseManifest({
             ...inputs,
             selection: { preset: "node-agent", target },
-            artifactRoot: agentRoot,
-            configRoot: agentConfigRoot,
-            nativeRoot: agentNativeRoot,
-            protocolRoot: agentProtocolRoot,
+            staging: await stageAgent(),
         });
         expect("apiDigest" in agent).toBeFalse();
     } finally {

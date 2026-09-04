@@ -1,6 +1,10 @@
 # Composable distribution architecture
 
 Status: implementation underway; the P2 minimal Admin backend composition is implemented.
+Native staging derives `buildId` from selection, build inputs and verified
+contract digests, then publishes a private-root temporary tree under a fixed
+exclusive lock after a final no-replace check. This is not a claim of protection
+against a malicious same-UID writer outside that producer protocol.
 Scope: one self-hosted installation, local SQLite databases, selected services
 on one host; node Agents may run remotely.
 

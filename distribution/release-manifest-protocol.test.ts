@@ -8,13 +8,13 @@ import {
     h,
     manifestInputs,
     monitorSelection,
-    releaseFixture,
+    stagedPayloadFixture,
     serverManifestFixture,
 } from "./release-manifest-fixtures.ts";
 
 test("server and Agent manifests bind the derived protocol pairing ID", async () => {
     const server = await serverManifestFixture();
-    const agentFixture = await releaseFixture("agent");
+    const agentFixture = await stagedPayloadFixture("agent");
     try {
         const agent = await produceReleaseManifest({
             ...manifestInputs,
@@ -22,10 +22,7 @@ test("server and Agent manifests bind the derived protocol pairing ID", async ()
                 preset: "node-agent",
                 target: monitorSelection.target,
             },
-            artifactRoot: agentFixture.artifactRoot,
-            configRoot: agentFixture.configRoot,
-            nativeRoot: agentFixture.nativeRoot,
-            protocolRoot: agentFixture.protocolRoot,
+            staging: agentFixture.staging,
         });
         if (
             server.manifest.artifactClass !== "server" ||

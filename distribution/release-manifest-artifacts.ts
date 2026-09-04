@@ -11,7 +11,7 @@ type Identity = {
     mtimeNs: bigint;
     ctimeNs: bigint;
 };
-type ScannedFile = { entry: FileEntry; bytes: Uint8Array };
+export type ArtifactFile = { entry: FileEntry; bytes: Uint8Array };
 let beforeDirectoryHook: ((path: string) => Promise<void> | void) | undefined;
 export const setArtifactDirectoryHookForTest = (
     hook?: (path: string) => Promise<void> | void,
@@ -34,16 +34,21 @@ export const setArtifactReadHookForTest = (
 export async function readArtifactFiles(root: string): Promise<FileEntry[]> {
     return (await scanArtifactFiles(root)).map((file) => file.entry);
 }
+export async function readArtifactFileTree(
+    root: string,
+): Promise<ArtifactFile[]> {
+    return scanArtifactFiles(root);
+}
 export async function readSingleArtifactFile(
     root: string,
     expectedPath: string,
-): Promise<ScannedFile> {
+): Promise<ArtifactFile> {
     const files = await scanArtifactFiles(root);
     if (files.length !== 1 || files[0].entry.path !== expectedPath)
         throw new Error(`artifact must contain exactly ${expectedPath}`);
     return files[0];
 }
-async function scanArtifactFiles(root: string): Promise<ScannedFile[]> {
+async function scanArtifactFiles(root: string): Promise<ArtifactFile[]> {
     const base = resolve(root);
     const parents = await directoryIdentities(base);
     try {
@@ -68,8 +73,8 @@ async function walk(
     root: string,
     directory: string,
     parents: Map<string, Identity & { real: string }>,
-): Promise<ScannedFile[]> {
-    const result: ScannedFile[] = [];
+): Promise<ArtifactFile[]> {
+    const result: ArtifactFile[] = [];
     await beforeDirectoryHook?.(directory);
     await verifyDirectory(directory, parents);
     for (const entry of await readdir(directory, { withFileTypes: true })) {

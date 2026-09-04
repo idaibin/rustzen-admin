@@ -60,7 +60,14 @@ export async function produceSelectedProtocol(
 
 export async function readSelectedProtocol(root: string, selection: unknown) {
     const file = await readSingleArtifactFile(root, "protocol.json");
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(file.bytes);
+    return parseSelectedProtocolBytes(file.bytes, selection);
+}
+
+export function parseSelectedProtocolBytes(
+    bytes: Uint8Array,
+    selection: unknown,
+) {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     let value: unknown;
     try {
         value = JSON.parse(text);
@@ -70,7 +77,7 @@ export async function readSelectedProtocol(root: string, selection: unknown) {
     const protocol = parseSelectedProtocol(value, selection);
     if (text !== canonicalJson(protocol))
         throw new Error("selected protocol artifact is not canonical");
-    return { protocol, sha256: sha256(file.bytes) };
+    return { protocol, sha256: sha256(bytes) };
 }
 
 export function parseSelectedProtocol(
@@ -117,10 +124,13 @@ function parsedGolden() {
 
 function identity(selection: unknown) {
     const plan = resolveSelection(selection);
-    if (!(
-        (plan.preset === "monitor" && plan.artifactClass === "server") ||
-        (plan.preset === "node-agent" && plan.artifactClass === "node-agent")
-    ))
+    if (
+        !(
+            (plan.preset === "monitor" && plan.artifactClass === "server") ||
+            (plan.preset === "node-agent" &&
+                plan.artifactClass === "node-agent")
+        )
+    )
         throw new Error(
             "selected protocol supports only monitor server or node-agent",
         );

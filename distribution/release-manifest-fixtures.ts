@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { completeSelectedApiContractForTest } from "./selected-contract.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
 import { produceNativeLayout } from "./native-layout.ts";
+import { produceNativeStaging } from "./native-staging.ts";
 import { canonicalJson, produceReleaseManifest } from "./release-manifest.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
 import {
@@ -94,10 +95,18 @@ export async function releaseFixture(kind: "server" | "agent" = "server") {
 
 export async function serverManifestFixture() {
     const fixture = await releaseFixture();
-    const manifest = await produceReleaseManifest({
+    const binaryRoot = join(fixture.root, "staging-binary");
+    await mkdir(join(binaryRoot, "bin"), { recursive: true });
+    for (const name of ["rz-admin", "rz-monitor"]) {
+        await writeFile(join(binaryRoot, "bin", name), name);
+        await chmod(join(binaryRoot, "bin", name), 0o755);
+    }
+    const staged = await produceNativeStaging({
         ...manifestInputs,
         selection: monitorSelection,
-        artifactRoot: fixture.artifactRoot,
+        outputParent: join(fixture.root, "staged"),
+        trustedRoot: fixture.root,
+        binaryRoot,
         webRoot: fixture.webRoot,
         apiRoot: fixture.apiRoot,
         schemaRoot: fixture.schemaRoot,
@@ -105,5 +114,40 @@ export async function serverManifestFixture() {
         nativeRoot: fixture.nativeRoot,
         protocolRoot: fixture.protocolRoot,
     });
-    return { ...fixture, manifest };
+    const manifest = await produceReleaseManifest({
+        ...manifestInputs,
+        selection: monitorSelection,
+        staging: staged,
+    });
+    return { ...fixture, payloadRoot: staged.root, staging: staged, manifest };
+}
+
+export async function stagedPayloadFixture(kind: "server" | "agent") {
+    const fixture = await releaseFixture(kind);
+    const binaryRoot = join(fixture.root, "staging-binary");
+    const names =
+        kind === "server" ? ["rz-admin", "rz-monitor"] : ["rz-monitor-agent"];
+    await mkdir(join(binaryRoot, "bin"), { recursive: true });
+    for (const name of names) {
+        await writeFile(join(binaryRoot, "bin", name), name);
+        await chmod(join(binaryRoot, "bin", name), 0o755);
+    }
+    const selection =
+        kind === "server"
+            ? monitorSelection
+            : { preset: "node-agent", target: monitorSelection.target };
+    const staged = await produceNativeStaging({
+        ...manifestInputs,
+        selection,
+        outputParent: join(fixture.root, "staged"),
+        trustedRoot: fixture.root,
+        binaryRoot,
+        webRoot: kind === "server" ? fixture.webRoot : undefined,
+        apiRoot: kind === "server" ? fixture.apiRoot : undefined,
+        schemaRoot: kind === "server" ? fixture.schemaRoot : undefined,
+        configRoot: fixture.configRoot,
+        nativeRoot: fixture.nativeRoot,
+        protocolRoot: fixture.protocolRoot,
+    });
+    return { ...fixture, payloadRoot: staged.root, staging: staged };
 }

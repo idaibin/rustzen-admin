@@ -13,6 +13,7 @@ export type ConfigRunner = (binary: "admin" | "monitor" | "agent") => unknown;
 export {
     completeSelectedConfigForTest,
     parseSelectedConfig,
+    parseSelectedConfigBytes,
 } from "./selected-config-validator.ts";
 
 export async function produceSelectedConfig(
