@@ -29,7 +29,22 @@ const fixture = createServer((request, response) => {
     return;
   }
   response.writeHead(200, { "content-type": "text/html" });
-  response.end(`<form method="post"><input id="title" name="title"><button id="submit" type="submit">Submit</button></form>`);
+  response.end(`<form method="post">
+    <input id="title" name="title">
+    <textarea id="notes" name="notes"></textarea>
+    <select id="choice" name="choice"><option value="alpha">Alpha</option><option value="beta">Beta</option></select>
+    <output id="events"></output>
+    <button id="submit" type="submit">Submit</button>
+  </form>
+  <script>
+    for (const id of ["title", "notes", "choice"]) {
+      for (const type of ["input", "change"]) {
+        document.getElementById(id).addEventListener(type, () => {
+          document.getElementById("events").textContent += id + ":" + type + ";";
+        });
+      }
+    }
+  </script>`);
 });
 await new Promise(resolve => fixture.listen(fixturePort, "127.0.0.1", resolve));
 
@@ -75,6 +90,9 @@ try {
     { action: "guardExists", selector: "#nonexistent-modal", onMissing: "skipNext" },
     { action: "click", selector: "#nonexistent-modal" },
     { action: "fill", selector: "#title", value: "{{input.title}}" },
+    { action: "fill", selector: "#notes", value: "controlled textarea" },
+    { action: "fill", selector: "#choice", value: "beta" },
+    { action: "assertText", selector: "#events", text: "title:input;title:change;notes:input;notes:change;choice:input;choice:change;" },
     { action: "pause", durationMs: 100 },
     { action: "click", selector: "#submit" },
     { action: "waitFor", selector: "#received" },
@@ -99,9 +117,11 @@ try {
     const failedSteps = await call(`/api/reports/runs/${run.id}/steps`, "reports:run:view");
     throw new Error(`Browser run failed: ${JSON.stringify(current)}, steps=${JSON.stringify(failedSteps)}`);
   }
-  if (!submitted.includes("title=Rustzen+MVP")) throw new Error(`Fixture received unexpected form: ${submitted}`);
+  if (!submitted.includes("title=Rustzen+MVP&notes=controlled+textarea&choice=beta")) {
+    throw new Error(`Fixture received unexpected form: ${submitted}`);
+  }
   const steps = await call(`/api/reports/runs/${run.id}/steps`, "reports:run:view");
-  if (steps.length !== 9) throw new Error(`Unexpected step count: ${steps.length}`);
+  if (steps.length !== 12) throw new Error(`Unexpected step count: ${steps.length}`);
   if (steps[2].status !== "skipped") throw new Error(`Expected step 2 to be skipped: ${JSON.stringify(steps[2])}`);
   if (steps.filter(step => step.status !== "skipped").some(step => step.status !== "succeeded")) {
     throw new Error(`Unexpected step audit: ${JSON.stringify(steps)}`);

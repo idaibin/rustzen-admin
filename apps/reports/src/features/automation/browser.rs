@@ -163,16 +163,7 @@ async fn execute_step(
         FlowStep::Fill { selector, value } => {
             let element = locate_element(context.page, selector).await?;
             let value = service::substitute(value, context.input)?;
-            let encoded = serde_json::to_string(&value)?;
-            element
-                .call_js_fn(
-                    format!(
-                        "function() {{ this.value = {encoded}; this.dispatchEvent(new Event('input', {{ bubbles: true }})); this.dispatchEvent(new Event('change', {{ bubbles: true }})); }}"
-                    ),
-                    false,
-                )
-                .await
-                .map_err(AppError::internal)?;
+            element.call_js_fn(fill_script(&value)?, false).await.map_err(AppError::internal)?;
             Ok(StepOutcome::Continue)
         }
         FlowStep::Click { selector } => {
@@ -247,6 +238,13 @@ async fn execute_step(
             Ok(StepOutcome::Continue)
         }
     }
+}
+
+fn fill_script(value: &str) -> Result<String, serde_json::Error> {
+    let encoded = serde_json::to_string(value)?;
+    Ok(format!(
+        "function() {{ const prototype = this instanceof HTMLInputElement ? HTMLInputElement.prototype : this instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : this instanceof HTMLSelectElement ? HTMLSelectElement.prototype : null; const setter = prototype && Object.getOwnPropertyDescriptor(prototype, 'value')?.set; if (!setter) throw new Error('element has no native value setter'); setter.call(this, {encoded}); this.dispatchEvent(new Event('input', {{ bubbles: true }})); this.dispatchEvent(new Event('change', {{ bubbles: true }})); }}"
+    ))
 }
 
 fn is_xpath(selector: &str) -> bool {
@@ -334,5 +332,20 @@ mod shutdown_tests {
         assert!(!is_xpath("#kw"));
         assert!(!is_xpath("button.submit"));
         assert!(!is_xpath("[data-testid='btn']"));
+    }
+}
+
+#[cfg(test)]
+mod fill_tests {
+    #[test]
+    fn fill_uses_the_native_value_setter_and_json_escapes_input() {
+        let script = super::fill_script("quoted \"value\"\nnext").expect("fill script");
+        assert!(script.contains("this instanceof HTMLInputElement"));
+        assert!(script.contains("this instanceof HTMLTextAreaElement"));
+        assert!(script.contains("this instanceof HTMLSelectElement"));
+        assert!(script.contains("Object.getOwnPropertyDescriptor(prototype, 'value')?.set"));
+        assert!(script.contains("setter.call(this, \"quoted \\\"value\\\"\\nnext\")"));
+        assert!(script.contains("new Event('input', { bubbles: true })"));
+        assert!(script.contains("new Event('change', { bubbles: true })"));
     }
 }
