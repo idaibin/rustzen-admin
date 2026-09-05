@@ -48,6 +48,9 @@ ON resource_samples(node_id, collected_at DESC);
 CREATE INDEX idx_disk_samples_node_mount_time
 ON disk_samples(node_id, mount_point, collected_at DESC);
 
+CREATE INDEX idx_disk_samples_node_time_mount
+ON disk_samples(node_id, collected_at, mount_point);
+
 CREATE TABLE alert_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     cpu_enabled INTEGER NOT NULL DEFAULT 1,

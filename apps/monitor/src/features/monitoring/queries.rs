@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, future::Future};
 
 use axum::extract::{Path, State};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
@@ -90,37 +90,50 @@ pub async fn overview(State(s): State<AppState>) -> AppResult<Overview> {
     }))
 }
 
-async fn node_value(
-    pool: &SqlitePool,
+fn disk_values(rows: Vec<sqlx::sqlite::SqliteRow>) -> Vec<serde_json::Value> {
+    rows.into_iter()
+        .map(|disk| {
+            let used: i64 = disk.get("used_bytes");
+            let total: i64 = disk.get("total_bytes");
+            serde_json::json!({
+                "mountPoint": disk.get::<String, _>("mount_point"),
+                "collectedAt": disk.get::<String, _>("collected_at"),
+                "usedBytes": used,
+                "totalBytes": total,
+                "usagePercent": used as f64 * 100.0 / total as f64,
+            })
+        })
+        .collect()
+}
+
+pub(super) const LATEST_NODE_DISKS_SQL: &str =
+    "SELECT d.node_id,d.mount_point,d.used_bytes,d.total_bytes,d.collected_at
+     FROM monitor_nodes n
+     CROSS JOIN disk_samples d INDEXED BY idx_disk_samples_node_time_mount
+     WHERE d.node_id=n.node_id AND d.collected_at=n.last_report_at
+     ORDER BY d.node_id,d.mount_point";
+
+async fn latest_disk_values_by_node(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> Result<BTreeMap<String, Vec<serde_json::Value>>, AppError> {
+    let mut disks_by_node: BTreeMap<String, Vec<sqlx::sqlite::SqliteRow>> = BTreeMap::new();
+    for row in sqlx::query(LATEST_NODE_DISKS_SQL).fetch_all(&mut **transaction).await? {
+        let node_id: String = row.get("node_id");
+        disks_by_node.entry(node_id).or_default().push(row);
+    }
+    Ok(disks_by_node.into_iter().map(|(node_id, disks)| (node_id, disk_values(disks))).collect())
+}
+
+fn node_value(
     row: sqlx::sqlite::SqliteRow,
+    disks: Vec<serde_json::Value>,
     now: DateTime<Utc>,
-) -> Result<serde_json::Value, AppError> {
+) -> serde_json::Value {
     let node_id: String = row.get("node_id");
     let last_report_at: String = row.get("last_report_at");
-    let disks = sqlx::query(
-        "SELECT mount_point,used_bytes,total_bytes,collected_at
-         FROM disk_samples WHERE node_id=? AND collected_at=? ORDER BY mount_point",
-    )
-    .bind(&node_id)
-    .bind(&last_report_at)
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|disk| {
-        let used: i64 = disk.get("used_bytes");
-        let total: i64 = disk.get("total_bytes");
-        serde_json::json!({
-            "mountPoint": disk.get::<String, _>("mount_point"),
-            "collectedAt": disk.get::<String, _>("collected_at"),
-            "usedBytes": used,
-            "totalBytes": total,
-            "usagePercent": used as f64 * 100.0 / total as f64,
-        })
-    })
-    .collect::<Vec<_>>();
     let memory_used: i64 = row.get("memory_used_bytes");
     let memory_total: i64 = row.get("memory_total_bytes");
-    Ok(serde_json::json!({
+    serde_json::json!({
         "nodeId": node_id,
         "hostname": row.get::<String, _>("hostname"),
         "agentVersion": row.get::<String, _>("agent_version"),
@@ -135,11 +148,25 @@ async fn node_value(
         "disks": disks,
         "createdAt": row.get::<String, _>("created_at"),
         "updatedAt": row.get::<String, _>("updated_at"),
-    }))
+    })
 }
 
-pub async fn nodes(State(s): State<AppState>) -> AppResult<Vec<serde_json::Value>> {
-    let now = Utc::now();
+pub(super) async fn node_values(
+    pool: &SqlitePool,
+    now: DateTime<Utc>,
+) -> Result<Vec<serde_json::Value>, AppError> {
+    node_values_after_rows(pool, now, std::future::ready(())).await
+}
+
+pub(super) async fn node_values_after_rows<F>(
+    pool: &SqlitePool,
+    now: DateTime<Utc>,
+    after_rows: F,
+) -> Result<Vec<serde_json::Value>, AppError>
+where
+    F: Future<Output = ()>,
+{
+    let mut transaction = pool.begin().await?;
     let rows = sqlx::query(
         "SELECT n.*,
                 COALESCE(s.offline_after_seconds,g.offline_after_seconds)
@@ -150,13 +177,23 @@ pub async fn nodes(State(s): State<AppState>) -> AppResult<Vec<serde_json::Value
          LEFT JOIN node_alert_settings s ON s.node_id=n.node_id
          WHERE g.id=1 ORDER BY n.hostname",
     )
-    .fetch_all(&s.pool)
+    .fetch_all(&mut *transaction)
     .await?;
-    let mut values = Vec::with_capacity(rows.len());
-    for row in rows {
-        values.push(node_value(&s.pool, row, now).await?);
-    }
-    Ok(ApiResponse::success(values))
+    after_rows.await;
+    let mut disks_by_node = latest_disk_values_by_node(&mut transaction).await?;
+    let values = rows
+        .into_iter()
+        .map(|row| {
+            let node_id: String = row.get("node_id");
+            node_value(row, disks_by_node.remove(&node_id).unwrap_or_default(), now)
+        })
+        .collect();
+    transaction.commit().await?;
+    Ok(values)
+}
+
+pub async fn nodes(State(s): State<AppState>) -> AppResult<Vec<serde_json::Value>> {
+    Ok(ApiResponse::success(node_values(&s.pool, Utc::now()).await?))
 }
 pub async fn node(
     State(s): State<AppState>,
@@ -176,7 +213,19 @@ pub async fn node(
     .fetch_optional(&s.pool)
     .await?;
     let row = row.ok_or_else(|| AppError::not_found("node"))?;
-    Ok(ApiResponse::success(node_value(&s.pool, row, Utc::now()).await?))
+    let node_id: String = row.get("node_id");
+    let last_report_at: String = row.get("last_report_at");
+    let disks = disk_values(
+        sqlx::query(
+            "SELECT mount_point,used_bytes,total_bytes,collected_at
+             FROM disk_samples WHERE node_id=? AND collected_at=? ORDER BY mount_point",
+        )
+        .bind(node_id)
+        .bind(last_report_at)
+        .fetch_all(&s.pool)
+        .await?,
+    );
+    Ok(ApiResponse::success(node_value(row, disks, Utc::now())))
 }
 #[derive(Deserialize)]
 pub(crate) struct Range {

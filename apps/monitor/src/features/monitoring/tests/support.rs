@@ -19,12 +19,15 @@ pub(super) use super::super::{
         Offline, SettingInput, Threshold, apply_node_settings, apply_settings, node_settings_value,
         reset_node_settings_for, settings_value,
     },
-    queries::{aggregate_disk_points, aggregate_resource_points, query_window},
+    queries::{
+        LATEST_NODE_DISKS_SQL, aggregate_disk_points, aggregate_resource_points, node_values,
+        node_values_after_rows, query_window,
+    },
     record_at,
 };
 pub(super) use crate::{
     common::error::AppError,
-    infra::db::migrated_test_pool,
+    infra::db::{migrate, migrated_test_pool},
     protocol::{AgentReport, AgentReportStatus, ByteUsage, DiskUsage},
 };
 

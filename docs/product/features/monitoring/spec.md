@@ -202,7 +202,11 @@ shows an actionable failure while retaining the current form values. HTTP and
 business rejections retain the request layer's existing single global error
 message; the Drawer does not add a second toast for the same rejection.
 
-Nodes refresh in the background every 30 seconds. A failed background refresh
+Nodes refresh in the background every 30 seconds. Each inventory refresh reads node
+state and the matching latest disk samples in one SQLite read transaction, using a
+bounded number of indexed Controller queries; it does not issue one disk-sample query
+per node or combine node state from one report with disks from another. A failed
+background refresh
 retains the last successful inventory and exposes its update time, Retry, and an
 explicit refresh action. An initial load failure continues to use the blocking
 retry state because no inventory is available to retain.

@@ -1,4 +1,130 @@
 use super::support::*;
+use std::sync::Arc;
+
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use tokio::sync::Notify;
+
+#[tokio::test]
+async fn nodes_read_latest_disks_for_all_nodes_with_one_bounded_query() {
+    let pool = migrated_test_pool().await;
+    let start = Utc.with_ymd_and_hms(2026, 9, 5, 8, 0, 0).unwrap();
+    let zulu_boot = Uuid::new_v4();
+    let alpha_boot = Uuid::new_v4();
+    let bravo_boot = Uuid::new_v4();
+
+    for (node, boot, sequence, root, data) in [
+        ("zulu", zulu_boot, 1, 10, 20),
+        ("alpha", alpha_boot, 1, 30, 40),
+        ("bravo", bravo_boot, 1, 50, 60),
+        ("zulu", zulu_boot, 2, 70, 80),
+    ] {
+        record(
+            &pool,
+            report(
+                node,
+                boot,
+                sequence,
+                start + ChronoDuration::seconds(sequence as i64),
+                sequence as f64,
+                root,
+                data,
+            ),
+        )
+        .await
+        .unwrap();
+    }
+    sqlx::query("UPDATE monitor_nodes SET hostname='a-host' WHERE node_id='zulu'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM disk_samples WHERE node_id='bravo'").execute(&pool).await.unwrap();
+
+    let values = node_values(&pool, start + ChronoDuration::minutes(1)).await.unwrap();
+
+    assert_eq!(
+        values.iter().map(|value| value["nodeId"].as_str().unwrap()).collect::<Vec<_>>(),
+        ["zulu", "alpha", "bravo"]
+    );
+    assert_eq!(values[0]["disks"][0]["usedBytes"], 70);
+    assert_eq!(values[0]["disks"][1]["usedBytes"], 80);
+    assert_eq!(values[1]["disks"][0]["usedBytes"], 30);
+    assert_eq!(values[2]["disks"], serde_json::json!([]));
+    assert!(LATEST_NODE_DISKS_SQL.contains("FROM monitor_nodes"));
+    assert!(LATEST_NODE_DISKS_SQL.contains("CROSS JOIN disk_samples"));
+    assert!(!LATEST_NODE_DISKS_SQL.contains("?"));
+}
+
+#[tokio::test]
+async fn nodes_keep_node_state_and_disks_in_one_read_snapshot() {
+    let path =
+        std::env::temp_dir().join(format!("rustzen-monitor-nodes-snapshot-{}.db", Uuid::new_v4()));
+    let options = SqliteConnectOptions::new().filename(&path).create_if_missing(true);
+    let reader =
+        SqlitePoolOptions::new().max_connections(1).connect_with(options.clone()).await.unwrap();
+    migrate(&reader).await.unwrap();
+    sqlx::query("PRAGMA journal_mode=WAL").execute(&reader).await.unwrap();
+    let writer = SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+    let start = Utc.with_ymd_and_hms(2026, 9, 5, 9, 0, 0).unwrap();
+    let boot = Uuid::new_v4();
+    record(&reader, report("snapshot-node", boot, 1, start, 10.0, 10, 20)).await.unwrap();
+
+    let rows_read = Arc::new(Notify::new());
+    let continue_read = Arc::new(Notify::new());
+    let task = tokio::spawn({
+        let reader = reader.clone();
+        let rows_read = Arc::clone(&rows_read);
+        let continue_read = Arc::clone(&continue_read);
+        async move {
+            node_values_after_rows(&reader, start, async move {
+                rows_read.notify_one();
+                continue_read.notified().await;
+            })
+            .await
+        }
+    });
+    rows_read.notified().await;
+    let next = start + ChronoDuration::seconds(30);
+    record(&writer, report("snapshot-node", boot, 2, next, 20.0, 70, 80)).await.unwrap();
+    continue_read.notify_one();
+    let values = task.await.unwrap().unwrap();
+
+    assert_eq!(values[0]["lastReportAt"], start.to_rfc3339());
+    assert_eq!(values[0]["disks"][0]["collectedAt"], start.to_rfc3339());
+    assert_eq!(values[0]["disks"][0]["usedBytes"], 10);
+
+    reader.close().await;
+    writer.close().await;
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+    let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+}
+
+#[tokio::test]
+async fn nodes_batch_disk_query_uses_latest_sample_index() {
+    let pool = migrated_test_pool().await;
+    let start = Utc.with_ymd_and_hms(2026, 9, 5, 10, 0, 0).unwrap();
+    record(&pool, report("indexed-node", Uuid::new_v4(), 1, start, 10.0, 10, 20)).await.unwrap();
+    for second in 1..=200 {
+        sqlx::query(
+            "INSERT INTO disk_samples(node_id,mount_point,used_bytes,total_bytes,collected_at)
+             VALUES('indexed-node','/history',1,100,?)",
+        )
+        .bind((start - ChronoDuration::seconds(second)).to_rfc3339())
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    // The production query is a compile-time constant; EXPLAIN requires a dynamic prefix.
+    let plan =
+        sqlx::query(sqlx::AssertSqlSafe(format!("EXPLAIN QUERY PLAN {LATEST_NODE_DISKS_SQL}")))
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    let details = plan.iter().map(|row| row.get::<String, _>("detail")).collect::<Vec<_>>();
+
+    assert!(details.iter().any(|detail| detail.contains("idx_disk_samples_node_time_mount")));
+    assert!(details.iter().any(|detail| detail.contains("node_id=? AND collected_at=?")));
+}
 
 #[tokio::test]
 async fn metrics_bucket_and_daily_summary_keep_mounts_independent_and_idempotent() {
