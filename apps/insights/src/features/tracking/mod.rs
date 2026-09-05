@@ -14,4 +14,6 @@ pub fn register(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>
         .post_public("/track", handler::track)
 }
 
-pub use service::{IngestionState, spawn_retention};
+#[cfg(test)]
+pub(crate) use service::StorageCapacityChecker;
+pub(crate) use service::{IngestionState, spawn_retention};

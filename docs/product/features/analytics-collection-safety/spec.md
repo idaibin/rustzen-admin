@@ -41,6 +41,9 @@ lazy and inert until the host explicitly enables it with consent.
 | Installation policy and visitor opt-in are separate boundaries. | The installation owner controls whether this installation accepts collection; the host controls whether a visitor opted in. | Insights accepts HTTP ingestion only when `collection_enabled`, `project`, and normalized `origin` match the installation policy; it never claims to verify visitor consent. |
 | The project key is a public routing identifier, not a credential. | It must be present in a browser integration without pretending to protect a secret. | The server uses identifier + normalized source origin to select policy; it never grants authenticated read/manage access from the identifier. |
 | The server verifies the identifier and configured origin. | Browser code alone cannot enforce an ingestion boundary. | Missing, invalid, or origin-mismatched requests are rejected. |
+| The tracker queue is fixed at 1000 events and drops the newest event when full. | A bounded client queue prevents offline or rejected collection from consuming unbounded browser memory. | The dropped event is reported through `onTransportEvent` as `queue_dropped`; older queued events remain eligible for transport. Each request contains at most 50 events and 64 KiB of UTF-8 JSON. |
+| The tracker rejects an event before queueing when a supported field exceeds the existing server bound or has an invalid type/range. | Client-side rejection avoids sending a batch that the server must reject after queueing. | Path, referrer, platform, method, property-value, and serialized-property bounds mirror the server limits; scalar field types and property object/array values are checked explicitly; the tracker emits fixed-length UUID visitor/session IDs; length failures report `event_dropped` with `field_too_long`, while invalid type/range failures use `invalid_field`. |
+| HTTP 413 is a validation rejection and is never retried by the tracker. | An oversized batch cannot become valid without changing its contents. | A 413 emits one `validation_rejected` transport event and drops that batch; only explicit 429/507 responses use bounded retries. |
 | Page and API paths use `pathname` only. | Query values can contain identifiers or secrets. | Stored paths never include a query string. |
 | Built-in events and custom properties use a strict allowlist. | Button text and arbitrary DOM attributes are unstable and privacy risky. | Unknown event names, fields, and property keys are rejected; no free-form DOM scrape is accepted. |
 | Visitor and session identifiers are pseudonymous and short-lived by default. | Useful retention does not require a person's name or account value. | IDs are generated only after opt-in, roll on a fixed schedule, and are removed immediately on opt-out. |
@@ -125,6 +128,24 @@ budget measures the Insights database plus WAL/SHM sidecars. A preflight check
 must fail closed before opening a write transaction when a limit is exceeded.
 Malformed or unknown fields remain a validation error and are never counted as
 accepted data.
+
+The browser transport keeps at most 1000 queued events. Each request contains
+at most 50 events and 64 KiB of UTF-8 JSON. When the queue is full,
+the newest event is dropped and the optional transport observer receives a
+`queue_dropped` record; existing queued events retain their order. Before an
+event enters the queue, the tracker rejects supported fields against the
+server's current bounds. Visitor/session IDs have a 200-byte server bound;
+the tracker emits fixed-length UUID values for those IDs. Platform is bounded
+at 50 UTF-8 bytes, pathname/referrer/API path at 2000 UTF-8 bytes, API method
+at 20 UTF-8 bytes, status codes at 100 to 599, durations at 0 to 86400000
+milliseconds, property strings at 256 UTF-8 bytes, and serialized properties
+at 16 KiB. The tracker requires string path/method fields, boolean error flags,
+integer status/duration values, an object for `properties`, and scalar values
+for allowed property keys; object or array property values are rejected. Such
+an event is reported as `event_dropped` with `field_too_long` for length
+failures or `invalid_field` for type/range failures, and does not trigger a request. A
+413 response is a single `validation_rejected` outcome
+with no retry; 429 and 507 remain the only retryable responses.
 
 ## Scope and non-goals
 

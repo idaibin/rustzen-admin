@@ -29,6 +29,14 @@ pub async fn run() -> StartupResult<()> {
 }
 
 pub fn build_router(pool: SqlitePool, ipc_token: &str) -> StartupResult<Router> {
+    build_router_with_ingestion(pool, ipc_token, features::tracking::IngestionState::new())
+}
+
+fn build_router_with_ingestion(
+    pool: SqlitePool,
+    ipc_token: &str,
+    ingestion: Arc<features::tracking::IngestionState>,
+) -> StartupResult<Router> {
     let definition = ModuleDefinition::from_toml(include_str!("../module.toml"))?;
     let module_id = definition.module.id.clone();
     let api_prefix = definition.module.api_prefix.clone();
@@ -39,17 +47,26 @@ pub fn build_router(pool: SqlitePool, ipc_token: &str) -> StartupResult<Router> 
     let module = features::overview::register(module)?;
     let module = features::query::register(module)?;
     let (module_routes, manifest) = module.build(&definition, env!("CARGO_PKG_VERSION"))?;
-    let state = AppState {
-        pool,
-        ingestion: features::tracking::IngestionState::new(),
-        manifest: Arc::new(manifest),
-    };
+    let state = AppState { pool, ingestion, manifest: Arc::new(manifest) };
 
     Ok(Router::new()
         .route("/health", get(health))
         .route("/internal/v1/manifest", get(runtime_manifest))
         .nest(&api_prefix, module_routes)
         .with_state(state))
+}
+
+#[cfg(test)]
+fn build_router_with_storage_capacity_checker(
+    pool: SqlitePool,
+    ipc_token: &str,
+    checker: features::tracking::StorageCapacityChecker,
+) -> StartupResult<Router> {
+    build_router_with_ingestion(
+        pool,
+        ipc_token,
+        features::tracking::IngestionState::with_storage_capacity_checker(Some(checker)),
+    )
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -62,6 +79,11 @@ async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest>
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
     use axum::{
         body::{Body, to_bytes},
         http::{Method, Request, StatusCode, header},
@@ -71,9 +93,10 @@ mod tests {
     use sqlx::sqlite::SqlitePoolOptions;
     use tower::ServiceExt;
 
+    use crate::common::error::AppError;
     use crate::infra::db;
 
-    use super::build_router;
+    use super::{build_router, build_router_with_storage_capacity_checker};
 
     const SECRET: &str = "insights-test-secret";
 
@@ -355,6 +378,138 @@ mod tests {
             .await
             .expect("query");
         assert_eq!(response_json(query).await["data"]["total"], 30);
+    }
+
+    #[tokio::test]
+    async fn event_rate_limit_rejects_an_entire_batch_without_partial_persistence() {
+        let pool = test_pool().await;
+        let app = build_router(pool, SECRET).expect("router");
+
+        for batch_index in 0..6 {
+            let events = (0..50)
+                .map(|event_index| {
+                    json!({
+                        "eventName": "page_view",
+                        "visitorId": format!("event-rate-{batch_index}-{event_index}"),
+                        "pagePath": "/home"
+                    })
+                })
+                .collect::<Vec<_>>();
+            let response = app
+                .clone()
+                .oneshot(json_request(
+                    Method::POST,
+                    "/api/insights/track",
+                    DelegatedAccess::Public,
+                    Value::Array(events),
+                ))
+                .await
+                .expect("track accepted batch");
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response_json(response).await["data"]["accepted"], 50);
+        }
+
+        let rejected = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                "/api/insights/track",
+                DelegatedAccess::Public,
+                json!([
+                    { "eventName": "page_view", "visitorId": "event-rate-rejected-1", "pagePath": "/rejected" },
+                    { "eventName": "page_view", "visitorId": "event-rate-rejected-2", "pagePath": "/rejected" }
+                ]),
+            ))
+            .await
+            .expect("track rejected batch");
+        assert_eq!(rejected.status(), StatusCode::TOO_MANY_REQUESTS);
+
+        let query = app
+            .oneshot(signed_request(
+                Method::GET,
+                "/api/insights/events",
+                DelegatedAccess::protected("insights:event:view"),
+                Body::empty(),
+            ))
+            .await
+            .expect("query");
+        assert_eq!(response_json(query).await["data"]["total"], 300);
+    }
+
+    #[tokio::test]
+    async fn injected_storage_capacity_rejection_preserves_existing_rows() {
+        let pool = test_pool().await;
+        let calls = Arc::new(AtomicUsize::new(0));
+        let checker = {
+            let calls = Arc::clone(&calls);
+            Arc::new(move || {
+                if calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                    Ok(())
+                } else {
+                    Err(AppError::input_rejection(
+                        StatusCode::INSUFFICIENT_STORAGE,
+                        "test storage capacity rejection",
+                    ))
+                }
+            })
+        };
+        let app =
+            build_router_with_storage_capacity_checker(pool, SECRET, checker).expect("router");
+
+        let accepted = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                "/api/insights/track",
+                DelegatedAccess::Public,
+                json!({
+                    "eventName": "page_view",
+                    "visitorId": "capacity-existing-row",
+                    "pagePath": "/before-capacity-rejection"
+                }),
+            ))
+            .await
+            .expect("accepted event");
+        assert_eq!(accepted.status(), StatusCode::OK);
+
+        let before = app
+            .clone()
+            .oneshot(signed_request(
+                Method::GET,
+                "/api/insights/events",
+                DelegatedAccess::protected("insights:event:view"),
+                Body::empty(),
+            ))
+            .await
+            .expect("query before rejection");
+        assert_eq!(response_json(before).await["data"]["total"], 1);
+
+        let rejected = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                "/api/insights/track",
+                DelegatedAccess::Public,
+                json!({
+                    "eventName": "page_view",
+                    "visitorId": "capacity-rejected-row",
+                    "pagePath": "/after-capacity-rejection"
+                }),
+            ))
+            .await
+            .expect("rejected event");
+        assert_eq!(rejected.status(), StatusCode::INSUFFICIENT_STORAGE);
+
+        let after = app
+            .oneshot(signed_request(
+                Method::GET,
+                "/api/insights/events",
+                DelegatedAccess::protected("insights:event:view"),
+                Body::empty(),
+            ))
+            .await
+            .expect("query after rejection");
+        assert_eq!(response_json(after).await["data"]["total"], 1);
     }
 
     #[tokio::test]

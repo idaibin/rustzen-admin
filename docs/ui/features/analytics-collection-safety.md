@@ -43,6 +43,16 @@ backend management permissions remain unchanged; no settings system is added.
   request patch, request, queue, or local visitor/session identifier. Opt-out
   stops sends and removes those local IDs. No consent proof is displayed or
   claimed here.
+- The public tracker keeps a fixed 1000-event local queue. When full it drops
+  the newest event and reports `queue_dropped` through its transport observer.
+  Visitor and session identifiers are generated as fixed-length UUID values.
+  Each request is limited to 50 events and 64 KiB of UTF-8 JSON.
+  Supported fields beyond the existing server bounds, measured in UTF-8 bytes,
+  are rejected before queueing and reported as `event_dropped` with
+  `field_too_long`; invalid field types or ranges, including object/array
+  property values, use `invalid_field`. A 413
+  response is reported once as `validation_rejected` and is never retried; only
+  explicit 429/507 responses use the bounded retry path.
 
 ## Component and data-owner mapping
 
@@ -117,7 +127,9 @@ non-wildcard `Access-Control-Allow-Origin`, `POST`, and
 `content-type, x-rustzen-project-key` headers with `Vary: Origin`. A `POST`
 echoes the origin only after project-key/origin validation, including later
 business errors; denied origins receive no allow headers. The Analytics UI does
-not infer consent or expose the raw project key.
+not infer consent or expose the raw project key. The tracker transport queue
+and field-bound behavior are part of the public script contract, while the UI
+does not render their counters or limits.
 
 ## Traceable UI deltas
 

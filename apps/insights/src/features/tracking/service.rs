@@ -41,6 +41,9 @@ const REGISTERED_EVENTS: &[&str] = &["page_view", "api_request", "custom_export"
 const REGISTERED_PROPERTY_KEYS: &[&str] = &["feature", "format", "result", "status"];
 const PROJECT_KEY_HEADER: &str = "x-rustzen-project-key";
 
+pub(crate) type StorageCapacityChecker =
+    Arc<dyn Fn() -> Result<(), AppError> + Send + Sync + 'static>;
+
 pub(crate) use crate::features::settings::service::{hash_project_key, normalize_origin};
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -61,15 +64,27 @@ pub struct IngestionState {
     rate_windows: Mutex<HashMap<RateKey, RateWindow>>,
     write_guard: AsyncMutex<()>,
     admission: Arc<Semaphore>,
+    storage_capacity_checker: Option<StorageCapacityChecker>,
 }
 
 impl IngestionState {
     pub fn new() -> Arc<Self> {
+        Self::with_storage_capacity_checker(None)
+    }
+
+    pub(crate) fn with_storage_capacity_checker(
+        storage_capacity_checker: Option<StorageCapacityChecker>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             rate_windows: Mutex::new(HashMap::new()),
             write_guard: AsyncMutex::new(()),
             admission: Arc::new(Semaphore::new(INGESTION_CONCURRENCY)),
+            storage_capacity_checker,
         })
+    }
+
+    fn storage_capacity_checker(&self) -> Option<StorageCapacityChecker> {
+        self.storage_capacity_checker.clone()
     }
 
     fn reserve_request(&self, project_id: &str, origin: &str) -> Result<(), AppError> {
@@ -264,7 +279,11 @@ impl TrackingService {
 
             // A single writer critical section makes the capacity check and commit one
             // bounded operation; a rejected batch never opens a write transaction.
-            ensure_storage_capacity(pool, &events).await?;
+            if let Some(checker) = ingestion.storage_capacity_checker() {
+                checker()?;
+            } else {
+                ensure_storage_capacity(pool, &events).await?;
+            }
 
             let mut transaction = pool.begin().await.map_err(AppError::internal)?;
             let accepted = events.len();
@@ -399,9 +418,6 @@ fn filesystem_capacity_ok(database_path: &Path, projected_bytes: u64) -> bool {
     .filter_map(|path| fs::metadata(path).ok().map(|metadata| metadata.len()))
     .sum::<u64>();
     let current_bytes = main_size.saturating_add(sidecar_size);
-    if current_bytes.saturating_add(projected_bytes) > STORAGE_BUDGET_BYTES {
-        return false;
-    }
     let Ok(candidate) = database_path.canonicalize() else { return false };
     let disks = Disks::new_with_refreshed_list();
     let Some(disk) = disks
@@ -412,7 +428,23 @@ fn filesystem_capacity_ok(database_path: &Path, projected_bytes: u64) -> bool {
     else {
         return false;
     };
-    disk.available_space() >= FREE_DISK_RESERVE_BYTES.saturating_add(projected_bytes)
+    check_storage_capacity(current_bytes, disk.available_space(), projected_bytes).is_ok()
+}
+
+fn check_storage_capacity(
+    current_bytes: u64,
+    available_bytes: u64,
+    projected_bytes: u64,
+) -> Result<(), AppError> {
+    if current_bytes.saturating_add(projected_bytes) > STORAGE_BUDGET_BYTES
+        || available_bytes < FREE_DISK_RESERVE_BYTES.saturating_add(projected_bytes)
+    {
+        return Err(AppError::input_rejection(
+            StatusCode::INSUFFICIENT_STORAGE,
+            "Insights storage protection rejected the batch",
+        ));
+    }
+    Ok(())
 }
 
 pub fn spawn_retention(pool: SqlitePool) {
@@ -588,10 +620,14 @@ fn clean_optional(value: Option<String>, max: usize) -> Result<Option<String>, A
 }
 #[cfg(test)]
 mod tests {
+    use axum::{http::StatusCode, response::IntoResponse};
     use chrono::{TimeDelta, Utc};
     use serde_json::json;
 
-    use super::{INGESTION_CONCURRENCY, IngestionState, normalize_origin, validate_event};
+    use super::{
+        FREE_DISK_RESERVE_BYTES, INGESTION_CONCURRENCY, IngestionState, STORAGE_BUDGET_BYTES,
+        check_storage_capacity, normalize_origin, validate_event,
+    };
     use crate::features::tracking::types::TrackInput;
 
     fn event() -> TrackInput {
@@ -677,5 +713,18 @@ mod tests {
         assert!(state.try_acquire().is_ok());
         let restarted = IngestionState::new();
         assert!(restarted.try_acquire().is_ok());
+    }
+
+    #[test]
+    fn storage_capacity_check_maps_budget_and_disk_limits_to_507() {
+        let budget_error = check_storage_capacity(STORAGE_BUDGET_BYTES, u64::MAX, 1)
+            .expect_err("budget rejection");
+        assert_eq!(budget_error.into_response().status(), StatusCode::INSUFFICIENT_STORAGE);
+
+        let disk_error = check_storage_capacity(0, FREE_DISK_RESERVE_BYTES, 1)
+            .expect_err("free disk reserve rejection");
+        assert_eq!(disk_error.into_response().status(), StatusCode::INSUFFICIENT_STORAGE);
+
+        assert!(check_storage_capacity(0, FREE_DISK_RESERVE_BYTES + 1, 1).is_ok());
     }
 }
