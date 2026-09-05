@@ -1,6 +1,7 @@
 use std::{
     ffi::CString,
     fs::{self, File, OpenOptions},
+    io::Read,
     os::{
         fd::{AsRawFd, FromRawFd},
         unix::{
@@ -65,6 +66,26 @@ impl PrivateParent {
         }
         if std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT) {
             Ok(())
+        } else {
+            Err(std::io::Error::last_os_error().to_string())
+        }
+    }
+
+    pub(super) fn exists(&self, value: &str) -> Result<bool, String> {
+        let value = name(value)?;
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        let result = unsafe {
+            libc::fstatat(
+                self.0.as_raw_fd(),
+                value.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result == 0 {
+            Ok(true)
+        } else if std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT) {
+            Ok(false)
         } else {
             Err(std::io::Error::last_os_error().to_string())
         }
@@ -137,6 +158,69 @@ impl PrivateParent {
 
     pub(super) fn metadata(&self) -> Result<std::fs::Metadata, String> {
         self.0.metadata().map_err(io)
+    }
+
+    pub(super) fn read_regular_owned(
+        &self,
+        value: &str,
+        maximum: usize,
+        mode: u32,
+    ) -> Result<Vec<u8>, String> {
+        let value = name(value)?;
+        let raw = unsafe {
+            libc::openat(
+                self.0.as_raw_fd(),
+                value.as_ptr(),
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if raw < 0 {
+            return Err("fresh-root journal is unavailable".into());
+        }
+        let mut file = unsafe { File::from_raw_fd(raw) };
+        let metadata = file.metadata().map_err(io)?;
+        if !metadata.is_file()
+            || metadata.uid() != 0
+            || metadata.gid() != 0
+            || metadata.mode() & 0o777 != mode
+            || metadata.len() > maximum as u64
+        {
+            return Err("fresh-root journal is unsafe".into());
+        }
+        let mut bytes = Vec::with_capacity(metadata.len() as usize);
+        file.read_to_end(&mut bytes).map_err(io)?;
+        if bytes.len() > maximum {
+            return Err("fresh-root journal exceeds size limit".into());
+        }
+        Ok(bytes)
+    }
+
+    pub(super) fn remove_regular_owned(&self, value: &str, mode: u32) -> Result<(), String> {
+        let value = name(value)?;
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        if unsafe {
+            libc::fstatat(
+                self.0.as_raw_fd(),
+                value.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        } != 0
+        {
+            return Err("fresh-root journal is unavailable".into());
+        }
+        let stat = unsafe { stat.assume_init() };
+        if stat.st_mode & libc::S_IFMT != libc::S_IFREG
+            || stat.st_uid != 0
+            || stat.st_gid != 0
+            || u32::from(stat.st_mode & 0o777) != mode
+        {
+            return Err("fresh-root journal is unsafe".into());
+        }
+        if unsafe { libc::unlinkat(self.0.as_raw_fd(), value.as_ptr(), 0) } != 0 {
+            return Err("fresh-root journal removal failed".into());
+        }
+        self.sync()
     }
 
     pub(super) fn lock_exclusive(&self, value: &str) -> Result<File, String> {
@@ -360,8 +444,8 @@ pub(super) fn destination_name(destination: &Path) -> Result<String, String> {
     }
     value.to_str().map(str::to_owned).ok_or("destination name is invalid".into())
 }
-pub(super) fn remove_tree(path: &Path) {
-    let _ = fs::remove_dir_all(path);
+pub(super) fn remove_tree(path: &Path) -> Result<(), String> {
+    fs::remove_dir_all(path).map_err(io)
 }
 pub(super) fn valid_key_id(value: &str) -> bool {
     !value.is_empty()

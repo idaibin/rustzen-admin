@@ -3,7 +3,7 @@ import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createCanonicalArchive } from "../distribution/canonical-archive.ts";
 import { releaseEnvelopePayload, signReleaseEnvelope } from "../distribution/release-envelope.ts";
-import { canonicalJson } from "../distribution/release-manifest-core.ts";
+import { canonicalJson, sha256 } from "../distribution/release-manifest-core.ts";
 import { agentManifestFixture, serverManifestFixture } from "../distribution/release-manifest-fixtures.ts";
 import { publishSelectedRelease } from "../distribution/release-publisher.ts";
 
@@ -14,6 +14,7 @@ const target = process.env.RUSTZEN_INSTALLER_TARGET ?? "x86_64-unknown-linux-mus
 const mutation = process.env.RUSTZEN_INSTALLER_MUTATION;
 const manifestMutation = process.env.RUSTZEN_INSTALLER_MANIFEST_MUTATION;
 const envelopeMutation = process.env.RUSTZEN_INSTALLER_ENVELOPE_MUTATION;
+const schemaMutation = process.env.RUSTZEN_INSTALLER_SCHEMA_MUTATION;
 const artifact = process.env.RUSTZEN_INSTALLER_ARTIFACT ?? "server";
 const agentBinary = process.env.RUSTZEN_INSTALLER_AGENT_BINARY;
 await rm(output, { recursive: true, force: true });
@@ -37,9 +38,17 @@ try {
     if (mutation) archive = mutate(archive, mutation);
     const originalManifest = new TextEncoder().encode(canonicalJson(fixture.manifest));
     const manifest = structuredClone(fixture.manifest) as any;
+    if (schemaMutation) {
+        const schemaPath = join(fixture.staging.root, "contracts", "schema", "schema.json");
+        const originalSchema = new Uint8Array(await Bun.file(schemaPath).arrayBuffer());
+        const changedSchema = mutateSchema(originalSchema, schemaMutation);
+        archive = replace(archive, originalSchema, changedSchema);
+        manifest.files.find((entry: any) => entry.path === "contracts/schema/schema.json").sha256 =
+            sha256(changedSchema);
+    }
     if (manifestMutation) mutateManifest(manifest, manifestMutation);
     const manifestBytes = new TextEncoder().encode(canonicalJson(manifest));
-    if (manifestMutation) archive = replace(archive, originalManifest, manifestBytes);
+    if (manifestMutation || schemaMutation) archive = replace(archive, originalManifest, manifestBytes);
     const payload = releaseEnvelopePayload(manifest, keyId, archive, manifestBytes);
     if (envelopeMutation) mutateEnvelope(payload as any, envelopeMutation);
     const envelope = signReleaseEnvelope(payload, privateKey);
@@ -86,6 +95,18 @@ function mutateManifest(manifest: any, kind: string) {
     else if (kind === "selection-digest") manifest.selectionDigest.sha256 = h;
     else if (kind === "agent-capability") manifest.capabilities[0] = "monitor-bgent";
     else throw new Error(`unknown installer manifest mutation: ${kind}`);
+}
+function mutateSchema(bytes: Uint8Array, kind: string): Uint8Array {
+    const text = new TextDecoder().decode(bytes);
+    const replacement = kind === "artifact-class"
+        ? text.replace('"compositionId"', '"artifactClass"')
+        : kind === "unknown-top-level"
+        ? text.replace('"compositionId"', '"unexpected___"')
+        : kind === "unknown-owner-field"
+        ? text.replace('"schemaSha256"', '"unexpected__"')
+        : "";
+    if (!replacement || replacement === text) throw new Error(`unknown installer schema mutation: ${kind}`);
+    return new TextEncoder().encode(replacement);
 }
 function replace(value: Uint8Array, from: Uint8Array, to: Uint8Array): Uint8Array {
     if (from.length !== to.length) throw new Error("manifest mutation must preserve archive member size");

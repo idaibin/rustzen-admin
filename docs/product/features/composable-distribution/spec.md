@@ -9,6 +9,15 @@ selected release triplet plus an independently supplied trusted public key and
 key ID, verifies it before writing a destination, and publishes only a verified
 Monitor server or Agent payload. It does not start systemd units, initialize a
 database, upgrade an existing root, roll back, or restore data in this closure.
+If payload publication is interrupted, a root-owned fresh-root sibling journal with
+a random work-root nonce permits only a retry of the same revalidated archive,
+signature envelope and manifest tuple for that destination. Before payload writes,
+the installer creates and fsyncs a root-owned descriptor-relative work-root marker
+with that nonce. Retry deletes a work root only after its marker matches the journal.
+The final publication marker persists the complete tuple and nonce as a completion
+credential, so retries after either cleanup boundary converge only for that tuple.
+A different tuple, unsafe journal or replaced work root fails closed. Continuation
+does not make the payload runnable.
 Decision date: 2026-09-03.
 
 The user has authorized architecture design for a complete distribution and
@@ -147,7 +156,8 @@ the old installation is preserved and cannot share live database files with
 the new one. The current AGENTS.md requires fresh baselines only: different
 builds use fresh installation data. Historical upgrade and rollback compatibility
 are excluded. Only restarting or recovering an interrupted installation of the
-same exact build may reuse its own matching database. See [implementation](implementation.md)
+same exact release tuple may reuse its own fresh publication state; this does
+not reuse or initialize a database. See [implementation](implementation.md)
 for the current execution plan and the correction to the reviewed alternative.
 
 Quantitative reliability and load requirements are test targets, not measured

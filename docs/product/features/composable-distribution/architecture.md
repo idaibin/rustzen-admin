@@ -594,13 +594,19 @@ installation root and new data; old roots are preserved and never read or conver
 No historical executable/data rollback or compatibility allowlist is generated.
 
 The nonresident rz installation executor owns apply/status/recover independently
-of Admin deploy tables. Recovery resumes only the same exact signed build's
-interrupted fresh installation, or leaves it stopped with diagnostics. Its root-owned
-journal records verified input, selected files/units, publication, manager reload,
-writer admission and readiness. Persist intent before each side effect, recheck
-actual state, use one exclusive lock and never overwrite an unrelated destination.
-If the journal/build identity differs, fail closed without database mutation.
-No existing product database is restored or deleted.
+of Admin deploy tables. The current recovery slice resumes only interrupted
+fresh payload publication for the same exact revalidated archive, envelope and
+manifest tuple, or leaves it stopped with diagnostics. Its root-owned sibling
+journal records the verified tuple, publication phase and a random work-root nonce.
+Before payload writes it creates and fsyncs a root-owned descriptor-relative marker
+with that nonce; only a matching journal and marker authorize cleanup of that work
+root. The permanent publication marker records that same complete tuple and nonce,
+so either cleanup boundary can converge after a crash without accepting another
+tuple. Persist intent before each side effect, recheck actual state, use one
+exclusive lock and never overwrite an unrelated destination. A later closure may add manager reload, writer admission
+and readiness phases; they are not inferred from this journal. If the journal or
+tuple differs, fail closed without database mutation. No existing product database
+is restored or deleted.
 
 Native artifact staging is builder-created, current-user-private and quiescent. Its
 same-descriptor `O_NOFOLLOW` and identity checks detect ordinary replacement and links,
@@ -608,10 +614,10 @@ but do not claim portable `openat`-grade protection against a hostile same-UID w
 Untrusted archive extraction safety remains an installer closure.
 
 The first implemented executor slice covers detached-triplet verification,
-strict archive admission, dry-run, fresh-root publication and read-only status.
-It deliberately stops before service-manager reload/start, database initialization
-and interrupted-install continuation; those boundaries stay pending rather than
-being inferred from a published filesystem layout.
+strict archive admission, dry-run, fresh-root publication, read-only status and
+same-tuple fresh-root payload continuation. It deliberately stops before
+service-manager reload/start and database initialization; those boundaries stay
+pending rather than being inferred from a published filesystem layout.
 
 Keep the reviewed trust boundaries: private root staging, same-file-object signature
 verification/extraction, descriptor-relative no-link writes, exact content digests,

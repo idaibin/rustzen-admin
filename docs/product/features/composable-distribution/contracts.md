@@ -100,10 +100,22 @@ No omitted field is inferred as an empty server contract. Cross-class packages
 and extra owner fields are rejected before install writes.
 
 For Monitor P4, recovery is only a root-owned fresh-install journal: it may resume
-the same archive, signature envelope and manifest tuple in the same fresh root after
-revalidating every input. It creates no `rz-recovery.service`, does not reuse the
-full DeployService, and never rolls back or restores a database. `rz.target` contains
-only Admin and Monitor. An online-update recover executor is a later closure. Agent-to-controller
+interrupted payload publication for the same archive, signature envelope and
+manifest tuple in the same fresh root after revalidating every input. The journal
+contains a random work-root nonce and is a root-owned descriptor-relative sibling
+of the destination, so a successful rename never carries it into the final root.
+Before any payload write, the installer fsyncs a root-owned descriptor-relative
+work-root marker containing the same nonce; it deletes a prior work root only when
+both nonce values match. The durable final publication marker contains the complete
+journal tuple and nonce as its completion credential. A same-tuple retry can finish
+cleanup after either marker or sibling-journal removal; a completed final root with
+no sibling journal is idempotently accepted only for that exact tuple after the
+manifest-derived payload file set, digests and modes, retained manifest/envelope/key
+and exact `current` link also verify. An occupied
+destination, changed tuple, unsafe journal or replaced work root fails without mutation. It creates no
+`rz-recovery.service`, does not reuse the full DeployService, and never starts a
+unit, initializes, rolls back or restores a database. `rz.target` contains only
+Admin and Monitor. An online-update recover executor is a later closure. Agent-to-controller
 wire compatibility is also checked against the advertised protocol version;
 shared schema identity does not establish network compatibility.
 

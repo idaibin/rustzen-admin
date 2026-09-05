@@ -306,7 +306,7 @@ pub(super) fn validate_payload_contracts(
     }
     if manifest.artifact_class == "server" {
         let schema = object(files, "contracts/schema/schema.json")?;
-        contract_identity(&schema, manifest)?;
+        schema_identity(&schema, manifest)?;
         let owners =
             schema.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
         let schemas = owners
@@ -359,11 +359,51 @@ fn contract_identity(
     manifest: &Manifest,
 ) -> Result<(), String> {
     if value.get("artifactClass").and_then(Value::as_str) != Some(manifest.artifact_class.as_str())
-        || value.get("preset").and_then(Value::as_str) != Some(manifest.preset.as_str())
+    {
+        return Err("contract identity differs from manifest".into());
+    }
+    contract_selection_identity(value, manifest)
+}
+
+fn contract_selection_identity(
+    value: &serde_json::Map<String, Value>,
+    manifest: &Manifest,
+) -> Result<(), String> {
+    if value.get("preset").and_then(Value::as_str) != Some(manifest.preset.as_str())
         || value.get("compositionId").and_then(Value::as_str)
             != Some(manifest.composition_id.as_str())
     {
-        return Err("contract identity differs from manifest".into());
+        Err("contract identity differs from manifest".into())
+    } else {
+        Ok(())
+    }
+}
+
+fn schema_identity(
+    value: &serde_json::Map<String, Value>,
+    manifest: &Manifest,
+) -> Result<(), String> {
+    if value.keys().map(String::as_str).collect::<BTreeSet<_>>()
+        != BTreeSet::from(["compositionId", "owners", "preset"])
+    {
+        return Err("schema contract fields are invalid".into());
+    }
+    contract_selection_identity(value, manifest)?;
+    let owners = value.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
+    if owners.keys().map(String::as_str).collect::<BTreeSet<_>>()
+        != BTreeSet::from(["admin", "monitor"])
+    {
+        return Err("schema owners invalid".into());
+    }
+    for owner in owners.values() {
+        let owner = owner.as_object().ok_or("schema owner invalid")?;
+        if owner.keys().map(String::as_str).collect::<BTreeSet<_>>()
+            != BTreeSet::from(["dataContractId", "schemaSha256"])
+            || !owner.get("dataContractId").and_then(Value::as_str).is_some_and(hash_id)
+            || !owner.get("schemaSha256").and_then(Value::as_str).is_some_and(hash_id)
+        {
+            return Err("schema owner invalid".into());
+        }
     }
     Ok(())
 }
