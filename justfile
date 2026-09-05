@@ -140,6 +140,9 @@ verify-admin-browser-linux:
     scripts/test-ensure-admin-browser-verifier-image.sh
     scripts/verify-admin-browser-linux.sh
 
+verify-analytics-tracker-linux:
+    scripts/verify-analytics-tracker-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"

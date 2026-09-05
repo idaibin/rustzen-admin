@@ -147,6 +147,18 @@ failures or `invalid_field` for type/range failures, and does not trigger a requ
 413 response is a single `validation_rejected` outcome
 with no retry; 429 and 507 remain the only retryable responses.
 
+The disposable Linux Chromium host gate loads the public tracker asset from the
+real Admin route while serving a minimal fixture host. Before opt-in it proves
+that fetch/XHR hooks, tracking requests, and local IDs are absent. After opt-in
+it proves a pathname event persists through Admin to Insights; after opt-out it
+proves hooks are restored, IDs are cleared, and no new event is stored. The
+same run checks real HTTP 413 and 429 rejection deltas through the public route.
+Real Linux 507 injection is unsafe without changing storage state, so it is
+reported as not verified there; the controlled Rust route seam remains the
+authority for 507 row-preserving behavior. Evidence is published only after
+source digest, Chromium/platform, status, and line-count metadata are bound in
+`target/rz/analytics-tracker/current/manifest.json`.
+
 ## Scope and non-goals
 
 In scope:

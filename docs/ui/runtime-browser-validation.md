@@ -74,3 +74,21 @@ overflow. Archive bytes and SHA-256 remain validated by the service/client gate,
 not by a browser download surrogate. It does not establish systemd PID 1
 behavior, an upgrade, a production identity provider, a remote host, another
 browser engine, or full visual acceptance of every route and state.
+
+## Analytics public tracker host gate
+
+Run `just verify-analytics-tracker-linux` after `just build-admin-browser-linux`
+to exercise a separate minimal host fixture through the real Admin gateway and
+Insights service. The fixture loads `/api/insights/tracker.js` before consent,
+then exposes explicit opt-in and opt-out controls. Reports drives Chromium on
+the fixture origin; shell-side HTTP queries bind the browser run to persisted
+row deltas. The gate records no token values and publishes one source-bound
+manifest at `target/rz/analytics-tracker/current/manifest.json` with Git/source
+digests, platform, Chromium version, case statuses, and line counts.
+
+The matrix requires no fetch/XHR patch, request, or IDs before opt-in; a
+pathname event persisted after opt-in; restored hooks, cleared IDs, and no new
+rows after opt-out; and real public-route 413/429 responses with zero row delta.
+Safe runtime 507 injection is unavailable in this fixture, so the manifest
+marks Linux 507 as `not-verified` and references the controlled Rust route seam
+for the row-preservation proof.

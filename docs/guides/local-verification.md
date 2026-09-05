@@ -16,8 +16,9 @@ Verification used new task-owned databases; existing application data was not re
   recovery, node/global policy inheritance and reset, incident paging/details,
   invalid requests, and 30-day query limits. A native macOS Agent report traversed
   Admin and persisted in Monitor.
-- Analytics: 22 Rust tests passed, including collection/query/delegation,
-  admission bounds, origin policy and JSON error-envelope behavior. The browser
+- Analytics: 26 Rust tests passed for collection/query/delegation,
+  admission-bound, origin-policy and JSON error-envelope behavior; 12 tracker
+  contract tests and 6 independent Linux host-gate contract tests also passed. The browser
   overview/details pass confirmed that the policy-status display is absent.
 - Reports: historical local evidence recorded 26 tests for daily/weekly create,
   disable, next occurrence, permissions, and removal. The current pinned Linux
@@ -42,6 +43,14 @@ Verification used new task-owned databases; existing application data was not re
 Use root `justfile`: `just check`, `just contract-verify`,
 `just verify-modules-mvp`, `just verify-reports-linux`, and
 `just verify-automation-browser <installed-browser-executable>`.
+For the public tracker host matrix, build the pinned Linux artifacts with
+`just build-admin-browser-linux`, then run
+`just verify-analytics-tracker-linux`. The 2026-09-05 arm64 Colima run passed
+pre-opt-in (0 to 0 rows), opt-in (0 to 2 rows), opt-out (2 to 2 rows), and real
+413/429 public-route responses with zero row delta. Its source-bound manifest is
+`target/rz/analytics-tracker/current/manifest.json`; Linux 507 is explicitly
+`not-verified` because the gate does not exhaust storage, while the controlled
+Rust route seam remains the 507 row-preservation evidence.
 The September 3 multi-service run directly invoked the same verification script
 after `cargo build --workspace`, with `RUSTZEN_VERIFY_BUILD_PROFILE=debug`.
 Focused Web build/type checks, the full current Web Bun suite (60 tests),

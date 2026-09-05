@@ -139,7 +139,7 @@ does not render their counters or limits.
 | AC-UI-002 | `source-extracted`: existing `DataState` semantics | Activity queries retain loading, error, filtered-empty, and successful-empty states; complete forced runtime matrix remains `Not verified` | Loading, empty, error, permission, and partial remain distinct; no failed-to-empty conversion | P1 | query state owner; forced response/browser matrix |
 | AC-UI-003 | `source-extracted`: current event detail table | Source plus local Insights HTTP fixture verified: a legal pathname is queryable; query/fragment-bearing paths and non-pathname referrers reject before storage; the detail target uses only fixed safe event fields. Browser visual rendering remains `Not verified`. | Display pathname/event fields without query strings, page text, or arbitrary properties | P1 | Insights router HTTP fixture and route-local field behavior test; browser visual/data fixture check remains open |
 | AC-UI-004 | User requirement: upper-right automatic filters | Source-resolved type/path controls | Shared responsive placement; no submit/reset button; other reports clear path | P1 | Filter, focus, empty-state and pagination checks |
-| AC-UI-005 | `source-extracted`: public tracker is outside Admin UI | `Not verified`: host enable/opt-out and rejection statuses not yet exercised | No tracker initialization/request patch/request/IDs before enable; opt-out removes IDs; 413/429/507 persist zero events | P1 | host integration + Insights contract; browser/network and HTTP safety matrix |
+| AC-UI-005 | `source-extracted`: public tracker is outside Admin UI | Linux Chromium host gate covers pre-opt-in, opt-in, opt-out, and real 413/429 through Admin -> Insights; Linux 507 is explicitly `Not verified` when safe capacity injection is unavailable | No tracker initialization/request patch/request/IDs before enable; pathname event persists after opt-in; opt-out restores hooks and clears IDs; 413/429 persist zero rows; Rust route seam covers 507 row preservation | P1 | independent `verify-analytics-tracker-linux.sh`, minimal host fixture, Insights route/query evidence |
 
 Runtime observations are recorded in [local verification](../../guides/local-verification.md).
 They do not certify production host-tracker opt-in, the complete state matrix or
@@ -155,7 +155,10 @@ all locale/viewport combinations.
 | Required | 390x844 @ 100% | dark / en-US | Details loading/empty | Table/filter content remains reachable; focus is visible. |
 | Required | Browser network | light / zh-CN | Public tracker before/after opt-in | No initialization, request patch, or request before opt-in; rejected payloads contain no stored query/text fields. |
 
-The last row is runtime/network evidence, not a visual screenshot claim. Two
+The last row is runtime/network evidence, not a visual screenshot claim. The
+independent Linux host gate writes source-bound evidence to
+`target/rz/analytics-tracker/current/manifest.json`; its 507 status remains
+explicitly `Not verified` unless a safe runtime capacity fixture exists. Two
 same-viewport UI comparison passes and the tracker request audit are required
 after implementation.
 
