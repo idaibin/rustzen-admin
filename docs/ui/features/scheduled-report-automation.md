@@ -20,8 +20,9 @@ change does not expand browser execution or rename existing child pages.
 - Target: schedule list/form integrated with existing Templates/Runs surfaces
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. The route-local schedule panel and API client are implemented;
-rendered runtime captures remain **Not verified**.
+zh-CN/en-US. The route-local schedule panel and API client are implemented;
+SR-UI-002 has its two named rendered runtime captures, while the remaining
+state matrix remains **Not verified**.
 
 The Linux runtime browser gate additionally exercises rendered schedule create
 and edit through a container-only route-exact proxy. Both a disconnected request
@@ -189,7 +190,7 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Verified in Linux Chromium at 1440x900 and 390x844 | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; target-backed browser gate |
-| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
+| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Verified by the dedicated Colima Linux/arm64 Chromium gate: manager 1440x900 dark/en-US and schedule-view-only 390x844 light/zh-CN | Daily/weekly fields, local validation, secret rejection, timezone copy, and focus restoration | P1 | dedicated `verify-schedule-form-linux` gate; atomic `current` manifest and route-local form/browser matrix |
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Verified target-backed `enqueued` rendering; controlled isolated SQLite fixture covers `missed` | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows distinct due/reason fields; a null `dueAt` falls back to `dueLocal` plus installation timezone; enqueued alone links a run | P1 | real scheduler poll plus isolated fixture; forced response matrix remains outside browser scope |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Verified target-backed rendered schedule-to-run link | Each `enqueued` occurrence links to existing run evidence; `skipped` has distinct due/reason fields, with `dueLocal` plus installation timezone when `dueAt` is null, and no run link; no cloned viewer | P1 | Templates link opens exact Runs audit; isolated fixture proves no-link state |
 | SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate |
@@ -208,11 +209,17 @@ above are verified by their named browser or service gates.
 | Required | 1440x900 @ 100%  | dark / en-US  | Managed Runs retry               | List retry selects the exact direct-child audit; key copy and no horizontal overflow verified.                                                                           |
 | Required | 390x844 @ 100%   | light / zh-CN | Runs-view-only list              | Retry is hidden, no unauthorized flow lookup or permission-error toast is rendered, and the backend rejects the same user; key copy and no horizontal overflow verified. |
 | Required | 390x844 @ 100% | dark / en-US | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable. |
+| Required | 1440x900 @ 100% | dark / en-US | SR-UI-002 manager form | Timezone copy, daily create, weekly edit/weekday, local no-request failures, secret-policy rejection, cadence row, exact focus restoration, and no horizontal overflow. |
+| Required | 390x844 @ 100% | light / zh-CN | SR-UI-002 schedule-view-only | Panel/timezone copy visible; create and form unavailable; no horizontal overflow. |
 
 Static checks cover route/API owner, capability visibility, and prohibited
-credential/cron fields. The Linux Chromium gate verifies the four schedule and
-Runs evidence viewports above; form validation, partial outcomes, and native
-systemd/seccomp remain outside this visual acceptance.
+credential/cron fields. The dedicated SR-UI-002 Linux Chromium gate passed with
+an atomic `current` manifest for `linux/arm64`: it records API count deltas and
+proxy mutation receipts, distinguishes local no-request validation from the
+intentional server-side secret rejection, and directly asserts the active
+trigger after cancel/save. It captures the manager 1440x900 dark/en-US and
+schedule-view-only 390x844 light/zh-CN surfaces without horizontal overflow.
+Native systemd/seccomp remain outside this visual acceptance.
 
 ## Shared-system changes and readiness
 

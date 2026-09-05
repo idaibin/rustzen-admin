@@ -252,6 +252,35 @@ tables, forms, dialogs, and run evidence.
 | Processing | Save, enable/disable, delete, or manual due-check is running. | Disable duplicate actions and retain the selected schedule. |
 | Partial | A list contains mixed occurrence outcomes. | Keep each outcome and reason; never summarize as all successful. |
 
+### SR-UI-002 rendered form acceptance
+
+The dedicated SR-UI-002 Linux Chromium gate uses a fresh Admin/Reports data
+root and the real Templates route. It is separate from the wider Admin browser
+gate so its form assertions and evidence can evolve without enlarging that
+general-purpose verifier.
+
+The gate has passed on Colima Linux/arm64. Its atomic `current` manifest records
+`status: passed`, canonical platform `linux/arm64`, and the manager 1440x900
+dark/en-US plus schedule-view-only 390x844 light/zh-CN screenshots.
+
+- A schedule manager at 1440x900, dark/en-US sees the installation timezone and
+  creates a daily schedule, then changes it to weekly with a weekday. The
+  persisted row must show the matching cadence, local due time, and installation
+  timezone.
+- Local incomplete or malformed-object input failures do not issue a schedule
+  mutation and do not change the schedule count. The gate records the proxy
+  mutation count and the before/after API row count. A secret-looking input is
+  intentionally a server policy rejection: it reaches the Reports API, creates
+  no row, retains the dialog draft, and is recorded separately from the local
+  no-request cases.
+- Cancelling a create dialog restores focus to its `schedule-create` trigger;
+  a successful edit restores focus to that schedule's `schedule-edit` trigger.
+  These are direct browser active-element assertions, not an inference from a
+  subsequent click.
+- A schedule-view-only user at 390x844, light/zh-CN sees the schedule panel and
+  timezone copy but no management trigger or form. Its capture asserts no
+  horizontal overflow.
+
 For a create or update save failure, the form shows the returned error when
 available, otherwise localized save-failure guidance. This is distinct from
 request-layer feedback: the schedule mutation suppresses its global error toast
@@ -327,7 +356,7 @@ policy removes them.
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
 | HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
-| Browser            | Reports browser verifier plus schedule permission seam                                                                                                                    | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, schedule-view-only action hiding, and a real next-minute scheduler `enqueued` occurrence linked to its exact Runs audit. A separate controlled SQLite fixture renders `missed` with distinct due and reason fields and no run link. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Other visual matrices remain **Not verified**. |
+| Browser            | Reports browser verifier, SR-UI-002 form gate, and schedule permission seam | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, schedule-view-only action hiding, and a real next-minute scheduler `enqueued` occurrence linked to its exact Runs audit. SR-UI-002 additionally verifies manager local no-request failures, secret-policy rejection without persistence, timezone/cadence display, cancel/save focus restoration, and the manager 1440x900 dark/en-US plus view-only 390x844 light/zh-CN screenshots without horizontal overflow. A separate controlled SQLite fixture renders `missed` with distinct due and reason fields and no run link. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Other visual matrices remain **Not verified**. |
 | Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions

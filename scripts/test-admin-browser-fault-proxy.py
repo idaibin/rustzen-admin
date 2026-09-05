@@ -95,13 +95,34 @@ def main():
         finally:
             proxy.send_signal(signal.SIGTERM)
             proxy.wait(timeout=5)
-            upstream.shutdown()
-            upstream.server_close()
         data = json.loads(receipt.read_text(encoding="utf-8"))
         if data["hitCount"] != 2:
             raise AssertionError(f"expected two exact fault hits, received {data}")
         if Upstream.mutation_count != 0:
             raise AssertionError("a matching mutation reached the upstream server")
+        receipt_count = Path(temporary) / "count-receipt.json"
+        environment["RUSTZEN_VERIFY_FAULT_MODE"] = "count"
+        environment["RUSTZEN_VERIFY_FAULT_RECEIPT"] = str(receipt_count)
+        proxy = subprocess.Popen(
+            ["python3", str(root / "admin-browser-fault-proxy.py")], env=environment
+        )
+        try:
+            for _ in range(100):
+                if healthy(proxy_port):
+                    break
+                time.sleep(0.02)
+            else:
+                raise AssertionError("count proxy did not become ready")
+            if request(proxy_port) != 204:
+                raise AssertionError("count mode did not forward the matching mutation")
+        finally:
+            proxy.send_signal(signal.SIGTERM)
+            proxy.wait(timeout=5)
+        count_data = json.loads(receipt_count.read_text(encoding="utf-8"))
+        if count_data["hitCount"] != 1 or Upstream.mutation_count != 1:
+            raise AssertionError(f"count mode did not record one forwarded mutation: {count_data}")
+        upstream.shutdown()
+        upstream.server_close()
     print("Admin browser fault proxy replay guard passed")
 
 

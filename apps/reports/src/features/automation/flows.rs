@@ -142,6 +142,7 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                 }
             }
             FlowStep::AssertNoHorizontalOverflow => {}
+            FlowStep::AssertFocus { selector } => validate_selector(selector)?,
             FlowStep::GuardExists { selector, on_missing } => {
                 validate_selector(selector)?;
                 if let Some(strategy) = on_missing {
@@ -224,6 +225,7 @@ mod tests {
             FlowStep::Fill { selector: "#kw".into(), value: "test".into() },
             FlowStep::AssertValue { selector: "#kw".into(), value: "test".into() },
             FlowStep::AssertAbsent { selector: "#missing".into() },
+            FlowStep::AssertFocus { selector: "#schedule-create".into() },
             FlowStep::PressKey { key: "Enter".into() },
             FlowStep::Pause { duration_ms: 500 },
             FlowStep::Screenshot { name: Some("result".into()) },
@@ -233,12 +235,20 @@ mod tests {
             FlowStep::AssertNoHorizontalOverflow,
         ];
         assert!(validate_flow(&system, &steps).is_ok());
+        assert_eq!(steps[6].action(), "assertFocus");
+        for selector in ["[data-testid=schedule-panel]", "//button", "xpath=//button"] {
+            assert!(
+                validate_flow(&system, &[FlowStep::AssertFocus { selector: selector.into() }])
+                    .is_ok()
+            );
+        }
 
         let invalid_guard = vec![FlowStep::GuardExists {
             selector: "#test".into(),
             on_missing: Some("invalid_strategy".into()),
         }];
         assert!(validate_flow(&system, &invalid_guard).is_err());
+        assert!(validate_flow(&system, &[FlowStep::AssertFocus { selector: "".into() }]).is_err());
 
         assert!(
             validate_flow(&system, &[FlowStep::SetViewport { width: 400, height: 800 }],).is_err()

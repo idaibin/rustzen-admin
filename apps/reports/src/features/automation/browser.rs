@@ -266,6 +266,17 @@ async fn execute_step(
             assert_no_horizontal_overflow(metrics.value())?;
             Ok(StepOutcome::Continue)
         }
+        FlowStep::AssertFocus { selector } => {
+            let element = locate_element(context.page, selector).await?;
+            let focused = element
+                .call_js_fn("function() { return document.activeElement === this; }", false)
+                .await
+                .map_err(AppError::internal)?;
+            if focused.result.value.as_ref().and_then(Value::as_bool) != Some(true) {
+                return Err(AppError::Conflict("assertFocus did not match".into()));
+            }
+            Ok(StepOutcome::Continue)
+        }
         FlowStep::GuardExists { selector, on_missing } => {
             let exists = locate_element(context.page, selector).await.is_ok();
             if exists {

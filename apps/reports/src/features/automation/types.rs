@@ -67,6 +67,9 @@ pub enum FlowStep {
         locale: String,
     },
     AssertNoHorizontalOverflow,
+    AssertFocus {
+        selector: String,
+    },
     #[serde(rename_all = "camelCase")]
     GuardExists {
         selector: String,
@@ -96,6 +99,7 @@ impl FlowStep {
             Self::SetViewport { .. } => "setViewport",
             Self::SetUiPreferences { .. } => "setUiPreferences",
             Self::AssertNoHorizontalOverflow => "assertNoHorizontalOverflow",
+            Self::AssertFocus { .. } => "assertFocus",
             Self::GuardExists { .. } => "guardExists",
             Self::PressKey { .. } => "pressKey",
             Self::Pause { .. } => "pause",

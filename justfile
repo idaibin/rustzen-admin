@@ -146,6 +146,10 @@ verify-analytics-tracker-linux:
 verify-monitor-agent-multi-node-linux:
     scripts/verify-monitor-agent-multi-node-linux.sh
 
+verify-schedule-form-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
+    scripts/verify-schedule-form-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"

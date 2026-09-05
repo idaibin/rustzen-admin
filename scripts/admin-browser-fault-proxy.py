@@ -54,13 +54,14 @@ class Proxy(BaseHTTPRequestHandler):
                 )
                 self.close_connection = True
                 return
-            body = b'{"code":500,"message":"browser fault injection"}'
-            self.send_response(500)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-            return
+            if MODE == "http":
+                body = b'{"code":500,"message":"browser fault injection"}'
+                self.send_response(500)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
         length = int(self.headers.get("content-length", "0"))
         body = self.rfile.read(length) if length else None
         headers = {key: value for key, value in self.headers.items() if key.lower() not in {"host", "connection"}}
