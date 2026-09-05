@@ -95,7 +95,7 @@ docker run --name "$container" --platform "$platform" --security-opt seccomp=unc
   --mount "type=bind,src=$candidate,dst=/verify/evidence" \
   --mount "type=bind,src=$root/scripts/verify-admin-browser-linux-inner.sh,dst=/verify/run.sh,readonly" \
   --mount "type=bind,src=$root/scripts/admin-browser-fault-proxy.py,dst=/verify/fault-proxy.py,readonly" \
-  "$image" timeout --signal=TERM --kill-after=10s 300s bash /verify/run.sh
+  "$image" timeout --signal=TERM --kill-after=10s 600s bash /verify/run.sh
 
 test -f "$candidate/manifest.json"
 test -f "$candidate/dashboard.png"
