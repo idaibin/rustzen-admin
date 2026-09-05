@@ -39,7 +39,7 @@ describe("reports runs route composition", () => {
         expect(dialog).toContain('queryKey: ["reports", "runs"]');
         expect(details).toContain("reportsAPI.runSteps(run!.id)");
         expect(details).toContain("reportsAPI.runArtifacts(run!.id)");
-        expect(details).toContain("<RetryRunButton run={currentRun} onRetried={onRetried} />");
+        expect(details).toContain("<RetryRunButton run={currentRun} onRetried={onRetried} surface=\"audit\" />");
         expect(retry).toContain("reportsAPI.retryRun");
         expect(retry).toContain('code="reports:run:manage"');
         expect(retry).toContain("isRetryableRunStatus(run.status)");

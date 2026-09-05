@@ -14,7 +14,11 @@ import { t } from "@/lib/i18n";
 
 import { ScheduleDialog } from "./schedule-dialog";
 import { ScheduleToggle } from "./schedule-toggle";
-import { formatScheduleCadence, ScheduleDecisionTag } from "./schedule-utils";
+import {
+    formatScheduleCadence,
+    formatScheduleOccurrenceDue,
+    ScheduleDecisionTag,
+} from "./schedule-utils";
 
 export function SchedulePanel() {
     const client = useQueryClient();
@@ -104,14 +108,32 @@ export function SchedulePanel() {
                 const occurrence = row.lastOccurrence;
                 if (!occurrence) return "-";
                 return (
-                    <div>
+                    <div data-testid={`schedule-occurrence-${row.id}`}>
                         <ScheduleDecisionTag decision={occurrence.decision} />
-                        <div className="text-xs text-muted-foreground">
+                        {occurrence.decision === "skipped" ? (
+                            <div
+                                className="text-xs text-muted-foreground"
+                                data-testid={`schedule-occurrence-due-${row.id}`}
+                                data-due-at={occurrence.dueAt ?? undefined}
+                                data-due-local={occurrence.dueLocal}
+                            >
+                                {formatScheduleOccurrenceDue(occurrence, row.timezone)}
+                            </div>
+                        ) : null}
+                        <div
+                            className="text-xs text-muted-foreground"
+                            data-testid={
+                                occurrence.decision === "skipped"
+                                    ? `schedule-occurrence-skipped-${row.id}`
+                                    : undefined
+                            }
+                        >
                             {occurrence.reason ||
                                 formatDateTime(occurrence.decidedAt, row.timezone)}
                         </div>
                         {occurrence.runId ? (
                             <Button
+                                data-testid={`schedule-occurrence-run-${row.id}`}
                                 type="link"
                                 className="h-auto p-0 text-xs"
                                 href={`/reports/runs?runId=${encodeURIComponent(occurrence.runId)}`}

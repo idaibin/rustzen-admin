@@ -138,15 +138,18 @@ test -f "$candidate/run-retry-desktop-dark-en.png"
 test -f "$candidate/run-retry-mobile-light-zh.png"
 test -f "$candidate/module-log-desktop-dark-zh.png"
 test -f "$candidate/module-log-mobile-light-en.png"
+test -f "$candidate/schedule-occurrence-run-desktop-dark-en.png"
 jq -e '
   .schemaVersion == 2 and
   (.verifier.imageId == $verifier_image and .verifier.key == $verifier_key and .verifier.provenanceSha256 == $verifier_provenance_sha) and
-  (.successCases | length) == 13 and
+  (.successCases | length) == 15 and
   ([.successCases[] | .name, .runId, .execution] | all(. != null)) and
-  ([.successCases[] | .name] | sort) == ["module-log-owner-desktop", "module-log-owner-mobile", "run-retry-audit", "run-retry-list-child-selected", "run-retry-list-trigger", "run-retry-terminal-hidden", "run-retry-view-only-mobile", "schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
+  ([.successCases[] | .name] | sort) == ["module-log-owner-desktop", "module-log-owner-mobile", "run-retry-audit", "run-retry-list-child-selected", "run-retry-list-trigger", "run-retry-terminal-hidden", "run-retry-view-only-mobile", "schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-occurrence-enqueued-link", "schedule-occurrence-missed-no-link", "schedule-view-only-mobile"] and
   ([.successCases[] | select(.execution != "target-backed")] | length) == 0 and
   ([.successCases[] | select(.name == "schedule-create-daily") | .artifact.file == "schedule-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "schedule-view-only-mobile") | .artifact.file == "schedule-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "schedule-occurrence-enqueued-link") | .scheduleId != null and .scheduledRunId != null and .artifact.file == "schedule-occurrence-run-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "schedule-occurrence-missed-no-link") | .scheduleId != null and .fixture == "controlled-sqlite-missed-occurrence" and (.artifact == null)] | all) and
   ([.successCases[] | select(.name == "run-retry-list-child-selected") | .artifact.file == "run-retry-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "run-retry-view-only-mobile") | .artifact.file == "run-retry-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "module-log-owner-desktop") | .artifact.file == "module-log-desktop-dark-zh.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and

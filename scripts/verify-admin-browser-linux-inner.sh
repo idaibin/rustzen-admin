@@ -134,6 +134,25 @@ start admin /opt/rz/rz-admin serve
 curl_json() {
   curl --fail --silent --show-error --connect-timeout 3 --max-time 15 "$@"
 }
+curl_json_with_timeout() {
+  max_time=$1
+  shift
+  curl --fail --silent --show-error --connect-timeout 3 --max-time "$max_time" "$@"
+}
+# Round a wall-clock instant to the next schedule minute while retaining at
+# least 15 seconds for API creation before that minute becomes due.
+next_schedule_due_epoch() {
+  now_epoch=$1
+  printf '%s\n' "$(( ((now_epoch + 75) / 60) * 60 ))"
+}
+for boundary_epoch in 0 44 45 59; do
+  boundary_due_epoch=$(next_schedule_due_epoch "$boundary_epoch")
+  boundary_margin=$((boundary_due_epoch - boundary_epoch))
+  [ "$boundary_margin" -ge 15 ] && [ "$boundary_margin" -le 75 ] || {
+    echo "next schedule admission margin is outside 15..75 seconds" >&2
+    exit 1
+  }
+done
 case_diagnostics() {
   diagnostic_run_id=$1
   echo "== browser case diagnostics: $diagnostic_run_id ==" >&2
@@ -334,6 +353,110 @@ if curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq -e --arg id "$sche
   echo "deleted lifecycle schedule still appears in the Reports API" >&2
   exit 1
 fi
+
+# This target-backed occurrence uses the actual 15-second Reports scheduler.
+# Rounding now+75 seconds down to a minute always leaves 16..75 seconds for API
+# admission before the due minute, then a wall-clock deadline bounds polling.
+scheduled_admission_epoch=$(date -u +%s)
+scheduled_due_epoch=$(next_schedule_due_epoch "$scheduled_admission_epoch")
+scheduled_due_time=$(date -u -d "@$scheduled_due_epoch" +%H:%M)
+scheduled_occurrence=$(curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --arg flow "$browser_success_seed_flow_id" --arg due "$scheduled_due_time" '{flowId:$flow,cadence:"daily",dueTime:$due,input:{},description:"browser scheduler occurrence",enabled:true}')" \
+  "$admin/api/reports/schedules")
+scheduled_occurrence_id=$(jq -er '.data.id' <<<"$scheduled_occurrence")
+scheduled_deadline_epoch=$(( $(date -u +%s) + 90 ))
+scheduled_run_id=
+while :; do
+  scheduled_now_epoch=$(date -u +%s)
+  scheduled_remaining_seconds=$((scheduled_deadline_epoch - scheduled_now_epoch))
+  [ "$scheduled_remaining_seconds" -gt 0 ] || break
+  scheduled_curl_timeout=$scheduled_remaining_seconds
+  [ "$scheduled_curl_timeout" -le 15 ] || scheduled_curl_timeout=15
+  scheduled_occurrence=$(curl_json_with_timeout "$scheduled_curl_timeout" "${auth[@]}" "$admin/api/reports/schedules/$scheduled_occurrence_id")
+  scheduled_run_id=$(jq -r '.data.lastOccurrence | select(.decision == "enqueued") | .runId // empty' <<<"$scheduled_occurrence")
+  [ -n "$scheduled_run_id" ] && break
+  sleep .25
+done
+[ -n "$scheduled_run_id" ] || { echo "scheduler did not enqueue the next-minute occurrence before the 90-second wall-clock deadline" >&2; exit 1; }
+scheduled_run=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$scheduled_run_id")
+jq -e --arg schedule "$scheduled_occurrence_id" --arg flow "$browser_success_seed_flow_id" --arg run "$scheduled_run_id" '
+  .data.id == $schedule and
+  .data.flowId == $flow and
+  .data.lastOccurrence.decision == "enqueued" and
+  .data.lastOccurrence.runId == $run
+' <<<"$scheduled_occurrence" >/dev/null
+jq -e --arg flow "$browser_success_seed_flow_id" '
+  .data.flowId == $flow and (.data.status | IN("queued", "running", "succeeded"))
+' <<<"$scheduled_run" >/dev/null
+
+schedule_occurrence_steps=$(jq -nc --argjson login "$target_desktop_login" --arg schedule "$scheduled_occurrence_id" --arg run "$scheduled_run_id" '$login + [
+  {action:"goto",url:"/reports/templates"},
+  {action:"waitFor",selector:"[data-testid=schedule-occurrence-run-\($schedule)]"},
+  {action:"assertText",selector:"[data-testid=schedule-occurrence-\($schedule)]",text:"Enqueued"},
+  {action:"click",selector:"[data-testid=schedule-occurrence-run-\($schedule)]"},
+  {action:"waitFor",selector:"[data-testid=run-audit][data-run-id='\''\($run)'\'']"},
+  {action:"assertText",selector:".ant-modal",text:"Run audit"},
+  {action:"assertNoHorizontalOverflow"},
+  {action:"screenshotViewport",name:"schedule-occurrence-run-desktop-dark-en"}
+]')
+run_target_browser_case schedule-occurrence-enqueued-link "$schedule_occurrence_steps"
+download_target_screenshot schedule-occurrence-enqueued-link schedule-occurrence-run-desktop-dark-en schedule-occurrence-run-desktop-dark-en.png
+jq --arg name schedule-occurrence-enqueued-link --arg schedule "$scheduled_occurrence_id" --arg run "$scheduled_run_id" '
+  map(if .name == $name then . + {scheduleId:$schedule,scheduledRunId:$run} else . end)
+' /verify/evidence/success-cases.json >/verify/evidence/success-cases.json.next
+mv /verify/evidence/success-cases.json.next /verify/evidence/success-cases.json
+
+# Controlled UI fixture only: the API intentionally cannot create a historical
+# occurrence before effectiveAt. Keep this schedule disabled so the real
+# scheduler cannot touch it, then insert one schema-valid missed decision in
+# the disposable verifier database to exercise the no-run-link rendering.
+missed_due_at=$(date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+missed_due_local=$(date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M)
+missed_schedule=$(curl_json "${auth[@]}" -H 'content-type: application/json'   -d "$(jq -nc --arg flow "$browser_success_seed_flow_id" --arg due "$(date -u +%H:%M)" '{flowId:$flow,cadence:"daily",dueTime:$due,input:{},description:"browser missed occurrence fixture",enabled:false}')"   "$admin/api/reports/schedules")
+missed_schedule_id=$(jq -er '.data.id' <<<"$missed_schedule")
+python3 - /opt/rz/data/reports/db/reports.db "$missed_schedule_id" "$missed_due_local" "$missed_due_at" <<'PY2'
+import sqlite3
+import sys
+
+database, schedule_id, due_local, due_at = sys.argv[1:]
+connection = sqlite3.connect(database, timeout=5)
+try:
+    connection.execute("PRAGMA busy_timeout=5000")
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute(
+        """INSERT INTO automation_schedule_occurrences
+           (schedule_id, occurrence_key, due_local, due_at, decided_at, decision, reason, run_id, run_id_snapshot)
+           VALUES (?, ?, ?, ?, ?, 'skipped', 'missed', NULL, NULL)""",
+        (schedule_id, due_local, due_local, due_at, due_at),
+    )
+    connection.commit()
+finally:
+    connection.close()
+PY2
+missed_schedule=$(curl_json "${auth[@]}" "$admin/api/reports/schedules/$missed_schedule_id")
+jq -e '
+  .data.enabled == false and
+  .data.lastOccurrence.decision == "skipped" and
+  .data.lastOccurrence.reason == "missed" and
+  (.data.lastOccurrence.dueAt | type == "string") and
+  .data.lastOccurrence.runId == null
+' <<<"$missed_schedule" >/dev/null
+
+schedule_missed_steps=$(jq -nc --argjson login "$target_desktop_login" --arg schedule "$missed_schedule_id" --arg due_at "$missed_due_at" '$login + [
+  {action:"goto",url:"/reports/templates"},
+  {action:"waitFor",selector:"[data-testid=schedule-occurrence-skipped-\($schedule)]"},
+  {action:"waitFor",selector:"[data-testid=schedule-occurrence-due-\($schedule)][data-due-at='\''\($due_at)'\'']"},
+  {action:"assertText",selector:"[data-testid=schedule-occurrence-\($schedule)]",text:"Skipped"},
+  {action:"assertText",selector:"[data-testid=schedule-occurrence-due-\($schedule)]",text:"202"},
+  {action:"assertText",selector:"[data-testid=schedule-occurrence-skipped-\($schedule)]",text:"missed"},
+  {action:"assertAbsent",selector:"[data-testid=schedule-occurrence-run-\($schedule)]"},
+  {action:"assertNoHorizontalOverflow"}
+]')
+run_target_browser_case schedule-occurrence-missed-no-link "$schedule_missed_steps"
+jq --arg name schedule-occurrence-missed-no-link --arg schedule "$missed_schedule_id" '
+  map(if .name == $name then . + {scheduleId:$schedule,fixture:"controlled-sqlite-missed-occurrence"} else . end)
+' /verify/evidence/success-cases.json >/verify/evidence/success-cases.json.next
+mv /verify/evidence/success-cases.json.next /verify/evidence/success-cases.json
 
 # Module-log diagnostics uses the real owner UI and only the two isolated fixtures above.
 module_log_desktop_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"dark",locale:"zh-CN"},{action:"setViewport",width:1440,height:900}] + $login')

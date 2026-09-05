@@ -1,5 +1,6 @@
 import { Tag } from "antd";
 
+import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
 export function toSaveSchedule(schedule: Reports.Schedule): Reports.SaveSchedule {
@@ -26,6 +27,15 @@ export function formatScheduleCadence(schedule: Reports.Schedule): string {
         t("周日", "Sunday"),
     ];
     return `${t("每周", "Weekly")} ${days[schedule.weekday ?? 0]}`;
+}
+
+export function formatScheduleOccurrenceDue(
+    occurrence: Pick<Reports.ScheduleOccurrence, "dueAt" | "dueLocal">,
+    timezone: string,
+): string {
+    return occurrence.dueAt
+        ? formatDateTime(occurrence.dueAt, timezone)
+        : `${occurrence.dueLocal} · ${timezone}`;
 }
 
 export function ScheduleDecisionTag({ decision }: { decision: Reports.ScheduleDecision }) {

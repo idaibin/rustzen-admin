@@ -37,7 +37,13 @@ template, and run-data owner.
 Repository tests cover scheduler timing, idempotency, stale-snapshot handling,
 and persistence. The focused worker verifier is the HTTP acceptance seam for
 daily/weekly CRUD, direct capability denial, real due occurrence readback,
-`enqueued`/`skipped` decisions, and run linkage. The browser verifier covers
+`enqueued`/`skipped` decisions, and run linkage. The target-backed Linux
+Chromium verifier creates a next-minute daily schedule for a healthy flow,
+bounded-waits for the real scheduler poll to persist its `enqueued` occurrence
+and `runId`, then follows the Templates run link into the exact Runs audit. It
+also renders a deliberately isolated SQLite `missed` occurrence fixture with
+its due instant and reason as separate fields, then proves the no-link state; that fixture does not claim to exercise the
+scheduler's create-time `effectiveAt` admission. The browser verifier covers
 the Reports execution browser, real screenshot artifacts, cleanup, and
 schedule-only delegated permission requests; the Web seam tests fix the
 route's selector and schedule view/manage gates plus terminal retry visibility,
@@ -196,10 +202,13 @@ Non-goals:
    the dialog or reset the draft.
 3. At a due occurrence, Reports resolves the local time and applies the 60-
    second window. It atomically records `enqueued` and creates one normal run,
-   or records `skipped` with due/reason and no run. Repeated polls, restarts,
+   or records `skipped` with a separately rendered due instant/reason and no run. Repeated polls, restarts,
    DST gaps, and DST folds cannot create a duplicate occurrence.
 4. A successful run links from an `enqueued` schedule decision to the existing run detail,
-   steps, live frame, and artifacts. A failed run keeps its error evidence.
+   steps, live frame, and artifacts. A target-backed Linux Chromium flow creates
+   a next-minute schedule, bounded-waits for that real decision and run ID, then
+   opens the exact run audit through the rendered Templates link. A failed run
+   keeps its error evidence.
 5. A missed occurrence is recorded as `skipped` with only its
    installation-timezone due instant and reason. It has no run reference and is
    not silently represented as `succeeded`.
@@ -318,7 +327,7 @@ policy removes them.
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
 | HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
-| Browser            | Reports browser verifier plus schedule permission seam                                                                                                                    | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, and schedule-view-only action hiding. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Other visual matrices remain **Not verified**. |
+| Browser            | Reports browser verifier plus schedule permission seam                                                                                                                    | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, schedule-view-only action hiding, and a real next-minute scheduler `enqueued` occurrence linked to its exact Runs audit. A separate controlled SQLite fixture renders `missed` with distinct due and reason fields and no run link. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Other visual matrices remain **Not verified**. |
 | Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions

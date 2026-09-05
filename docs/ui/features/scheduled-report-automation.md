@@ -108,7 +108,7 @@ compatible consumer exists.
 | Error | Alert-semantic `DataState` with retry | Retry preserves filters and any open form values. |
 | Permission | Permission-semantic state or hidden mutation actions | Viewer can read only when schedule-view is granted. |
 | Processing | Disabled primary/action controls and inline progress | Duplicate save/toggle/delete cannot start. |
-| Partial | Per-occurrence decision/outcome tags and explicit summary | Skipped items show due/reason with no run link; enqueued items link to their run; no all-success label. |
+| Partial | Per-occurrence decision/outcome tags and explicit summary | Skipped items show their due instant and reason separately with no run link; a DST gap without `dueAt` shows `dueLocal` plus the installation timezone; enqueued items link to their run; no all-success label. |
 | Validation | Field-local guidance plus form-level error | Secret-looking input and cadence errors prevent submission. |
 
 When a create or edit request fails after local validation, the open Modal
@@ -190,12 +190,13 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | --------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Verified in Linux Chromium at 1440x900 and 390x844 | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; target-backed browser gate |
 | SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
-| SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
-| SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
+| SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Verified target-backed `enqueued` rendering; controlled isolated SQLite fixture covers `missed` | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows distinct due/reason fields; a null `dueAt` falls back to `dueLocal` plus installation timezone; enqueued alone links a run | P1 | real scheduler poll plus isolated fixture; forced response matrix remains outside browser scope |
+| SR-UI-004 | `source-extracted`: existing run detail linkage | Verified target-backed rendered schedule-to-run link | Each `enqueued` occurrence links to existing run evidence; `skipped` has distinct due/reason fields, with `dueLocal` plus installation timezone when `dueAt` is null, and no run link; no cloned viewer | P1 | Templates link opens exact Runs audit; isolated fixture proves no-link state |
 | SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate |
 
-Exact new geometry, computed styles, and runtime schedule outcomes are
-`Not verified` until implementation and browser capture.
+Forced error/failure, processing, and partial response matrices remain
+**Not verified**. The successful viewports and runtime schedule outcomes stated
+above are verified by their named browser or service gates.
 
 ## Responsive and verification matrix
 
@@ -228,4 +229,4 @@ systemd, and native-host seccomp remain **Not verified**.
 
 ## Linux Chromium success-path acceptance
 
-Verified by the Linux Chromium gate: the real Reports service and Web route, never the fault proxy, create a daily schedule, edit it to weekly, disable and re-enable it, then delete it. A schedule-view-only session sees the panel but no create, edit, toggle, or delete action. Evidence captures `1440x900` dark/en-US and `390x844` light/zh-CN, with exact screenshot dimensions, bound SHA-256 values, key copy, and no horizontal overflow.
+Verified by the Linux Chromium gate: the real Reports service and Web route, never the fault proxy, create a daily schedule, edit it to weekly, disable and re-enable it, then delete it. The gate also creates a next-minute daily schedule against a healthy target-backed flow, bounded-waits for the real scheduler to persist `enqueued` plus its run ID, and follows the rendered Templates link into that exact Runs audit. A controlled SQLite fixture in the disposable verifier renders one `missed` decision with separate due/reason fields and proves it has no run link; it is not claimed as an API-created historical occurrence. A schedule-view-only session sees the panel but no create, edit, toggle, or delete action. Evidence captures `1440x900` dark/en-US and `390x844` light/zh-CN, with exact screenshot dimensions, bound SHA-256 values, key copy, and no horizontal overflow.

@@ -19,11 +19,14 @@ Verification used new task-owned databases; existing application data was not re
 - Analytics: 22 Rust tests passed, including collection/query/delegation,
   admission bounds, origin policy and JSON error-envelope behavior. The browser
   overview/details pass confirmed that the policy-status display is absent.
-- Reports: 26 tests passed; daily/weekly schedules exercise create, disable,
-  next occurrence, permissions, and removal. Real headless Chrome executes six
-  form steps, returns screenshot/live-frame artifacts, cancels a waiting run,
-  runs two overlapping executions, and cleans up private profiles after success,
-  cancellation, and overall timeout.
+- Reports: historical local evidence recorded 26 tests for daily/weekly create,
+  disable, next occurrence, permissions, and removal. The current pinned Linux
+  Chromium gate additionally proves target-backed schedule lifecycle and a
+  next-minute healthy-flow occurrence: it bounded-waits for the real scheduler
+  to persist `enqueued` plus `runId`, follows the Templates link into that exact
+  Runs audit, and expands the verified matrix to 15 success cases and 10 fault cases. Its separate `missed`
+  row is a controlled SQLite fixture in the disposable verifier, used only to
+  render due/reason with no run link; it is not scheduler API evidence.
 - Web: 60 tests passed. Functional browser checks cover all four Monitoring
   routes, separate node mount series, node override/reset, event details, global
   save, empty summaries, and Reports template onboarding. A viewer has disabled
@@ -65,6 +68,12 @@ The subsequent local in-app-browser pass covers the user-requested console refin
 - Dashboard tone cards, neutral module status cards and resource panels; unified
   four-control alert settings with visible numeric-input boundaries; representative
   light/dark theme and empty-state checks.
+- System Status module-log diagnostics are now browser-accepted in the current
+  pinned Linux Chromium gate: the owner reads the appended current Admin marker,
+  creates a one-file backup summary, previews and confirms removal of only the
+  expired Monitor fixture, and preserves the service-created current-day files.
+  Desktop `1440x900` dark/zh-CN and narrow `390x844` light/en-US screenshots
+  are hash- and dimension-bound in the 15-success manifest.
 - 390×844: user and analytics filters, settings reflow, module-log controls, bounded
   table overflow, visible empty feedback and pagination. 1024×768 role layout was
   corrected so title and filters do not overlap. At 1440×900, the Dashboard module

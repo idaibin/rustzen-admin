@@ -12,8 +12,11 @@ build="$root/scripts/build-admin-browser-linux.sh"
 manifest_verifier="$root/scripts/verify-admin-browser-linux-manifest.sh"
 ensure="$root/scripts/ensure-admin-browser-verifier-image.sh"
 verifier_dockerfile="$root/scripts/admin-browser-verifier.Dockerfile"
+schedule_panel="$root/apps/web/src/routes/reports/-templates/schedule-panel.tsx"
+schedule_utils="$root/apps/web/src/routes/reports/-templates/schedule-utils.tsx"
+schedule_utils_test="$root/apps/web/src/routes/reports/-templates/schedule-utils.test.ts"
 
-for file in "$outer" "$inner" "$docs" "$session" "$identity" "$provenance" "$build" "$manifest_verifier" "$ensure" "$verifier_dockerfile"; do test -s "$file"; done
+for file in "$outer" "$inner" "$docs" "$session" "$identity" "$provenance" "$build" "$manifest_verifier" "$ensure" "$verifier_dockerfile" "$schedule_panel" "$schedule_utils" "$schedule_utils_test"; do test -s "$file"; done
 grep -Fq 'if ! mkdir "$lock_dir"' "$outer"
 grep -Fq 'rm -rf "$current" "$candidate"' "$outer"
 grep -Fq 'mv "$candidate" "$current"' "$outer"
@@ -50,6 +53,19 @@ grep -Fq 'setUiPreferences' "$inner"
 grep -Fq 'assertNoHorizontalOverflow' "$inner"
 grep -Fq 'schedule-create-daily' "$inner"
 grep -Fq 'schedule-view-only-mobile' "$inner"
+grep -Fq 'schedule-occurrence-enqueued-link' "$inner"
+grep -Fq 'schedule-occurrence-missed-no-link' "$inner"
+grep -Fq 'controlled-sqlite-missed-occurrence' "$inner"
+grep -Fq 'next_schedule_due_epoch' "$inner"
+grep -Fq 'boundary_margin' "$inner"
+grep -Fq 'scheduled_deadline_epoch' "$inner"
+grep -Fq 'curl_json_with_timeout' "$inner"
+grep -Fq 'scheduler did not enqueue the next-minute occurrence before the 90-second wall-clock deadline' "$inner"
+grep -Fq 'schedule-occurrence-due-' "$inner"
+grep -Fq 'formatScheduleOccurrenceDue' "$schedule_utils"
+grep -Fq 'data-due-local={occurrence.dueLocal}' "$schedule_panel"
+grep -Fq 'DST-gap local time and installation timezone' "$schedule_utils_test"
+grep -Fq 'schedule-occurrence-run-desktop-dark-en.png' "$outer"
 grep -Fq 'schedule-desktop-dark-en.png' "$outer"
 grep -Fq 'schedule-mobile-light-zh.png' "$outer"
 grep -Fq 'run-retry-desktop-dark-en.png' "$outer"
@@ -57,7 +73,7 @@ grep -Fq 'run-retry-mobile-light-zh.png' "$outer"
 grep -Fq 'module-log-desktop-dark-zh.png' "$outer"
 grep -Fq 'module-log-mobile-light-en.png' "$outer"
 grep -Fq 'successCases:$successCases' "$inner"
-grep -Fq 'successCases | length) == 13' "$outer"
+grep -Fq 'successCases | length) == 15' "$outer"
 grep -Fq 'screenshotViewport' "$inner"
 grep -Fq 'schedule-mobile-full' "$inner"
 grep -Fq 'run-retry-list-trigger' "$inner"
@@ -149,4 +165,34 @@ rm -rf "$tmp/.verify.lock"
 rm -rf "$tmp/current" "$tmp/candidate"
 test ! -e "$tmp/current"
 test ! -e "$tmp/candidate"
+
+# This short deterministic seam mirrors the inner verifier's remaining-time
+# cap. A hanging schedule GET receives no more than the wall-clock budget, so
+# repeated polling cannot turn the 90-second production deadline into a
+# multiple-of-15-second timeout.
+deadline_poll_with_fake_get() {
+  budget_seconds=$1
+  deadline=$((SECONDS + budget_seconds))
+  while :; do
+    remaining=$((deadline - SECONDS))
+    [ "$remaining" -gt 0 ] || return 1
+    get_timeout=$remaining
+    [ "$get_timeout" -le 15 ] || get_timeout=15
+    fake_hanging_schedule_get "$get_timeout" || true
+  done
+}
+fake_hanging_schedule_get() {
+  sleep "$1"
+  return 1
+}
+started_seconds=$SECONDS
+if deadline_poll_with_fake_get 1; then
+  echo 'deadline polling unexpectedly succeeded' >&2
+  exit 1
+fi
+elapsed_seconds=$((SECONDS - started_seconds))
+[ "$elapsed_seconds" -le 2 ] || {
+  echo "deadline polling exceeded its one-second fake-get budget: ${elapsed_seconds}s" >&2
+  exit 1
+}
 echo 'Admin browser Linux verifier seams passed'
