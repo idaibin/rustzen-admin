@@ -5,6 +5,16 @@ together in one disposable Colima/Docker container and that Reports can drive a
 real Chromium session through the rendered Admin Web application.
 
 Run `just build-admin-browser-linux` and then `just verify-admin-browser-linux`.
+The verifier has two bounded stages: `ensure-admin-browser-linux` builds or
+reuses a pinned Debian/Chromium 120 image (900 seconds by default, capped at
+1800), then the business container run is capped at 480 seconds (capped at
+900). The pinned image is accepted only when its platform-specific Dockerfile
+key, schema, base image, snapshot, Chromium version, OS/architecture labels,
+and in-image provenance agree. Cache inspection and provenance reading are
+bounded as one hot-path check. Docker architecture discovery is separately
+capped at 10 seconds before either stage starts; dependency installation never
+runs inside the business container. Reports also bounds the complete Chromium launch,
+including CDP connection, to 30 seconds before it starts a browser flow.
 The build recipe targets the Colima/Docker VM's native release architecture. It
 freezes the complete source identity before Docker snapshots the context and
 requires the same identity after compilation before writing provenance; a
@@ -37,7 +47,8 @@ from `scripts/` and never enters the distribution. A successful run publishes ex
   and four binary hashes;
 - a schema-2 manifest containing the Git commit, clean/dirty source state, a digest of
   the complete tracked and untracked source tree, exact binary hashes,
-  Chromium version, byte counts, image dimensions, and PNG hashes. Each fault
+  immutable verifier image ID/key/provenance hash, Chromium version, byte counts,
+  image dimensions, and PNG hashes. Each fault
   case records its Reports run ID, fault mode, route, screenshot hash, and dimensions.
 
 The verifier acquires an evidence-root mutex, invalidates `current/` before

@@ -27,7 +27,11 @@ pub(super) async fn try_save_live_frame(state: &AppState, page: &Page, run_id: &
     }
 }
 
-async fn save_live_frame(state: &AppState, page: &Page, run_id: &str) -> Result<(), AppError> {
+pub(super) async fn save_live_frame(
+    state: &AppState,
+    page: &Page,
+    run_id: &str,
+) -> Result<(), AppError> {
     let artifact_id = format!("{run_id}-live");
     let file_name = "live.png";
     let dir = state.output_dir.join(run_id);

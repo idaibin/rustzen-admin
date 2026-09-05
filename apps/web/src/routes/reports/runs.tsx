@@ -13,10 +13,12 @@ import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
+import { useAuthStore } from "@/store/useAuthStore";
 
 import { RunDetails } from "./-runs/run-details";
 import { RetryRunButton } from "./-runs/retry-run-button";
 import { RunDialog } from "./-runs/run-dialog";
+import { REPORTS_FLOW_VIEW } from "./-schedule-permissions";
 import { getRunStatusMeta, isActiveRun } from "./-runs/status";
 
 export const Route = createFileRoute("/reports/runs")({ component: RunsPage });
@@ -33,7 +35,11 @@ function RunsPage() {
     const [current, setCurrent] = useState(1);
     const [selected, setSelected] = useState<Reports.Run>();
     const client = useQueryClient();
-    const { data: flows = [] } = useQuery(reportsQueryOptions.flows());
+    const canViewFlows = useAuthStore((state) => state.checkPermissions(REPORTS_FLOW_VIEW));
+    const { data: flows = [] } = useQuery({
+        ...reportsQueryOptions.flows(),
+        enabled: canViewFlows,
+    });
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["reports", "runs", current],
         queryFn: () => reportsAPI.runs({ current, pageSize }),
@@ -125,10 +131,11 @@ function RunsPage() {
                         <Button
                             type="text"
                             icon={<EyeOutlined />}
+                            data-testid={`run-view-${row.id}`}
                             aria-label={t("查看执行", "View run")}
                             onClick={() => setSelected(row)}
                         />
-                        <RetryRunButton run={row} onRetried={setSelected} />
+                        <RetryRunButton run={row} onRetried={setSelected} surface="list" />
                         <AuthWrap code="reports:run:manage">
                             <Button
                                 type="text"

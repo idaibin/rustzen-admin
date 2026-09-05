@@ -3,12 +3,42 @@ set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 source "$root/scripts/verify-admin-browser-linux-manifest.sh"
-architecture=${RUSTZEN_UI_LINUX_ARCH:-$(docker info --format '{{.Architecture}}')}
+run_bounded() {
+  seconds=$1; shift
+  "$@" & command_pid=$!
+  ( sleep "$seconds"; kill -TERM "$command_pid" 2>/dev/null || true; sleep 10; kill -KILL "$command_pid" 2>/dev/null || true ) & watchdog_pid=$!
+  if wait "$command_pid"; then command_status=0; else command_status=$?; fi
+  kill "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
+  return "$command_status"
+}
+
+run_bounded_capture() {
+  capture=$(mktemp "${TMPDIR:-/tmp}/rz-browser-command.XXXXXX") || return 1
+  if run_bounded "$@" >"$capture"; then command_status=0; else command_status=$?; fi
+  cat "$capture"
+  rm -f "$capture"
+  return "$command_status"
+}
+
+architecture_timeout=10
+if [ -n "${RUSTZEN_UI_LINUX_ARCH:-}" ]; then
+  architecture=$RUSTZEN_UI_LINUX_ARCH
+else
+  architecture=$(run_bounded_capture "$architecture_timeout" docker info --format '{{.Architecture}}') || {
+    echo "Docker architecture discovery failed or exceeded ${architecture_timeout} seconds" >&2
+    exit 1
+  }
+fi
 case "$architecture" in
-  aarch64) platform=linux/arm64; target_triple=aarch64-unknown-linux-musl; file_pattern='ELF 64-bit.*ARM aarch64'; browser_channel=snapshot120; default_image='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' ;;
-  x86_64) platform=linux/amd64; target_triple=x86_64-unknown-linux-musl; file_pattern='ELF 64-bit.*x86-64'; browser_channel=snapshot120; default_image='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' ;;
+  aarch64) platform=linux/arm64; target_triple=aarch64-unknown-linux-musl; file_pattern='ELF 64-bit.*ARM aarch64' ;;
+  x86_64) platform=linux/amd64; target_triple=x86_64-unknown-linux-musl; file_pattern='ELF 64-bit.*x86-64' ;;
   *) echo "unsupported Colima/Docker architecture: $architecture" >&2; exit 1 ;;
 esac
+run_timeout=${RUSTZEN_UI_BROWSER_RUN_TIMEOUT:-480}
+case "$run_timeout" in ''|*[!0-9]*) echo 'RUSTZEN_UI_BROWSER_RUN_TIMEOUT must be a positive integer' >&2; exit 2;; esac
+[ "$run_timeout" -gt 0 ] && [ "$run_timeout" -le 900 ] || { echo 'RUSTZEN_UI_BROWSER_RUN_TIMEOUT must be 1..900 seconds' >&2; exit 2; }
+read -r verifier_image verifier_key verifier_provenance_sha < <("$root/scripts/ensure-admin-browser-verifier-image.sh" --platform "$platform")
 bin_dir=${RUSTZEN_UI_LINUX_BIN_DIR:-"$root/target/rz/build/$architecture/bin"}
 evidence_root="$root/target/rz/ui-browser"
 current="$evidence_root/current"
@@ -17,7 +47,6 @@ run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 candidate="$evidence_root/.candidate-$run_id"
 staged_bin_dir="$evidence_root/.binaries-$run_id"
 container="rz-admin-browser-$run_id"
-image=${RUSTZEN_UI_LINUX_IMAGE:-$default_image}
 status=1
 
 mkdir -p "$evidence_root"
@@ -84,32 +113,40 @@ binary_hashes=$(for name in rz-admin rz-monitor rz-insights rz-reports; do
   shasum -a 256 "$staged_bin_dir/$name" | awk '{print $1}'
 done)
 
-docker run --name "$container" --platform "$platform" --security-opt seccomp=unconfined \
+run_bounded "$run_timeout" docker run --name "$container" --platform "$platform" --security-opt seccomp=unconfined \
   --env RUSTZEN_VERIFY_HEAD="$head" \
   --env RUSTZEN_VERIFY_SOURCE_TREE_STATE="$initial_source_tree_state" \
   --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$initial_source_tree_sha256" \
   --env RUSTZEN_VERIFY_ARCHITECTURE="$architecture" \
-  --env RUSTZEN_VERIFY_BROWSER_CHANNEL="$browser_channel" \
+  --env RUSTZEN_VERIFY_CHROMIUM_VERSION=120.0.6099.224-1~deb11u1 \
+  --env RUSTZEN_VERIFY_VERIFIER_IMAGE_ID="$verifier_image" \
+  --env RUSTZEN_VERIFY_VERIFIER_KEY="$verifier_key" \
+  --env RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256="$verifier_provenance_sha" \
   --env RUSTZEN_VERIFY_BINARY_HASHES="$binary_hashes" \
   --mount "type=bind,src=$staged_bin_dir,dst=/verify/bin,readonly" \
   --mount "type=bind,src=$candidate,dst=/verify/evidence" \
   --mount "type=bind,src=$root/scripts/verify-admin-browser-linux-inner.sh,dst=/verify/run.sh,readonly" \
   --mount "type=bind,src=$root/scripts/admin-browser-fault-proxy.py,dst=/verify/fault-proxy.py,readonly" \
-  "$image" timeout --signal=TERM --kill-after=10s 600s bash /verify/run.sh
+  "$verifier_image" bash /verify/run.sh
 
 test -f "$candidate/manifest.json"
 test -f "$candidate/dashboard.png"
 test -f "$candidate/analytics-details.png"
 test -f "$candidate/schedule-desktop-dark-en.png"
 test -f "$candidate/schedule-mobile-light-zh.png"
+test -f "$candidate/run-retry-desktop-dark-en.png"
+test -f "$candidate/run-retry-mobile-light-zh.png"
 jq -e '
   .schemaVersion == 2 and
-  (.successCases | length) == 6 and
+  (.verifier.imageId == $verifier_image and .verifier.key == $verifier_key and .verifier.provenanceSha256 == $verifier_provenance_sha) and
+  (.successCases | length) == 11 and
   ([.successCases[] | .name, .runId, .execution] | all(. != null)) and
-  ([.successCases[] | .name] | sort) == ["schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
+  ([.successCases[] | .name] | sort) == ["run-retry-audit", "run-retry-list-child-selected", "run-retry-list-trigger", "run-retry-terminal-hidden", "run-retry-view-only-mobile", "schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
   ([.successCases[] | select(.execution != "target-backed")] | length) == 0 and
   ([.successCases[] | select(.name == "schedule-create-daily") | .artifact.file == "schedule-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "schedule-view-only-mobile") | .artifact.file == "schedule-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "run-retry-list-child-selected") | .artifact.file == "run-retry-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "run-retry-view-only-mobile") | .artifact.file == "run-retry-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   (.faultCases | length) == 10 and
   ([.faultCases[] | .runId, .method, .mode, .route, .receipt.method, .receipt.mode, .receipt.route, .receipt.hitCount, .artifact.file, .artifact.sha256, .artifact.dimensions] | all(. != null)) and
   ([.faultCases[] | select(.receipt.hitCount != 1)] | length) == 0 and
@@ -119,7 +156,7 @@ jq -e '
     "PUT http /api/monitor/alert-settings", "PUT http /api/monitor/nodes/browser-fault-node/alert-settings", "PUT http /api/reports/schedules/{id}",
     "PUT network /api/monitor/alert-settings", "PUT network /api/monitor/nodes/browser-fault-node/alert-settings", "PUT network /api/reports/schedules/{id}"
   ]
-' "$candidate/manifest.json" >/dev/null
+' --arg verifier_image "$verifier_image" --arg verifier_key "$verifier_key" --arg verifier_provenance_sha "$verifier_provenance_sha" "$candidate/manifest.json" >/dev/null
 verify_manifest_screenshots "$candidate"
 for image in "$candidate"/*.png; do
   [ "$(od -An -tx1 -N8 "$image" | tr -d ' \n')" = 89504e470d0a1a0a ]

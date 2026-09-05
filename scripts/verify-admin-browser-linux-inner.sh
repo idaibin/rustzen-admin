@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export DEBIAN_FRONTEND=noninteractive
-apt-get update >/dev/null
-apt-get install -y --no-install-recommends ca-certificates >/dev/null
-if [ "$RUSTZEN_VERIFY_BROWSER_CHANNEL" = snapshot120 ]; then
-  cat >/etc/apt/sources.list <<'SOURCES'
-deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20240131T000000Z bullseye main
-deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20240131T000000Z bullseye-security main
-SOURCES
-  rm -f /etc/apt/sources.list.d/*
-  apt-get update >/dev/null
-  chromium_version=120.0.6099.224-1~deb11u1
-  apt-get install -y --no-install-recommends \
-    "chromium=$chromium_version" "chromium-common=$chromium_version" "chromium-sandbox=$chromium_version" \
-    fonts-noto-cjk curl jq file procps util-linux iproute2 python3 >/dev/null
-else
-  apt-get install -y --no-install-recommends chromium chromium-sandbox fonts-noto-cjk curl jq file procps util-linux iproute2 python3 >/dev/null
-fi
+expected_chromium_version=${RUSTZEN_VERIFY_CHROMIUM_VERSION:?missing pinned Chromium version}
+expected_verifier_provenance_sha=${RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256:?missing verifier provenance hash}
+test "$(dpkg-query -W -f='${Version}' chromium)" = "$expected_chromium_version"
+test "$(sha256sum /usr/local/share/rustzen-browser-verifier.provenance | awk '{print $1}')" = "$expected_verifier_provenance_sha"
+for command in chromium curl jq file setpriv ss python3 fc-list; do command -v "$command" >/dev/null; done
+fc-list :lang=zh | grep -qi 'Noto'
 
 service_ports=(19801 19802 19803 19804)
 proxy_port=19805
@@ -145,6 +134,16 @@ start admin /opt/rz/rz-admin serve
 curl_json() {
   curl --fail --silent --show-error --connect-timeout 3 --max-time 15 "$@"
 }
+case_diagnostics() {
+  diagnostic_run_id=$1
+  echo "== browser case diagnostics: $diagnostic_run_id ==" >&2
+  curl_json "${auth[@]}" "$admin/api/reports/runs/$diagnostic_run_id" >&2 || true
+  curl_json "${auth[@]}" "$admin/api/reports/runs/$diagnostic_run_id/steps" >&2 || true
+  curl_json "${auth[@]}" "$admin/api/reports/runs/$diagnostic_run_id/artifacts" >&2 || true
+  ps -eo uid=,pid=,stat=,args= | awk -v uid="$(id -u rustzen)" '$1 == uid && $3 !~ /^Z/ && /chromium|browser-/' >&2 || true
+  find /opt/rz/output -maxdepth 3 \( -name 'browser-*' -o -name "*$diagnostic_run_id*" \) -print >&2 || true
+  tail -n 80 /opt/rz/logs/verify-reports.log >&2 || true
+}
 for port in "${service_ports[@]}"; do
   ready=0
   for _ in $(seq 1 150); do
@@ -209,6 +208,7 @@ run_browser_case() {
   done
   stop_fault_proxy
   if [ "$state" != succeeded ]; then
+    case_diagnostics "$case_run_id"
     [ ! -s "$receipt" ] || { echo "fault receipt:" >&2; cat "$receipt" >&2; echo >&2; }
     curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/steps" >&2 || true
     echo "fault case $case_name ended with $state" >&2
@@ -244,6 +244,7 @@ run_target_browser_case() {
     case "$state" in queued|running|cancelling) sleep .1 ;; *) break ;; esac
   done
   if [ "$state" != succeeded ]; then
+    case_diagnostics "$case_run_id"
     curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/steps" >&2 || true
     echo "target case $case_name ended with $state" >&2
     exit 1
@@ -316,6 +317,91 @@ if curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq -e --arg id "$sche
   echo "deleted lifecycle schedule still appears in the Reports API" >&2
   exit 1
 fi
+
+# Runs retry acceptance deliberately uses terminal and active executions from the
+# real Reports service. The child is identified by the retry endpoint after the
+# list action, then its exact ID is checked when retrying from the source audit.
+wait_for_run_status() {
+  expected_run_id=$1 expected_status=$2
+  for _ in $(seq 1 900); do
+    expected_run=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$expected_run_id")
+    actual_status=$(jq -er '.data.status' <<<"$expected_run")
+    [ "$actual_status" = "$expected_status" ] && return
+    case "$actual_status" in queued|running|cancelling) sleep .1 ;; *) break ;; esac
+  done
+  echo "run $expected_run_id did not reach $expected_status (got ${actual_status:-unknown})" >&2
+  exit 1
+}
+
+retry_succeeded_run=$(curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --arg flow "$browser_success_seed_flow_id" '{flowId:$flow,input:{}}')" \
+  "$admin/api/reports/runs")
+retry_succeeded_run_id=$(jq -er '.data.id' <<<"$retry_succeeded_run")
+wait_for_run_status "$retry_succeeded_run_id" succeeded
+
+# The current browser flow is itself running while it renders this list, so the
+# broad absence check proves neither it nor the known succeeded row exposes Retry.
+retry_terminal_hidden_steps=$(jq -nc --argjson login "$target_desktop_login" --arg succeeded "$retry_succeeded_run_id" '$login + [{action:"goto",url:"/reports/runs"},{action:"waitFor",selector:"[data-testid=run-view-\($succeeded)]"},{action:"assertAbsent",selector:"[data-testid=run-retry-list-\($succeeded)]"},{action:"assertAbsent",selector:"[data-testid^=run-retry-]"},{action:"assertNoHorizontalOverflow"}]')
+run_target_browser_case run-retry-terminal-hidden "$retry_terminal_hidden_steps"
+
+retry_source_flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --arg system "$browser_success_system_id" '{systemId:$system,name:"Browser retry failed source",steps:[{action:"goto",url:"/health"},{action:"assertText",selector:"body",text:"browser retry source must fail"}]}')" \
+  "$admin/api/reports/flows")
+retry_source_flow_id=$(jq -er '.data.id' <<<"$retry_source_flow")
+retry_source_run=$(curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --arg flow "$retry_source_flow_id" '{flowId:$flow,input:{}}')" \
+  "$admin/api/reports/runs")
+retry_source_run_id=$(jq -er '.data.id' <<<"$retry_source_run")
+wait_for_run_status "$retry_source_run_id" failed
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id" >/verify/evidence/retry-source-run.before.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/steps" >/verify/evidence/retry-source-steps.before.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/artifacts" >/verify/evidence/retry-source-artifacts.before.json
+
+retry_list_steps=$(jq -nc --argjson login "$target_desktop_login" --arg source "$retry_source_run_id" '$login + [{action:"goto",url:"/reports/runs"},{action:"waitFor",selector:"[data-testid=run-retry-list-\($source)]"},{action:"click",selector:"[data-testid=run-retry-list-\($source)]"},{action:"waitFor",selector:"[data-testid=run-audit]"},{action:"assertText",selector:".ant-modal",text:"Run audit"},{action:"assertNoHorizontalOverflow"},{action:"screenshotViewport",name:"run-retry-desktop-dark-en"}]')
+run_target_browser_case run-retry-list-trigger "$retry_list_steps"
+
+# The list action already made the first request. A second request can only
+# return that retained direct child, allowing an exact audit-ID assertion.
+retry_child=$(curl_json "${auth[@]}" -X POST "$admin/api/reports/runs/$retry_source_run_id/retry")
+retry_child_id=$(jq -er '.data.id' <<<"$retry_child")
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id" >/verify/evidence/retry-source-run.after-list.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/steps" >/verify/evidence/retry-source-steps.after-list.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/artifacts" >/verify/evidence/retry-source-artifacts.after-list.json
+cmp -s /verify/evidence/retry-source-run.before.json /verify/evidence/retry-source-run.after-list.json
+cmp -s /verify/evidence/retry-source-steps.before.json /verify/evidence/retry-source-steps.after-list.json
+cmp -s /verify/evidence/retry-source-artifacts.before.json /verify/evidence/retry-source-artifacts.after-list.json
+
+retry_list_child_steps=$(jq -nc --argjson login "$target_desktop_login" --arg source "$retry_source_run_id" --arg child "$retry_child_id" '$login + [{action:"goto",url:"/reports/runs"},{action:"waitFor",selector:"[data-testid=run-retry-list-\($source)]"},{action:"click",selector:"[data-testid=run-retry-list-\($source)]"},{action:"waitFor",selector:"[data-testid=run-audit][data-run-id='\''\($child)'\'']"},{action:"assertText",selector:".ant-modal",text:"Run audit"},{action:"assertNoHorizontalOverflow"},{action:"screenshotViewport",name:"run-retry-desktop-dark-en"}]')
+run_target_browser_case run-retry-list-child-selected "$retry_list_child_steps"
+download_target_screenshot run-retry-list-child-selected run-retry-desktop-dark-en run-retry-desktop-dark-en.png
+
+retry_audit_steps=$(jq -nc --argjson login "$target_desktop_login" --arg source "$retry_source_run_id" --arg child "$retry_child_id" '$login + [{action:"goto",url:"/reports/runs"},{action:"waitFor",selector:"[data-testid=run-view-\($source)]"},{action:"click",selector:"[data-testid=run-view-\($source)]"},{action:"waitFor",selector:"[data-testid=run-audit][data-run-id='\''\($source)'\'']"},{action:"waitFor",selector:"[data-testid=run-retry-audit-\($source)]"},{action:"click",selector:"[data-testid=run-retry-audit-\($source)]"},{action:"waitFor",selector:"[data-testid=run-audit][data-run-id='\''\($child)'\'']"},{action:"assertText",selector:".ant-modal",text:"Run audit"},{action:"assertNoHorizontalOverflow"}]')
+run_target_browser_case run-retry-audit "$retry_audit_steps"
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id" >/verify/evidence/retry-source-run.after-audit.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/steps" >/verify/evidence/retry-source-steps.after-audit.json
+curl_json "${auth[@]}" "$admin/api/reports/runs/$retry_source_run_id/artifacts" >/verify/evidence/retry-source-artifacts.after-audit.json
+cmp -s /verify/evidence/retry-source-run.before.json /verify/evidence/retry-source-run.after-audit.json
+cmp -s /verify/evidence/retry-source-steps.before.json /verify/evidence/retry-source-steps.after-audit.json
+cmp -s /verify/evidence/retry-source-artifacts.before.json /verify/evidence/retry-source-artifacts.after-audit.json
+
+run_view_menu_id=$(jq -er '.data[] | select(.code == "reports:run:view") | .value' <<<"$menu_options")
+curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --argjson menu "$run_view_menu_id" '{name:"Browser runs viewer",code:"browser_runs_viewer",status:1,menuIds:[$menu],description:"Linux browser verifier"}')" \
+  "$admin/api/system/roles" >/dev/null
+run_viewer_role_id=$(curl_json "${auth[@]}" "$admin/api/system/roles/options?limit=500" | jq -er '.data[] | select(.code == "browser_runs_viewer") | .value')
+curl_json "${auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --argjson role "$run_viewer_role_id" '{username:"run_viewer",email:"run_viewer@example.test",password:"run-viewer-password",realName:"Run viewer",status:1,roleIds:[$role]}')" \
+  "$admin/api/system/users" >/dev/null
+run_viewer_login=$(curl_json -H 'content-type: application/json' -d '{"username":"run_viewer","password":"run-viewer-password"}' "$admin/api/auth/login")
+run_viewer_token=$(jq -er '.data.token | select(length > 20)' <<<"$run_viewer_login")
+run_viewer_retry_status=$(curl --silent --show-error --output /verify/evidence/run-viewer-retry.json --write-out '%{http_code}' \
+  --connect-timeout 3 --max-time 15 -H "authorization: Bearer $run_viewer_token" -X POST \
+  "$admin/api/reports/runs/$retry_source_run_id/retry")
+[ "$run_viewer_retry_status" = 403 ] || { echo "run-view-only retry endpoint returned $run_viewer_retry_status" >&2; exit 1; }
+run_viewer_mobile_login='[{"action":"goto","url":"/login"},{"action":"waitFor","selector":"#login_username"},{"action":"fill","selector":"#login_username","value":"run_viewer"},{"action":"fill","selector":"#login_password","value":"run-viewer-password"},{"action":"click","selector":"button[type=submit]"},{"action":"waitFor","selector":".shell-content"}]'
+retry_viewer_steps=$(jq -nc --argjson login "$run_viewer_mobile_login" --arg source "$retry_source_run_id" '[{action:"setUiPreferences",theme:"light",locale:"zh-CN"},{action:"setViewport",width:390,height:844}] + $login + [{action:"goto",url:"/reports/runs"},{action:"waitFor",selector:"[data-testid=run-view-\($source)]"},{action:"assertText",selector:".shell-content",text:"填报执行"},{action:"assertAbsent",selector:"[data-testid=run-retry-list-\($source)]"},{action:"assertAbsent",selector:".ant-message-error"},{action:"assertNoHorizontalOverflow"},{action:"screenshotViewport",name:"run-retry-mobile-light-zh"}]')
+run_target_browser_case run-retry-view-only-mobile "$retry_viewer_steps"
+download_target_screenshot run-retry-view-only-mobile run-retry-mobile-light-zh run-retry-mobile-light-zh.png
 
 node_report=$(jq -nc --arg boot "11111111-1111-4111-8111-111111111111" --arg collected "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{nodeId:"browser-fault-node",bootId:$boot,sequence:1,hostname:"browser-fault-node",agentVersion:"verify",collectedAt:$collected,cpuPercent:10,memory:{usedBytes:10,totalBytes:100},disks:[{mountPoint:"/",usedBytes:10,totalBytes:100}]}')
 if ! curl_json -H 'x-rustzen-monitor-agent-token: ui-browser-verification-agent-secret' -H 'content-type: application/json' -d "$node_report" "$admin/api/monitor/agent-reports" >/dev/null; then
@@ -399,6 +485,9 @@ jq -n \
   --arg sourceTreeState "$RUSTZEN_VERIFY_SOURCE_TREE_STATE" \
   --arg sourceTreeSha256 "$RUSTZEN_VERIFY_SOURCE_TREE_SHA256" \
   --arg architecture "$RUSTZEN_VERIFY_ARCHITECTURE" \
+  --arg verifierImageId "$RUSTZEN_VERIFY_VERIFIER_IMAGE_ID" \
+  --arg verifierKey "$RUSTZEN_VERIFY_VERIFIER_KEY" \
+  --arg verifierProvenanceSha256 "$RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256" \
   --arg runId "$run_id" \
   --arg browser "$chromium_version" \
   --arg binaries "$RUSTZEN_VERIFY_BINARY_HASHES" \
@@ -410,7 +499,7 @@ jq -n \
   --arg analyticsDimensions "$(sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/' <<<"$analytics_file")" \
   --slurpfile faultCases /verify/evidence/fault-cases.jsonl \
   --argfile successCases /verify/evidence/success-cases.json \
-  '{schemaVersion:2,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}},faultCases:$faultCases,successCases:$successCases}' \
+  '{schemaVersion:2,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,verifier:{imageId:$verifierImageId,key:$verifierKey,provenanceSha256:$verifierProvenanceSha256},reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}},faultCases:$faultCases,successCases:$successCases}' \
   >/verify/evidence/manifest.json
 
 test "$(jq -r .gitHead /verify/evidence/manifest.json)" = "$RUSTZEN_VERIFY_HEAD"

@@ -110,6 +110,7 @@ export function RunDetails({
             width={900}
             title={t("执行审计", "Run audit")}
         >
+            <span hidden data-testid="run-audit" data-run-id={currentRun?.id} />
             {runError ? (
                 <DataState
                     kind="error"
@@ -157,7 +158,9 @@ export function RunDetails({
                         {formatDateTime(currentRun?.finishedAt)}
                     </p>
                     {currentRun?.error ? <p className="text-red-600">{currentRun.error}</p> : null}
-                    {currentRun ? <RetryRunButton run={currentRun} onRetried={onRetried} /> : null}
+                    {currentRun ? (
+                        <RetryRunButton run={currentRun} onRetried={onRetried} surface="audit" />
+                    ) : null}
                 </div>
             ) : null}
             <div className="mb-5">

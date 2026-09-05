@@ -132,8 +132,12 @@ verify-reports-linux:
 build-admin-browser-linux:
     scripts/build-admin-browser-linux.sh
 
+ensure-admin-browser-linux:
+    scripts/ensure-admin-browser-verifier-image.sh
+
 verify-admin-browser-linux:
     scripts/test-verify-admin-browser-linux.sh
+    scripts/test-ensure-admin-browser-verifier-image.sh
     scripts/verify-admin-browser-linux.sh
 
 e2e-modules browser_path:

@@ -82,7 +82,7 @@ matrix are therefore **Not verified**.
 ## Component and data-owner mapping
 
 | Responsibility | Current owner | Decision |
-| --- | --- | --- |
+| --------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Page shell and section heading | `PageCard`/existing route heading | Reuse |
 | Schedule list and paging | `DataTableShell` + route-local `ProTable` | Reuse; columns remain route-local |
 | Loading, empty, error, permission, processing | `DataState` | Reuse |
@@ -101,7 +101,7 @@ compatible consumer exists.
 ## State and interaction contract
 
 | State | Presentation | Interaction |
-| --- | --- | --- |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Loading | Compact `DataState` in the schedule panel | Create/filter actions wait for required data; no false empty. |
 | Populated | Table with cadence, timezone, next due, and last decision | Open detail/edit only when capability permits; only `enqueued` decisions link to a run. |
 | Empty | `DataState` explains no schedules and allowed create action | Create opens the existing Modal form. |
@@ -140,6 +140,25 @@ manual run from the source's persisted snapshot. It does not change the source
 evidence or expose a second link from any scheduled occurrence, so it is not
 presented as a schedule catch-up action.
 
+### Runs retry Linux Chromium acceptance
+
+The Linux Chromium acceptance closes the rendered terminal-run retry path. It
+seeds a failed source run through the real Reports service, then proves
+that the Runs-list Retry action creates or returns its direct child and selects
+that child's audit. It separately opens the failed source audit and proves its
+Retry action selects the same child by its returned ID. Source run, step, and
+artifact responses are compared before and after both UI actions, so retry
+cannot replace source evidence. The verifier does not assert that the child
+remains `queued`: it identifies the direct child by ID and selected audit state.
+
+The same acceptance proves that succeeded and nonterminal runs have no Retry
+control, and that a real `reports:run:view`-only user sees no Retry control and
+receives a backend rejection for the retry endpoint. It captures a 1440x900
+dark/en-US managed view and a 390x844 light/zh-CN view-only surface, asserting
+key copy and no horizontal overflow. It retains the six schedule lifecycle
+success cases and ten fault-mutation cases. The target-backed Chromium gate now
+verifies this browser retry acceptance.
+
 ## Accessibility and responsive behavior
 
 - The schedule panel has one descriptive heading; table headers and action labels
@@ -168,12 +187,12 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 ## Traceable UI deltas
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
-| --- | --- | --- | --- | --- | --- |
+| --------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Verified in Linux Chromium at 1440x900 and 390x844 | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; target-backed browser gate |
 | SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
-| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Source and deterministic behavior implemented: failed/cancelled visibility, shared per-source pending, child selection, and failure preservation are covered; rendered retry state **Not verified** | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1 | route-local behavior test plus Reports worker HTTP retry-chain contract; browser rendering remains open |
+| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate |
 
 Exact new geometry, computed styles, and runtime schedule outcomes are
 `Not verified` until implementation and browser capture.
@@ -181,16 +200,18 @@ Exact new geometry, computed styles, and runtime schedule outcomes are
 ## Responsive and verification matrix
 
 | Priority | Viewport | Theme/locale | Surface and state | Acceptance |
-| --- | --- | --- | --- | --- |
+| -------- | ---------------- | ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Required | 1920x1080 @ 100% | light / zh-CN | Templates schedule populated | Columns, actions, next due, and timezone helper align with existing PageCard; no overflow. |
 | Required | 1440x900 @ 100% | dark / en-US | Target-backed schedule lifecycle | Daily create, weekly edit, disable/enable and delete; key copy and no horizontal overflow verified. |
 | Required | 390x844 @ 100% | light / zh-CN | Schedule-view-only list | Management actions are hidden; key copy and no horizontal overflow verified. |
+| Required | 1440x900 @ 100%  | dark / en-US  | Managed Runs retry               | List retry selects the exact direct-child audit; key copy and no horizontal overflow verified.                                                                           |
+| Required | 390x844 @ 100%   | light / zh-CN | Runs-view-only list              | Retry is hidden, no unauthorized flow lookup or permission-error toast is rendered, and the backend rejects the same user; key copy and no horizontal overflow verified. |
 | Required | 390x844 @ 100% | dark / en-US | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable. |
 
 Static checks cover route/API owner, capability visibility, and prohibited
-credential/cron fields. The Linux Chromium gate verifies the two stated
-success-path viewports; form validation, partial outcomes, Runs retry, and
-native systemd/seccomp remain outside this visual acceptance.
+credential/cron fields. The Linux Chromium gate verifies the four schedule and
+Runs evidence viewports above; form validation, partial outcomes, and native
+systemd/seccomp remain outside this visual acceptance.
 
 ## Shared-system changes and readiness
 
@@ -201,9 +222,9 @@ feedback, confirmation, run detail, and theme semantics.
 
 The selected source, layout ownership, component mapping, states, permission
 visibility, responsive/accessibility rules, and acceptance IDs are implemented
-in the current Reports/Web slice. Scheduler HTTP behavior and the defined
-Templates success lifecycle are verified; Runs retry, other response matrices,
-native systemd, and native-host seccomp remain **Not verified**.
+in the current Reports/Web slice. Scheduler HTTP behavior, the defined Templates
+success lifecycle, and Runs retry are verified; other response matrices, native
+systemd, and native-host seccomp remain **Not verified**.
 
 ## Linux Chromium success-path acceptance
 

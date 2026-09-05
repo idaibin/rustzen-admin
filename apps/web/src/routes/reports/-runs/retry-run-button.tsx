@@ -15,9 +15,11 @@ import {
 export function RetryRunButton({
     run,
     onRetried,
+    surface = "list",
 }: {
     run: Reports.Run;
     onRetried: (run: Reports.Run) => void;
+    surface?: "list" | "audit";
 }) {
     const client = useQueryClient();
     const mutationKey = retryRunMutationKey(run.id);
@@ -41,6 +43,7 @@ export function RetryRunButton({
             <Button
                 type="text"
                 icon={<ReloadOutlined />}
+                data-testid={`run-retry-${surface}-${run.id}`}
                 aria-label={t("重试执行", "Retry run")}
                 disabled={isRetryPending}
                 loading={isRetryPending}

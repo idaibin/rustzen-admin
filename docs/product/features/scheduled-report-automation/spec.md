@@ -76,7 +76,7 @@ handwritten Web `Reports.FlowStep` declaration carry the same two variants.
 ## Confirmed decisions and rationale
 
 | Decision | Rationale | Acceptance consequence |
-| --- | --- | --- |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Daily and weekly are the only cadence choices. | They cover predictable reporting without arbitrary cron complexity. | The form cannot accept seconds, free-form cron, or an unbounded interval. |
 | A schedule points to one existing target-backed flow. | Reports already owns target, flow, and run semantics. | No duplicate template, target, or browser DSL is introduced. |
 | Missed occurrences are skipped. | Catch-up can overload a small self-hosted installation and hide freshness. | A missed occurrence is visible as skipped with a reason; no retroactive queue flood. |
@@ -90,7 +90,7 @@ An occurrence decision is separate from a Reports run. Each schedule/time slot
 has one durable decision:
 
 | Decision | Required data | Run relationship |
-| --- | --- | --- |
+| ---------- | ---------------------------------------------------------------- | ----------------------------------------------------------- |
 | `enqueued` | schedule, resolved due instant, decision time, and run reference | Exactly one ordinary Reports run is created and referenced. |
 | `skipped` | schedule, resolved due instant, decision time, and a reason | No run reference exists and no run is created. |
 
@@ -126,6 +126,22 @@ list or detail can navigate to it.
 Retention may delete an older source run while retaining a newer child. In that
 case the child's lineage reference is cleared, the deleted source cannot be
 retried, and no lineage guarantee is made across the deleted record.
+
+The rendered retry acceptance uses a real failed source and verifies the
+returned direct child by ID rather than assuming it remains queued. A Runs-list
+retry must select that child audit; retrying from the failed source audit must
+select the same direct child. The source run response, steps, and artifacts are
+unchanged across both actions. Succeeded and nonterminal runs have no rendered
+Retry action. A real user with `reports:run:view` but no `reports:run:manage`
+cannot see Retry and receives the backend permission rejection. A Runs-only
+viewer must not trigger a flows request that requires `reports:flow:view`; the
+flow column uses the persisted `flowId` when that optional name lookup is not
+authorized. Run creation retains its existing managed flow-picker behavior.
+The target-backed browser evidence covers 1440x900 dark/en-US and 390x844
+light/zh-CN, including key copy, no horizontal overflow, and no permission
+error toast, while retaining the existing schedule and fault verification
+matrix. The target-backed Linux Chromium gate now verifies this rendered
+acceptance.
 
 The scheduler resolves local schedule time using the installation timezone and
 applies one fixed 60-second lateness window:
@@ -218,7 +234,7 @@ It extends the existing Reports templates/runs surfaces and reuses their
 tables, forms, dialogs, and run evidence.
 
 | State | User-visible meaning | Required behavior |
-| --- | --- | --- |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Loading | Schedule list or form data is loading. | Keep the current surface stable; do not show false empty. |
 | Populated | Schedules or run links are available. | Show cadence, timezone, next due, and last occurrence decision; show a run link only for `enqueued`. |
 | Empty | Query succeeded with no schedules. | Explain how to create one when permitted. |
@@ -298,11 +314,11 @@ policy removes them.
 ## Verification matrix
 
 | Layer | Evidence | Acceptance |
-| --- | --- | --- |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
 | HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
-| Browser | Reports browser verifier plus schedule permission seam | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, and schedule-view-only action hiding. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Runs retry and other visual matrices remain **Not verified**. |
+| Browser            | Reports browser verifier plus schedule permission seam                                                                                                                    | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, and schedule-view-only action hiding. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Other visual matrices remain **Not verified**. |
 | Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions
@@ -340,4 +356,4 @@ native-host browser seccomp, and external delivery remain **Not verified**.
 
 ## Current Linux Chromium acceptance
 
-The release gate verifies the target-backed Reports schedule lifecycle: create daily, edit weekly, disable, enable, and delete. It separately proves schedule-view-only users cannot receive management controls and captures desktop dark/en-US plus mobile light/zh-CN evidence without horizontal overflow. The existing ten mutation-failure cases remain required and do not substitute for this success path. Runs retry, other visual matrices, native systemd, and native-host seccomp remain **Not verified**.
+The release gate verifies the target-backed Reports schedule lifecycle: create daily, edit weekly, disable, enable, and delete. It separately proves schedule-view-only users cannot receive management controls and captures desktop dark/en-US plus mobile light/zh-CN evidence without horizontal overflow. It also verifies Runs retry from the list and audit surfaces, exact direct-child selection, terminal visibility, view-only denial, and preservation of source evidence. The existing ten mutation-failure cases remain required and do not substitute for these success paths. Other visual matrices, native systemd, and native-host seccomp remain **Not verified**.
