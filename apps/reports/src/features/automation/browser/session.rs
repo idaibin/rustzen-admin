@@ -134,22 +134,6 @@ async fn phase_timeout<T>(
         .map_err(|_| AppError::internal(format!("browser initialization timed out during {phase}")))
 }
 
-#[cfg(test)]
-mod tests {
-    use std::future;
-
-    use super::phase_timeout;
-
-    #[tokio::test]
-    async fn launch_timeout_rejects_a_pending_complete_launch() {
-        assert!(
-            phase_timeout("launch", std::time::Duration::ZERO, future::pending::<()>())
-                .await
-                .is_err()
-        );
-    }
-}
-
 async fn close_browser(browser: &mut Browser, mut handler: tokio::task::JoinHandle<()>) {
     let closed =
         matches!(tokio::time::timeout(BROWSER_SHUTDOWN_TIMEOUT, browser.close()).await, Ok(Ok(_)));
@@ -167,5 +151,21 @@ async fn close_browser(browser: &mut Browser, mut handler: tokio::task::JoinHand
         tracing::warn!("Browser handler did not stop; aborting handler task");
         handler.abort();
         let _ = handler.await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::future;
+
+    use super::phase_timeout;
+
+    #[tokio::test]
+    async fn launch_timeout_rejects_a_pending_complete_launch() {
+        assert!(
+            phase_timeout("launch", std::time::Duration::ZERO, future::pending::<()>())
+                .await
+                .is_err()
+        );
     }
 }
