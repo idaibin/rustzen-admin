@@ -31,6 +31,27 @@ grep -Fq 'initial_head initial_state initial_digest' "$build"
 grep -Fq 'final_head final_state final_digest' "$build"
 grep -Fq '.viewport(viewport)' "$session"
 grep -Fq 'browser viewport differs from 1440x900' "$session"
+grep -Fq 'admin-browser-fault-proxy.py' "$outer"
+grep -Fq 'schemaVersion:2' "$inner"
+grep -Fq 'assertValue' "$inner"
+grep -Fq 'assertAbsent' "$inner"
+grep -Fq 'faultCases:$faultCases' "$inner"
+grep -Fq 'monitor-node-reset-network' "$inner"
+grep -Fq 'RUSTZEN_VERIFY_FAULT_METHOD' "$inner"
+grep -Fq 'hitCount == 1' "$inner"
+grep -Fq 'service_ports=(19801 19802 19803 19804)' "$inner"
+grep -Fq 'proxy_port=19805' "$inner"
+test "$(grep -Fc 'jq -nc --argjson login' "$inner")" -eq 8
+if grep -Fq 'jq -c --argjson login' "$inner"; then
+  echo 'browser step composition must use jq null input mode' >&2
+  exit 1
+fi
+grep -Fq 'faultCases | length) == 10' "$outer"
+grep -Fq 'receipt.hitCount != 1' "$outer"
+grep -Fq 'RUSTZEN_VERIFY_FAULT_METHOD' "$root/scripts/admin-browser-fault-proxy.py"
+grep -Fq 'self.command == METHOD and path == ROUTE' "$root/scripts/admin-browser-fault-proxy.py"
+grep -Fq 'HITS += 1' "$root/scripts/admin-browser-fault-proxy.py"
+python3 "$root/scripts/test-admin-browser-fault-proxy.py"
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/rz-ui-gate-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT

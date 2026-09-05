@@ -82,8 +82,8 @@ export function FlowDialog({
             >
                 <p className="mb-4 text-sm text-muted-foreground">
                     {t(
-                        "支持的动作：goto、fill、click、waitFor、assertText、screenshot、guardExists、pressKey、pause。",
-                        "Supported actions: goto, fill, click, waitFor, assertText, screenshot, guardExists, pressKey, pause.",
+                        "支持的动作：goto、fill、click、waitFor、assertText、assertValue、assertAbsent、screenshot、guardExists、pressKey、pause。",
+                        "Supported actions: goto, fill, click, waitFor, assertText, assertValue, assertAbsent, screenshot, guardExists, pressKey, pause.",
                     )}
                 </p>
                 <Form layout="vertical">

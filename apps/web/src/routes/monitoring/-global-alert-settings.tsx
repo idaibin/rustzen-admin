@@ -65,6 +65,7 @@ export function GlobalAlertSettings() {
             </Typography.Paragraph>
             {canManage && failedSave ? (
                 <Alert
+                    data-testid="monitor-global-save-error"
                     type="error"
                     showIcon
                     title={t("告警设置未保存", "Alert settings were not saved")}
@@ -74,6 +75,7 @@ export function GlobalAlertSettings() {
                     )}
                     action={
                         <Button
+                            data-testid="monitor-global-save-retry"
                             onClick={() =>
                                 retryFailedNetworkAction(canManage, failedSave, {
                                     save: (values) => mutation.mutate(values),
@@ -160,7 +162,12 @@ export function GlobalAlertSettings() {
                         {t("最近更新", "Last updated")}: {formatDateTime(data.updatedAt)}
                     </Typography.Text>
                     {canManage ? (
-                        <Button type="primary" htmlType="submit" loading={mutation.isPending}>
+                        <Button
+                            data-testid="monitor-global-save"
+                            type="primary"
+                            htmlType="submit"
+                            loading={mutation.isPending}
+                        >
                             {t("保存", "Save")}
                         </Button>
                     ) : null}

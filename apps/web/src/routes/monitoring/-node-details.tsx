@@ -139,9 +139,11 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
 
 export function PolicySourceTag({ source }: { source: "global" | "custom" }) {
     return source === "custom" ? (
-        <Tag color="blue">{t("节点自定义", "Custom")}</Tag>
+        <Tag data-testid="monitor-node-policy-source" color="blue">
+            {t("节点自定义", "Custom")}
+        </Tag>
     ) : (
-        <Tag>{t("全局默认", "Global default")}</Tag>
+        <Tag data-testid="monitor-node-policy-source">{t("全局默认", "Global default")}</Tag>
     );
 }
 
@@ -241,6 +243,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
             </Typography.Paragraph>
             {canManage && failedAction ? (
                 <Alert
+                    data-testid="monitor-node-save-error"
                     className="mb-4"
                     type="error"
                     showIcon
@@ -251,6 +254,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                     )}
                     action={
                         <Button
+                            data-testid="monitor-node-save-retry"
                             onClick={() =>
                                 retryFailedNetworkAction(canManage, failedAction, {
                                     save: (values) => save.mutate(values),
@@ -296,6 +300,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                 {canManage ? (
                     <Space>
                         <Button
+                            data-testid="monitor-node-save"
                             type="primary"
                             htmlType="submit"
                             loading={save.isPending}
@@ -305,6 +310,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                         </Button>
                         {data.isCustom ? (
                             <Button
+                                data-testid="monitor-node-reset"
                                 loading={reset.isPending}
                                 disabled={busy}
                                 onClick={() => {

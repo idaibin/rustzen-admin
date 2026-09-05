@@ -21,7 +21,13 @@ change does not expand browser execution or rename existing child pages.
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
   zh-CN/en-US. The route-local schedule panel and API client are implemented;
-  rendered runtime captures remain **Not verified**.
+rendered runtime captures remain **Not verified**.
+
+The Linux runtime browser gate additionally exercises rendered schedule create
+and edit through a container-only route-exact proxy. Both a disconnected request
+and an HTTP rejection retain the Modal; the form alert and retained due-time
+value are asserted through route-local test identifiers. Each case has its own
+Reports run and PNG evidence entry in the schema-2 browser manifest.
 
 The selected source proves current PageCard, table, form, Modal, run-detail,
 and DataState ownership. It does not authorize a new workflow builder, a new

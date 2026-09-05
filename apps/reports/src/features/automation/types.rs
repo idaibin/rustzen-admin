@@ -43,6 +43,13 @@ pub enum FlowStep {
         selector: String,
         text: String,
     },
+    AssertValue {
+        selector: String,
+        value: String,
+    },
+    AssertAbsent {
+        selector: String,
+    },
     Screenshot {
         name: Option<String>,
     },
@@ -68,6 +75,8 @@ impl FlowStep {
             Self::Click { .. } => "click",
             Self::WaitFor { .. } => "waitFor",
             Self::AssertText { .. } => "assertText",
+            Self::AssertValue { .. } => "assertValue",
+            Self::AssertAbsent { .. } => "assertAbsent",
             Self::Screenshot { .. } => "screenshot",
             Self::GuardExists { .. } => "guardExists",
             Self::PressKey { .. } => "pressKey",

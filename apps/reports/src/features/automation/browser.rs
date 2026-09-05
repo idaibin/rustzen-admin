@@ -192,6 +192,30 @@ async fn execute_step(
             }
             Ok(StepOutcome::Continue)
         }
+        FlowStep::AssertValue { selector, value } => {
+            let actual = locate_element(context.page, selector)
+                .await?
+                .call_js_fn("function() { return this.value; }", false)
+                .await
+                .map_err(AppError::internal)?;
+            let expected = service::substitute(value, context.input)?;
+            if actual.result.value.as_ref().and_then(Value::as_str) != Some(expected.as_str()) {
+                return Err(AppError::Conflict("assertValue did not match".into()));
+            }
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::AssertAbsent { selector } => {
+            let elements = if is_xpath(selector) {
+                context.page.find_xpaths(selector.strip_prefix("xpath=").unwrap_or(selector)).await
+            } else {
+                context.page.find_elements(selector).await
+            }
+            .map_err(AppError::internal)?;
+            if !elements.is_empty() {
+                return Err(AppError::Conflict("assertAbsent found an element".into()));
+            }
+            Ok(StepOutcome::Continue)
+        }
         FlowStep::Screenshot { name } => {
             save_screenshot(
                 context.state,

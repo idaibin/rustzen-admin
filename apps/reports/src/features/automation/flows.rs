@@ -107,6 +107,14 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                     return Err(AppError::InvalidInput("asserted text is too long".into()));
                 }
             }
+            FlowStep::AssertValue { selector, value } => {
+                validate_selector(selector)?;
+                reject_sensitive_template(value)?;
+                if value.len() > 4000 {
+                    return Err(AppError::InvalidInput("asserted value is too long".into()));
+                }
+            }
+            FlowStep::AssertAbsent { selector } => validate_selector(selector)?,
             FlowStep::Screenshot { name } => {
                 if name.as_ref().is_some_and(|value| value.len() > 100) {
                     return Err(AppError::InvalidInput("screenshot name is too long".into()));
@@ -192,6 +200,8 @@ mod tests {
             },
             FlowStep::Click { selector: "#banner-close".into() },
             FlowStep::Fill { selector: "#kw".into(), value: "test".into() },
+            FlowStep::AssertValue { selector: "#kw".into(), value: "test".into() },
+            FlowStep::AssertAbsent { selector: "#missing".into() },
             FlowStep::PressKey { key: "Enter".into() },
             FlowStep::Pause { duration_ms: 500 },
             FlowStep::Screenshot { name: Some("result".into()) },

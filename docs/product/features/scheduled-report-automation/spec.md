@@ -51,6 +51,14 @@ unprivileged user with browser user namespaces, WAL files, recovery blocking,
 logs, and screenshots. The rendered Web route, a real systemd boot, and browser
 seccomp under a confined native Linux host remain **Not verified**.
 
+Reports flows may use the bounded `assertValue` and `assertAbsent` steps in
+addition to the existing browser DSL. `assertValue` compares an element's
+native value after normal selector validation and template substitution.
+`assertAbsent` succeeds only when Chromium reports the selector as not found;
+an invalid selector, CDP fault, or browser failure remains a failed run. These
+steps do not allow arbitrary page evaluation. The Rust flow schema and the
+handwritten Web `Reports.FlowStep` declaration carry the same two variants.
+
 ## Users and scenarios
 
 - An owner or permitted report operator enables a daily or weekly schedule for

@@ -15,6 +15,16 @@ It does not introduce generated assets, Agent configuration, custom checks, or
 weekly/monthly/yearly reports. Component facts are source-extracted; runtime
 coverage belongs to [local verification](../../guides/local-verification.md).
 
+The Linux runtime browser gate opens the rendered Global Settings and Node
+policy Drawers through a container-only route-exact proxy. It separately injects
+disconnect and HTTP failures for global save and node save/reset. Disconnects
+must show the actionable retained-draft Drawer alert; HTTP rejections continue
+through the existing single global message and must not duplicate that alert.
+Save cases change a threshold before submission and verify the edited value is
+still present after rejection. Reset cases verify the node remains marked as a
+custom policy and that its reset action remains available after rejection.
+The schema-2 browser manifest records a run and PNG hash/dimensions per case.
+
 ## Route composition and behavior
 
 The Incidents surface is labeled **告警事件 / Alert incidents** in navigation,

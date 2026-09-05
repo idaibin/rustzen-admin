@@ -20,16 +20,25 @@ and runtime data.
 
 The browser flow signs in as the fresh-install owner, waits for the rendered
 console shell, captures the Dashboard, opens Analytics details, and captures
-that page. A successful run publishes exactly one evidence set under
+that page. It also uses a container-only route-exact fault proxy on port 19805:
+Admin setup stays direct on 19801 while the browser is routed through the proxy.
+The proxy injects disconnect and HTTP failures for Reports schedule create/edit
+and Monitoring global/node save/reset. The flows mutate and reread schedule and
+threshold drafts; failed node reset also rereads the custom-policy marker and
+reset action. Every matching mutation is counted and blocked; a duplicate or
+replayed write makes the case fail instead of reaching the real backend. Python is used only for this disposable
+Debian verifier because the base image has neither Bun nor Node; it is mounted
+from `scripts/` and never enters the distribution. A successful run publishes exactly one evidence set under
 `target/rz/ui-browser/current/` with:
 
 - the two PNG files downloaded through the Admin artifact endpoint;
 - response headers for each download;
 - the build provenance binding the source tree, target, platform, distribution,
   and four binary hashes;
-- a manifest containing the Git commit, clean/dirty source state, a digest of
+- a schema-2 manifest containing the Git commit, clean/dirty source state, a digest of
   the complete tracked and untracked source tree, exact binary hashes,
-  Chromium version, byte counts, image dimensions, and PNG hashes.
+  Chromium version, byte counts, image dimensions, and PNG hashes. Each fault
+  case records its Reports run ID, fault mode, route, screenshot hash, and dimensions.
 
 The verifier acquires an evidence-root mutex, invalidates `current/` before
 startup, and writes into a candidate directory. A concurrent invocation fails

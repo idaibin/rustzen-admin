@@ -117,6 +117,7 @@ export function ScheduleDialog({
     return (
         <>
             <Button
+                data-testid={schedule ? "schedule-edit" : "schedule-create"}
                 type={schedule ? "link" : "primary"}
                 onClick={openDialog}
                 disabled={!flowOptions.some((flow) => flow.enabled)}
@@ -146,6 +147,7 @@ export function ScheduleDialog({
                 />
                 {saveError ? (
                     <Alert
+                        data-testid="schedule-save-error"
                         className="mb-4"
                         type="error"
                         showIcon
@@ -224,6 +226,7 @@ export function ScheduleDialog({
                     <div className="flex justify-end gap-2">
                         <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>
                         <Button
+                            data-testid="schedule-save"
                             type="primary"
                             loading={mutation.isPending}
                             disabled={mutation.isPending}

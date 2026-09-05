@@ -106,7 +106,11 @@ function MonitoringNodesPage() {
             width: 88,
             fixed: "right",
             render: (_, row) => (
-                <Button type="link" onClick={() => setSelected(row)}>
+                <Button
+                    data-testid="monitor-node-view"
+                    type="link"
+                    onClick={() => setSelected(row)}
+                >
                     {t("查看", "View")}
                 </Button>
             ),
@@ -129,7 +133,11 @@ function MonitoringNodesPage() {
                         {t("刷新", "Refresh")}
                     </Button>
                     {canViewSettings ? (
-                        <Button icon={<SettingOutlined />} onClick={() => setPanel("settings")}>
+                        <Button
+                            data-testid="monitor-global-settings"
+                            icon={<SettingOutlined />}
+                            onClick={() => setPanel("settings")}
+                        >
                             {t("全局配置", "Global settings")}
                         </Button>
                     ) : null}

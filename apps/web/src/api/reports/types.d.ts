@@ -24,6 +24,8 @@ declare namespace Reports {
         | { action: "click"; selector: string }
         | { action: "waitFor"; selector: string }
         | { action: "assertText"; selector: string; text: string }
+        | { action: "assertValue"; selector: string; value: string }
+        | { action: "assertAbsent"; selector: string }
         | { action: "screenshot"; name?: string }
         | {
               action: "guardExists";

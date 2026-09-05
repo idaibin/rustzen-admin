@@ -14,13 +14,14 @@ SOURCES
   chromium_version=120.0.6099.224-1~deb11u1
   apt-get install -y --no-install-recommends \
     "chromium=$chromium_version" "chromium-common=$chromium_version" "chromium-sandbox=$chromium_version" \
-    fonts-noto-cjk curl jq file procps util-linux iproute2 >/dev/null
+    fonts-noto-cjk curl jq file procps util-linux iproute2 python3 >/dev/null
 else
-  apt-get install -y --no-install-recommends chromium chromium-sandbox fonts-noto-cjk curl jq file procps util-linux iproute2 >/dev/null
+  apt-get install -y --no-install-recommends chromium chromium-sandbox fonts-noto-cjk curl jq file procps util-linux iproute2 python3 >/dev/null
 fi
 
-ports=(19801 19802 19803 19804)
-for port in "${ports[@]}"; do
+service_ports=(19801 19802 19803 19804)
+proxy_port=19805
+for port in "${service_ports[@]}" "$proxy_port"; do
   if ss -H -ltn "sport = :$port" | grep -q .; then
     echo "verification port is already occupied: $port" >&2
     exit 1
@@ -114,7 +115,7 @@ start admin /opt/rz/rz-admin serve
 curl_json() {
   curl --fail --silent --show-error --connect-timeout 3 --max-time 15 "$@"
 }
-for port in "${ports[@]}"; do
+for port in "${service_ports[@]}"; do
   ready=0
   for _ in $(seq 1 150); do
     if curl_json "http://127.0.0.1:$port/health" >/dev/null 2>&1; then ready=1; break; fi
@@ -128,6 +129,103 @@ admin=http://127.0.0.1:19801
 login=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","password":"rustzen@123"}' "$admin/api/auth/login")
 token=$(jq -er '.data.token | select(length > 20)' <<<"$login")
 auth=(-H "authorization: Bearer $token")
+
+# Python is deliberately used only in this disposable Debian verifier: the base
+# image has neither Bun nor Node, while Python's standard library is sufficient
+# for a route-exact forward proxy. It is mounted from scripts and is not shipped.
+start_fault_proxy() {
+  method=$1 mode=$2 route=$3 receipt=$4
+  RUSTZEN_VERIFY_FAULT_METHOD="$method" RUSTZEN_VERIFY_FAULT_MODE="$mode" RUSTZEN_VERIFY_FAULT_ROUTE="$route" RUSTZEN_VERIFY_FAULT_RECEIPT="$receipt" \
+    python3 /verify/fault-proxy.py >/opt/rz/logs/verify-fault-proxy.log 2>&1 &
+  proxy_pid=$!
+  pids+=("$proxy_pid")
+  for _ in $(seq 1 50); do curl_json http://127.0.0.1:19805/__verify_proxy_health >/dev/null 2>&1 && return; sleep .1; done
+  echo "fault proxy did not become ready" >&2; exit 1
+}
+
+stop_fault_proxy() {
+  kill -TERM "$proxy_pid" 2>/dev/null || true
+  wait "$proxy_pid" 2>/dev/null || true
+  pids=("${pids[@]:0:${#pids[@]}-1}")
+}
+
+browser_system=$(jq -nc '{name:"Linux Admin browser fault proxy",baseUrl:"http://127.0.0.1:19805/health",enabled:true}')
+browser_system_response=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$browser_system" "$admin/api/reports/systems")
+browser_system_id=$(jq -er '.data.id' <<<"$browser_system_response")
+browser_seed_flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_system_id" '{systemId:$system,name:"Browser fault seed",steps:[{action:"goto",url:"/health"},{action:"assertText",selector:"body",text:"ok"}]}')" "$admin/api/reports/flows")
+browser_seed_flow_id=$(jq -er '.data.id' <<<"$browser_seed_flow")
+
+run_browser_case() {
+  case_name=$1 method=$2 mode=$3 route=$4 steps=$5
+  echo "running browser fault case: $case_name"
+  receipt=/verify/evidence/"$case_name".receipt.json
+  start_fault_proxy "$method" "$mode" "$route" "$receipt"
+  steps=$(jq -c --arg name "$case_name" '. + [{action:"screenshot",name:$name}]' <<<"$steps")
+  body=$(jq -nc --arg system "$browser_system_id" --arg name "$case_name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')
+  flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$body" "$admin/api/reports/flows")
+  case_flow_id=$(jq -er '.data.id' <<<"$flow")
+  run=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$case_flow_id" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs")
+  case_run_id=$(jq -er '.data.id' <<<"$run")
+  state=queued
+  for _ in $(seq 1 900); do
+    run=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id")
+    state=$(jq -er '.data.status' <<<"$run")
+    case "$state" in queued|running|cancelling) sleep .1 ;; *) break ;; esac
+  done
+  stop_fault_proxy
+  if [ "$state" != succeeded ]; then
+    [ ! -s "$receipt" ] || { echo "fault receipt:" >&2; cat "$receipt" >&2; echo >&2; }
+    curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/steps" >&2 || true
+    echo "fault case $case_name ended with $state" >&2
+    exit 1
+  fi
+  jq -e --arg method "$method" --arg mode "$mode" --arg route "$route" '.method == $method and .mode == $mode and .route == $route and .hitCount == 1' "$receipt" >/dev/null || { echo "fault proxy receipt was not exactly one hit: $case_name" >&2; exit 1; }
+  artifacts=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/artifacts")
+  artifact_id=$(jq -er --arg prefix "$case_name-" '.data[] | select(.kind == "screenshot" and (.fileName | startswith($prefix))) | .id' <<<"$artifacts")
+  image=/verify/evidence/"$case_name".png
+  if ! curl --fail --silent --show-error --connect-timeout 3 --max-time 30 -o "$image" "${auth[@]}" "$admin/api/reports/runs/$case_run_id/artifacts/$artifact_id"; then
+    echo "artifact download failed for $case_name (run $case_run_id, artifact $artifact_id):" >&2
+    echo "$artifacts" >&2
+    exit 1
+  fi
+  file "$image" | grep -Eq 'PNG image data, [1-9][0-9]* x [1-9][0-9]*'
+  dimensions=$(file "$image" | sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/')
+  jq -nc --arg runId "$case_run_id" --arg method "$method" --arg mode "$mode" --arg route "$route" --slurpfile receipt "$receipt" --arg file "$(basename "$image")" --arg sha "$(sha256sum "$image" | awk '{print $1}')" --arg dimensions "$dimensions" '{runId:$runId,method:$method,mode:$mode,route:$route,receipt:$receipt[0],artifact:{file:$file,sha256:$sha,dimensions:$dimensions}}' >>/verify/evidence/fault-cases.jsonl
+  echo "browser fault case passed: $case_name"
+}
+
+login_steps='[{"action":"goto","url":"/login"},{"action":"waitFor","selector":"#login_username"},{"action":"fill","selector":"#login_username","value":"owner"},{"action":"fill","selector":"#login_password","value":"rustzen@123"},{"action":"click","selector":"button[type=submit]"},{"action":"waitFor","selector":".shell-content"}]'
+schedule_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-create]"},{action:"click",selector:"[data-testid=schedule-create]"},{action:"waitFor",selector:"[data-testid=schedule-save]"},{action:"fill",selector:"input[type=time]",value:"10:15"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"waitFor",selector:"[data-testid=schedule-save-error]"},{action:"assertText",selector:"[data-testid=schedule-save-error]",text:"计划未保存"},{action:"assertValue",selector:"input[type=time]",value:"10:15"}]')
+run_browser_case schedule-create-network POST network /api/reports/schedules "$schedule_steps"
+run_browser_case schedule-create-http POST http /api/reports/schedules "$schedule_steps"
+seed_schedule=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$browser_seed_flow_id" '{flowId:$flow,cadence:"daily",dueTime:"09:00",input:{},description:"fault edit",enabled:true}')" "$admin/api/reports/schedules")
+seed_schedule_id=$(jq -er '.data.id' <<<"$seed_schedule")
+schedule_edit_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-edit]"},{action:"click",selector:"[data-testid=schedule-edit]"},{action:"waitFor",selector:"[data-testid=schedule-save]"},{action:"fill",selector:"input[type=time]",value:"10:16"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"waitFor",selector:"[data-testid=schedule-save-error]"},{action:"assertText",selector:"[data-testid=schedule-save-error]",text:"计划未保存"},{action:"assertValue",selector:"input[type=time]",value:"10:16"}]')
+run_browser_case schedule-edit-network PUT network "/api/reports/schedules/$seed_schedule_id" "$schedule_edit_steps"
+run_browser_case schedule-edit-http PUT http "/api/reports/schedules/$seed_schedule_id" "$schedule_edit_steps"
+
+node_report=$(jq -nc --arg boot "11111111-1111-4111-8111-111111111111" --arg collected "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{nodeId:"browser-fault-node",bootId:$boot,sequence:1,hostname:"browser-fault-node",agentVersion:"verify",collectedAt:$collected,cpuPercent:10,memory:{usedBytes:10,totalBytes:100},disks:[{mountPoint:"/",usedBytes:10,totalBytes:100}]}')
+if ! curl_json -H 'x-rustzen-monitor-agent-token: ui-browser-verification-agent-secret' -H 'content-type: application/json' -d "$node_report" "$admin/api/monitor/agent-reports" >/dev/null; then
+  echo "browser fixture node registration failed" >&2
+  exit 1
+fi
+node_settings='{"cpu":{"enabled":true,"thresholdPercent":80},"memory":{"enabled":true,"thresholdPercent":80},"disk":{"enabled":true,"thresholdPercent":80},"offline":{"enabled":true,"afterSeconds":60}}'
+if ! curl_json "${auth[@]}" -H 'content-type: application/json' -X PUT -d "$node_settings" "$admin/api/monitor/nodes/browser-fault-node/alert-settings" >/dev/null; then
+  echo "browser fixture node policy setup failed" >&2
+  exit 1
+fi
+global_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-global-settings]"},{action:"click",selector:"[data-testid=monitor-global-settings]"},{action:"waitFor",selector:"[data-testid=monitor-global-save]"},{action:"fill",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"73"},{action:"click",selector:"[data-testid=monitor-global-save]"},{action:"waitFor",selector:"[data-testid=monitor-global-save-error]"},{action:"assertText",selector:"[data-testid=monitor-global-save-error]",text:"告警设置未保存"},{action:"assertValue",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"73"}]')
+global_http_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-global-settings]"},{action:"click",selector:"[data-testid=monitor-global-settings]"},{action:"waitFor",selector:"[data-testid=monitor-global-save]"},{action:"fill",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"74"},{action:"click",selector:"[data-testid=monitor-global-save]"},{action:"waitFor",selector:".ant-message"},{action:"assertText",selector:".ant-message",text:"browser fault injection"},{action:"assertAbsent",selector:"[data-testid=monitor-global-save-error]"},{action:"assertValue",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"74"}]')
+node_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-node-view]"},{action:"click",selector:"[data-testid=monitor-node-view]"},{action:"waitFor",selector:"[data-testid=monitor-node-save]"},{action:"fill",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"75"},{action:"click",selector:"[data-testid=monitor-node-save]"},{action:"waitFor",selector:"[data-testid=monitor-node-save-error]"},{action:"assertText",selector:"[data-testid=monitor-node-save-error]",text:"节点策略未保存"},{action:"assertValue",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"75"}]')
+node_http_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-node-view]"},{action:"click",selector:"[data-testid=monitor-node-view]"},{action:"waitFor",selector:"[data-testid=monitor-node-save]"},{action:"fill",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"76"},{action:"click",selector:"[data-testid=monitor-node-save]"},{action:"waitFor",selector:".ant-message"},{action:"assertText",selector:".ant-message",text:"browser fault injection"},{action:"assertAbsent",selector:"[data-testid=monitor-node-save-error]"},{action:"assertValue",selector:"input[aria-label=\"CPU 阈值（%）\"]",value:"76"}]')
+node_reset_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-node-view]"},{action:"click",selector:"[data-testid=monitor-node-view]"},{action:"waitFor",selector:"[data-testid=monitor-node-reset]"},{action:"click",selector:"[data-testid=monitor-node-reset]"},{action:"waitFor",selector:"[data-testid=monitor-node-save-error]"},{action:"assertText",selector:"[data-testid=monitor-node-save-error]",text:"节点策略未保存"},{action:"assertText",selector:"[data-testid=monitor-node-policy-source]",text:"节点自定义"},{action:"assertText",selector:"[data-testid=monitor-node-reset]",text:"重置为全局默认"}]')
+node_reset_http_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/monitoring/nodes"},{action:"waitFor",selector:"[data-testid=monitor-node-view]"},{action:"click",selector:"[data-testid=monitor-node-view]"},{action:"waitFor",selector:"[data-testid=monitor-node-reset]"},{action:"click",selector:"[data-testid=monitor-node-reset]"},{action:"waitFor",selector:".ant-message"},{action:"assertText",selector:".ant-message",text:"browser fault injection"},{action:"assertAbsent",selector:"[data-testid=monitor-node-save-error]"},{action:"assertText",selector:"[data-testid=monitor-node-policy-source]",text:"节点自定义"},{action:"assertText",selector:"[data-testid=monitor-node-reset]",text:"重置为全局默认"}]')
+run_browser_case monitor-global-save-network PUT network /api/monitor/alert-settings "$global_steps"
+run_browser_case monitor-global-save-http PUT http /api/monitor/alert-settings "$global_http_steps"
+run_browser_case monitor-node-save-network PUT network /api/monitor/nodes/browser-fault-node/alert-settings "$node_steps"
+run_browser_case monitor-node-save-http PUT http /api/monitor/nodes/browser-fault-node/alert-settings "$node_http_steps"
+run_browser_case monitor-node-reset-network DELETE network /api/monitor/nodes/browser-fault-node/alert-settings "$node_reset_steps"
+run_browser_case monitor-node-reset-http DELETE http /api/monitor/nodes/browser-fault-node/alert-settings "$node_reset_http_steps"
 
 # Start Chromium on the lightweight health response. The first audited flow
 # step then navigates to /login on the same Admin origin. This separates CDP
@@ -197,7 +295,8 @@ jq -n \
   --arg analyticsSha "$(sha256sum /verify/evidence/analytics-details.png | awk '{print $1}')" \
   --argjson analyticsBytes "$(wc -c </verify/evidence/analytics-details.png)" \
   --arg analyticsDimensions "$(sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/' <<<"$analytics_file")" \
-  '{schemaVersion:1,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}}}' \
+  --slurpfile faultCases /verify/evidence/fault-cases.jsonl \
+  '{schemaVersion:2,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}},faultCases:$faultCases}' \
   >/verify/evidence/manifest.json
 
 test "$(jq -r .gitHead /verify/evidence/manifest.json)" = "$RUSTZEN_VERIFY_HEAD"

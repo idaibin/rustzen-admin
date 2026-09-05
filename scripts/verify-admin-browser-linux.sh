@@ -93,11 +93,29 @@ docker run --name "$container" --platform "$platform" --security-opt seccomp=unc
   --mount "type=bind,src=$staged_bin_dir,dst=/verify/bin,readonly" \
   --mount "type=bind,src=$candidate,dst=/verify/evidence" \
   --mount "type=bind,src=$root/scripts/verify-admin-browser-linux-inner.sh,dst=/verify/run.sh,readonly" \
+  --mount "type=bind,src=$root/scripts/admin-browser-fault-proxy.py,dst=/verify/fault-proxy.py,readonly" \
   "$image" timeout --signal=TERM --kill-after=10s 300s bash /verify/run.sh
 
 test -f "$candidate/manifest.json"
 test -f "$candidate/dashboard.png"
 test -f "$candidate/analytics-details.png"
+jq -e '
+  .schemaVersion == 2 and
+  (.faultCases | length) == 10 and
+  ([.faultCases[] | .runId, .method, .mode, .route, .receipt.method, .receipt.mode, .receipt.route, .receipt.hitCount, .artifact.file, .artifact.sha256, .artifact.dimensions] | all(. != null)) and
+  ([.faultCases[] | select(.receipt.hitCount != 1)] | length) == 0 and
+  ([.faultCases[] | "\(.method) \(.mode) \((if (.route | startswith("/api/reports/schedules/")) then "/api/reports/schedules/{id}" else .route end))"] | sort) == [
+    "DELETE http /api/monitor/nodes/browser-fault-node/alert-settings", "DELETE network /api/monitor/nodes/browser-fault-node/alert-settings",
+    "POST http /api/reports/schedules", "POST network /api/reports/schedules",
+    "PUT http /api/monitor/alert-settings", "PUT http /api/monitor/nodes/browser-fault-node/alert-settings", "PUT http /api/reports/schedules/{id}",
+    "PUT network /api/monitor/alert-settings", "PUT network /api/monitor/nodes/browser-fault-node/alert-settings", "PUT network /api/reports/schedules/{id}"
+  ]
+' "$candidate/manifest.json" >/dev/null
+for image in "$candidate"/*.png; do
+  [ "$(od -An -tx1 -N8 "$image" | tr -d ' \n')" = 89504e470d0a1a0a ]
+  file "$image" | grep -Eq 'PNG image data, [1-9][0-9]* x [1-9][0-9]*'
+  sha256sum "$image" | grep -Eq '^[0-9a-f]{64}[[:space:]]'
+done
 read -r final_head final_source_tree_state final_source_tree_sha256 < <("$root/scripts/admin-browser-source-identity.sh")
 test "$final_head" = "$head" || {
   echo "Git HEAD changed during verification" >&2
