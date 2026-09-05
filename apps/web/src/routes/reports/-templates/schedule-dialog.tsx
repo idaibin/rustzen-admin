@@ -1,9 +1,19 @@
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Select, Switch } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { t } from "@/lib/i18n";
+
+import {
+    beginScheduleDialogCycle,
+    createScheduleSaveHandlers,
+    endScheduleDialogCycle,
+    initialScheduleDialogCycle,
+    isCurrentScheduleDialogCycle,
+    markScheduleDraftInitialized,
+    shouldInitializeScheduleDraft,
+} from "./schedule-save-state";
 
 export function ScheduleDialog({
     flowOptions,
@@ -22,9 +32,23 @@ export function ScheduleDialog({
     const [inputJson, setInputJson] = useState("{}");
     const [description, setDescription] = useState("");
     const [enabled, setEnabled] = useState(true);
+    const [saveError, setSaveError] = useState<string>();
+    const cycle = useRef(initialScheduleDialogCycle);
+
+    const closeDialog = () => {
+        cycle.current = endScheduleDialogCycle(cycle.current);
+        setSaveError(undefined);
+        setOpen(false);
+    };
+
+    const openDialog = () => {
+        cycle.current = beginScheduleDialogCycle(cycle.current);
+        setSaveError(undefined);
+        setOpen(true);
+    };
 
     useEffect(() => {
-        if (!open) return;
+        if (!open || !shouldInitializeScheduleDraft(cycle.current)) return;
         setFlowId(schedule?.flowId ?? flowOptions.find((flow) => flow.enabled)?.id ?? "");
         setCadence(schedule?.cadence ?? "daily");
         setWeekday(schedule?.weekday ?? 1);
@@ -32,25 +56,32 @@ export function ScheduleDialog({
         setInputJson(JSON.stringify(schedule?.input ?? {}, null, 2));
         setDescription(schedule?.description ?? "");
         setEnabled(schedule?.enabled ?? true);
-    }, [flowOptions, open, schedule]);
+        cycle.current = markScheduleDraftInitialized(cycle.current);
+    }, [open]);
 
-    const mutation = useMutation({
-        mutationFn: (input: Reports.SaveSchedule) =>
-            schedule
-                ? reportsAPI.updateSchedule(schedule.id, input)
-                : reportsAPI.createSchedule(input),
-        onSuccess: async () => {
-            await onSaved();
+    const saveHandlers = createScheduleSaveHandlers({
+        refresh: onSaved,
+        isCurrent: (saveCycle) => isCurrentScheduleDialogCycle(cycle.current, saveCycle),
+        showSuccess: () =>
             appMessage.success(
                 schedule
                     ? t("计划已更新", "Schedule updated")
                     : t("计划已创建", "Schedule created"),
-            );
-            setOpen(false);
-        },
+            ),
+        close: closeDialog,
+        showError: setSaveError,
+        fallbackError: t("计划保存失败，请稍后重试。", "Unable to save the schedule. Try again."),
+    });
+    const mutation = useMutation({
+        mutationFn: ({ input }: { input: Reports.SaveSchedule; cycle: number }) =>
+            schedule
+                ? reportsAPI.updateSchedule(schedule.id, input)
+                : reportsAPI.createSchedule(input),
+        ...saveHandlers,
     });
 
     const save = () => {
+        setSaveError(undefined);
         try {
             const input = JSON.parse(inputJson) as Record<string, unknown>;
             if (!input || Array.isArray(input) || typeof input !== "object") throw new Error();
@@ -62,13 +93,16 @@ export function ScheduleDialog({
                 throw new Error(t("所选流程目标已停用。", "The selected flow target is disabled."));
             }
             mutation.mutate({
-                flowId,
-                cadence,
-                weekday: cadence === "weekly" ? weekday : undefined,
-                dueTime,
-                input,
-                description: description.trim(),
-                enabled,
+                input: {
+                    flowId,
+                    cadence,
+                    weekday: cadence === "weekly" ? weekday : undefined,
+                    dueTime,
+                    input,
+                    description: description.trim(),
+                    enabled,
+                },
+                cycle: cycle.current.id,
             });
         } catch {
             appMessage.error(
@@ -84,7 +118,7 @@ export function ScheduleDialog({
         <>
             <Button
                 type={schedule ? "link" : "primary"}
-                onClick={() => setOpen(true)}
+                onClick={openDialog}
                 disabled={!flowOptions.some((flow) => flow.enabled)}
             >
                 {schedule ? t("编辑", "Edit") : t("新建计划", "New schedule")}
@@ -96,7 +130,7 @@ export function ScheduleDialog({
                         ? t("编辑定时报表计划", "Edit scheduled report")
                         : t("新建定时报表计划", "New scheduled report")
                 }
-                onCancel={() => setOpen(false)}
+                onCancel={closeDialog}
                 footer={null}
                 width={760}
                 destroyOnHidden
@@ -110,6 +144,15 @@ export function ScheduleDialog({
                         "Do not submit passwords, tokens, keys, or other sensitive information.",
                     )}
                 />
+                {saveError ? (
+                    <Alert
+                        className="mb-4"
+                        type="error"
+                        showIcon
+                        message={t("计划未保存", "Schedule was not saved")}
+                        description={saveError}
+                    />
+                ) : null}
                 <Form layout="vertical">
                     <Form.Item label={t("流程", "Template")} required>
                         <Select
@@ -179,8 +222,13 @@ export function ScheduleDialog({
                         <Switch checked={enabled} onChange={setEnabled} />
                     </Form.Item>
                     <div className="flex justify-end gap-2">
-                        <Button onClick={() => setOpen(false)}>{t("取消", "Cancel")}</Button>
-                        <Button type="primary" loading={mutation.isPending} onClick={save}>
+                        <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>
+                        <Button
+                            type="primary"
+                            loading={mutation.isPending}
+                            disabled={mutation.isPending}
+                            onClick={save}
+                        >
                             {t("校验并保存", "Validate and save")}
                         </Button>
                     </div>

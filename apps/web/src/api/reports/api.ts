@@ -45,6 +45,7 @@ export const reportsAPI = {
             url: contract.createSchedule.path,
             method: contract.createSchedule.method,
             params,
+            silent: true,
         }),
     schedule: (id: string) =>
         apiRequest<Reports.Schedule>({ url: routePath(contract.schedule, { id }) }),
@@ -53,6 +54,7 @@ export const reportsAPI = {
             url: routePath(contract.updateSchedule, { id }),
             method: contract.updateSchedule.method,
             params,
+            silent: true,
         }),
     deleteSchedule: (id: string) =>
         apiRequest<void>({

@@ -42,7 +42,9 @@ the Reports execution browser, real screenshot artifacts, cleanup, and
 schedule-only delegated permission requests; the Web seam tests fix the
 route's selector and schedule view/manage gates plus terminal retry visibility,
 the shared per-source pending key, success selection of the direct child, and
-failure preservation of the source selection. The four-service verifier
+failure preservation of the source selection. The schedule-save seam verifies
+that a request failure remains in the open form for retry and that only a
+successful refresh announces and closes the dialog. The four-service verifier
 covers startup ordering, failure isolation, gateway contracts, and each
 service database restore. A Colima Debian/amd64 run covers Reports as an
 unprivileged user with browser user namespaces, WAL files, recovery blocking,
@@ -164,7 +166,10 @@ Non-goals:
    runs surface. The list loads with explicit state semantics.
 2. Creating or editing validates that the target flow exists, cadence fields
    are complete, and input contains no recognized secret field. Save returns
-   the schedule to the list with its next due time.
+   the schedule to the list with its next due time. A create or update request
+   failure stays visible inside the open form, retains every entered field, and
+   lets the operator correct or retry the same submission; it does not close
+   the dialog or reset the draft.
 3. At a due occurrence, Reports resolves the local time and applies the 60-
    second window. It atomically records `enqueued` and creates one normal run,
    or records `skipped` with due/reason and no run. Repeated polls, restarts,
@@ -213,6 +218,15 @@ tables, forms, dialogs, and run evidence.
 | Permission | Caller lacks view/manage capability. | Hide mutation actions and show the existing permission state. |
 | Processing | Save, enable/disable, delete, or manual due-check is running. | Disable duplicate actions and retain the selected schedule. |
 | Partial | A list contains mixed occurrence outcomes. | Keep each outcome and reason; never summarize as all successful. |
+
+For a create or update save failure, the form shows the returned error when
+available, otherwise localized save-failure guidance. This is distinct from
+request-layer feedback: the schedule mutation suppresses its global error toast
+and the form is the sole presentation owner. The form-level error remains
+visible while the dialog is open, and retry uses the retained draft without
+reinitializing it. Each open dialog cycle owns its save callbacks; a late
+completion from a closed cycle cannot close, announce, or overwrite a reopened
+draft.
 
 ## User-visible data effects
 

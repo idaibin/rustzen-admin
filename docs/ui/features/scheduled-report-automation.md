@@ -46,7 +46,9 @@ link.
 The static seam tests verify selector/gate composition and the route-local retry
 behavior: failed/cancelled visibility, one per-source pending key shared by the
 list and detail, child selection after success, and source preservation after
-failure. The Reports
+failure. The schedule-save seam verifies that an API failure displays an error
+without closing the dialog, while successful refresh remains the only path that
+announces and closes it. The Reports
 browser verifier separately verifies schedule-only viewer/manager delegated
 HTTP access while exercising the existing target-backed browser runner. It
 does not produce a visual capture of the Web Templates route. Desktop/narrow,
@@ -102,6 +104,16 @@ compatible consumer exists.
 | Processing | Disabled primary/action controls and inline progress | Duplicate save/toggle/delete cannot start. |
 | Partial | Per-occurrence decision/outcome tags and explicit summary | Skipped items show due/reason with no run link; enqueued items link to their run; no all-success label. |
 | Validation | Field-local guidance plus form-level error | Secret-looking input and cadence errors prevent submission. |
+
+When a create or edit request fails after local validation, the open Modal
+renders a form-level error alert using the server error when available and a
+localized fallback otherwise. The alert remains until the next save attempt or
+the dialog closes. The Modal does not close or reinitialize fields on failure,
+so the operator can correct the retained draft or retry immediately. This
+schedule mutation suppresses its global error toast, leaving the form alert as
+the only failure presentation. A dialog open cycle initializes its draft once;
+flow-option or schedule-prop refreshes never overwrite an active draft, and a
+late callback from a closed cycle cannot alter a later reopened dialog.
 
 The form never exposes credential fields, arbitrary cron text, notification
 channels, or catch-up controls. A disabled schedule is textually distinct from
