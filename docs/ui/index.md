@@ -16,6 +16,7 @@ feature specs record only route-local composition, states, and evidence.
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
 | Admin | [Role definition management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge evidence retained |
 | Admin | [User role assignment readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge evidence retained |
+| Admin / Reports | [Linux runtime browser validation](./runtime-browser-validation.md) | [Scheduled automation](../product/features/scheduled-report-automation/spec.md) | Reproducible Colima gate; evidence is valid only after a passing current run |
 
 ## Current console route contract
 

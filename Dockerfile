@@ -20,7 +20,7 @@ RUN sed -i "s|archive.ubuntu.com|mirrors.aliyun.com|g; s|ports.ubuntu.com|mirror
 
 RUN curl --retry 5 --retry-all-errors --connect-timeout 15 --max-time 600 https://sh.rustup.rs -sSf | \
     sh -s -- -y --profile minimal --default-toolchain ${RUST_VERSION} && \
-    rustup target add x86_64-unknown-linux-musl aarch64-unknown-linux-gnu
+    rustup target add x86_64-unknown-linux-musl aarch64-unknown-linux-gnu aarch64-unknown-linux-musl
 
 RUN mkdir -p "${CARGO_HOME}" && printf '%s\n' \
     '[source.crates-io]' \

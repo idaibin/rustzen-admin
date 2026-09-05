@@ -18,7 +18,9 @@ smallest scheduling policy around that loop and keeps browser execution owned
 by Reports.
 
 Reports browser execution runs under the dedicated unprivileged `rz-reports`
-service account with Chromium sandboxing enabled. A screenshot is rejected when
+service account with Chromium sandboxing enabled. Browser sessions use a
+deterministic 1440x900 viewport so operator flows and their screenshot evidence
+do not depend on a host default. A screenshot is rejected when
 it exceeds 4,000,000 pixels or 4 MiB, and one run may retain at most 16 MiB of
 screenshot artifacts; rejected captures leave no artifact row or temporary
 file. These execution limits apply equally to ordinary and scheduled runs.

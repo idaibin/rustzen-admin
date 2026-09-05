@@ -128,6 +128,14 @@ verify-automation-browser browser_path:
 verify-reports-linux:
     scripts/verify-reports-linux.sh
 
+# Run the full Linux services and drive the rendered Admin UI through Reports Chromium.
+build-admin-browser-linux:
+    scripts/build-admin-browser-linux.sh
+
+verify-admin-browser-linux:
+    scripts/test-verify-admin-browser-linux.sh
+    scripts/verify-admin-browser-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"

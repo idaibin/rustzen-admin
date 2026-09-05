@@ -26,6 +26,8 @@ pub(super) struct ExecutionContext<'a> {
 }
 
 const BROWSER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+const VIEWPORT_WIDTH: u32 = 1440;
+const VIEWPORT_HEIGHT: u32 = 900;
 
 pub async fn execute(
     state: &AppState,

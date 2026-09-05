@@ -1,4 +1,5 @@
 use chromiumoxide::{
+    cdp::browser_protocol::emulation::SetDeviceMetricsOverrideParams,
     cdp::browser_protocol::page::CaptureScreenshotFormat,
     page::{Page, ScreenshotParams},
 };
@@ -7,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{app::AppState, common::error::AppError};
 
-use super::{BROWSER_SHUTDOWN_TIMEOUT, repo};
+use super::{BROWSER_SHUTDOWN_TIMEOUT, VIEWPORT_HEIGHT, VIEWPORT_WIDTH, repo};
 
 const MAX_SCREENSHOT_PIXELS: u64 = 4_000_000;
 const MAX_SCREENSHOT_BYTES: usize = 4 * 1024 * 1024;
@@ -69,15 +70,22 @@ pub(super) async fn save_screenshot(
     let dir = state.output_dir.join(run_id);
     tokio::fs::create_dir_all(&dir).await?;
     validate_full_page_layout(page).await?;
-    let bytes = page
+    let capture = page
         .screenshot(
             ScreenshotParams::builder()
                 .format(CaptureScreenshotFormat::Png)
                 .full_page(true)
                 .build(),
         )
-        .await
-        .map_err(AppError::internal)?;
+        .await;
+    // chromiumoxide clears its emulated metrics after a full-page capture.
+    // Restore the session contract before a later step can navigate or inspect
+    // a responsive page.
+    let restored = page
+        .execute(SetDeviceMetricsOverrideParams::new(VIEWPORT_WIDTH, VIEWPORT_HEIGHT, 1.0, false))
+        .await;
+    let bytes = capture.map_err(AppError::internal)?;
+    restored.map_err(AppError::internal)?;
     validate_screenshot(&bytes)?;
     if screenshot_bytes_in_dir(&dir).await? + u64::try_from(bytes.len()).unwrap_or(u64::MAX)
         > MAX_RUN_SCREENSHOT_BYTES
