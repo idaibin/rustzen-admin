@@ -232,7 +232,7 @@ database.
 | Source/static | Implemented: fixed allowlist, symlink/path checks, owner-only capability, archive/hash, token, audit, System Status composition, and Web metadata validation | No arbitrary filesystem or content-to-DB path. |
 | Automated | Implemented: file safety, preflight cap, Blob manifest/hash, preview-confirm, active-day, partial-result, tail caps/cursor, OpenAPI/client adapter, and service HTTP checks | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
 | HTTP | Disposable-service owner/non-owner requests through Admin | Owner-only route/API boundaries, direct denial, tail cursor/cap, archive headers, and cleanup token behavior are observable; no local permission state is needed for non-owners. |
-| Browser | System Status diagnostics matrix | Tail, download, preview, confirm, partial, focus, responsive, and localized copy pass. |
+| Browser | Disposable Linux Chromium owner flow at `/system/status` | The verifier creates only an explicit current-UTC `admin` fixture and expired `monitor` fixture while retaining service-created current-day entries, then proves the owner panel, current file tail Drawer/markers/boundary copy, selected-backup filename/file-count/SHA summary, preview-only expired fixture, explicit confirm, result state, desktop 1440x900 zh-CN and narrow 390x844 en-US screenshots, and no horizontal overflow. Archive bytes and full SHA verification remain covered by the service/client gate rather than simulated in Chromium. |
 | Runtime/deployment | actual four-service runtime log directory | `Not verified` until all prefixes and permissions are exercised. |
 
 ## Assumptions, open questions, rejected and deferred decisions
@@ -268,5 +268,4 @@ database.
 The fixed module scope, ownership, permission boundary, path safety, backup
 integrity, cleanup confirmation, failure semantics, non-goals, and acceptance
 are implemented in the Admin and Web source, including download metadata
-validation. The Insights shared logger prerequisite, runtime permissions, and
-browser/deployment evidence remain `Not verified` until exercised.
+validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/status` UI, while archive-byte/hash proof remains service/client evidence. Runtime permissions for the actual four-service deployment, Insights emission, native systemd, and production deployment remain `Not verified` until exercised.

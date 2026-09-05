@@ -136,17 +136,21 @@ test -f "$candidate/schedule-desktop-dark-en.png"
 test -f "$candidate/schedule-mobile-light-zh.png"
 test -f "$candidate/run-retry-desktop-dark-en.png"
 test -f "$candidate/run-retry-mobile-light-zh.png"
+test -f "$candidate/module-log-desktop-dark-zh.png"
+test -f "$candidate/module-log-mobile-light-en.png"
 jq -e '
   .schemaVersion == 2 and
   (.verifier.imageId == $verifier_image and .verifier.key == $verifier_key and .verifier.provenanceSha256 == $verifier_provenance_sha) and
-  (.successCases | length) == 11 and
+  (.successCases | length) == 13 and
   ([.successCases[] | .name, .runId, .execution] | all(. != null)) and
-  ([.successCases[] | .name] | sort) == ["run-retry-audit", "run-retry-list-child-selected", "run-retry-list-trigger", "run-retry-terminal-hidden", "run-retry-view-only-mobile", "schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
+  ([.successCases[] | .name] | sort) == ["module-log-owner-desktop", "module-log-owner-mobile", "run-retry-audit", "run-retry-list-child-selected", "run-retry-list-trigger", "run-retry-terminal-hidden", "run-retry-view-only-mobile", "schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
   ([.successCases[] | select(.execution != "target-backed")] | length) == 0 and
   ([.successCases[] | select(.name == "schedule-create-daily") | .artifact.file == "schedule-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "schedule-view-only-mobile") | .artifact.file == "schedule-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "run-retry-list-child-selected") | .artifact.file == "run-retry-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   ([.successCases[] | select(.name == "run-retry-view-only-mobile") | .artifact.file == "run-retry-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "module-log-owner-desktop") | .artifact.file == "module-log-desktop-dark-zh.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "module-log-owner-mobile") | .artifact.file == "module-log-mobile-light-en.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   (.faultCases | length) == 10 and
   ([.faultCases[] | .runId, .method, .mode, .route, .receipt.method, .receipt.mode, .receipt.route, .receipt.hitCount, .artifact.file, .artifact.sha256, .artifact.dimensions] | all(. != null)) and
   ([.faultCases[] | select(.receipt.hitCount != 1)] | length) == 0 and

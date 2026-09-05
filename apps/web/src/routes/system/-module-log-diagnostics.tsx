@@ -176,6 +176,7 @@ function ModuleLogDiagnosticsContent() {
                 fixed: "right",
                 render: (_value, record) => (
                     <Button
+                        data-testid={`module-log-tail-${record.module}-${record.date}`}
                         type="link"
                         size="small"
                         icon={<EyeOutlined />}
@@ -192,6 +193,7 @@ function ModuleLogDiagnosticsContent() {
 
     const openTailButton = tailFile ? (
         <Drawer
+            data-testid="module-log-tail-drawer"
             title={
                 <Space>
                     <FileSearchOutlined />
@@ -247,6 +249,7 @@ function ModuleLogDiagnosticsContent() {
                     ) : null}
                     {tailQuery.data.content ? (
                         <Card
+                            data-testid="module-log-tail-content"
                             size="small"
                             title={t("受限日志尾部", "Bounded log tail")}
                             styles={{ body: { padding: 12 } }}
@@ -323,6 +326,7 @@ function ModuleLogDiagnosticsContent() {
                     ) : null}
                     {cleanupPreview.candidates.length ? (
                         <Table
+                            data-testid="module-log-cleanup-candidates"
                             rowKey={(record) => `${record.module}:${record.date}`}
                             size="small"
                             pagination={false}
@@ -347,6 +351,7 @@ function ModuleLogDiagnosticsContent() {
                             destructive
                             trigger={
                                 <Button
+                                    data-testid="module-log-cleanup-confirm-trigger"
                                     danger
                                     icon={<DeleteOutlined />}
                                     disabled={cleanupExpired || confirmMutation.isPending}
@@ -361,6 +366,7 @@ function ModuleLogDiagnosticsContent() {
                                 "Files are rechecked against the preview. Changed, active, or unsafe files are retained and reported.",
                             )}
                             confirmLabel={t("删除并记录结果", "Delete and record result")}
+                            confirmTestId="module-log-cleanup-confirm"
                             onConfirm={async () => {
                                 if (cleanupExpired) {
                                     throw new Error(
@@ -384,13 +390,15 @@ function ModuleLogDiagnosticsContent() {
     };
 
     return (
-        <PageCard
+        <div data-testid="module-log-panel">
+            <PageCard
             headingLevel={2}
             className="shrink-0"
             title={t("模块日志诊断", "Module log diagnostics")}
             actions={
                 <Space wrap>
                     <Button
+                        data-testid="module-log-backup"
                         icon={<DownloadOutlined />}
                         disabled={!selectedFiles.length || backupMutation.isPending}
                         loading={backupMutation.isPending}
@@ -399,6 +407,7 @@ function ModuleLogDiagnosticsContent() {
                         {t("备份选中文件", "Back up selected")}
                     </Button>
                     <Button
+                        data-testid="module-log-cleanup-preview"
                         icon={<DeleteOutlined />}
                         loading={previewMutation.isPending}
                         onClick={() => previewMutation.mutate()}
@@ -462,6 +471,7 @@ function ModuleLogDiagnosticsContent() {
                 />
             ) : backupMutation.data ? (
                 <Alert
+                    data-testid="module-log-backup-summary"
                     type="success"
                     showIcon
                     message={t("日志备份已下载", "Log backup downloaded")}
@@ -532,6 +542,11 @@ function ModuleLogDiagnosticsContent() {
                         pagination={false}
                         rowSelection={{
                             selectedRowKeys: selectedKeys,
+                            renderCell: (_checked, record, _index, originNode) => (
+                                <span data-testid={`module-log-select-${record.module}-${record.date}`}>
+                                    {originNode}
+                                </span>
+                            ),
                             onChange: (keys, rows) => {
                                 setSelectedKeys(keys);
                                 setSelectedFiles(rows);
@@ -547,7 +562,8 @@ function ModuleLogDiagnosticsContent() {
                 </DataTableShell>
             )}
             {openTailButton}
-        </PageCard>
+            </PageCard>
+        </div>
     );
 }
 
@@ -585,6 +601,7 @@ function CleanupResult({ result }: { result: ModuleLogCleanupResult }) {
     const resultType = result.partial ? "warning" : "success";
     return (
         <Alert
+            data-testid="module-log-cleanup-result"
             type={resultType}
             showIcon
             message={

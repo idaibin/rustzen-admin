@@ -18,7 +18,7 @@
   action, cleanup preview, and confirmation in loading, populated, empty,
   error, processing, and partial states
   at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. Runtime captures for the new section are `Not verified`.
+  zh-CN/en-US. The frozen disposable Linux Chromium contract uses owner `/system/status`, an explicit current-UTC `admin` fixture and one expired `monitor` fixture while retaining service-created current-day entries; it captures 1440x900 zh-CN and 390x844 en-US, with no page horizontal overflow. Runtime captures for the actual deployment remain `Not verified`.
 
 Dates shown for daily files, retention cutoffs, and current-day protection are
 UTC, matching the rolling logger; labels must make the UTC basis clear.
@@ -118,14 +118,12 @@ file naming/emission/retention; no module database is read by Admin.
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
-| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `source implemented`: System Status composes the diagnostics section as an h2 PageCard | Keep one bounded diagnostics panel without replacing resource/storage summary | P1 | seam test; desktop/narrow browser alignment remains `Not verified` |
-| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `source implemented`: fixed module/date metadata table and bounded Tail Drawer are rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Admin/OpenAPI/client adapter tests; browser interaction remains `Not verified` |
-| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `source implemented`: preview, expiry, processing, confirmation, failure, and partial paths are rendered | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | service HTTP and adapter tests; browser interaction remains `Not verified` |
-| ML-UI-004 | `source-extracted`: generated binary transport and semantic status treatment | `source implemented`: metadata headers are required before download; success shows filename, file count, and hash summary; Tail Drawer renders bounds/truncation | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | adapter + service HTTP tests; browser evidence remains `Not verified` |
+| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `source implemented`: System Status composes the diagnostics section as an h2 PageCard | Keep one bounded diagnostics panel without replacing resource/storage summary | P1 | Linux Chromium owner flow freezes desktop/narrow screenshots and no-overflow assertions; actual deployment remains `Not verified` |
+| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `source implemented`: fixed module/date metadata table and bounded Tail Drawer are rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Linux Chromium owner flow freezes current-file Tail Drawer/marker/boundary evidence; full archive-byte/hash verification remains the Admin/client service gate |
+| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `source implemented`: preview, expiry, processing, confirmation, failure, and partial paths are rendered | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | Linux Chromium owner flow freezes expired-fixture-only preview, ConfirmDialog confirmation, and result evidence; fault/permission matrices remain separately covered |
+| ML-UI-004 | `source-extracted`: generated binary transport and semantic status treatment | `source implemented`: metadata headers are required before download; success shows filename, file count, and hash summary; Tail Drawer renders bounds/truncation | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | Linux Chromium owner flow freezes selected-backup summary UI; adapter + service HTTP tests remain the archive-byte/hash authority |
 
-Exact new geometry, runtime-log availability, runtime permission, and browser
-evidence remain `Not verified` until exercised. Source, OpenAPI/client, and
-disposable-service HTTP evidence do not replace browser validation.
+The disposable Linux Chromium gate freezes the two specified geometry/localization states and success lifecycle. Actual service-account permissions, native systemd, production deployment, and broader failure/permission browser matrices remain `Not verified`. Source, OpenAPI/client, and disposable-service HTTP evidence do not replace those boundaries.
 
 ## Responsive and verification matrix
 
@@ -151,8 +149,4 @@ transport, and semantic tokens.
 
 ## Ready for dev-frontend module log diagnostics
 
-The selected source, layout ownership, component mapping, route/API
-authorization and action states, responsive/accessibility rules, and acceptance
-IDs are fixed. The slice
-is implemented in source. Runtime log availability (especially Insights), final
-geometry, and two-pass browser evidence remain `Not verified`.
+The selected source, layout ownership, component mapping, route/API authorization and action states, responsive/accessibility rules, and acceptance IDs are fixed. The disposable Linux Chromium verifier is limited to the explicit current `admin` and expired `monitor` fixtures while retaining service-created current-day entries, owner success lifecycle, 1440x900 zh-CN and 390x844 en-US screenshots, and no-overflow assertions. Runtime log availability (especially Insights), actual runtime permissions, native systemd, production deployment, and unlisted browser states remain `Not verified`.

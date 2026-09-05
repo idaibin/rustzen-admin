@@ -65,6 +65,12 @@ regenerated from the clean commit that contains the tested implementation.
 
 This is evidence for the disposable native-architecture Linux four-service topology, embedded
 Web assets, fresh-install authentication, the two named routes, and the Reports
-browser/artifact path. It does not establish systemd PID 1 behavior, an upgrade,
-a production identity provider, a remote host, another browser engine, or full
-visual acceptance of every route and state.
+browser/artifact path. Its success set also covers System Status module-log
+diagnostics: it appends one current-day Admin marker, adds one expired Monitor
+fixture while retaining the service-created current-day logs, drives the owner
+Tail, backup-summary, cleanup-preview, confirmation, and result states, and
+captures the specified desktop and narrow screenshots without horizontal
+overflow. Archive bytes and SHA-256 remain validated by the service/client gate,
+not by a browser download surrogate. It does not establish systemd PID 1
+behavior, an upgrade, a production identity provider, a remote host, another
+browser engine, or full visual acceptance of every route and state.

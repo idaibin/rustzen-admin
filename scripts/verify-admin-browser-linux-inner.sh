@@ -159,6 +159,23 @@ login=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","p
 token=$(jq -er '.data.token | select(length > 20)' <<<"$login")
 auth=(-H "authorization: Bearer $token")
 
+# These are the only module-log fixtures. Service stdout goes to verify-*.log,
+# which the fixed module-log allowlist never recognizes.
+module_log_today=$(date -u +%F)
+module_log_expired=2020-01-01
+# The running services may already have current-UTC rolling files. The verifier
+# writes only these two explicit fixtures and keeps every current-day file intact.
+printf 'ADMIN_LOG_CURRENT_MARKER\n' >>"/opt/rz/logs/admin.$module_log_today"
+printf 'MONITOR_LOG_EXPIRED_MARKER\n' >"/opt/rz/logs/monitor.$module_log_expired"
+chown rustzen:rustzen "/opt/rz/logs/admin.$module_log_today" "/opt/rz/logs/monitor.$module_log_expired"
+module_log_files=$(curl_json "${auth[@]}" "$admin/api/system/status/module-logs")
+printf '%s\n' "$module_log_files" | jq -c --arg today "$module_log_today" '[.data[] | select(.date == $today) | {module: .module, date: .date, fileName: .fileName, active: .active}] | sort_by(.module, .date)' >/verify/evidence/module-log-current-before-cleanup.json
+jq -e --arg today "$module_log_today" --arg expired "$module_log_expired" '
+  ([.data[] | select(.date == $expired) | {module: .module, date: .date, fileName: .fileName, active: .active}] == [{module:"monitor", date:$expired, fileName:("monitor." + $expired), active:false}]) and
+  ([.data[] | select(.date != $expired)] | length > 0) and
+  ([.data[] | select(.date != $expired) | (.date == $today and .active == true and (.module | IN("admin", "monitor", "insights", "reports")))] | all)
+' <<<"$module_log_files" >/dev/null
+
 # Python is deliberately used only in this disposable Debian verifier: the base
 # image has neither Bun nor Node, while Python's standard library is sufficient
 # for a route-exact forward proxy. It is mounted from scripts and is not shipped.
@@ -317,6 +334,60 @@ if curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq -e --arg id "$sche
   echo "deleted lifecycle schedule still appears in the Reports API" >&2
   exit 1
 fi
+
+# Module-log diagnostics uses the real owner UI and only the two isolated fixtures above.
+module_log_desktop_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"dark",locale:"zh-CN"},{action:"setViewport",width:1440,height:900}] + $login')
+module_log_desktop_steps=$(jq -nc --argjson login "$module_log_desktop_login" --arg today "$module_log_today" --arg expired "$module_log_expired" '$login + [
+  {action:"goto",url:"/system/status"},
+  {action:"waitFor",selector:"[data-testid=module-log-panel]"},
+  {action:"assertText",selector:"[data-testid=module-log-panel]",text:"模块日志诊断"},
+  {action:"waitFor",selector:"[data-testid=module-log-tail-admin-\($today)]"},
+  {action:"click",selector:"[data-testid=module-log-tail-admin-\($today)]"},
+  {action:"waitFor",selector:"[data-testid=module-log-tail-drawer]"},
+  {action:"waitFor",selector:"[data-testid=module-log-tail-content]"},
+  {action:"assertText",selector:"[data-testid=module-log-tail-drawer]",text:"受限日志尾部"},
+  {action:"assertText",selector:"[data-testid=module-log-tail-content]",text:"ADMIN_LOG_CURRENT_MARKER"},
+  {action:"pressKey",key:"Escape"},{action:"pause",durationMs:100},
+  {action:"click",selector:"[data-testid=module-log-select-admin-\($today)] input[type=checkbox]"},
+  {action:"click",selector:"[data-testid=module-log-backup]"},
+  {action:"waitFor",selector:"[data-testid=module-log-backup-summary]"},
+  {action:"assertText",selector:"[data-testid=module-log-backup-summary]",text:"1 个文件"},
+  {action:"assertText",selector:"[data-testid=module-log-backup-summary]",text:"SHA-256"},
+  {action:"click",selector:"[data-testid=module-log-cleanup-preview]"},
+  {action:"waitFor",selector:"[data-testid=module-log-cleanup-candidates]"},
+  {action:"assertText",selector:"[data-testid=module-log-cleanup-candidates]",text:"monitor.\($expired)"},
+  {action:"click",selector:"[data-testid=module-log-cleanup-confirm-trigger]"},
+  {action:"waitFor",selector:"[data-testid=module-log-cleanup-confirm]"},
+  {action:"click",selector:"[data-testid=module-log-cleanup-confirm]"},
+  {action:"waitFor",selector:"[data-testid=module-log-cleanup-result]"},
+  {action:"assertText",selector:"[data-testid=module-log-cleanup-result]",text:"已删除 1 个文件"},
+  {action:"assertNoHorizontalOverflow"},
+  {action:"screenshotViewport",name:"module-log-desktop-dark-zh"}
+]')
+run_target_browser_case module-log-owner-desktop "$module_log_desktop_steps"
+download_target_screenshot module-log-owner-desktop module-log-desktop-dark-zh module-log-desktop-dark-zh.png
+module_log_after_cleanup=$(curl_json "${auth[@]}" "$admin/api/system/status/module-logs")
+printf '%s\n' "$module_log_after_cleanup" | jq -c --arg today "$module_log_today" '[.data[] | select(.date == $today) | {module: .module, date: .date, fileName: .fileName, active: .active}] | sort_by(.module, .date)' >/verify/evidence/module-log-current-after-cleanup.json
+cmp -s /verify/evidence/module-log-current-before-cleanup.json /verify/evidence/module-log-current-after-cleanup.json
+if printf '%s\n' "$module_log_after_cleanup" | jq -e --arg today "$module_log_today" --arg expired "$module_log_expired" '([.data[] | select(.date == $expired)] | length == 0) and ([.data[] | (.date == $today and .active == true)] | all)' >/dev/null; then :; else
+  echo "module-log cleanup did not remove only the expired fixture" >&2
+  exit 1
+fi
+
+module_log_mobile_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:390,height:844}] + $login')
+module_log_mobile_steps=$(jq -nc --argjson login "$module_log_mobile_login" --arg today "$module_log_today" '$login + [
+  {action:"goto",url:"/system/status"},
+  {action:"waitFor",selector:"[data-testid=module-log-panel]"},
+  {action:"assertText",selector:"[data-testid=module-log-panel]",text:"Module log diagnostics"},
+  {action:"waitFor",selector:"[data-testid=module-log-tail-admin-\($today)]"},
+  {action:"click",selector:"[data-testid=module-log-tail-admin-\($today)]"},
+  {action:"waitFor",selector:"[data-testid=module-log-tail-content]"},
+  {action:"assertText",selector:"[data-testid=module-log-tail-content]",text:"ADMIN_LOG_CURRENT_MARKER"},
+  {action:"assertNoHorizontalOverflow"},
+  {action:"screenshotViewport",name:"module-log-mobile-light-en"}
+]')
+run_target_browser_case module-log-owner-mobile "$module_log_mobile_steps"
+download_target_screenshot module-log-owner-mobile module-log-mobile-light-en module-log-mobile-light-en.png
 
 # Runs retry acceptance deliberately uses terminal and active executions from the
 # real Reports service. The child is identified by the retry endpoint after the
