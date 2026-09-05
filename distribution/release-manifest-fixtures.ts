@@ -93,12 +93,17 @@ export async function releaseFixture(kind: "server" | "agent" = "server") {
     };
 }
 
-export async function serverManifestFixture(selection = monitorSelection) {
+export async function serverManifestFixture(
+    selection = monitorSelection,
+    binaries?: { admin: string; monitor: string },
+) {
     const fixture = await releaseFixture();
     const binaryRoot = join(fixture.root, "staging-binary");
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
     for (const name of ["rz-admin", "rz-monitor"]) {
-        await writeFile(join(binaryRoot, "bin", name), name);
+        const source = name === "rz-admin" ? binaries?.admin : binaries?.monitor;
+        if (source) await copyFile(source, join(binaryRoot, "bin", name));
+        else await writeFile(join(binaryRoot, "bin", name), name);
         await chmod(join(binaryRoot, "bin", name), 0o755);
     }
     const staged = await produceNativeStaging({

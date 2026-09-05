@@ -14,9 +14,8 @@ pub(crate) struct AppState {
 }
 
 pub async fn run_controller() -> Result<(), Box<dyn std::error::Error>> {
+    infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = infra::db::connect().await?;
-    infra::db::migrate(&pool).await?;
-    infra::db::verify(&pool).await?;
     features::monitoring::spawn_background(pool.clone());
 
     let (app, _) = build_app(pool, config::controller().monitor_agent_token.clone())?;
@@ -47,7 +46,7 @@ pub(crate) fn build_app(
 }
 
 async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse::ok(env!("CARGO_PKG_VERSION")))
+    Json(HealthResponse::ok_selected(env!("CARGO_PKG_VERSION")))
 }
 
 async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest> {

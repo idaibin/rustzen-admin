@@ -216,6 +216,9 @@ verify-distribution-selected-installer:
 verify-monitor-agent-pairing:
     scripts/verify-monitor-agent-pairing-linux.sh
 
+verify-monitor-server-activation:
+    scripts/verify-monitor-server-activation-linux.sh
+
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent

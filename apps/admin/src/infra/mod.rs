@@ -1,5 +1,7 @@
 pub mod app;
 pub mod auth_runtime;
+#[cfg(feature = "monitor-distribution")]
+pub mod bootstrap_owner;
 pub mod config;
 pub mod contract;
 pub mod db;

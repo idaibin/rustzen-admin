@@ -234,6 +234,54 @@ missing units/assets, and hash/signature mismatches before switching anything.
 No unknown field silently changes executable behavior. Generated units and
 commands use fixed argument arrays, not manifest-controlled shell fragments.
 
+### Monitor server activation
+
+`rz activate-monitor-server --config <root-only-file>` accepts only an absolute,
+regular, non-symlink root-owned source under root-owned non-writable parents.
+It accepts the exact union of selected Admin and Monitor config fields and
+splits them into `rz-admin.env` and `rz-monitor.env`; each is root-owned `0640`
+and grouped only to its service identity. The source must be production, contain
+the selected database paths, JWT, IPC and Agent secrets, and include a
+one-time owner credential input consumed only by the Admin bootstrap command.
+Installer-only `RUSTZEN_ADMIN_RUNTIME_ROOT` and
+`RUSTZEN_MONITOR_RUNTIME_ROOT` must exactly be `/var/lib/rustzen-admin` and
+`/var/lib/rustzen-monitor`; direct `RUSTZEN_RUNTIME_ROOT` input is rejected.
+The selected SQLite paths are fixed to `admin.db` and `monitor.db` under those
+roots. The owner secret is streamed anonymously to the Admin bootstrap command,
+never written to disk or the activation marker. Fresh schema contains only a
+disabled owner with a deliberately non-verifiable hash; bootstrap enables it.
+
+The two fresh SQLite files are initialized under deterministic service-owned
+staging names. A root-only journal binds their hashes and the selected activation
+tuple before either no-replace rename. A same-tuple retry resumes an interrupted
+first or second rename; existing databases without that journal are rejected.
+The journal remains until the ready marker is durable so failures after database
+publication can retry without recreating or replacing either database.
+Completion and exact retry execute each selected binary's database validator.
+Each staging database receives exactly one `rustzen_installation_identity` row
+before publication. The row binds build, composition, owner-specific schema
+fingerprint and data contract ID from the retained signed manifest. Runtime and
+exact retry require that singleton, the exact embedded SQLx migration ledger,
+and a canonical `sqlite_master` inventory equal to a fresh in-memory application
+of that binary's embedded migration. Selected services validate these values
+before starting application work and never run migrations against an existing DB.
+
+It admits only a retained signed Monitor server manifest and matching current
+Admin/Monitor binaries and three selected native units. It validates both
+rendered configs with the selected binaries before any destination write,
+rejects any known Reports/Insights unit, enabled state, config or runtime root,
+publishes only `rz-admin.service`, `rz-monitor.service` and `rz.target`, invokes
+fixed `daemon-reload`, `start rz.target`, verifies both systemd MainPID executable
+identities and health endpoints, then
+`enable rz.target` and writes a root-only marker. Same tuples require active
+services, exact health identity and Admin password verification; different or
+unsafe destinations conflict. A failed start, readiness, enable or marker write
+stops and disables the target and leaves no marker.
+If marker publication has already renamed the exact bytes, a directory-sync
+failure is reconciled by syncing and re-reading the marker. Journal cleanup
+failure returns an error while leaving the ready services and marker intact;
+the next exact retry verifies them and completes cleanup.
+
 Reuse the existing Ed25519 bundle signing primitive, with a versioned envelope
 that signs a fixed canonical payload containing format version, component,
 release version, target, archive SHA-256 and exact manifest-byte SHA-256. The

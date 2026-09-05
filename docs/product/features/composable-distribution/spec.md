@@ -1,6 +1,6 @@
 # Composable distributions and notifications
 
-Status: implementation underway; P1 selection and P2 minimal Admin backend are complete.
+Status: implementation underway; the Monitor server P1-P4 closure is implemented and verified.
 Selected native staging emits only the resolver-selected payload into
 `target/distributions/.native-staging/<buildId>/<target>/<artifactClass>/payload`; it excludes
 secret environment values, installer state, archive envelopes and non-selected services.
@@ -17,7 +17,10 @@ with that nonce. Retry deletes a work root only after its marker matches the jou
 The final publication marker persists the complete tuple and nonce as a completion
 credential, so retries after either cleanup boundary converge only for that tuple.
 A different tuple, unsafe journal or replaced work root fails closed. Continuation
-does not make the payload runnable.
+does not make the payload runnable. A separate root-only
+`rz activate-monitor-server` phase binds fresh databases to the signed release,
+rejects excluded-service residue, installs the selected units, starts and enables
+`rz.target`, and records readiness only after process, health and owner checks.
 Decision date: 2026-09-03.
 
 The user has authorized architecture design for a complete distribution and
@@ -81,7 +84,11 @@ version per installed distribution. No fifth resident notification service is
 needed. The node Agent is a separate, non-Web deployment artifact.
 
 The monitoring preset's entry host is intentionally retained for authenticated
-access. Its binary name does not authorize retaining the full Admin product:
+access and operations. Its signed server payload becomes runnable only through
+`rz activate-monitor-server --config <root-only-file>`, fixed to `/opt/rz`.
+It owns only Admin and Monitor, their selected configurations, fresh schemas and
+`rz.target`; it cannot activate the full deployment, Reports, Insights, Agent,
+notification or message-center features. Its binary name does not authorize retaining the full Admin product:
 there must be no release-management API, task console, analytics/reporting
 route, browser automation dependency, general dashboard, or unused schema.
 Its installation default landing page is Monitoring; users without Monitor access

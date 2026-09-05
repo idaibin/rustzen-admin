@@ -24,8 +24,13 @@ const sourceRoutes = [
     "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
     "apps/web/src/routes/monitoring/-node-details.tsx",
     "apps/web/src/routes/monitoring/-node-onboarding.tsx",
-    "apps/web/src/routes/monitoring/-node-onboarding-command.ts",
+    "apps/web/src/routes/monitoring/-save-state.ts",
+    "apps/web/src/routes/system/-role-actions.tsx",
     "apps/web/src/routes/system/-role-delete-state.ts",
+    "apps/web/src/routes/system/-role-dialog.tsx",
+    "apps/web/src/routes/system/-role-permission-picker.tsx",
+    "apps/web/src/routes/system/-user-actions.tsx",
+    "apps/web/src/routes/system/-user-dialog.tsx",
 ];
 const selectedRoutes = ["index.tsx", ...sourceRoutes.map((source) => source.replace("apps/web/src/routes/", ""))].sort();
 const publicAssets = ["rustzen.png"];

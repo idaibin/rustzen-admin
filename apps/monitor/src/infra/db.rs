@@ -2,6 +2,7 @@ use rustzen_storage::{
     DatabaseConnectionOptions, SqlitePool, connect_sqlite_with_options, database_url_from_path,
     test_connection,
 };
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 use crate::config;
 
@@ -27,6 +28,118 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateErro
 
 pub async fn verify(pool: &SqlitePool) -> Result<(), rustzen_storage::CoreError> {
     test_connection(pool).await
+}
+
+pub async fn verify_selected_schema(pool: &SqlitePool) -> Result<(), String> {
+    verify_selected_identity(pool).await?;
+    let applied = sqlx::query_as::<_, (i64, Vec<u8>, bool)>(
+        "SELECT version, checksum, success FROM _sqlx_migrations ORDER BY version",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|_| "Monitor migration ledger is unavailable")?;
+    let expected = MIGRATOR.iter().collect::<Vec<_>>();
+    if applied.len() != expected.len()
+        || applied.iter().zip(expected).any(|((version, checksum, success), migration)| {
+            !success
+                || *version != migration.version
+                || checksum.as_slice() != migration.checksum.as_ref()
+        })
+    {
+        return Err("Monitor migration ledger differs from selected schema".into());
+    }
+    let expected_pool = SqlitePool::connect("sqlite::memory:")
+        .await
+        .map_err(|_| "Monitor selected schema fixture is unavailable")?;
+    MIGRATOR.run(&expected_pool).await.map_err(|_| "Monitor selected schema fixture is invalid")?;
+    if schema_inventory(pool).await? != schema_inventory(&expected_pool).await? {
+        return Err("Monitor observed schema differs from selected schema".into());
+    }
+    expected_pool.close().await;
+    Ok(())
+}
+
+pub async fn verify_selected_database() -> Result<(), String> {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(config::controller().database_path())
+                .create_if_missing(false)
+                .read_only(true),
+        )
+        .await
+        .map_err(|_| "Monitor selected database is unavailable")?;
+    let result = verify_selected_schema(&pool).await;
+    pool.close().await;
+    result
+}
+
+pub async fn bind_selected_identity(pool: &SqlitePool) -> Result<(), String> {
+    let identity = selected_identity()?;
+    let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM rustzen_installation_identity")
+        .fetch_one(pool)
+        .await
+        .map_err(|_| "Monitor installation identity table is unavailable")?;
+    if count != 0 {
+        return Err("Monitor installation identity is already bound".into());
+    }
+    let changed = sqlx::query(
+        "INSERT INTO rustzen_installation_identity (id, build_id, composition_id, schema_fingerprint, data_contract_id) VALUES (1, ?, ?, ?, ?)",
+    )
+    .bind(&identity.0)
+    .bind(&identity.1)
+    .bind(&identity.2)
+    .bind(&identity.3)
+    .execute(pool)
+    .await
+    .map_err(|_| "Monitor installation identity binding failed")?
+    .rows_affected();
+    if changed == 1 { Ok(()) } else { Err("Monitor installation identity binding failed".into()) }
+}
+
+async fn verify_selected_identity(pool: &SqlitePool) -> Result<(), String> {
+    let expected = selected_identity()?;
+    let observed = sqlx::query_as::<_, (i64, String, String, String, String)>(
+        "SELECT id, build_id, composition_id, schema_fingerprint, data_contract_id FROM rustzen_installation_identity ORDER BY id",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|_| "Monitor installation identity is unavailable")?;
+    if observed.as_slice() == [(1, expected.0, expected.1, expected.2, expected.3)] {
+        Ok(())
+    } else {
+        Err("Monitor installation identity differs from selected release".into())
+    }
+}
+
+fn selected_identity() -> Result<(String, String, String, String), String> {
+    let value = |name| {
+        std::env::var(name)
+            .ok()
+            .filter(|value| {
+                value.len() == 64
+                    && value.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+            .ok_or_else(|| format!("{name} is invalid"))
+    };
+    Ok((
+        value("RUSTZEN_BUILD_ID")?,
+        value("RUSTZEN_COMPOSITION_ID")?,
+        value("RUSTZEN_MONITOR_SCHEMA_FINGERPRINT")?,
+        value("RUSTZEN_MONITOR_DATA_CONTRACT_ID")?,
+    ))
+}
+
+async fn schema_inventory(
+    pool: &SqlitePool,
+) -> Result<Vec<(String, String, String, String)>, String> {
+    sqlx::query_as(
+        "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations' ORDER BY type, name, tbl_name, sql",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|_| "Monitor selected schema inventory is unavailable".into())
 }
 
 #[cfg(test)]

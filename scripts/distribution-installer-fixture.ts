@@ -17,12 +17,19 @@ const envelopeMutation = process.env.RUSTZEN_INSTALLER_ENVELOPE_MUTATION;
 const schemaMutation = process.env.RUSTZEN_INSTALLER_SCHEMA_MUTATION;
 const artifact = process.env.RUSTZEN_INSTALLER_ARTIFACT ?? "server";
 const agentBinary = process.env.RUSTZEN_INSTALLER_AGENT_BINARY;
+const serverAdminBinary = process.env.RUSTZEN_INSTALLER_ADMIN_BINARY;
+const serverMonitorBinary = process.env.RUSTZEN_INSTALLER_MONITOR_BINARY;
+if (Boolean(serverAdminBinary) !== Boolean(serverMonitorBinary)) {
+    throw new Error("server fixture requires both Admin and Monitor binaries");
+}
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true, mode: 0o700 });
 const selection = artifact === "node-agent" ? { preset: "node-agent", target } : { preset: "monitor", target };
 const fixture = artifact === "node-agent"
     ? await agentManifestFixture(selection, agentBinary)
-    : await serverManifestFixture(selection);
+    : await serverManifestFixture(selection, serverAdminBinary && serverMonitorBinary
+        ? { admin: serverAdminBinary, monitor: serverMonitorBinary }
+        : undefined);
 const keys = generateKeyPairSync("ed25519");
 try {
     const privateKey = keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString();

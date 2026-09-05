@@ -550,8 +550,17 @@ dependency on omitted services. Do not accidentally turn a module failure into
 an Admin failure through `Requires`/restart propagation.
 
 Each installed service reads only its own selected configuration. Secrets are
-provided at installation, absent-owner variables are not required, and optional
-internal notification ingress is created only when selected. Installation trust,
+split by service identity and provided at installation; absent-owner variables
+are not required. Monitor-server activation is an explicit second
+fresh-root phase: it verifies the selected payload, publishes two service-local
+environment files and units, streams the owner secret to Admin's offline bootstrap as the Admin identity,
+starts `rz.target`, checks both health endpoints, then enables the target before
+recording readiness. It rejects known Reports/Insights units, enablement, config
+and runtime roots before the first activation write. No full-layout recovery or
+unselected service is part of that phase.
+The phase uses a root-only continuation journal for the two fresh SQLite
+publications and removes it only after the ready marker is durable.
+Optional internal notification ingress is created only when selected. Installation trust,
 release directories, current link, journal, lock, launcher and unit files are
 root-owned and writable only by the local privileged executor. Each resident
 service has its own non-root User/Group, writes only its data/log/profile paths,

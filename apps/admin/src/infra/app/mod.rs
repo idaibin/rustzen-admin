@@ -1,3 +1,5 @@
+#[cfg(any(feature = "full", test))]
+use crate::infra::db::run_migrations;
 use crate::{
     features::{
         account::account_routes,
@@ -11,7 +13,7 @@ use crate::{
     infra::{
         auth_runtime::{ServerAuthContextLoader, jwt_codec},
         config::CONFIG,
-        db::{create_default_pool, run_migrations, test_connection},
+        db::{create_default_pool, test_connection},
         permission::PermissionService,
     },
 };
@@ -46,7 +48,10 @@ use tower_http::services::ServeDir;
 #[tracing::instrument(name = "run_server")]
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Initializing database connection pool...");
+    #[cfg(feature = "monitor-distribution")]
+    crate::infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = create_default_pool().await?;
+    #[cfg(feature = "full")]
     run_migrations(&pool).await?;
     test_connection(&pool).await?;
     #[cfg(feature = "full")]
@@ -212,6 +217,10 @@ mod monitor_distribution_tests {
         let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
         run_migrations(&pool).await.expect("migrations");
         let (routes, _) = documented_protected_routes();
+        sqlx::query("UPDATE users SET status = 1 WHERE username = 'owner'")
+            .execute(&pool)
+            .await
+            .expect("enable test owner");
         PermissionService::sync_permissions(&pool).await.expect("permission cache");
         let app = routes
             .route_layer(middleware::from_fn_with_state(
@@ -358,7 +367,11 @@ pub(crate) fn documented_all_contracts() -> Vec<crate::infra::contract::RouteCon
 }
 
 async fn health() -> axum::Json<HealthResponse> {
-    axum::Json(HealthResponse::ok(env!("CARGO_PKG_VERSION")))
+    #[cfg(feature = "monitor-distribution")]
+    let response = HealthResponse::ok_selected(env!("CARGO_PKG_VERSION"));
+    #[cfg(feature = "full")]
+    let response = HealthResponse::ok(env!("CARGO_PKG_VERSION"));
+    axum::Json(response)
 }
 
 fn server_addr() -> String {

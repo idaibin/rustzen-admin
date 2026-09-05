@@ -16,6 +16,16 @@ mod install_fs;
 mod install_manifest;
 mod install_pairing;
 mod install_selection;
+mod install_server_activation;
+mod install_server_activation_journal;
+mod install_server_activation_state;
+mod install_server_config;
+mod install_server_database;
+mod install_server_identity;
+mod install_server_layout;
+mod install_server_readiness;
+mod install_server_release;
+mod install_service_parent;
 mod install_terminal;
 mod operations;
 use install_cli::{ManifestPairArgs, ReleaseArgs};
@@ -85,6 +95,12 @@ enum Command {
     /// Publish validated Agent configuration and activate its selected native unit.
     ActivateMonitorAgent {
         /// Root-only file containing the production Agent environment values.
+        #[arg(long)]
+        config: PathBuf,
+    },
+    /// Activate the signed Monitor server selection at the fixed /opt/rz root.
+    ActivateMonitorServer {
+        /// Root-only source file containing the Monitor server environment values.
         #[arg(long)]
         config: PathBuf,
     },
@@ -257,6 +273,18 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                         message,
                     })?;
             emit(cli.json, "activate-monitor-agent", json!(result));
+        }
+        Command::ActivateMonitorServer { config } => {
+            let result =
+                install_server_activation::activate(&install_server_activation::ActivationInput {
+                    config,
+                })
+                .map_err(|message| CliError {
+                    command: "activate-monitor-server".into(),
+                    code: "monitor_server_activation_failed",
+                    message,
+                })?;
+            emit(cli.json, "activate-monitor-server", json!(result));
         }
     }
     Ok(())

@@ -37,7 +37,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
-    let _ = command;
+    if command == Command::ValidateConfig {
+        let _ = config::controller();
+        return Ok(());
+    }
+    if command == Command::InitDb {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        return runtime.block_on(async {
+            let pool = infra::db::connect().await?;
+            infra::db::migrate(&pool).await?;
+            infra::db::verify(&pool).await?;
+            sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&pool).await?;
+            pool.close().await;
+            Ok(())
+        });
+    }
+    if command == Command::BindDatabase {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        return runtime.block_on(async {
+            let pool = infra::db::connect().await?;
+            infra::db::bind_selected_identity(&pool).await.map_err(std::io::Error::other)?;
+            sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&pool).await?;
+            pool.close().await;
+            Ok(())
+        });
+    }
+    if command == Command::ValidateDatabase {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        return runtime.block_on(async {
+            infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
+            Ok(())
+        });
+    }
     run_controller_process()
 }
 
@@ -56,12 +87,20 @@ fn run_controller_process() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Command {
     Controller,
+    ValidateConfig,
+    InitDb,
+    BindDatabase,
+    ValidateDatabase,
 }
 
 impl Command {
     fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, CommandError> {
         match args.into_iter().collect::<Vec<_>>().as_slice() {
             [mode] if mode == "controller" => Ok(Self::Controller),
+            [mode] if mode == "validate-config" => Ok(Self::ValidateConfig),
+            [mode] if mode == "init-db" => Ok(Self::InitDb),
+            [mode] if mode == "bind-database" => Ok(Self::BindDatabase),
+            [mode] if mode == "validate-database" => Ok(Self::ValidateDatabase),
             _ => Err(CommandError),
         }
     }
@@ -72,7 +111,9 @@ struct CommandError;
 
 impl std::fmt::Display for CommandError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("usage: rz-monitor controller")
+        formatter.write_str(
+            "usage: rz-monitor controller | rz-monitor validate-config | rz-monitor init-db | rz-monitor bind-database | rz-monitor validate-database",
+        )
     }
 }
 
@@ -85,6 +126,11 @@ mod tests {
     #[test]
     fn parses_controller_mode_only() {
         assert_eq!(Command::parse(["controller".to_string()]).ok(), Some(Command::Controller));
+        assert_eq!(
+            Command::parse(["validate-database".to_string()]).ok(),
+            Some(Command::ValidateDatabase)
+        );
+        assert_eq!(Command::parse(["bind-database".to_string()]).ok(), Some(Command::BindDatabase));
         assert!(Command::parse(["agent".to_string()]).is_err());
         assert!(matches!(Command::parse(std::iter::empty()), Err(CommandError)));
         assert!(Command::parse(["monitor".to_string(), "controller".to_string()]).is_err());
