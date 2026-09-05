@@ -125,6 +125,7 @@ export function ScheduleDialog({
                 {schedule ? t("编辑", "Edit") : t("新建计划", "New schedule")}
             </Button>
             <Modal
+                data-testid="schedule-dialog"
                 open={open}
                 title={
                     schedule
@@ -158,6 +159,7 @@ export function ScheduleDialog({
                 <Form layout="vertical">
                     <Form.Item label={t("流程", "Template")} required>
                         <Select
+                            data-testid="schedule-flow"
                             value={flowId || undefined}
                             onChange={(value) => setFlowId(value)}
                             options={flowOptions.map((flow) => ({
@@ -173,21 +175,23 @@ export function ScheduleDialog({
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Form.Item label={t("频率", "Cadence")} required>
                             <Select
+                                data-testid="schedule-cadence"
                                 value={cadence}
                                 onChange={(value: Reports.ScheduleCadence) => setCadence(value)}
                                 options={[
-                                    { value: "daily", label: t("每日", "Daily") },
-                                    { value: "weekly", label: t("每周", "Weekly") },
+                                    { value: "daily", label: <span data-testid="schedule-cadence-daily">{t("每日", "Daily")}</span> },
+                                    { value: "weekly", label: <span data-testid="schedule-cadence-weekly">{t("每周", "Weekly")}</span> },
                                 ]}
                             />
                         </Form.Item>
                         {cadence === "weekly" ? (
                             <Form.Item label={t("星期", "Weekday")} required>
                                 <Select
+                                    data-testid="schedule-weekday"
                                     value={weekday}
                                     onChange={(value) => setWeekday(value)}
                                     options={[
-                                        { value: 0, label: t("周一", "Monday") },
+                                        { value: 0, label: <span data-testid="schedule-weekday-0">{t("周一", "Monday")}</span> },
                                         { value: 1, label: t("周二", "Tuesday") },
                                         { value: 2, label: t("周三", "Wednesday") },
                                         { value: 3, label: t("周四", "Thursday") },
@@ -201,6 +205,7 @@ export function ScheduleDialog({
                     </div>
                     <Form.Item label={t("本地执行时间", "Local due time")} required>
                         <Input
+                            data-testid="schedule-due-time"
                             type="time"
                             value={dueTime}
                             onChange={(event) => setDueTime(event.target.value)}
@@ -216,12 +221,13 @@ export function ScheduleDialog({
                     </Form.Item>
                     <Form.Item label={t("描述", "Description")}>
                         <Input
+                            data-testid="schedule-description"
                             value={description}
                             onChange={(event) => setDescription(event.target.value)}
                         />
                     </Form.Item>
                     <Form.Item label={t("启用计划", "Enable schedule")}>
-                        <Switch checked={enabled} onChange={setEnabled} />
+                        <Switch data-testid="schedule-enabled" checked={enabled} onChange={setEnabled} />
                     </Form.Item>
                     <div className="flex justify-end gap-2">
                         <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>

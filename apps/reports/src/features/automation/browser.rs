@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use chromiumoxide::page::Page;
+use chromiumoxide::{cdp::browser_protocol::emulation::SetDeviceMetricsOverrideParams, page::Page};
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
@@ -15,7 +15,7 @@ use super::{
 mod artifacts;
 mod session;
 
-use artifacts::{save_screenshot, try_save_live_frame};
+use artifacts::{save_screenshot, save_viewport_screenshot, try_save_live_frame};
 
 pub(super) struct ExecutionContext<'a> {
     pub(super) state: &'a AppState,
@@ -226,6 +226,45 @@ async fn execute_step(
             .await?;
             Ok(StepOutcome::Continue)
         }
+        FlowStep::ScreenshotViewport { name } => {
+            save_viewport_screenshot(
+                context.state,
+                context.page,
+                &context.run.id,
+                name.as_deref().unwrap_or("screenshot"),
+            )
+            .await?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::SetViewport { width, height } => {
+            context
+                .page
+                .execute(SetDeviceMetricsOverrideParams::new(*width, *height, 1.0, *width == 390))
+                .await
+                .map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::SetUiPreferences { theme, locale } => {
+            let theme = serde_json::to_string(theme)?;
+            let locale = serde_json::to_string(locale)?;
+            context
+                .page
+                .evaluate(format!(
+                    "localStorage.setItem('rustzen-admin-theme', {theme}); localStorage.setItem('rustzen-admin-locale', {locale}); location.reload();"
+                ))
+                .await
+                .map_err(AppError::internal)?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::AssertNoHorizontalOverflow => {
+            let metrics = context
+                .page
+                .evaluate("({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth })")
+                .await
+                .map_err(AppError::internal)?;
+            assert_no_horizontal_overflow(metrics.value())?;
+            Ok(StepOutcome::Continue)
+        }
         FlowStep::GuardExists { selector, on_missing } => {
             let exists = locate_element(context.page, selector).await.is_ok();
             if exists {
@@ -264,6 +303,26 @@ async fn execute_step(
             Ok(StepOutcome::Continue)
         }
     }
+}
+
+fn assert_no_horizontal_overflow(metrics: Option<&Value>) -> Result<(), AppError> {
+    let metrics = metrics
+        .and_then(Value::as_object)
+        .ok_or_else(|| AppError::internal("browser did not report layout dimensions"))?;
+    let scroll_width = metrics
+        .get("scrollWidth")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| AppError::internal("browser scroll width is invalid"))?;
+    let inner_width = metrics
+        .get("innerWidth")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| AppError::internal("browser inner width is invalid"))?;
+    if scroll_width > inner_width {
+        return Err(AppError::Conflict("page has horizontal overflow".into()));
+    }
+    Ok(())
 }
 
 fn fill_script(value: &str) -> Result<String, serde_json::Error> {
@@ -358,6 +417,42 @@ mod shutdown_tests {
         assert!(!is_xpath("#kw"));
         assert!(!is_xpath("button.submit"));
         assert!(!is_xpath("[data-testid='btn']"));
+    }
+}
+
+#[cfg(test)]
+mod layout_tests {
+    use serde_json::json;
+
+    use super::assert_no_horizontal_overflow;
+
+    #[test]
+    fn horizontal_overflow_requires_unsigned_dimensions() {
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":390,"innerWidth":390})))
+                .is_ok()
+        );
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":391,"innerWidth":390})))
+                .is_err()
+        );
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":"390","innerWidth":390})))
+                .is_err()
+        );
+        assert!(assert_no_horizontal_overflow(Some(&json!({"scrollWidth":390}))).is_err());
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":0,"innerWidth":0}))).is_err()
+        );
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":0,"innerWidth":390})))
+                .is_err()
+        );
+        assert!(
+            assert_no_horizontal_overflow(Some(&json!({"scrollWidth":390,"innerWidth":0})))
+                .is_err()
+        );
+        assert!(assert_no_horizontal_overflow(Some(&json!([]))).is_err());
     }
 }
 

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
     description: ReactNode;
     confirmLabel: ReactNode;
     destructive?: boolean;
+    confirmTestId?: string;
     disabled?: boolean;
     onConfirm: () => Promise<void>;
 }
@@ -19,6 +20,7 @@ export function ConfirmDialog({
     description,
     confirmLabel,
     destructive = false,
+    confirmTestId,
     disabled = false,
     onConfirm,
 }: ConfirmDialogProps) {
@@ -66,6 +68,7 @@ export function ConfirmDialog({
                         {t("取消", "Cancel")}
                     </Button>,
                     <Button
+                        data-testid={confirmTestId}
                         key="confirm"
                         type="primary"
                         danger={destructive}

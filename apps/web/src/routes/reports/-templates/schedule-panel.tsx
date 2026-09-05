@@ -139,7 +139,7 @@ export function SchedulePanel() {
                         <ScheduleToggle schedule={row} onSaved={refresh} />
                         <ConfirmDialog
                             trigger={
-                                <Button type="link" danger>
+                                <Button data-testid="schedule-delete" type="link" danger>
                                     {t("删除", "Delete")}
                                 </Button>
                             }
@@ -150,6 +150,7 @@ export function SchedulePanel() {
                             )}
                             confirmLabel={t("删除计划", "Delete schedule")}
                             destructive
+                            confirmTestId="schedule-delete-confirm"
                             onConfirm={async () => {
                                 await reportsAPI.deleteSchedule(row.id);
                                 await refresh();
@@ -164,6 +165,7 @@ export function SchedulePanel() {
 
     return (
         <Card
+            data-testid="schedule-panel"
             title={
                 <span className="inline-flex items-center gap-2">
                     <ClockCircleOutlined />

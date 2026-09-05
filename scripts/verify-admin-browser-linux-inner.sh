@@ -59,6 +59,13 @@ export RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium
 export RUSTZEN_REPORTS_MAX_CONCURRENCY=1
 export RUSTZEN_TIMEZONE=UTC
 export RUST_LOG=warn
+# The controller only starts against a bound fresh schema. These fixture-only
+# identities are stable within this isolated container and are never used by
+# the fault proxy or by the target-backed browser lifecycle.
+export RUSTZEN_BUILD_ID=$(printf 'a%.0s' {1..64})
+export RUSTZEN_COMPOSITION_ID=$(printf 'b%.0s' {1..64})
+export RUSTZEN_MONITOR_SCHEMA_FINGERPRINT=$(printf 'c%.0s' {1..64})
+export RUSTZEN_MONITOR_DATA_CONTRACT_ID=$(printf 'd%.0s' {1..64})
 
 pids=()
 cleanup() {
@@ -103,10 +110,33 @@ start() {
     RUSTZEN_JWT_SECRET="$RUSTZEN_JWT_SECRET" RUSTZEN_IPC_TOKEN="$RUSTZEN_IPC_TOKEN" \
     RUSTZEN_MONITOR_AGENT_TOKEN="$RUSTZEN_MONITOR_AGENT_TOKEN" RUSTZEN_REPORTS_CREDENTIAL_KEY="$RUSTZEN_REPORTS_CREDENTIAL_KEY" \
     RUSTZEN_REPORTS_BROWSER_PATH="$RUSTZEN_REPORTS_BROWSER_PATH" RUSTZEN_REPORTS_MAX_CONCURRENCY=1 \
+    RUSTZEN_BUILD_ID="$RUSTZEN_BUILD_ID" RUSTZEN_COMPOSITION_ID="$RUSTZEN_COMPOSITION_ID" \
+    RUSTZEN_MONITOR_SCHEMA_FINGERPRINT="$RUSTZEN_MONITOR_SCHEMA_FINGERPRINT" \
+    RUSTZEN_MONITOR_DATA_CONTRACT_ID="$RUSTZEN_MONITOR_DATA_CONTRACT_ID" \
     RUSTZEN_TIMEZONE=UTC RUST_LOG=warn "$@" >"/opt/rz/logs/verify-$name.log" 2>&1 &
   pids+=("$!")
 }
 
+initialize_monitor_database() {
+  setpriv --reuid=rustzen --regid=rustzen --init-groups --no-new-privs -- env \
+    HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_CACHE_HOME="$XDG_CACHE_HOME" \
+    RUSTZEN_ENV="$RUSTZEN_ENV" RUSTZEN_RUNTIME_ROOT="$RUSTZEN_RUNTIME_ROOT" \
+    RUSTZEN_MONITOR_SQLITE_PATH="$RUSTZEN_MONITOR_SQLITE_PATH" \
+    RUSTZEN_BUILD_ID="$RUSTZEN_BUILD_ID" RUSTZEN_COMPOSITION_ID="$RUSTZEN_COMPOSITION_ID" \
+    RUSTZEN_MONITOR_SCHEMA_FINGERPRINT="$RUSTZEN_MONITOR_SCHEMA_FINGERPRINT" \
+    RUSTZEN_MONITOR_DATA_CONTRACT_ID="$RUSTZEN_MONITOR_DATA_CONTRACT_ID" \
+    RUSTZEN_TIMEZONE=UTC /opt/rz/rz-monitor init-db
+  setpriv --reuid=rustzen --regid=rustzen --init-groups --no-new-privs -- env \
+    HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_CACHE_HOME="$XDG_CACHE_HOME" \
+    RUSTZEN_ENV="$RUSTZEN_ENV" RUSTZEN_RUNTIME_ROOT="$RUSTZEN_RUNTIME_ROOT" \
+    RUSTZEN_MONITOR_SQLITE_PATH="$RUSTZEN_MONITOR_SQLITE_PATH" \
+    RUSTZEN_BUILD_ID="$RUSTZEN_BUILD_ID" RUSTZEN_COMPOSITION_ID="$RUSTZEN_COMPOSITION_ID" \
+    RUSTZEN_MONITOR_SCHEMA_FINGERPRINT="$RUSTZEN_MONITOR_SCHEMA_FINGERPRINT" \
+    RUSTZEN_MONITOR_DATA_CONTRACT_ID="$RUSTZEN_MONITOR_DATA_CONTRACT_ID" \
+    RUSTZEN_TIMEZONE=UTC /opt/rz/rz-monitor bind-database
+}
+
+initialize_monitor_database
 start monitor /opt/rz/rz-monitor controller
 start insights /opt/rz/rz-insights serve
 start reports /opt/rz/rz-reports serve
@@ -152,8 +182,13 @@ stop_fault_proxy() {
 browser_system=$(jq -nc '{name:"Linux Admin browser fault proxy",baseUrl:"http://127.0.0.1:19805/health",enabled:true}')
 browser_system_response=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$browser_system" "$admin/api/reports/systems")
 browser_system_id=$(jq -er '.data.id' <<<"$browser_system_response")
+browser_success_system=$(jq -nc '{name:"Linux Admin browser target",baseUrl:"http://127.0.0.1:19801/health",enabled:true}')
+browser_success_system_response=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$browser_success_system" "$admin/api/reports/systems")
+browser_success_system_id=$(jq -er '.data.id' <<<"$browser_success_system_response")
 browser_seed_flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_system_id" '{systemId:$system,name:"Browser fault seed",steps:[{action:"goto",url:"/health"},{action:"assertText",selector:"body",text:"ok"}]}')" "$admin/api/reports/flows")
 browser_seed_flow_id=$(jq -er '.data.id' <<<"$browser_seed_flow")
+browser_success_seed_flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_success_system_id" '{systemId:$system,name:"Browser schedule lifecycle seed",steps:[{action:"goto",url:"/health"},{action:"assertText",selector:"body",text:"ok"}]}')" "$admin/api/reports/flows")
+browser_success_seed_flow_id=$(jq -er '.data.id' <<<"$browser_success_seed_flow")
 
 run_browser_case() {
   case_name=$1 method=$2 mode=$3 route=$4 steps=$5
@@ -194,7 +229,49 @@ run_browser_case() {
   echo "browser fault case passed: $case_name"
 }
 
+run_target_browser_case() {
+  case_name=$1 steps=$2
+  echo "running browser target case: $case_name"
+  body=$(jq -nc --arg system "$browser_success_system_id" --arg name "$case_name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')
+  flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$body" "$admin/api/reports/flows")
+  case_flow_id=$(jq -er '.data.id' <<<"$flow")
+  run=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$case_flow_id" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs")
+  case_run_id=$(jq -er '.data.id' <<<"$run")
+  state=queued
+  for _ in $(seq 1 900); do
+    run=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id")
+    state=$(jq -er '.data.status' <<<"$run")
+    case "$state" in queued|running|cancelling) sleep .1 ;; *) break ;; esac
+  done
+  if [ "$state" != succeeded ]; then
+    curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/steps" >&2 || true
+    echo "target case $case_name ended with $state" >&2
+    exit 1
+  fi
+  jq --arg name "$case_name" --arg runId "$case_run_id" \
+    '. + [{name:$name,runId:$runId,execution:"target-backed"}]' \
+    /verify/evidence/success-cases.json >/verify/evidence/success-cases.json.next
+  mv /verify/evidence/success-cases.json.next /verify/evidence/success-cases.json
+  echo "browser target case passed: $case_name"
+}
+
+download_target_screenshot() {
+  case_name=$1 screenshot_name=$2 output=/verify/evidence/$3
+  artifacts=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$case_run_id/artifacts")
+  artifact_id=$(jq -er --arg prefix "$screenshot_name-" '.data[] | select(.kind == "screenshot" and (.fileName | startswith($prefix))) | .id' <<<"$artifacts")
+  curl --fail --silent --show-error --connect-timeout 3 --max-time 30 \
+    -o "$output" "${auth[@]}" "$admin/api/reports/runs/$case_run_id/artifacts/$artifact_id"
+  file "$output" | grep -Eq 'PNG image data, [1-9][0-9]* x [1-9][0-9]*'
+  sha=$(sha256sum "$output" | awk '{print $1}')
+  dimensions=$(file "$output" | sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/')
+  jq --arg name "$case_name" --arg file "$(basename "$output")" --arg sha "$sha" --arg dimensions "$dimensions" \
+    'map(if .name == $name then . + {artifact:{file:$file,sha256:$sha,dimensions:$dimensions}} else . end)' \
+    /verify/evidence/success-cases.json >/verify/evidence/success-cases.json.next
+  mv /verify/evidence/success-cases.json.next /verify/evidence/success-cases.json
+}
+
 login_steps='[{"action":"goto","url":"/login"},{"action":"waitFor","selector":"#login_username"},{"action":"fill","selector":"#login_username","value":"owner"},{"action":"fill","selector":"#login_password","value":"rustzen@123"},{"action":"click","selector":"button[type=submit]"},{"action":"waitFor","selector":".shell-content"}]'
+printf '[]\n' >/verify/evidence/success-cases.json
 schedule_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-create]"},{action:"click",selector:"[data-testid=schedule-create]"},{action:"waitFor",selector:"[data-testid=schedule-save]"},{action:"fill",selector:"input[type=time]",value:"10:15"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"waitFor",selector:"[data-testid=schedule-save-error]"},{action:"assertText",selector:"[data-testid=schedule-save-error]",text:"计划未保存"},{action:"assertValue",selector:"input[type=time]",value:"10:15"}]')
 run_browser_case schedule-create-network POST network /api/reports/schedules "$schedule_steps"
 run_browser_case schedule-create-http POST http /api/reports/schedules "$schedule_steps"
@@ -203,6 +280,42 @@ seed_schedule_id=$(jq -er '.data.id' <<<"$seed_schedule")
 schedule_edit_steps=$(jq -nc --argjson login "$login_steps" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-edit]"},{action:"click",selector:"[data-testid=schedule-edit]"},{action:"waitFor",selector:"[data-testid=schedule-save]"},{action:"fill",selector:"input[type=time]",value:"10:16"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"waitFor",selector:"[data-testid=schedule-save-error]"},{action:"assertText",selector:"[data-testid=schedule-save-error]",text:"计划未保存"},{action:"assertValue",selector:"input[type=time]",value:"10:16"}]')
 run_browser_case schedule-edit-network PUT network "/api/reports/schedules/$seed_schedule_id" "$schedule_edit_steps"
 run_browser_case schedule-edit-http PUT http "/api/reports/schedules/$seed_schedule_id" "$schedule_edit_steps"
+curl_json "${auth[@]}" -X DELETE "$admin/api/reports/schedules/$seed_schedule_id" >/dev/null
+
+target_desktop_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"dark",locale:"en-US"},{action:"setViewport",width:1440,height:900}] + $login')
+create_daily_steps=$(jq -nc --argjson login "$target_desktop_login" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-create]"},{action:"assertText",selector:"[data-testid=schedule-panel]",text:"Scheduled reports"},{action:"click",selector:"[data-testid=schedule-create]"},{action:"waitFor",selector:"[data-testid=schedule-dialog]"},{action:"fill",selector:"[data-testid=schedule-due-time]",value:"10:15"},{action:"fill",selector:"[data-testid=schedule-description]",value:"browser lifecycle daily"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"pause",durationMs:600},{action:"waitFor",selector:"[data-testid=schedule-toggle]"},{action:"assertText",selector:"[data-testid=schedule-panel]",text:"Daily"},{action:"assertNoHorizontalOverflow"},{action:"screenshotViewport",name:"schedule-desktop-dark-en"}]')
+run_target_browser_case schedule-create-daily "$create_daily_steps"
+download_target_screenshot schedule-create-daily schedule-desktop-dark-en schedule-desktop-dark-en.png
+schedule_id=$(curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq -er '.data[] | select(.description == "browser lifecycle daily") | .id')
+
+edit_weekly_steps=$(jq -nc --argjson login "$target_desktop_login" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-edit]"},{action:"click",selector:"[data-testid=schedule-edit]"},{action:"waitFor",selector:"[data-testid=schedule-dialog]"},{action:"click",selector:"[data-testid=schedule-cadence]"},{action:"waitFor",selector:"[data-testid=schedule-cadence-weekly]"},{action:"click",selector:"[data-testid=schedule-cadence-weekly]"},{action:"waitFor",selector:"[data-testid=schedule-weekday]"},{action:"click",selector:"[data-testid=schedule-weekday]"},{action:"waitFor",selector:"[data-testid=schedule-weekday-0]"},{action:"click",selector:"[data-testid=schedule-weekday-0]"},{action:"fill",selector:"[data-testid=schedule-due-time]",value:"10:16"},{action:"click",selector:"[data-testid=schedule-save]"},{action:"pause",durationMs:600},{action:"assertText",selector:"[data-testid=schedule-panel]",text:"Weekly Monday"}]')
+run_target_browser_case schedule-edit-weekly "$edit_weekly_steps"
+curl_json "${auth[@]}" "$admin/api/reports/schedules/$schedule_id" | jq -e '.data.cadence == "weekly" and .data.weekday == 0 and .data.dueTime == "10:16"' >/dev/null
+
+disable_steps=$(jq -nc --argjson login "$target_desktop_login" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-toggle]"},{action:"click",selector:"[data-testid=schedule-toggle]"},{action:"pause",durationMs:600},{action:"assertText",selector:"[data-testid=schedule-toggle]",text:"Off"}]')
+run_target_browser_case schedule-disable "$disable_steps"
+curl_json "${auth[@]}" "$admin/api/reports/schedules/$schedule_id" | jq -e '.data.enabled == false' >/dev/null
+
+enable_steps=$(jq -nc --argjson login "$target_desktop_login" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-toggle]"},{action:"click",selector:"[data-testid=schedule-toggle]"},{action:"pause",durationMs:600},{action:"assertText",selector:"[data-testid=schedule-toggle]",text:"On"}]')
+run_target_browser_case schedule-enable "$enable_steps"
+curl_json "${auth[@]}" "$admin/api/reports/schedules/$schedule_id" | jq -e '.data.enabled == true' >/dev/null
+
+menu_options=$(curl_json "${auth[@]}" "$admin/api/system/menus/options?limit=500")
+schedule_view_menu_id=$(jq -er '.data[] | select(.code == "reports:schedule:view") | .value' <<<"$menu_options")
+curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --argjson menu "$schedule_view_menu_id" '{name:"Browser schedule viewer",code:"browser_schedule_viewer",status:1,menuIds:[$menu],description:"Linux browser verifier"}')" "$admin/api/system/roles" >/dev/null
+viewer_role_id=$(curl_json "${auth[@]}" "$admin/api/system/roles/options?limit=500" | jq -er '.data[] | select(.code == "browser_schedule_viewer") | .value')
+curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --argjson role "$viewer_role_id" '{username:"schedule_viewer",email:"schedule_viewer@example.test",password:"schedule-viewer-password",realName:"Schedule viewer",status:1,roleIds:[$role]}')" "$admin/api/system/users" >/dev/null
+viewer_login='[{"action":"goto","url":"/login"},{"action":"waitFor","selector":"#login_username"},{"action":"fill","selector":"#login_username","value":"schedule_viewer"},{"action":"fill","selector":"#login_password","value":"schedule-viewer-password"},{"action":"click","selector":"button[type=submit]"},{"action":"waitFor","selector":".shell-content"}]'
+viewer_mobile_steps=$(jq -nc --argjson login "$viewer_login" '[{action:"setUiPreferences",theme:"light",locale:"zh-CN"},{action:"setViewport",width:390,height:844}] + $login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-panel]"},{action:"assertText",selector:"[data-testid=schedule-panel]",text:"定时报表计划"},{action:"assertAbsent",selector:"[data-testid=schedule-create]"},{action:"assertAbsent",selector:"[data-testid=schedule-edit]"},{action:"assertAbsent",selector:"[data-testid=schedule-toggle]"},{action:"assertAbsent",selector:"[data-testid=schedule-delete]"},{action:"assertNoHorizontalOverflow"},{action:"screenshot",name:"schedule-mobile-full"},{action:"screenshotViewport",name:"schedule-mobile-light-zh"}]')
+run_target_browser_case schedule-view-only-mobile "$viewer_mobile_steps"
+download_target_screenshot schedule-view-only-mobile schedule-mobile-light-zh schedule-mobile-light-zh.png
+
+delete_steps=$(jq -nc --argjson login "$target_desktop_login" '$login + [{action:"goto",url:"/reports/templates"},{action:"waitFor",selector:"[data-testid=schedule-delete]"},{action:"click",selector:"[data-testid=schedule-delete]"},{action:"waitFor",selector:"[data-testid=schedule-delete-confirm]"},{action:"click",selector:"[data-testid=schedule-delete-confirm]"},{action:"pause",durationMs:600},{action:"assertAbsent",selector:"[data-testid=schedule-toggle]"}]')
+run_target_browser_case schedule-delete "$delete_steps"
+if curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq -e --arg id "$schedule_id" '.data | all(.id != $id)' >/dev/null; then :; else
+  echo "deleted lifecycle schedule still appears in the Reports API" >&2
+  exit 1
+fi
 
 node_report=$(jq -nc --arg boot "11111111-1111-4111-8111-111111111111" --arg collected "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{nodeId:"browser-fault-node",bootId:$boot,sequence:1,hostname:"browser-fault-node",agentVersion:"verify",collectedAt:$collected,cpuPercent:10,memory:{usedBytes:10,totalBytes:100},disks:[{mountPoint:"/",usedBytes:10,totalBytes:100}]}')
 if ! curl_json -H 'x-rustzen-monitor-agent-token: ui-browser-verification-agent-secret' -H 'content-type: application/json' -d "$node_report" "$admin/api/monitor/agent-reports" >/dev/null; then
@@ -296,7 +409,8 @@ jq -n \
   --argjson analyticsBytes "$(wc -c </verify/evidence/analytics-details.png)" \
   --arg analyticsDimensions "$(sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/' <<<"$analytics_file")" \
   --slurpfile faultCases /verify/evidence/fault-cases.jsonl \
-  '{schemaVersion:2,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}},faultCases:$faultCases}' \
+  --argfile successCases /verify/evidence/success-cases.json \
+  '{schemaVersion:2,gitHead:$head,sourceTreeState:$sourceTreeState,sourceTreeSha256:$sourceTreeSha256,architecture:$architecture,reportsRunId:$runId,browser:$browser,binaryHashes:$binaries,artifacts:{dashboard:{file:"dashboard.png",sha256:$dashboardSha,bytes:$dashboardBytes,dimensions:$dashboardDimensions},analyticsDetails:{file:"analytics-details.png",sha256:$analyticsSha,bytes:$analyticsBytes,dimensions:$analyticsDimensions}},faultCases:$faultCases,successCases:$successCases}' \
   >/verify/evidence/manifest.json
 
 test "$(jq -r .gitHead /verify/evidence/manifest.json)" = "$RUSTZEN_VERIFY_HEAD"

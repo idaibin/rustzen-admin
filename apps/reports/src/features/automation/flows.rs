@@ -120,6 +120,28 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                     return Err(AppError::InvalidInput("screenshot name is too long".into()));
                 }
             }
+            FlowStep::ScreenshotViewport { name } => {
+                if name.as_ref().is_some_and(|value| value.len() > 100) {
+                    return Err(AppError::InvalidInput("screenshot name is too long".into()));
+                }
+            }
+            FlowStep::SetViewport { width, height } => {
+                if !matches!((*width, *height), (1440, 900) | (390, 844)) {
+                    return Err(AppError::InvalidInput(
+                        "setViewport only permits 1440x900 or 390x844".into(),
+                    ));
+                }
+            }
+            FlowStep::SetUiPreferences { theme, locale } => {
+                if !matches!(theme.as_str(), "light" | "dark")
+                    || !matches!(locale.as_str(), "zh-CN" | "en-US")
+                {
+                    return Err(AppError::InvalidInput(
+                        "setUiPreferences only permits supported theme and locale values".into(),
+                    ));
+                }
+            }
+            FlowStep::AssertNoHorizontalOverflow => {}
             FlowStep::GuardExists { selector, on_missing } => {
                 validate_selector(selector)?;
                 if let Some(strategy) = on_missing {
@@ -205,6 +227,10 @@ mod tests {
             FlowStep::PressKey { key: "Enter".into() },
             FlowStep::Pause { duration_ms: 500 },
             FlowStep::Screenshot { name: Some("result".into()) },
+            FlowStep::ScreenshotViewport { name: Some("viewport".into()) },
+            FlowStep::SetViewport { width: 390, height: 844 },
+            FlowStep::SetUiPreferences { theme: "light".into(), locale: "zh-CN".into() },
+            FlowStep::AssertNoHorizontalOverflow,
         ];
         assert!(validate_flow(&system, &steps).is_ok());
 
@@ -213,5 +239,9 @@ mod tests {
             on_missing: Some("invalid_strategy".into()),
         }];
         assert!(validate_flow(&system, &invalid_guard).is_err());
+
+        assert!(
+            validate_flow(&system, &[FlowStep::SetViewport { width: 400, height: 800 }],).is_err()
+        );
     }
 }

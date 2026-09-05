@@ -78,6 +78,7 @@ export function ScheduleToggle({
     return (
         <span className="inline-flex items-center gap-2">
             <Switch
+                data-testid="schedule-toggle"
                 size="small"
                 checked={schedule.enabled}
                 checkedChildren={t("启用", "On")}

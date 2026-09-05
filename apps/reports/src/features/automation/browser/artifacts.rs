@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{app::AppState, common::error::AppError};
 
-use super::{BROWSER_SHUTDOWN_TIMEOUT, VIEWPORT_HEIGHT, VIEWPORT_WIDTH, repo};
+use super::{BROWSER_SHUTDOWN_TIMEOUT, repo};
 
 const MAX_SCREENSHOT_PIXELS: u64 = 4_000_000;
 const MAX_SCREENSHOT_BYTES: usize = 4 * 1024 * 1024;
@@ -60,6 +60,25 @@ pub(super) async fn save_screenshot(
     run_id: &str,
     name: &str,
 ) -> Result<(), AppError> {
+    save_named_screenshot(state, page, run_id, name, true).await
+}
+
+pub(super) async fn save_viewport_screenshot(
+    state: &AppState,
+    page: &Page,
+    run_id: &str,
+    name: &str,
+) -> Result<(), AppError> {
+    save_named_screenshot(state, page, run_id, name, false).await
+}
+
+async fn save_named_screenshot(
+    state: &AppState,
+    page: &Page,
+    run_id: &str,
+    name: &str,
+    full_page: bool,
+) -> Result<(), AppError> {
     let id = Uuid::new_v4().to_string();
     let safe: String = name
         .chars()
@@ -69,23 +88,30 @@ pub(super) async fn save_screenshot(
     let file_name = format!("{}-{}.png", if safe.is_empty() { "screenshot" } else { &safe }, id);
     let dir = state.output_dir.join(run_id);
     tokio::fs::create_dir_all(&dir).await?;
-    validate_full_page_layout(page).await?;
+    if full_page {
+        validate_full_page_layout(page).await?;
+    }
+    let viewport = if full_page { Some(current_viewport(page).await?) } else { None };
     let capture = page
         .screenshot(
             ScreenshotParams::builder()
                 .format(CaptureScreenshotFormat::Png)
-                .full_page(true)
+                .full_page(full_page)
                 .build(),
         )
         .await;
     // chromiumoxide clears its emulated metrics after a full-page capture.
     // Restore the session contract before a later step can navigate or inspect
     // a responsive page.
-    let restored = page
-        .execute(SetDeviceMetricsOverrideParams::new(VIEWPORT_WIDTH, VIEWPORT_HEIGHT, 1.0, false))
-        .await;
+    let restored = if let Some((width, height, scale, mobile)) = viewport {
+        Some(page.execute(SetDeviceMetricsOverrideParams::new(width, height, scale, mobile)).await)
+    } else {
+        None
+    };
     let bytes = capture.map_err(AppError::internal)?;
-    restored.map_err(AppError::internal)?;
+    if let Some(restored) = restored {
+        restored.map_err(AppError::internal)?;
+    }
     validate_screenshot(&bytes)?;
     if screenshot_bytes_in_dir(&dir).await? + u64::try_from(bytes.len()).unwrap_or(u64::MAX)
         > MAX_RUN_SCREENSHOT_BYTES
@@ -103,6 +129,35 @@ pub(super) async fn save_screenshot(
     )
     .await?;
     Ok(())
+}
+
+async fn current_viewport(page: &Page) -> Result<(u32, u32, f64, bool), AppError> {
+    let metrics = page
+        .evaluate("({ width: window.innerWidth, height: window.innerHeight, scale: window.devicePixelRatio })")
+        .await
+        .map_err(AppError::internal)?;
+    let metrics = metrics
+        .value()
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| AppError::internal("browser did not report viewport metrics"))?;
+    let width = metrics
+        .get("width")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .ok_or_else(|| AppError::internal("browser viewport width is invalid"))?;
+    let height = metrics
+        .get("height")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .ok_or_else(|| AppError::internal("browser viewport height is invalid"))?;
+    let scale = metrics
+        .get("scale")
+        .and_then(serde_json::Value::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.)
+        .ok_or_else(|| AppError::internal("browser viewport scale is invalid"))?;
+    Ok((width, height, scale, width == 390))
 }
 
 fn validate_screenshot(bytes: &[u8]) -> Result<(), AppError> {

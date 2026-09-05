@@ -169,7 +169,7 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
-| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Implemented source; rendered desktop/narrow composition **Not verified** | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; desktop/narrow composition check |
+| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | Verified in Linux Chromium at 1440x900 and 390x844 | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; target-backed browser gate |
 | SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | Implemented source; rendered cadence validation/timezone copy **Not verified** | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Implemented source; forced processing/partial/skipped rendering **Not verified** | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Implemented source; real rendered schedule-to-run link **Not verified** | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
@@ -183,13 +183,14 @@ Exact new geometry, computed styles, and runtime schedule outcomes are
 | Priority | Viewport | Theme/locale | Surface and state | Acceptance |
 | --- | --- | --- | --- | --- |
 | Required | 1920x1080 @ 100% | light / zh-CN | Templates schedule populated | Columns, actions, next due, and timezone helper align with existing PageCard; no overflow. |
-| Required | 1440x900 @ 100% | dark / en-US | Schedule form processing/error | Modal focus, semantic contrast, and error wrapping pass. |
-| Required | 390x844 @ 100% | light / zh-CN | Empty/permission schedule list | Create guidance and permission state remain readable; no hidden action. |
+| Required | 1440x900 @ 100% | dark / en-US | Target-backed schedule lifecycle | Daily create, weekly edit, disable/enable and delete; key copy and no horizontal overflow verified. |
+| Required | 390x844 @ 100% | light / zh-CN | Schedule-view-only list | Management actions are hidden; key copy and no horizontal overflow verified. |
 | Required | 390x844 @ 100% | dark / en-US | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable. |
 
 Static checks cover route/API owner, capability visibility, and prohibited
-credential/cron fields. Browser validation requires two same-viewport/state
-comparison passes after implementation; no runtime evidence is claimed here.
+credential/cron fields. The Linux Chromium gate verifies the two stated
+success-path viewports; form validation, partial outcomes, Runs retry, and
+native systemd/seccomp remain outside this visual acceptance.
 
 ## Shared-system changes and readiness
 
@@ -200,6 +201,10 @@ feedback, confirmation, run detail, and theme semantics.
 
 The selected source, layout ownership, component mapping, states, permission
 visibility, responsive/accessibility rules, and acceptance IDs are implemented
-in the current Reports/Web slice. Scheduler HTTP behavior is verified by the
-focused Reports worker seam; final geometry and two-pass rendered browser
-review remain **Not verified**.
+in the current Reports/Web slice. Scheduler HTTP behavior and the defined
+Templates success lifecycle are verified; Runs retry, other response matrices,
+native systemd, and native-host seccomp remain **Not verified**.
+
+## Linux Chromium success-path acceptance
+
+Verified by the Linux Chromium gate: the real Reports service and Web route, never the fault proxy, create a daily schedule, edit it to weekly, disable and re-enable it, then delete it. A schedule-view-only session sees the panel but no create, edit, toggle, or delete action. Evidence captures `1440x900` dark/en-US and `390x844` light/zh-CN, with exact screenshot dimensions, bound SHA-256 values, key copy, and no horizontal overflow.

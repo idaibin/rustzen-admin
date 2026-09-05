@@ -302,7 +302,7 @@ policy removes them.
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
 | Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
 | HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
-| Browser | Reports browser verifier plus schedule permission seam | Real target-backed execution, screenshots, limits, cleanup, and direct schedule-only viewer/manager requests pass; rendered Templates/Runs Web visual matrix remains **Not verified**. |
+| Browser | Reports browser verifier plus schedule permission seam | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, and schedule-view-only action hiding. Exact 1440x900 dark/en-US and 390x844 light/zh-CN screenshots prove key copy and no horizontal overflow. Runs retry and other visual matrices remain **Not verified**. |
 | Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions
@@ -334,5 +334,10 @@ policy removes them.
 The cadence, skip policy, run ownership, permission boundary, failure semantics,
 and non-goals are implemented in the current Reports/Web slice. Focused local
 Rust, HTTP, and script seams are required before this status can be claimed.
-Rendered browser UI, real systemd installation, native-host browser seccomp,
-and external delivery remain **Not verified** until separately exercised.
+The stated Templates success lifecycle and two viewports are verified. Runs
+retry rendering, other response matrices, real systemd installation,
+native-host browser seccomp, and external delivery remain **Not verified**.
+
+## Current Linux Chromium acceptance
+
+The release gate verifies the target-backed Reports schedule lifecycle: create daily, edit weekly, disable, enable, and delete. It separately proves schedule-view-only users cannot receive management controls and captures desktop dark/en-US plus mobile light/zh-CN evidence without horizontal overflow. The existing ten mutation-failure cases remain required and do not substitute for this success path. Runs retry, other visual matrices, native systemd, and native-host seccomp remain **Not verified**.

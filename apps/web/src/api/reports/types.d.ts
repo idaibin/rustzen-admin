@@ -27,6 +27,10 @@ declare namespace Reports {
         | { action: "assertValue"; selector: string; value: string }
         | { action: "assertAbsent"; selector: string }
         | { action: "screenshot"; name?: string }
+        | { action: "screenshotViewport"; name?: string }
+        | { action: "setViewport"; width: 1440 | 390; height: 900 | 844 }
+        | { action: "setUiPreferences"; theme: "light" | "dark"; locale: "zh-CN" | "en-US" }
+        | { action: "assertNoHorizontalOverflow" }
         | {
               action: "guardExists";
               selector: string;

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+source "$root/scripts/verify-admin-browser-linux-manifest.sh"
 architecture=${RUSTZEN_UI_LINUX_ARCH:-$(docker info --format '{{.Architecture}}')}
 case "$architecture" in
   aarch64) platform=linux/arm64; target_triple=aarch64-unknown-linux-musl; file_pattern='ELF 64-bit.*ARM aarch64'; browser_channel=snapshot120; default_image='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' ;;
@@ -99,8 +100,16 @@ docker run --name "$container" --platform "$platform" --security-opt seccomp=unc
 test -f "$candidate/manifest.json"
 test -f "$candidate/dashboard.png"
 test -f "$candidate/analytics-details.png"
+test -f "$candidate/schedule-desktop-dark-en.png"
+test -f "$candidate/schedule-mobile-light-zh.png"
 jq -e '
   .schemaVersion == 2 and
+  (.successCases | length) == 6 and
+  ([.successCases[] | .name, .runId, .execution] | all(. != null)) and
+  ([.successCases[] | .name] | sort) == ["schedule-create-daily", "schedule-delete", "schedule-disable", "schedule-edit-weekly", "schedule-enable", "schedule-view-only-mobile"] and
+  ([.successCases[] | select(.execution != "target-backed")] | length) == 0 and
+  ([.successCases[] | select(.name == "schedule-create-daily") | .artifact.file == "schedule-desktop-dark-en.png" and .artifact.dimensions == "1440 x 900" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
+  ([.successCases[] | select(.name == "schedule-view-only-mobile") | .artifact.file == "schedule-mobile-light-zh.png" and .artifact.dimensions == "390 x 844" and (.artifact.sha256 | test("^[0-9a-f]{64}$"))] | all) and
   (.faultCases | length) == 10 and
   ([.faultCases[] | .runId, .method, .mode, .route, .receipt.method, .receipt.mode, .receipt.route, .receipt.hitCount, .artifact.file, .artifact.sha256, .artifact.dimensions] | all(. != null)) and
   ([.faultCases[] | select(.receipt.hitCount != 1)] | length) == 0 and
@@ -111,6 +120,7 @@ jq -e '
     "PUT network /api/monitor/alert-settings", "PUT network /api/monitor/nodes/browser-fault-node/alert-settings", "PUT network /api/reports/schedules/{id}"
   ]
 ' "$candidate/manifest.json" >/dev/null
+verify_manifest_screenshots "$candidate"
 for image in "$candidate"/*.png; do
   [ "$(od -An -tx1 -N8 "$image" | tr -d ' \n')" = 89504e470d0a1a0a ]
   file "$image" | grep -Eq 'PNG image data, [1-9][0-9]* x [1-9][0-9]*'

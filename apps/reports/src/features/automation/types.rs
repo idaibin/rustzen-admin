@@ -53,6 +53,20 @@ pub enum FlowStep {
     Screenshot {
         name: Option<String>,
     },
+    ScreenshotViewport {
+        name: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    SetViewport {
+        width: u32,
+        height: u32,
+    },
+    #[serde(rename_all = "camelCase")]
+    SetUiPreferences {
+        theme: String,
+        locale: String,
+    },
+    AssertNoHorizontalOverflow,
     #[serde(rename_all = "camelCase")]
     GuardExists {
         selector: String,
@@ -78,6 +92,10 @@ impl FlowStep {
             Self::AssertValue { .. } => "assertValue",
             Self::AssertAbsent { .. } => "assertAbsent",
             Self::Screenshot { .. } => "screenshot",
+            Self::ScreenshotViewport { .. } => "screenshotViewport",
+            Self::SetViewport { .. } => "setViewport",
+            Self::SetUiPreferences { .. } => "setUiPreferences",
+            Self::AssertNoHorizontalOverflow => "assertNoHorizontalOverflow",
             Self::GuardExists { .. } => "guardExists",
             Self::PressKey { .. } => "pressKey",
             Self::Pause { .. } => "pause",

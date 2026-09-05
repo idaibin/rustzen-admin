@@ -9,8 +9,9 @@ session="$root/apps/reports/src/features/automation/browser/session.rs"
 identity="$root/scripts/admin-browser-source-identity.sh"
 provenance="$root/scripts/write-admin-browser-build-provenance.sh"
 build="$root/scripts/build-admin-browser-linux.sh"
+manifest_verifier="$root/scripts/verify-admin-browser-linux-manifest.sh"
 
-for file in "$outer" "$inner" "$docs" "$session" "$identity" "$provenance" "$build"; do test -s "$file"; done
+for file in "$outer" "$inner" "$docs" "$session" "$identity" "$provenance" "$build" "$manifest_verifier"; do test -s "$file"; done
 grep -Fq 'if ! mkdir "$lock_dir"' "$outer"
 grep -Fq 'rm -rf "$current" "$candidate"' "$outer"
 grep -Fq 'mv "$candidate" "$current"' "$outer"
@@ -33,6 +34,20 @@ grep -Fq '.viewport(viewport)' "$session"
 grep -Fq 'browser viewport differs from 1440x900' "$session"
 grep -Fq 'admin-browser-fault-proxy.py' "$outer"
 grep -Fq 'schemaVersion:2' "$inner"
+grep -Fq 'setViewport' "$inner"
+grep -Fq 'setUiPreferences' "$inner"
+grep -Fq 'assertNoHorizontalOverflow' "$inner"
+grep -Fq 'schedule-create-daily' "$inner"
+grep -Fq 'schedule-view-only-mobile' "$inner"
+grep -Fq 'schedule-desktop-dark-en.png' "$outer"
+grep -Fq 'schedule-mobile-light-zh.png' "$outer"
+grep -Fq 'successCases:$successCases' "$inner"
+grep -Fq 'successCases | length) == 6' "$outer"
+grep -Fq 'screenshotViewport' "$inner"
+grep -Fq 'schedule-mobile-full' "$inner"
+grep -Fq 'screenshot",name:"schedule-mobile-full"},{action:"screenshotViewport",name:"schedule-mobile-light-zh"' "$inner"
+grep -Fq '1440 x 900' "$outer"
+grep -Fq '390 x 844' "$outer"
 grep -Fq 'assertValue' "$inner"
 grep -Fq 'assertAbsent' "$inner"
 grep -Fq 'faultCases:$faultCases' "$inner"
@@ -41,7 +56,11 @@ grep -Fq 'RUSTZEN_VERIFY_FAULT_METHOD' "$inner"
 grep -Fq 'hitCount == 1' "$inner"
 grep -Fq 'service_ports=(19801 19802 19803 19804)' "$inner"
 grep -Fq 'proxy_port=19805' "$inner"
-test "$(grep -Fc 'jq -nc --argjson login' "$inner")" -eq 8
+grep -Fq 'initialize_monitor_database' "$inner"
+grep -Fq 'rz-monitor init-db' "$inner"
+grep -Fq 'rz-monitor bind-database' "$inner"
+grep -Fq 'verify_manifest_screenshots' "$outer"
+test "$(grep -Fc 'jq -nc --argjson login' "$inner")" -ge 8
 if grep -Fq 'jq -c --argjson login' "$inner"; then
   echo 'browser step composition must use jq null input mode' >&2
   exit 1
@@ -53,8 +72,29 @@ grep -Fq 'self.command == METHOD and path == ROUTE' "$root/scripts/admin-browser
 grep -Fq 'HITS += 1' "$root/scripts/admin-browser-fault-proxy.py"
 python3 "$root/scripts/test-admin-browser-fault-proxy.py"
 
+source "$manifest_verifier"
+tmp=
+manifest_tmp=$(mktemp -d "${TMPDIR:-/tmp}/rz-ui-manifest-test.XXXXXX")
+trap 'rm -rf "$tmp" "$manifest_tmp"' EXIT
+python3 - "$manifest_tmp" <<'PY'
+from pathlib import Path
+import hashlib, json, sys
+root = Path(sys.argv[1])
+png = bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000002000154a24f9d0000000049454e44ae426082')
+for name in ('fault.png', 'success.png'):
+    (root / name).write_bytes(png)
+digest = hashlib.sha256(png).hexdigest()
+artifact = lambda name: {'file': name, 'sha256': digest, 'dimensions': '1 x 1'}
+(root / 'manifest.json').write_text(json.dumps({'faultCases': [{'artifact': artifact('fault.png')}], 'successCases': [{'artifact': artifact('success.png')}] }))
+PY
+verify_manifest_screenshots "$manifest_tmp"
+printf tamper >>"$manifest_tmp/success.png"
+if verify_manifest_screenshots "$manifest_tmp"; then
+  echo 'manifest verifier accepted a tampered screenshot' >&2
+  exit 1
+fi
+
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/rz-ui-gate-test.XXXXXX")
-trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/current" "$tmp/candidate"
 printf stale >"$tmp/current/manifest.json"
 mkdir "$tmp/.verify.lock"
