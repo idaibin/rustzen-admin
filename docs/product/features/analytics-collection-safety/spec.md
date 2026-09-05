@@ -356,8 +356,8 @@ raw secrets or browser payloads.
 | Automated | Insights validation, retention, origin/identifier, opt-in, body/batch, process-local rate guards, storage/disk, batch-atomicity, policy barriers, and contract tests | 413/429/507 rejection paths persist zero events; 30/300 rate windows are scoped to one running Insights process and reset on restart; policy changes reject prior credentials without new rows; valid data retains existing query behavior. |
 | Local HTTP fixture | Public ingestion and authenticated query requests in the Insights router test harness | A legal pathname remains queryable; `pagePath`, `apiPath`, and `referrer` carrying a query, fragment, absolute URL, free text, newline, or control character return 422 before persistence. A separate Web behavior test limits the target display projection to its fixed fields. This is local fixture and source behavior evidence, not a deployed-service or browser result. |
 | HTTP | Real public ingestion, CORS preflight, and authenticated query requests | Only `collection_enabled`, project, normalized origin, exact preflight/POST CORS headers, payload, rate, storage, and role boundaries are observable; HTTP does not verify visitor consent. |
-| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | `Not verified`: browser capture and visual rendering remain to be exercised. No initialization, request patch, request, queue, or ID before opt-in; loading the inert asset and consent-driven initialization remain distinct. |
-| Runtime/deployment | configured origin and retention in the four-service bundle | `Not verified` until environment and browser policy are exercised. |
+| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | The disposable Linux Chromium host gate verifies inert loading before consent, opt-in persistence, opt-out cleanup, and real 413/429 zero-row rejection. Analytics overview/detail visual rendering and the remaining UI state matrix are `Not verified`. |
+| Runtime/deployment | configured origin and retention in the four-service bundle | The disposable four-service Linux gate verifies the configured fixture origin and browser policy through Admin and Insights. Production host configuration and retention over elapsed time remain `Not verified`. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
@@ -395,5 +395,6 @@ raw secrets or browser payloads.
 The safety boundary, data ownership, permissions, failure semantics, non-goals,
 and acceptance are fixed. The server implementation can proceed without a new
 UI settings system; the linked Analytics UI contract is ready for the existing
-overview/detail surfaces. External legal review, browser network evidence, and
-deployment configuration remain `Not verified`.
+overview/detail surfaces. External legal review, the Analytics UI visual/state
+matrix, production host configuration, and retention over elapsed time remain
+`Not verified`.
