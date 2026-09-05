@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Form, InputNumber, Switch, Typography } from "antd";
+import { Alert, Button, Card, Form, InputNumber, Switch, Typography } from "antd";
+import { useEffect, useState } from "react";
 
 import { appMessage, monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
@@ -7,20 +8,34 @@ import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
+import {
+    failedNetworkAction,
+    retryFailedNetworkAction,
+    type FailedNetworkAction,
+} from "./-save-state";
+
 export function GlobalAlertSettings() {
     const [form] = Form.useForm<Monitor.UpdateAlertSettings>();
+    const [failedSave, setFailedSave] =
+        useState<FailedNetworkAction<Monitor.UpdateAlertSettings>>();
     const client = useQueryClient();
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
     const { data, isPending, refetch } = useQuery({
         queryKey: ["monitor", "alert-settings"],
         queryFn: monitorAPI.alertSettings,
     });
+    useEffect(() => {
+        if (!canManage) setFailedSave(undefined);
+    }, [canManage]);
     const mutation = useMutation({
         mutationFn: monitorAPI.updateAlertSettings,
+        onMutate: () => setFailedSave(undefined),
         onSuccess: async () => {
             await client.invalidateQueries({ queryKey: ["monitor"] });
             appMessage.success(t("告警设置已保存", "Alert settings saved"));
         },
+        onError: (error, values) =>
+            setFailedSave(failedNetworkAction(error, { type: "save", values })),
     });
     if (!data)
         return (
@@ -48,6 +63,29 @@ export function GlobalAlertSettings() {
                     "Configure CPU, memory, disk and offline alerts together. Changes apply to inheriting nodes; custom policies take priority.",
                 )}
             </Typography.Paragraph>
+            {canManage && failedSave ? (
+                <Alert
+                    type="error"
+                    showIcon
+                    title={t("告警设置未保存", "Alert settings were not saved")}
+                    description={t(
+                        "无法连接监控服务。当前修改仍保留，可重试保存。",
+                        "The monitoring service could not be reached. Your changes are still here; retry saving.",
+                    )}
+                    action={
+                        <Button
+                            onClick={() =>
+                                retryFailedNetworkAction(canManage, failedSave, {
+                                    save: (values) => mutation.mutate(values),
+                                    reset: () => undefined,
+                                })
+                            }
+                        >
+                            {t("重试", "Retry")}
+                        </Button>
+                    }
+                />
+            ) : null}
             <Form
                 form={form}
                 initialValues={{
@@ -59,7 +97,7 @@ export function GlobalAlertSettings() {
                 layout="vertical"
                 className="flex flex-col gap-5"
                 onFinish={(values) => {
-                    if (!mutation.isPending) mutation.mutate(values);
+                    if (canManage && !mutation.isPending) mutation.mutate(values);
                 }}
                 disabled={!canManage || mutation.isPending}
             >

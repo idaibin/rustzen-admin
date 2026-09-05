@@ -24,7 +24,7 @@ The route remains `/monitoring/incidents`.
 | Surface | Composition | Interaction and pagination |
 | --- | --- | --- |
 | Overview | One page title, four shared MetricCards, latest-resource panels, DataState and refresh feedback | Registered, online, offline, active-incident counts in that order; missing resources are empty data, not healthy substitute values. |
-| Nodes | PageCard, ProTable, status tags, resource progress, node-detail Drawer | Inventory has no pagination; Drawer owns history, per-mount series, effective policy, override/reset and bounded scrolling. |
+| Nodes | PageCard, ProTable, status tags, resource progress, node-detail Drawer | Inventory has no pagination; on background failure it retains the last table and shows BackgroundRefreshNotice with Retry and explicit refresh. Drawer owns history, per-mount series, effective policy, override/reset and bounded scrolling. |
 | Incidents | PageCard, two upper-right Select filters, filling table and separate bottom Pagination | Status/type changes query immediately and return to page one. Empty success retains total zero and disabled pagination. Details preserve list context. |
 | Nodes / Global Settings drawer | One configuration Card with CPU, memory, disk and offline controls; one Save and last-update footer | Four controls share one Form; outlined numeric inputs remain visible on the panel. Management permission controls editing and Save. |
 | Daily Summaries | PageCard, DataTableShell, ProTable and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. |
@@ -42,7 +42,13 @@ The route remains `/monitoring/incidents`.
   visible table viewport even when columns can scroll horizontally.
 - Settings preserve the product's control order, value ranges and required validation.
   Missing values show readable field names. Read-only users see disabled controls and
-  no Save. Saving does not submit duplicate requests while pending.
+  no Save. Saving does not submit duplicate requests while pending. A network
+  failure during global save, node-policy save, or reset is visible inside the
+  open Drawer and retains the draft/current policy state. HTTP and business
+  failures use the request layer's one existing toast and do not produce a
+  duplicate drawer toast. If management permission is withdrawn while a Drawer
+  is open, its failure/retry state is cleared and no save or reset handler may
+  submit a mutation.
 - Drawers retain Ant Design focus trapping, restoration and close behavior. Status
   includes text; keyboard actions, filters, retry and Save have accessible names.
 - Parent grids reflow at narrow widths. No document-level horizontal overflow or
@@ -87,7 +93,9 @@ copy action or connection action; its primary execution action remains disabled.
 
 Global settings opens a Drawer with one four-control configuration form, one Save
 and the last-update time. Closing either drawer returns to the node list and
-discards unsaved form state. Drawers fit mobile width and preserve keyboard focus.
+discards unsaved form state. A failed network save keeps this Drawer and its
+draft open with an inline retryable error. Drawers fit mobile width and preserve
+keyboard focus.
 ## Node onboarding availability
 
 The Nodes Drawer is informational until the Web product has a secure delivery path for

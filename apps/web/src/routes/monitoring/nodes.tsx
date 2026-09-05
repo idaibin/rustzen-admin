@@ -2,6 +2,7 @@ import {
     CheckCircleOutlined,
     DisconnectOutlined,
     PlusOutlined,
+    ReloadOutlined,
     SettingOutlined,
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
@@ -11,6 +12,7 @@ import { Button, Drawer, Tag } from "antd";
 import { useState } from "react";
 
 import { monitorAPI } from "@/api";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { formatDateTime } from "@/lib/format-date-time";
@@ -20,6 +22,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { GlobalAlertSettings } from "./-global-alert-settings";
 import { NodeDetails, PolicySourceTag } from "./-node-details";
 import { NodeOnboarding } from "./-node-onboarding";
+import { hasNodesBackgroundRefreshFailure } from "./-save-state";
 
 export const Route = createFileRoute("/monitoring/nodes")({ component: MonitoringNodesPage });
 
@@ -28,7 +31,7 @@ function MonitoringNodesPage() {
     const [selected, setSelected] = useState<Monitor.Node>();
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
     const canViewSettings = useAuthStore((state) => state.checkPermissions("monitor:node:view"));
-    const { data, isPending, isFetching, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "nodes"],
         queryFn: monitorAPI.nodes,
         refetchInterval: 30_000,
@@ -118,6 +121,13 @@ function MonitoringNodesPage() {
             )}
             actions={
                 <>
+                    <Button
+                        icon={<ReloadOutlined />}
+                        loading={isFetching}
+                        onClick={() => void refetch()}
+                    >
+                        {t("刷新", "Refresh")}
+                    </Button>
                     {canViewSettings ? (
                         <Button icon={<SettingOutlined />} onClick={() => setPanel("settings")}>
                             {t("全局配置", "Global settings")}
@@ -152,27 +162,35 @@ function MonitoringNodesPage() {
                     }
                 />
             ) : (
-                <ProTable
-                    rowKey="nodeId"
-                    columns={columns}
-                    dataSource={data}
-                    loading={isFetching}
-                    search={false}
-                    options={false}
-                    pagination={false}
-                    locale={{
-                        emptyText: (
-                            <DataState
-                                kind="empty"
-                                title={t("暂无监控节点", "No monitored nodes")}
-                                description={t(
-                                    "节点 Agent 首次上报后会自动出现在列表中。",
-                                    "A node appears after its agent's first report.",
-                                )}
-                            />
-                        ),
-                    }}
-                />
+                <>
+                    {hasNodesBackgroundRefreshFailure(data, error) ? (
+                        <BackgroundRefreshNotice
+                            updatedAt={dataUpdatedAt}
+                            onRetry={() => void refetch()}
+                        />
+                    ) : null}
+                    <ProTable
+                        rowKey="nodeId"
+                        columns={columns}
+                        dataSource={data}
+                        loading={isFetching}
+                        search={false}
+                        options={false}
+                        pagination={false}
+                        locale={{
+                            emptyText: (
+                                <DataState
+                                    kind="empty"
+                                    title={t("暂无监控节点", "No monitored nodes")}
+                                    description={t(
+                                        "节点 Agent 首次上报后会自动出现在列表中。",
+                                        "A node appears after its agent's first report.",
+                                    )}
+                                />
+                            ),
+                        }}
+                    />
+                </>
             )}
             <Drawer
                 open={Boolean(panel)}

@@ -197,3 +197,12 @@ remain the existing contract.
 Global settings is part of Nodes, with no independent menu/page. Reading requires
 monitor:node:view; saving requires monitor:manage. The four defaults share one
 Save, and successful saves invalidate Monitoring queries including node policies.
+If a global or node-policy save/reset cannot reach the service, the open Drawer
+shows an actionable failure while retaining the current form values. HTTP and
+business rejections retain the request layer's existing single global error
+message; the Drawer does not add a second toast for the same rejection.
+
+Nodes refresh in the background every 30 seconds. A failed background refresh
+retains the last successful inventory and exposes its update time, Retry, and an
+explicit refresh action. An initial load failure continues to use the blocking
+retry state because no inventory is available to retain.

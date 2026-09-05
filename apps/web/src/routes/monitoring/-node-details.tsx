@@ -3,6 +3,7 @@ import {
     Button,
     Card,
     Drawer,
+    Alert,
     Form,
     InputNumber,
     Progress,
@@ -11,7 +12,7 @@ import {
     Tag,
     Typography,
 } from "antd";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { appMessage, monitorAPI } from "@/api";
@@ -19,6 +20,13 @@ import { DataState } from "@/components/feedback/data-state";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
+
+import {
+    failedNetworkAction,
+    retryFailedNetworkAction,
+    shouldHydrateNodePolicy,
+    type FailedNetworkAction,
+} from "./-save-state";
 
 export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: () => void }) {
     const { data, error, isPending, refetch } = useQuery({
@@ -40,7 +48,7 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                     <Typography.Text type="secondary">
                         {node.nodeId} · v{node.agentVersion} · {formatDateTime(node.lastReportAt)}
                     </Typography.Text>
-                    <NodeAlertPolicy nodeId={node.nodeId} />
+                    <NodeAlertPolicy key={node.nodeId} nodeId={node.nodeId} />
                     <div className="grid gap-3 md:grid-cols-3">
                         <Usage usage={node.memory} label={t("内存", "Memory")} />
                         <Card size="small">
@@ -139,6 +147,9 @@ export function PolicySourceTag({ source }: { source: "global" | "custom" }) {
 
 function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
     const [form] = Form.useForm<Monitor.UpdateAlertSettings>();
+    const [failedAction, setFailedAction] =
+        useState<FailedNetworkAction<Monitor.UpdateAlertSettings>>();
+    const hydratedNodeId = useRef<string | undefined>(undefined);
     const client = useQueryClient();
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
     const { data, error, isPending, refetch } = useQuery({
@@ -146,18 +157,26 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
         queryFn: () => monitorAPI.nodeAlertSettings(nodeId),
     });
     useEffect(() => {
-        if (data) {
+        if (
+            data &&
+            shouldHydrateNodePolicy(hydratedNodeId.current !== nodeId, form.isFieldsTouched())
+        ) {
             form.setFieldsValue({
                 cpu: data.cpu,
                 memory: data.memory,
                 disk: data.disk,
                 offline: data.offline,
             });
+            hydratedNodeId.current = nodeId;
         }
-    }, [data, form]);
+    }, [data, form, nodeId]);
+    useEffect(() => {
+        if (!canManage) setFailedAction(undefined);
+    }, [canManage]);
     const save = useMutation({
         mutationFn: (values: Monitor.UpdateAlertSettings) =>
             monitorAPI.updateNodeAlertSettings(nodeId, values),
+        onMutate: () => setFailedAction(undefined),
         onSuccess: async (value) => {
             form.setFieldsValue(value);
             await Promise.all([
@@ -166,9 +185,12 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
             ]);
             appMessage.success(t("节点告警策略已保存", "Node alert policy saved"));
         },
+        onError: (error, values) =>
+            setFailedAction(failedNetworkAction(error, { type: "save", values })),
     });
     const reset = useMutation({
         mutationFn: () => monitorAPI.resetNodeAlertSettings(nodeId),
+        onMutate: () => setFailedAction(undefined),
         onSuccess: async (value) => {
             form.setFieldsValue(value);
             await Promise.all([
@@ -177,6 +199,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
             ]);
             appMessage.success(t("已恢复全局默认策略", "Global defaults restored"));
         },
+        onError: (error) => setFailedAction(failedNetworkAction(error, { type: "reset" })),
     });
     const busy = save.isPending || reset.isPending;
     if (!data) {
@@ -216,12 +239,36 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                           "This node dynamically inherits the global defaults.",
                       )}
             </Typography.Paragraph>
+            {canManage && failedAction ? (
+                <Alert
+                    className="mb-4"
+                    type="error"
+                    showIcon
+                    title={t("节点策略未保存", "Node policy was not saved")}
+                    description={t(
+                        "无法连接监控服务。当前策略仍保留，可重试操作。",
+                        "The monitoring service could not be reached. The current policy is still here; retry the action.",
+                    )}
+                    action={
+                        <Button
+                            onClick={() =>
+                                retryFailedNetworkAction(canManage, failedAction, {
+                                    save: (values) => save.mutate(values),
+                                    reset: () => reset.mutate(),
+                                })
+                            }
+                        >
+                            {t("重试", "Retry")}
+                        </Button>
+                    }
+                />
+            ) : null}
             <Form
                 form={form}
                 layout="vertical"
                 disabled={!canManage || busy}
                 onFinish={(values) => {
-                    if (!busy) save.mutate(values);
+                    if (canManage && !busy) save.mutate(values);
                 }}
             >
                 <PolicyThreshold name="cpu" label="CPU" />
@@ -261,7 +308,7 @@ function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                                 loading={reset.isPending}
                                 disabled={busy}
                                 onClick={() => {
-                                    if (!busy) reset.mutate();
+                                    if (canManage && !busy) reset.mutate();
                                 }}
                             >
                                 {t("重置为全局默认", "Reset to global defaults")}
