@@ -149,3 +149,22 @@ After each slice run its named focused tests, then `cargo fmt --all -- --check`,
 `cargo check -p rustzen-monitor`, `cargo clippy -p rustzen-monitor --all-targets -- -D warnings`,
 `cargo test -p rustzen-monitor`, and `git diff --check`. Cross-module completion additionally runs
 `just verify-modules-mvp`; browser and deployed multi-node behavior remain separate gates.
+
+## Linux dual-Agent runtime gate
+
+`just verify-monitor-agent-multi-node-linux` is a bounded, native-architecture
+Colima/Docker check. It creates a fresh central Admin and Monitor SQLite state plus
+two independent unprivileged Agent service identities. Each Agent has its own node ID,
+runtime root, log directory, and Unix readiness socket. Before central services start,
+neither readiness socket may receive `READY=1`. Once Admin and Monitor are healthy,
+the gate requires both Agent reports to be accepted, verifies the two nodes through the
+Admin gateway, checks distinct current boot IDs and raw metric samples, restarts the
+central processes, and requires both existing nodes to continue reporting without a
+third registration.
+
+Evidence is atomically published below
+`target/rz/monitor-agent-multi-node/current/manifest.json`. The manifest contains the
+source digest, platform, staged binary digests, service UID evidence, readiness events,
+Admin query outcomes, and recovery result; it never contains the Agent token. This is
+real Linux process and service-account evidence, not a systemd PID 1, remote-host,
+production TLS, or independent-kernel test.

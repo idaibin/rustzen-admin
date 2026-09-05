@@ -1,8 +1,11 @@
 # Monitoring
 
 Status: Implemented; local gateway/service scenarios verified on 2026-09-03.
-Representative browser journeys verified; the complete visual/state matrix and
-deployed multi-node behavior remain Not verified. See
+Representative browser journeys verified. A disposable native-architecture Linux
+gate covers two independently-run Agents across an unavailable Controller, first
+delivery, and Controller restart; it is not a deployed multi-host or systemd
+acceptance. The complete visual/state matrix and deployed multi-node behavior remain
+Not verified. See
 [Monitoring Testing](../../../guides/monitoring-testing.md).
 
 ## Product outcome
@@ -176,6 +179,15 @@ The backend behavior is accepted when:
 The Monitoring behavior is source-resolved. Representative browser coverage and its
 limits are recorded in [local verification](../../../guides/local-verification.md);
 that coverage does not certify every visual, permission, pagination, or deployment state.
+
+The Linux dual-Agent gate starts two service identities with separate runtime roots,
+logs, node IDs, and readiness sockets against one fresh central database. It requires
+both Agents to remain unready while the Controller is unavailable, then verifies
+accepted reports through Admin, two distinct current boot IDs, raw metric samples, and
+continued reporting after the central processes restart without registering a third
+node. It records only source and binary identity plus non-secret runtime evidence.
+The disposable container shares one kernel and does not boot systemd, provision a
+remote host, or establish production TLS acceptance.
 
 ## Node onboarding
 

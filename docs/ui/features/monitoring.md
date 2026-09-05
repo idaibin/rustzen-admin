@@ -25,6 +25,11 @@ still present after rejection. Reset cases verify the node remains marked as a
 custom policy and that its reset action remains available after rejection.
 The schema-2 browser manifest records a run and PNG hash/dimensions per case.
 
+The two-Agent Linux runtime gate is an API/data acceptance seam for the Nodes UI: it
+proves the gateway can expose two independently registered nodes with current boot IDs
+and raw metric history after central recovery. It does not render the Nodes page, so it
+does not complete this document's visual or responsive acceptance matrix.
+
 ## Route composition and behavior
 
 The Incidents surface is labeled **告警事件 / Alert incidents** in navigation,

@@ -123,6 +123,14 @@ recovery fails.
 `cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent`.
 The server bundle does not include this collector binary.
 
+`just verify-monitor-agent-multi-node-linux` supplies a disposable Linux runtime gate
+for two independently-run Agent identities and one central Admin/Monitor pair. It
+proves startup remains unready while that central pair is absent, then verifies first
+delivery and recovery after a central-process restart through the Admin API. It uses
+real processes, Unix readiness sockets, separate Agent runtime/log directories and
+service UIDs, but it does not boot systemd PID 1 or establish remote-host or production
+TLS behavior. Those remain native deployment acceptance work.
+
 `rz` has no systemd unit and is not a service alias. It is upgraded and rolled
 back only with the same signed release and `current` link as the four servers.
 Operators can invoke `/opt/rz/current/bin/rz` directly or add that directory to

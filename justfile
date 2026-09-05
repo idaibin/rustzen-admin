@@ -143,6 +143,9 @@ verify-admin-browser-linux:
 verify-analytics-tracker-linux:
     scripts/verify-analytics-tracker-linux.sh
 
+verify-monitor-agent-multi-node-linux:
+    scripts/verify-monitor-agent-multi-node-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"
