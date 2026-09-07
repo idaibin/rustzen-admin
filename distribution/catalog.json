@@ -109,7 +109,7 @@
                 }
             ],
             "webRoots": [],
-            "schemaOwners": ["admin-notifications"],
+            "schemaOwners": ["admin-notifications", "monitor-notifications"],
             "configOwners": ["notifications"],
             "units": ["rz-admin.service"]
         },

@@ -32,10 +32,14 @@ test("monitor-notify binds the optional Admin inbox fragment", async () => {
             "admin",
             "admin-notifications",
             "monitor",
+            "monitor-notifications",
         ]);
         const missing = structuredClone(result.contract);
         delete missing.owners["admin-notifications"];
         expect(() => parseSchemaContract(missing, notifySelection)).toThrow();
+        const missingMonitor = structuredClone(result.contract);
+        delete missingMonitor.owners["monitor-notifications"];
+        expect(() => parseSchemaContract(missingMonitor, notifySelection)).toThrow();
     } finally {
         await rm(root, { recursive: true, force: true });
     }

@@ -97,6 +97,28 @@ audience and projected charge, then rechecks free space under its write lock.
 P5b adds no process or public producer route; Monitor and Reports connect their
 durable outboxes in P6.
 
+P6a selects only the Monitor incident producer path. A first active transition
+and the first legal resolution allocate their immutable event and outbox row in
+the incident write transaction. Duplicate or stale Agent reports and unchanged
+active incidents allocate no event. The Monitor process claims and relays its
+own bounded outbox; Admin authenticates the producer on a notifications-only
+loopback ingress and recomputes current recipients from its own identity,
+permission and enabled-module state. Delivery leases are fenced. Response loss
+and read/response timeouts retain the original event bytes and ID for
+reconciliation; 429, 503 and explicit connect-before-send failures retain
+retryable pending state. Both paths use deterministic jittered backoff. The exact
+HTTP loopback origin/path is parsed rather than
+prefix-matched. A previous signing key is accepted only through an explicit
+cutoff no more than 120 seconds after ingress startup. Terminal results delete
+the pending payload, and bounded status/quarantine counters expose delivery gaps.
+This adds no fifth service. Pure `monitor` has no outbox schema, relay task,
+ingress/config owner or notification transport dependency. Reports producer
+delivery and trusted initiator persistence remain outside P6a.
+
+The full/default Monitor build selects notifications. The explicit pure
+`--no-default-features --features controller` build remains the negative
+composition and must continue to omit every notification-owned artifact.
+
 ## Distribution presets
 
 | Preset | Product capabilities | Server processes | Databases |

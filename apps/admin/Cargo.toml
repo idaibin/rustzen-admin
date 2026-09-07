@@ -23,7 +23,7 @@ full = [
     "tower-http/fs",
 ]
 monitor-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
-notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "rustzen-config/notifications"]
+notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "dep:hex", "rustzen-config/notifications"]
 
 [[bin]]
 name = "rz-admin"

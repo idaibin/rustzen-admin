@@ -1,8 +1,25 @@
 use std::{path::PathBuf, time::Duration};
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 use figment::{Figment, providers::Env};
 use rustzen_runtime::{DEFAULT_FILES_PREFIX, DEFAULT_RUNTIME_ROOT, RuntimeLayout};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::Deserialize;
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
+use serde::de::DeserializeOwned;
 
 pub(crate) const DEFAULT_DB_MAX_CONN: u32 = 4;
 pub(crate) const DEFAULT_DB_MIN_CONN: u32 = 1;
@@ -19,6 +36,14 @@ pub(crate) const DEFAULT_IPC_TOKEN: &str = "rustzen-dev-ipc-token-change-in-prod
 #[cfg(any(feature = "monitor-controller", feature = "monitor-agent"))]
 pub(crate) const DEFAULT_MONITOR_AGENT_TOKEN: &str =
     "rustzen-dev-monitor-agent-token-change-in-production";
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) const RELEASE_SECRET_PLACEHOLDER: &str = "replace-me";
 
 const DEFAULT_ENVIRONMENT: &str = "development";
@@ -122,6 +147,14 @@ impl RuntimeConfig {
         self.layout().resolve_runtime_path(value)
     }
 
+    #[cfg(any(
+        feature = "admin",
+        feature = "admin-monitor",
+        feature = "insights",
+        feature = "monitor-controller",
+        feature = "monitor-agent",
+        feature = "reports"
+    ))]
     pub(crate) fn validate(&self) -> Result<(), ConfigError> {
         ensure_required_non_empty("RUSTZEN_ENV", &self.environment)?;
         if !matches!(
@@ -170,14 +203,38 @@ impl DatabaseConfig {
     }
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) fn load<T: DeserializeOwned>() -> Result<T, ConfigError> {
     extract(Figment::new().merge(Env::prefixed("RUSTZEN_")))
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) fn local<T: DeserializeOwned>() -> Result<T, ConfigError> {
     extract(Figment::new())
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 fn extract<T: DeserializeOwned>(figment: Figment) -> Result<T, ConfigError> {
     figment.extract().map_err(ConfigError::from)
 }
@@ -206,6 +263,14 @@ pub(crate) fn default_monitor_agent_token() -> String {
     DEFAULT_MONITOR_AGENT_TOKEN.to_string()
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) fn ensure_required_non_empty(
     name: &'static str,
     value: &str,
@@ -224,6 +289,14 @@ pub fn valid_monitor_agent_token(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'~'))
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) fn ensure_optional_non_empty(
     name: &'static str,
     value: Option<&str>,
@@ -234,6 +307,14 @@ pub(crate) fn ensure_optional_non_empty(
     }
 }
 
+#[cfg(any(
+    feature = "admin",
+    feature = "admin-monitor",
+    feature = "insights",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "reports"
+))]
 pub(crate) fn ensure_production_secret(
     runtime: &RuntimeConfig,
     name: &'static str,

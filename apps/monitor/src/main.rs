@@ -5,6 +5,8 @@ mod features;
 mod infra;
 mod middleware;
 mod module_routes;
+#[cfg(feature = "notifications")]
+mod notifications;
 pub mod protocol;
 mod protocol_contract;
 mod selected_contract;

@@ -83,6 +83,24 @@ pub(super) async fn eligible(
     .await
 }
 
+pub(super) async fn eligible_current_monitor(
+    connection: &mut SqliteConnection,
+) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT u.id FROM users u
+         WHERE u.status=1 AND u.deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM modules m WHERE m.id='monitor' AND m.enabled=1)
+           AND EXISTS (
+             SELECT 1 FROM user_permissions up WHERE up.user_id=u.id
+               AND (up.menu_code='*' OR up.menu_code='monitor:incident:view'
+                    OR (substr(up.menu_code,-2)=':*' AND 'monitor:incident:view' LIKE
+                        substr(up.menu_code,1,length(up.menu_code)-1)||'%'))
+           ) ORDER BY u.id LIMIT 1001",
+    )
+    .fetch_all(connection)
+    .await
+}
+
 pub(super) async fn missing_states(
     connection: &mut SqliteConnection,
     recipients: &[i64],

@@ -91,6 +91,23 @@ impl AdmissionService {
         event: &AdmissionEvent,
         accepted_at: NaiveDateTime,
     ) -> Result<AdmissionResult, AdmissionError> {
+        self.admit_inner(event, accepted_at, false).await
+    }
+
+    pub(crate) async fn admit_current_monitor_audience(
+        &self,
+        event: &AdmissionEvent,
+        accepted_at: NaiveDateTime,
+    ) -> Result<AdmissionResult, AdmissionError> {
+        self.admit_inner(event, accepted_at, true).await
+    }
+
+    async fn admit_inner(
+        &self,
+        event: &AdmissionEvent,
+        accepted_at: NaiveDateTime,
+        current_monitor_audience: bool,
+    ) -> Result<AdmissionResult, AdmissionError> {
         admission_repo::validate_key(event)?;
         let mut precheck = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         if let Some((digest, result)) = admission_repo::duplicate(&mut precheck, event).await? {
@@ -147,7 +164,11 @@ impl AdmissionService {
             transaction.rollback().await?;
             return Err(self.capacity(CapacityReason::Checkpoint));
         }
-        let recipients = admission_repo::eligible(&mut transaction, event).await?;
+        let recipients = if current_monitor_audience {
+            admission_repo::eligible_current_monitor(&mut transaction).await?
+        } else {
+            admission_repo::eligible(&mut transaction, event).await?
+        };
         if recipients.len() > 1_000 {
             transaction.rollback().await?;
             return Err(AdmissionError::AudienceTooLarge);

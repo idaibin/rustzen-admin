@@ -28,7 +28,11 @@ const SELECTED_WEB_INVENTORY: &str = include_str!(
 pub async fn serve(uri: Uri) -> Response {
     #[cfg(feature = "monitor-distribution")]
     debug_assert!(SELECTED_WEB_INVENTORY.contains("\"preset\": \"monitor\""));
-    if uri.path() == "/api" || uri.path().starts_with("/api/") {
+    if uri.path() == "/api"
+        || uri.path().starts_with("/api/")
+        || uri.path() == "/internal"
+        || uri.path().starts_with("/internal/")
+    {
         return Response::builder()
             .status(StatusCode::NOT_FOUND)
             .header(header::CONTENT_TYPE, "application/json")
@@ -108,7 +112,14 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_api_paths_never_fall_through_to_spa_html() {
-        for path in ["/api", "/api?x=1", "/api/unknown", "/api/manage/tasks"] {
+        for path in [
+            "/api",
+            "/api?x=1",
+            "/api/unknown",
+            "/api/manage/tasks",
+            "/internal",
+            "/internal/v1/notification-events",
+        ] {
             let response = serve(path.parse::<Uri>().expect("uri")).await;
             assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
             assert_eq!(

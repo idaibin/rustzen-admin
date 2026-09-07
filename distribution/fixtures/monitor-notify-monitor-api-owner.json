@@ -1,0 +1,125 @@
+{
+  "apiPrefix": "/api/monitor",
+  "contractVersion": 1,
+  "menus": [
+    {
+      "code": "overview",
+      "icon": "monitor",
+      "path": "/monitoring/overview",
+      "permission": "monitor:overview:view",
+      "sortOrder": 10,
+      "title": "概览"
+    },
+    {
+      "code": "nodes",
+      "icon": "monitor",
+      "path": "/monitoring/nodes",
+      "permission": "monitor:node:view",
+      "sortOrder": 20,
+      "title": "节点"
+    },
+    {
+      "code": "incidents",
+      "icon": "monitor",
+      "path": "/monitoring/incidents",
+      "permission": "monitor:incident:view",
+      "sortOrder": 30,
+      "title": "告警事件"
+    },
+    {
+      "code": "summaries",
+      "icon": "monitor",
+      "path": "/monitoring/summaries",
+      "permission": "monitor:node:view",
+      "sortOrder": 50,
+      "title": "日报"
+    }
+  ],
+  "module": "monitor",
+  "name": "监控",
+  "routes": [
+    {
+      "access": "protected",
+      "method": "DELETE",
+      "path": "/nodes/{node_id}/alert-settings",
+      "permission": "monitor:manage"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/alert-settings",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/daily-summaries",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/incidents",
+      "permission": "monitor:incident:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/incidents/{id}",
+      "permission": "monitor:incident:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/nodes",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/nodes/{node_id}",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/nodes/{node_id}/alert-settings",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/nodes/{node_id}/metrics",
+      "permission": "monitor:node:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/notification-delivery",
+      "permission": "monitor:incident:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/overview",
+      "permission": "monitor:overview:view"
+    },
+    {
+      "access": "public",
+      "method": "POST",
+      "path": "/agent-reports"
+    },
+    {
+      "access": "protected",
+      "method": "PUT",
+      "path": "/alert-settings",
+      "permission": "monitor:manage"
+    },
+    {
+      "access": "protected",
+      "method": "PUT",
+      "path": "/nodes/{node_id}/alert-settings",
+      "permission": "monitor:manage"
+    }
+  ]
+}

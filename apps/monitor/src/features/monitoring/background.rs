@@ -8,6 +8,7 @@ use rustzen_storage::{
 };
 use serde::Deserialize;
 use sqlx::Row;
+#[cfg(not(feature = "notifications"))]
 use uuid::Uuid;
 
 use crate::{
@@ -329,10 +330,25 @@ async fn offline_scan_at_inner(
             .unwrap_or(now);
         if (now - last).num_seconds() > node.get::<i64, _>("offline_after_seconds") {
             let t = now.to_rfc3339();
+            #[cfg(feature = "notifications")]
+            crate::notifications::outbox::open(
+                &mut tx,
+                &id,
+                "nodeOffline",
+                "node",
+                "node offline",
+                None,
+                None,
+                &t,
+            )
+            .await?;
+            #[cfg(not(feature = "notifications"))]
             sqlx::query("INSERT INTO monitor_incidents(id,node_id,kind,target,status,title,opened_at,last_observed_at) VALUES(?,?, 'nodeOffline','node','active','node offline',?,?) ON CONFLICT(node_id,kind,target) WHERE status='active' DO UPDATE SET last_observed_at=excluded.last_observed_at").bind(Uuid::new_v4().to_string()).bind(id).bind(&t).bind(&t).execute(&mut *tx).await?;
         }
     }
     tx.commit().await?;
+    #[cfg(feature = "notifications")]
+    crate::notifications::diagnostics::warn_after_commit(pool).await;
     Ok(())
 }
 pub(crate) struct CleanupReport {

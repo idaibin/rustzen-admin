@@ -1,5 +1,6 @@
 import goldenOwners from "./fixtures/monitor-api-owners.json";
 import notificationOwner from "./fixtures/monitor-notify-api-owner.json";
+import notificationMonitorOwner from "./fixtures/monitor-notify-monitor-api-owner.json";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
 
@@ -14,8 +15,10 @@ export function completeSelectedApiContractForTest(
 ): SelectedApiContract {
     const selection = supportedSelection(selectionInput);
     const owners = structuredClone(goldenOwners) as SelectedApiContract["owners"];
-    if (selection.preset === "monitor-notify")
+    if (selection.preset === "monitor-notify") {
+        owners.monitor = structuredClone(notificationMonitorOwner);
         owners.notifications = structuredClone(notificationOwner);
+    }
     return {
         compositionId: selection.compositionId,
         preset: selection.preset,
@@ -74,7 +77,12 @@ function supportedSelection(selectionInput: unknown) {
         selection.preset === "monitor"
             ? ["admin", "monitor"]
             : selection.preset === "monitor-notify"
-              ? ["admin", "admin-notifications", "monitor"]
+              ? [
+                    "admin",
+                    "admin-notifications",
+                    "monitor",
+                    "monitor-notifications",
+                ]
               : null;
     if (
         expectedOwners === null ||

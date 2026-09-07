@@ -5,9 +5,12 @@ mod admission;
 #[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
 mod admission_repo;
 #[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
-mod admission_types;
+pub(crate) mod admission_types;
 mod cursor;
 mod handler;
+#[allow(dead_code, reason = "P6 ingress is started on its dedicated listener")]
+pub(crate) mod ingress;
+mod ingress_http;
 #[allow(dead_code, reason = "started only by notification-selected Admin runtime")]
 pub(crate) mod maintenance;
 #[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]

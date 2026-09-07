@@ -40,10 +40,18 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
         "apps/admin/migrations/sqlite-notifications/0001_notifications.sql",
     );
     const monitor = await freshInventory("apps/monitor/migrations/0001_init.sql");
+    const monitorNotify = await freshInventory(
+        "apps/monitor/migrations/0001_init.sql",
+        "apps/monitor/migrations-notifications/0001_notification_outbox.sql",
+    );
     const reports = await freshInventory("apps/reports/migrations/0001_init.sql");
 
     expect(monitorAdmin.filter((name) => name.startsWith("notification"))).toEqual([]);
     expect(monitor.filter((name) => name.startsWith("notification"))).toEqual([]);
+    expect(monitorNotify.filter((name) => name.startsWith("notification"))).toEqual([
+        "notification_delivery_status",
+        "notification_outbox",
+    ]);
     expect(reports.filter((name) => name.startsWith("notification"))).toEqual([]);
     expect(fullAdmin.filter((name) => name.startsWith("notification"))).toEqual(
         notificationTables,
@@ -63,6 +71,7 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
         "admin",
         "admin-notifications",
         "monitor",
+        "monitor-notifications",
     ]);
     const fullSql = await readFile(
         resolve(repositoryRoot, "apps/admin/migrations/sqlite/0001_init.sql"),
@@ -78,10 +87,8 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
     expect(fullSql.endsWith(fragmentSql)).toBeTrue();
 });
 
-test("non-notification services contain no inbox API, queue or retry owner", async () => {
+test("reports source contains no inbox API, queue or retry owner", async () => {
     const roots = [
-        "apps/monitor/src",
-        "apps/monitor/migrations",
         "apps/reports/src",
         "apps/reports/migrations",
     ];

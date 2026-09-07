@@ -9,6 +9,8 @@ const sources = {
     "admin-notifications":
         "apps/admin/migrations/sqlite-notifications/0001_notifications.sql",
     monitor: "apps/monitor/migrations/0001_init.sql",
+    "monitor-notifications":
+        "apps/monitor/migrations-notifications/0001_notification_outbox.sql",
 } as const;
 type Owner = keyof typeof sources;
 export type SchemaContract = {
@@ -129,7 +131,7 @@ function selectedSchemaPlan(selectionInput: unknown) {
         plan.preset === "monitor"
             ? ["admin", "monitor"]
             : plan.preset === "monitor-notify"
-              ? ["admin", "admin-notifications", "monitor"]
+              ? ["admin", "admin-notifications", "monitor", "monitor-notifications"]
               : null;
     if (
         supportedOwners === null ||

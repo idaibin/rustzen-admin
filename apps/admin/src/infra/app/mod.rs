@@ -1,5 +1,7 @@
 #[cfg(feature = "notifications")]
-use crate::features::notifications::{maintenance, notification_routes};
+use crate::features::notifications::{
+    admission_types::AdmissionPolicy, ingress, maintenance, notification_routes,
+};
 #[cfg(any(feature = "full", test))]
 use crate::infra::db::run_migrations;
 use crate::{
@@ -58,6 +60,20 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     test_connection(&pool).await?;
     #[cfg(feature = "notifications")]
     let notification_maintenance = maintenance::start(pool.clone()).await?;
+    #[cfg(feature = "notifications")]
+    let notification_ingress = {
+        let (key_id, key, previous) = CONFIG.notification_event_keys();
+        ingress::start(
+            pool.clone(),
+            CONFIG.admin_database_path(),
+            AdmissionPolicy::from_config(&CONFIG)?,
+            &CONFIG.notification_ingress_address(),
+            key_id.into(),
+            key.as_bytes().to_vec(),
+            previous.map(|(id, key, expires)| (id.into(), key.as_bytes().to_vec(), expires)),
+        )
+        .await?
+    };
     #[cfg(feature = "full")]
     let task_service = std::sync::Arc::new(TaskService::new(pool.clone())?);
     #[cfg(feature = "full")]
@@ -158,6 +174,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let server_result = axum::serve(listener, app).await;
     #[cfg(feature = "notifications")]
     notification_maintenance.shutdown().await;
+    #[cfg(feature = "notifications")]
+    notification_ingress.shutdown().await;
     server_result?;
 
     Ok(())

@@ -18,6 +18,13 @@ const DEFAULT_INTERNAL_HOST: &str = "127.0.0.1";
 const DEFAULT_MONITOR_PORT: u16 = 9802;
 #[cfg(feature = "monitor-controller")]
 const DEFAULT_MONITOR_SQLITE_PATH: &str = "./data/db/monitor.db";
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+const DEFAULT_NOTIFICATION_INGRESS_URL: &str =
+    "http://127.0.0.1:9811/internal/v1/notification-events";
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+const DEFAULT_NOTIFICATION_EVENT_KEY_ID: &str = "local-v1";
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+const DEFAULT_NOTIFICATION_EVENT_KEY: &str = "rustzen-local-notification-key-change-me";
 
 #[cfg(feature = "monitor-controller")]
 #[derive(Debug, Clone, Deserialize)]
@@ -36,6 +43,15 @@ pub struct MonitorControllerConfig {
     pub ipc_token: String,
     #[serde(default = "default_monitor_agent_token")]
     pub monitor_agent_token: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default = "default_notification_ingress_url")]
+    pub notification_ingress_url: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default = "default_notification_event_key_id")]
+    pub notification_event_key_id: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default = "default_notification_event_key")]
+    pub notification_event_key: String,
 }
 
 #[cfg(feature = "monitor-controller")]
@@ -78,6 +94,15 @@ impl MonitorControllerConfig {
         self.runtime.timezone()
     }
 
+    #[cfg(feature = "notifications")]
+    pub fn notification_transport(&self) -> (&str, &str, &str) {
+        (
+            &self.notification_ingress_url,
+            &self.notification_event_key_id,
+            &self.notification_event_key,
+        )
+    }
+
     fn validate(&self) -> Result<(), ConfigError> {
         self.runtime.validate()?;
         ensure_optional_non_empty("RUSTZEN_INTERNAL_HOST", self.internal_host.as_deref())?;
@@ -102,8 +127,58 @@ impl MonitorControllerConfig {
         {
             return Err(ConfigError::Invalid("RUSTZEN_MONITOR_AGENT_TOKEN"));
         }
+        #[cfg(feature = "notifications")]
+        {
+            if !valid_notification_ingress_url(&self.notification_ingress_url)
+                || !rustzen_ipc::valid_notification_key_id(&self.notification_event_key_id)
+                || self.notification_event_key.len() < 32
+                || self.notification_event_key == self.ipc_token
+                || self.notification_event_key == self.monitor_agent_token
+            {
+                return Err(ConfigError::Invalid("RUSTZEN_NOTIFICATION_EVENT_KEY"));
+            }
+            ensure_production_secret(
+                &self.runtime,
+                "RUSTZEN_NOTIFICATION_EVENT_KEY",
+                &self.notification_event_key,
+                DEFAULT_NOTIFICATION_EVENT_KEY,
+            )?;
+        }
         Ok(())
     }
+}
+
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+fn valid_notification_ingress_url(value: &str) -> bool {
+    let Ok(url) = url::Url::parse(value) else {
+        return false;
+    };
+    let loopback = match url.host() {
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => address.is_loopback(),
+        _ => false,
+    };
+    url.scheme() == "http"
+        && loopback
+        && url.port().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.path() == "/internal/v1/notification-events"
+        && url.query().is_none()
+        && url.fragment().is_none()
+}
+
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+fn default_notification_ingress_url() -> String {
+    DEFAULT_NOTIFICATION_INGRESS_URL.into()
+}
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+fn default_notification_event_key_id() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY_ID.into()
+}
+#[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+fn default_notification_event_key() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY.into()
 }
 
 #[cfg(feature = "monitor-agent")]
@@ -238,6 +313,45 @@ mod tests {
         assert_eq!(config.database.db_idle_timeout, None);
     }
 
+    #[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+    #[test]
+    fn notification_ingress_requires_exact_loopback_origin_and_path() {
+        let base = MonitorControllerConfig::local().unwrap();
+        for invalid in [
+            "https://127.0.0.1:9811/internal/v1/notification-events",
+            "http://localhost:9811/internal/v1/notification-events",
+            "http://192.0.2.1:9811/internal/v1/notification-events",
+            "http://user@127.0.0.1:9811/internal/v1/notification-events",
+            "http://127.0.0.1:9811/internal/v1/notification-events?x=1",
+            "http://127.0.0.1:9811/internal/v1/notification-events#x",
+            "http://127.0.0.1:9811/internal/v1/notification-events/extra",
+            "http://127.0.0.1/internal/v1/notification-events",
+        ] {
+            let mut config = base.clone();
+            config.notification_ingress_url = invalid.into();
+            assert!(config.validate().is_err(), "accepted {invalid}");
+        }
+        let mut ipv6 = base;
+        ipv6.notification_ingress_url = "http://[::1]:9811/internal/v1/notification-events".into();
+        ipv6.validate().unwrap();
+    }
+
+    #[cfg(all(feature = "monitor-controller", feature = "notifications"))]
+    #[test]
+    fn notification_key_is_not_reused_for_ipc_or_agent_authentication() {
+        let base = MonitorControllerConfig::local().unwrap();
+        for invalid_id in ["bad\nheader", "bad id"] {
+            let mut invalid = base.clone();
+            invalid.notification_event_key_id = invalid_id.into();
+            assert!(invalid.validate().is_err());
+        }
+        for reused in [base.ipc_token.clone(), base.monitor_agent_token.clone()] {
+            let mut invalid = base.clone();
+            invalid.notification_event_key = reused;
+            assert!(invalid.validate().is_err());
+        }
+    }
+
     #[cfg(feature = "monitor-agent")]
     #[test]
     fn local_agent_config_parses_only_agent_settings() {
@@ -268,6 +382,10 @@ mod tests {
         controller.runtime.environment = "production".to_string();
         controller.ipc_token = "production-ipc-secret".to_string();
         controller.monitor_agent_token = "production-agent-secret".to_string();
+        #[cfg(feature = "notifications")]
+        {
+            controller.notification_event_key = "production-notification-event-secret".to_string();
+        }
         controller.validate().expect("production controller config");
         controller.monitor_agent_token = "replace-me".to_string();
         assert!(controller.validate().is_err());

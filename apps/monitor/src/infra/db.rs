@@ -7,6 +7,14 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use crate::config;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+#[cfg(feature = "notifications")]
+const NOTIFICATION_LEDGER: &str = "_sqlx_monitor_notifications_migrations";
+#[cfg(feature = "notifications")]
+fn notification_migrator() -> sqlx::migrate::Migrator {
+    let mut migrator = sqlx::migrate!("./migrations-notifications");
+    migrator.dangerous_set_table_name(NOTIFICATION_LEDGER);
+    migrator
+}
 
 pub async fn connect() -> Result<SqlitePool, rustzen_storage::CoreError> {
     let url = database_url_from_path(config::controller().database_path());
@@ -23,7 +31,10 @@ pub async fn connect() -> Result<SqlitePool, rustzen_storage::CoreError> {
 }
 
 pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
-    MIGRATOR.run(pool).await
+    MIGRATOR.run(pool).await?;
+    #[cfg(feature = "notifications")]
+    notification_migrator().run(pool).await?;
+    Ok(())
 }
 
 pub async fn verify(pool: &SqlitePool) -> Result<(), rustzen_storage::CoreError> {
@@ -48,10 +59,39 @@ pub async fn verify_selected_schema(pool: &SqlitePool) -> Result<(), String> {
     {
         return Err("Monitor migration ledger differs from selected schema".into());
     }
+    #[cfg(feature = "notifications")]
+    {
+        let applied = sqlx::query_as::<_, (i64, Vec<u8>, bool)>(
+            "SELECT version, checksum, success FROM _sqlx_monitor_notifications_migrations ORDER BY version",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|_| "Monitor notification migration ledger is unavailable")?;
+        let notification_migrator = notification_migrator();
+        let expected = notification_migrator.iter().collect::<Vec<_>>();
+        if applied.len() != expected.len()
+            || applied.iter().zip(expected).any(|((version, checksum, success), migration)| {
+                !success
+                    || *version != migration.version
+                    || checksum.as_slice() != migration.checksum.as_ref()
+            })
+        {
+            return Err("Monitor notification migration ledger differs from selected schema".into());
+        }
+    }
+    verify_schema_shape(pool).await
+}
+
+async fn verify_schema_shape(pool: &SqlitePool) -> Result<(), String> {
     let expected_pool = SqlitePool::connect("sqlite::memory:")
         .await
         .map_err(|_| "Monitor selected schema fixture is unavailable")?;
     MIGRATOR.run(&expected_pool).await.map_err(|_| "Monitor selected schema fixture is invalid")?;
+    #[cfg(feature = "notifications")]
+    notification_migrator()
+        .run(&expected_pool)
+        .await
+        .map_err(|_| "Monitor notification schema fixture is invalid")?;
     if schema_inventory(pool).await? != schema_inventory(&expected_pool).await? {
         return Err("Monitor observed schema differs from selected schema".into());
     }
@@ -134,12 +174,14 @@ fn selected_identity() -> Result<(String, String, String, String), String> {
 async fn schema_inventory(
     pool: &SqlitePool,
 ) -> Result<Vec<(String, String, String, String)>, String> {
-    sqlx::query_as(
-        "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations' ORDER BY type, name, tbl_name, sql",
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|_| "Monitor selected schema inventory is unavailable".into())
+    #[cfg(feature = "notifications")]
+    let sql = "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations' AND name != '_sqlx_monitor_notifications_migrations' ORDER BY type, name, tbl_name, sql";
+    #[cfg(not(feature = "notifications"))]
+    let sql = "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations' ORDER BY type, name, tbl_name, sql";
+    sqlx::query_as(sql)
+        .fetch_all(pool)
+        .await
+        .map_err(|_| "Monitor selected schema inventory is unavailable".into())
 }
 
 #[cfg(test)]
@@ -155,6 +197,8 @@ pub async fn migrated_test_pool() -> SqlitePool {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "notifications"))]
+    use super::verify_schema_shape;
     use super::{migrate, migrated_test_pool};
     use crate::protocol::{AgentReport, ByteUsage};
     use chrono::{TimeZone, Utc};
@@ -166,6 +210,35 @@ mod tests {
     async fn fresh_monitor_database_migrates() {
         let pool = migrated_test_pool().await;
         pool.close().await;
+    }
+
+    #[cfg(not(feature = "notifications"))]
+    #[tokio::test]
+    async fn plain_monitor_rejects_notification_ledger_after_reopen() {
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos();
+        let path = std::env::temp_dir().join(format!("rustzen-monitor-absence-{stamp}.db"));
+        let pool = SqlitePoolOptions::new()
+            .max_connections(2)
+            .connect_with(SqliteConnectOptions::new().filename(&path).create_if_missing(true))
+            .await
+            .unwrap();
+        migrate(&pool).await.unwrap();
+        verify_schema_shape(&pool).await.unwrap();
+        sqlx::query(
+            "CREATE TABLE _sqlx_monitor_notifications_migrations(version INTEGER PRIMARY KEY)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+        let reopened = SqlitePoolOptions::new()
+            .max_connections(2)
+            .connect_with(SqliteConnectOptions::new().filename(&path))
+            .await
+            .unwrap();
+        assert!(verify_schema_shape(&reopened).await.is_err());
+        reopened.close().await;
+        let _ = std::fs::remove_file(path);
     }
 
     #[tokio::test]

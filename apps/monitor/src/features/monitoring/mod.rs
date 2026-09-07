@@ -6,6 +6,8 @@
 
 mod acceptance;
 mod background;
+#[cfg(feature = "notifications")]
+mod delivery;
 mod policy;
 mod queries;
 
@@ -24,7 +26,7 @@ pub(crate) use acceptance::{record_at, submit};
 pub fn routes(
     router: ModuleRouter<AppState>,
 ) -> Result<ModuleRouter<AppState>, rustzen_ipc::ManifestError> {
-    router
+    let router = router
         .post_public(crate::protocol::AGENT_REPORT_ROUTE, acceptance::submit)?
         .get_with_permission(
             "/overview",
@@ -85,5 +87,12 @@ pub fn routes(
             "/daily-summaries",
             background::summaries,
             Require(rustzen_auth::capability::monitor::NODE_VIEW),
-        )
+        )?;
+    #[cfg(feature = "notifications")]
+    let router = router.get_with_permission(
+        "/notification-delivery",
+        delivery::status,
+        Require(rustzen_auth::capability::monitor::INCIDENT_VIEW),
+    )?;
+    Ok(router)
 }

@@ -1,4 +1,5 @@
 import goldenOwners from "./fixtures/monitor-config-owners.json";
+import notificationMonitorOwner from "./fixtures/monitor-notify-config-owner.json";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
 
@@ -21,7 +22,10 @@ export function completeSelectedConfigForTest(
             plan.artifactClass === "server"
                 ? {
                       access: structuredClone(goldenOwners.access),
-                      monitor: structuredClone(goldenOwners.monitor),
+                      monitor:
+                          plan.preset === "monitor-notify"
+                              ? structuredClone(notificationMonitorOwner)
+                              : structuredClone(goldenOwners.monitor),
                       ...(plan.preset === "monitor-notify"
                           ? { notifications: structuredClone(goldenOwners.notifications) }
                           : {}),

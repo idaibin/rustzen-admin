@@ -35,7 +35,7 @@ reproduce those behaviors in the new distribution pipeline.
 | P3 | Controller/Agent binary separation; positive Cargo closure; code-derived selected contracts; Web/schema generation | Per-binary feature evidence, selected queries, full/monitor Web/API/schema negative tests | Implemented for the Monitor selection and independently reviewed. The selected Web inventory includes every local import required by its access and Monitor routes. |
 | P4 | Monitor native producer, publication and server activation | Composition-qualified Admin/Monitor/Agent binaries with selected Web, selected API/schema/config/protocol descriptors, signed exact-member tar, immutable publication, root-only server activation and PID1 owner-login proof | Implemented for the Monitor server selection. `rz apply` publishes the immutable payload; `rz activate-monitor-server` validates configuration and excluded-service residue before writes, initializes and journals two fresh identity-bound databases, installs only selected units, starts/enables `rz.target`, verifies owner, signed schema/data identities, exact migration/schema inventory, MainPID executables and bound health, and records readiness. The arm64 systemd PID1 gate covers nine recoverable activation and durability faults, exact retry, both service start orders, restart, unsafe/existing paths, completed-state mutation, same-schema foreign DB rejection, and omitted-service residue. |
 | P5 | Optional Admin inbox, current recipient authorization, sequence-bounded reads and retention budgets | Fresh SQLite transaction/concurrency/retention tests | P5a and P5b implemented and verified locally: selected dual-ledger schema and authenticated reads plus durable accounting, bounded retention, atomic admission, startup/periodic maintenance, pressure refusal and true two-pool concurrency. Producer delivery and realtime invalidation remain P6/P7. |
-| P6 | Monitor and Reports optional outbox/relay, trusted initiator, fenced claims and bounded ambiguity | Lifecycle/crash/dedupe/recipient tests | Queued after P5 |
+| P6 | Monitor and Reports optional outbox/relay, trusted initiator, fenced claims and bounded ambiguity | Lifecycle/crash/dedupe/recipient tests | P6a Monitor incident outbox, signed relay and Admin internal ingest are **Closed locally / Passed** by the source-bound disposable `linux/arm64` Colima gate; Reports remains queued. |
 | P7 | Direct Admin fetch-SSE and shell integration | Stream/parser/cancellation tests and real browser/proxy reconciliation | Queued after P5/P6 |
 | P8 | Certify each shipped selection and current product journeys | Measured artifact, native runtime, browser, load and absence report for exact build | Queued after applicable stages |
 
@@ -226,10 +226,22 @@ canonical config artifacts are now produced from those outputs; the manifest
 derives and binds their byte digest instead of accepting `configDigest` input.
 
 The `monitor-notify` selection additionally obtains the notifications descriptor
-from the actual `rz-admin` binary. It owns only inbox capacity, filesystem reserve
-and WAL-pressure thresholds; pure `monitor` has no notification descriptor or
-keys. These settings feed the internal P5b admission service and do not create a
-new process, timer, public producer route or relay.
+from the actual `rz-admin` binary. It owns inbox capacity, filesystem reserve,
+WAL-pressure thresholds, the dedicated ingress port, current signing key and the
+optional previous-key tuple with its at-most-120-second cutoff. Monitor owns the
+exact loopback ingress URL and current producer key. Pure `monitor` has none of
+these fields. The full/default Monitor Cargo and Docker build selects
+notifications; the explicit controller-only build remains the negative artifact.
+
+The P6a Linux gate uses fresh Admin and Monitor databases and real loopback TCP
+between the selected processes. It proves open/duplicate/resolved delivery,
+durable Admin receipt/inbox state, invalid producer authentication rejection and
+the pure Monitor negative artifact. The primary agent's final Colima run
+published `target/rz/monitor-notification-runtime/current/manifest.json`
+binding the executed source tree, four feature-selected binary hashes, build
+provenance and verifier identity.
+P6a is **Closed locally / Passed**. Native systemd, production deployment,
+Reports, SSE, UI and sustained load remain outside this gate.
 
 The selected-native layout producer now emits and verifies canonical Monitor
 server and node-agent unit/config manifests. The release manifest derives their

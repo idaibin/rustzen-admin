@@ -17,12 +17,20 @@ pub async fn run_controller() -> Result<(), Box<dyn std::error::Error>> {
     infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = infra::db::connect().await?;
     features::monitoring::spawn_background(pool.clone());
+    #[cfg(feature = "notifications")]
+    let notification_relay = {
+        let (url, key_id, key) = config::controller().notification_transport();
+        crate::notifications::start(pool.clone(), url.into(), key_id.into(), key.as_bytes()).await?
+    };
 
     let (app, _) = build_app(pool, config::controller().monitor_agent_token.clone())?;
     let address = config::controller().bind_address();
     let listener = tokio::net::TcpListener::bind(&address).await?;
     tracing::info!(%address, "Monitor Controller started");
-    axum::serve(listener, app).await?;
+    let server_result = axum::serve(listener, app).await;
+    #[cfg(feature = "notifications")]
+    notification_relay.shutdown().await;
+    server_result?;
     Ok(())
 }
 
@@ -92,7 +100,17 @@ mod tests {
                 && menu.path == "/monitoring/incidents"
                 && menu.permission == "monitor:incident:view"
         }));
+        #[cfg(not(feature = "notifications"))]
         assert_eq!(manifest.routes.len(), 13);
+        #[cfg(feature = "notifications")]
+        {
+            assert_eq!(manifest.routes.len(), 14);
+            assert!(manifest.routes.iter().any(|route| {
+                route.method == "GET"
+                    && route.path == "/notification-delivery"
+                    && route.permission.as_deref() == Some("monitor:incident:view")
+            }));
+        }
         assert!(manifest.routes.iter().any(|route| {
             route.method == AGENT_REPORT_METHOD
                 && route.path == AGENT_REPORT_ROUTE

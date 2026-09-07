@@ -193,6 +193,28 @@ evidence. A source lockfile listing an omitted dependency is not runtime leakage
 | N44 | Socket stops reading during expiry/revocation | Cancellation removes hub/quota independent of body polling, bounded memory and no post-deadline admission |
 | N45 | Fifth tab, 1001st connection, HTTP/error/oversize fixtures and BFCache restore | Atomic quotas, classified fallback without fast retry storms, bounded parser and fresh restored subscription/snapshot |
 
+P6a's disposable Linux gate is `just verify-monitor-notification-runtime-linux`.
+It starts the notification-selected Admin ingress and Monitor relay on real
+loopback TCP listeners with fresh SQLite databases, drives one opened and one
+resolved incident, and verifies durable receipt/inbox ordering plus same-event
+deduplication and signature rejection. The same source basis builds an explicit
+pure Monitor negative pair and verifies that its schema, selected config/API
+contracts and runtime listeners contain no notification owner. Its manifest is
+source-tree and binary-digest bound. The final Colima run is **Closed locally /
+Passed** at `target/rz/monitor-notification-runtime/current/manifest.json`
+on `linux/arm64`. The manifest binds the executed source tree, four binary
+hashes, build provenance and verifier identity. It records opened and resolved
+as stored, the repeated event as
+duplicate, two receipts/messages/recipients, unsigned `400`, bad-signature
+`401`, public-internal `404`, and zero notification schema objects/listeners for
+the pure selection. The initial `401` diagnosis remains at
+`target/rz/monitor-notification-runtime/failed-runs/20260907T124245Z-41694/`;
+the published `current` manifest is the final result. The gate does not cover
+systemd, production deployment, Reports, SSE, UI or sustained load. Its small
+signing client uses Python's standard library because the pinned verifier image
+already includes Python but intentionally contains no Bun or OpenSSL; the gate
+installs no package or helper at runtime.
+
 ## User interface acceptance
 
 Use the current DESIGN.md components, navigation rules and language handling.

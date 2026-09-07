@@ -20,7 +20,20 @@ mod tests {
             serde_json::from_str(&super::selected_contract_json().unwrap()).unwrap();
         assert_eq!(value["module"], "monitor");
         assert_eq!(value["apiPrefix"], "/api/monitor");
+        #[cfg(not(feature = "notifications"))]
+        #[cfg(not(feature = "notifications"))]
         assert_eq!(value["routes"].as_array().unwrap().len(), 13);
+        #[cfg(feature = "notifications")]
+        {
+            let routes = value["routes"].as_array().unwrap();
+            assert_eq!(routes.len(), 14);
+            assert!(routes.iter().any(|route| {
+                route["path"] == "/notification-delivery"
+                    && route["permission"] == "monitor:incident:view"
+            }));
+        }
+        #[cfg(feature = "notifications")]
+        assert_eq!(value["routes"].as_array().unwrap().len(), 14);
         assert_eq!(value["menus"].as_array().unwrap().len(), 4);
         assert!(value.get("releaseVersion").is_none());
     }

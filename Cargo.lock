@@ -2936,6 +2936,7 @@ dependencies = [
  "dotenvy",
  "figment",
  "libc",
+ "rustzen-ipc",
  "rustzen-runtime",
  "serde",
  "serde_json",
@@ -2988,6 +2989,7 @@ version = "0.5.0"
 dependencies = [
  "axum",
  "chrono",
+ "hex",
  "libc",
  "reqwest",
  "rustzen-auth",

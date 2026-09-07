@@ -241,8 +241,27 @@
         "defaultClass": "built-in"
       },
       {
+        "key": "RUSTZEN_NOTIFICATION_EVENT_KEY",
+        "valueType": "secret",
+        "required": true,
+        "defaultClass": "development-only",
+        "secretRef": "notifications.event.current"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_EVENT_KEY_ID",
+        "valueType": "identifier",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
         "key": "RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES",
         "valueType": "bytes",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_INGRESS_PORT",
+        "valueType": "port",
         "required": false,
         "defaultClass": "built-in"
       },
@@ -251,6 +270,25 @@
         "valueType": "integer",
         "required": false,
         "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY",
+        "valueType": "secret",
+        "required": false,
+        "defaultClass": "none",
+        "secretRef": "notifications.event.previous"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT",
+        "valueType": "timestamp",
+        "required": false,
+        "defaultClass": "none"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_ID",
+        "valueType": "identifier",
+        "required": false,
+        "defaultClass": "none"
       },
       {
         "key": "RUSTZEN_NOTIFICATION_RECEIPT_LIMIT",

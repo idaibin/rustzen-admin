@@ -49,10 +49,21 @@ test("selected contract accepts only the complete current registration corpus", 
     }
 });
 
-test("monitor-notify adds only the authenticated notification API owner", () => {
+test("monitor-notify adds the inbox owner and protected delivery diagnostics", () => {
     const contract = completeSelectedApiContractForTest(notifySelection);
     expect(Object.keys(contract.owners)).toEqual(["admin", "monitor", "notifications"]);
     expect(contract.owners.notifications?.routes).toHaveLength(5);
+    expect(contract.owners.monitor.routes).toHaveLength(14);
+    expect(
+        contract.owners.monitor.routes.find(
+            (route) => route.path === "/notification-delivery",
+        ),
+    ).toEqual({
+        access: "protected",
+        method: "GET",
+        path: "/notification-delivery",
+        permission: "monitor:incident:view",
+    });
     expect(
         contract.owners.notifications?.routes.every(
             (route) => route.access.kind === "authenticated",

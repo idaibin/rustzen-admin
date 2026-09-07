@@ -165,6 +165,11 @@ verify-monitoring-ui-state-linux:
 verify-monitor-agent-multi-node-linux:
     scripts/verify-monitor-agent-multi-node-linux.sh
 
+# Run the selected Monitor incident relay against Admin's dedicated loopback ingress.
+verify-monitor-notification-runtime-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-monitor-notification-runtime-linux.test.mjs
+    scripts/verify-monitor-notification-runtime-linux.sh
+
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh

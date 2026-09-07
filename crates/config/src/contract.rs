@@ -34,13 +34,28 @@ fn field(
 ) -> ConfigField {
     ConfigField { key, value_type, required, default_class, secret_ref: None }
 }
-#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
+#[cfg(any(
+    feature = "admin-monitor",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "notifications"
+))]
 fn secret(key: &'static str, secret_ref: &'static str) -> ConfigField {
     ConfigField {
         key,
         value_type: "secret",
         required: true,
         default_class: "development-only",
+        secret_ref: Some(secret_ref),
+    }
+}
+#[cfg(feature = "notifications")]
+fn optional_secret(key: &'static str, secret_ref: &'static str) -> ConfigField {
+    ConfigField {
+        key,
+        value_type: "secret",
+        required: false,
+        default_class: "none",
         secret_ref: Some(secret_ref),
     }
 }
@@ -84,11 +99,20 @@ pub fn notifications_contract() -> ConfigContract {
         vec![
             field("RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT", "bytes", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES", "bytes", false, "built-in"),
+            secret("RUSTZEN_NOTIFICATION_EVENT_KEY", "notifications.event.current"),
+            field("RUSTZEN_NOTIFICATION_EVENT_KEY_ID", "identifier", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_INGRESS_PORT", "port", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_MESSAGE_LIMIT", "integer", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_RECEIPT_LIMIT", "integer", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT", "integer", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES", "integer", false, "built-in"),
             field("RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS", "integer", false, "built-in"),
+            optional_secret(
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY",
+                "notifications.event.previous",
+            ),
+            field("RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT", "timestamp", false, "none"),
+            field("RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_ID", "identifier", false, "none"),
         ],
     )
 }
@@ -120,6 +144,12 @@ pub fn monitor_controller_contract() -> ConfigContract {
         field("RUSTZEN_MONITOR_SQLITE_PATH", "path", false, "built-in"),
         secret("RUSTZEN_IPC_TOKEN", "monitor.ipc"),
         secret("RUSTZEN_MONITOR_AGENT_TOKEN", "monitor.agent"),
+    ]);
+    #[cfg(feature = "notifications")]
+    fields.extend([
+        secret("RUSTZEN_NOTIFICATION_EVENT_KEY", "notifications.event.current"),
+        field("RUSTZEN_NOTIFICATION_EVENT_KEY_ID", "identifier", false, "built-in"),
+        field("RUSTZEN_NOTIFICATION_INGRESS_URL", "url", false, "local-fallback"),
     ]);
     contract("monitor", "rz-monitor", fields)
 }
@@ -177,11 +207,17 @@ mod tests {
                 | "RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS" => "integer",
                 "RUSTZEN_ENV" => "environment",
                 "RUSTZEN_TIMEZONE" => "timezone",
-                "RUSTZEN_MONITOR_CONTROLLER_URL" => "url",
-                "RUSTZEN_MONITOR_NODE_ID" => "identifier",
-                "RUSTZEN_IPC_TOKEN" | "RUSTZEN_JWT_SECRET" | "RUSTZEN_MONITOR_AGENT_TOKEN" => {
-                    "secret"
-                }
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT" => "timestamp",
+                "RUSTZEN_MONITOR_CONTROLLER_URL" | "RUSTZEN_NOTIFICATION_INGRESS_URL" => "url",
+                "RUSTZEN_MONITOR_NODE_ID"
+                | "RUSTZEN_NOTIFICATION_EVENT_KEY_ID"
+                | "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_ID" => "identifier",
+                "RUSTZEN_NOTIFICATION_INGRESS_PORT" => "port",
+                "RUSTZEN_IPC_TOKEN"
+                | "RUSTZEN_JWT_SECRET"
+                | "RUSTZEN_MONITOR_AGENT_TOKEN"
+                | "RUSTZEN_NOTIFICATION_EVENT_KEY"
+                | "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY" => "secret",
                 key => panic!("unreviewed config descriptor key: {key}"),
             };
             let (required, default_class, secret_ref) = match field.key {
@@ -190,6 +226,15 @@ mod tests {
                 "RUSTZEN_MONITOR_AGENT_TOKEN" => (true, "development-only", Some("monitor.agent")),
                 "RUSTZEN_MONITOR_NODE_ID" => (true, "none", None),
                 "RUSTZEN_MONITOR_CONTROLLER_URL" => (false, "local-fallback", None),
+                "RUSTZEN_NOTIFICATION_INGRESS_URL" => (false, "local-fallback", None),
+                "RUSTZEN_NOTIFICATION_EVENT_KEY" => {
+                    (true, "development-only", Some("notifications.event.current"))
+                }
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY" => {
+                    (false, "none", Some("notifications.event.previous"))
+                }
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT" => (false, "none", None),
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_ID" => (false, "none", None),
                 "RUSTZEN_ADMIN_PORT" if contract.owner == "monitor-agent" => {
                     (false, "local-fallback", None)
                 }
@@ -213,12 +258,25 @@ mod tests {
             keys(&contract),
             [
                 "RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT",
+                "RUSTZEN_NOTIFICATION_EVENT_KEY",
+                "RUSTZEN_NOTIFICATION_EVENT_KEY_ID",
                 "RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES",
+                "RUSTZEN_NOTIFICATION_INGRESS_PORT",
                 "RUSTZEN_NOTIFICATION_MESSAGE_LIMIT",
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY",
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT",
+                "RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_ID",
                 "RUSTZEN_NOTIFICATION_RECEIPT_LIMIT",
                 "RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT",
                 "RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES",
                 "RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS",
+            ]
+        );
+        assert_eq!(
+            secret_refs(&contract),
+            [
+                ("RUSTZEN_NOTIFICATION_EVENT_KEY", "notifications.event.current"),
+                ("RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY", "notifications.event.previous")
             ]
         );
         assert_complete_metadata(&contract);
@@ -226,21 +284,24 @@ mod tests {
 
     #[test]
     fn descriptors_never_serialize_values_or_secret_literals() {
-        #[cfg(feature = "admin-monitor")]
-        let contract = super::admin_monitor_contract();
-        #[cfg(all(not(feature = "admin-monitor"), feature = "monitor-controller"))]
-        let contract = super::monitor_controller_contract();
-        #[cfg(all(
-            not(feature = "admin-monitor"),
-            not(feature = "monitor-controller"),
-            feature = "monitor-agent"
-        ))]
-        let contract = super::monitor_agent_contract();
-        let json = serde_json::to_string(&contract).unwrap();
-        assert!(!json.contains("\"value\":"));
-        assert!(!json.contains("replace-me"));
-        assert!(contract.fields.windows(2).all(|pair| pair[0].key < pair[1].key));
-        assert_complete_metadata(&contract);
+        let contracts = [
+            #[cfg(feature = "notifications")]
+            super::notifications_contract(),
+            #[cfg(feature = "admin-monitor")]
+            super::admin_monitor_contract(),
+            #[cfg(feature = "monitor-controller")]
+            super::monitor_controller_contract(),
+            #[cfg(feature = "monitor-agent")]
+            super::monitor_agent_contract(),
+        ];
+        assert!(!contracts.is_empty());
+        for contract in contracts {
+            let json = serde_json::to_string(&contract).unwrap();
+            assert!(!json.contains("\"value\":"));
+            assert!(!json.contains("replace-me"));
+            assert!(contract.fields.windows(2).all(|pair| pair[0].key < pair[1].key));
+            assert_complete_metadata(&contract);
+        }
     }
 
     #[cfg(feature = "admin-monitor")]
@@ -279,30 +340,36 @@ mod tests {
     fn monitor_controller_descriptor_is_exact() {
         let contract = super::monitor_controller_contract();
         assert_eq!((contract.owner, contract.consumer), ("monitor", "rz-monitor"));
-        assert_eq!(
-            keys(&contract),
-            [
-                "RUSTZEN_DB_CONN_TIMEOUT",
-                "RUSTZEN_DB_IDLE_TIMEOUT",
-                "RUSTZEN_DB_MAX_CONN",
-                "RUSTZEN_DB_MIN_CONN",
-                "RUSTZEN_ENV",
-                "RUSTZEN_INTERNAL_HOST",
-                "RUSTZEN_IPC_TOKEN",
-                "RUSTZEN_MONITOR_AGENT_TOKEN",
-                "RUSTZEN_MONITOR_PORT",
-                "RUSTZEN_MONITOR_SQLITE_PATH",
-                "RUSTZEN_RUNTIME_ROOT",
-                "RUSTZEN_TIMEZONE"
-            ]
-        );
-        assert_eq!(
-            secret_refs(&contract),
-            [
-                ("RUSTZEN_IPC_TOKEN", "monitor.ipc"),
-                ("RUSTZEN_MONITOR_AGENT_TOKEN", "monitor.agent")
-            ]
-        );
+        let mut expected = vec![
+            "RUSTZEN_DB_CONN_TIMEOUT",
+            "RUSTZEN_DB_IDLE_TIMEOUT",
+            "RUSTZEN_DB_MAX_CONN",
+            "RUSTZEN_DB_MIN_CONN",
+            "RUSTZEN_ENV",
+            "RUSTZEN_INTERNAL_HOST",
+            "RUSTZEN_IPC_TOKEN",
+            "RUSTZEN_MONITOR_AGENT_TOKEN",
+            "RUSTZEN_MONITOR_PORT",
+            "RUSTZEN_MONITOR_SQLITE_PATH",
+            "RUSTZEN_RUNTIME_ROOT",
+            "RUSTZEN_TIMEZONE",
+        ];
+        #[cfg(feature = "notifications")]
+        expected.extend([
+            "RUSTZEN_NOTIFICATION_EVENT_KEY",
+            "RUSTZEN_NOTIFICATION_EVENT_KEY_ID",
+            "RUSTZEN_NOTIFICATION_INGRESS_URL",
+        ]);
+        expected.sort();
+        assert_eq!(keys(&contract), expected);
+        let mut expected_secrets = vec![
+            ("RUSTZEN_IPC_TOKEN", "monitor.ipc"),
+            ("RUSTZEN_MONITOR_AGENT_TOKEN", "monitor.agent"),
+        ];
+        #[cfg(feature = "notifications")]
+        expected_secrets.push(("RUSTZEN_NOTIFICATION_EVENT_KEY", "notifications.event.current"));
+        expected_secrets.sort();
+        assert_eq!(secret_refs(&contract), expected_secrets);
     }
 
     #[cfg(feature = "monitor-agent")]

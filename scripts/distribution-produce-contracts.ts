@@ -132,7 +132,7 @@ function buildSelectedProducers() {
                 "rustzen-monitor",
                 "--no-default-features",
                 "--features",
-                "controller",
+                plan.preset === "monitor-notify" ? "notifications" : "controller",
                 "--bin",
                 "rz-monitor",
             ],

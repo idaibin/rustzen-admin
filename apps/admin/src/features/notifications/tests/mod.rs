@@ -1,6 +1,8 @@
 mod admission_atomic;
 mod admission_concurrency;
 mod contract_schema;
+mod ingress;
+mod ingress_transport;
 mod read_semantics;
 mod retention_cleanup;
 mod retention_pressure;

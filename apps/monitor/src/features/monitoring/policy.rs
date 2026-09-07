@@ -4,6 +4,7 @@ use rustzen_ipc::ModuleJson;
 use rustzen_storage::SqlitePool;
 use serde::Deserialize;
 use sqlx::{Row, Sqlite, Transaction};
+#[cfg(not(feature = "notifications"))]
 use uuid::Uuid;
 
 use crate::{
@@ -70,6 +71,19 @@ pub(super) async fn evaluate(
     sqlx::query("INSERT INTO alert_counters(node_id,kind,target,abnormal_count,normal_count) VALUES(?,?,?,?,?) ON CONFLICT(node_id,kind,target) DO UPDATE SET abnormal_count=CASE WHEN ? THEN abnormal_count+1 ELSE 0 END,normal_count=CASE WHEN ? THEN 0 ELSE normal_count+1 END").bind(node).bind(kind).bind(target).bind(if high{1}else{0}).bind(if high{0}else{1}).bind(high).bind(high).execute(&mut **tx).await?;
     let (a,n):(i64,i64)=sqlx::query_as("SELECT abnormal_count,normal_count FROM alert_counters WHERE node_id=? AND kind=? AND target=?").bind(node).bind(kind).bind(target).fetch_one(&mut **tx).await?;
     if a >= 3 {
+        #[cfg(feature = "notifications")]
+        crate::notifications::outbox::open(
+            tx,
+            node,
+            kind,
+            target,
+            &format!("{kind} threshold exceeded"),
+            Some(threshold),
+            Some(value),
+            now,
+        )
+        .await?;
+        #[cfg(not(feature = "notifications"))]
         sqlx::query("INSERT INTO monitor_incidents(id,node_id,kind,target,status,title,threshold_percent,observed_percent,opened_at,last_observed_at) VALUES(?,?,?,?, 'active', ?,?,?,?,?) ON CONFLICT(node_id,kind,target) WHERE status='active' DO UPDATE SET observed_percent=excluded.observed_percent,last_observed_at=excluded.last_observed_at").bind(Uuid::new_v4().to_string()).bind(node).bind(kind).bind(target).bind(format!("{kind} threshold exceeded")).bind(threshold).bind(value).bind(now).bind(now).execute(&mut **tx).await?;
     }
     if n >= 3 {
@@ -85,7 +99,11 @@ pub(super) async fn resolve(
     now: &str,
     reason: &str,
 ) -> Result<(), sqlx::Error> {
+    #[cfg(feature = "notifications")]
+    return crate::notifications::outbox::resolve_exact(tx, node, kind, target, now, reason).await;
+    #[cfg(not(feature = "notifications"))]
     sqlx::query("UPDATE monitor_incidents SET status='resolved',resolved_at=?,resolution_reason=?,last_observed_at=? WHERE node_id=? AND kind=? AND target=? AND status='active'").bind(now).bind(reason).bind(now).bind(node).bind(kind).bind(target).execute(&mut **tx).await?;
+    #[cfg(not(feature = "notifications"))]
     Ok(())
 }
 
@@ -178,6 +196,8 @@ pub(super) async fn apply_settings(pool: &SqlitePool, i: SettingInput) -> Result
     sqlx::query("UPDATE alert_settings SET cpu_enabled=?,cpu_threshold_percent=?,memory_enabled=?,memory_threshold_percent=?,disk_enabled=?,disk_threshold_percent=?,offline_enabled=?,offline_after_seconds=?,updated_at=? WHERE id=1").bind(i.cpu.enabled).bind(i.cpu.threshold_percent).bind(i.memory.enabled).bind(i.memory.threshold_percent).bind(i.disk.enabled).bind(i.disk.threshold_percent).bind(i.offline.enabled).bind(i.offline.after_seconds).bind(&now).execute(&mut *tx).await?;
     reconcile_setting_changes(&mut tx, &previous, &settings_from_input(&i), None, &now).await?;
     tx.commit().await?;
+    #[cfg(feature = "notifications")]
+    crate::notifications::diagnostics::warn_after_commit(pool).await;
     Ok(())
 }
 
@@ -272,6 +292,8 @@ pub(super) async fn apply_node_settings(
     )
     .await?;
     tx.commit().await?;
+    #[cfg(feature = "notifications")]
+    crate::notifications::diagnostics::warn_after_commit(pool).await;
     Ok(())
 }
 
@@ -293,6 +315,8 @@ pub(super) async fn reset_node_settings_for(
         reconcile_setting_changes(&mut tx, &previous, &inherited, Some(node_id), &now).await?;
     }
     tx.commit().await?;
+    #[cfg(feature = "notifications")]
+    crate::notifications::diagnostics::warn_after_commit(pool).await;
     Ok(())
 }
 
@@ -353,6 +377,17 @@ async fn reconcile_setting_changes(
                 .execute(&mut **tx)
                 .await?;
             if !enabled {
+                #[cfg(feature = "notifications")]
+                {
+                    let ids = sqlx::query_scalar::<_, String>(
+                        "SELECT id FROM monitor_incidents WHERE node_id=? AND kind=? AND status='active' ORDER BY id",
+                    ).bind(node_id).bind(kind).fetch_all(&mut **tx).await?;
+                    for id in ids {
+                        crate::notifications::outbox::resolve_id(tx, &id, now, "setting disabled")
+                            .await?;
+                    }
+                }
+                #[cfg(not(feature = "notifications"))]
                 sqlx::query("UPDATE monitor_incidents SET status='resolved',resolved_at=?,resolution_reason='setting disabled' WHERE node_id=? AND kind=? AND status='active'")
                     .bind(now)
                     .bind(node_id)
@@ -366,6 +401,19 @@ async fn reconcile_setting_changes(
                 .execute(&mut **tx)
                 .await?;
             if !enabled {
+                #[cfg(feature = "notifications")]
+                {
+                    let ids = sqlx::query_scalar::<_, String>(
+                        "SELECT id FROM monitor_incidents WHERE kind=? AND status='active'
+                         AND NOT EXISTS (SELECT 1 FROM node_alert_settings s WHERE s.node_id=monitor_incidents.node_id)
+                         ORDER BY id",
+                    ).bind(kind).fetch_all(&mut **tx).await?;
+                    for id in ids {
+                        crate::notifications::outbox::resolve_id(tx, &id, now, "setting disabled")
+                            .await?;
+                    }
+                }
+                #[cfg(not(feature = "notifications"))]
                 sqlx::query("UPDATE monitor_incidents SET status='resolved',resolved_at=?,resolution_reason='setting disabled' WHERE kind=? AND status='active' AND NOT EXISTS (SELECT 1 FROM node_alert_settings s WHERE s.node_id=monitor_incidents.node_id)")
                     .bind(now)
                     .bind(kind)

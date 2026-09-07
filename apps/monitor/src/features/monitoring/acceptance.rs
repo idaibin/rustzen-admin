@@ -177,5 +177,7 @@ async fn record_at_inner(
         .await?;
     }
     tx.commit().await?;
+    #[cfg(feature = "notifications")]
+    crate::notifications::diagnostics::warn_after_commit(pool).await;
     Ok(AgentReportStatus::Accepted)
 }

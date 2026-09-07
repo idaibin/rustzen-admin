@@ -36,6 +36,12 @@ const DEFAULT_NOTIFICATION_ROW_LIMIT: u64 = 1_000_000;
 const DEFAULT_NOTIFICATION_CHARGED_BYTES_LIMIT: u64 = 512 * 1024 * 1024;
 #[cfg(feature = "notifications")]
 const DEFAULT_NOTIFICATION_FREE_SPACE_RESERVE_BYTES: u64 = 128 * 1024 * 1024;
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_INGRESS_PORT: u16 = 9811;
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_EVENT_KEY_ID: &str = "local-v1";
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_EVENT_KEY: &str = "rustzen-local-notification-key-change-me";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AdminConfig {
@@ -95,6 +101,24 @@ pub struct AdminConfig {
     #[cfg(feature = "notifications")]
     #[serde(default)]
     pub notification_wal_pressure_observations: Option<u32>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_ingress_port: Option<u16>,
+    #[cfg(feature = "notifications")]
+    #[serde(default = "default_notification_event_key_id")]
+    pub notification_event_key_id: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default = "default_notification_event_key")]
+    pub notification_event_key: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_previous_event_key_id: Option<String>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_previous_event_key: Option<String>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_previous_event_key_expires_at: Option<i64>,
     #[cfg(feature = "admin")]
     #[serde(default)]
     pub task_run_timeout_seconds: Option<u64>,
@@ -240,6 +264,28 @@ impl AdminConfig {
         )
     }
 
+    #[cfg(feature = "notifications")]
+    pub fn notification_ingress_address(&self) -> String {
+        format!(
+            "{}:{}",
+            self.internal_host(),
+            self.notification_ingress_port.unwrap_or(DEFAULT_NOTIFICATION_INGRESS_PORT)
+        )
+    }
+
+    #[cfg(feature = "notifications")]
+    pub fn notification_event_keys(&self) -> (&str, &str, Option<(&str, &str, i64)>) {
+        (
+            &self.notification_event_key_id,
+            &self.notification_event_key,
+            self.notification_previous_event_key_id
+                .as_deref()
+                .zip(self.notification_previous_event_key.as_deref())
+                .zip(self.notification_previous_event_key_expires_at)
+                .map(|((id, key), expires)| (id, key, expires)),
+        )
+    }
+
     #[cfg(feature = "admin")]
     pub fn insights_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.insights_port())
@@ -274,6 +320,12 @@ impl AdminConfig {
         ensure_required_non_empty("RUSTZEN_JWT_SECRET", &self.jwt_secret)?;
         #[cfg(feature = "notifications")]
         {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| {
+                    ConfigError::Invalid("RUSTZEN_NOTIFICATION_PREVIOUS_EVENT_KEY_EXPIRES_AT")
+                })?
+                .as_secs() as i64;
             let (messages, recipients, receipts, bytes) = self.notification_limits();
             let (reserve, frames, observations) = self.notification_pressure_limits();
             if [messages, recipients, receipts, bytes].contains(&0)
@@ -283,6 +335,41 @@ impl AdminConfig {
             {
                 return Err(ConfigError::Invalid("RUSTZEN_NOTIFICATION_LIMITS"));
             }
+            if !rustzen_ipc::valid_notification_key_id(&self.notification_event_key_id)
+                || self.notification_event_key.len() < 32
+                || self.notification_event_key == self.ipc_token
+                || self.notification_event_key == self.jwt_secret
+                || [
+                    self.notification_previous_event_key_id.is_some(),
+                    self.notification_previous_event_key.is_some(),
+                    self.notification_previous_event_key_expires_at.is_some(),
+                ]
+                .windows(2)
+                .any(|pair| pair[0] != pair[1])
+                || self.notification_previous_event_key.as_deref().is_some_and(|key| key.len() < 32)
+                || self.notification_previous_event_key.as_deref().is_some_and(|key| {
+                    key == self.notification_event_key
+                        || key == self.ipc_token
+                        || key == self.jwt_secret
+                })
+                || self.notification_previous_event_key_id.as_deref()
+                    == Some(self.notification_event_key_id.as_str())
+                || self
+                    .notification_previous_event_key_id
+                    .as_deref()
+                    .is_some_and(|id| !rustzen_ipc::valid_notification_key_id(id))
+                || self
+                    .notification_previous_event_key_expires_at
+                    .is_some_and(|expires| expires <= now || expires > now + 120)
+            {
+                return Err(ConfigError::Invalid("RUSTZEN_NOTIFICATION_EVENT_KEY"));
+            }
+            ensure_production_secret(
+                &self.runtime,
+                "RUSTZEN_NOTIFICATION_EVENT_KEY",
+                &self.notification_event_key,
+                DEFAULT_NOTIFICATION_EVENT_KEY,
+            )?;
         }
         ensure_production_secret(
             &self.runtime,
@@ -319,7 +406,7 @@ impl AdminConfig {
     }
 }
 
-#[cfg(all(test, feature = "admin-monitor"))]
+#[cfg(all(test, feature = "admin-monitor", not(feature = "admin")))]
 mod monitor_distribution_tests {
     use figment::{Figment, providers::Serialized};
     use serde::Serialize;
@@ -357,6 +444,10 @@ mod monitor_distribution_tests {
         config.runtime.environment = "production".to_string();
         config.jwt_secret = "production-jwt-secret".to_string();
         config.ipc_token = "production-ipc-secret".to_string();
+        #[cfg(feature = "notifications")]
+        {
+            config.notification_event_key = "production-notification-event-secret".to_string();
+        }
         config.validate().expect("hardened minimal production config");
 
         let mut invalid = config.clone();
@@ -366,10 +457,58 @@ mod monitor_distribution_tests {
         invalid.ipc_token = "replace-me".to_string();
         assert!(invalid.validate().is_err());
     }
+
+    #[cfg(feature = "notifications")]
+    #[test]
+    fn notification_keys_are_not_reused_across_authentication_domains() {
+        let base = AdminConfig::local().unwrap();
+        for invalid_id in ["bad\nheader".into(), "bad id".into(), "x".repeat(65)] {
+            let mut invalid = base.clone();
+            invalid.notification_event_key_id = invalid_id;
+            assert!(invalid.validate().is_err());
+        }
+        for reused in [base.ipc_token.clone(), base.jwt_secret.clone()] {
+            let mut invalid = base.clone();
+            invalid.notification_event_key = reused;
+            assert!(invalid.validate().is_err());
+        }
+        let mut invalid = base;
+        invalid.notification_previous_event_key_id = Some("previous".into());
+        invalid.notification_previous_event_key = Some(invalid.notification_event_key.clone());
+        invalid.notification_previous_event_key_expires_at = Some(1);
+        assert!(invalid.validate().is_err());
+
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
+        let mut rotating = AdminConfig::local().unwrap();
+        rotating.notification_previous_event_key_id = Some("previous".into());
+        rotating.notification_previous_event_key =
+            Some("previous-notification-key-0123456789".into());
+        rotating.notification_previous_event_key_expires_at = Some(now + 60);
+        rotating.validate().unwrap();
+        rotating.notification_previous_event_key_id = Some("bad\nheader".into());
+        assert!(rotating.validate().is_err());
+        rotating.notification_previous_event_key_id = Some("previous".into());
+        rotating.notification_previous_event_key_expires_at = Some(now);
+        assert!(rotating.validate().is_err());
+        rotating.notification_previous_event_key_expires_at = Some(now + 121);
+        assert!(rotating.validate().is_err());
+    }
 }
 
 fn default_jwt_secret() -> String {
     DEFAULT_DEV_JWT_SECRET.to_string()
+}
+
+#[cfg(feature = "notifications")]
+fn default_notification_event_key_id() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY_ID.into()
+}
+
+#[cfg(feature = "notifications")]
+fn default_notification_event_key() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY.into()
 }
 
 #[cfg(all(test, feature = "admin"))]
@@ -394,6 +533,10 @@ mod tests {
         hardened.runtime.environment = "production".to_string();
         hardened.jwt_secret = "production-jwt-secret".to_string();
         hardened.ipc_token = "production-ipc-secret".to_string();
+        #[cfg(feature = "notifications")]
+        {
+            hardened.notification_event_key = "production-notification-event-secret".to_string();
+        }
         hardened.deploy_signature_required = true;
         hardened.deploy_verify_key = Some("ab".repeat(32));
         hardened.validate().expect("hardened production config");
@@ -421,5 +564,16 @@ mod tests {
         let mut config = AdminConfig::local().expect("local Admin config");
         config.runtime.environment = "staging".to_string();
         assert!(config.validate().is_err());
+    }
+
+    #[cfg(feature = "notifications")]
+    #[test]
+    fn full_admin_rejects_invalid_notification_key_ids() {
+        let base = AdminConfig::local().unwrap();
+        for id in ["bad\nheader".into(), "bad id".into(), "x".repeat(65)] {
+            let mut invalid = base.clone();
+            invalid.notification_event_key_id = id;
+            assert!(invalid.validate().is_err());
+        }
     }
 }
