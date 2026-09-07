@@ -67,6 +67,15 @@ pub enum FlowStep {
         locale: String,
     },
     AssertNoHorizontalOverflow,
+    #[serde(rename_all = "camelCase")]
+    AssertElementLayout {
+        selector: String,
+        element_count: Option<u32>,
+        visible_count: Option<u32>,
+        max_height: Option<u32>,
+        #[serde(default)]
+        within_viewport_right: bool,
+    },
     AssertFocus {
         selector: String,
     },
@@ -99,6 +108,7 @@ impl FlowStep {
             Self::SetViewport { .. } => "setViewport",
             Self::SetUiPreferences { .. } => "setUiPreferences",
             Self::AssertNoHorizontalOverflow => "assertNoHorizontalOverflow",
+            Self::AssertElementLayout { .. } => "assertElementLayout",
             Self::AssertFocus { .. } => "assertFocus",
             Self::GuardExists { .. } => "guardExists",
             Self::PressKey { .. } => "pressKey",

@@ -142,6 +142,19 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                 }
             }
             FlowStep::AssertNoHorizontalOverflow => {}
+            FlowStep::AssertElementLayout {
+                selector,
+                element_count,
+                visible_count,
+                max_height,
+                within_viewport_right,
+            } => validate_element_layout(
+                selector,
+                *element_count,
+                *visible_count,
+                *max_height,
+                *within_viewport_right,
+            )?,
             FlowStep::AssertFocus { selector } => validate_selector(selector)?,
             FlowStep::GuardExists { selector, on_missing } => {
                 validate_selector(selector)?;
@@ -190,11 +203,42 @@ fn validate_selector(selector: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+fn validate_element_layout(
+    selector: &str,
+    element_count: Option<u32>,
+    visible_count: Option<u32>,
+    max_height: Option<u32>,
+    within_viewport_right: bool,
+) -> Result<(), AppError> {
+    validate_selector(selector)?;
+    if selector.starts_with("//") || selector.starts_with("xpath=") {
+        return Err(AppError::InvalidInput("assertElementLayout requires a CSS selector".into()));
+    }
+    if element_count.is_none()
+        && visible_count.is_none()
+        && max_height.is_none()
+        && !within_viewport_right
+    {
+        return Err(AppError::InvalidInput(
+            "assertElementLayout requires at least one condition".into(),
+        ));
+    }
+    if element_count.is_some_and(|value| value > 10_000)
+        || visible_count.is_some_and(|value| value > 10_000)
+        || max_height.is_some_and(|value| value == 0 || value > 4096)
+    {
+        return Err(AppError::InvalidInput(
+            "assertElementLayout condition is outside its supported range".into(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use url::Url;
 
-    use super::{goto_target, validate_flow};
+    use super::{goto_target, validate_element_layout, validate_flow};
     use crate::features::automation::types::{FlowStep, System};
 
     #[test]
@@ -233,9 +277,17 @@ mod tests {
             FlowStep::SetViewport { width: 390, height: 844 },
             FlowStep::SetUiPreferences { theme: "light".into(), locale: "zh-CN".into() },
             FlowStep::AssertNoHorizontalOverflow,
+            FlowStep::AssertElementLayout {
+                selector: ".table th".into(),
+                element_count: Some(9),
+                visible_count: Some(3),
+                max_height: Some(64),
+                within_viewport_right: true,
+            },
         ];
         assert!(validate_flow(&system, &steps).is_ok());
         assert_eq!(steps[6].action(), "assertFocus");
+        assert_eq!(steps.last().map(FlowStep::action), Some("assertElementLayout"));
         for selector in ["[data-testid=schedule-panel]", "//button", "xpath=//button"] {
             assert!(
                 validate_flow(&system, &[FlowStep::AssertFocus { selector: selector.into() }])
@@ -253,5 +305,13 @@ mod tests {
         assert!(
             validate_flow(&system, &[FlowStep::SetViewport { width: 400, height: 800 }],).is_err()
         );
+    }
+
+    #[test]
+    fn validate_element_layout_requires_css_and_a_bounded_condition() {
+        assert!(validate_element_layout(".table", Some(9), Some(3), Some(64), true).is_ok());
+        assert!(validate_element_layout(".table", None, None, None, false).is_err());
+        assert!(validate_element_layout(".table", None, None, Some(0), false).is_err());
+        assert!(validate_element_layout("//table", None, None, Some(64), false).is_err());
     }
 }

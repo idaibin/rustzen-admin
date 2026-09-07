@@ -147,6 +147,15 @@ verify-analytics-ui-state-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-analytics-ui-state-linux.test.mjs
     scripts/verify-analytics-ui-state-linux.sh
 
+verify-monitoring-ui-state-linux:
+    pnpm dlx bun@1.3.14 test \
+        scripts/monitoring-ui-state-fixture.test.mjs \
+        scripts/monitoring-ui-state-cleanup.test.mjs \
+        scripts/monitoring-ui-state-layout.test.mjs \
+        scripts/monitoring-ui-state-provenance.test.mjs \
+        scripts/verify-monitoring-ui-state-linux.test.mjs
+    scripts/verify-monitoring-ui-state-linux.sh
+
 verify-monitor-agent-multi-node-linux:
     scripts/verify-monitor-agent-multi-node-linux.sh
 

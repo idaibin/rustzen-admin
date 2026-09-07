@@ -1,0 +1,18 @@
+use serde_json::json;
+
+use super::types::FlowStep;
+
+#[test]
+fn element_layout_step_round_trips_its_public_json_contract() {
+    let value = json!({
+        "action": "assertElementLayout",
+        "selector": ".ant-table-thead th",
+        "elementCount": 9,
+        "visibleCount": 3,
+        "maxHeight": 64,
+        "withinViewportRight": true,
+    });
+    let step: FlowStep = serde_json::from_value(value.clone()).expect("deserialize layout step");
+    assert_eq!(step.action(), "assertElementLayout");
+    assert_eq!(serde_json::to_value(step).expect("serialize layout step"), value);
+}

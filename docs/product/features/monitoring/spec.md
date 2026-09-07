@@ -141,6 +141,32 @@ Monitoring does not provide weekly, monthly, or yearly reports.
 - Daily summaries: per-node daily resource and incident summary within retention,
   browsed with pagination and without a node-ID search.
 
+The four Monitoring read routes keep their current data visible while a normal
+background refresh is in progress or fails, and offer a retry for the failed
+refresh. An initial read failure has no retained data and is retryable. A `403`
+is different from a temporary failure: the route must replace any previously
+shown protected data with its permission state before offering a retry. Incidents
+and Daily summaries use the fixed-size page contract; changing an Incident
+status or type filter immediately requests page one. These route reads do not
+retry automatically: the visible Reload or Retry action owns the next request,
+so an initial or background `403` reaches its permission state after one call.
+At the supported 390px viewport, Daily summaries must expose exactly the Date,
+Node, and Coverage columns as readable table columns. Samples, CPU, Memory,
+Disk mounts, Offline, and Incidents remain hidden; the visible header and first
+data row must keep normal bounded row heights instead of stacking vertically,
+and the table and pagination right edges must remain inside the viewport.
+
+The finite local console closure is a source-bound Linux Chromium run with 23
+browser cases against route-exact Monitoring read fixtures: four routes times
+initial loading, `403`, initial `500`, after-success `403`, and after-success
+`500`, plus Incident page two, Incident status/kind filtering at page one, and
+populated Daily Summaries page two. After-success `403` must remove retained
+protected data, while after-success `500` keeps it with Retry. The run also
+records one desktop and one mobile theme/locale screenshot with no document
+overflow. Its immutable
+manifest binds fixture receipts, browser steps, staged binary provenance and
+artifact hashes. This is local acceptance evidence only.
+
 There is no checks page. Page layout, interaction details, responsive behavior, and visual states
 belong to the UI specification rather than this product document.
 

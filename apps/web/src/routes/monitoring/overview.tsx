@@ -16,6 +16,8 @@ import { PageHeader } from "@/components/page/page-header";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
+import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
+
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
 
 function MonitoringOverviewPage() {
@@ -23,6 +25,7 @@ function MonitoringOverviewPage() {
         queryKey: ["monitor", "overview"],
         queryFn: monitorAPI.overview,
         refetchInterval: 30_000,
+        retry: false,
     });
     const header = (
         <PageHeader
@@ -38,6 +41,30 @@ function MonitoringOverviewPage() {
             }
         />
     );
+    const permissionDenied = isMonitorPermissionDenied(error);
+    if (permissionDenied) {
+        return (
+            <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
+                {header}
+                <DataState
+                    kind="permission"
+                    title={t(
+                        "没有查看监控概览的权限",
+                        "You do not have permission to view monitoring",
+                    )}
+                    description={t(
+                        "无法读取监控概览，请检查权限后重试。",
+                        "Unable to read monitoring data. Check your permission and try again.",
+                    )}
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            </div>
+        );
+    }
     if (!data) {
         return (
             <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto">
@@ -94,7 +121,7 @@ function MonitoringOverviewPage() {
                     <MetricCard key={item.label} {...item} />
                 ))}
             </div>
-            {error ? (
+            {hasMonitorBackgroundRefreshFailure(data, error) ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}
             <LatestResource value={data.latestResource} />

@@ -1,8 +1,12 @@
 import { expect, test } from "bun:test";
 
+import { ApiRequestError } from "@/api/request";
+
 import {
     failedNetworkAction,
+    hasMonitorBackgroundRefreshFailure,
     hasNodesBackgroundRefreshFailure,
+    isMonitorPermissionDenied,
     retryFailedNetworkAction,
     shouldHydrateNodePolicy,
 } from "./-save-state";
@@ -48,4 +52,14 @@ test("policy hydration respects a failed or edited draft and background Nodes er
     );
     expect(hasNodesBackgroundRefreshFailure([{ nodeId: "cached" }], undefined)).toBe(false);
     expect(hasNodesBackgroundRefreshFailure(undefined, new Error("offline"))).toBe(false);
+});
+
+test("permission failures replace cached Monitoring data instead of becoming background retries", () => {
+    const denied = new ApiRequestError("forbidden", { status: 403 });
+
+    expect(isMonitorPermissionDenied(denied)).toBe(true);
+    expect(hasMonitorBackgroundRefreshFailure({ cached: true }, denied)).toBe(false);
+    expect(hasMonitorBackgroundRefreshFailure({ cached: true }, new TypeError("offline"))).toBe(
+        true,
+    );
 });

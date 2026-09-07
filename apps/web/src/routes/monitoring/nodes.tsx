@@ -22,7 +22,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { GlobalAlertSettings } from "./-global-alert-settings";
 import { NodeDetails, PolicySourceTag } from "./-node-details";
 import { NodeOnboarding } from "./-node-onboarding";
-import { hasNodesBackgroundRefreshFailure } from "./-save-state";
+import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
 
 export const Route = createFileRoute("/monitoring/nodes")({ component: MonitoringNodesPage });
 
@@ -35,6 +35,7 @@ function MonitoringNodesPage() {
         queryKey: ["monitor", "nodes"],
         queryFn: monitorAPI.nodes,
         refetchInterval: 30_000,
+        retry: false,
     });
     const columns: ProColumns<Monitor.Node>[] = [
         {
@@ -116,6 +117,7 @@ function MonitoringNodesPage() {
             ),
         },
     ];
+    const permissionDenied = isMonitorPermissionDenied(error);
     return (
         <PageCard
             title={t("节点", "Nodes")}
@@ -153,7 +155,19 @@ function MonitoringNodesPage() {
                 </>
             }
         >
-            {!data ? (
+            {permissionDenied ? (
+                <DataState
+                    kind="permission"
+                    title={t("没有查看监控节点的权限", "You do not have permission to view nodes")}
+                    description={t(
+                        "无法读取监控节点，请检查权限后重试。",
+                        "Unable to read monitored nodes. Check your permission and try again.",
+                    )}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            ) : !data ? (
                 <DataState
                     kind={isPending ? "loading" : "error"}
                     title={
@@ -171,7 +185,7 @@ function MonitoringNodesPage() {
                 />
             ) : (
                 <>
-                    {hasNodesBackgroundRefreshFailure(data, error) ? (
+                    {hasMonitorBackgroundRefreshFailure(data, error) ? (
                         <BackgroundRefreshNotice
                             updatedAt={dataUpdatedAt}
                             onRetry={() => void refetch()}

@@ -7,6 +7,8 @@ mod scheduler;
 mod service;
 mod systems;
 mod types;
+#[cfg(test)]
+mod types_tests;
 mod validation;
 
 use rustzen_auth::capability::reports;

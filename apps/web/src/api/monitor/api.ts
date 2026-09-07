@@ -3,8 +3,8 @@ import { monitorAPIContract as contract } from "@/api/monitor/contract";
 import { apiRequest } from "@/api/request";
 
 export const monitorAPI = {
-    overview: () => apiRequest<Monitor.Overview>({ url: contract.overview.path }),
-    nodes: () => apiRequest<Monitor.Node[]>({ url: contract.nodes.path }),
+    overview: () => apiRequest<Monitor.Overview>({ url: contract.overview.path, silent: true }),
+    nodes: () => apiRequest<Monitor.Node[]>({ url: contract.nodes.path, silent: true }),
     node: (nodeId: string) =>
         apiRequest<Monitor.Node>({ url: routePath(contract.node, { node_id: nodeId }) }),
     metrics: (nodeId: string, params: Monitor.MetricsQuery = {}) =>
@@ -31,6 +31,7 @@ export const monitorAPI = {
         apiRequest<Monitor.Page<Monitor.IncidentSummary>, Monitor.IncidentQuery>({
             url: contract.incidents.path,
             params,
+            silent: true,
         }),
     incident: (id: string) =>
         apiRequest<Monitor.IncidentDetail>({ url: routePath(contract.incident, { id }) }),
@@ -45,5 +46,6 @@ export const monitorAPI = {
         apiRequest<Monitor.Page<Monitor.DailySummary>, Monitor.DailySummaryQuery>({
             url: contract.dailySummaries.path,
             params,
+            silent: true,
         }),
 };

@@ -13,6 +13,8 @@ import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
+import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
+
 export const Route = createFileRoute("/monitoring/incidents")({
     component: MonitoringIncidentsPage,
 });
@@ -36,10 +38,12 @@ function MonitoringIncidentsPage() {
         queryKey: ["monitor", "incidents", query],
         queryFn: () => monitorAPI.incidents(query),
         refetchInterval: 30_000,
+        retry: false,
     });
     const searchControls = (
         <Space wrap>
             <Select
+                aria-label={t("告警状态", "Incident status")}
                 value={status}
                 onChange={(value) => {
                     setStatus(value);
@@ -52,6 +56,7 @@ function MonitoringIncidentsPage() {
                 ]}
             />
             <Select
+                aria-label={t("告警类型", "Incident kind")}
                 value={kind}
                 onChange={(value) => {
                     setKind(value);
@@ -68,6 +73,35 @@ function MonitoringIncidentsPage() {
         </Space>
     );
 
+    const permissionDenied = isMonitorPermissionDenied(error);
+    if (permissionDenied)
+        return (
+            <PageCard
+                toolbar={searchControls}
+                title={t("告警事件", "Alert incidents")}
+                description={t(
+                    "查看活动和最近解决的资源与离线告警。",
+                    "View active and recently resolved resource and offline alerts.",
+                )}
+            >
+                <DataState
+                    kind="permission"
+                    title={t(
+                        "没有查看告警事件的权限",
+                        "You do not have permission to view alert incidents",
+                    )}
+                    description={t(
+                        "无法读取告警事件，请检查权限后重试。",
+                        "Unable to read alert incidents. Check your permission and try again.",
+                    )}
+                    action={
+                        <Button type="primary" onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
+                />
+            </PageCard>
+        );
     if (!data)
         return (
             <PageCard
@@ -155,7 +189,7 @@ function MonitoringIncidentsPage() {
                 "View active and recently resolved resource and offline alerts.",
             )}
         >
-            {error ? (
+            {hasMonitorBackgroundRefreshFailure(data, error) ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}
             <DataTableShell fill ariaLabel={t("告警事件", "Alert incidents table")}>

@@ -38,17 +38,23 @@ The route remains `/monitoring/incidents`.
 
 | Surface | Composition | Interaction and pagination |
 | --- | --- | --- |
-| Overview | One page title, four shared MetricCards, latest-resource panels, DataState and refresh feedback | Registered, online, offline, active-incident counts in that order; missing resources are empty data, not healthy substitute values. |
+| Overview | One page title, four shared MetricCards, latest-resource panels, DataState and refresh feedback | Registered, online, offline, active-incident counts in that order; missing resources are empty data, not healthy substitute values. It refreshes in the background every 30 seconds. |
 | Nodes | PageCard, ProTable, status tags, resource progress, node-detail Drawer | Inventory has no pagination; on background failure it retains the last table and shows BackgroundRefreshNotice with Retry and explicit refresh. Drawer owns history, per-mount series, effective policy, override/reset and bounded scrolling. |
-| Incidents | PageCard, two upper-right Select filters, filling table and separate bottom Pagination | Status/type changes query immediately and return to page one. Empty success retains total zero and disabled pagination. Details preserve list context. |
+| Incidents | PageCard, two upper-right Select filters, filling table and separate bottom Pagination | Status/type changes query immediately and return to page one. The fixed-size page refreshes in the background every 30 seconds. Empty success retains total zero and disabled pagination. Details preserve list context. |
 | Nodes / Global Settings drawer | One configuration Card with CPU, memory, disk and offline controls; one Save and last-update footer | Four controls share one Form; outlined numeric inputs remain visible on the panel. Management permission controls editing and Save. |
-| Daily Summaries | PageCard, DataTableShell, ProTable and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. |
+| Daily Summaries | PageCard, DataTableShell, ProTable, separate bottom Pagination and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. It refreshes in the background every 30 seconds. At the 390px narrow layout, Date, Node, and Coverage remain visible; Samples and the resource, offline, and incident detail columns are hidden until the `sm` breakpoint so rows do not collapse into vertical text or crop at the right edge. |
 
 ## States and accessibility
 
-- Loading, empty, populated, error/retry and permission behavior stay distinct.
-  Filters remain mounted and editable during loading and errors. Background refresh
-  errors preserve the last successful Overview and Incident data when available.
+- Loading, empty, populated, error/retry and permission behavior stay distinct on
+  Overview, Nodes, Incidents and Daily Summaries. An initial read failure blocks
+  the route with Retry because no data exists yet. A normal background failure
+  preserves the last successful route data and shows BackgroundRefreshNotice with
+  Retry; a 403 instead takes precedence over cached data and shows the permission
+  state, so protected rows, metrics and totals are no longer rendered. Filters
+  remain mounted and editable during loading and non-permission errors. Route
+  reads have automatic retries disabled; the visible Reload or Retry control
+  explicitly starts the next request after an initial or background failure.
 - Incident filters sit beside the title at the content upper right. At constrained
   widths they wrap and remain right-aligned without overlapping the title. Shared
   heading, description, empty-state colors and focus rules come from DESIGN.
@@ -93,6 +99,15 @@ The requirements are specified for implementation. Representative local browser
 checks do not imply completion of this full matrix, all populated pagination cases,
 all permission combinations, or deployment acceptance. See the verification owner
 for observed coverage; this document is not a visual approval record.
+
+The minimum local closure has exactly 23 route-exact fixture cases: twenty route
+state cases (four routes times initial loading, initial permission, initial
+server error, post-success 403, and post-success 500), then Incident page two,
+Incident status/kind filtering at page one, and populated Daily Summaries page
+two. A post-success 403 hides Overview metrics, Node rows, Incident rows and
+Summary rows, while a post-success 500 retains each route's data and shows Retry.
+One 1440×900 dark English and one 390×844 light Chinese capture must
+also pass the no-document-overflow assertion.
 
 ## Nodes actions and drawers
 

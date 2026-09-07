@@ -13,9 +13,11 @@ use super::{
 };
 
 mod artifacts;
+mod layout;
 mod session;
 
 use artifacts::{save_screenshot, save_viewport_screenshot, try_save_live_frame};
+use layout::assert_page_element_layout;
 
 pub(super) struct ExecutionContext<'a> {
     pub(super) state: &'a AppState,
@@ -264,6 +266,24 @@ async fn execute_step(
                 .await
                 .map_err(AppError::internal)?;
             assert_no_horizontal_overflow(metrics.value())?;
+            Ok(StepOutcome::Continue)
+        }
+        FlowStep::AssertElementLayout {
+            selector,
+            element_count,
+            visible_count,
+            max_height,
+            within_viewport_right,
+        } => {
+            assert_page_element_layout(
+                context.page,
+                selector,
+                *element_count,
+                *visible_count,
+                *max_height,
+                *within_viewport_right,
+            )
+            .await?;
             Ok(StepOutcome::Continue)
         }
         FlowStep::AssertFocus { selector } => {

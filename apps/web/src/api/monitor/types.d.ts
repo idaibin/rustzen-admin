@@ -39,6 +39,7 @@ declare namespace Monitor {
         bootId: string;
         sequence: number;
         lastReportAt: string;
+        lastReceivedAt: string;
         status: "online" | "offline";
         alertPolicySource: "global" | "custom";
         cpuPercent: number;

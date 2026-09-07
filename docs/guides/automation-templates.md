@@ -8,7 +8,7 @@
 
 `rustzen-admin/apps/reports` 遵循终版精简架构原则：
 1. **沙箱隔离**：每次任务运行（Run）均在系统临时目录下动态开辟独立的 Chromium 用户沙箱（User Data Profile），运行结束后立即回收，杜绝多任务状态互锁与 Cookie 串扰。
-2. **原子动作模型**：采用 6 项标准原子操作（`goto`、`fill`、`click`、`waitFor`、`assertText`、`screenshot`），支持 CSS Selector 与 XPath 双引擎定位。
+2. **原子动作模型**：任务由受校验的浏览器动作组成；元素布局断言使用 CSS selector，常规定位动作支持 CSS Selector 与 XPath。
 3. **安全模板替换**：表单字段与 URL 支持 `{{input.variable}}` 运行时变量插值，并进行严格的边界与非法字符阻断。
 4. **过程留存与存证**：支持步骤级审计耗时（`automation_run_steps`）、实时画面快照（Live Frame）与成果截图（Artifacts）。
 
@@ -23,6 +23,7 @@
 | `fill` | `selector: string`, `value: string` | 表单输入，自动触发 `input` 与 `change` 事件 | `{"action": "fill", "selector": "#kw", "value": "{{input.keyword}}"}` |
 | `click` | `selector: string` | 元素点击，支持 CSS 与 XPath | `{"action": "click", "selector": "#su"}` |
 | `assertText` | `selector: string`, `text: string` | 目标区域文本断言包含校验 | `{"action": "assertText", "selector": "#received", "text": "OK"}` |
+| `assertElementLayout` | `selector: string`，以及 `elementCount?`、`visibleCount?`、`maxHeight?`、`withinViewportRight?` 中至少一项 | 对 CSS selector 的匹配数量、可见数量、可见元素最大高度或视口右边界进行断言 | `{"action":"assertElementLayout","selector":"thead th","elementCount":9,"visibleCount":3,"maxHeight":64,"withinViewportRight":true}` |
 | `screenshot` | `name?: string` | 现场存证截图保存（若步骤执行失败，系统亦会自动保存 failure 快照） | `{"action": "screenshot", "name": "result"}` |
 | `guardExists` | `selector: string`, `onMissing?: "continue" \| "skipNext" \| "stop" \| "fail"` | 条件保护与元素存在性检测，支持未命中时继续、跳过下一步、提前成功结束或报错 | `{"action": "guardExists", "selector": "#modal-close", "onMissing": "skipNext"}` |
 | `pressKey` | `key: string` | 触发键盘按键（如 Enter、Escape 等），支持输入框回车提交 | `{"action": "pressKey", "key": "Enter"}` |
@@ -152,4 +153,3 @@ curl http://127.0.0.1:19804/api/reports/runs/<RUN_ID>
    - **底层机制**：基于 Chromium CDP 原生 `Page.startScreencast` 接口，在任务开始时启动逐帧流式推流（每秒 10-30 帧，格式为 JPEG/PNG）。
    - **合成落地**：任务结束阶段，服务端后台将帧序列通过轻量编码器（如 ffmpeg 或 Rust webm muxer）合成为 `<run_id>.webm` 或 `.mp4` 录像文件，登记至 `automation_artifacts`，前端直接以内置 `<video controls>` 进行回放与时间轴定位。
    - **存储与性能平衡**：因录像文件体积远大于静态截图（单次任务约 2MB~20MB），建议通过 `automation_settings` 中的保留周期（Retention Policy）对视频产物进行独立生命周期管理。
-

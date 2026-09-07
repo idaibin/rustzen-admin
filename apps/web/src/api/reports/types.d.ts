@@ -31,6 +31,14 @@ declare namespace Reports {
         | { action: "setViewport"; width: 1440 | 390; height: 900 | 844 }
         | { action: "setUiPreferences"; theme: "light" | "dark"; locale: "zh-CN" | "en-US" }
         | { action: "assertNoHorizontalOverflow" }
+        | {
+              action: "assertElementLayout";
+              selector: string;
+              elementCount?: number;
+              visibleCount?: number;
+              maxHeight?: number;
+              withinViewportRight?: boolean;
+          }
         | { action: "assertFocus"; selector: string }
         | {
               action: "guardExists";
