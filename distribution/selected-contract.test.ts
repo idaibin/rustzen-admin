@@ -15,8 +15,15 @@ import {
 } from "./selected-contract.ts";
 
 const selection = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
+const notifySelection = {
+    preset: "monitor-notify",
+    target: "x86_64-unknown-linux-musl",
+};
 const complete = () => completeSelectedApiContractForTest(selection);
-const runner = (kind: "admin" | "monitor") => complete().owners[kind];
+const runner = (kind: "admin" | "monitor" | "notifications") => {
+    if (kind === "notifications") throw new Error("monitor does not select notifications");
+    return complete().owners[kind];
+};
 
 test("selected contract accepts only the complete current registration corpus", async () => {
     const root = await mkdtemp(join(tmpdir(), "rz-contract-"));
@@ -37,6 +44,48 @@ test("selected contract accepts only the complete current registration corpus", 
         await expect(
             produceSelectedContract(selection, out, runner),
         ).rejects.toThrow("symlink");
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+test("monitor-notify adds only the authenticated notification API owner", () => {
+    const contract = completeSelectedApiContractForTest(notifySelection);
+    expect(Object.keys(contract.owners)).toEqual(["admin", "monitor", "notifications"]);
+    expect(contract.owners.notifications?.routes).toHaveLength(5);
+    expect(
+        contract.owners.notifications?.routes.every(
+            (route) => route.access.kind === "authenticated",
+        ),
+    ).toBeTrue();
+    expect(
+        contract.owners.notifications?.routes.map((route) => route.path),
+    ).toEqual([
+        "/api/notifications",
+        "/api/notifications/unread-count",
+        "/api/notifications/{id}",
+        "/api/notifications/read-all",
+        "/api/notifications/{id}/read",
+    ]);
+    expect(() => parseSelectedApiContract(contract, selection)).toThrow();
+    const missing = structuredClone(contract);
+    delete missing.owners.notifications;
+    expect(() => parseSelectedApiContract(missing, notifySelection)).toThrow();
+});
+
+test("monitor-notify produces a composition-bound API artifact", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-contract-notify-"));
+    try {
+        const complete = completeSelectedApiContractForTest(notifySelection);
+        const output = join(root, "out");
+        await produceSelectedContract(notifySelection, output, (owner) => {
+            const value = complete.owners[owner];
+            if (!value) throw new Error(`missing selected API owner: ${owner}`);
+            return value;
+        });
+        const { contract } = await readSelectedApiContract(output, notifySelection);
+        expect(contract.compositionId).toBe(complete.compositionId);
+        expect(contract.owners.notifications).toEqual(complete.owners.notifications);
     } finally {
         await rm(root, { recursive: true, force: true });
     }

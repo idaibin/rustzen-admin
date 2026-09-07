@@ -50,6 +50,11 @@ pub(super) fn response_schema(operation: &OperationDescriptor) -> &'static str {
         }
         OperationDescriptor::GetModuleNavigation => "ApiResponseRuntimeMenuResponseList",
         OperationDescriptor::GetDashboardModules => "ApiResponseModuleHealthResponseList",
+        OperationDescriptor::ListNotifications => "ApiResponseInboxListResponse",
+        OperationDescriptor::GetNotificationUnreadCount => "ApiResponseUnreadCountResponse",
+        OperationDescriptor::GetNotification => "ApiResponseNotificationItem",
+        OperationDescriptor::ReadNotification => "ApiResponseReadResponse",
+        OperationDescriptor::ReadAllNotifications => "ApiResponseReadAllResponse",
         OperationDescriptor::ExportManageLogs
         | OperationDescriptor::BackupModuleLogs
         | OperationDescriptor::ContractPublic
@@ -63,7 +68,7 @@ pub(super) fn response_schemas() -> Vec<(&'static str, serde_json::Value)> {
     let reference =
         |name: &str| serde_json::json!({ "$ref": format!("#/components/schemas/{name}") });
     let list = |name: &str| serde_json::json!({ "type": "array", "items": reference(name) });
-    vec![
+    let schemas = vec![
         ("ApiResponseLoginResp", reference("LoginResp")),
         ("ApiResponseUserInfoResp", reference("UserInfoResp")),
         ("ApiResponseString", serde_json::json!({ "type": "string" })),
@@ -92,7 +97,23 @@ pub(super) fn response_schemas() -> Vec<(&'static str, serde_json::Value)> {
         ("ApiResponseModuleHealthResponseList", list("ModuleHealthResponse")),
         ("ApiResponseUnit", serde_json::json!({ "type": "null" })),
         ("ApiResponseJson", serde_json::json!({ "type": "object", "additionalProperties": true })),
-    ]
+    ];
+    #[cfg(feature = "notifications")]
+    {
+        let mut schemas = schemas;
+        schemas.extend([
+            ("ApiResponseInboxListResponse", reference("InboxListResponse")),
+            ("ApiResponseUnreadCountResponse", reference("UnreadCountResponse")),
+            ("ApiResponseNotificationItem", reference("NotificationItem")),
+            ("ApiResponseReadResponse", reference("ReadResponse")),
+            ("ApiResponseReadAllResponse", reference("ReadAllResponse")),
+        ]);
+        schemas
+    }
+    #[cfg(not(feature = "notifications"))]
+    {
+        schemas
+    }
 }
 
 pub(super) fn request_schema(operation: &OperationDescriptor) -> Option<&'static str> {
@@ -111,6 +132,7 @@ pub(super) fn request_schema(operation: &OperationDescriptor) -> Option<&'static
         OperationDescriptor::UpdateModuleEnabled => Some("UpdateModuleRequest"),
         OperationDescriptor::BackupModuleLogs => Some("ModuleLogBackupRequest"),
         OperationDescriptor::ConfirmModuleLogCleanup => Some("ModuleLogCleanupConfirmRequest"),
+        OperationDescriptor::ReadAllNotifications => Some("ReadAllRequest"),
         _ => None,
     }
 }
@@ -190,6 +212,34 @@ pub(super) fn query_parameters(
         }
         OperationDescriptor::TailModuleLog => {
             <crate::features::system::status::logs::types::ModuleLogTailQuery as utoipa::IntoParams>::into_params(query)
+        }
+        OperationDescriptor::ListNotifications => {
+            vec![
+                ParameterBuilder::new()
+                    .name("cursor")
+                    .parameter_in(ParameterIn::Query)
+                    .required(utoipa::openapi::Required::False)
+                    .schema(Some(ObjectBuilder::new().schema_type(Type::String).build()))
+                    .build(),
+                ParameterBuilder::new()
+                    .name("limit")
+                    .parameter_in(ParameterIn::Query)
+                    .required(utoipa::openapi::Required::False)
+                    .schema(Some(
+                        ObjectBuilder::new()
+                            .schema_type(Type::Integer)
+                            .minimum(Some(1))
+                            .maximum(Some(100))
+                            .build(),
+                    ))
+                    .build(),
+                ParameterBuilder::new()
+                    .name("unreadOnly")
+                    .parameter_in(ParameterIn::Query)
+                    .required(utoipa::openapi::Required::False)
+                    .schema(Some(ObjectBuilder::new().schema_type(Type::Boolean).build()))
+                    .build(),
+            ]
         }
         _ => Vec::new(),
     }

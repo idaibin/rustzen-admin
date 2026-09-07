@@ -6,13 +6,15 @@ import { resolveSelection } from "./resolver.ts";
 
 const sources = {
     admin: "apps/admin/migrations/sqlite-monitor/0001_init.sql",
+    "admin-notifications":
+        "apps/admin/migrations/sqlite-notifications/0001_notifications.sql",
     monitor: "apps/monitor/migrations/0001_init.sql",
 } as const;
 type Owner = keyof typeof sources;
 export type SchemaContract = {
     compositionId: string;
-    preset: "monitor";
-    owners: Record<Owner, { dataContractId: string; schemaSha256: string }>;
+    preset: "monitor" | "monitor-notify";
+    owners: Partial<Record<Owner, { dataContractId: string; schemaSha256: string }>>;
 };
 
 export async function produceSchemaContract(
@@ -20,11 +22,11 @@ export async function produceSchemaContract(
     repositoryRoot: string,
     outputRoot: string,
 ) {
-    const plan = monitorPlan(selectionInput);
+    const plan = selectedSchemaPlan(selectionInput);
     await rejectSymlink(outputRoot);
     const owners = await schemaOwners(selectionInput, repositoryRoot);
     const contract = parseSchemaContract(
-        { compositionId: plan.compositionId, preset: "monitor", owners },
+        { compositionId: plan.compositionId, preset: plan.preset, owners },
         selectionInput,
     );
     await rm(outputRoot, { recursive: true, force: true });
@@ -77,7 +79,7 @@ export function parseSchemaArtifactBytes(
 }
 
 async function schemaOwners(selectionInput: unknown, repositoryRoot: string) {
-    const plan = monitorPlan(selectionInput);
+    const plan = selectedSchemaPlan(selectionInput);
     const owners = {} as SchemaContract["owners"];
     for (const owner of plan.schemaOwners as Owner[]) {
         const source = resolve(repositoryRoot, sources[owner]);
@@ -98,18 +100,18 @@ export function parseSchemaContract(
     value: unknown,
     selectionInput: unknown,
 ): SchemaContract {
-    const plan = monitorPlan(selectionInput);
+    const plan = selectedSchemaPlan(selectionInput);
     if (!value || typeof value !== "object" || Array.isArray(value))
         throw new Error("selected schema artifact must be an object");
     const record = value as any;
     exactKeys(record, ["compositionId", "owners", "preset"]);
     if (
         record.compositionId !== plan.compositionId ||
-        record.preset !== "monitor"
+        record.preset !== plan.preset
     )
         throw new Error("selected schema artifact selection mismatch");
-    exactKeys(record.owners, ["admin", "monitor"]);
-    for (const owner of ["admin", "monitor"] as const) {
+    exactKeys(record.owners, [...plan.schemaOwners].sort());
+    for (const owner of plan.schemaOwners as Owner[]) {
         exactKeys(record.owners[owner], ["dataContractId", "schemaSha256"]);
         const schemaSha256 = hash(record.owners[owner].schemaSha256);
         const expected = sha256(
@@ -121,14 +123,20 @@ export function parseSchemaContract(
     return record as SchemaContract;
 }
 
-function monitorPlan(selectionInput: unknown) {
+function selectedSchemaPlan(selectionInput: unknown) {
     const plan = resolveSelection(selectionInput);
+    const supportedOwners =
+        plan.preset === "monitor"
+            ? ["admin", "monitor"]
+            : plan.preset === "monitor-notify"
+              ? ["admin", "admin-notifications", "monitor"]
+              : null;
     if (
-        plan.preset !== "monitor" ||
+        supportedOwners === null ||
         plan.artifactClass !== "server" ||
-        canonicalJson(plan.schemaOwners) !== canonicalJson(["admin", "monitor"])
+        canonicalJson(plan.schemaOwners) !== canonicalJson(supportedOwners)
     )
-        throw new Error("schema contract supports only monitor server");
+        throw new Error("schema contract supports only monitor server compositions");
     return plan;
 }
 function exactKeys(value: any, keys: string[]) {

@@ -108,7 +108,12 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
         | OperationDescriptor::ListModules
         | OperationDescriptor::UpdateModuleEnabled
         | OperationDescriptor::GetModuleNavigation
-        | OperationDescriptor::GetDashboardModules => {
+        | OperationDescriptor::GetDashboardModules
+        | OperationDescriptor::ListNotifications
+        | OperationDescriptor::GetNotificationUnreadCount
+        | OperationDescriptor::GetNotification
+        | OperationDescriptor::ReadNotification
+        | OperationDescriptor::ReadAllNotifications => {
             operation.response("200", json_success_response(response_schema(&contract.operation)))
         }
         OperationDescriptor::ContractPublic
@@ -132,7 +137,15 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
         let Some(name) = segment.strip_prefix('{').and_then(|value| value.strip_suffix('}')) else {
             continue;
         };
-        let schema_type = if name == "id" { Type::Integer } else { Type::String };
+        let schema_type = if name == "id"
+            && !matches!(
+                contract.operation,
+                OperationDescriptor::GetNotification | OperationDescriptor::ReadNotification
+            ) {
+            Type::Integer
+        } else {
+            Type::String
+        };
         operation = operation.parameter(
             ParameterBuilder::new()
                 .name(name)
@@ -357,6 +370,24 @@ fn error_specs(operation: &OperationDescriptor) -> Vec<ErrorSpec> {
             json_error("500", "Internal server error"),
         ]),
         GetModuleNavigation => vec![json_error("500", "Internal server error")],
+        ListNotifications => vec![
+            json_error("400", "Invalid inbox query or cursor"),
+            json_error("403", "Account is disabled"),
+            json_error("500", "Internal server error"),
+        ],
+        GetNotificationUnreadCount => vec![
+            json_error("403", "Account is disabled"),
+            json_error("500", "Internal server error"),
+        ],
+        GetNotification | ReadNotification => vec![
+            json_error("403", "Account is disabled"),
+            json_error("404", "Notification not found"),
+            json_error("500", "Internal server error"),
+        ],
+        ReadAllNotifications => json_body_errors(&[
+            json_error("403", "Account is disabled"),
+            json_error("500", "Internal server error"),
+        ]),
         ContractPublic | ContractAny | ContractAll | BenchmarkRequire => Vec::new(),
     }
 }

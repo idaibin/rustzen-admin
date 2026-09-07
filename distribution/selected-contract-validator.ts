@@ -1,21 +1,25 @@
 import goldenOwners from "./fixtures/monitor-api-owners.json";
+import notificationOwner from "./fixtures/monitor-notify-api-owner.json";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
 
 export type SelectedApiContract = {
     compositionId: string;
-    preset: "monitor";
-    owners: typeof goldenOwners;
+    preset: "monitor" | "monitor-notify";
+    owners: typeof goldenOwners & { notifications?: typeof notificationOwner };
 };
 
 export function completeSelectedApiContractForTest(
     selectionInput: unknown,
 ): SelectedApiContract {
-    const selection = monitorSelection(selectionInput);
+    const selection = supportedSelection(selectionInput);
+    const owners = structuredClone(goldenOwners) as SelectedApiContract["owners"];
+    if (selection.preset === "monitor-notify")
+        owners.notifications = structuredClone(notificationOwner);
     return {
         compositionId: selection.compositionId,
-        preset: "monitor",
-        owners: structuredClone(goldenOwners),
+        preset: selection.preset,
+        owners,
     };
 }
 
@@ -23,7 +27,7 @@ export function parseSelectedApiContract(
     value: unknown,
     selectionInput: unknown,
 ): SelectedApiContract {
-    const selection = monitorSelection(selectionInput);
+    const selection = supportedSelection(selectionInput);
     if (!value || typeof value !== "object" || Array.isArray(value))
         throw new Error("selected API artifact must be an object");
     const record = value as Record<string, unknown>;
@@ -34,15 +38,16 @@ export function parseSelectedApiContract(
         throw new Error("selected API artifact fields are invalid");
     if (
         record.compositionId !== selection.compositionId ||
-        record.preset !== "monitor"
+        record.preset !== selection.preset
     )
         throw new Error("selected API artifact selection mismatch");
-    if (canonicalJson(record.owners) !== canonicalJson(goldenOwners))
+    const expected = completeSelectedApiContractForTest(selectionInput);
+    if (canonicalJson(record.owners) !== canonicalJson(expected.owners))
         throw new Error("selected API owners differ from reviewed baseline");
     return {
         compositionId: selection.compositionId,
-        preset: "monitor",
-        owners: structuredClone(goldenOwners),
+        preset: expected.preset,
+        owners: structuredClone(expected.owners),
     };
 }
 
@@ -63,14 +68,23 @@ export function parseSelectedApiBytes(
     return contract;
 }
 
-function monitorSelection(selectionInput: unknown) {
+function supportedSelection(selectionInput: unknown) {
     const selection = resolveSelection(selectionInput);
+    const expectedOwners =
+        selection.preset === "monitor"
+            ? ["admin", "monitor"]
+            : selection.preset === "monitor-notify"
+              ? ["admin", "admin-notifications", "monitor"]
+              : null;
     if (
-        selection.preset !== "monitor" ||
+        expectedOwners === null ||
         selection.artifactClass !== "server" ||
         canonicalJson(selection.schemaOwners) !==
-            canonicalJson(["admin", "monitor"])
+            canonicalJson(expectedOwners)
     )
-        throw new Error("selected API contract supports only monitor server");
-    return selection;
+        throw new Error("selected API contract supports only monitor server compositions");
+    return {
+        ...selection,
+        preset: selection.preset as "monitor" | "monitor-notify",
+    };
 }

@@ -1,3 +1,5 @@
+#[cfg(feature = "notifications")]
+use crate::features::notifications::notification_routes;
 #[cfg(any(feature = "full", test))]
 use crate::infra::db::run_migrations;
 use crate::{
@@ -197,6 +199,17 @@ mod monitor_distribution_tests {
                 "unexpected route under {excluded_prefix}"
             );
         }
+        #[cfg(not(feature = "notifications"))]
+        assert!(
+            paths.iter().all(|path| !path.starts_with("/api/notifications")),
+            "pure monitor distribution must omit notification routes"
+        );
+        #[cfg(feature = "notifications")]
+        assert_eq!(
+            paths.iter().filter(|path| path.starts_with("/api/notifications")).count(),
+            5,
+            "monitor-notify must expose the exact notification route owner"
+        );
         assert_eq!(
             ModuleSpec::fixed().iter().map(|module| module.id).collect::<Vec<_>>(),
             ["monitor"]
@@ -347,6 +360,10 @@ pub(crate) fn documented_protected_routes()
         .expect("static API contract")
         .nest("/api/account", account_routes())
         .expect("static API contract");
+    #[cfg(feature = "notifications")]
+    let routes = routes
+        .nest("/api/notifications", notification_routes())
+        .expect("static notification API contract");
     #[cfg(feature = "full")]
     let routes = routes
         .nest("/api/dashboard", dashboard_routes())

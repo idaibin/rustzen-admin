@@ -5,4 +5,6 @@ pub mod dashboard;
 #[cfg(feature = "full")]
 pub mod manage;
 pub mod modules;
+#[cfg(feature = "notifications")]
+pub mod notifications;
 pub mod system;

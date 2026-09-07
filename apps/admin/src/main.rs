@@ -56,8 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
     #[cfg(feature = "monitor-distribution")]
-    if command == Command::ContractSelected {
-        println!("{}", crate::infra::app::selected_contract_json()?);
+    if let Command::ContractSelected(owner) = &command {
+        println!(
+            "{}",
+            crate::infra::app::selected_contract_json(owner).map_err(std::io::Error::other)?
+        );
         return Ok(());
     }
     #[cfg(feature = "monitor-distribution")]
@@ -103,7 +106,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             #[cfg(feature = "monitor-distribution")]
             Command::BindDatabase => unreachable!("database binding exits before runtime startup"),
             #[cfg(feature = "monitor-distribution")]
-            Command::ContractSelected => unreachable!("contract mode exits before runtime startup"),
+            Command::ContractSelected(_) => {
+                unreachable!("contract mode exits before runtime startup")
+            }
             #[cfg(feature = "monitor-distribution")]
             Command::ContractConfigSelected => {
                 unreachable!("contract mode exits before runtime startup")
@@ -134,7 +139,7 @@ enum Command {
     #[cfg(feature = "monitor-distribution")]
     BindDatabase,
     #[cfg(feature = "monitor-distribution")]
-    ContractSelected,
+    ContractSelected(String),
     #[cfg(feature = "monitor-distribution")]
     ContractConfigSelected,
     #[cfg(feature = "full")]
@@ -161,8 +166,12 @@ impl Command {
             #[cfg(feature = "monitor-distribution")]
             [mode] if mode == "bind-database" => Ok(Self::BindDatabase),
             #[cfg(feature = "monitor-distribution")]
-            [domain, mode] if domain == "contract" && mode == "selected" => {
-                Ok(Self::ContractSelected)
+            [domain, mode, owner]
+                if domain == "contract"
+                    && mode == "selected"
+                    && (owner == "admin" || owner == "notifications") =>
+            {
+                Ok(Self::ContractSelected(owner.clone()))
             }
             #[cfg(feature = "monitor-distribution")]
             [domain, kind, mode]
@@ -194,7 +203,7 @@ impl std::fmt::Display for CommandError {
         #[cfg(feature = "full")]
         let usage = "usage: rz-admin serve | rz-admin openapi | rz-admin update worker <release-id> | rz-admin update recover";
         #[cfg(not(feature = "full"))]
-        let usage = "usage: rz-admin serve | rz-admin bootstrap-owner | rz-admin verify-owner | rz-admin validate-config | rz-admin bind-database | rz-admin validate-database | rz-admin contract selected | rz-admin contract config selected";
+        let usage = "usage: rz-admin serve | rz-admin bootstrap-owner | rz-admin verify-owner | rz-admin validate-config | rz-admin bind-database | rz-admin validate-database | rz-admin contract selected <admin|notifications> | rz-admin contract config selected";
         formatter.write_str(usage)
     }
 }
@@ -223,8 +232,9 @@ mod tests {
         assert!(Command::parse(["monitor".to_string(), "controller".to_string()]).is_err());
         #[cfg(feature = "monitor-distribution")]
         assert_eq!(
-            Command::parse(["contract".to_string(), "selected".to_string()]).ok(),
-            Some(Command::ContractSelected)
+            Command::parse(["contract".to_string(), "selected".to_string(), "admin".to_string(),])
+                .ok(),
+            Some(Command::ContractSelected("admin".into()))
         );
         #[cfg(feature = "monitor-distribution")]
         assert_eq!(

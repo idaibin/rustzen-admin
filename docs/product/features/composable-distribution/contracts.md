@@ -551,6 +551,20 @@ as a storage failure; notifications cannot eliminate that shared-resource risk.
 
 ## Admin persistence
 
+P5a implements the selected fresh-schema owner and the five authenticated
+personal-inbox read/read-state endpoints below. Its executable evidence covers
+current-user, current-grant and enabled-module authorization in one Admin
+database snapshot, authenticated-encrypted sequence boundaries and concurrent
+idempotent reads. The wire DTO omits the internal `inbox_seq`; only opaque
+cursor/snapshot tokens carry its encrypted boundary. `monitor-notify` applies
+and verifies the base and notification migration ledgers on migrate, bind,
+validate and reopen. Its formal producer builds the selected Admin feature and
+exports base Admin and notification routes as distinct code-derived owners.
+Notifications define no additional configuration fields, so this selection's
+configuration owners remain `access` and `monitor`.
+Retention cleanup, capacity admission, producer ingress/relay and SSE remain
+P5b/P6/P7 and are not claimed by this slice.
+
 All notification tables are excluded when the feature is absent:
 
 ```text
@@ -636,7 +650,7 @@ All endpoints infer the user from authentication. There is no client-controlled
 
 | Method / path | Request | Response / invariant |
 | --- | --- | --- |
-| GET `/api/notifications` | Opaque cursor, limit 1..100, optional unread filter | Accessible messages ordered by descending inbox_seq, next cursor, revision |
+| GET `/api/notifications` | Authenticated-encrypted opaque cursor, integer limit 1..100, optional unread filter | Accessible messages in stable newest-first order, next cursor, revision; internal sequence is omitted |
 | GET `/api/notifications/unread-count` | None | Authorized unread count + revision |
 | GET `/api/notifications/{id}` | None | Accessible message or 404 |
 | PUT `/api/notifications/{id}/read` | Empty | Idempotent read_at + new/current revision; inaccessible is 404 |
@@ -644,13 +658,15 @@ All endpoints infer the user from authentication. There is no client-controlled
 | GET `/api/realtime/events` | Bearer header; no URL credential | SSE advisory invalidations for this session/user |
 
 List cursors bind sort/filter/snapshot boundary and user identity using an
-opaque signed token; invalid cursors fail 400. Read-all's boundary is issued
+opaque authenticated-encrypted token; neither identity nor sequence state is
+visible in the external bytes. Invalid query syntax, bounds and cursors return
+the JSON error envelope with 400. Read-all's boundary is issued
 by a preceding inbox query, bound to the user, and cannot include future rows.
 Capability changes are re-evaluated when writing read state. Paging and bulk
 read may not leak inaccessible message counts or identifiers.
 
 Allocate non-reused inbox_seq in the ingest transaction. List order is descending
-inbox_seq (accepted_at remains display metadata); its signed snapshot token binds
+inbox_seq (accepted_at remains display metadata); its encrypted snapshot token binds
 user, filter and maximum observed sequence, never wall-clock time or UUID order.
 Read-all changes only currently authorized unread recipients within that boundary
 and filter. Single read uses WHERE read_at IS NULL and preserves the first read

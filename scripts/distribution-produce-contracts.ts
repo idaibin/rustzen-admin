@@ -13,13 +13,30 @@ if (flag !== "--selection" || !selectionPath) {
     );
 }
 
-const run = (kind: "admin" | "monitor") => {
+const selection = await Bun.file(resolve(root, selectionPath)).json();
+const plan = resolveSelection(selection);
+const producerTarget = resolve(
+    process.env.RUSTZEN_CONTRACT_TARGET_DIR ??
+        join(root, "target/distribution-contract-producers", plan.compositionId),
+);
+const contractRoot = resolve(
+    process.env.RUSTZEN_CONTRACT_OUTPUT_ROOT ??
+        join(root, "target/distributions", plan.compositionId, "contracts"),
+);
+
+buildSelectedProducers();
+
+const run = (kind: "admin" | "monitor" | "notifications") => {
     const binary = join(
-        root,
-        "target/debug",
-        kind === "admin" ? "rz-admin" : "rz-monitor",
+        producerTarget,
+        "debug",
+        kind === "monitor" ? "rz-monitor" : "rz-admin",
     );
-    const result = Bun.spawnSync([binary, "contract", "selected"], {
+    const args =
+        kind === "monitor"
+            ? [binary, "contract", "selected"]
+            : [binary, "contract", "selected", kind];
+    const result = Bun.spawnSync(args, {
         cwd: "/tmp",
         env: { PATH: process.env.PATH ?? "" },
         stdout: "pipe",
@@ -38,7 +55,7 @@ const runConfig = (kind: "admin" | "monitor" | "agent") => {
               ? "rz-monitor-agent"
               : "rz-monitor";
     const result = Bun.spawnSync(
-        [join(root, "target/debug", name), "contract", "config", "selected"],
+        [join(producerTarget, "debug", name), "contract", "config", "selected"],
         {
             cwd: "/tmp",
             env: { PATH: process.env.PATH ?? "" },
@@ -51,15 +68,6 @@ const runConfig = (kind: "admin" | "monitor" | "agent") => {
     return JSON.parse(new TextDecoder().decode(result.stdout));
 };
 
-const selection = await Bun.file(resolve(root, selectionPath)).json();
-const composition = resolveSelection(selection).compositionId;
-const contractRoot = join(
-    root,
-    "target/distributions",
-    composition,
-    "contracts",
-);
-const plan = resolveSelection(selection);
 const config = await produceSelectedConfig(
     selection,
     join(contractRoot, "config"),
@@ -79,4 +87,65 @@ if (plan.artifactClass === "node-agent") {
         join(contractRoot, "schema"),
     );
     console.log(canonicalJson({ api, config, schema }));
+}
+
+function buildSelectedProducers() {
+    const builds: string[][] = [];
+    if (plan.artifactClass === "node-agent") {
+        builds.push([
+            "cargo",
+            "build",
+            "-p",
+            "rustzen-monitor",
+            "--no-default-features",
+            "--features",
+            "agent",
+            "--bin",
+            "rz-monitor-agent",
+        ]);
+    } else if (plan.preset === "monitor" || plan.preset === "monitor-notify") {
+        const adminFeatures =
+            plan.preset === "monitor-notify"
+                ? "monitor-distribution,notifications"
+                : "monitor-distribution";
+        builds.push(
+            [
+                "cargo",
+                "build",
+                "-p",
+                "rustzen-admin",
+                "--no-default-features",
+                "--features",
+                adminFeatures,
+                "--bin",
+                "rz-admin",
+            ],
+            [
+                "cargo",
+                "build",
+                "-p",
+                "rustzen-monitor",
+                "--no-default-features",
+                "--features",
+                "controller",
+                "--bin",
+                "rz-monitor",
+            ],
+        );
+    } else {
+        throw new Error(
+            "contract producer supports only monitor, monitor-notify, or node-agent",
+        );
+    }
+    for (const command of builds) {
+        const result = Bun.spawnSync(command, {
+            cwd: root,
+            env: { ...process.env, CARGO_TARGET_DIR: producerTarget },
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+        if (result.exitCode !== 0) {
+            throw new Error(new TextDecoder().decode(result.stderr));
+        }
+    }
 }

@@ -9,6 +9,13 @@ describe("distribution selection", () => {
         expect(resolveSelection({ preset: "monitor" }).capabilities).toEqual(["access", "monitor"]);
     });
 
+    test("monitor-notify reuses access and monitor configuration owners", () => {
+        expect(resolveSelection({ preset: "monitor-notify" }).configOwners).toEqual([
+            "access",
+            "monitor",
+        ]);
+    });
+
     test("selected Web roots exist", () => {
         for (const root of resolveSelection({ preset: "monitor" }).webRoots) {
             expect(existsSync(resolve(import.meta.dir, "..", root))).toBeTrue();

@@ -22,6 +22,10 @@ const agentSelection = {
     preset: "node-agent",
     target: "x86_64-unknown-linux-musl",
 };
+const notifySelection = {
+    preset: "monitor-notify",
+    target: "x86_64-unknown-linux-musl",
+};
 const runnerFor = (selection: unknown) => {
     const owners = completeSelectedConfigForTest(selection).owners;
     return (binary: "admin" | "monitor" | "agent") =>
@@ -39,6 +43,7 @@ test("selected config accepts exact server and Agent descriptors", async () => {
     try {
         for (const [name, selection] of [
             ["server", serverSelection],
+            ["server-notify", notifySelection],
             ["agent", agentSelection],
         ] as const) {
             const out = join(root, name);
@@ -54,7 +59,7 @@ test("selected config accepts exact server and Agent descriptors", async () => {
             );
             expect(a.sha256).toBe(b.sha256);
             expect(Object.keys(a.contract.owners)).toEqual(
-                name === "server" ? ["access", "monitor"] : ["monitor-agent"],
+                name.startsWith("server") ? ["access", "monitor"] : ["monitor-agent"],
             );
         }
         await expect(

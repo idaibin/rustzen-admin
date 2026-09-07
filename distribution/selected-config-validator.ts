@@ -5,7 +5,7 @@ import { resolveSelection } from "./resolver.ts";
 export type SelectedConfigContract = {
     artifactClass: "server" | "node-agent";
     compositionId: string;
-    preset: "monitor" | "node-agent";
+    preset: "monitor" | "monitor-notify" | "node-agent";
     owners: Record<string, unknown>;
 };
 
@@ -16,7 +16,7 @@ export function completeSelectedConfigForTest(
     return {
         artifactClass: plan.artifactClass,
         compositionId: plan.compositionId,
-        preset: plan.preset as "monitor" | "node-agent",
+        preset: plan.preset as "monitor" | "monitor-notify" | "node-agent",
         owners:
             plan.artifactClass === "server"
                 ? {
@@ -66,7 +66,7 @@ function supportedPlan(selectionInput: unknown) {
     const plan = resolveSelection(selectionInput);
     const valid =
         plan.artifactClass === "server"
-            ? plan.preset === "monitor" &&
+            ? (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
               canonicalJson(plan.configOwners) ===
                   canonicalJson(["access", "monitor"])
             : plan.artifactClass === "node-agent" &&
@@ -75,7 +75,7 @@ function supportedPlan(selectionInput: unknown) {
                   canonicalJson(["monitor-agent"]);
     if (!valid)
         throw new Error(
-            "selected config supports only monitor server or node-agent",
+            "selected config supports only monitor/monitor-notify server or node-agent",
         );
     return plan;
 }

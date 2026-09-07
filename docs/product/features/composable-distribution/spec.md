@@ -67,6 +67,21 @@ full distribution includes this slice after its own gates pass. Physical
 distribution pruning can be implemented and accepted before notifications;
 the existing full behavior baseline must remain independently testable.
 
+P5 is split into bounded delivery slices. P5a owns the composition-selected
+Admin fresh-schema fragment and authenticated personal-inbox read state: list,
+unread count, detail, idempotent single read, and sequence-bounded read-all.
+Every operation rechecks the enabled user, current database grants, and enabled
+producer module in one Admin database snapshot. The `monitor-notify` Admin
+binary applies and verifies both the base and notification migration ledgers;
+the formal contract producer builds that exact feature selection and exports
+base Admin and notification route owners separately from their registered Rust
+routes. Notifications add no configuration fields and therefore reuse the
+`access` and `monitor` configuration owners. P5a does not register producer
+ingress, start a relay or timer, expose SSE, or claim the P5 retention and
+admission budgets complete. Those remain P5b/P6/P7 work. The corresponding UI
+states and deferred shell work are fixed in
+[Message Center UI](../../../ui/features/message-center.md).
+
 ## Distribution presets
 
 | Preset | Product capabilities | Server processes | Databases |

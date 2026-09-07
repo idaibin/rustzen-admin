@@ -14,6 +14,32 @@ import {
 } from "./schema-contract.ts";
 
 const selection = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
+const notifySelection = {
+    preset: "monitor-notify",
+    target: "x86_64-unknown-linux-musl",
+};
+
+test("monitor-notify binds the optional Admin inbox fragment", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-schema-notify-"));
+    try {
+        const result = await produceSchemaContract(
+            notifySelection,
+            join(import.meta.dir, ".."),
+            join(root, "out"),
+        );
+        expect(result.contract.preset).toBe("monitor-notify");
+        expect(Object.keys(result.contract.owners)).toEqual([
+            "admin",
+            "admin-notifications",
+            "monitor",
+        ]);
+        const missing = structuredClone(result.contract);
+        delete missing.owners["admin-notifications"];
+        expect(() => parseSchemaContract(missing, notifySelection)).toThrow();
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
 
 test("schema contract is derived from both fresh-install migrations", async () => {
     const root = await mkdtemp(join(tmpdir(), "rz-schema-"));

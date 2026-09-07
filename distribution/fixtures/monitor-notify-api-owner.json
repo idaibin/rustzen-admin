@@ -1,0 +1,35 @@
+{
+    "routes": [
+        {
+            "access": { "kind": "authenticated" },
+            "method": "GET",
+            "operation": "listNotifications",
+            "path": "/api/notifications"
+        },
+        {
+            "access": { "kind": "authenticated" },
+            "method": "GET",
+            "operation": "getNotificationUnreadCount",
+            "path": "/api/notifications/unread-count"
+        },
+        {
+            "access": { "kind": "authenticated" },
+            "method": "GET",
+            "operation": "getNotification",
+            "path": "/api/notifications/{id}"
+        },
+        {
+            "access": { "kind": "authenticated" },
+            "method": "POST",
+            "operation": "readAllNotifications",
+            "path": "/api/notifications/read-all"
+        },
+        {
+            "access": { "kind": "authenticated" },
+            "method": "PUT",
+            "operation": "readNotification",
+            "path": "/api/notifications/{id}/read"
+        }
+    ],
+    "version": 1
+}

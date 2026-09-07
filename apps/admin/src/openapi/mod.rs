@@ -1,5 +1,10 @@
 //! Programmatic OpenAPI output derived from Admin's registered route contracts.
 
+#[cfg(feature = "notifications")]
+use crate::features::notifications::types::{
+    InboxListResponse, NotificationItem, ReadAllRequest, ReadAllResponse, ReadResponse,
+    UnreadCountResponse,
+};
 use crate::{
     common::api::OptionItem,
     features::{
@@ -123,6 +128,23 @@ pub fn document() -> Result<OpenApi, crate::infra::contract::ContractError> {
         .schema_from::<ModuleLogCleanupPreviewResp>()
         .schema_from::<ModuleLogCleanupResultResp>()
         .build();
+    #[cfg(feature = "notifications")]
+    {
+        macro_rules! insert_schema {
+            ($type:ty) => {
+                components.schemas.insert(
+                    <$type as utoipa::ToSchema>::name().into_owned(),
+                    <$type as utoipa::PartialSchema>::schema(),
+                );
+            };
+        }
+        insert_schema!(NotificationItem);
+        insert_schema!(InboxListResponse);
+        insert_schema!(UnreadCountResponse);
+        insert_schema!(ReadResponse);
+        insert_schema!(ReadAllRequest);
+        insert_schema!(ReadAllResponse);
+    }
     if let Some(option_item) = components.schemas.get("OptionItem").cloned() {
         components.schemas.insert("OptionItem_i64".into(), option_item);
     }

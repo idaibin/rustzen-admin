@@ -113,6 +113,30 @@ fn production_operations_expose_grounded_inputs_outputs_and_csv_transport() {
 }
 
 #[test]
+fn notification_contract_bounds_limit_uses_json_errors_and_hides_internal_sequence() {
+    let document: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();
+    let operation = &document["paths"]["/api/notifications"]["get"];
+    let limit = operation["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|parameter| parameter["name"] == "limit")
+        .expect("notification limit parameter");
+    assert_eq!(limit["schema"]["minimum"], 1);
+    assert_eq!(limit["schema"]["maximum"], 100);
+    assert_eq!(
+        operation["responses"]["400"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/ApiErrorResponse"
+    );
+    assert!(operation["responses"]["400"]["content"].get("text/plain").is_none());
+    assert!(
+        document["components"]["schemas"]["NotificationItem"]["properties"]
+            .get("inboxSeq")
+            .is_none()
+    );
+}
+
+#[test]
 fn extractor_failures_are_grounded_for_every_query_path_and_multipart_route() {
     let document: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();
     let assert_text_400 = |path: &str, method: &str| {
