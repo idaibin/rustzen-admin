@@ -10,14 +10,36 @@ snapshot_timestamp=20240131T000000Z
 chromium_version=120.0.6099.224-1~deb11u1
 platform=
 mode=image
+command_pid=
+watchdog_pid=
+probe_container=
+
+descendants() {
+  local parent=$1 child
+  while IFS= read -r child; do
+    [ -z "$child" ] || { descendants "$child"; printf '%s\n' "$child"; }
+  done < <(pgrep -P "$parent" 2>/dev/null || true)
+}
+
+stop_tree() {
+  local parent=${1:-} tree child
+  [ -n "$parent" ] || return 0
+  tree=$(descendants "$parent")
+  while IFS= read -r child; do
+    [ -z "$child" ] || kill -TERM "$child" 2>/dev/null || true
+  done <<<"$tree"
+  kill -TERM "$parent" 2>/dev/null || true
+}
 
 run_bounded() {
   seconds=$1; shift
   "$@" & command_pid=$!
-  ( sleep "$seconds"; kill -TERM "$command_pid" 2>/dev/null || true; sleep 10; kill -KILL "$command_pid" 2>/dev/null || true ) >/dev/null 2>&1 & watchdog_pid=$!
+  ( sleep "$seconds"; stop_tree "$command_pid"; sleep 10; kill -KILL "$command_pid" 2>/dev/null || true ) >/dev/null 2>&1 & watchdog_pid=$!
   if wait "$command_pid"; then command_status=0; else command_status=$?; fi
-  kill "$watchdog_pid" 2>/dev/null || true
+  stop_tree "$watchdog_pid"
   wait "$watchdog_pid" 2>/dev/null || true
+  command_pid=
+  watchdog_pid=
   return "$command_status"
 }
 
@@ -74,12 +96,27 @@ cleanup_probe() {
   mode=${1:-best-effort}
   [ -n "${probe_container:-}" ] || return 0
   if ! run_bounded 15 "$docker_bin" rm -f "$probe_container" >/dev/null 2>&1; then
-    probe_container=
     [ "$mode" = strict ] && return 1
     return 0
   fi
   probe_container=
 }
+
+cleanup() {
+  result=$?
+  trap - EXIT INT TERM
+  stop_tree "$watchdog_pid"
+  stop_tree "$command_pid"
+  [ -z "$watchdog_pid" ] || wait "$watchdog_pid" 2>/dev/null || true
+  [ -z "$command_pid" ] || wait "$command_pid" 2>/dev/null || true
+  command_pid=
+  watchdog_pid=
+  cleanup_probe best-effort || true
+  exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 image_matches() {
   image_check_deadline=$((SECONDS + image_check_timeout))

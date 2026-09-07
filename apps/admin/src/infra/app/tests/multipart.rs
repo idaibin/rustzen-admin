@@ -28,8 +28,8 @@ async fn multipart_contract_routes_accept_generated_file_inputs() {
         .merge(routes)
         .layer(Extension(std::sync::Arc::new(DeployService::new(pool.clone()))))
         .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
-        .with_state(pool);
-    let owner = codec.encode(1, "owner").expect("token");
+        .with_state(pool.clone());
+    let owner = session_token(&pool, &codec, 1, "owner").await;
 
     let boundary = "avatar-boundary";
     let mut png = std::io::Cursor::new(Vec::new());
@@ -226,7 +226,7 @@ async fn export_logs_route_returns_csv_content_type_and_body() {
 #[test]
 fn admin_native_contract_inventory_has_no_duplicate_operations_or_routes() {
     let contracts = documented_all_contracts();
-    assert_eq!(contracts.len(), 52);
+    assert_eq!(contracts.len(), 53);
 
     let mut operations = std::collections::BTreeSet::new();
     let mut routes = std::collections::BTreeSet::new();
@@ -234,6 +234,6 @@ fn admin_native_contract_inventory_has_no_duplicate_operations_or_routes() {
         assert!(operations.insert(contract.operation.operation_id()));
         assert!(routes.insert((contract.method, contract.path)));
     }
-    assert_eq!(operations.len(), 52);
-    assert_eq!(routes.len(), 52);
+    assert_eq!(operations.len(), 53);
+    assert_eq!(routes.len(), 53);
 }

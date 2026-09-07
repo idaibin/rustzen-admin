@@ -14,7 +14,7 @@ use rustzen_ipc::{
 };
 use uuid::Uuid;
 
-use crate::infra::{auth_runtime::jwt_codec, permission::PermissionService};
+use crate::{features::auth::session::SessionRepository, infra::auth_runtime::jwt_codec};
 
 use super::{
     service::ModuleControlState,
@@ -58,7 +58,12 @@ async fn forward(State(state): State<ModuleControlState>, request: Request) -> R
         _ => return status_error(StatusCode::NOT_FOUND, 404, "Not found"),
     };
 
-    let user_id = match authorize(&request, &target) {
+    let authorization = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let user_id = match authorize(&state.pool, authorization.as_deref(), &target).await {
         Ok(user_id) => user_id,
         Err(error) => return error.into_response(),
     };
@@ -131,19 +136,22 @@ async fn forward(State(state): State<ModuleControlState>, request: Request) -> R
     })
 }
 
-fn authorize(request: &Request, target: &GatewayTarget) -> Result<Option<i64>, CoreError> {
+async fn authorize(
+    pool: &sqlx::SqlitePool,
+    authorization: Option<&str>,
+    target: &GatewayTarget,
+) -> Result<Option<i64>, CoreError> {
     let Some(permission) = target.permission.as_deref() else {
         return Ok(None);
     };
-    let token = request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
+    let token = authorization
         .and_then(|value| value.strip_prefix("Bearer "))
         .ok_or(CoreError::InvalidToken)?;
     let claims = jwt_codec().decode(token).map_err(|_| CoreError::InvalidToken)?;
-    let user = PermissionService::load_current_user(claims.user_id, &claims.username)
-        .map_err(|_| CoreError::InvalidToken)?;
+    let user =
+        SessionRepository::load_authoritative_user(pool, &claims, chrono::Utc::now().timestamp())
+            .await
+            .map_err(|_| CoreError::InvalidToken)?;
     if !user.has_capability(permission) {
         return Err(CoreError::PermissionDenied);
     }
@@ -206,226 +214,5 @@ fn status_error(status: StatusCode, code: i32, message: impl Into<String>) -> Re
 }
 
 #[cfg(all(test, feature = "full"))]
-mod tests {
-    use std::{collections::BTreeMap, sync::Arc};
-
-    use axum::{
-        body::{Body, Bytes, to_bytes},
-        extract::{Request, State},
-        http::{Method, StatusCode, header},
-        routing::post,
-    };
-    use rustzen_auth::error::CoreError;
-    use rustzen_ipc::{
-        AccessMode, DelegatedAccess, DelegationSigner, DelegationVerifier, ModuleManifest,
-        RouteManifest,
-    };
-    use sqlx::sqlite::SqlitePoolOptions;
-    use tower::ServiceExt;
-
-    use super::{authorize, routes};
-    use crate::{
-        features::modules::{
-            registry::{ModuleRegistry, RegistrySnapshot},
-            service::ModuleControlState,
-            types::{GatewayTarget, ModuleCondition, ModuleRuntime, ModuleSpec},
-        },
-        infra::{auth_runtime::jwt_codec, permission::PermissionService},
-    };
-
-    #[test]
-    fn protected_gateway_rejects_missing_and_insufficient_memory_credentials() {
-        let target = GatewayTarget {
-            module: "reports".to_string(),
-            base_url: "http://127.0.0.1:9804".to_string(),
-            access: AccessMode::Protected,
-            permission: Some("reports:view".to_string()),
-        };
-        let missing = Request::builder().body(Body::empty()).expect("missing request");
-        assert!(matches!(authorize(&missing, &target), Err(CoreError::InvalidToken)));
-
-        PermissionService::cache_user_permissions(8, &["reports:export".to_string()]);
-        let token = jwt_codec().encode(8, "gateway-user").expect("token");
-        let insufficient = Request::builder()
-            .header(header::AUTHORIZATION, format!("Bearer {token}"))
-            .body(Body::empty())
-            .expect("insufficient request");
-        assert!(matches!(authorize(&insufficient, &target), Err(CoreError::PermissionDenied)));
-
-        PermissionService::cache_user_permissions(8, &["reports:*".to_string()]);
-        assert_eq!(authorize(&insufficient, &target).expect("wildcard authorized"), Some(8));
-
-        PermissionService::cache_user_permissions(8, &["reports:view".to_string()]);
-        assert_eq!(authorize(&insufficient, &target).expect("authorized"), Some(8));
-        PermissionService::clear_user_cache(8);
-    }
-
-    #[tokio::test]
-    async fn warm_gateway_streams_with_memory_auth_and_a_closed_database() {
-        let verifier = DelegationVerifier::new("test-secret").expect("verifier");
-        let upstream =
-            axum::Router::new().route("/api/reports/echo", post(echo)).with_state(verifier);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind upstream");
-        let address = listener.local_addr().expect("upstream address");
-        let server = tokio::spawn(async move {
-            axum::serve(listener, upstream).await.expect("serve upstream");
-        });
-
-        let manifest = ModuleManifest {
-            module: "reports".to_string(),
-            name: "Reports".to_string(),
-            api_prefix: "/api/reports".to_string(),
-            contract_version: 1,
-            release_version: env!("CARGO_PKG_VERSION").to_string(),
-            menus: Vec::new(),
-            routes: vec![RouteManifest {
-                method: "POST".to_string(),
-                path: "/echo".to_string(),
-                access: AccessMode::Protected,
-                permission: Some("reports:view".to_string()),
-            }],
-        };
-        let spec =
-            ModuleSpec { id: "reports", name: "Reports", base_url: format!("http://{address}") };
-        let registry = ModuleRegistry::new(vec![spec.clone()], &BTreeMap::new());
-        registry.replace(RegistrySnapshot::from_modules(BTreeMap::from([(
-            "reports".to_string(),
-            ModuleRuntime {
-                spec,
-                enabled: true,
-                condition: ModuleCondition::Healthy,
-                manifest: Some(Arc::new(manifest)),
-                manifest_hash: Some([1; 32]),
-                last_seen_at: Some(chrono::Utc::now()),
-                error: None,
-            },
-        )])));
-        PermissionService::cache_user_permissions(7, &["reports:view".to_string()]);
-        let pool = SqlitePoolOptions::new().connect("sqlite::memory:").await.expect("pool");
-        pool.close().await;
-        let state = ModuleControlState {
-            pool,
-            registry: registry.clone(),
-            client: reqwest::Client::builder().build().expect("client"),
-            signer: DelegationSigner::new("test-secret").expect("signer"),
-            enabled_update: Arc::default(),
-        };
-        let app = routes().with_state(state);
-        for uri in ["/api", "/api/", "/api/reports", "/api/reports/", "/api/unknown/path"] {
-            let response = app
-                .clone()
-                .oneshot(Request::builder().uri(uri).body(Body::empty()).expect("404 request"))
-                .await
-                .expect("404 response");
-            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{uri}");
-        }
-        let malformed = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/reports//echo")
-                    .body(Body::empty())
-                    .expect("malformed request"),
-            )
-            .await
-            .expect("malformed response");
-        assert_eq!(malformed.status(), StatusCode::NOT_FOUND);
-
-        let payload = Bytes::from(vec![b'x'; 128 * 1024]);
-        let token = jwt_codec().encode(7, "gateway-user").expect("token");
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/reports/echo")
-                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                    .header(header::CONTENT_TYPE, "application/octet-stream")
-                    .body(Body::from(payload.clone()))
-                    .expect("request"),
-            )
-            .await
-            .expect("gateway response");
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            to_bytes(response.into_body(), usize::MAX).await.expect("response body"),
-            payload
-        );
-
-        let snapshot = registry.snapshot();
-        let mut modules = snapshot.as_ref().clone().into_modules();
-        modules.get_mut("reports").expect("reports runtime").condition =
-            ModuleCondition::Unavailable;
-        registry.replace(RegistrySnapshot::from_modules(modules));
-        let unavailable = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/reports/echo")
-                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                    .body(Body::empty())
-                    .expect("unavailable request"),
-            )
-            .await
-            .expect("unavailable response");
-        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let body = to_bytes(unavailable.into_body(), usize::MAX).await.expect("error body");
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body).expect("error JSON"),
-            serde_json::json!({
-                "code": 40001,
-                "message": "reports worker is temporarily unavailable.",
-                "data": null
-            })
-        );
-
-        let snapshot = registry.snapshot();
-        let mut modules = snapshot.as_ref().clone().into_modules();
-        modules.get_mut("reports").expect("reports runtime").condition =
-            ModuleCondition::Incompatible;
-        registry.replace(RegistrySnapshot::from_modules(modules));
-        let incompatible = app
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/reports/echo")
-                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                    .body(Body::empty())
-                    .expect("incompatible request"),
-            )
-            .await
-            .expect("incompatible response");
-        assert_eq!(incompatible.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let body = to_bytes(incompatible.into_body(), usize::MAX).await.expect("error body");
-        assert_eq!(
-            serde_json::from_slice::<serde_json::Value>(&body).expect("error JSON"),
-            serde_json::json!({
-                "code": 40001,
-                "message": "reports worker is temporarily unavailable.",
-                "data": null
-            })
-        );
-        PermissionService::clear_user_cache(7);
-        server.abort();
-    }
-
-    async fn echo(
-        State(verifier): State<DelegationVerifier>,
-        request: Request,
-    ) -> Result<Body, StatusCode> {
-        assert!(request.headers().get(header::AUTHORIZATION).is_none());
-        let context = verifier
-            .verify_for_route(
-                request.headers(),
-                request.method(),
-                request.uri().path(),
-                "reports",
-                &DelegatedAccess::protected("reports:view"),
-            )
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        assert_eq!(context.user_id, Some(7));
-        Ok(request.into_body())
-    }
-}
+#[path = "gateway_tests.rs"]
+mod tests;

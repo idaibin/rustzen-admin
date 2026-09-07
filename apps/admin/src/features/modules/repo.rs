@@ -1,5 +1,9 @@
 use std::collections::BTreeMap;
 
+#[cfg(feature = "full")]
+use chrono::Utc;
+#[cfg(feature = "full")]
+use rustzen_auth::auth::AuthClaims;
 use sqlx::SqlitePool;
 
 use crate::common::error::ServiceError;
@@ -18,7 +22,7 @@ impl ModuleRepository {
         Ok(rows.into_iter().collect())
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(all(feature = "full", test))]
     pub async fn set_enabled(
         pool: &SqlitePool,
         module: &str,
@@ -35,6 +39,36 @@ impl ModuleRepository {
         if updated.is_none() {
             return Err(ServiceError::NotFound(format!("Module {module}")));
         }
+        Ok(())
+    }
+
+    #[cfg(feature = "full")]
+    pub async fn set_enabled_authorized(
+        pool: &SqlitePool,
+        module: &str,
+        enabled: bool,
+        actor: &AuthClaims,
+    ) -> Result<(), ServiceError> {
+        let mut tx = pool.begin().await.map_err(database_error("starting module update"))?;
+        crate::features::auth::session::SessionRepository::assert_actor(
+            &mut tx,
+            actor,
+            Some(rustzen_auth::capability::system_module::UPDATE),
+            Utc::now().timestamp(),
+        )
+        .await?;
+        let updated = sqlx::query_scalar::<_, String>(
+            "UPDATE modules SET enabled = ? WHERE id = ? RETURNING id",
+        )
+        .bind(enabled)
+        .bind(module)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(database_error("updating fixed module state"))?;
+        if updated.is_none() {
+            return Err(ServiceError::NotFound(format!("Module {module}")));
+        }
+        tx.commit().await.map_err(database_error("committing module update"))?;
         Ok(())
     }
 

@@ -112,7 +112,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    let (documented_routes, _documented_contracts) = documented_protected_routes();
+    let (documented_routes, documented_contracts) = documented_protected_routes();
     let (public_auth_router, _) = public_auth_routes().into_parts();
     #[cfg(feature = "full")]
     let protected_api: Router = documented_routes
@@ -120,38 +120,41 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .layer(Extension(deploy_service))
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
         .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new()),
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
         ))
         .with_state(pool.clone());
     #[cfg(feature = "monitor-distribution")]
     let protected_api: Router = documented_routes
         .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new()),
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
         ))
         .with_state(pool.clone());
 
     let public_api: Router = public_auth_router.with_state(pool.clone());
-    let (module_control_router, _) = control_routes().into_parts();
+    let (module_control_router, module_control_contracts) = control_routes().into_parts();
     #[cfg(feature = "full")]
     let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
         .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new()),
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
         ))
         .with_state(module_state.clone());
     #[cfg(feature = "monitor-distribution")]
     let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new()),
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
         ))
         .with_state(module_state.clone());
     let module_gateway: Router = gateway::routes().with_state(module_state.clone());
 
-    PermissionService::sync_permissions(&pool).await?;
+    let permission_codes = contract_permission_codes(
+        documented_contracts.iter().chain(module_control_contracts.iter()),
+    );
+    PermissionService::sync_permission_codes(&pool, &permission_codes).await?;
 
     #[cfg(feature = "full")]
     let avatars_prefix = CONFIG.avatars_prefix();
@@ -199,12 +202,49 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn contract_permission_codes<'a>(
+    contracts: impl Iterator<Item = &'a crate::infra::contract::RouteContract>,
+) -> Vec<String> {
+    contracts
+        .flat_map(|contract| match &contract.access {
+            crate::infra::contract::RegisteredAccess::Require(codes)
+            | crate::infra::contract::RegisteredAccess::Any(codes)
+            | crate::infra::contract::RegisteredAccess::All(codes) => codes.clone(),
+            crate::infra::contract::RegisteredAccess::Public
+            | crate::infra::contract::RegisteredAccess::Authenticated => Vec::new(),
+        })
+        .collect()
+}
+
 #[cfg(all(test, feature = "monitor-distribution"))]
 mod monitor_distribution_tests {
     use super::*;
     use crate::features::modules::types::ModuleSpec;
     use axum::body::to_bytes;
     use tower::ServiceExt;
+
+    async fn authenticated_token(pool: &SqlitePool, user_id: i64, username: &str) -> String {
+        let epoch: i64 = sqlx::query_scalar("SELECT auth_epoch FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("user auth epoch");
+        let sid = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+        let codec = jwt_codec();
+        let claims = codec.claims_at(user_id, username, &sid, epoch, now);
+        crate::features::auth::session::SessionRepository::create(
+            pool,
+            user_id,
+            &sid,
+            epoch,
+            now,
+            claims.exp as i64,
+        )
+        .await
+        .expect("access session");
+        codec.encode_claims(&claims).expect("session token")
+    }
 
     #[test]
     fn route_inventory_contains_access_and_monitor_navigation_only() {
@@ -270,19 +310,22 @@ mod monitor_distribution_tests {
     async fn role_management_keeps_the_permission_catalogue_and_immediately_grants_its_selection() {
         let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
         run_migrations(&pool).await.expect("migrations");
-        let (routes, _) = documented_protected_routes();
+        let (routes, contracts) = documented_protected_routes();
         sqlx::query("UPDATE users SET status = 1 WHERE username = 'owner'")
             .execute(&pool)
             .await
             .expect("enable test owner");
-        PermissionService::sync_permissions(&pool).await.expect("permission cache");
+        let permission_codes = super::contract_permission_codes(contracts.iter());
+        PermissionService::sync_permission_codes(&pool, &permission_codes)
+            .await
+            .expect("isolated permission catalogue");
         let app = routes
             .route_layer(middleware::from_fn_with_state(
-                (jwt_codec(), ServerAuthContextLoader::new()),
+                (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
                 auth_middleware,
             ))
             .with_state(pool.clone());
-        let owner = jwt_codec().encode(1, "owner").expect("owner token");
+        let owner = authenticated_token(&pool, 1, "owner").await;
 
         let options = app
             .clone()
@@ -347,7 +390,7 @@ mod monitor_distribution_tests {
         .expect("user JSON")["data"]
             .as_i64()
             .expect("created user ID");
-        let reader = jwt_codec().encode(user_id, "permission_reader").expect("reader token");
+        let reader = authenticated_token(&pool, user_id, "permission_reader").await;
         let reader_options = app
             .clone()
             .oneshot(

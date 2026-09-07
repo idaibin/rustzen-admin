@@ -27,7 +27,8 @@ pub(super) fn response_schema(operation: &OperationDescriptor) -> &'static str {
         OperationDescriptor::CleanupDeployments => "ApiResponseI64",
         OperationDescriptor::DeployVersion
         | OperationDescriptor::UpdateUserPassword
-        | OperationDescriptor::UpdateUserStatus => "ApiResponseBool",
+        | OperationDescriptor::UpdateUserStatus
+        | OperationDescriptor::RevokeUserSessions => "ApiResponseBool",
         OperationDescriptor::ListMenus | OperationDescriptor::ListModuleMenuInventory => {
             "ApiResponseMenuItemRespList"
         }

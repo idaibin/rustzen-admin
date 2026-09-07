@@ -4,6 +4,7 @@ use super::{
 };
 use crate::common::{api::OptionsQuery, error::ServiceError, query::parse_optional_i16_filter};
 use crate::infra::permission::PermissionService;
+use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::capability::SYSTEM_WILDCARD;
 
 use sqlx::SqlitePool;
@@ -39,6 +40,7 @@ impl MenuService {
     }
 
     /// Update existing menu with validation
+    #[cfg(test)]
     pub async fn update_menu(
         pool: &SqlitePool,
         id: i64,
@@ -58,16 +60,24 @@ impl MenuService {
         Ok(menu_id)
     }
 
-    /// Delete menu with child validation
-    pub async fn delete_menu(
+    pub async fn update_menu_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        request: UpdateMenuPayload,
+        actor: &AuthClaims,
+    ) -> Result<i64, ServiceError> {
+        let _module_menu_guard = PermissionService::lock_module_menu_mutation().await;
+        MenuRepository::update_navigation_authorized(pool, id, &request, actor).await
+    }
+
+    pub async fn delete_menu_authorized(
         pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
-        tracing::info!("Attempting to disable menu: {}", id);
         Self::ensure_menu_is_mutable(pool, id, current_user_id).await?;
-
-        if MenuRepository::disable(pool, id).await? {
+        if MenuRepository::disable_authorized(pool, id, actor).await? {
             PermissionService::refresh_all_user_permissions(pool).await?;
             Ok(())
         } else {
@@ -82,11 +92,18 @@ impl MenuService {
     ) -> Result<(), ServiceError> {
         match MenuRepository::identity(pool, id).await? {
             Some((true, _, _)) => {
-                if PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await? {
-                    Ok(())
-                } else {
-                    Err(ServiceError::MenuIsSystem)
-                }
+                let is_owner = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM user_permissions WHERE user_id=? AND menu_code=?)",
+                )
+                .bind(current_user_id)
+                .bind(SYSTEM_WILDCARD)
+                .fetch_one(pool)
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "checking current menu owner authority");
+                    ServiceError::DatabaseQueryFailed
+                })?;
+                if is_owner { Ok(()) } else { Err(ServiceError::MenuIsSystem) }
             }
             Some((false, _, _)) => Ok(()),
             None => Err(ServiceError::NotFound(format!("Menu id: {}", id))),

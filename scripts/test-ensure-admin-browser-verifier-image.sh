@@ -23,13 +23,15 @@ case "$1 ${2:-}" in
     jq -nc --arg id sha256:fixture --arg os "$os" --arg architecture "$architecture" --arg schema "$schema" --arg key "$key" --arg platform "$platform" --arg snapshot "$snapshot" --arg chromium "$chromium" --arg base "$base" \
       '{Id:$id,Os:$os,Architecture:$architecture,Config:{Labels:{"io.rustzen.browser-verifier.schema":$schema,"io.rustzen.browser-verifier.key":$key,"io.rustzen.browser-verifier.platform":$platform,"io.rustzen.browser-verifier.snapshot":$snapshot,"io.rustzen.browser-verifier.chromium-version":$chromium,"io.rustzen.browser-verifier.base-image":$base}}}' ;;
   run\ *)
+    : >"$FAKE_PROBE"
     if [ "$mode" = hang-run ]; then sleep 30; fi
     if [ "$mode" = bad-provenance ]; then printf 'wrong\n'; exit 0; fi
     printf '%s' "$FAKE_PROVENANCE" ;;
   rm\ *)
     echo cleanup >>"$log"
     if [ "$mode" = hang-rm ]; then sleep 30; fi
-    if [ "$mode" = fail-rm ]; then exit 1; fi ;;
+    if [ "$mode" = fail-rm ]; then exit 1; fi
+    rm -f "$FAKE_PROBE" ;;
   'buildx build') echo build >>"$log"; printf good >"$state" ;;
   *) echo "unexpected fake docker invocation: $*" >&2; exit 2;;
 esac
@@ -40,7 +42,7 @@ dockerfile="$tmp/verifier.Dockerfile"
 cp "$root/scripts/admin-browser-verifier.Dockerfile" "$dockerfile"
 key=$(RUSTZEN_UI_VERIFIER_DOCKERFILE="$dockerfile" "$ensure" --platform "$platform" --print-key)
 provenance=$(printf 'schemaVersion=1\nkey=%s\nplatform=%s\nbaseImage=%s\nsnapshot=%s\nchromiumVersion=%s\n' "$key" "$platform" 'debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' 20240131T000000Z 120.0.6099.224-1~deb11u1)
-export FAKE_STATE="$tmp/state" FAKE_LOG="$tmp/log" FAKE_SCHEMA=1 FAKE_KEY="$key" FAKE_PLATFORM="$platform" FAKE_SNAPSHOT=20240131T000000Z FAKE_CHROMIUM=120.0.6099.224-1~deb11u1 FAKE_BASE='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' FAKE_PROVENANCE="$provenance"
+export FAKE_STATE="$tmp/state" FAKE_LOG="$tmp/log" FAKE_PROBE="$tmp/probe" FAKE_SCHEMA=1 FAKE_KEY="$key" FAKE_PLATFORM="$platform" FAKE_SNAPSHOT=20240131T000000Z FAKE_CHROMIUM=120.0.6099.224-1~deb11u1 FAKE_BASE='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' FAKE_PROVENANCE="$provenance"
 run_ensure() {
   RUSTZEN_UI_VERIFIER_DOCKERFILE="$dockerfile" RUSTZEN_UI_VERIFIER_DOCKER="$tmp/docker" RUSTZEN_UI_VERIFIER_IMAGE_CHECK_TIMEOUT=5 "$ensure" --platform "$platform"
 }
@@ -76,6 +78,25 @@ for cleanup_failure in fail-rm hang-rm; do
   test ! -s "$tmp/identity"
 done
 test "$(grep -c '^build$' "$tmp/log")" -eq 12
+export ENSURE_PATH="$ensure" DOCKERFILE_PATH="$dockerfile" FAKE_DOCKER_PATH="$tmp/docker" VERIFY_PLATFORM="$platform"
+for signal_case in SIGINT:130 SIGTERM:143; do
+  signal_name=${signal_case%%:*}; expected_status=${signal_case##*:}
+  printf hang-run >"$tmp/state"; rm -f "$FAKE_PROBE"
+  SIGNAL_NAME="$signal_name" EXPECTED_STATUS="$expected_status" bun -e '
+    import { existsSync } from "node:fs";
+    const child = Bun.spawn([process.env.ENSURE_PATH, "--platform", process.env.VERIFY_PLATFORM], {
+      env: { ...process.env, RUSTZEN_UI_VERIFIER_DOCKERFILE: process.env.DOCKERFILE_PATH,
+        RUSTZEN_UI_VERIFIER_DOCKER: process.env.FAKE_DOCKER_PATH,
+        RUSTZEN_UI_VERIFIER_IMAGE_CHECK_TIMEOUT: "5" }, stdout: "ignore", stderr: "ignore",
+    });
+    for (let i = 0; i < 200 && !existsSync(process.env.FAKE_PROBE); i += 1) await Bun.sleep(10);
+    if (!existsSync(process.env.FAKE_PROBE)) throw new Error("verifier probe did not start");
+    child.kill(process.env.SIGNAL_NAME);
+    const status = await child.exited;
+    if (status !== Number(process.env.EXPECTED_STATUS)) throw new Error(`signal status ${status}`);
+  '
+  test ! -e "$FAKE_PROBE"
+done
 printf '\n# key invalidation fixture\n' >>"$dockerfile"
 changed_key=$(RUSTZEN_UI_VERIFIER_DOCKERFILE="$dockerfile" "$ensure" --platform "$platform" --print-key)
 test "$changed_key" != "$key"

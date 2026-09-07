@@ -364,6 +364,8 @@ mod monitor_distribution_tests {
             "menus",
             "user_roles",
             "role_menus",
+            "access_policy_state",
+            "access_sessions",
             "modules",
             "module_navigation",
             "user_with_roles",

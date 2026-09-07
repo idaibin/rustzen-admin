@@ -2,14 +2,14 @@ use crate::common::error::ServiceError;
 
 use chrono::Utc;
 use once_cell::sync::Lazy;
-use rustzen_auth::{
-    auth::CurrentUser,
-    capability::{
-        BUILTIN_ADMIN_ROLE_CODE, BUILTIN_OWNER_ROLE_CODE, BUILTIN_VIEWER_ROLE_CODE, RolePolicy,
-        SYSTEM_WILDCARD,
-    },
-    permission::{PermissionsCheck, take_registered_permission_codes},
+#[cfg(test)]
+use rustzen_auth::auth::CurrentUser;
+use rustzen_auth::capability::{
+    BUILTIN_ADMIN_ROLE_CODE, BUILTIN_OWNER_ROLE_CODE, BUILTIN_VIEWER_ROLE_CODE, RolePolicy,
+    SYSTEM_WILDCARD,
 };
+#[cfg(test)]
+use rustzen_auth::permission::take_registered_permission_codes;
 use rustzen_ipc::ModuleManifest;
 use sqlx::{Executor, Sqlite, SqlitePool};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -99,11 +99,13 @@ impl PermissionCacheManager {
     }
 
     /// Get cached capabilities for user.
+    #[cfg(test)]
     pub fn get(&self, user_id: i64) -> Option<Arc<HashSet<String>>> {
         self.cache.read().ok()?.get(&user_id).cloned()
     }
 
     /// Store user capabilities in cache.
+    #[cfg(test)]
     pub fn set(&self, user_id: i64, permissions: Arc<HashSet<String>>) {
         let permission_count = permissions.len();
         if let Ok(mut cache) = self.cache.write() {
@@ -144,9 +146,17 @@ impl PermissionService {
     }
 
     /// Synchronize collected route permissions into the menus table.
+    #[cfg(test)]
     pub async fn sync_permissions(pool: &SqlitePool) -> Result<(), ServiceError> {
         let raw_codes = take_registered_permission_codes();
-        let seed_records = build_menu_seed_records(&raw_codes);
+        Self::sync_permission_codes(pool, &raw_codes).await
+    }
+
+    pub(crate) async fn sync_permission_codes(
+        pool: &SqlitePool,
+        raw_codes: &[String],
+    ) -> Result<(), ServiceError> {
+        let seed_records = build_menu_seed_records(raw_codes);
 
         if seed_records.is_empty() {
             tracing::info!("No route permissions collected for menu sync");
@@ -277,6 +287,7 @@ impl PermissionService {
         PERMISSION_CACHE.replace_all(cache);
     }
 
+    #[cfg(all(test, feature = "full"))]
     pub async fn refresh_user_permissions(
         pool: &SqlitePool,
         user_id: i64,
@@ -293,23 +304,6 @@ impl PermissionService {
         Ok(permissions)
     }
 
-    /// Check whether a user has a specific capability code.
-    pub async fn has_permission(
-        user_id: i64,
-        capability_code: &'static str,
-    ) -> Result<bool, ServiceError> {
-        tracing::debug!("Checking required capability '{}' for user {}", capability_code, user_id);
-        let current_user = Self::load_current_user(user_id, "")?;
-        let has_permission = PermissionsCheck::Require(capability_code).check(&current_user);
-        tracing::debug!(
-            "Capability check {} for user {} (required capability '{}')",
-            if has_permission { "GRANTED" } else { "DENIED" },
-            user_id,
-            capability_code
-        );
-        Ok(has_permission)
-    }
-
     /// Cache user capabilities for isolated gateway and permission tests.
     #[cfg(test)]
     pub fn cache_user_permissions(user_id: i64, permissions: &[String]) {
@@ -323,6 +317,7 @@ impl PermissionService {
         tracing::info!("Cleared cache for user {} (logout)", user_id);
     }
 
+    #[cfg(test)]
     pub fn load_current_user(user_id: i64, username: &str) -> Result<CurrentUser, ServiceError> {
         let cache = match PERMISSION_CACHE.get(user_id) {
             Some(cache) => cache,

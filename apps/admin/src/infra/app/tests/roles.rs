@@ -21,7 +21,7 @@ async fn role_management_rejects_deletion_of_assigned_custom_role() {
         .merge(routes)
         .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
         .with_state(pool.clone());
-    let owner = codec.encode(1, "owner").expect("owner token");
+    let owner = session_token(&pool, &codec, 1, "owner").await;
     let create_response = app
         .clone()
         .oneshot(

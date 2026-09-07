@@ -5,10 +5,10 @@ use super::{
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
 };
-use rustzen_auth::auth::CurrentUser;
+use rustzen_auth::auth::{AuthClaims, CurrentUser};
 use sqlx::SqlitePool;
 
 /// Get paginated role list with filtering
@@ -23,31 +23,34 @@ pub async fn list_roles(
 /// Create new role
 pub async fn create_role(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Json(request): Json<CreateRoleRequest>,
 ) -> AppResult<()> {
-    RoleService::create_role(&pool, current_user.user_id, request).await?;
+    RoleService::create_role(&pool, current_user.user_id, request, &claims).await?;
     Ok(ApiResponse::success(()))
 }
 
 /// Update role information
 pub async fn update_role(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateRolePayload>,
 ) -> AppResult<()> {
-    RoleService::update_role(&pool, id, current_user.user_id, request).await?;
+    RoleService::update_role(&pool, id, current_user.user_id, request, &claims).await?;
     Ok(ApiResponse::success(()))
 }
 
 /// Delete role with dependency validation
 pub async fn delete_role(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
-    RoleService::delete_role(&pool, id, current_user.user_id).await?;
+    RoleService::delete_role(&pool, id, current_user.user_id, &claims).await?;
     Ok(ApiResponse::success(()))
 }
 

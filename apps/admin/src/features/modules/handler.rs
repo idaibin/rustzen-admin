@@ -1,6 +1,8 @@
 use axum::extract::State;
 #[cfg(feature = "full")]
-use axum::{Json, extract::Path};
+use axum::{Extension, Json, extract::Path};
+#[cfg(feature = "full")]
+use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
 
 #[cfg(feature = "full")]
@@ -32,9 +34,12 @@ pub async fn dashboard(
 
 #[cfg(feature = "full")]
 pub async fn update(
+    Extension(actor): Extension<AuthClaims>,
     State(state): State<ModuleControlState>,
     Path(module): Path<String>,
     Json(request): Json<UpdateModuleRequest>,
 ) -> AppResult<Vec<ModuleStatusResponse>> {
-    Ok(ApiResponse::success(ModuleService::set_enabled(&state, &module, request.enabled).await?))
+    Ok(ApiResponse::success(
+        ModuleService::set_enabled_authorized(&state, &module, request.enabled, &actor).await?,
+    ))
 }

@@ -49,7 +49,8 @@ async fn password_change_rejects_a_user_deleted_between_read_and_write() {
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
     let original_hash = PasswordUtils::hash_password("current-password").expect("hash");
     let user_id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (username, email, password_hash, status, is_system) VALUES (?, ?, ?, 1, FALSE) RETURNING id",
+        "INSERT INTO users (id, username, email, password_hash, status, is_system)
+         VALUES (900001, ?, ?, ?, 1, FALSE) RETURNING id",
     )
     .bind("password-race")
     .bind("password-race@example.test")

@@ -8,6 +8,7 @@ use super::{
         UserQuery,
     },
 };
+use crate::features::auth::session::SessionRepository;
 use crate::{
     common::{
         error::ServiceError,
@@ -17,7 +18,7 @@ use crate::{
     infra::password::PasswordUtils,
     infra::permission::PermissionService,
 };
-use rustzen_auth::capability::SYSTEM_WILDCARD;
+use rustzen_auth::{auth::AuthClaims, capability::SYSTEM_WILDCARD};
 
 use sqlx::SqlitePool;
 
@@ -68,6 +69,7 @@ impl UserService {
         pool: &SqlitePool,
         current_user_id: i64,
         dto: CreateUserRequest,
+        actor: &AuthClaims,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Creating user: {}", dto.username);
         Self::ensure_roles_are_assignable(pool, current_user_id, &dto.role_ids).await?;
@@ -90,7 +92,7 @@ impl UserService {
             role_ids: dto.role_ids,
         };
 
-        let user_id = UserRepository::create_user(pool, &create_cmd).await?;
+        let user_id = UserRepository::create_user(pool, &create_cmd, actor).await?;
         PermissionService::refresh_all_user_permissions(pool).await?;
 
         Ok(user_id)
@@ -102,6 +104,7 @@ impl UserService {
         id: i64,
         current_user_id: i64,
         request: UpdateUserPayload,
+        actor: &AuthClaims,
     ) -> Result<i64, ServiceError> {
         tracing::debug!("Updating user ID: {}", id);
         Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
@@ -115,6 +118,7 @@ impl UserService {
             &request.email,
             &request.real_name,
             &request.role_ids,
+            actor,
         )
         .await?;
         PermissionService::refresh_all_user_permissions(pool).await?;
@@ -126,10 +130,11 @@ impl UserService {
         pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
         tracing::debug!("Deleting user ID: {}", id);
         Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
-        if !UserRepository::soft_delete(pool, id).await? {
+        if !UserRepository::soft_delete_authorized(pool, id, actor).await? {
             return Err(ServiceError::NotFound(format!("User id: {}", id)));
         }
         PermissionService::refresh_all_user_permissions(pool).await?;
@@ -165,11 +170,12 @@ impl UserService {
         id: i64,
         current_user_id: i64,
         dto: UpdateUserPasswordPayload,
+        actor: &AuthClaims,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user password for user ID: {}", id);
         Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         let password_hash = PasswordUtils::hash_password(&dto.password)?;
-        UserRepository::update_user_password(pool, id, &password_hash).await
+        UserRepository::update_user_password(pool, id, &password_hash, actor).await
     }
 
     pub async fn update_user_status(
@@ -177,14 +183,36 @@ impl UserService {
         id: i64,
         current_user_id: i64,
         dto: UpdateUserStatusPayload,
+        actor: &AuthClaims,
     ) -> Result<bool, ServiceError> {
         tracing::debug!("Updating user status for user ID: {}", id);
         Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
         if !is_valid_user_status(dto.status) {
             return Err(ServiceError::InvalidUserStatus);
         }
-        let updated = UserRepository::update_user_status(pool, id, dto.status).await?;
+        let updated = UserRepository::update_user_status(pool, id, dto.status, actor).await?;
         PermissionService::refresh_all_user_permissions(pool).await?;
+        Ok(updated)
+    }
+
+    pub async fn revoke_user_sessions(
+        pool: &SqlitePool,
+        id: i64,
+        current_user_id: i64,
+        actor: &AuthClaims,
+    ) -> Result<bool, ServiceError> {
+        Self::ensure_user_is_mutable(pool, id, current_user_id).await?;
+        let updated = SessionRepository::revoke_all_authorized(
+            pool,
+            id,
+            actor,
+            rustzen_auth::capability::system_user::RESET_PASSWORD,
+            chrono::Utc::now().timestamp(),
+        )
+        .await?;
+        if updated {
+            PermissionService::clear_user_cache(id);
+        }
         Ok(updated)
     }
 
@@ -201,9 +229,18 @@ impl UserService {
         let user = UserRepository::find_user_by_id(pool, id)
             .await?
             .ok_or_else(|| ServiceError::NotFound(format!("User id: {}", id)))?;
-        if user.is_system
-            && !PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await?
-        {
+        let actor_is_owner = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM user_permissions WHERE user_id = ? AND menu_code = ?)",
+        )
+        .bind(current_user_id)
+        .bind(SYSTEM_WILDCARD)
+        .fetch_one(pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "Failed to verify current owner authority");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        if user.is_system && !actor_is_owner {
             return Err(ServiceError::UserIsAdmin);
         }
         Ok(())
@@ -221,8 +258,18 @@ impl UserService {
             return Err(ServiceError::NotFound("Role".to_string()));
         }
 
-        if roles.iter().any(|(_, code, _)| role_requires_owner_permission(code))
-            && !PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await?
+        let actor_is_owner = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM user_permissions WHERE user_id=? AND menu_code=?)",
+        )
+        .bind(current_user_id)
+        .bind(SYSTEM_WILDCARD)
+        .fetch_one(pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "checking current owner-role authority");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        if roles.iter().any(|(_, code, _)| role_requires_owner_permission(code)) && !actor_is_owner
         {
             return Err(ServiceError::InvalidOperation(
                 "Owner role can only be assigned by an owner user.".to_string(),

@@ -4,7 +4,10 @@ use crate::common::{
 };
 
 use chrono::Utc;
+use rustzen_auth::auth::AuthClaims;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+
+use crate::features::auth::session::SessionRepository;
 
 use super::types::{MenuListQuery, MenuRow};
 
@@ -53,6 +56,7 @@ impl MenuRepository {
         })
     }
 
+    #[cfg(test)]
     pub async fn update_navigation(
         pool: &SqlitePool,
         id: i64,
@@ -81,6 +85,39 @@ impl MenuRepository {
         .ok_or_else(|| ServiceError::NotFound("Module navigation".into()))
     }
 
+    pub async fn update_navigation_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        request: &super::types::UpdateMenuPayload,
+        actor: &AuthClaims,
+    ) -> Result<i64, ServiceError> {
+        let mut tx = pool.begin().await.map_err(database_error("starting menu update"))?;
+        SessionRepository::assert_actor(
+            &mut tx,
+            actor,
+            Some(rustzen_auth::capability::system_menu::UPDATE),
+            Utc::now().timestamp(),
+        )
+        .await?;
+        let updated = sqlx::query_scalar(
+            "UPDATE module_navigation
+             SET name=?,icon=COALESCE(?,icon),sort_order=?,status=?,is_manual=TRUE,updated_at=?
+             WHERE id=? AND is_active=TRUE RETURNING id",
+        )
+        .bind(&request.name)
+        .bind(request.icon.as_deref().filter(|icon| !icon.trim().is_empty()))
+        .bind(request.sort_order)
+        .bind(request.status)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(database_error("updating module navigation"))?
+        .ok_or_else(|| ServiceError::NotFound("Module navigation".into()))?;
+        tx.commit().await.map_err(database_error("committing menu update"))?;
+        Ok(updated)
+    }
+
     /// Returns whether the menu is a system built-in menu.
     pub async fn identity(
         pool: &SqlitePool,
@@ -99,20 +136,29 @@ impl MenuRepository {
         })
     }
 
-    /// Disable a menu.
-    pub async fn disable(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn disable_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        actor: &AuthClaims,
+    ) -> Result<bool, ServiceError> {
+        let mut tx = pool.begin().await.map_err(database_error("starting menu disable"))?;
+        SessionRepository::assert_actor(
+            &mut tx,
+            actor,
+            Some(rustzen_auth::capability::system_menu::DELETE),
+            Utc::now().timestamp(),
+        )
+        .await?;
         let result = sqlx::query(
-            "UPDATE menus SET status = 2, updated_at = ? WHERE id = ? AND is_system = false AND deleted_at IS NULL"
+            "UPDATE menus SET status = 2, updated_at = ?
+             WHERE id = ? AND is_system = FALSE AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error disabling menu {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
+        .map_err(database_error("disabling menu"))?;
+        tx.commit().await.map_err(database_error("committing menu disable"))?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -134,5 +180,12 @@ impl MenuRepository {
             None,
         )
         .await
+    }
+}
+
+fn database_error(operation: &'static str) -> impl FnOnce(sqlx::Error) -> ServiceError + Copy {
+    move |error| {
+        tracing::error!(%error, operation, "Menu database operation failed");
+        ServiceError::DatabaseQueryFailed
     }
 }

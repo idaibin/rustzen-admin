@@ -11,6 +11,7 @@ CREATE TABLE users (
     status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3, 4)),
     is_system INTEGER NOT NULL DEFAULT 0,
     last_login_at DATETIME,
+    auth_epoch INTEGER NOT NULL DEFAULT 1 CHECK (auth_epoch >= 1),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME
@@ -19,6 +20,29 @@ CREATE TABLE users (
 CREATE UNIQUE INDEX idx_users_username ON users(username) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_deleted_at ON users(deleted_at);
+
+CREATE TABLE access_policy_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    authz_epoch INTEGER NOT NULL CHECK (authz_epoch >= 1),
+    updated_at INTEGER NOT NULL
+);
+
+INSERT INTO access_policy_state (id, authz_epoch, updated_at)
+VALUES (1, 1, unixepoch());
+
+CREATE TABLE access_sessions (
+    sid TEXT PRIMARY KEY CHECK (length(sid) BETWEEN 16 AND 128),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    auth_epoch_at_issue INTEGER NOT NULL CHECK (auth_epoch_at_issue >= 1),
+    expires_at INTEGER NOT NULL,
+    revoked_at INTEGER,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_access_sessions_user_active
+    ON access_sessions(user_id, revoked_at, expires_at, created_at);
+CREATE INDEX idx_access_sessions_expiry ON access_sessions(expires_at);
+CREATE INDEX idx_access_sessions_revoked ON access_sessions(revoked_at) WHERE revoked_at IS NOT NULL;
 
 CREATE TABLE roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,6 +168,70 @@ CREATE TABLE role_menus (
 
 CREATE INDEX idx_role_menus_role_id ON role_menus(role_id);
 CREATE INDEX idx_role_menus_menu_id ON role_menus(menu_id);
+
+CREATE TRIGGER users_password_auth_epoch
+AFTER UPDATE OF password_hash ON users
+WHEN OLD.password_hash IS NOT NEW.password_hash
+BEGIN
+    UPDATE users SET auth_epoch = OLD.auth_epoch + 1 WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER users_status_auth_epoch
+AFTER UPDATE OF status, deleted_at ON users
+WHEN OLD.status IS NOT NEW.status OR OLD.deleted_at IS NOT NEW.deleted_at
+BEGIN
+    UPDATE users SET auth_epoch = OLD.auth_epoch + 1 WHERE id = NEW.id;
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+
+CREATE TRIGGER roles_policy_epoch AFTER UPDATE OF status, deleted_at ON roles
+WHEN OLD.status IS NOT NEW.status OR OLD.deleted_at IS NOT NEW.deleted_at
+BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+
+CREATE TRIGGER user_roles_insert_policy_epoch AFTER INSERT ON user_roles BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+CREATE TRIGGER user_roles_delete_policy_epoch AFTER DELETE ON user_roles BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+
+CREATE TRIGGER user_roles_update_policy_epoch AFTER UPDATE OF user_id, role_id ON user_roles BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+CREATE TRIGGER role_menus_insert_policy_epoch AFTER INSERT ON role_menus BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+CREATE TRIGGER role_menus_delete_policy_epoch AFTER DELETE ON role_menus BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+
+CREATE TRIGGER role_menus_update_policy_epoch AFTER UPDATE OF role_id, menu_id ON role_menus BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+CREATE TRIGGER menus_policy_epoch
+AFTER UPDATE OF status, is_active, deleted_at ON menus
+WHEN OLD.status IS NOT NEW.status OR OLD.is_active IS NOT NEW.is_active
+  OR OLD.deleted_at IS NOT NEW.deleted_at
+BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
+CREATE TRIGGER modules_policy_epoch AFTER UPDATE OF enabled ON modules
+WHEN OLD.enabled IS NOT NEW.enabled
+BEGIN
+    UPDATE access_policy_state SET authz_epoch = authz_epoch + 1, updated_at = unixepoch()
+    WHERE id = 1;
+END;
 
 CREATE TABLE system_tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

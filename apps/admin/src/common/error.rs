@@ -52,6 +52,10 @@ pub enum ServiceError {
     #[error("Invalid or expired token")]
     InvalidToken,
 
+    /// The authenticated user no longer has the required current capability.
+    #[error("Permission denied")]
+    PermissionDenied,
+
     /// Failed to generate token.
     #[error("Failed to generate token")]
     TokenCreationFailed,
@@ -198,6 +202,9 @@ impl From<ServiceError> for AppError {
                 30000,
                 "Invalid or expired token. Please log in again.",
             ),
+            ServiceError::PermissionDenied => {
+                app_error(StatusCode::FORBIDDEN, 403, "Permission denied")
+            }
         }
     }
 }

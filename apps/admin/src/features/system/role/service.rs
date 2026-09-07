@@ -11,7 +11,10 @@ use crate::common::{
     pagination::{Pagination, PaginationQuery},
     query::parse_optional_i16_filter,
 };
-use rustzen_auth::capability::{RolePolicy, SYSTEM_WILDCARD};
+use rustzen_auth::{
+    auth::AuthClaims,
+    capability::{RolePolicy, SYSTEM_WILDCARD},
+};
 
 use sqlx::SqlitePool;
 
@@ -45,6 +48,7 @@ impl RoleService {
         pool: &SqlitePool,
         _current_user_id: i64,
         request: CreateRoleRequest,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
         tracing::info!("Creating role: {}", request.name);
         ensure_builtin_role_code_is_reserved(&request.code)?;
@@ -56,6 +60,7 @@ impl RoleService {
             request.description.as_deref(),
             request.status,
             &request.menu_ids,
+            actor,
         )
         .await?;
         crate::infra::permission::PermissionService::refresh_all_user_permissions(pool).await?;
@@ -68,21 +73,13 @@ impl RoleService {
         id: i64,
         _current_user_id: i64,
         request: UpdateRolePayload,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
         tracing::info!("Updating role: {}", id);
         Self::ensure_role_is_mutable(pool, id).await?;
         ensure_builtin_role_code_is_reserved(&request.code)?;
         Self::ensure_role_menus_are_assignable(pool, &request.menu_ids).await?;
-        RoleRepository::update(
-            pool,
-            id,
-            &request.name,
-            &request.code,
-            request.description.as_deref(),
-            request.status,
-            &request.menu_ids,
-        )
-        .await?;
+        RoleRepository::update(pool, id, &request, actor).await?;
         crate::infra::permission::PermissionService::refresh_all_user_permissions(pool).await?;
         Ok(())
     }
@@ -92,6 +89,7 @@ impl RoleService {
         pool: &SqlitePool,
         id: i64,
         _current_user_id: i64,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
         tracing::info!("Attempting to delete role: {}", id);
         Self::ensure_role_is_mutable(pool, id).await?;
@@ -107,7 +105,7 @@ impl RoleService {
         }
 
         // Perform the deletion
-        match RoleRepository::soft_delete(pool, id).await? {
+        match RoleRepository::soft_delete_authorized(pool, id, actor).await? {
             SoftDeleteOutcome::Deleted => {
                 crate::infra::permission::PermissionService::refresh_all_user_permissions(pool)
                     .await?;
@@ -155,11 +153,17 @@ impl RoleService {
         query: OptionsQuery,
     ) -> Result<Vec<RoleOptionResp>, ServiceError> {
         tracing::info!("Retrieving role options: {:?}", query);
-        let can_assign_owner = crate::infra::permission::PermissionService::has_permission(
-            current_user_id,
-            SYSTEM_WILDCARD,
+        let can_assign_owner = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM user_permissions WHERE user_id=? AND menu_code=?)",
         )
-        .await?;
+        .bind(current_user_id)
+        .bind(SYSTEM_WILDCARD)
+        .fetch_one(pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "checking current role-option authority");
+            ServiceError::DatabaseQueryFailed
+        })?;
         Ok(RoleRepository::list_role_options(pool, query.q.as_deref(), query.limit)
             .await?
             .into_iter()
@@ -288,10 +292,6 @@ mod tests {
         crate::infra::db::run_migrations(&pool).await.expect("migrations");
 
         let admin_user_id = 90_001;
-        crate::infra::permission::PermissionService::cache_user_permissions(
-            admin_user_id,
-            &["system:role:options".to_string()],
-        );
         let admin_options = RoleService::get_role_options(
             &pool,
             admin_user_id,
@@ -301,11 +301,14 @@ mod tests {
         .expect("admin options");
         assert!(!admin_options.iter().any(|role| role.code == OWNER_ROLE_CODE));
 
-        let owner_user_id = 90_002;
-        crate::infra::permission::PermissionService::cache_user_permissions(
-            owner_user_id,
-            &[SYSTEM_WILDCARD.to_string()],
-        );
+        sqlx::query("UPDATE users SET status=1 WHERE username='owner'")
+            .execute(&pool)
+            .await
+            .expect("enable owner");
+        let owner_user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username='owner'")
+            .fetch_one(&pool)
+            .await
+            .expect("owner user");
         let owner_options = RoleService::get_role_options(
             &pool,
             owner_user_id,
@@ -314,5 +317,21 @@ mod tests {
         .await
         .expect("owner options");
         assert!(owner_options.iter().any(|role| role.code == OWNER_ROLE_CODE));
+        sqlx::query(
+            "DELETE FROM role_menus
+             WHERE role_id=(SELECT id FROM roles WHERE code='owner')
+               AND menu_id=(SELECT id FROM menus WHERE code='*')",
+        )
+        .execute(&pool)
+        .await
+        .expect("revoke owner grant");
+        let revoked_options = RoleService::get_role_options(
+            &pool,
+            owner_user_id,
+            OptionsQuery { q: None, limit: None },
+        )
+        .await
+        .expect("revoked options");
+        assert!(!revoked_options.iter().any(|role| role.code == OWNER_ROLE_CODE));
     }
 }

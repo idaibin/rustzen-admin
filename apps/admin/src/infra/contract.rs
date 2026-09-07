@@ -74,6 +74,7 @@ pub enum OperationDescriptor {
     GetUserStatusOptions,
     UpdateUserPassword,
     UpdateUserStatus,
+    RevokeUserSessions,
     ListModules,
     UpdateModuleEnabled,
     GetModuleNavigation,
@@ -134,6 +135,7 @@ impl OperationDescriptor {
             Self::GetUserStatusOptions => "getUserStatusOptions",
             Self::UpdateUserPassword => "updateUserPassword",
             Self::UpdateUserStatus => "updateUserStatus",
+            Self::RevokeUserSessions => "revokeUserSessions",
             Self::ListModules => "listModules",
             Self::UpdateModuleEnabled => "updateModuleEnabled",
             Self::GetModuleNavigation => "getModuleNavigation",
@@ -610,12 +612,13 @@ mod tests {
             OperationDescriptor::GetUserStatusOptions,
             OperationDescriptor::UpdateUserPassword,
             OperationDescriptor::UpdateUserStatus,
+            OperationDescriptor::RevokeUserSessions,
             OperationDescriptor::ListModules,
             OperationDescriptor::UpdateModuleEnabled,
             OperationDescriptor::GetModuleNavigation,
             OperationDescriptor::GetDashboardModules,
         ];
-        assert_eq!(descriptors.len(), 47);
+        assert_eq!(descriptors.len(), 48);
 
         fn method(index: usize) -> Method {
             match index % 5 {

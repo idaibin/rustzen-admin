@@ -8,10 +8,10 @@ use super::{
 use crate::common::api::{ApiResponse, AppResult};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
 };
-use rustzen_auth::auth::CurrentUser;
+use rustzen_auth::auth::{AuthClaims, CurrentUser};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
@@ -29,31 +29,38 @@ pub async fn list_users(
 #[instrument(skip(pool, dto))]
 pub async fn create_user(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Json(dto): Json<CreateUserRequest>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(UserService::create_user(&pool, current_user.user_id, dto).await?))
+    Ok(ApiResponse::success(
+        UserService::create_user(&pool, current_user.user_id, dto, &claims).await?,
+    ))
 }
 
 /// Update user
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPayload>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(UserService::update_user(&pool, id, current_user.user_id, dto).await?))
+    Ok(ApiResponse::success(
+        UserService::update_user(&pool, id, current_user.user_id, dto, &claims).await?,
+    ))
 }
 
 /// Delete user
 #[instrument(skip(pool, id, current_user))]
 pub async fn delete_user(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
-    UserService::delete_user(&pool, id, current_user.user_id).await?;
+    UserService::delete_user(&pool, id, current_user.user_id, &claims).await?;
     Ok(ApiResponse::success(()))
 }
 
@@ -75,23 +82,37 @@ pub async fn get_user_options(
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_password(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserPasswordPayload>,
 ) -> AppResult<bool> {
     Ok(ApiResponse::success(
-        UserService::update_user_password(&pool, id, current_user.user_id, dto).await?,
+        UserService::update_user_password(&pool, id, current_user.user_id, dto, &claims).await?,
     ))
 }
 
 #[instrument(skip(pool, id, dto))]
 pub async fn update_user_status(
     current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(dto): Json<UpdateUserStatusPayload>,
 ) -> AppResult<bool> {
     Ok(ApiResponse::success(
-        UserService::update_user_status(&pool, id, current_user.user_id, dto).await?,
+        UserService::update_user_status(&pool, id, current_user.user_id, dto, &claims).await?,
+    ))
+}
+
+#[instrument(skip(pool, id, current_user))]
+pub async fn revoke_user_sessions(
+    current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
+    State(pool): State<SqlitePool>,
+    Path(id): Path<i64>,
+) -> AppResult<bool> {
+    Ok(ApiResponse::success(
+        UserService::revoke_user_sessions(&pool, id, current_user.user_id, &claims).await?,
     ))
 }

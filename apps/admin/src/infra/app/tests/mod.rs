@@ -35,6 +35,33 @@ impl AuthContextLoader for TestLoader {
     }
 }
 
+async fn session_token(
+    pool: &sqlx::SqlitePool,
+    codec: &JwtCodec,
+    user_id: i64,
+    username: &str,
+) -> String {
+    let epoch: i64 = sqlx::query_scalar("SELECT auth_epoch FROM users WHERE id = ?")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .expect("auth epoch");
+    let sid = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().timestamp();
+    let claims = codec.claims_at(user_id, username, &sid, epoch, now);
+    crate::features::auth::session::SessionRepository::create(
+        pool,
+        user_id,
+        &sid,
+        epoch,
+        now,
+        claims.exp as i64,
+    )
+    .await
+    .expect("access session");
+    codec.encode_claims(&claims).expect("token")
+}
+
 async fn assert_json_error(response: axum::response::Response, status: StatusCode, code: i32) {
     assert_eq!(response.status(), status);
     assert_eq!(response.headers().get("content-type").unwrap(), "application/json");

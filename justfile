@@ -174,6 +174,11 @@ verify-reports-notification-runtime-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-reports-notification-runtime-linux.test.mjs
     scripts/verify-reports-notification-runtime-linux.sh
 
+# Run the full Admin access-session authority lifecycle in disposable Linux.
+verify-admin-session-authority-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-admin-session-authority-linux.test.mjs
+    scripts/verify-admin-session-authority-linux.sh
+
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh

@@ -7,11 +7,11 @@ use super::{
 use crate::common::api::{ApiResponse, AppResult};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{ConnectInfo, State},
     http::HeaderMap,
 };
-use rustzen_auth::auth::CurrentUser;
+use rustzen_auth::auth::{AuthClaims, CurrentUser};
 use sqlx::SqlitePool;
 use std::net::SocketAddr;
 
@@ -52,8 +52,12 @@ pub async fn get_login_info(
 }
 
 /// Logout and clear cache
-#[tracing::instrument(name = "logout", skip(current_user))]
-pub async fn logout(current_user: CurrentUser) -> AppResult<()> {
-    AuthService::logout(current_user.user_id);
+#[tracing::instrument(name = "logout", skip(current_user, claims, pool))]
+pub async fn logout(
+    current_user: CurrentUser,
+    Extension(claims): Extension<AuthClaims>,
+    State(pool): State<SqlitePool>,
+) -> AppResult<()> {
+    AuthService::logout(&pool, current_user.user_id, &claims.sid).await?;
     Ok(ApiResponse::success(()))
 }

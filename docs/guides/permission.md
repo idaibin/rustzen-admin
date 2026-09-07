@@ -7,9 +7,9 @@ Current capability, module delegation, and menu-reconciliation rules.
 - `crates/auth/` owns shared auth types, capability constants, and Admin-native
   route permission checks.
 - `crates/ipc/` owns module route access metadata and HMAC delegated context.
-- `apps/admin/src/infra/permission/` owns the in-memory user permission cache,
-  built-in role policy, and transactional module reconciliation. `mod.rs`
-  orchestrates transactions and cache access; `capabilities.rs`, `navigation.rs`,
+- `apps/admin/src/infra/permission/` owns built-in role policy, capability
+  projection, and transactional module reconciliation. `mod.rs` orchestrates
+  transactions and projection refresh; `capabilities.rs`, `navigation.rs`,
   and `roles.rs` own their respective persistence rules.
 - `apps/admin/src/features/modules/` owns fixed module enabled state, Manifest
   synchronization, the immutable runtime registry, and gateway authorization.
@@ -46,9 +46,11 @@ path or required permission changes.
   children.
 - `users.is_system`, `roles.is_system`, and `menus.is_system` are record flags,
   not grants.
-- User capabilities come from role-menu relations only. A missing permission
-  cache entry may be rebuilt from SQLite at authentication time, but a warm
-  gateway request never queries the database.
+- User capabilities come from role-menu relations only. Every protected Admin
+  and module-gateway request validates its session, enabled user, auth epoch and
+  current grants from one SQLite snapshot. Process-local permission snapshots
+  may support reconciliation diagnostics and tests, but never authorize a
+  request or an access-control write.
 
 ## Built-in roles
 
@@ -99,8 +101,9 @@ presentation overrides. Manual menu-visibility overrides remain effective.
 ## Request flow
 
 1. Admin matches method and full path in the in-memory registry.
-2. For a protected route, Admin decodes the JWT and checks the one required
-   capability against the in-memory permission cache.
+2. For a protected route, Admin decodes the JWT and checks the persisted session,
+   enabled user, current auth epoch and required capability in SQLite. Access
+   writes repeat the same actor check after acquiring their write transaction.
 3. Admin creates an HMAC context containing one user ID and one access value;
    it never forwards roles or a full permission set.
 4. The module verifies signature freshness, method, path, module, identity, and

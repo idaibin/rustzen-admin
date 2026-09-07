@@ -1,6 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use chrono::Utc;
+#[cfg(feature = "full")]
+use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
 use rustzen_ipc::{DelegationSigner, ModuleManifest};
 use sha2::{Digest, Sha256};
@@ -96,7 +98,7 @@ impl ModuleService {
             .collect())
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(all(feature = "full", test))]
     pub async fn set_enabled(
         state: &ModuleControlState,
         module: &str,
@@ -104,6 +106,27 @@ impl ModuleService {
     ) -> Result<Vec<ModuleStatusResponse>, ServiceError> {
         let _enabled_guard = state.enabled_update.lock().await;
         ModuleRepository::set_enabled(&state.pool, module, enabled).await?;
+        if !state.registry.update_module(module, |runtime| {
+            if enabled && !runtime.enabled {
+                runtime.condition = ModuleCondition::Unavailable;
+                runtime.error = Some("awaiting Manifest refresh".to_string());
+            }
+            runtime.enabled = enabled;
+        }) {
+            return Err(ServiceError::NotFound(format!("Module {module}")));
+        }
+        Ok(Self::statuses(state))
+    }
+
+    #[cfg(feature = "full")]
+    pub async fn set_enabled_authorized(
+        state: &ModuleControlState,
+        module: &str,
+        enabled: bool,
+        actor: &AuthClaims,
+    ) -> Result<Vec<ModuleStatusResponse>, ServiceError> {
+        let _enabled_guard = state.enabled_update.lock().await;
+        ModuleRepository::set_enabled_authorized(&state.pool, module, enabled, actor).await?;
         if !state.registry.update_module(module, |runtime| {
             if enabled && !runtime.enabled {
                 runtime.condition = ModuleCondition::Unavailable;

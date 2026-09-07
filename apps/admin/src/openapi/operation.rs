@@ -105,6 +105,7 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
         | OperationDescriptor::GetUserStatusOptions
         | OperationDescriptor::UpdateUserPassword
         | OperationDescriptor::UpdateUserStatus
+        | OperationDescriptor::RevokeUserSessions
         | OperationDescriptor::ListModules
         | OperationDescriptor::UpdateModuleEnabled
         | OperationDescriptor::GetModuleNavigation
@@ -364,6 +365,9 @@ fn error_specs(operation: &OperationDescriptor) -> Vec<ErrorSpec> {
             json_error("404", "User not found"),
             json_error("500", "Internal server error"),
         ]),
+        RevokeUserSessions => {
+            vec![json_error("404", "User not found"), json_error("500", "Internal server error")]
+        }
         ListModules | GetDashboardModules => Vec::new(),
         UpdateModuleEnabled => json_body_errors(&[
             json_error("404", "Module not found"),
