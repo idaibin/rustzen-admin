@@ -36,12 +36,15 @@ describe("reports runs route composition", () => {
 
     test("preserves the run lifecycle, live frame, and localized status seams", () => {
         expect(dialog).toContain("reportsAPI.createRun");
+        expect(dialog).toContain('data-testid="run-create"');
         expect(dialog).toContain('queryKey: ["reports", "runs"]');
         expect(details).toContain("reportsAPI.runSteps(run!.id)");
         expect(details).toContain("reportsAPI.runArtifacts(run!.id)");
         expect(details).toContain("<RetryRunButton run={currentRun} onRetried={onRetried} surface=\"audit\" />");
         expect(retry).toContain("reportsAPI.retryRun");
         expect(retry).toContain('code="reports:run:manage"');
+        expect(route).toContain('data-testid={`run-cancel-${row.id}`}');
+        expect(route).toContain('code="reports:run:manage"');
         expect(retry).toContain("isRetryableRunStatus(run.status)");
         expect(retryState).toContain('status === "failed" || status === "cancelled"');
         expect(retry).toContain("useIsMutating");

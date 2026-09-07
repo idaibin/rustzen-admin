@@ -40,6 +40,7 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
         <>
             <Button
                 type="primary"
+                data-testid="run-create"
                 disabled={!flows.length}
                 icon={<PlayCircleOutlined />}
                 onClick={() => setOpen(true)}

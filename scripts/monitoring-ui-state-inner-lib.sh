@@ -157,7 +157,8 @@ export RUSTZEN_IPC_TOKEN=monitoring-ui-ipc-secret
 export RUSTZEN_MONITOR_AGENT_TOKEN=monitoring-ui-agent-secret
 export RUSTZEN_REPORTS_CREDENTIAL_KEY=monitoring-ui-reports-key
 export RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium
-export RUSTZEN_REPORTS_MAX_CONCURRENCY=1
+: "${RUSTZEN_REPORTS_MAX_CONCURRENCY:=1}"
+export RUSTZEN_REPORTS_MAX_CONCURRENCY
 export RUSTZEN_TIMEZONE=UTC
 export RUSTZEN_BUILD_ID
 RUSTZEN_BUILD_ID=$(printf 'a%.0s' {1..64})

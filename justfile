@@ -163,6 +163,10 @@ verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh
 
+verify-reports-ui-state-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-ui-state-linux.test.mjs
+    scripts/verify-reports-ui-state-linux.sh
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"

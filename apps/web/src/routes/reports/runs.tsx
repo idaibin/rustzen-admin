@@ -141,6 +141,7 @@ function RunsPage() {
                                 type="text"
                                 icon={<StopOutlined />}
                                 danger
+                                data-testid={`run-cancel-${row.id}`}
                                 aria-label={t("取消执行", "Cancel run")}
                                 disabled={!(row.status === "queued" || row.status === "running")}
                                 onClick={() => cancel.mutate(row.id)}

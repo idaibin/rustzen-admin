@@ -21,8 +21,9 @@ change does not expand browser execution or rename existing child pages.
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
 zh-CN/en-US. The route-local schedule panel and API client are implemented;
-SR-UI-002 has its two named rendered runtime captures, while the remaining
-state matrix remains **Not verified**.
+SR-UI-002 has its two named rendered runtime captures. The processing, partial,
+runtime-failure, combined view-only, and retained-evidence matrix is verified
+by the published atomic `verify-reports-ui-state-linux` evidence manifest.
 
 The Linux runtime browser gate additionally exercises rendered schedule create
 and edit through a container-only route-exact proxy. Both a disconnected request
@@ -61,6 +62,22 @@ HTTP access while exercising the existing target-backed browser runner. It
 does not produce a visual capture of the Web Templates route. Desktop/narrow,
 light/dark, keyboard, localization wrapping, and the complete rendered state
 matrix are therefore **Not verified**.
+
+The state-closure gate uses the same Reports components and four-service
+runtime. Its published manager capture held the executor at its supported
+30-second controlled pause, captured the active-run processing state, then
+explicitly cancelled it and retained the cancelled pause-step receipt. It shows
+a real terminal failure with the failed step, error, and existing Retry control.
+It compares the source run, steps, and artifacts before and after the retry so
+the selected child cannot replace retained evidence. Its controlled disposable
+SQLite fixture renders one `enqueued` row with a real run link and one
+`skipped` row with a separate due/reason and no link, proving the partial
+summary without claiming scheduler history. A single mobile view-only role
+holds both schedule and run read capabilities; it sees neither schedule
+`schedule-create`, `schedule-edit`, `schedule-toggle`, or `schedule-delete`
+control, nor the run `run-create`, `run-cancel-*`, or Retry control. These
+stable control identifiers keep the combined permission assertion tied to the
+same rendered viewer flow, and its direct mutation requests are denied.
 
 ## Surface and layout contract
 
@@ -194,10 +211,11 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Verified target-backed `enqueued` rendering; controlled isolated SQLite fixture covers `missed` | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows distinct due/reason fields; a null `dueAt` falls back to `dueLocal` plus installation timezone; enqueued alone links a run | P1 | real scheduler poll plus isolated fixture; forced response matrix remains outside browser scope |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Verified target-backed rendered schedule-to-run link | Each `enqueued` occurrence links to existing run evidence; `skipped` has distinct due/reason fields, with `dueLocal` plus installation timezone when `dueAt` is null, and no run link; no cloned viewer | P1 | Templates link opens exact Runs audit; isolated fixture proves no-link state |
 | SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate |
+| SR-UI-006 | `source-extracted`: existing Reports DataState, schedule outcome, run audit, and Retry composition | Verified by published `verify-reports-ui-state-linux` manifest | Manager processing, partial decision rows, runtime failure, retry source preservation, and a combined schedule/run view-only role remain distinct on their rendered surfaces | P1 | Linux Chromium state-closure gate with atomic manifest, four run-step receipts, controlled partial fixture, manager/mobile screenshots, and source before/after hashes |
 
-Forced error/failure, processing, and partial response matrices remain
-**Not verified**. The successful viewports and runtime schedule outcomes stated
-above are verified by their named browser or service gates.
+`SR-UI-006` is verified locally by its named gate. Native systemd, confined
+native-host seccomp, deployed scheduling, and the remaining visual matrices
+outside this bounded state-closure evidence remain **Not verified**.
 
 ## Responsive and verification matrix
 

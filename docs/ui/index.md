@@ -10,7 +10,7 @@ feature specs record only route-local composition, states, and evidence.
 | --- | --- | --- | --- |
 | Monitoring | [Monitoring surfaces](./features/monitoring.md) | [Product spec](../product/features/monitoring/spec.md) | Current route contract; representative local UI checks; complete state matrix pending |
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Current contract; see scoped local verification |
-| Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Implemented; source-resolved; runtime Not verified |
+| Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Local runtime/browser state-closure verified; deployed and native-host runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Current route contract; representative light/dark checks |
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
