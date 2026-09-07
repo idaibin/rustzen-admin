@@ -11,6 +11,7 @@ type Capability = {
     packageTargets: Target[];
     webRoots: string[];
     schemaOwners: string[];
+    schemaOwnerIntersections?: { owner: string; capabilities: string[] }[];
     configOwners: string[];
     units: string[];
 };
@@ -51,6 +52,7 @@ const CAPABILITY_KEYS = new Set([
     "packageTargets",
     "webRoots",
     "schemaOwners",
+    "schemaOwnerIntersections",
     "configOwners",
     "units",
 ]);
@@ -116,6 +118,24 @@ export function validateCatalog(catalog: Catalog = CATALOG): void {
             capability.schemaOwners,
             `catalog capability ${capability.id} schemaOwners`,
         );
+        if (capability.schemaOwnerIntersections !== undefined) {
+            if (!Array.isArray(capability.schemaOwnerIntersections))
+                fail(`catalog capability ${capability.id} schemaOwnerIntersections must be an array`);
+            for (const condition of capability.schemaOwnerIntersections) {
+                assertRecord(condition, `catalog capability ${capability.id} schema intersection`);
+                assertOnlyKeys(
+                    condition,
+                    new Set(["owner", "capabilities"]),
+                    `catalog capability ${capability.id} schema intersection`,
+                );
+                if (typeof condition.owner !== "string" || !condition.owner)
+                    fail(`catalog capability ${capability.id} schema intersection owner is required`);
+                assertStringArray(
+                    condition.capabilities,
+                    `catalog capability ${capability.id} schema intersection capabilities`,
+                );
+            }
+        }
         assertStringArray(
             capability.configOwners,
             `catalog capability ${capability.id} configOwners`,
@@ -135,6 +155,29 @@ export function validateCatalog(catalog: Catalog = CATALOG): void {
                 fail(`invalid catalog package target for ${capability.id}`);
         }
         byId.set(capability.id, capability);
+    }
+    for (const capability of catalog.capabilities) {
+        for (const condition of capability.schemaOwnerIntersections ?? []) {
+            if (condition.capabilities.length === 0)
+                fail(
+                    `catalog capability ${capability.id} schema intersection capabilities must not be empty`,
+                );
+            if (new Set(condition.capabilities).size !== condition.capabilities.length)
+                fail(
+                    `catalog capability ${capability.id} schema intersection capabilities must be unique`,
+                );
+            for (const selectedId of condition.capabilities) {
+                const selected = byId.get(selectedId);
+                if (!selected)
+                    fail(
+                        `catalog capability ${capability.id} schema intersection references unknown capability: ${selectedId}`,
+                    );
+                if (selected.artifactClass !== capability.artifactClass)
+                    fail(
+                        `catalog capability ${capability.id} schema intersection mixes artifact classes`,
+                    );
+            }
+        }
     }
     const visiting = new Set<string>();
     const visited = new Set<string>();
@@ -297,7 +340,16 @@ export function resolveSelection(value: unknown, catalog: Catalog = CATALOG) {
         owners: sorted(selected.map((capability) => capability.id)),
         packageTargets,
         webRoots: sorted(selected.flatMap((capability) => capability.webRoots)),
-        schemaOwners: sorted(selected.flatMap((capability) => capability.schemaOwners)),
+        schemaOwners: sorted([
+            ...selected.flatMap((capability) => capability.schemaOwners),
+            ...selected.flatMap((capability) =>
+                (capability.schemaOwnerIntersections ?? [])
+                    .filter((condition) =>
+                        condition.capabilities.every((id) => capabilities.includes(id)),
+                    )
+                    .map((condition) => condition.owner),
+            ),
+        ]),
         configOwners: sorted(selected.flatMap((capability) => capability.configOwners)),
         units: sorted(selected.flatMap((capability) => capability.units)),
         producerReadiness: { ready: false, blockers },

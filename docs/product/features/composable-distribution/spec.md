@@ -119,6 +119,21 @@ The full/default Monitor build selects notifications. The explicit pure
 `--no-default-features --features controller` build remains the negative
 composition and must continue to omit every notification-owned artifact.
 
+P6b adds the Reports producer without broadening the notification product.
+The verified delegated user that creates a manual run, or creates a retry run,
+is stored once as the run's immutable `initiator_user_id`; request JSON cannot
+set or replace it. Scheduled runs store `NULL`. Only a conditional transition
+that actually enters `succeeded`, `failed` or `cancelled` may write one terminal
+event and one outbox row in the same Reports transaction. Repeated cancellation,
+recovery of an already-terminal run and a completion/cancellation race therefore
+allocate no second event. Admin treats the stored initiator as a candidate only
+and rechecks the current enabled user, current `reports:run:view` grant and
+enabled Reports module in the admission transaction. The full/default Reports
+build selects this adapter; the explicit no-default Reports build retains the
+nullable run provenance column but has no outbox ledger, relay/config/diagnostic
+route or notification task. Reports execution never waits synchronously for
+Admin delivery.
+
 ## Distribution presets
 
 | Preset | Product capabilities | Server processes | Databases |
@@ -200,6 +215,9 @@ their persisted initiator if the user remains active and authorized. Scheduled
 runs initially have no personal notification policy. Frames, screenshots, input
 values and every progress tick do not become durable messages. Ordinary run
 execution and cancellation do not depend synchronously on Admin availability.
+Retries are new manual runs whose verified retrying user becomes their immutable
+initiator. A queued cancellation emits on the first winning terminal update;
+running cancellation emits only when execution actually enters `cancelled`.
 
 ## Acceptance and release boundary
 

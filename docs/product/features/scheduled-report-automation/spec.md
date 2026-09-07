@@ -88,7 +88,7 @@ handwritten Web `Reports.FlowStep` declaration carry the same two variants.
 | Missed occurrences are skipped. | Catch-up can overload a small self-hosted installation and hide freshness. | A missed occurrence is visible as skipped with a reason; no retroactive queue flood. |
 | Only an `enqueued` occurrence creates an ordinary queued run. | Existing run evidence, cancellation, and retention remain reusable. | Runs use the current status lifecycle and artifact boundary; `skipped` has no run. |
 | Installation timezone is the schedule display timezone. | A single self-hosted installation needs one unambiguous clock. | UI shows the timezone; per-schedule timezone is not a first-slice field. |
-| No credentials, notifications, or webhooks. | Those require protected storage and delivery contracts not present today. | Secret-looking input remains rejected and delivery integrations stay deferred. |
+| No schedule-owned credentials, notification controls, or webhooks. | Those require separate protected storage and delivery policies. | Secret-looking input remains rejected; scheduled runs keep a null personal-notification initiator. |
 
 ## Occurrence decision and run boundary
 
@@ -183,8 +183,8 @@ Non-goals:
 
 - arbitrary cron, sub-minute schedules, dependency graphs, parallel workflow
   orchestration, or a fifth scheduler service;
-- account credential storage, secret substitution, notification channels,
-  webhooks, external queues, or report-center catalog behavior;
+- account credential storage, secret substitution, schedule notification
+  channels, webhooks, external queues, or report-center catalog behavior;
 - changing browser actions, target validation, run cancellation, artifact
   contents, or run input redaction rules;
 - catch-up execution after downtime or a timezone per schedule;
@@ -380,7 +380,7 @@ policy removes them.
 
 ### Deferred
 
-- Credential vaulting, notifications, webhooks, datasets, richer expression
+- Credential vaulting, schedule-configured notifications, webhooks, datasets, richer expression
   DSL, suspend/resume, and cross-module Report Center behavior.
 
 ## Ready for scheduled report automation implementation

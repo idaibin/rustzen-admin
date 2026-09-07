@@ -63,14 +63,32 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "notifications")]
     let notification_ingress = {
         let (key_id, key, previous) = CONFIG.notification_event_keys();
-        ingress::start(
+        let keys = vec![ingress::ProducerKeys {
+            producer: "monitor",
+            current_id: key_id.into(),
+            current_secret: key.as_bytes().to_vec(),
+            previous: previous
+                .map(|(id, key, expires)| (id.into(), key.as_bytes().to_vec(), expires)),
+        }];
+        #[cfg(feature = "reports-notifications")]
+        let keys = {
+            let mut keys = keys;
+            let (key_id, key, previous) = CONFIG.reports_notification_event_keys();
+            keys.push(ingress::ProducerKeys {
+                producer: "reports",
+                current_id: key_id.into(),
+                current_secret: key.as_bytes().to_vec(),
+                previous: previous
+                    .map(|(id, key, expires)| (id.into(), key.as_bytes().to_vec(), expires)),
+            });
+            keys
+        };
+        ingress::start_with_keys(
             pool.clone(),
             CONFIG.admin_database_path(),
             AdmissionPolicy::from_config(&CONFIG)?,
             &CONFIG.notification_ingress_address(),
-            key_id.into(),
-            key.as_bytes().to_vec(),
-            previous.map(|(id, key, expires)| (id.into(), key.as_bytes().to_vec(), expires)),
+            keys,
         )
         .await?
     };

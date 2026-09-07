@@ -1,6 +1,6 @@
 use super::{
     admission_types::AdmissionPolicy,
-    ingress::{IngestError, IngestOutcome, IngressState, MAX_BODY},
+    ingress::{IngestError, IngestOutcome, IngressState, MAX_BODY, ProducerKeys},
 };
 use axum::{
     Router,
@@ -38,20 +38,18 @@ impl IngressRuntime {
     }
 }
 
-pub(crate) async fn start(
+pub(crate) async fn start_with_keys(
     pool: SqlitePool,
     database_path: std::path::PathBuf,
     policy: AdmissionPolicy,
     address: &str,
-    key_id: String,
-    secret: Vec<u8>,
-    previous: Option<(String, Vec<u8>, i64)>,
+    keys: Vec<ProducerKeys>,
 ) -> Result<IngressRuntime, Box<dyn std::error::Error>> {
     let socket: std::net::SocketAddr = address.parse()?;
     if !socket.ip().is_loopback() {
         return Err("notification ingress must bind loopback".into());
     }
-    let state = IngressState::new(pool, database_path, policy, key_id, secret, previous).await?;
+    let state = IngressState::new_with_keys(pool, database_path, policy, keys).await?;
     let listener = tokio::net::TcpListener::bind(socket).await?;
     let task = tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, router(state)).await {

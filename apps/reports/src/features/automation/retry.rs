@@ -8,9 +8,14 @@ use super::{repo, repo::RetryRunOutcome, types::Run};
 
 /// Creates a new manual queued run from a terminal source run's persisted snapshot.
 /// Schedule occurrences remain attached to the source run only.
-pub async fn retry_run(pool: &SqlitePool, source_id: &str) -> Result<Run, AppError> {
+pub async fn retry_run(
+    pool: &SqlitePool,
+    source_id: &str,
+    initiator_user_id: i64,
+) -> Result<Run, AppError> {
     let id = Uuid::new_v4().to_string();
-    match repo::retry_run(pool, &id, source_id, &Utc::now().to_rfc3339()).await? {
+    match repo::retry_run(pool, &id, source_id, &Utc::now().to_rfc3339(), initiator_user_id).await?
+    {
         RetryRunOutcome::Retry(run) => Ok(run),
         RetryRunOutcome::SourceNotFound => Err(AppError::NotFound("run not found".into())),
         RetryRunOutcome::SourceNotRetryable => {
@@ -56,11 +61,11 @@ mod tests {
             sqlx::query(statement).execute(&pool).await.expect("fixture");
         }
 
-        let retried = join_all((0..16).map(|_| {
+        let retried = join_all((0..16).map(|index| {
             let pool = pool.clone();
-            tokio::spawn(
-                async move { retry_run(&pool, "source").await.expect("retry terminal run") },
-            )
+            tokio::spawn(async move {
+                retry_run(&pool, "source", 100 + index).await.expect("retry terminal run")
+            })
         }))
         .await
         .into_iter()
@@ -89,6 +94,13 @@ mod tests {
                 .await
                 .expect("retried input");
         assert_eq!(retried_input, "{\"value\":\"saved\"}");
+        let first_initiator: i64 =
+            sqlx::query_scalar("SELECT initiator_user_id FROM automation_runs WHERE id=?")
+                .bind(&retried.id)
+                .fetch_one(&pool)
+                .await
+                .expect("retry initiator");
+        assert!((100..116).contains(&first_initiator));
         let occurrence_run: String = sqlx::query_scalar(
             "SELECT run_id FROM automation_schedule_occurrences WHERE schedule_id='schedule'",
         )
@@ -128,10 +140,20 @@ mod tests {
             .execute(&pool)
             .await
             .expect("finish child");
-        let original_retry = retry_run(&pool, "source").await.expect("retry source again");
+        let original_retry = retry_run(&pool, "source", 999).await.expect("retry source again");
         assert_eq!(original_retry.id, child_id);
         assert_eq!(original_retry.status, "failed");
-        let grandchild = retry_run(&pool, &child_id).await.expect("retry terminal child");
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT initiator_user_id FROM automation_runs WHERE id=?"
+            )
+            .bind(&child_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            first_initiator
+        );
+        let grandchild = retry_run(&pool, &child_id, 8).await.expect("retry terminal child");
         assert_ne!(grandchild.id, child_id);
         let grandchild_source: String =
             sqlx::query_scalar("SELECT retry_source_run_id FROM automation_runs WHERE id=?")
@@ -159,6 +181,6 @@ mod tests {
         ] {
             sqlx::query(statement).execute(&pool).await.expect("fixture");
         }
-        assert!(retry_run(&pool, "queued").await.is_err());
+        assert!(retry_run(&pool, "queued", 7).await.is_err());
     }
 }

@@ -22,6 +22,8 @@ pub use contract::monitor_agent_contract;
 pub use contract::monitor_controller_contract;
 #[cfg(feature = "notifications")]
 pub use contract::notifications_contract;
+#[cfg(feature = "reports")]
+pub use contract::reports_contract;
 
 #[cfg(any(feature = "admin", feature = "admin-monitor"))]
 pub use admin::AdminConfig;

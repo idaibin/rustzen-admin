@@ -25,7 +25,10 @@ pub(super) fn body(event_id: &str, summary: &str) -> Vec<u8> {
             id: format!("incident-{event_id}"),
             revision: 1,
         },
-        audience: NotificationAudience { policy: "monitor-incident-readers".into() },
+        audience: NotificationAudience {
+            policy: "monitor-incident-readers".into(),
+            initiator_user_id: None,
+        },
         content: NotificationContent { title: "CPU high".into(), summary: summary.into() },
     })
     .unwrap()

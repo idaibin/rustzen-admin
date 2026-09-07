@@ -451,8 +451,11 @@ seed semantics and artifact formats. DDL equality alone is not data compatibilit
 Startup compares the installed manifest and DB metadata before background tasks
 start. A nonempty database with a different fingerprint is rejected without
 mutation. Only selected fragments run; seeds contain installed module and
-capability rows. Monitor's notification outbox fragment is included only when
-the distribution selects notifications.
+capability rows. Monitor's and Reports' separate notification outbox fragments
+are included only when the distribution selects notifications with the
+corresponding producer. Reports keeps the nullable immutable
+`initiator_user_id` in its base fresh run schema; a pure Reports schema retains
+that harmless run provenance field but has no outbox, delivery ledger or relay.
 
 Build one scratch database per selected owner from the exact baseline. Exercise
 selected repository/query paths against it, including dynamic SQL (used in the

@@ -51,6 +51,8 @@ pub struct NotificationSubject {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NotificationAudience {
     pub policy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initiator_user_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]

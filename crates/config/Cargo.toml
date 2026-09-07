@@ -10,6 +10,7 @@ default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"
 admin = []
 admin-monitor = []
 notifications = ["dep:rustzen-ipc"]
+reports-notifications = ["reports", "notifications"]
 insights = []
 monitor-controller = []
 monitor-agent = []

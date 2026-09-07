@@ -176,7 +176,11 @@ async fn schedule_from_row(pool: &SqlitePool, row: ScheduleRow) -> Result<Schedu
     })
 }
 
-pub async fn create_run(pool: &SqlitePool, input: CreateRun) -> Result<Run, AppError> {
+pub async fn create_run(
+    pool: &SqlitePool,
+    input: CreateRun,
+    initiator_user_id: i64,
+) -> Result<Run, AppError> {
     flow(pool, &input.flow_id).await?;
     if !input.input.is_object() {
         return Err(AppError::InvalidInput("input must be an object".into()));
@@ -189,6 +193,7 @@ pub async fn create_run(pool: &SqlitePool, input: CreateRun) -> Result<Run, AppE
         &input.flow_id,
         &serde_json::to_string(&input.input)?,
         &Utc::now().to_rfc3339(),
+        initiator_user_id,
     )
     .await?;
     run(pool, &id).await
@@ -210,6 +215,10 @@ pub async fn cancel_run(pool: &SqlitePool, id: &str) -> Result<Run, AppError> {
     }
     run(pool, id).await
 }
-pub async fn retry_run(pool: &SqlitePool, id: &str) -> Result<Run, AppError> {
-    super::retry::retry_run(pool, id).await
+pub async fn retry_run(
+    pool: &SqlitePool,
+    id: &str,
+    initiator_user_id: i64,
+) -> Result<Run, AppError> {
+    super::retry::retry_run(pool, id, initiator_user_id).await
 }

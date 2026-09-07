@@ -1,10 +1,10 @@
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use rustzen_ipc::{ModuleJson, ModuleQuery, Page};
+use rustzen_ipc::{DelegatedContext, ModuleJson, ModuleQuery, Page};
 use std::path::{Path as FilePath, PathBuf};
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -125,17 +125,24 @@ pub async fn run(State(state): State<AppState>, Path(id): Path<String>) -> AppRe
 
 pub async fn create_run(
     State(state): State<AppState>,
+    Extension(context): Extension<DelegatedContext>,
     ModuleJson(input): ModuleJson<CreateRun>,
 ) -> AppResult<Run> {
-    Ok(ApiResponse::success(service::create_run(&state.pool, input).await?))
+    let initiator = context.user_id.ok_or(AppError::Internal)?;
+    Ok(ApiResponse::success(service::create_run(&state.pool, input, initiator).await?))
 }
 
 pub async fn cancel_run(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Run> {
     Ok(ApiResponse::success(service::cancel_run(&state.pool, &id).await?))
 }
 
-pub async fn retry_run(State(state): State<AppState>, Path(id): Path<String>) -> AppResult<Run> {
-    Ok(ApiResponse::success(service::retry_run(&state.pool, &id).await?))
+pub async fn retry_run(
+    State(state): State<AppState>,
+    Extension(context): Extension<DelegatedContext>,
+    Path(id): Path<String>,
+) -> AppResult<Run> {
+    let initiator = context.user_id.ok_or(AppError::Internal)?;
+    Ok(ApiResponse::success(service::retry_run(&state.pool, &id, initiator).await?))
 }
 
 pub async fn run_steps(

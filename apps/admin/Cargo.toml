@@ -9,7 +9,7 @@ publish = false
 [features]
 default = ["full"]
 full = [
-    "notifications",
+    "reports-notifications",
     "rustzen-config/admin",
     "dep:croner",
     "dep:ed25519-dalek",
@@ -24,6 +24,7 @@ full = [
 ]
 monitor-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
 notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "dep:hex", "rustzen-config/notifications"]
+reports-notifications = ["notifications", "rustzen-config/reports-notifications"]
 
 [[bin]]
 name = "rz-admin"

@@ -215,6 +215,67 @@ signing client uses Python's standard library because the pinned verifier image
 already includes Python but intentionally contains no Bun or OpenSSL; the gate
 installs no package or helper at runtime.
 
+P6b source, focused-test and disposable Linux process acceptance is **Closed
+locally / Passed**. It uses
+file-backed WAL databases with at least two pool connections and verifies that
+selected Reports migrate, validate, reopen and retain their separate
+notification ledger, while no-default Reports reject that
+ledger and have no outbox tables, delivery diagnostic or relay task/config
+fields. Both selections retain the base nullable initiator provenance column.
+Startup checks a nonempty existing database through a read-only connection
+before opening the writable pool or running migrations; selected-to-pure and
+pure-to-selected fixtures preserve the exact database bytes and object inventory
+when this preflight rejects them.
+Handler tests prove the initiator comes from the
+verified delegated context and cannot be supplied in JSON. Transition tests
+cover manual create/retry, scheduled `NULL`, queued and running cancellation,
+startup recovery, repeated terminal actions and completion/cancellation races.
+Each winning terminal transition must bind the persisted initiator, exact topic,
+subject revision and immutable event bytes in the same transaction. Admin ingest
+tests cover current Reports authorization, disabled/deleted users, revoked grants,
+module disablement, duplicate IDs and cross-producer topic/key rejection.
+Reports-owned relay tests directly exercise stale-lease fencing, subject order,
+the 25-item worker slice of a 100-item batch, every terminal/retry/quarantine
+result, expiry and reconciliation horizons, completion-clock backoff,
+Retry-After bounding, deterministic 1-to-60-second jitter, all five gap counters,
+the 60-second diagnostic limiter and startup accounting tamper refusal. The
+Linux Reports runtime gate is `just verify-reports-notification-runtime-linux`.
+It uses fresh Admin and Reports databases, the real Admin gateway and
+delegation signature, a real Reports worker/relay, real loopback TCP ingress and
+the pinned Linux Chromium verifier. It covers manual success/failure, queued and
+cooperative cancellation, restart recovery to failed/cancelled, immutable retry
+initiator, scheduled `NULL` initiator silence, current Reports module disablement,
+producer-commit-before-Admin availability, a committed response loss followed
+by duplicate reconciliation, authentication rejection and the pure Reports
+negative artifact. Current-grant revocation is covered by the Admin source
+tests, not this Linux process gate. Controlled SQLite fixtures may establish
+scheduled and crashed-running preconditions; every resulting terminal
+transition is executed by the real Reports repository startup or worker path.
+The published manifest
+binds source and binary digests, exact receipts and negative-selection
+evidence, while failed runs remain separate and `current` changes atomically
+only after bounded container cleanup. The small transport probe uses Python's
+standard library because the pinned verifier already contains Python but no Bun
+or OpenSSL; it installs no runtime dependency.
+
+The final P6b Colima run is **Closed locally / Passed** at
+`target/rz/reports-notification-runtime/current/manifest.json` on
+`linux/arm64`. The manifest records 25 exact receipts and six manual terminal
+classes; selected state contains eight `stored` and one `no-recipients` receipt,
+eight messages, eight recipients, zero pending outbox rows and zero values for
+all five gap counters. It records immutable retry initiator, scheduled silence,
+outage backfill, a lost-response retry resolved as duplicate, unsigned `400`,
+bad-signature `401` and public-internal `404`. Selected and pure Reports both
+run as non-root `rz-reports` UID/GID `999`; their runtime, database, log and
+artifact directories are owned by that identity with mode `0750`. The pure
+selection records zero notification schema objects, config, routes, tasks and
+listeners. The first root-run Chromium failure is retained separately at
+`target/rz/reports-notification-runtime/failed-runs/20260907T162006Z-31299/`;
+the published `current` manifest is the final result. This gate does not cover
+native systemd, production deployment, SSE, UI or sustained load, and its
+controlled SQLite setup is limited to scheduled and crashed-running
+preconditions.
+
 ## User interface acceptance
 
 Use the current DESIGN.md components, navigation rules and language handling.

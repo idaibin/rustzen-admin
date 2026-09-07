@@ -72,6 +72,12 @@ async fn schedule_occurrence_decision_and_run_are_atomic_and_idempotent() {
         .expect("run count");
     assert_eq!(occurrences, 1);
     assert_eq!(runs, 1);
+    let initiator: Option<i64> =
+        sqlx::query_scalar("SELECT initiator_user_id FROM automation_runs LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .expect("scheduled run initiator");
+    assert_eq!(initiator, None);
     assert_eq!(
         skip_schedule_occurrence(
             &pool,

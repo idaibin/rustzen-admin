@@ -25,8 +25,9 @@ pub async fn insert_run(
     flow_id: &str,
     input: &str,
     now: &str,
+    initiator_user_id: i64,
 ) -> Result<bool, sqlx::Error> {
-    sqlx::query("INSERT INTO automation_runs(id,flow_id,status,input_json,created_at) VALUES(?,?,'queued',?,?)").bind(id).bind(flow_id).bind(input).bind(now).execute(pool).await.map(|r|r.rows_affected()==1)
+    sqlx::query("INSERT INTO automation_runs(id,flow_id,status,input_json,created_at,initiator_user_id) VALUES(?,?,'queued',?,?,?)").bind(id).bind(flow_id).bind(input).bind(now).bind(initiator_user_id).execute(pool).await.map(|r|r.rows_affected()==1)
 }
 pub enum RetryRunOutcome {
     Retry(Run),
@@ -39,6 +40,7 @@ pub async fn retry_run(
     id: &str,
     source_id: &str,
     now: &str,
+    initiator_user_id: i64,
 ) -> Result<RetryRunOutcome, sqlx::Error> {
     let mut transaction = pool.begin_with("BEGIN IMMEDIATE").await?;
     if let Some(existing) = sqlx::query_as(
@@ -54,8 +56,8 @@ pub async fn retry_run(
     }
 
     if let Some(created) = sqlx::query_as(
-        "INSERT INTO automation_runs(id,flow_id,retry_source_run_id,status,input_json,created_at)
-         SELECT ?,flow_id,?,'queued',input_json,?
+        "INSERT INTO automation_runs(id,flow_id,retry_source_run_id,status,input_json,created_at,initiator_user_id)
+         SELECT ?,flow_id,?,'queued',input_json,?,?
          FROM automation_runs
          WHERE id=? AND status IN ('failed','cancelled')
          RETURNING id,flow_id,status,input_json,error,created_at,started_at,finished_at",
@@ -63,6 +65,7 @@ pub async fn retry_run(
     .bind(id)
     .bind(source_id)
     .bind(now)
+    .bind(initiator_user_id)
     .bind(source_id)
     .fetch_optional(&mut *transaction)
     .await?
@@ -100,6 +103,7 @@ pub async fn next_queued(pool: &SqlitePool) -> Result<Option<String>, sqlx::Erro
     .fetch_optional(pool)
     .await
 }
+#[cfg(not(feature = "notifications"))]
 pub async fn finish_run(
     pool: &SqlitePool,
     id: &str,
@@ -118,13 +122,24 @@ pub async fn finish_run(
     .await
     .map(|result| result.rows_affected() == 1)
 }
+#[cfg(feature = "notifications")]
+pub async fn finish_run(
+    pool: &SqlitePool,
+    id: &str,
+    status: &str,
+    error: Option<&str>,
+    now: &str,
+) -> Result<bool, sqlx::Error> {
+    crate::notifications::outbox::finish(pool, id, status, error, now).await
+}
+#[cfg(not(feature = "notifications"))]
 pub async fn cancel_run(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, sqlx::Error> {
     sqlx::query(
         "UPDATE automation_runs SET
            status=CASE WHEN status='queued' THEN 'cancelled' ELSE status END,
            finished_at=CASE WHEN status='queued' THEN ? ELSE finished_at END,
            cancel_requested_at=CASE WHEN status='running' THEN ? ELSE cancel_requested_at END
-         WHERE id=? AND status IN('queued','running')",
+         WHERE id=? AND (status='queued' OR (status='running' AND cancel_requested_at IS NULL))",
     )
     .bind(now)
     .bind(now)
@@ -132,6 +147,10 @@ pub async fn cancel_run(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, 
     .execute(pool)
     .await
     .map(|r| r.rows_affected() == 1)
+}
+#[cfg(feature = "notifications")]
+pub async fn cancel_run(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, sqlx::Error> {
+    crate::notifications::outbox::cancel(pool, id, now).await
 }
 pub async fn run_cancel_requested(pool: &SqlitePool, id: &str) -> Result<bool, sqlx::Error> {
     sqlx::query_scalar(
@@ -141,16 +160,22 @@ pub async fn run_cancel_requested(pool: &SqlitePool, id: &str) -> Result<bool, s
         .fetch_one(pool)
         .await
 }
-pub async fn finish_cancelled(pool: &SqlitePool, id: &str, now: &str) -> Result<(), sqlx::Error> {
+#[cfg(not(feature = "notifications"))]
+pub async fn finish_cancelled(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, sqlx::Error> {
     sqlx::query(
         "UPDATE automation_runs SET status='cancelled',finished_at=? WHERE id=? AND status='running' AND cancel_requested_at IS NOT NULL",
     )
     .bind(now)
     .bind(id)
     .execute(pool)
-    .await?;
-    Ok(())
+    .await
+    .map(|result| result.rows_affected() == 1)
 }
+#[cfg(feature = "notifications")]
+pub async fn finish_cancelled(pool: &SqlitePool, id: &str, now: &str) -> Result<bool, sqlx::Error> {
+    crate::notifications::outbox::finish_cancelled(pool, id, now).await
+}
+#[cfg(not(feature = "notifications"))]
 pub async fn recover_runs(pool: &SqlitePool, now: &str) -> Result<u64, sqlx::Error> {
     sqlx::query(
         "UPDATE automation_runs SET
@@ -163,6 +188,10 @@ pub async fn recover_runs(pool: &SqlitePool, now: &str) -> Result<u64, sqlx::Err
     .execute(pool)
     .await
     .map(|r| r.rows_affected())
+}
+#[cfg(feature = "notifications")]
+pub async fn recover_runs(pool: &SqlitePool, now: &str) -> Result<u64, sqlx::Error> {
+    crate::notifications::outbox::recover(pool, now).await
 }
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_run_step(

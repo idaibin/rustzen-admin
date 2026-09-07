@@ -13,13 +13,27 @@ pub(super) const MAX_BODY: usize = 16 * 1024;
 #[derive(Clone)]
 pub(crate) struct IngressState {
     admission: Arc<AdmissionService>,
-    keys: Arc<HashMap<String, SigningKey>>,
+    keys: Arc<HashMap<(String, String), SigningKey>>,
     guard: Arc<IngressGuard>,
 }
 
 struct SigningKey {
     secret: Vec<u8>,
     previous_until: Option<i64>,
+}
+
+pub(crate) struct ProducerKeys {
+    pub producer: &'static str,
+    pub current_id: String,
+    pub current_secret: Vec<u8>,
+    pub previous: Option<(String, Vec<u8>, i64)>,
+}
+
+#[derive(Clone, Copy)]
+enum AudienceKind {
+    CurrentMonitor,
+    #[cfg(feature = "reports-notifications")]
+    Initiator(i64),
 }
 
 #[derive(Default)]
@@ -68,6 +82,7 @@ pub(crate) enum IngestError {
 }
 
 impl IngressState {
+    #[cfg(test)]
     pub(crate) async fn new(
         pool: SqlitePool,
         database_path: std::path::PathBuf,
@@ -79,6 +94,7 @@ impl IngressState {
         Self::new_at(pool, database_path, policy, key_id, secret, previous, Utc::now()).await
     }
 
+    #[cfg(test)]
     async fn new_at(
         pool: SqlitePool,
         database_path: std::path::PathBuf,
@@ -88,12 +104,63 @@ impl IngressState {
         previous: Option<(String, Vec<u8>, i64)>,
         started_at: DateTime<Utc>,
     ) -> Result<Self, AdmissionError> {
-        let mut keys = HashMap::from([(key_id, SigningKey { secret, previous_until: None })]);
-        if let Some((key_id, secret, expires)) = previous {
-            if expires <= started_at.timestamp() || expires > started_at.timestamp() + 120 {
+        Self::new_with_keys_at(
+            pool,
+            database_path,
+            policy,
+            vec![ProducerKeys {
+                producer: "monitor",
+                current_id: key_id,
+                current_secret: secret,
+                previous,
+            }],
+            started_at,
+        )
+        .await
+    }
+
+    pub(crate) async fn new_with_keys(
+        pool: SqlitePool,
+        database_path: std::path::PathBuf,
+        policy: AdmissionPolicy,
+        keys: Vec<ProducerKeys>,
+    ) -> Result<Self, AdmissionError> {
+        Self::new_with_keys_at(pool, database_path, policy, keys, Utc::now()).await
+    }
+
+    async fn new_with_keys_at(
+        pool: SqlitePool,
+        database_path: std::path::PathBuf,
+        policy: AdmissionPolicy,
+        configured: Vec<ProducerKeys>,
+        started_at: DateTime<Utc>,
+    ) -> Result<Self, AdmissionError> {
+        let mut keys = HashMap::new();
+        for producer in configured {
+            let current = (producer.producer.to_string(), producer.current_id);
+            if keys
+                .insert(
+                    current,
+                    SigningKey { secret: producer.current_secret, previous_until: None },
+                )
+                .is_some()
+            {
                 return Err(AdmissionError::Invalid);
             }
-            keys.insert(key_id, SigningKey { secret, previous_until: Some(expires) });
+            if let Some((key_id, secret, expires)) = producer.previous {
+                if expires <= started_at.timestamp() || expires > started_at.timestamp() + 120 {
+                    return Err(AdmissionError::Invalid);
+                }
+                if keys
+                    .insert(
+                        (producer.producer.to_string(), key_id),
+                        SigningKey { secret, previous_until: Some(expires) },
+                    )
+                    .is_some()
+                {
+                    return Err(AdmissionError::Invalid);
+                }
+            }
         }
         Ok(Self {
             admission: Arc::new(AdmissionService::start(pool, database_path, policy).await?),
@@ -111,16 +178,16 @@ impl IngressState {
         if body.len() > MAX_BODY {
             return Err(IngestError::BadRequest);
         }
-        let key = self.keys.get(&headers.key_id).ok_or(IngestError::Unauthorized)?;
+        let key = self
+            .keys
+            .get(&(headers.producer.clone(), headers.key_id.clone()))
+            .ok_or(IngestError::Unauthorized)?;
         if key.previous_until.is_some_and(|until| now.timestamp() >= until) {
             return Err(IngestError::Unauthorized);
         }
         verify_notification(&headers, body, &headers.key_id, &key.secret)
             .map_err(|_| IngestError::Unauthorized)?;
         let now_seconds = now.timestamp();
-        if headers.producer != "monitor" {
-            return Err(IngestError::Unauthorized);
-        }
         if headers.expires - headers.created > 60 || headers.created > now_seconds + 60 {
             return Err(IngestError::BadRequest);
         }
@@ -130,7 +197,7 @@ impl IngressState {
         self.guard.accept(&headers.producer, &headers.nonce, headers.expires, now_seconds)?;
         let event: NotificationEvent =
             serde_json::from_slice(body).map_err(|_| IngestError::Unprocessable)?;
-        validate_event(&event, &headers.producer)?;
+        let audience = validate_event(&event, &headers.producer)?;
         let occurred_at = DateTime::parse_from_rfc3339(&event.occurred_at)
             .map_err(|_| IngestError::Unprocessable)?
             .naive_utc();
@@ -143,6 +210,11 @@ impl IngressState {
         {
             return Err(IngestError::Unprocessable);
         }
+        let (required_capability, candidate_user_ids) = match audience {
+            AudienceKind::CurrentMonitor => ("monitor:incident:view", Vec::new()),
+            #[cfg(feature = "reports-notifications")]
+            AudienceKind::Initiator(user_id) => ("reports:run:view", vec![user_id]),
+        };
         let input = AdmissionEvent {
             producer: event.producer,
             event_id: event.event_id,
@@ -155,10 +227,17 @@ impl IngressState {
             occurred_at,
             title: event.content.title,
             summary: event.content.summary,
-            required_capability: "monitor:incident:view".into(),
-            candidate_user_ids: Vec::new(),
+            required_capability: required_capability.into(),
+            candidate_user_ids,
         };
-        match self.admission.admit_current_monitor_audience(&input, now.naive_utc()).await {
+        let result = match audience {
+            AudienceKind::CurrentMonitor => {
+                self.admission.admit_current_monitor_audience(&input, now.naive_utc()).await
+            }
+            #[cfg(feature = "reports-notifications")]
+            AudienceKind::Initiator(_) => self.admission.admit(&input, now.naive_utc()).await,
+        };
+        match result {
             Ok(AdmissionResult::Stored { .. }) => Ok(IngestOutcome::Stored),
             Ok(AdmissionResult::Duplicate { .. }) => Ok(IngestOutcome::Duplicate),
             Ok(AdmissionResult::NoRecipients) => Ok(IngestOutcome::NoRecipients),
@@ -217,20 +296,42 @@ impl RateBucket {
     }
 }
 
-fn validate_event(event: &NotificationEvent, producer: &str) -> Result<(), IngestError> {
-    if event.schema_version != 1
-        || event.producer != producer
-        || !matches!(event.topic.as_str(), "monitor.incident.opened" | "monitor.incident.resolved")
-        || event.subject.kind != "monitor-incident"
-        || event.audience.policy != "monitor-incident-readers"
-        || event.subject.revision != if event.topic.ends_with("opened") { 1 } else { 2 }
-    {
+fn validate_event(event: &NotificationEvent, producer: &str) -> Result<AudienceKind, IngestError> {
+    if event.schema_version != 1 || event.producer != producer {
         return Err(IngestError::Forbidden);
     }
-    Ok(())
+    match producer {
+        "monitor"
+            if matches!(
+                event.topic.as_str(),
+                "monitor.incident.opened" | "monitor.incident.resolved"
+            ) && event.subject.kind == "monitor-incident"
+                && event.audience.policy == "monitor-incident-readers"
+                && event.audience.initiator_user_id.is_none()
+                && event.subject.revision
+                    == if event.topic.ends_with("opened") { 1 } else { 2 } =>
+        {
+            Ok(AudienceKind::CurrentMonitor)
+        }
+        #[cfg(feature = "reports-notifications")]
+        "reports"
+            if matches!(
+                event.topic.as_str(),
+                "reports.run.completed" | "reports.run.failed" | "reports.run.cancelled"
+            ) && event.subject.kind == "reports-run"
+                && event.audience.policy == "reports-run-initiator"
+                && event.subject.revision == 1
+                && event.audience.initiator_user_id.is_some_and(|id| id > 0) =>
+        {
+            Ok(AudienceKind::Initiator(
+                event.audience.initiator_user_id.expect("validated initiator"),
+            ))
+        }
+        _ => Err(IngestError::Forbidden),
+    }
 }
 
-pub(crate) use super::ingress_http::start;
+pub(crate) use super::ingress_http::start_with_keys;
 
 #[cfg(test)]
 mod rate_tests {

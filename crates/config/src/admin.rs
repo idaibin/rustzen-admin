@@ -42,6 +42,11 @@ const DEFAULT_NOTIFICATION_INGRESS_PORT: u16 = 9811;
 const DEFAULT_NOTIFICATION_EVENT_KEY_ID: &str = "local-v1";
 #[cfg(feature = "notifications")]
 const DEFAULT_NOTIFICATION_EVENT_KEY: &str = "rustzen-local-notification-key-change-me";
+#[cfg(feature = "reports-notifications")]
+const DEFAULT_REPORTS_NOTIFICATION_EVENT_KEY_ID: &str = "reports-local-v1";
+#[cfg(feature = "reports-notifications")]
+const DEFAULT_REPORTS_NOTIFICATION_EVENT_KEY: &str =
+    "rustzen-local-reports-notification-key-change-me";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AdminConfig {
@@ -119,6 +124,21 @@ pub struct AdminConfig {
     #[cfg(feature = "notifications")]
     #[serde(default)]
     pub notification_previous_event_key_expires_at: Option<i64>,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default = "default_reports_notification_event_key_id")]
+    pub reports_notification_event_key_id: String,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default = "default_reports_notification_event_key")]
+    pub reports_notification_event_key: String,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default)]
+    pub reports_notification_previous_event_key_id: Option<String>,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default)]
+    pub reports_notification_previous_event_key: Option<String>,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default)]
+    pub reports_notification_previous_event_key_expires_at: Option<i64>,
     #[cfg(feature = "admin")]
     #[serde(default)]
     pub task_run_timeout_seconds: Option<u64>,
@@ -286,6 +306,19 @@ impl AdminConfig {
         )
     }
 
+    #[cfg(feature = "reports-notifications")]
+    pub fn reports_notification_event_keys(&self) -> (&str, &str, Option<(&str, &str, i64)>) {
+        (
+            &self.reports_notification_event_key_id,
+            &self.reports_notification_event_key,
+            self.reports_notification_previous_event_key_id
+                .as_deref()
+                .zip(self.reports_notification_previous_event_key.as_deref())
+                .zip(self.reports_notification_previous_event_key_expires_at)
+                .map(|((id, key), expires)| (id, key, expires)),
+        )
+    }
+
     #[cfg(feature = "admin")]
     pub fn insights_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.insights_port())
@@ -370,6 +403,49 @@ impl AdminConfig {
                 &self.notification_event_key,
                 DEFAULT_NOTIFICATION_EVENT_KEY,
             )?;
+            #[cfg(feature = "reports-notifications")]
+            {
+                if !rustzen_ipc::valid_notification_key_id(&self.reports_notification_event_key_id)
+                    || self.reports_notification_event_key.len() < 32
+                    || self.reports_notification_event_key == self.notification_event_key
+                    || self.notification_previous_event_key.as_deref()
+                        == Some(self.reports_notification_event_key.as_str())
+                    || self.reports_notification_event_key == self.ipc_token
+                    || self.reports_notification_event_key == self.jwt_secret
+                    || [
+                        self.reports_notification_previous_event_key_id.is_some(),
+                        self.reports_notification_previous_event_key.is_some(),
+                        self.reports_notification_previous_event_key_expires_at.is_some(),
+                    ]
+                    .windows(2)
+                    .any(|pair| pair[0] != pair[1])
+                    || self
+                        .reports_notification_previous_event_key_id
+                        .as_deref()
+                        .is_some_and(|id| !rustzen_ipc::valid_notification_key_id(id))
+                    || self.reports_notification_previous_event_key_id.as_deref()
+                        == Some(self.reports_notification_event_key_id.as_str())
+                    || self.reports_notification_previous_event_key.as_deref().is_some_and(|key| {
+                        key.len() < 32
+                            || key == self.reports_notification_event_key
+                            || key == self.notification_event_key
+                            || self.notification_previous_event_key.as_deref() == Some(key)
+                            || key == self.ipc_token
+                            || key == self.jwt_secret
+                    })
+                    || self
+                        .reports_notification_previous_event_key_expires_at
+                        .is_some_and(|expires| expires <= now || expires > now + 120)
+                {
+                    return Err(ConfigError::Invalid("RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY"));
+                }
+                ensure_production_secret(
+                    &self.runtime,
+                    "RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY",
+                    &self.reports_notification_event_key,
+                    DEFAULT_REPORTS_NOTIFICATION_EVENT_KEY,
+                )?;
+            }
         }
         ensure_production_secret(
             &self.runtime,
@@ -404,6 +480,16 @@ impl AdminConfig {
         }
         Ok(())
     }
+}
+
+#[cfg(feature = "reports-notifications")]
+fn default_reports_notification_event_key_id() -> String {
+    DEFAULT_REPORTS_NOTIFICATION_EVENT_KEY_ID.into()
+}
+
+#[cfg(feature = "reports-notifications")]
+fn default_reports_notification_event_key() -> String {
+    DEFAULT_REPORTS_NOTIFICATION_EVENT_KEY.into()
 }
 
 #[cfg(all(test, feature = "admin-monitor", not(feature = "admin")))]
@@ -537,6 +623,11 @@ mod tests {
         {
             hardened.notification_event_key = "production-notification-event-secret".to_string();
         }
+        #[cfg(feature = "reports-notifications")]
+        {
+            hardened.reports_notification_event_key =
+                "production-reports-notification-secret".to_string();
+        }
         hardened.deploy_signature_required = true;
         hardened.deploy_verify_key = Some("ab".repeat(32));
         hardened.validate().expect("hardened production config");
@@ -573,6 +664,15 @@ mod tests {
         for id in ["bad\nheader".into(), "bad id".into(), "x".repeat(65)] {
             let mut invalid = base.clone();
             invalid.notification_event_key_id = id;
+            assert!(invalid.validate().is_err());
+        }
+        #[cfg(feature = "reports-notifications")]
+        {
+            let mut invalid = base.clone();
+            invalid.reports_notification_event_key_id = "bad\nheader".into();
+            assert!(invalid.validate().is_err());
+            let mut invalid = base.clone();
+            invalid.reports_notification_event_key = invalid.notification_event_key.clone();
             assert!(invalid.validate().is_err());
         }
     }

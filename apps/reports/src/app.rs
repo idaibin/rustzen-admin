@@ -28,13 +28,22 @@ impl AppState {
 }
 
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
+    db::verify_existing_database_before_write(&config::CONFIG.database_path())
+        .await
+        .map_err(std::io::Error::other)?;
     let pool = db::create_pool().await?;
     db::run_migrations(&pool).await?;
+    db::verify_selected_schema(&pool).await.map_err(std::io::Error::other)?;
     db::test_connection(&pool).await?;
     let output_dir = config::CONFIG.data_dir().join("reports");
     tokio::fs::create_dir_all(&output_dir).await?;
-    let state = AppState::new(pool, output_dir);
+    let state = AppState::new(pool.clone(), output_dir);
     automation::initialize(&state).await?;
+    #[cfg(feature = "notifications")]
+    let notification_relay = {
+        let (url, key_id, key) = config::CONFIG.notification_transport();
+        crate::notifications::start(pool.clone(), url.into(), key_id.into(), key.as_bytes()).await?
+    };
     let app = build_router(state.clone(), &config::CONFIG.ipc_token)?;
     let address = config::CONFIG.bind_address();
     let listener = tokio::net::TcpListener::bind(&address).await?;
@@ -48,6 +57,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await;
     workers.shutdown().await;
+    #[cfg(feature = "notifications")]
+    notification_relay.shutdown().await;
     result?;
     Ok(())
 }
@@ -105,12 +116,12 @@ mod tests {
     use tower::ServiceExt;
 
     use super::{AppState, build_router};
-    use crate::infra::db::MIGRATOR;
+    use crate::infra::db::run_migrations;
 
     async fn test_app() -> (axum::Router, AppState) {
         let pool =
             SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-        MIGRATOR.run(&pool).await.unwrap();
+        run_migrations(&pool).await.unwrap();
         let output_dir = std::env::temp_dir().join(format!("rz-reports-{}", uuid::Uuid::new_v4()));
         tokio::fs::create_dir_all(&output_dir).await.unwrap();
         let state =
@@ -133,7 +144,16 @@ mod tests {
                 && menu["path"] == "/reports/templates"
                 && menu["permission"] == "reports:schedule:view"
         }));
+        #[cfg(not(feature = "notifications"))]
         assert_eq!(manifest["routes"].as_array().unwrap().len(), 24);
+        #[cfg(feature = "notifications")]
+        {
+            assert_eq!(manifest["routes"].as_array().unwrap().len(), 25);
+            assert!(manifest["routes"].as_array().unwrap().iter().any(|route| {
+                route["path"] == "/notification-delivery"
+                    && route["permission"] == "reports:run:view"
+            }));
+        }
         assert!(
             manifest["routes"]
                 .as_array()
@@ -212,6 +232,29 @@ mod tests {
         let created_run = body(response).await;
         assert_eq!(created_run["data"]["status"], "queued");
         assert!(created_run["data"].get("inputJson").is_none());
+        let run_id = created_run["data"]["id"].as_str().unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT initiator_user_id FROM automation_runs WHERE id=?"
+            )
+            .bind(run_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap(),
+            7
+        );
+
+        let spoofed = app
+            .clone()
+            .oneshot(request(
+                Method::POST,
+                "/api/reports/runs",
+                "reports:run:manage",
+                json!({"flowId":flow["data"]["id"],"input":{},"initiatorUserId":99}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(spoofed.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
         let sensitive = app
             .oneshot(request(

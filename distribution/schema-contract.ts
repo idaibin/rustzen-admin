@@ -11,6 +11,9 @@ const sources = {
     monitor: "apps/monitor/migrations/0001_init.sql",
     "monitor-notifications":
         "apps/monitor/migrations-notifications/0001_notification_outbox.sql",
+    reports: "apps/reports/migrations/0001_init.sql",
+    "reports-notifications":
+        "apps/reports/migrations-notifications/0001_notification_outbox.sql",
 } as const;
 type Owner = keyof typeof sources;
 export type SchemaContract = {

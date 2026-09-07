@@ -170,6 +170,10 @@ verify-monitor-notification-runtime-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-monitor-notification-runtime-linux.test.mjs
     scripts/verify-monitor-notification-runtime-linux.sh
 
+verify-reports-notification-runtime-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-notification-runtime-linux.test.mjs
+    scripts/verify-reports-notification-runtime-linux.sh
+
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh

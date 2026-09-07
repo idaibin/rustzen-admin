@@ -113,7 +113,10 @@ async fn enqueue(
             id: incident.id.clone(),
             revision,
         },
-        audience: NotificationAudience { policy: "monitor-incident-readers".into() },
+        audience: NotificationAudience {
+            policy: "monitor-incident-readers".into(),
+            initiator_user_id: None,
+        },
         content: NotificationContent { title: incident.title.clone(), summary: summary.into() },
     };
     let payload =

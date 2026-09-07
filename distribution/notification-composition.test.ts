@@ -45,6 +45,10 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
         "apps/monitor/migrations-notifications/0001_notification_outbox.sql",
     );
     const reports = await freshInventory("apps/reports/migrations/0001_init.sql");
+    const reportsNotify = await freshInventory(
+        "apps/reports/migrations/0001_init.sql",
+        "apps/reports/migrations-notifications/0001_notification_outbox.sql",
+    );
 
     expect(monitorAdmin.filter((name) => name.startsWith("notification"))).toEqual([]);
     expect(monitor.filter((name) => name.startsWith("notification"))).toEqual([]);
@@ -53,6 +57,10 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
         "notification_outbox",
     ]);
     expect(reports.filter((name) => name.startsWith("notification"))).toEqual([]);
+    expect(reportsNotify.filter((name) => name.startsWith("notification"))).toEqual([
+        "notification_delivery_status",
+        "notification_outbox",
+    ]);
     expect(fullAdmin.filter((name) => name.startsWith("notification"))).toEqual(
         notificationTables,
     );
@@ -73,6 +81,9 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
         "monitor",
         "monitor-notifications",
     ]);
+    expect(resolveSelection({ preset: "full" }).schemaOwners).toContain(
+        "reports-notifications",
+    );
     const fullSql = await readFile(
         resolve(repositoryRoot, "apps/admin/migrations/sqlite/0001_init.sql"),
         "utf8",
@@ -87,7 +98,7 @@ test("fresh compositions select the optional inbox owner exactly", async () => {
     expect(fullSql.endsWith(fragmentSql)).toBeTrue();
 });
 
-test("reports source contains no inbox API, queue or retry owner", async () => {
+test("reports owns only its selected producer surface", async () => {
     const roots = [
         "apps/reports/src",
         "apps/reports/migrations",
@@ -96,9 +107,6 @@ test("reports source contains no inbox API, queue or retry owner", async () => {
         "/api/notifications",
         "inbox.changed",
         "notification_events",
-        "notification_outbox",
-        "notification_relay",
-        "notification_retry",
     ];
     for (const root of roots) {
         const text = (
@@ -110,6 +118,14 @@ test("reports source contains no inbox API, queue or retry owner", async () => {
         ).join("\n");
         for (const marker of forbidden) expect(text).not.toContain(marker);
     }
+
+    const cargo = await Bun.file(resolve(repositoryRoot, "apps/reports/Cargo.toml")).text();
+    expect(cargo).toContain('default = ["notifications"]');
+    expect(cargo).toContain('notifications = [');
+    const moduleRoot = await Bun.file(
+        resolve(repositoryRoot, "apps/reports/src/main.rs"),
+    ).text();
+    expect(moduleRoot).toContain('#[cfg(feature = "notifications")]\nmod notifications;');
 });
 
 async function sourceFiles(root: string): Promise<string[]> {

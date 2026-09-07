@@ -4,6 +4,8 @@ mod config;
 mod features;
 mod infra;
 mod middleware;
+#[cfg(feature = "notifications")]
+mod notifications;
 
 use crate::{config::CONFIG, infra::logger::init_logging};
 
@@ -19,6 +21,10 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 );
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
+        println!("{}", serde_json::to_string(&rustzen_config::reports_contract())?);
+        return Ok(());
+    }
     rustzen_config::load_dotenv_if_present()?;
     let command = Command::parse(std::env::args().skip(1))?;
     // SAFETY: this runs in synchronous main before Tokio creates worker threads.

@@ -56,6 +56,30 @@ describe("distribution selection", () => {
         );
     });
 
+    test("schema owner intersections require a known unique same-class capability set", () => {
+        const notification = (catalog: typeof distributionCatalog) => {
+            const capability = catalog.capabilities.find(({ id }) => id === "notifications");
+            if (!capability?.schemaOwnerIntersections)
+                throw new Error("test catalog is missing notification intersections");
+            return capability.schemaOwnerIntersections[0];
+        };
+        const empty = structuredClone(distributionCatalog);
+        notification(empty).capabilities = [];
+        expect(() => validateCatalog(empty)).toThrow("must not be empty");
+
+        const duplicate = structuredClone(distributionCatalog);
+        notification(duplicate).capabilities = ["monitor", "monitor"];
+        expect(() => validateCatalog(duplicate)).toThrow("must be unique");
+
+        const typo = structuredClone(distributionCatalog);
+        notification(typo).capabilities = ["monitor", "notifcations"];
+        expect(() => validateCatalog(typo)).toThrow("unknown capability: notifcations");
+
+        const crossClass = structuredClone(distributionCatalog);
+        notification(crossClass).capabilities = ["monitor", "monitor-agent"];
+        expect(() => validateCatalog(crossClass)).toThrow("mixes artifact classes");
+    });
+
     test("custom resolves dependencies and produces a sorted closure", () => {
         const plan = resolveSelection({
             preset: "custom",

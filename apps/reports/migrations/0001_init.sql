@@ -24,6 +24,7 @@ CREATE TABLE automation_runs (
     id TEXT PRIMARY KEY NOT NULL,
     flow_id TEXT NOT NULL,
     retry_source_run_id TEXT UNIQUE,
+    initiator_user_id INTEGER,
     status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')),
     input_json TEXT NOT NULL DEFAULT '{}',
     error TEXT,
