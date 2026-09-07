@@ -136,6 +136,24 @@ fn notification_contract_bounds_limit_uses_json_errors_and_hides_internal_sequen
     );
 }
 
+#[cfg(feature = "notifications")]
+#[test]
+fn notification_stream_documents_sse_headers_security_and_retryable_limits() {
+    let document: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();
+    let operation = &document["paths"]["/api/notifications/stream"]["get"];
+    assert!(operation["security"].is_array());
+    assert!(operation["responses"]["200"]["content"]["text/event-stream"].is_object());
+    assert!(operation["responses"]["200"]["headers"]["cache-control"].is_object());
+    assert!(operation["responses"]["200"]["headers"]["x-accel-buffering"].is_object());
+    for status in ["401", "403", "429", "503"] {
+        assert!(operation["responses"][status].is_object(), "missing {status}");
+    }
+    for status in ["429", "503"] {
+        assert!(operation["responses"][status]["headers"]["retry-after"].is_object());
+        assert!(operation["responses"][status]["content"]["application/json"].is_object());
+    }
+}
+
 #[test]
 fn extractor_failures_are_grounded_for_every_query_path_and_multipart_route() {
     let document: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();
@@ -239,6 +257,18 @@ fn error_responses_are_typed_for_every_registered_operation() {
                 assert_eq!(
                     responses["401"]["content"]["application/json"]["schema"]["$ref"],
                     "#/components/schemas/ApiErrorResponse"
+                );
+                assert_eq!(
+                    responses["503"]["content"]["application/json"]["schema"]["$ref"],
+                    "#/components/schemas/ApiErrorResponse",
+                    "{} lacks typed authority-unavailable response",
+                    contract.operation.operation_id()
+                );
+                assert_eq!(
+                    responses["503"]["headers"]["retry-after"]["schema"]["type"],
+                    "integer",
+                    "{} lacks authority Retry-After",
+                    contract.operation.operation_id()
                 );
             }
         }

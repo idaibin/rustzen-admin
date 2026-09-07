@@ -26,7 +26,7 @@ describe("Admin session authority Linux gate", () => {
         ]) expect(innerText).toContain(value);
         for (const value of ["run_helper_bounded", "RUSTZEN_ADMIN_SESSION_HELPER_TIMEOUT", "failed-runs", "atomic_replace_symlink", "remove_container", "source tree changed"]) expect(outerText).toContain(value);
         expect(jqText).toContain("($allowlist | sort)");
-        expect(jqText).toContain("authorityFailure;401;401");
+        expect(jqText).toContain("authorityFailure;503;50302");
         expect(helperText).toContain("trap cleanup EXIT");
         expect(helperText).toContain("trap 'exit 130' INT");
         expect(helperText).toContain("cleanup_probe best-effort");

@@ -5,9 +5,9 @@ use rustzen_auth::auth::CurrentUser;
 use tower::ServiceExt;
 
 #[test]
-fn selected_api_owner_registers_exactly_five_authenticated_routes() {
+fn selected_api_owner_registers_exactly_six_authenticated_routes() {
     let (_, contracts) = notification_routes().into_parts();
-    assert_eq!(contracts.len(), 5);
+    assert_eq!(contracts.len(), 6);
     assert!(contracts.iter().all(|contract| matches!(
         contract.access,
         crate::infra::contract::RegisteredAccess::Authenticated
@@ -24,6 +24,7 @@ fn selected_api_owner_registers_exactly_five_authenticated_routes() {
             ("GET", "/{id}"),
             ("PUT", "/{id}/read"),
             ("POST", "/read-all"),
+            ("GET", "/stream"),
         ]
     );
     let mut source_routes = contracts

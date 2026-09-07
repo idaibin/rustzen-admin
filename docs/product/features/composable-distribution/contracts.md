@@ -615,8 +615,10 @@ message bytes with a minimum 1 KiB charge, receipts with at least 512 bytes,
 recipient rows with at least 256 bytes and all user-state metadata. Fixed-sized
 IDs and bounded content/error fields prevent unaccounted variable data. These
 are provisional budgets to validate against real indexes and storage overhead.
-The access-user inventory bounds user-state rows; delete orphaned user-state
-rows without creating a second identity-retention policy.
+The access-user inventory bounds user-state rows. Once created, a user's state
+keeps its revision monotonically increasing even when retention removes the
+last recipient; only deletion of that user removes the state through the
+existing identity foreign-key cascade.
 
 The fresh notification schema maintains these four values in one singleton
 accounting row through insert/delete triggers. Admission never performs an
@@ -628,16 +630,17 @@ recipient charge includes its notification identifier, and user state has a
 128-byte minimum. Schema byte-length checks bound every variable field.
 
 Before admission, a bounded cleanup removes expired recipient history first,
-then recipient-free expired messages, expired receipts whose `retain_until` has
-passed, and orphan user state. Each pass is limited to 500 rows per phase,
+then recipient-free expired messages and expired receipts whose `retain_until`
+has passed. Each pass is limited to 500 rows per phase,
 4 MiB released charge and 50 ms between phases; a large expired fanout is
 drained across independently committed passes rather than deleted by an
 unbounded cascade. Admission runs at most eight passes per attempt, then opens
 a new immediate transaction, rechecks the receipt and atomically admits or
 refuses the event. A later attempt continues from the committed cleanup state.
 Affected user revisions increment at most once per cleanup transaction before
-recipient deletion. State remains while that user has any current recipient;
-orphan deletion releases its durable charge. Set `retain_until` to the later
+recipient deletion. State and its durable charge remain after the last
+recipient so published, read and reconnect revisions cannot fall back to zero;
+identity deletion releases the state through cascade. Set `retain_until` to the later
 of acceptance plus 30 days and original expiry plus clock tolerance. Never evict
 an unexpired receipt to make space: otherwise retries could recreate messages.
 Check an existing receipt before new-event capacity checks so duplicates still
@@ -693,7 +696,7 @@ All endpoints infer the user from authentication. There is no client-controlled
 | GET `/api/notifications/{id}` | None | Accessible message or 404 |
 | PUT `/api/notifications/{id}/read` | Empty | Idempotent read_at + new/current revision; inaccessible is 404 |
 | POST `/api/notifications/read-all` | Server-issued snapshot boundary | Mark only accessible messages at or below boundary; new arrivals remain unread |
-| GET `/api/realtime/events` | Bearer header; no URL credential | SSE advisory invalidations for this session/user |
+| GET `/api/notifications/stream` | Bearer header; optional `Last-Event-ID` header only; no URL credential | SSE advisory invalidations for this session/user |
 
 List cursors bind sort/filter/snapshot boundary and user identity using an
 opaque authenticated-encrypted token; neither identity nor sequence state is
@@ -741,17 +744,25 @@ count each read authorized data, sequence boundary and user revision from one
 DB snapshot; never pair old data with a newer separately-read revision. The
 client begins its snapshot after the first registered-stream signal. A stream
 close/overflow or auth-generation change invalidates an in-flight snapshot;
-discard it and repeat the handshake. No persistent DB-to-hub atomicity is claimed:
-a crash after commit is covered by reconnect and periodic reconciliation.
+discard it and repeat the handshake. No persistent DB-to-hub atomicity is
+claimed: a crash after commit is covered by reconnect and periodic
+reconciliation. Admission, read and retention cleanup publish their affected
+user revisions only after commit; rollback and no-change cleanup publish
+nothing.
 
-Initial test defaults: 15-second heartbeat, queue capacity 16, 1,000 total
-connections, 4 per user across all sessions, 5-second access revalidation, retry 1..30 seconds
-with jitter. Abort on logout, terminal authentication failure or tab teardown;
-require a fresh login on credential expiry; no refresh-token service is added.
+Initial production defaults: 15-second heartbeat, queue capacity 16, 1,000
+total connections, 4 per user across all sessions, 5-second access
+revalidation, 45-second server-body poll inactivity and a 5-minute absolute
+connection age. Clients reconnect and reconcile after the absolute age. The
+server observes body polling rather than a transport write acknowledgement, so
+this bound does not claim end-to-end socket acknowledgement. Retry is 1..30
+seconds with jitter. Abort on logout, terminal authentication failure or tab
+teardown; require a fresh login on credential expiry; no refresh-token service
+is added.
 When a queue is full, coalesce inbox invalidations to the newest revision or
 disconnect the slow client. Never block business persistence on a slow socket.
 
-One cancellation handle covers deadline, bounded authorization recheck, disconnect
+One cancellation handle covers an independent JWT-expiry deadline, bounded authorization recheck, disconnect
 and shutdown. Cancellation removes the hub entry, releases quotas exactly once
 and stops admitting application frames independently of socket backpressure.
 Race frame production/write progress against cancellation and a bounded stall
@@ -775,6 +786,17 @@ with at most one stream retry per max(60 seconds, Retry-After) plus jitter.
 Network/clean unexpected EOF use bounded 1..30-second retry; HTML, redirects and
 protocol failures stop automatic fast retry and allow an explicit retry. Never
 parse an error/login page as SSE. All paths release reserved quotas on failure.
+
+The stream returns `200 text/event-stream` only after authority validation and
+atomic quota/queue registration. Missing, invalid or expired identity is `401`;
+an enabled-producer/current-grant mismatch is `403`; a draining hub is `204`;
+the fifth connection for one user is `429`; and the global limit or an authority
+database failure is `503`. `429` and `503` use the JSON error envelope, stable
+error codes and `Retry-After: 60`; all responses disable caching, and successful
+streams also disable intermediary buffering. Established streams end with EOF
+after expiry, authority change, database failure, shutdown or client drop.
+Request tracing and operation logging record only the URI path; rejected query
+credentials are never persisted or emitted to traces.
 
 The authenticated shell owns the stream, so ordinary feature navigation does
 not multiply subscriptions. Abort on shell teardown/logout/pagehide; pageshow

@@ -23,6 +23,7 @@ pub(crate) struct CleanupResult {
     pub receipts: u64,
     pub states: u64,
     pub charged_bytes: i64,
+    pub invalidations: Vec<(i64, i64)>,
 }
 
 impl CleanupResult {
@@ -72,10 +73,16 @@ pub(crate) async fn cleanup_with_limits(
     }
     let affected_users: BTreeSet<_> = selected.iter().map(|(_, user_id, _)| *user_id).collect();
     for user_id in affected_users {
-        sqlx::query("UPDATE notification_user_state SET revision = revision + 1 WHERE user_id = ?")
-            .bind(user_id)
-            .execute(&mut *connection)
-            .await?;
+        let revision = sqlx::query_scalar::<_, i64>(
+            "UPDATE notification_user_state SET revision = revision + 1 WHERE user_id = ?
+             RETURNING revision",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *connection)
+        .await?;
+        if let Some(revision) = revision {
+            result.invalidations.push((user_id, revision));
+        }
     }
     for (notification_id, user_id, charge) in selected {
         let deleted = sqlx::query(
@@ -140,29 +147,6 @@ pub(crate) async fn cleanup_with_limits(
             .await?
             .rows_affected();
             result.receipts += deleted;
-            result.charged_bytes += charge * deleted as i64;
-        }
-    }
-    if Instant::now() < deadline {
-        let states = sqlx::query_as::<_, (i64, i64)>(
-            "SELECT s.user_id, s.charged_bytes FROM notification_user_state s
-             WHERE NOT EXISTS (
-                 SELECT 1 FROM notification_recipients nr WHERE nr.user_id = s.user_id
-             ) ORDER BY s.user_id LIMIT ?",
-        )
-        .bind(limits.rows)
-        .fetch_all(&mut *connection)
-        .await?;
-        for (user_id, charge) in states {
-            if Instant::now() >= deadline || result.charged_bytes + charge > limits.charged_bytes {
-                break;
-            }
-            let deleted = sqlx::query("DELETE FROM notification_user_state WHERE user_id = ?")
-                .bind(user_id)
-                .execute(&mut *connection)
-                .await?
-                .rows_affected();
-            result.states += deleted;
             result.charged_bytes += charge * deleted as i64;
         }
     }

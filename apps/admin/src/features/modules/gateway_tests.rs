@@ -172,7 +172,18 @@ async fn gateway_fails_closed_when_the_authority_database_is_closed() {
         )
         .await
         .expect("gateway response");
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(response.headers().get(header::CACHE_CONTROL).unwrap(), "no-store");
+    assert_eq!(response.headers().get(header::RETRY_AFTER).unwrap(), "60");
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("authority body");
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&body).expect("authority JSON"),
+        serde_json::json!({
+            "code": 50302,
+            "message": "Authorization authority unavailable",
+            "data": null
+        })
+    );
 
     let snapshot = registry.snapshot();
     let mut modules = snapshot.as_ref().clone().into_modules();

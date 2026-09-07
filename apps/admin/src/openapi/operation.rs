@@ -67,6 +67,27 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
                 )
                 .build(),
         ),
+        OperationDescriptor::StreamNotifications => operation
+            .response(
+                "200",
+                ResponseBuilder::new()
+                    .description("Advisory notification invalidation stream")
+                    .content(
+                        "text/event-stream",
+                        Content::new(Some(ObjectBuilder::new().schema_type(Type::String).build())),
+                    )
+                    .header(
+                        "cache-control",
+                        Header::new(ObjectBuilder::new().schema_type(Type::String).build()),
+                    )
+                    .header(
+                        "x-accel-buffering",
+                        Header::new(ObjectBuilder::new().schema_type(Type::String).build()),
+                    )
+                    .build(),
+            )
+            .response("204", ResponseBuilder::new().description("Stream draining").build())
+            .response("429", retryable_error("Per-user stream limit")),
         OperationDescriptor::Logout
         | OperationDescriptor::UpdateAccountAvatar
         | OperationDescriptor::UpdateAccountProfile
@@ -167,6 +188,7 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
             operation = operation
                 .security(SecurityRequirement::new("bearerAuth", Vec::<String>::new()))
                 .response("401", json_error_response("Authentication required"))
+                .response("503", authority_unavailable_response(&contract.operation))
         }
         RegisteredAccess::Require(codes)
         | RegisteredAccess::Any(codes)
@@ -180,6 +202,7 @@ pub(super) fn operation_for(contract: &crate::infra::contract::RouteContract) ->
                 .security(SecurityRequirement::new("bearerAuth", Vec::<String>::new()))
                 .response("401", json_error_response("Authentication required"))
                 .response("403", json_error_response("Missing capability"))
+                .response("503", authority_unavailable_response(&contract.operation))
                 .extensions(Some(
                     ExtensionsBuilder::new()
                         .add(
@@ -392,8 +415,29 @@ fn error_specs(operation: &OperationDescriptor) -> Vec<ErrorSpec> {
             json_error("403", "Account is disabled"),
             json_error("500", "Internal server error"),
         ]),
+        StreamNotifications => vec![
+            json_error("400", "URL query credentials are forbidden"),
+            json_error("403", "No enabled notification producer is currently authorized"),
+        ],
         ContractPublic | ContractAny | ContractAll | BenchmarkRequire => Vec::new(),
     }
+}
+
+fn retryable_error(description: &str) -> utoipa::openapi::Response {
+    ResponseBuilder::new()
+        .description(description)
+        .content("application/json", Content::new(Some(Ref::from_schema_name("ApiErrorResponse"))))
+        .header("retry-after", Header::new(ObjectBuilder::new().schema_type(Type::Integer).build()))
+        .build()
+}
+
+fn authority_unavailable_response(operation: &OperationDescriptor) -> utoipa::openapi::Response {
+    let description = if matches!(operation, OperationDescriptor::StreamNotifications) {
+        "Stream capacity or authorization authority unavailable"
+    } else {
+        "Authorization authority unavailable"
+    };
+    retryable_error(description)
 }
 
 fn json_body_errors(additional: &[ErrorSpec]) -> Vec<ErrorSpec> {

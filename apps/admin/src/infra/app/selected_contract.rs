@@ -74,7 +74,7 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_str(&super::selected_contract_json("notifications").unwrap()).unwrap();
         let routes = value["routes"].as_array().unwrap();
-        assert_eq!(routes.len(), 5);
+        assert_eq!(routes.len(), 6);
         assert!(routes.iter().all(|route| {
             route["path"].as_str().is_some_and(|path| path.starts_with("/api/notifications"))
         }));

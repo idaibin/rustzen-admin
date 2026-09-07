@@ -3,6 +3,7 @@ use super::{
     admission_repo,
     admission_types::*,
     pressure::{FilesystemSpace, PressureReason, PressureTracker, SpaceProbe},
+    realtime::RealtimeHub,
     retention,
 };
 use chrono::NaiveDateTime;
@@ -13,8 +14,9 @@ use std::{
 };
 use uuid::Uuid;
 
-const RETRY_AFTER_SECONDS: u64 = 30;
 const MAX_CLEANUP_ROUNDS: usize = 8;
+
+mod status;
 
 pub(crate) struct AdmissionService {
     pool: SqlitePool,
@@ -23,6 +25,7 @@ pub(crate) struct AdmissionService {
     pressure: PressureTracker,
     space: Arc<dyn SpaceProbe>,
     status: Mutex<AdmissionStatus>,
+    realtime: Option<RealtimeHub>,
     #[cfg(test)]
     failpoint: Option<Failpoint>,
 }
@@ -33,7 +36,23 @@ impl AdmissionService {
         database_path: PathBuf,
         policy: AdmissionPolicy,
     ) -> Result<Self, AdmissionError> {
-        Self::start_with_probe(pool, database_path, policy, Arc::new(FilesystemSpace)).await
+        Self::start_with_probe(pool, database_path, policy, Arc::new(FilesystemSpace), None).await
+    }
+
+    pub(crate) async fn start_with_realtime(
+        pool: SqlitePool,
+        database_path: PathBuf,
+        policy: AdmissionPolicy,
+        realtime: RealtimeHub,
+    ) -> Result<Self, AdmissionError> {
+        Self::start_with_probe(
+            pool,
+            database_path,
+            policy,
+            Arc::new(FilesystemSpace),
+            Some(realtime),
+        )
+        .await
     }
 
     async fn start_with_probe(
@@ -41,6 +60,7 @@ impl AdmissionService {
         database_path: PathBuf,
         policy: AdmissionPolicy,
         space: Arc<dyn SpaceProbe>,
+        realtime: Option<RealtimeHub>,
     ) -> Result<Self, AdmissionError> {
         if policy.message_limit <= 0
             || policy.recipient_limit <= 0
@@ -61,6 +81,7 @@ impl AdmissionService {
             pressure: PressureTracker::default(),
             space,
             status: Mutex::new(AdmissionStatus { accepting: true, reason: None }),
+            realtime,
             #[cfg(test)]
             failpoint: None,
         })
@@ -73,7 +94,7 @@ impl AdmissionService {
         policy: AdmissionPolicy,
         space: Arc<dyn SpaceProbe>,
     ) -> Result<Self, AdmissionError> {
-        Self::start_with_probe(pool, database_path, policy, space).await
+        Self::start_with_probe(pool, database_path, policy, space, None).await
     }
 
     #[cfg(test)]
@@ -137,6 +158,7 @@ impl AdmissionService {
                 retention::cleanup(&mut cleanup, accepted_at, self.policy.cleanup_time_limit)
                     .await?;
             cleanup.commit().await?;
+            self.publish_cleanup(&cleaned);
             if !cleaned.made_progress() {
                 break;
             }
@@ -228,15 +250,18 @@ impl AdmissionService {
         )
         .await?;
         self.fail(Failpoint::AfterMessage)?;
+        let mut invalidations = Vec::with_capacity(recipients.len());
         for (index, user_id) in recipients.iter().enumerate() {
-            sqlx::query(
+            let revision = sqlx::query_scalar::<_, i64>(
                 "INSERT INTO notification_user_state (user_id, revision, charged_bytes)
-                 VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET revision = revision + 1",
+                 VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET revision = revision + 1
+                 RETURNING revision",
             )
             .bind(user_id)
             .bind(USER_STATE_CHARGE)
-            .execute(&mut *transaction)
+            .fetch_one(&mut *transaction)
             .await?;
+            invalidations.push((*user_id, revision));
             sqlx::query(
                 "INSERT INTO notification_recipients
                  (notification_id, user_id, created_at, charged_bytes) VALUES (?, ?, ?, ?)",
@@ -253,56 +278,12 @@ impl AdmissionService {
         }
         self.fail(Failpoint::AfterRecipients)?;
         transaction.commit().await?;
+        if let Some(realtime) = &self.realtime {
+            for (user_id, revision) in invalidations {
+                realtime.publish(user_id, revision);
+            }
+        }
         self.accepting();
         Ok(AdmissionResult::Stored { notification_id, recipients: recipients.len() })
-    }
-
-    fn check_capacity(
-        &self,
-        current: Accounting,
-        messages: i64,
-        recipients: i64,
-        receipts: i64,
-        charged_bytes: i64,
-    ) -> Result<(), AdmissionError> {
-        let reason = if current.message_count + messages > self.policy.message_limit {
-            Some(CapacityReason::Messages)
-        } else if current.recipient_count + recipients > self.policy.recipient_limit {
-            Some(CapacityReason::Recipients)
-        } else if current.receipt_count + receipts > self.policy.receipt_limit {
-            Some(CapacityReason::Receipts)
-        } else if current.charged_bytes + charged_bytes > self.policy.charged_bytes_limit {
-            Some(CapacityReason::ChargedBytes)
-        } else {
-            None
-        };
-        reason.map_or(Ok(()), |reason| Err(self.capacity(reason)))
-    }
-
-    fn capacity(&self, reason: CapacityReason) -> AdmissionError {
-        *self.status.lock().expect("admission status lock") =
-            AdmissionStatus { accepting: false, reason: Some(reason) };
-        tracing::warn!(
-            code = "notification-capacity",
-            ?reason,
-            retry_after_seconds = RETRY_AFTER_SECONDS
-        );
-        AdmissionError::Capacity { reason, retry_after_seconds: RETRY_AFTER_SECONDS }
-    }
-
-    fn accepting(&self) {
-        *self.status.lock().expect("admission status lock") =
-            AdmissionStatus { accepting: true, reason: None };
-    }
-
-    fn fail(&self, stage: Failpoint) -> Result<(), AdmissionError> {
-        #[cfg(test)]
-        if self.failpoint == Some(stage) {
-            return Err(AdmissionError::Database(sqlx::Error::Protocol(format!(
-                "injected admission failure at {stage:?}"
-            ))));
-        }
-        let _ = stage;
-        Ok(())
     }
 }

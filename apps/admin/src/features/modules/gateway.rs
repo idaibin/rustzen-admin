@@ -151,7 +151,12 @@ async fn authorize(
     let user =
         SessionRepository::load_authoritative_user(pool, &claims, chrono::Utc::now().timestamp())
             .await
-            .map_err(|_| CoreError::InvalidToken)?;
+            .map_err(|error| match error {
+                crate::common::error::ServiceError::DatabaseQueryFailed => {
+                    CoreError::AuthorityUnavailable
+                }
+                _ => CoreError::InvalidToken,
+            })?;
     if !user.has_capability(permission) {
         return Err(CoreError::PermissionDenied);
     }

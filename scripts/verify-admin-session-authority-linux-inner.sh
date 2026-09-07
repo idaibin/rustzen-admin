@@ -92,7 +92,7 @@ pad=lambda v:v+'='*((4-len(v)%4)%4); decode=lambda token:json.loads(base64.urlsa
 print(json.dumps({'sessions':c.execute('SELECT COUNT(*) FROM access_sessions').fetchone()[0],'active':c.execute('SELECT COUNT(*) FROM access_sessions WHERE revoked_at IS NULL').fetchone()[0],'authzEpoch':c.execute('SELECT authz_epoch FROM access_policy_state WHERE id=1').fetchone()[0],'grantEpochs':{'before':int(sys.argv[4]),'removed':int(sys.argv[5]),'restored':int(sys.argv[6])},'users':c.execute("SELECT username,status,auth_epoch FROM users WHERE username LIKE 'runtime_%' ORDER BY username").fetchall(),'grantCodes':c.execute("SELECT m.code FROM role_menus rm JOIN roles r ON r.id=rm.role_id JOIN menus m ON m.id=rm.menu_id WHERE r.code='runtime_reader' ORDER BY m.code").fetchall(),'expiryIdentity':{'claims':identity(claims),'expiredClaims':identity(expired),'session':session}},separators=(',',':')))
 PY
 execute 'ALTER TABLE access_sessions RENAME TO access_sessions_unavailable'
-capture GET /api/auth/me "$owner" - /verify/evidence/authority-db-failure.json; expect /verify/evidence/authority-db-failure.json 401 401
+capture GET /api/auth/me "$owner" - /verify/evidence/authority-db-failure.json; expect /verify/evidence/authority-db-failure.json 503 50302
 stop_admin
 
 step manifest

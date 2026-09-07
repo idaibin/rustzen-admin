@@ -1,5 +1,6 @@
 use crate::{features::auth::session::SessionRepository, infra::config::CONFIG};
 
+use crate::common::error::ServiceError;
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use rustzen_auth::{
@@ -34,7 +35,10 @@ impl AuthContextLoader for ServerAuthContextLoader {
             chrono::Utc::now().timestamp(),
         )
         .await
-        .map_err(|_| CoreError::InvalidToken)
+        .map_err(|error| match error {
+            ServiceError::DatabaseQueryFailed => CoreError::AuthorityUnavailable,
+            _ => CoreError::InvalidToken,
+        })
     }
 }
 

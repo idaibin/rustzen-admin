@@ -46,7 +46,7 @@ function runtimeEvidence(args) {
         "bad-jwt.json": envelope(401, 401),
         "valid-before-expiry.json": envelope(200, 0, { id: 8 }),
         "expired-jwt.json": envelope(401, 401),
-        "authority-db-failure.json": envelope(401, 401),
+        "authority-db-failure.json": envelope(503, 50302),
     };
     if (process.env.FAKE_TAMPER === "status") cases["grant-removed.json"] = envelope(200, 0, []);
     if (process.env.FAKE_TAMPER === "expiry") cases["expired-jwt.json"] = envelope(200, 0, { id: 8 });

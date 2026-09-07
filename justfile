@@ -179,6 +179,11 @@ verify-admin-session-authority-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-admin-session-authority-linux.test.mjs
     scripts/verify-admin-session-authority-linux.sh
 
+# Run notifications-selected Admin SSE, retention, quota, and authority lifecycle in Linux.
+verify-admin-notification-sse-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-admin-notification-sse-linux.test.mjs
+    scripts/verify-admin-notification-sse-linux.sh
+
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh

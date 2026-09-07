@@ -1,10 +1,7 @@
 use super::{
     cursor::{self, CursorKind, CursorState},
     repo::NotificationRepository,
-    types::{
-        InboxListQuery, InboxListResponse, NotificationItem, ReadAllRequest, ReadAllResponse,
-        ReadResponse, UnreadCountResponse,
-    },
+    types::{InboxListQuery, InboxListResponse, NotificationItem, UnreadCountResponse},
 };
 use crate::common::error::ServiceError;
 use chrono::{NaiveDateTime, Utc};
@@ -171,112 +168,13 @@ impl NotificationService {
         transaction.commit().await.map_err(database_error)?;
         Ok(item.into())
     }
-
-    pub async fn mark_read(
-        pool: &SqlitePool,
-        user_id: i64,
-        notification_id: &str,
-    ) -> Result<ReadResponse, ServiceError> {
-        Self::mark_read_at(pool, user_id, notification_id, Utc::now().naive_utc()).await
-    }
-
-    pub(super) async fn mark_read_at(
-        pool: &SqlitePool,
-        user_id: i64,
-        notification_id: &str,
-        now: NaiveDateTime,
-    ) -> Result<ReadResponse, ServiceError> {
-        let mut connection = pool.acquire().await.map_err(database_error)?;
-        sqlx::query("BEGIN IMMEDIATE").execute(&mut *connection).await.map_err(database_error)?;
-        let result = async {
-            ensure_enabled_user(&mut connection, user_id).await?;
-            let current = NotificationRepository::read_state(
-                &mut connection,
-                user_id,
-                notification_id,
-                retention_cutoff(now),
-            )
-            .await?
-            .ok_or_else(|| ServiceError::NotFound("Notification".into()))?;
-            let (read_at, revision) = if let Some(read_at) = current.read_at {
-                (read_at, NotificationRepository::revision(&mut connection, user_id).await?)
-            } else {
-                let read_at = now;
-                if NotificationRepository::mark_read(
-                    &mut connection,
-                    user_id,
-                    notification_id,
-                    read_at,
-                )
-                .await?
-                    != 1
-                {
-                    return Err(ServiceError::InvalidOperation("Inbox state changed".into()));
-                }
-                let revision =
-                    NotificationRepository::increment_revision(&mut connection, user_id).await?;
-                (read_at, revision)
-            };
-            Ok(ReadResponse { id: current.id, read_at, revision })
-        }
-        .await;
-        finish_write(&mut connection, result.is_ok()).await?;
-        result
-    }
-
-    pub async fn mark_all_read(
-        pool: &SqlitePool,
-        user_id: i64,
-        request: ReadAllRequest,
-        cursor_secret: &[u8],
-    ) -> Result<ReadAllResponse, ServiceError> {
-        Self::mark_all_read_at(pool, user_id, request, cursor_secret, Utc::now().naive_utc()).await
-    }
-
-    pub(super) async fn mark_all_read_at(
-        pool: &SqlitePool,
-        user_id: i64,
-        request: ReadAllRequest,
-        cursor_secret: &[u8],
-        now: NaiveDateTime,
-    ) -> Result<ReadAllResponse, ServiceError> {
-        let snapshot = cursor::decode(&request.snapshot, cursor_secret)?;
-        if snapshot.kind != CursorKind::Snapshot || snapshot.user_id != user_id {
-            return Err(ServiceError::InvalidOperation(
-                "Inbox snapshot does not match the current user".into(),
-            ));
-        }
-        let mut connection = pool.acquire().await.map_err(database_error)?;
-        sqlx::query("BEGIN IMMEDIATE").execute(&mut *connection).await.map_err(database_error)?;
-        let result = async {
-            ensure_enabled_user(&mut connection, user_id).await?;
-            let changed = NotificationRepository::mark_all_read(
-                &mut connection,
-                user_id,
-                snapshot.unread_only,
-                snapshot.max_seq,
-                now,
-                retention_cutoff(now),
-            )
-            .await?;
-            let revision = if changed > 0 {
-                NotificationRepository::increment_revision(&mut connection, user_id).await?
-            } else {
-                NotificationRepository::revision(&mut connection, user_id).await?
-            };
-            Ok(ReadAllResponse { changed, revision })
-        }
-        .await;
-        finish_write(&mut connection, result.is_ok()).await?;
-        result
-    }
 }
 
-fn retention_cutoff(now: NaiveDateTime) -> NaiveDateTime {
+pub(super) fn retention_cutoff(now: NaiveDateTime) -> NaiveDateTime {
     now - chrono::Duration::days(i64::from(RETENTION_DAYS))
 }
 
-async fn ensure_enabled_user(
+pub(super) async fn ensure_enabled_user(
     connection: &mut sqlx::SqliteConnection,
     user_id: i64,
 ) -> Result<(), ServiceError> {
@@ -287,7 +185,7 @@ async fn ensure_enabled_user(
     }
 }
 
-async fn finish_write(
+pub(super) async fn finish_write(
     connection: &mut sqlx::SqliteConnection,
     commit: bool,
 ) -> Result<(), ServiceError> {
@@ -298,7 +196,7 @@ async fn finish_write(
         .map_err(database_error)
 }
 
-fn database_error(error: sqlx::Error) -> ServiceError {
+pub(super) fn database_error(error: sqlx::Error) -> ServiceError {
     tracing::error!(%error, "Notification transaction failed");
     ServiceError::DatabaseQueryFailed
 }

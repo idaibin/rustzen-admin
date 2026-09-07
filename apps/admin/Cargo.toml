@@ -82,3 +82,4 @@ utoipa = { version = "=5.5.0", features = ["chrono"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+tracing-subscriber = "0.3"

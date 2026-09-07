@@ -84,15 +84,15 @@ async fn selected_runtime_reclaims_on_startup_and_periodic_ticks() {
     service.admit(&event("startup-expired", old, vec![2]), old).await.unwrap();
 
     let task =
-        maintenance::start_for_test(database.primary.clone(), Duration::from_millis(20), now)
+        maintenance::start_for_test(database.primary.clone(), Duration::from_millis(20), now, None)
             .await
             .unwrap();
-    assert_eq!(row_counts(&database).await, (0, 0, 0, 0));
+    assert_eq!(row_counts(&database).await, (0, 0, 0, 1));
 
     service.admit(&event("periodic-expired", old, vec![2]), old).await.unwrap();
     tokio::time::timeout(Duration::from_secs(2), async {
         loop {
-            if row_counts(&database).await == (0, 0, 0, 0) {
+            if row_counts(&database).await == (0, 0, 0, 1) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;

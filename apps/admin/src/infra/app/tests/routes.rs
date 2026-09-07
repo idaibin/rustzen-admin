@@ -1,5 +1,19 @@
 use super::*;
 
+#[derive(Clone)]
+struct TraceWriter(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for TraceWriter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().expect("trace buffer").extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn documented_nested_routes_match_their_final_public_paths() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
@@ -170,4 +184,67 @@ async fn business_and_internal_errors_match_the_json_error_envelope() {
         20001,
     )
     .await;
+}
+
+#[cfg(feature = "notifications")]
+#[tokio::test(flavor = "current_thread")]
+async fn full_stream_query_rejection_never_persists_or_traces_query_credentials() {
+    use crate::features::notifications::realtime::RealtimeHub;
+    use tracing_subscriber::fmt;
+
+    let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+    run_migrations(&pool).await.expect("migrations");
+    sqlx::query("UPDATE users SET status=1 WHERE id=1")
+        .execute(&pool)
+        .await
+        .expect("owner enabled");
+    let codec = JwtCodec::new("contract-test", 60);
+    let owner = session_token(&pool, &codec, 1, "owner").await;
+    let realtime = RealtimeHub::new(pool.clone());
+    let (routes, _) = documented_protected_routes();
+    let app = Router::new()
+        .merge(routes)
+        .layer(Extension(realtime))
+        .route_layer(middleware::from_fn_with_state(
+            pool.clone(),
+            crate::middleware::log::log_middleware,
+        ))
+        .route_layer(middleware::from_fn_with_state(
+            (codec, crate::infra::auth_runtime::ServerAuthContextLoader::new(pool.clone())),
+            auth_middleware,
+        ))
+        .layer(Extension(ConnectInfo(
+            "127.0.0.1:3000".parse::<std::net::SocketAddr>().expect("address"),
+        )))
+        .with_state(pool.clone());
+    let buffer = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let writer = TraceWriter(buffer.clone());
+    let subscriber = fmt()
+        .with_ansi(false)
+        .without_time()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_writer(move || writer.clone())
+        .finish();
+    let _guard = tracing::subscriber::set_default(subscriber);
+    let secret = "jwt-secret-must-not-appear";
+    let response = app
+        .oneshot(
+            Request::get(format!("/api/notifications/stream?token={secret}"))
+                .header("authorization", format!("Bearer {owner}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let descriptions =
+        sqlx::query_scalar::<_, String>("SELECT description FROM operation_logs ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(descriptions, ["GET /api/notifications/stream - 400"]);
+    let trace = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
+    assert!(!trace.contains(secret));
+    assert!(!trace.contains("?token="));
+    assert!(trace.contains("path=/api/notifications/stream"));
 }

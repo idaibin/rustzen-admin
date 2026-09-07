@@ -39,7 +39,7 @@ and envelope($grantRestored;200;0)
 and envelope($badJwt;401;401)
 and envelope($validBeforeExpiry;200;0)
 and envelope($expiredJwt;401;401)
-and envelope($authorityFailure;401;401)
+and envelope($authorityFailure;503;50302)
 # Each role update deletes its current mappings and inserts the requested set:
 # remove is 2 deletes + 1 insert; restore is 1 delete + 2 inserts.
 and ($selected[0].grantEpochs.removed == $selected[0].grantEpochs.before + 3)

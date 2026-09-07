@@ -44,7 +44,7 @@ async fn cleanup_increments_each_user_once_and_preserves_current_state() {
 }
 
 #[tokio::test]
-async fn cleanup_removes_bounded_orphan_state_and_releases_charge() {
+async fn cleanup_preserves_durable_revision_state_until_user_cascade() {
     let database = TestDatabase::new().await;
     sqlx::query("INSERT INTO notification_user_state (user_id, revision) VALUES (2, 1)")
         .execute(&database.primary)
@@ -56,7 +56,9 @@ async fn cleanup_removes_bounded_orphan_state_and_releases_charge() {
             .await
             .unwrap();
     transaction.commit().await.unwrap();
-    assert_eq!((cleaned.states, cleaned.charged_bytes), (1, 128));
+    assert_eq!((cleaned.states, cleaned.charged_bytes), (0, 0));
+    assert_eq!(accounting(&database).await.charged_bytes, 128);
+    sqlx::query("DELETE FROM users WHERE id=2").execute(&database.primary).await.unwrap();
     assert_eq!(accounting(&database).await, Accounting::default());
     database.close().await;
 }
@@ -82,7 +84,7 @@ async fn committed_cleanup_survives_later_atomic_admission_failure() {
         failing.admit(&event("new-fails", now, vec![2]), now).await,
         Err(AdmissionError::Database(_))
     ));
-    assert_eq!(accounting(&database).await, Accounting::default());
+    assert_eq!(accounting(&database).await.charged_bytes, 700 * 128);
     assert_eq!(
         sqlx::query_as::<_, (i64, i64, i64, i64)>(
             "SELECT
@@ -94,7 +96,7 @@ async fn committed_cleanup_survives_later_atomic_admission_failure() {
         .fetch_one(&database.primary)
         .await
         .unwrap(),
-        (0, 0, 0, 0)
+        (0, 0, 0, 700)
     );
     database.close().await;
 }

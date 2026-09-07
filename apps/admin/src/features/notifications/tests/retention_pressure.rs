@@ -72,7 +72,7 @@ async fn future_retain_until_survives_message_cleanup_and_accepts_duplicate() {
             .fetch_one(&database.primary)
             .await
             .unwrap(),
-        0
+        1
     );
     database.close().await;
 }
@@ -99,7 +99,7 @@ async fn saturated_admission_commits_cleanup_rounds_then_event_atomically() {
             message_limit: 1,
             recipient_limit: 1,
             receipt_limit: 1,
-            charged_bytes_limit: 1920,
+            charged_bytes_limit: 91_520,
             ..policy()
         },
     )
@@ -111,7 +111,12 @@ async fn saturated_admission_commits_cleanup_rounds_then_event_atomically() {
     ));
     assert_eq!(
         accounting(&database).await,
-        Accounting { message_count: 1, recipient_count: 1, receipt_count: 1, charged_bytes: 1920 }
+        Accounting {
+            message_count: 1,
+            recipient_count: 1,
+            receipt_count: 1,
+            charged_bytes: 91_520,
+        }
     );
     let reopened = database.reopen().await;
     let mut connection = reopened.acquire().await.unwrap();

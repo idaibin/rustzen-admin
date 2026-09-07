@@ -56,6 +56,7 @@ pub(super) fn response_schema(operation: &OperationDescriptor) -> &'static str {
         OperationDescriptor::GetNotification => "ApiResponseNotificationItem",
         OperationDescriptor::ReadNotification => "ApiResponseReadResponse",
         OperationDescriptor::ReadAllNotifications => "ApiResponseReadAllResponse",
+        OperationDescriptor::StreamNotifications => "ApiResponseJson",
         OperationDescriptor::ExportManageLogs
         | OperationDescriptor::BackupModuleLogs
         | OperationDescriptor::ContractPublic

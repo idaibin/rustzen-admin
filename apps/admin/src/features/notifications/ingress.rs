@@ -1,3 +1,4 @@
+use super::realtime::RealtimeHub;
 use super::{admission::AdmissionService, admission_types::*};
 use chrono::{DateTime, Utc};
 use rustzen_ipc::{NotificationEvent, NotificationHeaders, verify_notification};
@@ -115,6 +116,7 @@ impl IngressState {
                 previous,
             }],
             started_at,
+            None,
         )
         .await
     }
@@ -125,7 +127,17 @@ impl IngressState {
         policy: AdmissionPolicy,
         keys: Vec<ProducerKeys>,
     ) -> Result<Self, AdmissionError> {
-        Self::new_with_keys_at(pool, database_path, policy, keys, Utc::now()).await
+        Self::new_with_keys_at(pool, database_path, policy, keys, Utc::now(), None).await
+    }
+
+    pub(crate) async fn new_with_keys_and_realtime(
+        pool: SqlitePool,
+        database_path: std::path::PathBuf,
+        policy: AdmissionPolicy,
+        keys: Vec<ProducerKeys>,
+        realtime: RealtimeHub,
+    ) -> Result<Self, AdmissionError> {
+        Self::new_with_keys_at(pool, database_path, policy, keys, Utc::now(), Some(realtime)).await
     }
 
     async fn new_with_keys_at(
@@ -134,6 +146,7 @@ impl IngressState {
         policy: AdmissionPolicy,
         configured: Vec<ProducerKeys>,
         started_at: DateTime<Utc>,
+        realtime: Option<RealtimeHub>,
     ) -> Result<Self, AdmissionError> {
         let mut keys = HashMap::new();
         for producer in configured {
@@ -163,7 +176,13 @@ impl IngressState {
             }
         }
         Ok(Self {
-            admission: Arc::new(AdmissionService::start(pool, database_path, policy).await?),
+            admission: Arc::new(match realtime {
+                Some(realtime) => {
+                    AdmissionService::start_with_realtime(pool, database_path, policy, realtime)
+                        .await?
+                }
+                None => AdmissionService::start(pool, database_path, policy).await?,
+            }),
             keys: Arc::new(keys),
             guard: Arc::default(),
         })

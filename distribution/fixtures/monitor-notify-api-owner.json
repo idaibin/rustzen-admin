@@ -9,6 +9,12 @@
         {
             "access": { "kind": "authenticated" },
             "method": "GET",
+            "operation": "streamNotifications",
+            "path": "/api/notifications/stream"
+        },
+        {
+            "access": { "kind": "authenticated" },
+            "method": "GET",
             "operation": "getNotificationUnreadCount",
             "path": "/api/notifications/unread-count"
         },

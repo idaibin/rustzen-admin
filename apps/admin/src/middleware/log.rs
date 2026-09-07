@@ -28,10 +28,9 @@ pub async fn log_middleware(
     let start = Instant::now();
     let method = request.method().clone();
     let path = request.uri().path().to_string();
-    let uri = request.uri().to_string();
     let user_agent = request_user_agent(&request);
     let client_ip = addr.ip().to_string();
-    tracing::debug!(method = %method, uri = %uri, client_ip = %client_ip, "Handling request");
+    tracing::debug!(method = %method, path = %path, client_ip = %client_ip, "Handling request");
     let current_user = request.extensions().get::<CurrentUser>().cloned();
     let response = next.run(request).await;
     let duration = start.elapsed();
@@ -48,7 +47,7 @@ pub async fn log_middleware(
                 user_id: user_id.unwrap_or(0),
                 username: username.to_string(),
                 method: method_for_log,
-                uri: uri.clone(),
+                path: path.clone(),
                 status_code,
                 duration,
                 ip_address: client_ip,
@@ -61,7 +60,7 @@ pub async fn log_middleware(
         } else {
             tracing::debug!(
                 method = %method,
-                uri = %uri,
+                path = %path,
                 status_code,
                 duration_ms = duration.as_millis(),
                 user_id = user_id.unwrap_or(0),
@@ -87,7 +86,7 @@ struct RequestLogContext {
     user_id: i64,
     username: String,
     method: Method,
-    uri: String,
+    path: String,
     status_code: u16,
     duration: std::time::Duration,
     ip_address: String,
@@ -100,7 +99,7 @@ fn build_request_log(context: RequestLogContext) -> LogWriteCommand {
         user_id: context.user_id,
         username: context.username,
         action: format!("HTTP_{}", context.method),
-        description: format!("{} {} - {}", context.method, context.uri, context.status_code),
+        description: format!("{} {} - {}", context.method, context.path, context.status_code),
         data: None,
         status: status.to_string(),
         duration_ms: context.duration.as_millis() as i32,

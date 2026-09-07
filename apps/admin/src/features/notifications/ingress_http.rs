@@ -1,6 +1,7 @@
 use super::{
     admission_types::AdmissionPolicy,
     ingress::{IngestError, IngestOutcome, IngressState, MAX_BODY, ProducerKeys},
+    realtime::RealtimeHub,
 };
 use axum::{
     Router,
@@ -44,12 +45,15 @@ pub(crate) async fn start_with_keys(
     policy: AdmissionPolicy,
     address: &str,
     keys: Vec<ProducerKeys>,
+    realtime: RealtimeHub,
 ) -> Result<IngressRuntime, Box<dyn std::error::Error>> {
     let socket: std::net::SocketAddr = address.parse()?;
     if !socket.ip().is_loopback() {
         return Err("notification ingress must bind loopback".into());
     }
-    let state = IngressState::new_with_keys(pool, database_path, policy, keys).await?;
+    let state =
+        IngressState::new_with_keys_and_realtime(pool, database_path, policy, keys, realtime)
+            .await?;
     let listener = tokio::net::TcpListener::bind(socket).await?;
     let task = tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, router(state)).await {

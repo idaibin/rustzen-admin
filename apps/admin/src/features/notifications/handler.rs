@@ -1,3 +1,4 @@
+use super::realtime::RealtimeHub;
 use super::{
     service::NotificationService,
     types::{InboxListQuery, ReadAllRequest},
@@ -8,7 +9,7 @@ use crate::{
     infra::config::CONFIG,
 };
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State, rejection::QueryRejection},
 };
 use rustzen_auth::auth::CurrentUser;
@@ -46,24 +47,33 @@ pub async fn mark_read(
     current_user: CurrentUser,
     State(pool): State<SqlitePool>,
     Path(id): Path<String>,
+    realtime: Option<Extension<RealtimeHub>>,
 ) -> AppResult<super::types::ReadResponse> {
-    Ok(ApiResponse::success(
-        NotificationService::mark_read(&pool, current_user.user_id, &id).await?,
-    ))
+    let (response, changed) =
+        NotificationService::mark_read_for_http(&pool, current_user.user_id, &id).await?;
+    if changed && let Some(Extension(realtime)) = realtime {
+        realtime.publish(current_user.user_id, response.revision);
+    }
+    Ok(ApiResponse::success(response))
 }
 
 pub async fn mark_all_read(
     current_user: CurrentUser,
     State(pool): State<SqlitePool>,
+    realtime: Option<Extension<RealtimeHub>>,
     Json(request): Json<ReadAllRequest>,
 ) -> AppResult<super::types::ReadAllResponse> {
-    Ok(ApiResponse::success(
-        NotificationService::mark_all_read(
-            &pool,
-            current_user.user_id,
-            request,
-            CONFIG.jwt_secret.as_bytes(),
-        )
-        .await?,
-    ))
+    let response = NotificationService::mark_all_read(
+        &pool,
+        current_user.user_id,
+        request,
+        CONFIG.jwt_secret.as_bytes(),
+    )
+    .await?;
+    if response.changed > 0
+        && let Some(Extension(realtime)) = realtime
+    {
+        realtime.publish(current_user.user_id, response.revision);
+    }
+    Ok(ApiResponse::success(response))
 }

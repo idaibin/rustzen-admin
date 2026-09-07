@@ -15,11 +15,13 @@ mod ingress_http;
 pub(crate) mod maintenance;
 #[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
 mod pressure;
+pub(crate) mod realtime;
 mod repo;
 #[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
 mod retention;
 mod service;
 pub(crate) mod types;
+mod write_service;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
 use axum::routing::{get, post, put};
@@ -60,6 +62,13 @@ pub fn notification_routes() -> ContractRouter<SqlitePool> {
             OperationDescriptor::ReadAllNotifications,
             AccessPolicy::Authenticated,
             post(handler::mark_all_read),
+        )
+        .expect("static notification contract")
+        .get(
+            "/stream",
+            OperationDescriptor::StreamNotifications,
+            AccessPolicy::Authenticated,
+            get(realtime::stream),
         )
         .expect("static notification contract")
 }

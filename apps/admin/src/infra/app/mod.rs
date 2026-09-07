@@ -1,6 +1,7 @@
 #[cfg(feature = "notifications")]
 use crate::features::notifications::{
     admission_types::AdmissionPolicy, ingress, maintenance, notification_routes,
+    realtime::RealtimeHub,
 };
 #[cfg(any(feature = "full", test))]
 use crate::infra::db::run_migrations;
@@ -30,7 +31,7 @@ use crate::{
     middleware::log::log_middleware,
 };
 
-#[cfg(feature = "full")]
+#[cfg(feature = "notifications")]
 use axum::Extension;
 use axum::{
     Router,
@@ -59,7 +60,10 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     run_migrations(&pool).await?;
     test_connection(&pool).await?;
     #[cfg(feature = "notifications")]
-    let notification_maintenance = maintenance::start(pool.clone()).await?;
+    let notification_realtime = RealtimeHub::new(pool.clone());
+    #[cfg(feature = "notifications")]
+    let notification_maintenance =
+        maintenance::start(pool.clone(), notification_realtime.clone()).await?;
     #[cfg(feature = "notifications")]
     let notification_ingress = {
         let (key_id, key, previous) = CONFIG.notification_event_keys();
@@ -89,6 +93,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
             AdmissionPolicy::from_config(&CONFIG)?,
             &CONFIG.notification_ingress_address(),
             keys,
+            notification_realtime.clone(),
         )
         .await?
     };
@@ -113,6 +118,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     let (documented_routes, documented_contracts) = documented_protected_routes();
+    #[cfg(feature = "notifications")]
+    let documented_routes = documented_routes.layer(Extension(notification_realtime.clone()));
     let (public_auth_router, _) = public_auth_routes().into_parts();
     #[cfg(feature = "full")]
     let protected_api: Router = documented_routes
@@ -193,6 +200,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     ModuleService::spawn_synchronizer(module_state);
 
     let server_result = axum::serve(listener, app).await;
+    #[cfg(feature = "notifications")]
+    notification_realtime.shutdown();
     #[cfg(feature = "notifications")]
     notification_maintenance.shutdown().await;
     #[cfg(feature = "notifications")]
@@ -288,7 +297,7 @@ mod monitor_distribution_tests {
         #[cfg(feature = "notifications")]
         assert_eq!(
             paths.iter().filter(|path| path.starts_with("/api/notifications")).count(),
-            5,
+            6,
             "monitor-notify must expose the exact notification route owner"
         );
         assert_eq!(

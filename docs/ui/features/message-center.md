@@ -1,9 +1,10 @@
 # Message Center UI
 
-Status: P5a and P5b durable-inbox backend contracts are implemented and verified
-locally. The P7 message-center and realtime contract below is frozen. P7a adds
-only the Access session authority required by that contract; SSE and Web remain
-pending P7b and P7c and have no implemented UI acceptance yet.
+Status: P5a and P5b durable-inbox backend contracts, P7a Access session
+authority, and P7b backend SSE are implemented and verified locally through
+source tests, independent review, and a selected-composition Linux runtime
+gate. The P7 message-center and realtime contract below is frozen. P7c Web
+remains pending and has no implemented UI acceptance yet.
 
 ## Product boundary
 
@@ -88,15 +89,21 @@ field. The Monitor route must resolve that exact incident through its authorized
 API and treat 403/404 as inaccessible without falling back to another incident.
 Unknown producer/topic/subject combinations have no navigation action.
 
-## P7 realtime contract (pending P7b/P7c)
+## P7 realtime contract (P7b backend implemented; P7c pending)
 
-Admin will expose one direct authenticated fetch-SSE endpoint. It emits an
+Notifications-selected Admin exposes `GET /api/notifications/stream` as one
+direct authenticated fetch-SSE endpoint. The Bearer JWT and optional
+`Last-Event-ID` are headers; query credentials are forbidden. It emits an
 initial revision hint, advisory revision invalidations, 15-second heartbeats and
 `reconcile.required`; it never emits message bodies and never replays missed
 business events. `Last-Event-ID` is only a client continuity hint, so reconnect
 always reconciles the durable inbox. Server limits are 4 connections per user,
 1,000 overall and a queue of 16 per connection. A full queue sends
 `reconcile.required` when possible and closes while releasing both quotas.
+The server also closes a connection after 45 seconds without body polling or
+after an absolute age of 5 minutes; clients then reconnect and reconcile the
+durable inbox. Body polling is the available server signal and is not presented
+as a network write acknowledgement.
 
 The server rechecks JWT expiry before every frame and revalidates the current
 session, enabled user and policy at least every five seconds. Logout, revocation,
@@ -106,6 +113,24 @@ line to 8 KiB and one event to 16 KiB. No JWT appears in a URL. Visible tabs als
 reconcile every 60 seconds. The 1,000-connection and 24-hour behavior is a P8
 runtime gate and is not claimed by this frozen UI contract.
 
+Per-user revisions remain durable and monotonic after retention removes the
+last inbox recipient. Reconnect and the next admitted message therefore observe
+the retained revision and its successor; the state ends only when the user is
+deleted.
+
+The backend response matrix is fixed before implementation: authenticated and
+registered streams return `200 text/event-stream` with no-cache/no-buffer
+headers; missing/invalid/expired identity returns `401`; no current grant for
+any enabled producer returns `403`; deliberate hub draining returns `204`; the
+per-user fifth connection returns `429`; and global quota or authority-store
+failure returns `503`. `429`/`503` carry the JSON error envelope and
+`Retry-After: 60`. An established connection ends with EOF after auth change,
+expiry, database failure, shutdown or client cancellation. Tests must cover
+initial revision, ignored `Last-Event-ID`, post-commit admission/read/retention
+invalidations, lag reconciliation, exact quota release, unpolled/drop cleanup
+and bounded connection age,
+all status/header cases, OpenAPI ownership and pure-composition absence.
+
 ## Existing durable behavior
 
 P5b capacity or storage-pressure refusal is an operator diagnostic and does not
@@ -113,6 +138,8 @@ create a user-facing partial message. Existing inbox rows remain readable while
 new notification admission is paused. Duplicate producer retries remain
 idempotent, and the UI never infers delivery from an event that was rejected.
 
-Until P7b/P7c land, backend success is not realtime or visual acceptance.
+P7b's disposable Linux runtime gate does not establish browser, reverse-proxy,
+sustained-load, native-systemd or production-deployment acceptance. Those
+runtime layers and the P7c Web behavior remain pending.
 Monitor and Reports producer delivery remains P6 and does not depend on a
 browser connection.
