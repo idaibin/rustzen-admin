@@ -5,42 +5,45 @@ pub(super) fn list_in(
     module_filter: Option<&str>,
     date_filter: Option<NaiveDate>,
 ) -> Result<Vec<ModuleLogFileResp>, ServiceError> {
-    let Some(root) = checked_log_root(log_dir)? else {
-        return Ok(Vec::new());
-    };
     let today = Utc::now().date_naive();
     let mut items = Vec::new();
-    for entry in fs::read_dir(&root).map_err(io_error("read log directory"))? {
-        let entry = entry.map_err(io_error("read log directory entry"))?;
-        let Some(file_name) = entry.file_name().to_str().map(str::to_owned) else {
-            continue;
-        };
-        let Some((module, date)) = parse_file_name(&file_name) else {
-            continue;
-        };
-        if module_filter.is_some_and(|filter| filter != module)
-            || date_filter.is_some_and(|filter| filter != date)
-        {
+    for expected_module in MODULE_IDS {
+        if module_filter.is_some_and(|filter| filter != expected_module) {
             continue;
         }
-        let path = root.join(&file_name);
-        let metadata = match fs::symlink_metadata(&path) {
-            Ok(metadata) => metadata,
-            Err(_) => continue,
+        let Some(root) = checked_module_log_root(log_dir, expected_module)? else {
+            continue;
         };
-        let is_symlink = metadata.file_type().is_symlink();
-        let readable = !is_symlink && metadata.is_file() && File::open(&path).is_ok();
-        let modified_at =
-            metadata.modified().map(DateTime::<Utc>::from).unwrap_or_else(|_| Utc::now());
-        items.push(ModuleLogFileResp {
-            module: module.to_string(),
-            file_name,
-            date: date.to_string(),
-            size_bytes: if readable { metadata.len() } else { 0 },
-            modified_at,
-            readable,
-            active: date == today,
-        });
+        for entry in fs::read_dir(&root).map_err(io_error("read log directory"))? {
+            let entry = entry.map_err(io_error("read log directory entry"))?;
+            let Some(file_name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let Some((module, date)) = parse_file_name(&file_name) else {
+                continue;
+            };
+            if module != expected_module || date_filter.is_some_and(|filter| filter != date) {
+                continue;
+            }
+            let path = root.join(&file_name);
+            let metadata = match fs::symlink_metadata(&path) {
+                Ok(metadata) => metadata,
+                Err(_) => continue,
+            };
+            let is_symlink = metadata.file_type().is_symlink();
+            let readable = !is_symlink && metadata.is_file() && File::open(&path).is_ok();
+            let modified_at =
+                metadata.modified().map(DateTime::<Utc>::from).unwrap_or_else(|_| Utc::now());
+            items.push(ModuleLogFileResp {
+                module: module.to_string(),
+                file_name,
+                date: date.to_string(),
+                size_bytes: if readable { metadata.len() } else { 0 },
+                modified_at,
+                readable,
+                active: date == today,
+            });
+        }
     }
     items.sort_by(|left, right| {
         left.module.cmp(&right.module).then_with(|| right.date.cmp(&left.date))

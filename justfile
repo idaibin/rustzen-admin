@@ -140,6 +140,12 @@ verify-admin-browser-linux:
     scripts/test-ensure-admin-browser-verifier-image.sh
     scripts/verify-admin-browser-linux.sh
 
+# Run the four shipped service identities and verify Admin-owned module-log operations.
+verify-module-log-runtime-linux:
+    scripts/test-verify-module-log-runtime-linux.sh
+    cargo test -p rustzen-admin features::system::status::logs::service::tests -- --test-threads=1
+    scripts/verify-module-log-runtime-linux.sh
+
 verify-analytics-tracker-linux:
     scripts/verify-analytics-tracker-linux.sh
 

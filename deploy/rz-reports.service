@@ -7,6 +7,7 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+UMask=0077
 User=rz-reports
 Group=rz-reports
 EnvironmentFile=/opt/rz/config/rz-reports.env

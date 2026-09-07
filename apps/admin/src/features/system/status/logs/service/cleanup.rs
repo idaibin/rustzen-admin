@@ -5,71 +5,74 @@ pub(super) fn collect_cleanup_candidates(
     today: NaiveDate,
     cutoff_date: NaiveDate,
 ) -> Result<(Vec<CleanupCandidateState>, Vec<ModuleLogItemFailure>), ServiceError> {
-    let Some(directory) = secure_fs::open_directory(log_dir)? else {
-        return Ok((Vec::new(), Vec::new()));
-    };
-    let Some(root) = checked_log_root(log_dir)? else {
-        return Ok((Vec::new(), Vec::new()));
-    };
     let mut candidates = Vec::new();
     let mut failures = Vec::new();
-    for entry in fs::read_dir(&root).map_err(io_error("read log directory"))? {
-        let entry = entry.map_err(io_error("read log directory entry"))?;
-        let Some(file_name) = entry.file_name().to_str().map(str::to_owned) else {
+    for expected_module in MODULE_IDS {
+        let Some(root) = checked_module_log_root(log_dir, expected_module)? else {
             continue;
         };
-        let Some((module, date)) = parse_file_name(&file_name) else {
+        let Some(directory) = open_module_log_directory(log_dir, expected_module)? else {
             continue;
         };
-        if date >= cutoff_date || date >= today {
-            continue;
-        }
-        let selector =
-            ParsedSelector { module: module.to_string(), date, file_name: file_name.clone() };
-        let file = match directory.open_file(&selector.file_name) {
-            Ok(file) => file,
-            Err(_) => {
+        for entry in fs::read_dir(&root).map_err(io_error("read log directory"))? {
+            let entry = entry.map_err(io_error("read log directory entry"))?;
+            let Some(file_name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let Some((module, date)) = parse_file_name(&file_name) else {
+                continue;
+            };
+            if module != expected_module || date >= cutoff_date || date >= today {
+                continue;
+            }
+            let selector =
+                ParsedSelector { module: module.to_string(), date, file_name: file_name.clone() };
+            let file = match directory.open_file(&selector.file_name) {
+                Ok(file) => file,
+                Err(_) => {
+                    failures.push(ModuleLogItemFailure {
+                        module: selector.module,
+                        file_name,
+                        reason: "file changed or is unsafe".into(),
+                    });
+                    continue;
+                }
+            };
+            let signature = file.signature()?;
+            let bytes = match file.read_all() {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    failures.push(ModuleLogItemFailure {
+                        module: selector.module,
+                        file_name,
+                        reason: "file unavailable".into(),
+                    });
+                    continue;
+                }
+            };
+            if !same_signature(signature, file.signature()?) {
                 failures.push(ModuleLogItemFailure {
                     module: selector.module,
                     file_name,
-                    reason: "file changed or is unsafe".into(),
+                    reason: "file changed while it was read".into(),
                 });
                 continue;
             }
-        };
-        let signature = file.signature()?;
-        let bytes = match file.read_all() {
-            Ok(bytes) => bytes,
-            Err(_) => {
-                failures.push(ModuleLogItemFailure {
-                    module: selector.module,
+            let modified_at =
+                signature.modified.map(DateTime::<Utc>::from).unwrap_or_else(Utc::now);
+            candidates.push(CleanupCandidateState {
+                candidate: ModuleLogCleanupCandidate {
+                    module: selector.module.clone(),
                     file_name,
-                    reason: "file unavailable".into(),
-                });
-                continue;
-            }
-        };
-        if !same_signature(signature, file.signature()?) {
-            failures.push(ModuleLogItemFailure {
-                module: selector.module,
-                file_name,
-                reason: "file changed while it was read".into(),
+                    date: selector.date.to_string(),
+                    size_bytes: signature.size,
+                    modified_at,
+                },
+                selector,
+                signature,
+                digest: digest_bytes(&bytes),
             });
-            continue;
         }
-        let modified_at = signature.modified.map(DateTime::<Utc>::from).unwrap_or_else(Utc::now);
-        candidates.push(CleanupCandidateState {
-            candidate: ModuleLogCleanupCandidate {
-                module: selector.module.clone(),
-                file_name,
-                date: selector.date.to_string(),
-                size_bytes: signature.size,
-                modified_at,
-            },
-            selector,
-            signature,
-            digest: digest_bytes(&bytes),
-        });
     }
     candidates.sort_by(|left, right| left.candidate.file_name.cmp(&right.candidate.file_name));
     Ok((candidates, failures))
@@ -83,20 +86,21 @@ pub(super) fn execute_cleanup(
     let mut removed = Vec::new();
     let mut retained = Vec::new();
     let mut failures = Vec::new();
-    let directory = secure_fs::open_directory(log_dir)?.ok_or_else(|| {
-        ServiceError::InvalidOperation("Module log directory is unavailable".into())
-    })?;
     for state in &preview.candidates {
         let candidate = state.candidate.clone();
         if state.selector.date >= today || state.selector.date >= preview.cutoff_date {
             retained.push(candidate);
             continue;
         }
-        match directory.unlink_if_unchanged(
-            &state.selector.file_name,
-            state.signature,
-            &state.digest,
-        ) {
+        let result =
+            open_module_log_directory(log_dir, &state.selector.module).and_then(|directory| {
+                directory
+                    .ok_or_else(|| {
+                        ServiceError::InvalidOperation("Module log directory is unavailable".into())
+                    })?
+                    .unlink_if_unchanged(&state.selector.file_name, state.signature, &state.digest)
+            });
+        match result {
             Ok(()) => removed.push(candidate),
             Err(_) => failures.push(ModuleLogItemFailure {
                 module: candidate.module,

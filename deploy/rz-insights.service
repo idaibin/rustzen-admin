@@ -7,6 +7,7 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+UMask=0077
 EnvironmentFile=/opt/rz/config/rz.env
 ExecCondition=/usr/bin/test ! -e /opt/rz/data/recovery-blocked
 ExecStart=/opt/rz/current/bin/rz-insights serve

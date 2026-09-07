@@ -18,7 +18,7 @@
   action, cleanup preview, and confirmation in loading, populated, empty,
   error, processing, and partial states
   at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. The frozen disposable Linux Chromium contract uses owner `/system/status`, an explicit current-UTC `admin` fixture and one expired `monitor` fixture while retaining service-created current-day entries; it captures 1440x900 zh-CN and 390x844 en-US, with no page horizontal overflow. Runtime captures for the actual deployment remain `Not verified`.
+  zh-CN/en-US. The frozen disposable Linux Chromium contract uses owner `/system/status`, an explicit current-UTC `admin` fixture and one expired `monitor` fixture while retaining service-created current-day entries; it captures 1440x900 zh-CN and 390x844 en-US, with no page horizontal overflow. The four-service Colima runtime boundary is **Closed locally**; native systemd and production deployment remain `Not verified`.
 
 Dates shown for daily files, retention cutoffs, and current-day protection are
 UTC, matching the rolling logger; labels must make the UTC basis clear.
@@ -112,7 +112,12 @@ that uses the Admin OpenAPI/Orval chain. The document intentionally does not
 duplicate paths or file schemas. Admin owns the fixed allowlist, path safety,
 64 MiB preflight/Blob archive, manifest/hash metadata, confirmation token,
 capability checks, and audit metadata. `crates/runtime` and each service own
-file naming/emission/retention; no module database is read by Admin.
+file naming/emission/retention; no module database is read by Admin. The
+`reports` selector is presented like the other three fixed modules even though
+Admin resolves it to the shipped `logs/reports/reports.YYYY-MM-DD` location.
+The nested directory is implementation-owned and is never exposed as a user
+path input or archive path; a missing directory is empty and an unsafe
+directory fails closed.
 
 ## Traceable UI deltas
 
@@ -123,7 +128,7 @@ file naming/emission/retention; no module database is read by Admin.
 | ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `source implemented`: preview, expiry, processing, confirmation, failure, and partial paths are rendered | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | Linux Chromium owner flow freezes expired-fixture-only preview, ConfirmDialog confirmation, and result evidence; fault/permission matrices remain separately covered |
 | ML-UI-004 | `source-extracted`: generated binary transport and semantic status treatment | `source implemented`: metadata headers are required before download; success shows filename, file count, and hash summary; Tail Drawer renders bounds/truncation | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | Linux Chromium owner flow freezes selected-backup summary UI; adapter + service HTTP tests remain the archive-byte/hash authority |
 
-The disposable Linux Chromium gate freezes the two specified geometry/localization states and success lifecycle. Actual service-account permissions, native systemd, production deployment, and broader failure/permission browser matrices remain `Not verified`. Source, OpenAPI/client, and disposable-service HTTP evidence do not replace those boundaries.
+The disposable Linux Chromium gate freezes the two specified geometry/localization states and success lifecycle. The dedicated four-service Linux runtime gate is **Closed locally** at `target/rz/module-log-runtime/current/manifest.json`: head `21ed7a8`, source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`, `aarch64`, and 25 receipts. It proves five exact non-owner 403 envelopes, Reports process/directory/file UID/GID `999:999`, root/reports directory modes `0711`/`0750`, four old files removed with zero failures and current files preserved, plus the exact archive of 4 files and 9216 bytes with SHA-256 `de9330db80df01c6f4c30ce66921b61ae19295ac1653a51e4c939462dd1cf96a`. The first jq-verifier failure remains in `failed-runs`; the published `current` manifest is authoritative, and independent review found no remaining P1/P2. Native systemd, production deployment, and broader failure/permission browser matrices remain `Not verified`.
 
 ## Responsive and verification matrix
 
@@ -149,4 +154,4 @@ transport, and semantic tokens.
 
 ## Ready for dev-frontend module log diagnostics
 
-The selected source, layout ownership, component mapping, route/API authorization and action states, responsive/accessibility rules, and acceptance IDs are fixed. The disposable Linux Chromium verifier is limited to the explicit current `admin` and expired `monitor` fixtures while retaining service-created current-day entries, owner success lifecycle, 1440x900 zh-CN and 390x844 en-US screenshots, and no-overflow assertions. Runtime log availability (especially Insights), actual runtime permissions, native systemd, production deployment, and unlisted browser states remain `Not verified`.
+The selected source, layout ownership, component mapping, route/API authorization and action states, responsive/accessibility rules, and acceptance IDs are fixed. The disposable Linux Chromium verifier is limited to the explicit current `admin` and expired `monitor` fixtures while retaining service-created current-day entries, owner success lifecycle, 1440x900 zh-CN and 390x844 en-US screenshots, and no-overflow assertions. Four-service log availability and Colima runtime permissions are **Closed locally** by the final `current` manifest and review. Native systemd, production deployment, and unlisted browser states remain `Not verified`.

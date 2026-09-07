@@ -75,6 +75,103 @@ fn list_marks_symlink_unreadable_without_following_target() {
 
 #[cfg(unix)]
 #[test]
+fn reports_uses_only_the_fixed_service_account_log_directory() {
+    let dir = temp_log_dir();
+    let reports_dir = dir.join("reports");
+    fs::create_dir(&reports_dir).unwrap();
+    fs::write(dir.join("reports.2026-01-01"), b"root-decoy").unwrap();
+    fs::write(reports_dir.join("reports.2026-01-01"), b"nested-report-log\n").unwrap();
+
+    let items = list_in(&dir, Some("reports"), None).unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].file_name, "reports.2026-01-01");
+    let tail = tail_in(&dir, selector("reports", "2026-01-01", &dir), None).unwrap();
+    assert_eq!(tail.content, "nested-report-log");
+
+    let request = ModuleLogBackupRequest {
+        files: vec![ModuleLogFileSelector { module: "reports".into(), date: "2026-01-01".into() }],
+    };
+    let archive = build_archive(&dir, request).unwrap();
+    let mut tar_archive = tar::Archive::new(archive.bytes.as_slice());
+    let mut entries = tar_archive.entries().unwrap();
+    assert_eq!(entries.next().unwrap().unwrap().path().unwrap(), Path::new("reports.2026-01-01"));
+    assert_eq!(entries.next().unwrap().unwrap().path().unwrap(), Path::new("manifest.json"));
+    assert!(entries.next().is_none());
+
+    let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
+    let cutoff = today - Days::new(RETENTION_DAYS);
+    let (candidates, failures) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
+    assert!(failures.is_empty());
+    assert_eq!(candidates.len(), 1);
+    let preview = CleanupPreviewState {
+        preview_id: "reports-preview".into(),
+        expires_at_instant: Instant::now() + CLEANUP_PREVIEW_TTL,
+        cutoff_date: cutoff,
+        candidates,
+    };
+    let result = execute_cleanup(&dir, &preview, today).unwrap();
+    assert_eq!(result.removed.len(), 1);
+    assert!(!reports_dir.join("reports.2026-01-01").exists());
+    assert_eq!(fs::read(dir.join("reports.2026-01-01")).unwrap(), b"root-decoy");
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn missing_reports_directory_is_empty_and_non_directory_fails_closed() {
+    let dir = temp_log_dir();
+    assert!(list_in(&dir, Some("reports"), None).unwrap().is_empty());
+    let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
+    let cutoff = today - Days::new(RETENTION_DAYS);
+    assert!(collect_cleanup_candidates(&dir, today, cutoff).unwrap().0.is_empty());
+    fs::write(dir.join("reports"), b"not-a-directory").unwrap();
+    assert!(list_in(&dir, Some("reports"), None).is_err());
+    assert!(tail_in(&dir, selector("reports", "2026-01-01", &dir), None).is_err());
+    assert!(
+        build_archive(
+            &dir,
+            ModuleLogBackupRequest {
+                files: vec![ModuleLogFileSelector {
+                    module: "reports".into(),
+                    date: "2026-01-01".into(),
+                }],
+            },
+        )
+        .is_err()
+    );
+    assert!(collect_cleanup_candidates(&dir, today, cutoff).is_err());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn reports_directory_symlink_fails_closed() {
+    let dir = temp_log_dir();
+    let outside = temp_log_dir();
+    fs::write(outside.join("reports.2026-01-01"), b"outside").unwrap();
+    std::os::unix::fs::symlink(&outside, dir.join("reports")).unwrap();
+    assert!(list_in(&dir, Some("reports"), None).is_err());
+    assert!(tail_in(&dir, selector("reports", "2026-01-01", &dir), None).is_err());
+    assert!(
+        build_archive(
+            &dir,
+            ModuleLogBackupRequest {
+                files: vec![ModuleLogFileSelector {
+                    module: "reports".into(),
+                    date: "2026-01-01".into(),
+                }],
+            },
+        )
+        .is_err()
+    );
+    let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
+    let cutoff = today - Days::new(RETENTION_DAYS);
+    assert!(collect_cleanup_candidates(&dir, today, cutoff).is_err());
+    fs::remove_dir_all(dir).unwrap();
+    fs::remove_dir_all(outside).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
 fn tail_is_bounded_by_bytes_lines_and_individual_line_size() {
     let dir = temp_log_dir();
     let mut file = fs::File::create(dir.join("admin.2026-01-01")).unwrap();

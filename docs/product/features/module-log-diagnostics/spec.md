@@ -37,7 +37,7 @@ runtime rolling logger; local timezone does not change eligibility.
 
 | Decision | Rationale | Acceptance consequence |
 | --- | --- | --- |
-| The scope is the four local service prefixes only. | These files have a stable runtime owner and path contract. | No arbitrary path, managed-node OS log, or application log search is accepted. |
+| The scope is the four local service prefixes only. | These files have a stable runtime owner and path contract. Admin, Monitor, and Insights emit directly under the runtime log root; Reports emits `reports.YYYY-MM-DD` under the fixed `logs/reports/` service-account directory. | No arbitrary path, managed-node OS log, or application log search is accepted. The Reports selector remains `reports` and archive basename remains `reports.YYYY-MM-DD`; the nested directory is never accepted from a request. |
 | Admin owns authorization and audit; each service owns emitted content. | The Web console needs one control-plane boundary without merging databases. | File access is mediated by a fixed allowlist and actions are audited without copying content into Admin DB. |
 | Backup is a bounded external Blob archive downloaded through the Admin binary transport. | A same-host copy is not an independent recovery artifact, while an unbounded archive complicates the current client boundary. | A preflight enforces a 64 MiB archive cap; Web requires `Content-Disposition`, `X-RustZen-Archive-SHA256`, and `X-RustZen-Archive-File-Count`, validates them before download, and shows the filename, file count, and hash summary after success; no local backup directory is invented. |
 | Cleanup is preview plus short-lived confirmation. | Destructive file removal needs an explicit review seam. | Preview lists candidates; confirmation cannot be replayed after expiry. |
@@ -136,14 +136,26 @@ Non-goals:
   surface; direct endpoint calls are rejected with the same owner-only
   authorization result, and no diagnostics-local permission state is shown.
 - Only exact file names matching `<prefix>.YYYY-MM-DD` are eligible. Prefixes
-  are the four fixed service IDs. Symlinks, directories, unknown suffixes,
-  traversal, and arbitrary absolute paths are rejected.
+  are the four fixed service IDs. `admin`, `monitor`, and `insights` resolve in
+  the runtime log root; `reports` resolves only in its fixed `reports/`
+  subdirectory. A missing Reports directory produces no list item, while a
+  non-directory or symbolic-link Reports directory fails closed. Symlinks,
+  directories, unknown suffixes, traversal, and arbitrary absolute paths are
+  rejected.
 - A backup manifest includes file name, size, modification time, and SHA-256.
   The bounded Blob archive is not stored as a local recovery copy by this
   slice, and any mid-build file change fails the entire download.
 - Cleanup never removes the current UTC date, a candidate outside the fixed cutoff,
   or an item that fails a safety recheck. The contract does not claim to detect
   an external process holding an older file; that state is Not verified.
+- Linux runtime acceptance follows the shipped units: Admin, Monitor, and
+  Insights retain their current unit identity, while Reports runs as
+  `rz-reports:rz-reports`. All four service units declare `UMask=0077`, so
+  service-created daily logs follow the existing private-file contract at
+  mode `0600`. `/opt/rz/logs` remains mode `0711` and
+  `/opt/rz/logs/reports` remains owned by `rz-reports:rz-reports` at mode
+  `0750`. This slice verifies that Admin can mediate the nested Reports file;
+  it does not change service identities or broaden filesystem permissions.
 - Partial applies to named metadata/cleanup items that were not read or
   removed. Backup is all-or-none: any archive item failure aborts the entire
   Blob and is not reported as a partial archive.
@@ -233,14 +245,15 @@ database.
 | Automated | Implemented: file safety, preflight cap, Blob manifest/hash, preview-confirm, active-day, partial-result, tail caps/cursor, OpenAPI/client adapter, and service HTTP checks | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
 | HTTP | Disposable-service owner/non-owner requests through Admin | Owner-only route/API boundaries, direct denial, tail cursor/cap, archive headers, and cleanup token behavior are observable; no local permission state is needed for non-owners. |
 | Browser | Disposable Linux Chromium owner flow at `/system/status` | The verifier creates only an explicit current-UTC `admin` fixture and expired `monitor` fixture while retaining service-created current-day entries, then proves the owner panel, current file tail Drawer/markers/boundary copy, selected-backup filename/file-count/SHA summary, preview-only expired fixture, explicit confirm, result state, desktop 1440x900 zh-CN and narrow 390x844 en-US screenshots, and no horizontal overflow. Archive bytes and full SHA verification remain covered by the service/client gate rather than simulated in Chromium. |
-| Runtime/deployment | actual four-service runtime log directory | `Not verified` until all prefixes and permissions are exercised. |
+| Runtime/deployment | **Closed locally** by `just verify-module-log-runtime-linux` against current-provenance Linux binaries | The final `aarch64` Colima manifest at `target/rz/module-log-runtime/current/manifest.json` binds head `21ed7a8`, source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`, 25 receipts, five exact non-owner 403 envelopes, and an archive of 4 files and 9216 bytes with SHA-256 `de9330db80df01c6f4c30ce66921b61ae19295ac1653a51e4c939462dd1cf96a`. Reports process/directory/file identities agree at UID/GID `999:999`; `/opt/rz/logs` is `0711`, `/opt/rz/logs/reports` is `0750`; cleanup removed four old files with zero failures and preserved the current UTC-day files. The first jq-verifier failure remains under `failed-runs`, while `current` records the accepted final result. Independent review found no remaining P1/P2. Native systemd and production deployment remain `Not verified`. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
 ### Assumptions
 
-- All four services write daily files under the configured shared runtime log
-  directory before this feature is declared runtime-complete.
+- All four services write daily files under the configured runtime log layout:
+  Admin, Monitor, and Insights at the log root, and Reports in its fixed
+  service-account subdirectory.
 - A bounded Blob archive can be consumed by the operator's external storage or
   download flow; long-term retention of that external copy is outside Admin.
 
@@ -268,4 +281,4 @@ database.
 The fixed module scope, ownership, permission boundary, path safety, backup
 integrity, cleanup confirmation, failure semantics, non-goals, and acceptance
 are implemented in the Admin and Web source, including download metadata
-validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/status` UI, while archive-byte/hash proof remains service/client evidence. Runtime permissions for the actual four-service deployment, Insights emission, native systemd, and production deployment remain `Not verified` until exercised.
+validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/status` UI, while archive-byte/hash proof remains service/client evidence. The dedicated Linux runtime gate is **Closed locally** at the published `current` manifest for source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`; its 25 receipts cover the four service-created prefixes, five exact 403 denials, Reports `999:999` ownership, archive SHA/bytes, and cleanup preservation. The retained first jq-verifier failure does not replace that final result. Native systemd and production deployment remain `Not verified` until exercised.

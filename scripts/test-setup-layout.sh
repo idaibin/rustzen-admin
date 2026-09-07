@@ -356,6 +356,8 @@ for unit in rz-admin.service rz-monitor.service rz-insights.service rz-reports.s
         || fail "$unit does not declare PartOf=rz.target"
     grep -Fqx 'Restart=on-failure' "$PROJECT_ROOT/deploy/$unit" \
         || fail "$unit does not restart independently"
+    grep -Fqx 'UMask=0077' "$PROJECT_ROOT/deploy/$unit" \
+        || fail "$unit does not preserve private service-created files"
     grep -Eq '^StartLimitIntervalSec=' "$PROJECT_ROOT/deploy/$unit" \
         || fail "$unit has no start-limit interval"
     grep -Eq '^StartLimitBurst=' "$PROJECT_ROOT/deploy/$unit" \

@@ -11,11 +11,32 @@ pub(super) fn checked_log_root(log_dir: &Path) -> Result<Option<PathBuf>, Servic
     }
     fs::canonicalize(log_dir).map(Some).map_err(io_error("resolve log directory"))
 }
+
+pub(super) fn checked_module_log_root(
+    log_dir: &Path,
+    module: &str,
+) -> Result<Option<PathBuf>, ServiceError> {
+    let Some(root) = checked_log_root(log_dir)? else {
+        return Ok(None);
+    };
+    if module == "reports" { checked_log_root(&root.join("reports")) } else { Ok(Some(root)) }
+}
+
+pub(super) fn open_module_log_directory(
+    log_dir: &Path,
+    module: &str,
+) -> Result<Option<secure_fs::SecureDirectory>, ServiceError> {
+    let Some(root) = checked_module_log_root(log_dir, module)? else {
+        return Ok(None);
+    };
+    secure_fs::open_directory(&root)
+}
+
 pub(super) fn checked_candidate(
     log_dir: &Path,
     selector: &ParsedSelector,
 ) -> Result<CheckedCandidate, ServiceError> {
-    let directory = secure_fs::open_directory(log_dir)?.ok_or_else(|| {
+    let directory = open_module_log_directory(log_dir, &selector.module)?.ok_or_else(|| {
         ServiceError::InvalidOperation("Module log directory is unavailable".into())
     })?;
     let file = directory.open_file(&selector.file_name)?;
