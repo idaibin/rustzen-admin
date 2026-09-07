@@ -78,8 +78,8 @@ the `insights:manage` owner boundary and requires a separate settings contract.
 | Loading | Existing `DataState` or table loading | Keep filters and shell; do not show zero metrics. |
 | Populated | Current metric/table hierarchy | Paths and event names remain text-readable; no raw query values. |
 | Empty | `DataState` distinguishes no activity from no filter matches | Clear or change the current filters directly. |
-| Error | Alert-semantic `DataState` with retry | Retry calls the owning query and keeps last successful data. |
-| Permission | Permission-semantic state or route guard | No status/config details leak to unauthorized users. |
+| Error | Alert-semantic `DataState` with retry | Retry calls the owning query and keeps last successful data for non-permission failures. |
+| Permission | Permission-semantic state or route guard | A 403 overrides cached Overview/Details data, including a background refresh; no status/config details leak to unauthorized users. |
 | Partial | Table feedback identifies missing categories | Readable metrics/events remain visible; no all-good summary. |
 | Tracker rejected | Not an Admin page state | Public endpoint returns explicit 413/429/507 or validation rejection with zero persistence; Analytics read data does not reset to empty. |
 
@@ -136,7 +136,7 @@ does not render their counters or limits.
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
 | AC-UI-001 | User requirement: activity-only overview/details | Current routes omit the policy card | No policy-status card or display-only policy request; preserve activity hierarchy | P1 | Analytics composition and query inventory |
-| AC-UI-002 | `source-extracted`: existing `DataState` semantics | Activity queries retain loading, error, filtered-empty, and successful-empty states; complete forced runtime matrix remains `Not verified` | Loading, empty, error, permission, and partial remain distinct; no failed-to-empty conversion | P1 | query state owner; forced response/browser matrix |
+| AC-UI-002 | `source-extracted`: existing `DataState` semantics | Colima `linux/arm64` route-exact browser fixture passed the ten-case minimum closure: loading, Details empty, 403/500, filter page reset, background 500 data retention, and background 403 cache hiding. Other matrix coverage remains `Not verified`. | Loading, empty, error, permission, and partial remain distinct; no failed-to-empty conversion | P1 | source-bound fixture/browser manifest |
 | AC-UI-003 | `source-extracted`: current event detail table | Source plus local Insights HTTP fixture verified: a legal pathname is queryable; query/fragment-bearing paths and non-pathname referrers reject before storage; the detail target uses only fixed safe event fields. Browser visual rendering remains `Not verified`. | Display pathname/event fields without query strings, page text, or arbitrary properties | P1 | Insights router HTTP fixture and route-local field behavior test; browser visual/data fixture check remains open |
 | AC-UI-004 | User requirement: upper-right automatic filters | Source-resolved type/path controls | Shared responsive placement; no submit/reset button; other reports clear path | P1 | Filter, focus, empty-state and pagination checks |
 | AC-UI-005 | `source-extracted`: public tracker is outside Admin UI | Linux Chromium host gate covers pre-opt-in, opt-in, opt-out, and real 413/429 through Admin -> Insights; Linux 507 is explicitly `Not verified` when safe capacity injection is unavailable | No tracker initialization/request patch/request/IDs before enable; pathname event persists after opt-in; opt-out restores hooks and clears IDs; 413/429 persist zero rows; Rust route seam covers 507 row preservation | P1 | independent `verify-analytics-tracker-linux.sh`, minimal host fixture, Insights route/query evidence |
@@ -146,6 +146,24 @@ They do not certify production host-tracker opt-in, the complete state matrix or
 all locale/viewport combinations.
 
 ## Responsive and verification matrix
+
+### Passed minimum Analytics UI state-matrix closure
+
+The route-exact controllable Insights fixture behind the real Admin UI passed
+ten cases on Colima `linux/arm64`. The closure covers Overview/Details initial
+loading, successful Details empty, exact 403 permission and 500 error states,
+Details filter queries resetting pagination to page one, and a Details
+background-refresh 500 retaining the prior row rather than rendering empty,
+and Overview/Details background 403 responses hiding previously cached data.
+The fixture's explicit `eventsFailAfterFirstStatus` and
+`overviewFailAfterFirstStatus` controls affect only the second successful read
+and accept only `403` or `500`; ordinary refresh uses `500` and permission
+revocation uses `403`. Ordinary filter and pagination reads remain successful.
+
+The source-bound manifest records fixture receipts, response modes, and the
+query/page sequence. It contains only 1440x900 dark/en Overview success and
+390x844 light/zh Details empty captures. All other viewport, theme, locale, and
+state combinations, plus production and native systemd, remain `Not verified`.
 
 | Priority | Viewport | Theme/locale | Surface and state | Acceptance |
 | --- | --- | --- | --- | --- |

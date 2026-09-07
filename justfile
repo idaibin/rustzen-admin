@@ -143,6 +143,10 @@ verify-admin-browser-linux:
 verify-analytics-tracker-linux:
     scripts/verify-analytics-tracker-linux.sh
 
+verify-analytics-ui-state-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-analytics-ui-state-linux.test.mjs
+    scripts/verify-analytics-ui-state-linux.sh
+
 verify-monitor-agent-multi-node-linux:
     scripts/verify-monitor-agent-multi-node-linux.sh
 

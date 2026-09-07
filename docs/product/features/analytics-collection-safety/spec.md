@@ -270,9 +270,31 @@ disable the path filter, so an obsolete path cannot exclude unrelated events.
 | Loading | Analytics query is in progress. | Preserve shell and filters; never show zero as a placeholder. |
 | Populated | Retained data is available. | Show stable metrics/details with their time/path meaning. |
 | Empty | Query succeeded with no retained events in scope. | Distinguish no retained activity from no match for the applied filters. |
-| Error | Activity query failed. | Show retry and keep last good data when available. |
-| Permission | Viewer lacks the requested Analytics read/manage capability. | Hide mutation actions and explain the boundary. |
+| Error | Activity query failed. | Show retry and keep last good data for non-permission failures when available. |
+| Permission | Viewer lacks the requested Analytics read/manage capability. | Hide mutation actions and explain the boundary; a 403 overrides cached Analytics data, including during a background refresh. |
 | Partial | A bounded diagnostic response has some unavailable summaries. | Identify missing categories; do not claim a complete report. |
+
+### Analytics UI state-matrix gate — passed minimum closure
+
+The route-exact controllable Insights fixture passed the minimum closure on
+Colima `linux/arm64`: ten cases across the real Admin routes
+`/analytics/overview` and `/analytics/details`. It covers initial loading,
+successful Details empty, exact 403 permission and 500 error responses,
+Details filter queries resetting pagination to page one, a Details
+background-refresh 500 that retains the prior row rather than rendering empty,
+and Overview/Details background 403 responses that hide previously cached data.
+
+The source-bound manifest records fixture receipts, response modes, and the
+query/page sequence, plus only two captures: 1440x900 dark/en Overview success
+and 390x844 light/zh Details empty. The fixture's explicit
+`eventsFailAfterFirstStatus`/`overviewFailAfterFirstStatus` controls affect only
+the second successful read and accept only `403` or `500`: ordinary background
+refresh uses `500`, while permission-revocation cases use `403`. Ordinary filter
+and pagination reads remain successful.
+
+This is a minimum state-matrix closure, not a full responsive, locale, or
+deployment certification. All other matrix combinations, production, and native
+systemd remain `Not verified`.
 
 ## User-visible data effects
 
@@ -356,8 +378,8 @@ raw secrets or browser payloads.
 | Automated | Insights validation, retention, origin/identifier, opt-in, body/batch, process-local rate guards, storage/disk, batch-atomicity, policy barriers, and contract tests | 413/429/507 rejection paths persist zero events; 30/300 rate windows are scoped to one running Insights process and reset on restart; policy changes reject prior credentials without new rows; valid data retains existing query behavior. |
 | Local HTTP fixture | Public ingestion and authenticated query requests in the Insights router test harness | A legal pathname remains queryable; `pagePath`, `apiPath`, and `referrer` carrying a query, fragment, absolute URL, free text, newline, or control character return 422 before persistence. A separate Web behavior test limits the target display projection to its fixed fields. This is local fixture and source behavior evidence, not a deployed-service or browser result. |
 | HTTP | Real public ingestion, CORS preflight, and authenticated query requests | Only `collection_enabled`, project, normalized origin, exact preflight/POST CORS headers, payload, rate, storage, and role boundaries are observable; HTTP does not verify visitor consent. |
-| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | The disposable Linux Chromium host gate verifies inert loading before consent, opt-in persistence, opt-out cleanup, and real 413/429 zero-row rejection. Analytics overview/detail visual rendering and the remaining UI state matrix are `Not verified`. |
-| Runtime/deployment | configured origin and retention in the four-service bundle | The disposable four-service Linux gate verifies the configured fixture origin and browser policy through Admin and Insights. Production host configuration and retention over elapsed time remain `Not verified`. |
+| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | The disposable Linux Chromium host gate verifies inert loading before consent, opt-in persistence, opt-out cleanup, and real 413/429 zero-row rejection. The Colima `linux/arm64` state-matrix minimum closure also verifies ten Overview/Details cases, including loading, Details empty, 403/500, filter page reset, background 500 data retention, and background 403 cache hiding. Other visual/state combinations remain `Not verified`. |
+| Runtime/deployment | configured origin and retention in the four-service bundle | The disposable four-service Linux gate verifies the configured fixture origin and browser policy through Admin and Insights. Production host configuration, native systemd, and retention over elapsed time remain `Not verified`. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
@@ -395,6 +417,7 @@ raw secrets or browser payloads.
 The safety boundary, data ownership, permissions, failure semantics, non-goals,
 and acceptance are fixed. The server implementation can proceed without a new
 UI settings system; the linked Analytics UI contract is ready for the existing
-overview/detail surfaces. External legal review, the Analytics UI visual/state
-matrix, production host configuration, and retention over elapsed time remain
+overview/detail surfaces. External legal review, Analytics UI matrix coverage
+beyond the passed ten-case Colima `linux/arm64` minimum closure, production
+host configuration, native systemd, and retention over elapsed time remain
 `Not verified`.

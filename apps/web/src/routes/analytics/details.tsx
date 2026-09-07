@@ -6,6 +6,8 @@ import { Button, Input, Pagination, Select, Tag, Typography } from "antd";
 import { useState } from "react";
 
 import { insightsAPI } from "@/api";
+import { ApiRequestError } from "@/api/request";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
@@ -39,13 +41,15 @@ function AnalyticsEventsPage() {
         current,
         pageSize: PAGE_SIZE,
     };
-    const { data, error, isFetching, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["insights", "events", query],
         queryFn: () => insightsAPI.events(query),
         staleTime: 0,
+        refetchInterval: 30_000,
     });
 
     const eventRows: EventRow[] = data?.data ?? [];
+    const permissionDenied = error instanceof ApiRequestError && error.status === 403;
 
     const searchControls = (
         <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap">
@@ -99,6 +103,31 @@ function AnalyticsEventsPage() {
         );
     }
 
+    if (permissionDenied) {
+        return (
+            <PageCard
+                toolbar={searchControls}
+                title={t("分析明细", "Analytics details")}
+                description={t(
+                    "查看页面访问、接口请求和其他操作上报。",
+                    "View page visits, API requests, and other reported operations.",
+                )}
+            >
+                <DataState
+                    kind="permission"
+                    title={t("没有查看分析明细的权限", "You do not have permission to view activity")}
+                    description={t(
+                        "无法读取分析明细，请检查 Insights 服务后重试。",
+                        "Unable to read analytics data. Check the Insights service and try again.",
+                    )}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
+            </PageCard>
+        );
+    }
+
     if (!data && error) {
         return (
             <PageCard
@@ -116,9 +145,7 @@ function AnalyticsEventsPage() {
                         "无法读取分析明细，请检查 Insights 服务后重试。",
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
-                    action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
-                    }
+                    action={<Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>}
                 />
             </PageCard>
         );
@@ -189,6 +216,7 @@ function AnalyticsEventsPage() {
             )}
         >
             <DataTableShell fill ariaLabel={t("分析明细", "Analytics details table")}>
+                {error ? <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} /> : null}
                 <ProTable<EventRow>
                     rowKey="id"
                     dataSource={eventRows}

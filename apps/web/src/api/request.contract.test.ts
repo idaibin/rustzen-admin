@@ -28,6 +28,7 @@ const [{ reportsAPI }, { ApiRequestError, apiRequest }] = await Promise.all([
     import("@/api/reports/api"),
     import("@/api/request"),
 ]);
+const { insightsAPI } = await import("@/api/insights/api");
 const { DeployComponent, exportManageLogs, getRoleOptions, updateAccountAvatar, uploadDeployment } =
     generatedContract;
 const { useAuthStore } = authStore;
@@ -165,6 +166,34 @@ test("schedule saves normalize network failures without a global toast", async (
                 input: {},
             }),
         ).rejects.toBeInstanceOf(ApiRequestError);
+        expect(errors).toEqual([]);
+    } finally {
+        globalThis.fetch = originalFetch;
+        console.error = originalError;
+    }
+});
+
+test("analytics reads preserve typed HTTP errors without global toasts", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalError = console.error;
+    const errors: unknown[][] = [];
+    console.error = (...args) => errors.push(args);
+    globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ code: 40002, message: "fixture forbidden", data: null }), {
+            status: 403,
+            headers: { "content-type": "application/json" },
+        })) as unknown as typeof fetch;
+    try {
+        await expect(insightsAPI.overview({})).rejects.toMatchObject({
+            name: "ApiRequestError",
+            code: 40002,
+            status: 403,
+        });
+        await expect(insightsAPI.events({ current: 1, pageSize: 20 })).rejects.toMatchObject({
+            name: "ApiRequestError",
+            code: 40002,
+            status: 403,
+        });
         expect(errors).toEqual([]);
     } finally {
         globalThis.fetch = originalFetch;
