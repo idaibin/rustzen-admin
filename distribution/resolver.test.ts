@@ -9,10 +9,11 @@ describe("distribution selection", () => {
         expect(resolveSelection({ preset: "monitor" }).capabilities).toEqual(["access", "monitor"]);
     });
 
-    test("monitor-notify reuses access and monitor configuration owners", () => {
+    test("monitor-notify selects its notification pressure configuration owner", () => {
         expect(resolveSelection({ preset: "monitor-notify" }).configOwners).toEqual([
             "access",
             "monitor",
+            "notifications",
         ]);
     });
 

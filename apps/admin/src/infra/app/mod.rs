@@ -1,5 +1,5 @@
 #[cfg(feature = "notifications")]
-use crate::features::notifications::notification_routes;
+use crate::features::notifications::{maintenance, notification_routes};
 #[cfg(any(feature = "full", test))]
 use crate::infra::db::run_migrations;
 use crate::{
@@ -56,6 +56,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "full")]
     run_migrations(&pool).await?;
     test_connection(&pool).await?;
+    #[cfg(feature = "notifications")]
+    let notification_maintenance = maintenance::start(pool.clone()).await?;
     #[cfg(feature = "full")]
     let task_service = std::sync::Arc::new(TaskService::new(pool.clone())?);
     #[cfg(feature = "full")]
@@ -153,7 +155,10 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Server started successfully, listening on http://{}", addr);
     ModuleService::spawn_synchronizer(module_state);
 
-    axum::serve(listener, app).await?;
+    let server_result = axum::serve(listener, app).await;
+    #[cfg(feature = "notifications")]
+    notification_maintenance.shutdown().await;
+    server_result?;
 
     Ok(())
 }

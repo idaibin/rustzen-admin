@@ -7,7 +7,7 @@ use super::{
     },
 };
 use crate::common::error::ServiceError;
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use sqlx::SqlitePool;
 
 const DEFAULT_PAGE_SIZE: u16 = 20;
@@ -23,6 +23,16 @@ impl NotificationService {
         query: InboxListQuery,
         cursor_secret: &[u8],
     ) -> Result<InboxListResponse, ServiceError> {
+        Self::list_at(pool, user_id, query, cursor_secret, Utc::now().naive_utc()).await
+    }
+
+    pub(super) async fn list_at(
+        pool: &SqlitePool,
+        user_id: i64,
+        query: InboxListQuery,
+        cursor_secret: &[u8],
+        now: NaiveDateTime,
+    ) -> Result<InboxListResponse, ServiceError> {
         let limit = query.limit.unwrap_or(DEFAULT_PAGE_SIZE);
         if !(1..=MAX_PAGE_SIZE).contains(&limit) {
             return Err(ServiceError::InvalidOperation(
@@ -30,6 +40,7 @@ impl NotificationService {
             ));
         }
         let unread_only = query.unread_only.unwrap_or(false);
+        let cutoff = retention_cutoff(now);
         let mut transaction = pool.begin().await.map_err(database_error)?;
         ensure_enabled_user(&mut transaction, user_id).await?;
         let (max_seq, before_seq) = if let Some(token) = query.cursor.as_deref() {
@@ -45,8 +56,13 @@ impl NotificationService {
             (state.max_seq, state.before_seq)
         } else {
             (
-                NotificationRepository::max_accessible_seq(&mut transaction, user_id, unread_only)
-                    .await?,
+                NotificationRepository::max_accessible_seq(
+                    &mut transaction,
+                    user_id,
+                    unread_only,
+                    cutoff,
+                )
+                .await?,
                 None,
             )
         };
@@ -57,6 +73,7 @@ impl NotificationService {
             max_seq,
             before_seq,
             i64::from(limit) + 1,
+            cutoff,
         )
         .await?;
         let has_more = rows.len() > usize::from(limit);
@@ -109,9 +126,19 @@ impl NotificationService {
         pool: &SqlitePool,
         user_id: i64,
     ) -> Result<UnreadCountResponse, ServiceError> {
+        Self::unread_count_at(pool, user_id, Utc::now().naive_utc()).await
+    }
+
+    pub(super) async fn unread_count_at(
+        pool: &SqlitePool,
+        user_id: i64,
+        now: NaiveDateTime,
+    ) -> Result<UnreadCountResponse, ServiceError> {
         let mut transaction = pool.begin().await.map_err(database_error)?;
         ensure_enabled_user(&mut transaction, user_id).await?;
-        let count = NotificationRepository::unread_count(&mut transaction, user_id).await?;
+        let count =
+            NotificationRepository::unread_count(&mut transaction, user_id, retention_cutoff(now))
+                .await?;
         let revision = NotificationRepository::revision(&mut transaction, user_id).await?;
         transaction.commit().await.map_err(database_error)?;
         Ok(UnreadCountResponse { count, revision })
@@ -122,11 +149,25 @@ impl NotificationService {
         user_id: i64,
         notification_id: &str,
     ) -> Result<NotificationItem, ServiceError> {
+        Self::detail_at(pool, user_id, notification_id, Utc::now().naive_utc()).await
+    }
+
+    pub(super) async fn detail_at(
+        pool: &SqlitePool,
+        user_id: i64,
+        notification_id: &str,
+        now: NaiveDateTime,
+    ) -> Result<NotificationItem, ServiceError> {
         let mut transaction = pool.begin().await.map_err(database_error)?;
         ensure_enabled_user(&mut transaction, user_id).await?;
-        let item = NotificationRepository::detail(&mut transaction, user_id, notification_id)
-            .await?
-            .ok_or_else(|| ServiceError::NotFound("Notification".into()))?;
+        let item = NotificationRepository::detail(
+            &mut transaction,
+            user_id,
+            notification_id,
+            retention_cutoff(now),
+        )
+        .await?
+        .ok_or_else(|| ServiceError::NotFound("Notification".into()))?;
         transaction.commit().await.map_err(database_error)?;
         Ok(item.into())
     }
@@ -136,18 +177,31 @@ impl NotificationService {
         user_id: i64,
         notification_id: &str,
     ) -> Result<ReadResponse, ServiceError> {
+        Self::mark_read_at(pool, user_id, notification_id, Utc::now().naive_utc()).await
+    }
+
+    pub(super) async fn mark_read_at(
+        pool: &SqlitePool,
+        user_id: i64,
+        notification_id: &str,
+        now: NaiveDateTime,
+    ) -> Result<ReadResponse, ServiceError> {
         let mut connection = pool.acquire().await.map_err(database_error)?;
         sqlx::query("BEGIN IMMEDIATE").execute(&mut *connection).await.map_err(database_error)?;
         let result = async {
             ensure_enabled_user(&mut connection, user_id).await?;
-            let current =
-                NotificationRepository::read_state(&mut connection, user_id, notification_id)
-                    .await?
-                    .ok_or_else(|| ServiceError::NotFound("Notification".into()))?;
+            let current = NotificationRepository::read_state(
+                &mut connection,
+                user_id,
+                notification_id,
+                retention_cutoff(now),
+            )
+            .await?
+            .ok_or_else(|| ServiceError::NotFound("Notification".into()))?;
             let (read_at, revision) = if let Some(read_at) = current.read_at {
                 (read_at, NotificationRepository::revision(&mut connection, user_id).await?)
             } else {
-                let read_at = Utc::now().naive_utc();
+                let read_at = now;
                 if NotificationRepository::mark_read(
                     &mut connection,
                     user_id,
@@ -176,6 +230,16 @@ impl NotificationService {
         request: ReadAllRequest,
         cursor_secret: &[u8],
     ) -> Result<ReadAllResponse, ServiceError> {
+        Self::mark_all_read_at(pool, user_id, request, cursor_secret, Utc::now().naive_utc()).await
+    }
+
+    pub(super) async fn mark_all_read_at(
+        pool: &SqlitePool,
+        user_id: i64,
+        request: ReadAllRequest,
+        cursor_secret: &[u8],
+        now: NaiveDateTime,
+    ) -> Result<ReadAllResponse, ServiceError> {
         let snapshot = cursor::decode(&request.snapshot, cursor_secret)?;
         if snapshot.kind != CursorKind::Snapshot || snapshot.user_id != user_id {
             return Err(ServiceError::InvalidOperation(
@@ -191,7 +255,8 @@ impl NotificationService {
                 user_id,
                 snapshot.unread_only,
                 snapshot.max_seq,
-                Utc::now().naive_utc(),
+                now,
+                retention_cutoff(now),
             )
             .await?;
             let revision = if changed > 0 {
@@ -205,6 +270,10 @@ impl NotificationService {
         finish_write(&mut connection, result.is_ok()).await?;
         result
     }
+}
+
+fn retention_cutoff(now: NaiveDateTime) -> NaiveDateTime {
+    now - chrono::Duration::days(i64::from(RETENTION_DAYS))
 }
 
 async fn ensure_enabled_user(

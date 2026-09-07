@@ -23,7 +23,7 @@ full = [
     "tower-http/fs",
 ]
 monitor-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
-notifications = ["dep:aes-gcm", "dep:base64"]
+notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "rustzen-config/notifications"]
 
 [[bin]]
 name = "rz-admin"
@@ -71,6 +71,7 @@ argon2 = "0.6.0-rc.8"
 sysinfo = { version = "0.39.3", optional = true }
 tokio-stream = "0.1.17"
 futures = "0.3.31"
+fs2 = { version = "0.4", optional = true }
 libc = { version = "0.2", optional = true }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls", "stream"] }
 rust-embed = { version = "8.11.0", optional = true }

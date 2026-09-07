@@ -9,6 +9,7 @@ publish = false
 default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"]
 admin = []
 admin-monitor = []
+notifications = []
 insights = []
 monitor-controller = []
 monitor-agent = []

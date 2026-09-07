@@ -1,7 +1,7 @@
 # Message Center UI
 
-Status: P5a backend contract implemented and verified locally; bell, inbox page
-and realtime shell are not implemented in this slice.
+Status: P5a and P5b backend contracts implemented and verified locally. The
+bell, inbox page and realtime shell are not implemented in this slice.
 
 ## Product boundary
 
@@ -22,8 +22,9 @@ route before the Web slice is implemented.
 - Loading, empty, populated and error states will be driven by the durable list
   response. The response carries an authenticated-encrypted opaque snapshot
   boundary, next cursor,
-  current user revision and the configured 30-day retention copy. P5a exposes
-  this policy metadata; P5b owns enforcement and capacity admission.
+  current user revision and the configured 30-day retention copy. P5b enforces
+  retention by acceptance time, including unread messages; history that has
+  expired is no longer available during the interval before physical cleanup.
 - Unread count and list/detail/read operations infer the current user from the
   authenticated request. There is no client-provided user ID.
 - Revoked grants, a disabled producer module or an inactive user take effect on
@@ -40,8 +41,13 @@ route before the Web slice is implemented.
 
 ## Deferred UI and realtime work
 
+P5b capacity or storage-pressure refusal is an operator diagnostic and does not
+create a user-facing partial message. Existing inbox rows remain readable while
+new notification admission is paused. Duplicate producer retries remain
+idempotent, and the UI never infers delivery from an event that was rejected.
+
 The bell, unread badge, inbox list/detail presentation, retention explanation,
 incident/run navigation, responsive states, fetch-SSE parser and reconnect
-behavior remain P5b/P7. Until those slices land, backend success is not visual
+behavior remain P7. Until that slice lands, backend success is not visual
 acceptance. Monitor and Reports producer delivery remains P6 and does not block
 their existing incident or run behavior.

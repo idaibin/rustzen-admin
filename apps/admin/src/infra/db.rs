@@ -327,6 +327,7 @@ mod full_schema_tests {
         assert_eq!(
             objects,
             [
+                "notification_accounting",
                 "notification_receipts",
                 "notification_recipients",
                 "notification_user_state",
@@ -391,6 +392,7 @@ mod monitor_distribution_tests {
         let (pool, objects) = fresh_schema_objects().await;
         assert_access_and_monitor_objects(&pool, &objects).await;
         for excluded in [
+            "notification_accounting",
             "notifications",
             "notification_receipts",
             "notification_recipients",
@@ -407,6 +409,7 @@ mod monitor_distribution_tests {
         let (pool, objects) = fresh_schema_objects().await;
         assert_access_and_monitor_objects(&pool, &objects).await;
         for required in [
+            "notification_accounting",
             "notifications",
             "notification_receipts",
             "notification_recipients",

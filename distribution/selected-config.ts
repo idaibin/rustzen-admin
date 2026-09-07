@@ -9,7 +9,10 @@ import {
     type SelectedConfigContract,
 } from "./selected-config-validator.ts";
 
-export type ConfigRunner = (binary: "admin" | "monitor" | "agent") => unknown;
+export type ConfigRunner = (
+    binary: "admin" | "monitor" | "agent",
+    owner: "access" | "monitor" | "monitor-agent" | "notifications",
+) => unknown;
 export {
     completeSelectedConfigForTest,
     parseSelectedConfig,
@@ -25,8 +28,14 @@ export async function produceSelectedConfig(
     const expected = completeSelectedConfigForTest(selectionInput);
     const owners =
         expected.artifactClass === "server"
-            ? { access: run("admin"), monitor: run("monitor") }
-            : { "monitor-agent": run("agent") };
+            ? {
+                  access: run("admin", "access"),
+                  monitor: run("monitor", "monitor"),
+                  ...(expected.preset === "monitor-notify"
+                      ? { notifications: run("admin", "notifications") }
+                      : {}),
+              }
+            : { "monitor-agent": run("agent", "monitor-agent") };
     const contract = parseSelectedConfig(
         { ...expected, owners },
         selectionInput,

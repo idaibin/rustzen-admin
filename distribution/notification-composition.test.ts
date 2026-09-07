@@ -6,6 +6,7 @@ import { resolveSelection } from "./resolver.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 const notificationTables = [
+    "notification_accounting",
     "notification_receipts",
     "notification_recipients",
     "notification_user_state",

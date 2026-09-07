@@ -28,6 +28,14 @@ const DEFAULT_TASK_RUN_TIMEOUT_SECONDS: u64 = 1800;
 const DEFAULT_DEV_JWT_SECRET: &str = "rustzen-dev-jwt-secret-change-in-production";
 const RELEASE_JWT_SECRET_PLACEHOLDER: &str = "rustzen-admin-release-{version}";
 const RELEASE_JWT_SECRET_PREFIX: &str = "rustzen-admin-release-";
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_MESSAGE_LIMIT: u64 = 100_000;
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_ROW_LIMIT: u64 = 1_000_000;
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_CHARGED_BYTES_LIMIT: u64 = 512 * 1024 * 1024;
+#[cfg(feature = "notifications")]
+const DEFAULT_NOTIFICATION_FREE_SPACE_RESERVE_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AdminConfig {
@@ -66,6 +74,27 @@ pub struct AdminConfig {
     pub jwt_expiration: Option<i64>,
     #[serde(default = "default_ipc_token")]
     pub ipc_token: String,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_message_limit: Option<u64>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_recipient_limit: Option<u64>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_receipt_limit: Option<u64>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_charged_bytes_limit: Option<u64>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_free_space_reserve_bytes: Option<u64>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_wal_pressure_frames: Option<u32>,
+    #[cfg(feature = "notifications")]
+    #[serde(default)]
+    pub notification_wal_pressure_observations: Option<u32>,
     #[cfg(feature = "admin")]
     #[serde(default)]
     pub task_run_timeout_seconds: Option<u64>,
@@ -190,6 +219,27 @@ impl AdminConfig {
         format!("http://{}:{}", self.internal_host(), self.monitor_port())
     }
 
+    #[cfg(feature = "notifications")]
+    pub fn notification_limits(&self) -> (u64, u64, u64, u64) {
+        (
+            self.notification_message_limit.unwrap_or(DEFAULT_NOTIFICATION_MESSAGE_LIMIT),
+            self.notification_recipient_limit.unwrap_or(DEFAULT_NOTIFICATION_ROW_LIMIT),
+            self.notification_receipt_limit.unwrap_or(DEFAULT_NOTIFICATION_ROW_LIMIT),
+            self.notification_charged_bytes_limit
+                .unwrap_or(DEFAULT_NOTIFICATION_CHARGED_BYTES_LIMIT),
+        )
+    }
+
+    #[cfg(feature = "notifications")]
+    pub fn notification_pressure_limits(&self) -> (u64, u32, u32) {
+        (
+            self.notification_free_space_reserve_bytes
+                .unwrap_or(DEFAULT_NOTIFICATION_FREE_SPACE_RESERVE_BYTES),
+            self.notification_wal_pressure_frames.unwrap_or(1024),
+            self.notification_wal_pressure_observations.unwrap_or(3),
+        )
+    }
+
     #[cfg(feature = "admin")]
     pub fn insights_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.insights_port())
@@ -222,6 +272,18 @@ impl AdminConfig {
             ensure_optional_non_empty(name, value)?;
         }
         ensure_required_non_empty("RUSTZEN_JWT_SECRET", &self.jwt_secret)?;
+        #[cfg(feature = "notifications")]
+        {
+            let (messages, recipients, receipts, bytes) = self.notification_limits();
+            let (reserve, frames, observations) = self.notification_pressure_limits();
+            if [messages, recipients, receipts, bytes].contains(&0)
+                || reserve == 0
+                || frames == 0
+                || observations == 0
+            {
+                return Err(ConfigError::Invalid("RUSTZEN_NOTIFICATION_LIMITS"));
+            }
+        }
         ensure_production_secret(
             &self.runtime,
             "RUSTZEN_IPC_TOKEN",

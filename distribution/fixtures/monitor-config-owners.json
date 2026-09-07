@@ -228,5 +228,54 @@
         "defaultClass": "built-in"
       }
     ]
+  },
+  "notifications": {
+    "version": 1,
+    "owner": "notifications",
+    "consumer": "rz-admin",
+    "fields": [
+      {
+        "key": "RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT",
+        "valueType": "bytes",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES",
+        "valueType": "bytes",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_MESSAGE_LIMIT",
+        "valueType": "integer",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_RECEIPT_LIMIT",
+        "valueType": "integer",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT",
+        "valueType": "integer",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES",
+        "valueType": "integer",
+        "required": false,
+        "defaultClass": "built-in"
+      },
+      {
+        "key": "RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS",
+        "valueType": "integer",
+        "required": false,
+        "defaultClass": "built-in"
+      }
+    ]
   }
 }

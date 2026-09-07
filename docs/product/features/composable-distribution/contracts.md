@@ -34,7 +34,7 @@ Routes and permissions are exported from the compiled Rust registration.
   "configDigest": "<selected config artifact sha256>",
   "nativeLayoutDigest": "<selected native layout artifact sha256>",
   "protocolArtifactDigest": "<selected protocol artifact sha256>",
-  "configOwners": ["access", "monitor"],
+  "configOwners": ["access", "monitor", "notifications"],
   "schemaFingerprints": {"admin": "<sha256>", "monitor": "<sha256>"},
   "dataContractIds": {"admin": "<descriptor sha256>", "monitor": "<descriptor sha256>"},
   "agentProtocolContractId": "<selected Monitor wire-contract sha256>",
@@ -560,10 +560,10 @@ cursor/snapshot tokens carry its encrypted boundary. `monitor-notify` applies
 and verifies the base and notification migration ledgers on migrate, bind,
 validate and reopen. Its formal producer builds the selected Admin feature and
 exports base Admin and notification routes as distinct code-derived owners.
-Notifications define no additional configuration fields, so this selection's
-configuration owners remain `access` and `monitor`.
-Retention cleanup, capacity admission, producer ingress/relay and SSE remain
-P5b/P6/P7 and are not claimed by this slice.
+P5b adds a `notifications` configuration owner for its admission and storage
+thresholds. The internal admission service, bounded retention and durable
+accounting are implemented and locally verified. Producer ingress/relay and
+SSE remain P6/P7 and are not claimed by this slice.
 
 All notification tables are excluded when the feature is absent:
 
@@ -618,8 +618,26 @@ are provisional budgets to validate against real indexes and storage overhead.
 The access-user inventory bounds user-state rows; delete orphaned user-state
 rows without creating a second identity-retention policy.
 
-Before admission, a bounded cleanup removes expired recipient/message history,
-then receipts whose `retain_until` has passed. Set `retain_until` to the later
+The fresh notification schema maintains these four values in one singleton
+accounting row through insert/delete triggers. Admission never performs an
+unbounded `COUNT` or `SUM`; service construction validates the singleton once
+against the four business tables and fails closed on drift. Charges use UTF-8
+byte lengths with the stated minimums: message charge includes every persisted
+message text field, receipt charge includes its persisted text fields,
+recipient charge includes its notification identifier, and user state has a
+128-byte minimum. Schema byte-length checks bound every variable field.
+
+Before admission, a bounded cleanup removes expired recipient history first,
+then recipient-free expired messages, expired receipts whose `retain_until` has
+passed, and orphan user state. Each pass is limited to 500 rows per phase,
+4 MiB released charge and 50 ms between phases; a large expired fanout is
+drained across independently committed passes rather than deleted by an
+unbounded cascade. Admission runs at most eight passes per attempt, then opens
+a new immediate transaction, rechecks the receipt and atomically admits or
+refuses the event. A later attempt continues from the committed cleanup state.
+Affected user revisions increment at most once per cleanup transaction before
+recipient deletion. State remains while that user has any current recipient;
+orphan deletion releases its durable charge. Set `retain_until` to the later
 of acceptance plus 30 days and original expiry plus clock tolerance. Never evict
 an unexpired receipt to make space: otherwise retries could recreate messages.
 Check an existing receipt before new-event capacity checks so duplicates still
@@ -629,14 +647,34 @@ atomic budget reservation; any exhausted budget returns 503
 history is not silently evicted early. Producers retry within their original
 horizon and surface expiry/gaps if capacity never recovers.
 
+All five inbox read operations apply the injected-clock acceptance cutoff, so
+expired rows are silent even before physical reclamation. A notification-selected
+Admin validates accounting and runs one bounded cleanup before serving, then
+runs one bounded pass hourly in the same process. Its lifecycle guard cancels
+and joins this maintenance task on controlled shutdown. A composition without
+notifications has no such startup or periodic task.
+
 Logical notification budgets bound growth attributable to this feature; they
 are not a hard quota on the shared database, WAL or filesystem. Measure actual
 page/index overhead, checkpoint behavior and reader lifetimes. Reject new
-notification admission at a configurable free-space reserve (initially 128 MiB),
+notification admission unless, while holding the final SQLite write lock after
+audience and charge calculation, available space is at least the configurable
+reserve (initially 128 MiB) plus projected charge,
 stop notification writers on sustained checkpoint pressure, and surface storage
 pressure to operators. Retention deletes reuse pages and need not shrink the
 file; never run full VACUUM on the request path. Other feature writes and total
 disk exhaustion remain explicit operational risks, not eliminated guarantees.
+
+The initial selected settings are `RUSTZEN_NOTIFICATION_MESSAGE_LIMIT=100000`,
+`RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT=1000000`,
+`RUSTZEN_NOTIFICATION_RECEIPT_LIMIT=1000000`,
+`RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT=536870912`,
+`RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES=134217728`,
+`RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES=1024`, and
+`RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS=3`. The notifications-only
+descriptor owns them. Capacity refusal is a typed internal result carrying
+`notification-capacity`, a retry interval and a diagnostic reason; it is logged
+and exposed to the Admin operator status seam before P6 adds producer transport.
 
 Index recipient/user/read state, message creation order and receipt expiry.
 Store read state once and derive unread counts with current authorization;

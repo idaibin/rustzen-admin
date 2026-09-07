@@ -20,7 +20,12 @@ pub struct ConfigField {
     pub secret_ref: Option<&'static str>,
 }
 
-#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
+#[cfg(any(
+    feature = "admin-monitor",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "notifications"
+))]
 fn field(
     key: &'static str,
     value_type: &'static str,
@@ -56,7 +61,12 @@ fn database_fields() -> Vec<ConfigField> {
         field("RUSTZEN_DB_MIN_CONN", "integer", false, "built-in"),
     ]
 }
-#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent"))]
+#[cfg(any(
+    feature = "admin-monitor",
+    feature = "monitor-controller",
+    feature = "monitor-agent",
+    feature = "notifications"
+))]
 fn contract(
     owner: &'static str,
     consumer: &'static str,
@@ -64,6 +74,23 @@ fn contract(
 ) -> ConfigContract {
     fields.sort_by_key(|item| item.key);
     ConfigContract { version: 1, owner, consumer, fields }
+}
+
+#[cfg(feature = "notifications")]
+pub fn notifications_contract() -> ConfigContract {
+    contract(
+        "notifications",
+        "rz-admin",
+        vec![
+            field("RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT", "bytes", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES", "bytes", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_MESSAGE_LIMIT", "integer", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_RECEIPT_LIMIT", "integer", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT", "integer", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES", "integer", false, "built-in"),
+            field("RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS", "integer", false, "built-in"),
+        ],
+    )
 }
 
 #[cfg(feature = "admin-monitor")]
@@ -111,7 +138,12 @@ pub fn monitor_agent_contract() -> ConfigContract {
 
 #[cfg(all(
     test,
-    any(feature = "admin-monitor", feature = "monitor-controller", feature = "monitor-agent")
+    any(
+        feature = "admin-monitor",
+        feature = "monitor-controller",
+        feature = "monitor-agent",
+        feature = "notifications"
+    )
 ))]
 mod tests {
     fn keys(contract: &super::ConfigContract) -> Vec<&str> {
@@ -136,6 +168,13 @@ mod tests {
                 | "RUSTZEN_DB_IDLE_TIMEOUT"
                 | "RUSTZEN_JWT_EXPIRATION" => "seconds",
                 "RUSTZEN_DB_MAX_CONN" | "RUSTZEN_DB_MIN_CONN" => "integer",
+                "RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT"
+                | "RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES" => "bytes",
+                "RUSTZEN_NOTIFICATION_MESSAGE_LIMIT"
+                | "RUSTZEN_NOTIFICATION_RECEIPT_LIMIT"
+                | "RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT"
+                | "RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES"
+                | "RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS" => "integer",
                 "RUSTZEN_ENV" => "environment",
                 "RUSTZEN_TIMEZONE" => "timezone",
                 "RUSTZEN_MONITOR_CONTROLLER_URL" => "url",
@@ -163,6 +202,26 @@ mod tests {
                 field.key
             );
         }
+    }
+
+    #[cfg(feature = "notifications")]
+    #[test]
+    fn notification_descriptor_is_exact() {
+        let contract = super::notifications_contract();
+        assert_eq!((contract.owner, contract.consumer), ("notifications", "rz-admin"));
+        assert_eq!(
+            keys(&contract),
+            [
+                "RUSTZEN_NOTIFICATION_CHARGED_BYTES_LIMIT",
+                "RUSTZEN_NOTIFICATION_FREE_SPACE_RESERVE_BYTES",
+                "RUSTZEN_NOTIFICATION_MESSAGE_LIMIT",
+                "RUSTZEN_NOTIFICATION_RECEIPT_LIMIT",
+                "RUSTZEN_NOTIFICATION_RECIPIENT_LIMIT",
+                "RUSTZEN_NOTIFICATION_WAL_PRESSURE_FRAMES",
+                "RUSTZEN_NOTIFICATION_WAL_PRESSURE_OBSERVATIONS",
+            ]
+        );
+        assert_complete_metadata(&contract);
     }
 
     #[test]

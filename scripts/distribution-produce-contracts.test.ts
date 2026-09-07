@@ -38,6 +38,29 @@ test(
             expect(result.exitCode).toBe(0);
             expect(existsSync(join(target, "debug/rz-admin"))).toBeTrue();
 
+            const configArtifact = JSON.parse(
+                await readFile(join(output, "config/config.json"), "utf8"),
+            );
+            expect(Object.keys(configArtifact.owners)).toEqual([
+                "access",
+                "monitor",
+                "notifications",
+            ]);
+            const emittedConfig = Bun.spawnSync(
+                [
+                    join(target, "debug/rz-admin"),
+                    "contract",
+                    "config",
+                    "selected",
+                    "notifications",
+                ],
+                { cwd, env: { PATH: process.env.PATH ?? "" }, stdout: "pipe" },
+            );
+            expect(emittedConfig.exitCode).toBe(0);
+            expect(JSON.parse(new TextDecoder().decode(emittedConfig.stdout))).toEqual(
+                configArtifact.owners.notifications,
+            );
+
             const artifact = JSON.parse(
                 await readFile(join(output, "api/api.json"), "utf8"),
             );

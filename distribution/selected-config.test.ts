@@ -28,14 +28,10 @@ const notifySelection = {
 };
 const runnerFor = (selection: unknown) => {
     const owners = completeSelectedConfigForTest(selection).owners;
-    return (binary: "admin" | "monitor" | "agent") =>
-        owners[
-            binary === "admin"
-                ? "access"
-                : binary === "agent"
-                  ? "monitor-agent"
-                  : "monitor"
-        ];
+    return (
+        _binary: "admin" | "monitor" | "agent",
+        owner: "access" | "monitor" | "monitor-agent" | "notifications",
+    ) => owners[owner];
 };
 
 test("selected config accepts exact server and Agent descriptors", async () => {
@@ -59,7 +55,11 @@ test("selected config accepts exact server and Agent descriptors", async () => {
             );
             expect(a.sha256).toBe(b.sha256);
             expect(Object.keys(a.contract.owners)).toEqual(
-                name.startsWith("server") ? ["access", "monitor"] : ["monitor-agent"],
+                name === "server-notify"
+                    ? ["access", "monitor", "notifications"]
+                    : name === "server"
+                      ? ["access", "monitor"]
+                      : ["monitor-agent"],
             );
         }
         await expect(

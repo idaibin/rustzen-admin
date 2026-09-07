@@ -1,6 +1,20 @@
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod accounting;
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod admission;
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod admission_repo;
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod admission_types;
 mod cursor;
 mod handler;
+#[allow(dead_code, reason = "started only by notification-selected Admin runtime")]
+pub(crate) mod maintenance;
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod pressure;
 mod repo;
+#[allow(dead_code, reason = "P5b internal admission is connected to producers in P6")]
+mod retention;
 mod service;
 pub(crate) mod types;
 

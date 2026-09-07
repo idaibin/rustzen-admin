@@ -47,15 +47,20 @@ const run = (kind: "admin" | "monitor" | "notifications") => {
     }
     return JSON.parse(new TextDecoder().decode(result.stdout));
 };
-const runConfig = (kind: "admin" | "monitor" | "agent") => {
+const runConfig = (
+    kind: "admin" | "monitor" | "agent",
+    owner: "access" | "monitor" | "monitor-agent" | "notifications",
+) => {
     const name =
         kind === "admin"
             ? "rz-admin"
             : kind === "agent"
               ? "rz-monitor-agent"
               : "rz-monitor";
+    const args = [join(producerTarget, "debug", name), "contract", "config", "selected"];
+    if (kind === "admin") args.push(owner);
     const result = Bun.spawnSync(
-        [join(producerTarget, "debug", name), "contract", "config", "selected"],
+        args,
         {
             cwd: "/tmp",
             env: { PATH: process.env.PATH ?? "" },

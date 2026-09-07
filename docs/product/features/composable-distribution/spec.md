@@ -75,12 +75,27 @@ producer module in one Admin database snapshot. The `monitor-notify` Admin
 binary applies and verifies both the base and notification migration ledgers;
 the formal contract producer builds that exact feature selection and exports
 base Admin and notification route owners separately from their registered Rust
-routes. Notifications add no configuration fields and therefore reuse the
-`access` and `monitor` configuration owners. P5a does not register producer
-ingress, start a relay or timer, expose SSE, or claim the P5 retention and
-admission budgets complete. Those remain P5b/P6/P7 work. The corresponding UI
+routes. P5a added no notification configuration fields. P5b adds a selected
+`notifications` configuration owner for the Admin-owned logical budgets,
+128 MiB filesystem reserve and sustained WAL-pressure threshold; pure
+`monitor` omits that descriptor and every field. P5b implements retention and
+admission behind an internal service. Producer ingress/relay and SSE remain
+P6/P7 work. The corresponding UI
 states and deferred shell work are fixed in
 [Message Center UI](../../../ui/features/message-center.md).
+
+P5b owns an internal Admin admission service only. It checks a durable
+trigger-maintained accounting singleton and commits receipt, message, recipient
+and user-revision changes in one immediate SQLite transaction. Expired history
+is excluded by the same injected-clock cutoff at every read entry before its
+bounded physical reclamation. The selected Admin process performs one bounded
+cleanup at startup and one per hour; admission may independently commit up to
+eight bounded cleanup rounds before reopening its final write transaction.
+Existing receipts are rechecked at each transaction boundary before expiry,
+storage or budget admission checks. The final transaction resolves the exact
+audience and projected charge, then rechecks free space under its write lock.
+P5b adds no process or public producer route; Monitor and Reports connect their
+durable outboxes in P6.
 
 ## Distribution presets
 

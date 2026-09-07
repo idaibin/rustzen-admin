@@ -105,12 +105,12 @@
                     "package": "rustzen-admin",
                     "binary": "rz-admin",
                     "status": "blocked",
-                    "reason": "Notification retention/admission, producer ingress/relay and realtime delivery are not implemented."
+                    "reason": "Notification producer ingress/relay and realtime delivery are not implemented."
                 }
             ],
             "webRoots": [],
             "schemaOwners": ["admin-notifications"],
-            "configOwners": [],
+            "configOwners": ["notifications"],
             "units": ["rz-admin.service"]
         },
         {

@@ -34,7 +34,7 @@ reproduce those behaviors in the new distribution pipeline.
 | P2 | Minimal Admin composition, selected registry/config, essential account/role UI contract and final selected schema | Full regression plus minimal auth/API/DB tests; absent owner never initializes | Implemented; source/build gate passes |
 | P3 | Controller/Agent binary separation; positive Cargo closure; code-derived selected contracts; Web/schema generation | Per-binary feature evidence, selected queries, full/monitor Web/API/schema negative tests | Implemented for the Monitor selection and independently reviewed. The selected Web inventory includes every local import required by its access and Monitor routes. |
 | P4 | Monitor native producer, publication and server activation | Composition-qualified Admin/Monitor/Agent binaries with selected Web, selected API/schema/config/protocol descriptors, signed exact-member tar, immutable publication, root-only server activation and PID1 owner-login proof | Implemented for the Monitor server selection. `rz apply` publishes the immutable payload; `rz activate-monitor-server` validates configuration and excluded-service residue before writes, initializes and journals two fresh identity-bound databases, installs only selected units, starts/enables `rz.target`, verifies owner, signed schema/data identities, exact migration/schema inventory, MainPID executables and bound health, and records readiness. The arm64 systemd PID1 gate covers nine recoverable activation and durability faults, exact retry, both service start orders, restart, unsafe/existing paths, completed-state mutation, same-schema foreign DB rejection, and omitted-service residue. |
-| P5 | Optional Admin inbox, current recipient authorization, sequence-bounded reads and retention budgets | Fresh SQLite transaction/concurrency/retention tests | P5a implemented and verified locally: composition-selected dual-ledger fresh schema, code-derived owner contracts and authorized REST/read semantics; retention/admission budgets remain P5b |
+| P5 | Optional Admin inbox, current recipient authorization, sequence-bounded reads and retention budgets | Fresh SQLite transaction/concurrency/retention tests | P5a and P5b implemented and verified locally: selected dual-ledger schema and authenticated reads plus durable accounting, bounded retention, atomic admission, startup/periodic maintenance, pressure refusal and true two-pool concurrency. Producer delivery and realtime invalidation remain P6/P7. |
 | P6 | Monitor and Reports optional outbox/relay, trusted initiator, fenced claims and bounded ambiguity | Lifecycle/crash/dedupe/recipient tests | Queued after P5 |
 | P7 | Direct Admin fetch-SSE and shell integration | Stream/parser/cancellation tests and real browser/proxy reconciliation | Queued after P5/P6 |
 | P8 | Certify each shipped selection and current product journeys | Measured artifact, native runtime, browser, load and absence report for exact build | Queued after applicable stages |
@@ -224,6 +224,12 @@ implemented. They are feature-specific, deterministic without environment or
 working-directory state, and contain no configuration values. Server and Agent
 canonical config artifacts are now produced from those outputs; the manifest
 derives and binds their byte digest instead of accepting `configDigest` input.
+
+The `monitor-notify` selection additionally obtains the notifications descriptor
+from the actual `rz-admin` binary. It owns only inbox capacity, filesystem reserve
+and WAL-pressure thresholds; pure `monitor` has no notification descriptor or
+keys. These settings feed the internal P5b admission service and do not create a
+new process, timer, public producer route or relay.
 
 The selected-native layout producer now emits and verifies canonical Monitor
 server and node-agent unit/config manifests. The release manifest derives their

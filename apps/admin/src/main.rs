@@ -64,8 +64,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     #[cfg(feature = "monitor-distribution")]
-    if command == Command::ContractConfigSelected {
-        println!("{}", serde_json::to_string(&rustzen_config::admin_monitor_contract())?);
+    if let Command::ContractConfigSelected(owner) = &command {
+        let contract = match owner.as_str() {
+            "access" => rustzen_config::admin_monitor_contract(),
+            #[cfg(feature = "notifications")]
+            "notifications" => rustzen_config::notifications_contract(),
+            _ => return Err(std::io::Error::other("config owner is not selected").into()),
+        };
+        println!("{}", serde_json::to_string(&contract)?);
         return Ok(());
     }
     // load env
@@ -110,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 unreachable!("contract mode exits before runtime startup")
             }
             #[cfg(feature = "monitor-distribution")]
-            Command::ContractConfigSelected => {
+            Command::ContractConfigSelected(_) => {
                 unreachable!("contract mode exits before runtime startup")
             }
             #[cfg(feature = "full")]
@@ -141,7 +147,7 @@ enum Command {
     #[cfg(feature = "monitor-distribution")]
     ContractSelected(String),
     #[cfg(feature = "monitor-distribution")]
-    ContractConfigSelected,
+    ContractConfigSelected(String),
     #[cfg(feature = "full")]
     UpdateWorker(i64),
     #[cfg(feature = "full")]
@@ -174,10 +180,13 @@ impl Command {
                 Ok(Self::ContractSelected(owner.clone()))
             }
             #[cfg(feature = "monitor-distribution")]
-            [domain, kind, mode]
-                if domain == "contract" && kind == "config" && mode == "selected" =>
+            [domain, kind, mode, owner]
+                if domain == "contract"
+                    && kind == "config"
+                    && mode == "selected"
+                    && selected_config_owner(owner) =>
             {
-                Ok(Self::ContractConfigSelected)
+                Ok(Self::ContractConfigSelected(owner.clone()))
             }
             #[cfg(feature = "full")]
             [mode] if mode == "openapi" => Ok(Self::OpenApi),
@@ -195,6 +204,11 @@ impl Command {
     }
 }
 
+#[cfg(feature = "monitor-distribution")]
+fn selected_config_owner(owner: &str) -> bool {
+    owner == "access" || (cfg!(feature = "notifications") && owner == "notifications")
+}
+
 #[derive(Debug)]
 struct CommandError;
 
@@ -203,7 +217,7 @@ impl std::fmt::Display for CommandError {
         #[cfg(feature = "full")]
         let usage = "usage: rz-admin serve | rz-admin openapi | rz-admin update worker <release-id> | rz-admin update recover";
         #[cfg(not(feature = "full"))]
-        let usage = "usage: rz-admin serve | rz-admin bootstrap-owner | rz-admin verify-owner | rz-admin validate-config | rz-admin bind-database | rz-admin validate-database | rz-admin contract selected <admin|notifications> | rz-admin contract config selected";
+        let usage = "usage: rz-admin serve | rz-admin bootstrap-owner | rz-admin verify-owner | rz-admin validate-config | rz-admin bind-database | rz-admin validate-database | rz-admin contract selected <admin|notifications> | rz-admin contract config selected <access|notifications>";
         formatter.write_str(usage)
     }
 }
@@ -245,9 +259,35 @@ mod tests {
         assert_eq!(Command::parse(["bind-database".to_string()]).ok(), Some(Command::BindDatabase));
         #[cfg(feature = "monitor-distribution")]
         assert_eq!(
-            Command::parse(["contract".to_string(), "config".to_string(), "selected".to_string()])
-                .ok(),
-            Some(Command::ContractConfigSelected)
+            Command::parse([
+                "contract".to_string(),
+                "config".to_string(),
+                "selected".to_string(),
+                "access".to_string()
+            ])
+            .ok(),
+            Some(Command::ContractConfigSelected("access".into()))
+        );
+        #[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+        assert_eq!(
+            Command::parse([
+                "contract".to_string(),
+                "config".to_string(),
+                "selected".to_string(),
+                "notifications".to_string()
+            ])
+            .ok(),
+            Some(Command::ContractConfigSelected("notifications".into()))
+        );
+        #[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+        assert!(
+            Command::parse([
+                "contract".to_string(),
+                "config".to_string(),
+                "selected".to_string(),
+                "notifications".to_string()
+            ])
+            .is_err()
         );
         #[cfg(feature = "monitor-distribution")]
         assert!(Command::parse(["openapi".to_string()]).is_err());

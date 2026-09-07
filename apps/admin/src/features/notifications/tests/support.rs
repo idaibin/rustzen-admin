@@ -1,4 +1,8 @@
-use crate::features::notifications::types::InboxListQuery;
+use crate::features::notifications::{
+    admission_types::{AdmissionEvent, AdmissionPolicy},
+    types::InboxListQuery,
+};
+use chrono::NaiveDateTime;
 use sqlx::{
     SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
@@ -9,7 +13,7 @@ use uuid::Uuid;
 pub(super) const SECRET: &[u8] = b"notification-test-secret";
 
 pub(super) struct TestDatabase {
-    path: PathBuf,
+    pub(super) path: PathBuf,
     pub(super) primary: SqlitePool,
     pub(super) peer: SqlitePool,
 }
@@ -62,6 +66,7 @@ impl TestDatabase {
             .await
             .unwrap(),
             [
+                "notification_accounting",
                 "notification_receipts",
                 "notification_recipients",
                 "notification_user_state",
@@ -71,6 +76,15 @@ impl TestDatabase {
         Self { path, primary, peer }
     }
 
+    pub(super) async fn reopen(&self) -> SqlitePool {
+        let options = SqliteConnectOptions::new()
+            .filename(&self.path)
+            .foreign_keys(true)
+            .journal_mode(SqliteJournalMode::Wal)
+            .busy_timeout(Duration::from_secs(5));
+        SqlitePoolOptions::new().max_connections(2).connect_with(options).await.unwrap()
+    }
+
     pub(super) async fn close(self) {
         self.primary.close().await;
         self.peer.close().await;
@@ -78,6 +92,64 @@ impl TestDatabase {
         let _ = std::fs::remove_file(self.path.with_extension("db-shm"));
         let _ = std::fs::remove_file(self.path.with_extension("db-wal"));
     }
+}
+
+pub(super) fn policy() -> AdmissionPolicy {
+    AdmissionPolicy {
+        free_space_reserve_bytes: 0,
+        wal_pressure_frames: u32::MAX,
+        ..AdmissionPolicy::default()
+    }
+}
+
+pub(super) fn event(
+    event_id: &str,
+    accepted_at: NaiveDateTime,
+    candidates: Vec<i64>,
+) -> AdmissionEvent {
+    AdmissionEvent {
+        producer: "monitor".into(),
+        event_id: event_id.into(),
+        payload_sha256: "a".repeat(64),
+        expires_at: accepted_at + chrono::Duration::days(1),
+        topic: "monitor.incident.opened".into(),
+        subject_kind: "incident".into(),
+        subject_id: event_id.into(),
+        subject_revision: 1,
+        occurred_at: accepted_at,
+        title: format!("title {event_id}"),
+        summary: "summary".into(),
+        required_capability: "monitor:incident:view".into(),
+        candidate_user_ids: candidates,
+    }
+}
+
+pub(super) async fn create_users(pool: &SqlitePool, first: i64, last: i64) {
+    sqlx::query(
+        "WITH RECURSIVE ids(value) AS (
+             SELECT ? UNION ALL SELECT value + 1 FROM ids WHERE value < ?
+         ) INSERT OR IGNORE INTO users
+           (id, username, email, password_hash, real_name, status, is_system)
+         SELECT value, 'notification-user-' || value,
+                'notification-user-' || value || '@example.com', '!test-only!',
+                'Notification User', 1, 0 FROM ids",
+    )
+    .bind(first)
+    .bind(last)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "WITH RECURSIVE ids(value) AS (
+             SELECT ? UNION ALL SELECT value + 1 FROM ids WHERE value < ?
+         ) INSERT OR IGNORE INTO user_roles (user_id, role_id, created_at)
+         SELECT value, 2, CURRENT_TIMESTAMP FROM ids",
+    )
+    .bind(first)
+    .bind(last)
+    .execute(pool)
+    .await
+    .unwrap();
 }
 
 pub(super) async fn grant(pool: &SqlitePool, capability: &str) {

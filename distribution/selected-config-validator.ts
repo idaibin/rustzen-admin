@@ -22,6 +22,9 @@ export function completeSelectedConfigForTest(
                 ? {
                       access: structuredClone(goldenOwners.access),
                       monitor: structuredClone(goldenOwners.monitor),
+                      ...(plan.preset === "monitor-notify"
+                          ? { notifications: structuredClone(goldenOwners.notifications) }
+                          : {}),
                   }
                 : {
                       "monitor-agent": structuredClone(
@@ -68,7 +71,11 @@ function supportedPlan(selectionInput: unknown) {
         plan.artifactClass === "server"
             ? (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
               canonicalJson(plan.configOwners) ===
-                  canonicalJson(["access", "monitor"])
+                  canonicalJson(
+                      plan.preset === "monitor-notify"
+                          ? ["access", "monitor", "notifications"]
+                          : ["access", "monitor"],
+                  )
             : plan.artifactClass === "node-agent" &&
               plan.preset === "node-agent" &&
               canonicalJson(plan.configOwners) ===
