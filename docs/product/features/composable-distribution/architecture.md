@@ -614,15 +614,16 @@ The admission result contains no artifact digest and cannot be consumed as a
 release certificate; later source/build, native, runtime, browser and load
 reports each bind their own immutable inputs.
 
-The pending P8b issuer must consume an admitted Monitor plan through one
-release-binary batch. Cargo will produce `rz-admin` and `rz-monitor` into an
-explicit release directory; the contract, protocol, staging and manifest
-producers must read that directory and never silently run a second debug Cargo
-build. The Agent executable is used only to obtain and compare the reviewed
-protocol witness. It is neither copied into the server payload nor evidence that
-the Agent package is certified. The current closure provides the certificate
-schema, expected-input verifier and explicit binary contract extraction; issuer,
-stable batch capture and certificate publication remain unimplemented.
+P8d consumes an admitted Monitor plan only through the retained
+`VerifiedContainerExportSnapshot` and a verified signed release triplet. It
+derives source identity, tree digest, toolchain, build ID, binary and full
+manifest inventory from those inputs; no CLI digest, tree, toolchain or manifest
+claim is accepted. The issuer returns an unforgeable publication capability;
+the publisher writes one canonical, no-replace
+`source-build-certificate/source-build-manifest.json` beside the immutable
+release with stable reread and an exact one-file certificate directory.
+It does not install, create `current`, start systemd or certify Agent, browser,
+load or deployment work.
 
 The first P8b build-batch closure is a Linux/amd64 BuildKit export for the
 admitted `monitor` server selection only. It requires the musl target and a

@@ -9,7 +9,7 @@ import { generatedNativeLayout } from "./native-layout.ts";
 import { completeSelectedProtocol } from "./selected-protocol.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
-export const sourceIdentity = "git:abc123 tree:def456";
+export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
 export const releaseVersion = "0.5.0";
 export async function createExport() {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));

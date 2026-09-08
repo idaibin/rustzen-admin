@@ -1,6 +1,9 @@
 import { parseNativeLayoutBytes } from "./native-layout.ts";
 import { parseReleaseManifest } from "./release-manifest-validator.ts";
-import { readArtifactFileTree } from "./release-manifest-artifacts.ts";
+import {
+    readArtifactFileTree,
+    type ArtifactFile,
+} from "./release-manifest-artifacts.ts";
 import {
     canonicalJson,
     deriveBuildId,
@@ -104,6 +107,22 @@ export async function produceReleaseManifest(
         sha256(canonicalJson(staging.files)) !== staging.sha256
     )
         throw new Error("staging reference inventory differs from payload");
+    return deriveReleaseManifestFromFiles({
+        ...input,
+        files: snapshot,
+        expectedBuildId: staging.buildId,
+    });
+}
+
+export function deriveReleaseManifestFromFiles(
+    input: BuildInputs & {
+        selection: unknown;
+        files: ArtifactFile[];
+        expectedBuildId: string;
+    },
+): ReleaseManifest {
+    const plan = resolveSelection(input.selection);
+    const snapshot = input.files;
     const byPath = new Map(snapshot.map((file) => [file.entry.path, file]));
     const get = (path: string) => {
         const value = byPath.get(path);
@@ -188,7 +207,7 @@ export async function produceReleaseManifest(
         input as BuildInputs,
         digests,
     );
-    if (buildId !== staging.buildId)
+    if (buildId !== input.expectedBuildId)
         throw new Error("staging buildId differs from verified contracts");
     const base: ManifestBase = {
         manifestVersion: 1,

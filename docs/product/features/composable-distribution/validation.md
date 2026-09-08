@@ -38,12 +38,14 @@ installation or release gate.
 
 ## P8b Monitor source-build certificate contract
 
-The pending Monitor P8b issuer must accept an admitted production `monitor`
-selection and one explicit release binary root. It must reject an implicit Cargo build, a
-debug/rebuilt contract producer, a different composition, missing or extra
-server binary, fixture helper on the positive path, noncanonical contract or
-manifest, and any archive or envelope digest mismatch. It records one immutable
-`source-build-manifest` after staging and local detached-signature verification.
+P8d accepts an admitted production `monitor` snapshot and signed release root,
+not an explicit binary root or caller-provided source/build claims. It rejects
+forged snapshots, invalid source identity, release mutations, cross-evidence
+mismatch, unexpected inventory/modes, unsafe publication parents, races and
+existing final output. Tests also delete the sibling payload before issue,
+reject a fully signed manifest that differs from retained snapshot bytes, and
+reject forged publication capabilities. Linux/amd64 synthetic end-to-end
+validation covers the issuer, canonical certificate, reread and tamper rejection.
 
 Its structural parser rejects unknown fields/layers, non-Monitor selections and
 every attempt to set `runtime`, `browser`, `load` or `releaseReady` true. The

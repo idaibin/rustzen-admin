@@ -283,6 +283,11 @@ verify-monitor-container-release:
     pnpm dlx bun@1.3.14 test distribution/release-key-file.test.ts distribution/container-export-release.test.ts scripts/distribution-publish-selected-release.integration.test.ts
     scripts/verify-monitor-container-release-linux.sh
 
+verify-source-build-certificate:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/source-identity.test.ts distribution/source-build-certificate.test.ts distribution/source-build-issuer.test.ts distribution/source-build-publisher.test.ts scripts/distribution-issue-source-build-certificate.integration.test.ts
+    scripts/verify-source-build-certificate-linux.sh
+
 verify-distribution-selected-installer:
     scripts/verify-selected-installer-linux.sh
 

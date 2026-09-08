@@ -248,6 +248,16 @@ source identity/toolchain and archive/envelope digests; parsing valid hash shape
 alone is never acceptance. The source-build certificate is evidence for its
 three named layers only.
 
+P8d takes an unforgeable `VerifiedContainerExportSnapshot`, release root,
+trusted root and independent `TrustedReleaseKey`. It rereads the signed release
+before derivation and strictly parses source identity as
+`git:<40hex> tree:<64hex> state:<clean|dirty>`. The issuer binds the complete
+release manifest to snapshot-retained bytes and returns an unforgeable
+publication capability. The publisher accepts only that capability and writes
+only canonical `source-build-certificate/source-build-manifest.json` at mode
+`0644` through a private non-link parent, lock, temporary file, fsync, atomic
+no-replace rename and stable exact-directory reread.
+
 Contract extraction accepts an explicit release binary directory. It never invokes
 Cargo itself: the caller supplies `rz-admin` and `rz-monitor`. This extraction
 step does not prove that they share a build batch. The later certification
