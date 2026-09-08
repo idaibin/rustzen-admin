@@ -8,22 +8,44 @@ import {
     parseInventory,
 } from "./distribution-web-inventory-policy";
 
+const compositionId = "1".repeat(64);
+const digest = "2".repeat(64);
 const inventory = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     preset: "monitor-notify",
-    compositionId: "selection-1",
-    generatedRoot: "apps/web/.selected-web/selection-1",
-    outputDirectory: "target/distributions/selection-1/web/dist",
+    compositionId,
+    generatedRoot: `apps/web/.selected-web/${compositionId}`,
+    outputDirectory: `target/distributions/${compositionId}/web/dist`,
     selectedRoutes: ["index.tsx"],
     publicAssets: ["rustzen.png"],
     emittedFiles: ["index.html"],
-    moduleIds: ["apps/web/.selected-web/selection-1/index.tsx"],
+    fileInventory: [{ path: "index.html", size: 123, sha256: digest }],
+    moduleIds: [`apps/web/.selected-web/${compositionId}/index.tsx`],
+    binding: {
+        bindingVersion: 1,
+        compositionId,
+        selectedApiDigest: digest,
+        webDigest: "3".repeat(64),
+    },
 };
 
 describe("selected Web inventory policy", () => {
     test("accepts the exact inventory schema and rejects extra fields", () => {
         expect(parseInventory(inventory)).toEqual(inventory);
         expect(() => parseInventory({ ...inventory, unexpected: true })).toThrow("invalid schema");
+        expect(() => parseInventory({ ...inventory, schemaVersion: 1 })).toThrow("field types");
+        expect(() => parseInventory({ ...inventory, binding: undefined })).toThrow();
+        expect(() => parseInventory({ ...inventory, fileInventory: [
+            ...inventory.fileInventory,
+            inventory.fileInventory[0],
+        ] })).toThrow("sorted and unique");
+        expect(() => parseInventory({ ...inventory, fileInventory: [
+            { path: "z.js", size: 1, sha256: digest },
+            { path: "a.js", size: 1, sha256: digest },
+        ] })).toThrow("sorted and unique");
+        expect(() => parseInventory({ ...inventory, fileInventory: [
+            { path: "index.html", size: 1, sha256: "wrong" },
+        ] })).toThrow("invalid file entry");
     });
 
     test("rejects path escapes and repeated inventory entries", () => {

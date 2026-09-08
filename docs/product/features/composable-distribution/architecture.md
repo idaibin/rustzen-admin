@@ -389,6 +389,18 @@ diagnostic context. Use content-addressed assets and entry integrity checks to
 prevent stale asset substitution. A same-plan/different-content mismatch is
 still rejected. Runtime capabilities can restrict, but never add, compiled code.
 
+The selected-Web producer emits a canonical `binding.json` and schema-v2
+`inventory.json`. The descriptor contains only binding version, composition ID,
+the selected client-API source digest and `webDigest`; it deliberately has no
+`buildId`. The digest table normalizes exactly one `index.html` binding stamp to
+the fixed slot before hashing. Inventory repeats the descriptor verbatim and
+lists the final path/size/hash records, including the stamped HTML. Container
+export validates descriptor, inventory, selected API bytes and emitted files as
+one tuple before a release producer may use its Web files. Both container and
+direct-path staging apply the same preset, composition, route, public-asset,
+module and excluded-text policy. The build identity derives selected routes from
+that verified inventory rather than trusting a second caller-provided route list.
+
 Use a small inline access-owned bootstrap in the HTML itself, so a missing old
 entry chunk cannot prevent mismatch recovery. HTML and binding responses use
 `Cache-Control: no-store`; hashed assets use immutable caching. Only after a

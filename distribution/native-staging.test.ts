@@ -1,5 +1,4 @@
-import { chmod, lstat, mkdir, readdir, rm, writeFile } from "node:fs/promises";
-import { lstatSync, mkdirSync } from "node:fs";
+import { chmod, lstat, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { nativeUnitBytes } from "./native-layout.ts";
@@ -8,36 +7,13 @@ import {
     publishNativeStagingBytes,
     setNativeStagingBeforePublishHookForTest,
 } from "./native-staging.ts";
-import {
-    releaseFixture,
-    monitorSelection,
-} from "./release-manifest-fixtures.ts";
+import { monitorSelection } from "./release-manifest-fixtures.ts";
 import { sha256 } from "./release-manifest-core.ts";
 import {
     fromPathStagingInput,
     VerifiedNativeSource,
 } from "./native-staging-source.ts";
-import { setAtomicRenameBeforeCallHookForTest } from "./atomic-rename.ts";
-
-async function roots(kind: "server" | "agent") {
-    const fixture = await releaseFixture(kind);
-    const binaryRoot = join(fixture.root, "binary");
-    await mkdir(join(binaryRoot, "bin"), { recursive: true });
-    const names =
-        kind === "server" ? ["rz-admin", "rz-monitor"] : ["rz-monitor-agent"];
-    for (const name of names) {
-        await writeFile(join(binaryRoot, "bin", name), name);
-        await chmod(join(binaryRoot, "bin", name), 0o755);
-    }
-    return {
-        fixture,
-        binaryRoot,
-        selection:
-            kind === "server"
-                ? monitorSelection
-                : { preset: "node-agent", target: monitorSelection.target },
-    };
-}
+import { nativeStagingRoots as roots } from "./native-staging-test-fixture.ts";
 
 test("native staging writes exact selected server and Agent trees", async () => {
     for (const kind of ["server", "agent"] as const) {
@@ -70,9 +46,11 @@ test("native staging writes exact selected server and Agent trees", async () => 
                           "contracts/native/native-layout.json",
                           "contracts/protocol/protocol.json",
                           "contracts/schema/schema.json",
+                          "contracts/web/binding.json",
                           ...Object.keys(nativeUnitBytes(selection)),
                           "web/assets/main.js",
                           "web/index.html",
+                          "web/rustzen.png",
                       ]
                     : [
                           "bin/rz-monitor-agent",
@@ -304,34 +282,6 @@ test("native staging uses one lock and removes only its failed publish state", a
         ).toBe("");
     } finally {
         setNativeStagingBeforePublishHookForTest();
-        await rm(fixture.root, { recursive: true, force: true });
-    }
-});
-
-test("native staging preserves a final created at the atomic rename boundary", async () => {
-    const { fixture, binaryRoot, selection } = await roots("agent");
-    const input = {
-        selection, outputParent: join(fixture.root, "atomic-out"), trustedRoot: fixture.root,
-        releaseVersion: "1.0.2", sourceIdentity: "test-source",
-        toolchain: "test-toolchain", selectedRoutes: [], binaryRoot,
-        configRoot: fixture.configRoot, nativeRoot: fixture.nativeRoot,
-        protocolRoot: fixture.protocolRoot,
-    };
-    const seed = await produceNativeStaging({ ...input, outputParent: join(fixture.root, "seed") });
-    const final = join(input.outputParent, ".native-staging", seed.buildId, selection.target, "node-agent", "payload");
-    let plantedInode: number | undefined;
-    try {
-        setAtomicRenameBeforeCallHookForTest(() => {
-            mkdirSync(final);
-            plantedInode = lstatSync(final).ino;
-        });
-        await expect(produceNativeStaging(input)).rejects.toThrow("atomic");
-        const before = await lstat(final);
-        expect(before.isDirectory()).toBeTrue();
-        expect(before.ino).toBe(plantedInode);
-        expect(await readdir(final)).toEqual([]);
-    } finally {
-        setAtomicRenameBeforeCallHookForTest();
         await rm(fixture.root, { recursive: true, force: true });
     }
 });

@@ -61,6 +61,7 @@ export async function produceContainerExport(input: ContainerExportInput) {
         "release/server/bin/rz-monitor",
         "witness/bin/rz-monitor-agent",
         "release/web/inventory.json",
+        "release/web/binding.json",
         "release/contracts/api/api.json",
         "release/contracts/config/config.json",
         "release/contracts/schema/schema.json",

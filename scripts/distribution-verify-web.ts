@@ -6,9 +6,9 @@ import {
     assertSafeRelativePath,
     assertSelectedApiSource,
     assertSelectedWebSnapshot,
-    listFiles,
     parseInventory,
 } from "./distribution-web-inventory-policy.ts";
+import { canonicalBindingBytes, parseWebBinding, readWebFiles, verifyWebBinding } from "../distribution/selected-web-binding.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 const [flag, selectionPath] = Bun.argv.slice(2);
@@ -25,6 +25,8 @@ const distRoot = join(outputRoot, "dist");
 const generatedDirectory = join(repositoryRoot, "apps/web/.selected-web", selection.compositionId);
 const generatedApiSource = join(generatedDirectory, "api.ts");
 const selectedApiSource = join(repositoryRoot, "apps/web/src/distribution/monitor-api.ts");
+const retainedApiSource = join(outputRoot, "api.ts");
+const bindingPath = join(outputRoot, "binding.json");
 await Promise.all([
     assertCanonicalPath(repositoryRoot, distributionRoot, "distributionRoot"),
     assertCanonicalPath(repositoryRoot, outputRoot, "web outputRoot"),
@@ -32,6 +34,8 @@ await Promise.all([
     assertCanonicalPath(repositoryRoot, generatedDirectory, "generatedRoot"),
     assertCanonicalPath(repositoryRoot, generatedApiSource, "generated API source"),
     assertCanonicalPath(repositoryRoot, selectedApiSource, "selected API source"),
+    assertCanonicalPath(repositoryRoot, retainedApiSource, "retained selected API source"),
+    assertCanonicalPath(repositoryRoot, bindingPath, "binding descriptor"),
 ]);
 
 const inventory = parseInventory(await Bun.file(join(outputRoot, "inventory.json")).json());
@@ -41,16 +45,30 @@ inventory.selectedRoutes.forEach((path) => assertSafeRelativePath(path, "selecte
 inventory.publicAssets.forEach((path) => assertSafeRelativePath(path, "publicAssets"));
 inventory.emittedFiles.forEach((path) => assertSafeRelativePath(path, "emittedFiles"));
 
-const files = await listFiles(repositoryRoot, distRoot);
-if (!inventory.publicAssets.every((asset) => files.includes(asset)))
+const files = await readWebFiles(distRoot);
+const filePaths = files.map((file) => file.path);
+if (!inventory.publicAssets.every((asset) => filePaths.includes(asset)))
     throw new Error("selected Web output is missing a declared public asset");
-if (files.includes("__rustzen_admin_marker__.json"))
+if (filePaths.includes("__rustzen_admin_marker__.json"))
     throw new Error("selected Web output copied an unselected public asset");
 
 await assertSelectedApiSource(generatedApiSource);
-const textFiles = files.filter((file) => /\.(?:html|js|css|map)$/.test(file));
+const selectedApiBytes = await Bun.file(retainedApiSource).bytes();
+const generatedApiBytes = await Bun.file(generatedApiSource).bytes();
+if (
+    selectedApiBytes.length !== generatedApiBytes.length ||
+    selectedApiBytes.some((byte, index) => byte !== generatedApiBytes[index])
+)
+    throw new Error("retained selected Web API source differs from generated source");
+const binding = parseWebBinding(JSON.parse(await Bun.file(bindingPath).text()));
+if (new TextDecoder().decode(canonicalBindingBytes(binding)) !== await Bun.file(bindingPath).text())
+    throw new Error("selected Web binding descriptor is not canonical");
+if (JSON.stringify(binding) !== JSON.stringify(inventory.binding))
+    throw new Error("selected Web binding descriptor differs from inventory");
+verifyWebBinding({ binding, compositionId: selection.compositionId, selectedApiBytes, files });
+const textFiles = files.filter((file) => /\.(?:html|js|css|map)$/.test(file.path));
 const outputText = (
-    await Promise.all(textFiles.map((file) => Bun.file(join(distRoot, file)).text()))
+    await Promise.all(textFiles.map((file) => new TextDecoder("utf-8", { fatal: true }).decode(file.bytes)))
 ).join("\n");
 assertSelectedWebSnapshot(inventory, selection, files, outputText);
 
@@ -61,7 +79,7 @@ console.log(
             preset: selection.preset,
             compositionId: selection.compositionId,
             outputDirectory: inventory.outputDirectory,
-            emittedFiles: files,
+            emittedFiles: filePaths,
             moduleIds: inventory.moduleIds,
         },
         null,

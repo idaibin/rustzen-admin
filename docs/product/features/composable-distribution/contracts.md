@@ -68,6 +68,14 @@ required source discriminator (`resolved-selection`, `selected-web-files`,
 or `binary-file`); handwritten values with a missing or cross-purpose source are
 rejected before a packager can consume them.
 
+Selected-Web binding is schema version 1:
+`{bindingVersion:1,compositionId,selectedApiDigest,webDigest}`. Its canonical
+bytes are stored beside the schema-v2 selected-Web inventory. `webDigest` uses
+the canonical emitted `{path,sha256}` list after normalizing the sole HTML stamp
+back to `__RUSTZEN_WEB_DIGEST__`; inventory file hashes instead use final bytes.
+The descriptor has no build ID and neither an environment variable nor a caller
+provided value can stand in for it.
+
 The manifest producer accepts only builder-created, current-user-private, quiescent
 staging. Node has no portable `openat`: the producer therefore uses no-link directory
 and same-descriptor identity checks as an accidental-change guard, not as a general

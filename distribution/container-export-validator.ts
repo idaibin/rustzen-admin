@@ -9,6 +9,7 @@ import { parseSelectedProtocolBytes } from "./selected-protocol.ts";
 import { parseSchemaArtifactBytes } from "./schema-contract.ts";
 import { compareContainerExportPath } from "./container-export-path.ts";
 import { assertSelectedWebSnapshot, parseInventory } from "../scripts/distribution-web-inventory-policy.ts";
+import { parseWebBinding, verifyWebBinding } from "./selected-web-binding.ts";
 
 type ExportFile = { path: string; mode: "0644" | "0755"; size: number; sha256: string };
 type OutputManifest = {
@@ -127,8 +128,19 @@ export async function verifyContainerExport(
 }
 function verifyWeb(files: Map<string, ArtifactFile>, payload: ArtifactFile[], plan: ReturnType<typeof resolveSelection>) {
     const inventory = parseInventory(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(required(files, "release/web/inventory.json").bytes)));
-    const actual = payload.filter((file) => file.entry.path.startsWith("release/web/dist/")).map((file) => file.entry.path.slice("release/web/dist/".length)).sort(compareContainerExportPath);
-    if (canonicalJson(inventory.emittedFiles) !== canonicalJson(actual)) throw new Error("container Web inventory emitted files differs");
+    const descriptorBytes = required(files, "release/web/binding.json").bytes;
+    const descriptor = parseWebBinding(json(descriptorBytes, "container Web binding"));
+    if (canonicalJson(descriptor) !== new TextDecoder("utf-8", { fatal: true }).decode(descriptorBytes))
+        throw new Error("container Web binding is not canonical");
+    if (canonicalJson(descriptor) !== canonicalJson(inventory.binding))
+        throw new Error("container Web binding differs from inventory");
+    const actual = payload
+        .filter((file) => file.entry.path.startsWith("release/web/dist/"))
+        .map((file) => ({ ...file.entry, path: file.entry.path.slice("release/web/dist/".length), bytes: file.bytes }))
+        .sort((left, right) => compareContainerExportPath(left.path, right.path));
+    if (canonicalJson(inventory.emittedFiles) !== canonicalJson(actual.map((file) => file.path))) throw new Error("container Web inventory emitted files differs");
+    const apiSource = required(files, "release/web/api.ts").bytes;
+    verifyWebBinding({ binding: descriptor, compositionId: plan.compositionId, selectedApiBytes: apiSource, files: actual });
     const text = payload.filter((file) => file.entry.path.startsWith("release/web/dist/") && /\.(?:html|js|css|map)$/.test(file.entry.path)).map((file) => new TextDecoder().decode(file.bytes)).join("\n");
     assertSelectedWebSnapshot(inventory, plan, actual, text);
 }
@@ -191,7 +203,13 @@ function exactPayload(payload: ArtifactFile[]) {
     for (const file of payload) {
         const path = file.entry.path;
         if (path.startsWith("release/web/")) {
-            if (path !== "release/web/inventory.json" && !path.startsWith("release/web/dist/"))
+            if (
+                ![
+                    "release/web/inventory.json",
+                    "release/web/binding.json",
+                    "release/web/api.ts",
+                ].includes(path) && !path.startsWith("release/web/dist/")
+            )
                 throw new Error(`container export has unexpected Web payload path: ${path}`);
         } else if (!expected.includes(path)) {
             throw new Error(`container export has unexpected payload path: ${path}`);

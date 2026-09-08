@@ -2,49 +2,9 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
 import { allowedWebPackages } from "./distribution-web-allowed-packages.ts";
-
-export type Inventory = {
-    schemaVersion: number;
-    preset: string;
-    compositionId: string;
-    generatedRoot: string;
-    outputDirectory: string;
-    selectedRoutes: string[];
-    publicAssets: string[];
-    emittedFiles: string[];
-    moduleIds: string[];
-};
-
-export function parseInventory(value: unknown): Inventory {
-    if (!value || typeof value !== "object" || Array.isArray(value))
-        throw new Error("selected Web inventory must be an object");
-    const record = value as Record<string, unknown>;
-    const keys = [
-        "schemaVersion",
-        "preset",
-        "compositionId",
-        "generatedRoot",
-        "outputDirectory",
-        "selectedRoutes",
-        "publicAssets",
-        "emittedFiles",
-        "moduleIds",
-    ];
-    if (Object.keys(record).length !== keys.length || keys.some((key) => !(key in record)))
-        throw new Error("selected Web inventory has an invalid schema");
-    if (
-        record.schemaVersion !== 1 ||
-        typeof record.preset !== "string" ||
-        typeof record.compositionId !== "string" ||
-        typeof record.generatedRoot !== "string" ||
-        typeof record.outputDirectory !== "string" ||
-        ![record.selectedRoutes, record.publicAssets, record.emittedFiles, record.moduleIds].every(
-            (field) => Array.isArray(field) && field.every((item) => typeof item === "string"),
-        )
-    )
-        throw new Error("selected Web inventory has invalid field types");
-    return record as unknown as Inventory;
-}
+import type { WebFile } from "../distribution/selected-web-binding.ts";
+export { assertSafeRelativePath, parseInventory, type Inventory } from "./distribution-web-inventory-schema.ts";
+import { assertSafeRelativePath, type Inventory } from "./distribution-web-inventory-schema.ts";
 
 export function assertEqual(actual: string, expected: string, label: string) {
     if (actual !== expected) throw new Error(`selected Web inventory ${label} mismatch`);
@@ -55,11 +15,6 @@ export function assertArrayEqual(actual: string[], expected: string[], label: st
         throw new Error(`selected Web inventory ${label} mismatch`);
     if (new Set(actual).size !== actual.length)
         throw new Error(`selected Web inventory ${label} repeats entries`);
-}
-
-export function assertSafeRelativePath(path: string, label: string) {
-    if (!path || isAbsolute(path) || path.split(/[\\/]/).some((part) => part === ".."))
-        throw new Error(`selected Web inventory ${label} contains a path escape`);
 }
 
 export async function assertCanonicalPath(repositoryRoot: string, path: string, label: string) {
@@ -193,24 +148,10 @@ export function assertModuleIds(
 export function assertSelectedWebSnapshot(
     inventory: Inventory,
     selection: { preset: string; compositionId: string; webRoots: string[] },
-    emittedFiles: string[],
+    emittedFiles: WebFile[],
     outputText: string,
 ) {
-    const routes = [
-        "index.tsx",
-        ...selection.webRoots.map((route) => route.replace("apps/web/src/routes/", "")),
-        "monitoring/-global-alert-settings.tsx",
-        "monitoring/-incident-drawer.tsx",
-        "monitoring/-node-details.tsx",
-        "monitoring/-node-onboarding.tsx",
-        "monitoring/-save-state.ts",
-        "system/-role-actions.tsx",
-        "system/-role-delete-state.ts",
-        "system/-role-dialog.tsx",
-        "system/-role-permission-picker.tsx",
-        "system/-user-actions.tsx",
-        "system/-user-dialog.tsx",
-    ].sort();
+    const routes = selectedWebRoutes(selection);
     const hasNotifications = selection.preset === "monitor-notify";
     const forbidden = [
         "/api/insights",
@@ -255,10 +196,16 @@ export function assertSelectedWebSnapshot(
     );
     assertArrayEqual(inventory.selectedRoutes, routes, "selectedRoutes");
     assertArrayEqual(inventory.publicAssets, ["rustzen.png"], "publicAssets");
-    assertArrayEqual(inventory.emittedFiles, emittedFiles, "emittedFiles");
+    const emittedPaths = emittedFiles.map((file) => file.path);
+    assertArrayEqual(inventory.emittedFiles, emittedPaths, "emittedFiles");
+    const actualFiles = emittedFiles.map(({ path, size, sha256 }) => ({ path, size, sha256 }));
+    if (JSON.stringify(inventory.fileInventory) !== JSON.stringify(actualFiles))
+        throw new Error("selected Web inventory file digest mismatch");
+    if (inventory.binding.compositionId !== selection.compositionId)
+        throw new Error("selected Web inventory binding composition mismatch");
     assertModuleIds(inventory.moduleIds, selection.compositionId, hasNotifications);
     for (const asset of inventory.publicAssets) {
-        if (!inventory.emittedFiles.includes(asset) || !emittedFiles.includes(asset))
+        if (!inventory.emittedFiles.includes(asset) || !emittedPaths.includes(asset))
             throw new Error(`selected Web public asset is absent from emitted output: ${asset}`);
     }
     for (const value of forbidden) {
@@ -269,6 +216,25 @@ export function assertSelectedWebSnapshot(
         if (!outputText.includes(value))
             throw new Error(`selected Web output is missing required text: ${value}`);
     }
+}
+
+export function selectedWebRoutes(selection: { webRoots: string[] }) {
+    return [
+        "index.tsx",
+        ...selection.webRoots.map((route) => route.replace("apps/web/src/routes/", "")),
+        "monitoring/-global-alert-settings.tsx",
+        "monitoring/-incident-drawer.tsx",
+        "monitoring/-node-details.tsx",
+        "monitoring/-node-alert-policy.tsx",
+        "monitoring/-node-onboarding.tsx",
+        "monitoring/-save-state.ts",
+        "system/-role-actions.tsx",
+        "system/-role-delete-state.ts",
+        "system/-role-dialog.tsx",
+        "system/-role-permission-picker.tsx",
+        "system/-user-actions.tsx",
+        "system/-user-dialog.tsx",
+    ].sort();
 }
 
 export async function assertSelectedApiSource(apiPath: string) {

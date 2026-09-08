@@ -16,7 +16,7 @@ test("captured export bytes stage exact Monitor payload after export removal", a
         await expect(lstat(root)).rejects.toMatchObject({ code: "ENOENT" });
         const result = await produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted });
         expect(result.staging.files.map((file) => file.path)).toEqual([
-            "bin/rz-admin", "bin/rz-monitor", "contracts/api/api.json", "contracts/config/config.json", "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json", "systemd/rz-admin.service", "systemd/rz-monitor.service", "systemd/rz.target", "web/index.html", "web/rustzen.png",
+            "bin/rz-admin", "bin/rz-monitor", "contracts/api/api.json", "contracts/config/config.json", "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json", "contracts/web/binding.json", "systemd/rz-admin.service", "systemd/rz-monitor.service", "systemd/rz.target", "web/index.html", "web/rustzen.png",
         ]);
         expect(result.manifest.files).toEqual(result.staging.files);
         expect(result.manifest.releaseVersion).toBe(releaseVersion);
@@ -35,7 +35,7 @@ test("captured staging CLI requires exact arguments", async () => {
         if (cli.exitCode !== 0) throw new Error(new TextDecoder().decode(cli.stderr));
         expect(cli.exitCode).toBe(0);
         const value = JSON.parse(new TextDecoder().decode(cli.stdout));
-        expect(value.files).toBe(12);
+        expect(value.files).toBe(13);
         for (const args of [
             [],
             ["--unknown", "x"],

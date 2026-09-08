@@ -3,6 +3,7 @@ import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { parseSelectedApiBytes } from "./selected-contract-validator.ts";
 import { parseSelectedConfigBytes } from "./selected-config.ts";
 import { parseSelectedProtocolBytes } from "./selected-protocol.ts";
+import { parseWebBinding, verifyWebDigestBinding } from "./selected-web-binding.ts";
 import { parseSchemaArtifactBytes } from "./schema-contract.ts";
 import {
     readVerifiedNativeSource,
@@ -16,7 +17,8 @@ export function verifyPublishedSource(
 ) : VerifiedNativeSourceState {
     const state = readVerifiedNativeSource(source);
     const { files, digests, selection } = state;
-    const artifactClass = resolveSelection(selection).artifactClass;
+    const plan = resolveSelection(selection);
+    const artifactClass = plan.artifactClass;
     const paths = files.map((file) => file.entry.path);
     if (
         canonicalJson(paths) !== canonicalJson([...paths].sort(compareStagingPath)) ||
@@ -72,7 +74,29 @@ export function verifyPublishedSource(
     if (artifactClass === "server") {
         parseSelectedApiBytes(get("contracts/api/api.json").bytes, selection);
         parseSchemaArtifactBytes(get("contracts/schema/schema.json").bytes, selection);
-        fixed.push("contracts/api/api.json", "contracts/schema/schema.json");
+        const binding = parseWebBinding(
+            JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(
+                    get("contracts/web/binding.json").bytes,
+                ),
+            ),
+        );
+        verifyWebDigestBinding({
+            binding,
+            compositionId: plan.compositionId,
+            files: files
+                .filter((file) => file.entry.path.startsWith("web/"))
+                .map((file) => ({
+                    ...file.entry,
+                    path: file.entry.path.slice(4),
+                    bytes: file.bytes,
+                })),
+        });
+        fixed.push(
+            "contracts/api/api.json",
+            "contracts/schema/schema.json",
+            "contracts/web/binding.json",
+        );
         if (!paths.includes("web/index.html"))
             throw new Error("staging verified source Web is empty");
         if (paths.some((path) => !fixed.includes(path) && !path.startsWith("web/")))

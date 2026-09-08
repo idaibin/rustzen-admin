@@ -19,6 +19,13 @@ import {
     produceSchemaContract,
     readSchemaContract,
 } from "./schema-contract.ts";
+import {
+    writeFixtureWebBinding,
+    writeFixtureWebPolicyFiles,
+} from "./release-manifest-fixtures.ts";
+import { WEB_BINDING_SLOT } from "./selected-web-binding.ts";
+import { resolveSelection } from "./resolver.ts";
+import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.ts";
 
 const target = "x86_64-unknown-linux-musl";
 const selection = { preset: "monitor", target };
@@ -27,7 +34,7 @@ const inputs = {
     releaseVersion: "0.5.0",
     sourceIdentity: "git:abc",
     toolchain: "rustc-1.90",
-    selectedRoutes: ["login", "monitor"],
+    selectedRoutes: selectedWebRoutes(resolveSelection(selection)),
 };
 
 test("server binds verified API bytes and Agent forbids API inputs", async () => {
@@ -74,7 +81,7 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
     ).toThrow("forbids server digests");
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-api-"));
     const artifactRoot = join(root, "server");
-    const webRoot = join(root, "web");
+    const webRoot = join(root, "web", "dist");
     const apiRoot = join(root, "api");
     const schemaRoot = join(root, "schema");
     const configRoot = join(root, "selected-config");
@@ -95,7 +102,12 @@ test("server binds verified API bytes and Agent forbids API inputs", async () =>
             await writeFile(join(artifactRoot, "bin", binary), binary);
             await chmod(join(artifactRoot, "bin", binary), 0o755);
         }
-        await writeFile(join(webRoot, "index.html"), "monitor");
+        await writeFile(
+            join(webRoot, "index.html"),
+            `<meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" />monitor`,
+        );
+        await writeFixtureWebPolicyFiles(webRoot, selection);
+        await writeFixtureWebBinding(webRoot, selection);
         await writeFile(join(agentRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(agentRoot, "bin", "rz-monitor-agent"), 0o755);
         const validApi = canonicalJson(

@@ -252,6 +252,18 @@ The composition-qualified producer rejects deviations from the reviewed route
 corpus, and the release manifest binds the verified artifact bytes. Schema and
 configuration artifacts are implemented as separate selected contracts.
 
+P8f-A implements the selected-Web build binding: the Monitor producer stamps
+only its generated HTML after deriving the normalized file-table digest, writes
+the canonical descriptor and records final file hashes in inventory v2. The
+container export carries descriptor and selected API source bytes; its host-side
+validator rejects a changed descriptor, inventory, API source, stamped HTML or
+emitted asset before native staging/release derivation. HTTP bootstrap and
+browser behavior remain later closures.
+
+The generic server-staging entry applies the same complete selected-Web policy
+and derives its build-route identity from the verified inventory. It cannot
+publish a self-consistent Full or Reports bundle under a Monitor selection.
+
 Monitor P4 selected schema export is implemented from the two authoritative
 fresh-install migrations. The manifest derives schema fingerprints and
 data-contract IDs from the canonical artifact and binds its byte digest into the

@@ -17,6 +17,7 @@ import { parseSelectedConfigBytes } from "./selected-config.ts";
 import { parseSelectedProtocolBytes } from "./selected-protocol.ts";
 import { resolveSelection } from "./resolver.ts";
 import { parseSchemaArtifactBytes } from "./schema-contract.ts";
+import { releaseWebDigest } from "./release-manifest-web-binding.ts";
 import type {
     AgentManifest,
     BinaryDigest,
@@ -182,7 +183,11 @@ export function deriveReleaseManifestFromFiles(
         "contracts/protocol/protocol.json",
         ...expectedUnits,
         ...(server
-            ? ["contracts/api/api.json", "contracts/schema/schema.json"]
+            ? [
+                  "contracts/api/api.json",
+                  "contracts/schema/schema.json",
+                  "contracts/web/binding.json",
+              ]
             : []),
     ];
     const unexpected = snapshot.some(
@@ -242,9 +247,7 @@ export function deriveReleaseManifestFromFiles(
         parseReleaseManifest(manifest, input.selection);
         return manifest;
     }
-    const web = snapshot
-        .filter((file) => file.entry.path.startsWith("web/"))
-        .map((file) => ({ ...file.entry, path: file.entry.path.slice(4) }));
+    const webBinding = get("contracts/web/binding.json");
     const manifest: ReleaseManifest = {
         ...base,
         artifactClass: "server",
@@ -262,7 +265,7 @@ export function deriveReleaseManifestFromFiles(
                 value.dataContractId,
             ]),
         ),
-        webDigest: { sha256: filesDigest(web), source: "selected-web-files" },
+        webDigest: { sha256: releaseWebDigest({ compositionId: plan.compositionId, files: snapshot, descriptor: webBinding }), source: "selected-web-files" },
     };
     parseReleaseManifest(manifest, input.selection);
     return manifest;

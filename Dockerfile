@@ -47,14 +47,15 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 COPY apps/web apps/web
 COPY apps/admin apps/admin
 COPY distribution distribution
-COPY scripts/distribution-build-web.ts scripts/distribution-verify-web.ts scripts/distribution-resolve.ts scripts/distribution-web-inventory-policy.ts scripts/distribution-web-allowed-packages.ts scripts/distribution-produce-contracts.ts scripts/distribution-produce-protocol.ts scripts/distribution-produce-native-layout.ts scripts/distribution-produce-container-export.ts scripts/
+COPY scripts/distribution-build-web.ts scripts/distribution-verify-web.ts scripts/distribution-resolve.ts scripts/distribution-web-inventory-policy.ts scripts/distribution-web-inventory-schema.ts scripts/distribution-web-allowed-packages.ts scripts/distribution-produce-contracts.ts scripts/distribution-produce-protocol.ts scripts/distribution-produce-native-layout.ts scripts/distribution-produce-container-export.ts scripts/
 RUN if [ "${DISTRIBUTION}" = "monitor" ]; then \
       bun scripts/distribution-build-web.ts --selection distribution/fixtures/monitor.json && \
       bun scripts/distribution-verify-web.ts --selection distribution/fixtures/monitor.json && \
       composition="$(bun scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | bun -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)')" && \
       rm -rf "apps/admin/selected-web/${composition}" && \
       mkdir -p "apps/admin/selected-web/${composition}/dist" && \
-      cp "target/distributions/${composition}/web/inventory.json" "apps/admin/selected-web/${composition}/inventory.json" && \
+      cp "target/distributions/${composition}/web/inventory.json" "target/distributions/${composition}/web/binding.json" "apps/admin/selected-web/${composition}/" && \
+      cp "target/distributions/${composition}/web/api.ts" "apps/admin/selected-web/${composition}/api.ts" && \
       cp -R "target/distributions/${composition}/web/dist/." "apps/admin/selected-web/${composition}/dist" && \
       (cd "target/distributions/${composition}/web/dist" && find . -type f -print0 | sort -z | xargs -0 sha256sum) >/tmp/rz-selected-web.source && \
       (cd "apps/admin/selected-web/${composition}/dist" && find . -type f -print0 | sort -z | xargs -0 sha256sum) >/tmp/rz-selected-web.embedded && \
@@ -85,6 +86,8 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
         composition="$(bun scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | bun -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)')" && \
         mkdir -p /out/release/web && \
         cp apps/admin/selected-web/"${composition}"/inventory.json /out/release/web/inventory.json && \
+        cp apps/admin/selected-web/"${composition}"/binding.json /out/release/web/binding.json && \
+        cp apps/admin/selected-web/"${composition}"/api.ts /out/release/web/api.ts && \
         cp -R apps/admin/selected-web/"${composition}"/dist /out/release/web/dist && \
         RUSTZEN_CONTRACT_OUTPUT_ROOT=/out/release/contracts bun scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor.json --binary-root /tmp/rz-monitor-producers && \
         bun scripts/distribution-produce-protocol.ts --selection distribution/fixtures/monitor.json --binary-root /tmp/rz-monitor-producers --output-root /out/release/contracts/protocol && \

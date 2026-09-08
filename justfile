@@ -20,7 +20,7 @@ verify-monitor-agent:
 prepare-monitor-embed:
     pnpm dlx bun@1.3.14 scripts/distribution-build-web.ts --selection distribution/fixtures/monitor.json
     pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/monitor.json
-    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "apps/admin/selected-web/$composition/inventory.json"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
+    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "target/distributions/$composition/web/binding.json" "target/distributions/$composition/web/api.ts" "apps/admin/selected-web/$composition/"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
 
 verify-monitor-admin:
     pnpm dlx bun@1.3.14 test scripts/distribution-verify-docker.test.ts
@@ -60,7 +60,7 @@ verify-distribution-selection:
 
 # Builds a composition-qualified Monitor Web artifact and rejects excluded emitted routes/API/assets.
 verify-distribution-web:
-    pnpm dlx bun@1.3.14 test scripts/distribution-verify-web.test.ts
+    pnpm dlx bun@1.3.14 test distribution/selected-web-binding.test.ts scripts/distribution-web-inventory-policy.test.ts scripts/distribution-verify-web.test.ts
 
 verify-service-wiring:
     scripts/test-verify-services.sh
@@ -261,12 +261,12 @@ verify-distribution-native-layout:
 
 verify-distribution-container-export selection export_root expected_source_identity:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/container-export.test.ts distribution/container-export-validator.test.ts distribution/container-export-native-staging.test.ts distribution/native-staging.test.ts distribution/native-staging-security.test.ts distribution/release-manifest-artifacts-limits.test.ts scripts/distribution-verify-docker.test.ts scripts/distribution-verify-container-export.test.ts
+    pnpm dlx bun@1.3.14 test distribution/container-export.test.ts distribution/container-export-validator.test.ts distribution/container-export-native-staging.test.ts distribution/native-staging.test.ts distribution/native-staging-web-binding.test.ts distribution/native-staging-atomic.test.ts distribution/native-staging-security.test.ts distribution/release-manifest-artifacts-limits.test.ts scripts/distribution-verify-docker.test.ts scripts/distribution-verify-container-export.test.ts
     pnpm dlx bun@1.3.14 scripts/distribution-verify-container-export.ts --selection "{{selection}}" --export-root "{{export_root}}" --expected-source-identity "{{expected_source_identity}}"
 
 verify-distribution-native-staging:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts
+    pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-web-binding.test.ts distribution/native-staging-atomic.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts
 
 verify-distribution-canonical-archive:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false

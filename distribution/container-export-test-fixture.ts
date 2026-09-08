@@ -8,13 +8,14 @@ import { completeSelectedConfigForTest } from "./selected-config.ts";
 import { generatedNativeLayout } from "./native-layout.ts";
 import { completeSelectedProtocol } from "./selected-protocol.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
+import { canonicalBindingBytes, createWebBinding, readWebFiles, stampIndex } from "./selected-web-binding.ts";
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
 export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
 export const releaseVersion = "0.5.0";
 export async function createExport() {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));
     const binaries = ["release/server/bin/rz-admin", "release/server/bin/rz-monitor", "witness/bin/rz-monitor-agent"];
-    const files = [...binaries, "release/web/inventory.json", "release/web/dist/index.html", "release/web/dist/rustzen.png", "release/contracts/api/api.json", "release/contracts/config/config.json", "release/contracts/schema/schema.json", "release/contracts/native/native-layout.json", "release/contracts/protocol/protocol.json"];
+    const files = [...binaries, "release/web/inventory.json", "release/web/binding.json", "release/web/api.ts", "release/web/dist/index.html", "release/web/dist/rustzen.png", "release/contracts/api/api.json", "release/contracts/config/config.json", "release/contracts/schema/schema.json", "release/contracts/native/native-layout.json", "release/contracts/protocol/protocol.json"];
     for (const path of files) {
         const full = join(root, path);
         await mkdir(join(full, ".."), { recursive: true });
@@ -38,25 +39,39 @@ export async function createInventory(root: string) {
         "monitoring/incidents.tsx", "monitoring/nodes.tsx", "monitoring/overview.tsx",
         "monitoring/summaries.tsx", "profile.tsx", "system/role.tsx", "system/user.tsx",
         "monitoring/-global-alert-settings.tsx", "monitoring/-incident-drawer.tsx",
-        "monitoring/-node-details.tsx", "monitoring/-node-onboarding.tsx", "monitoring/-save-state.ts",
+        "monitoring/-node-details.tsx", "monitoring/-node-alert-policy.tsx", "monitoring/-node-onboarding.tsx", "monitoring/-save-state.ts",
         "system/-role-actions.tsx", "system/-role-delete-state.ts", "system/-role-dialog.tsx",
         "system/-role-permission-picker.tsx", "system/-user-actions.tsx", "system/-user-dialog.tsx",
     ].sort();
     await writeFile(
         join(root, "release/web/dist/index.html"),
-        "/api/auth/login /api/auth/me /api/monitor/ /api/system/users /api/system/roles /api/system/menus/options /monitoring/overview",
+        "/api/auth/login /api/auth/me /api/monitor/ /api/system/users /api/system/roles /api/system/menus/options /monitoring/overview<meta name=\"rustzen-web-binding\" content=\"__RUSTZEN_WEB_DIGEST__\" />",
     );
+    await writeFile(join(root, "release/web/api.ts"), "export const selectedApi = '/api/monitor/';\n");
+    const before = await readWebFiles(join(root, "release/web/dist"));
+    const binding = createWebBinding({
+        compositionId,
+        selectedApiBytes: await Bun.file(join(root, "release/web/api.ts")).bytes(),
+        files: before,
+    });
+    const index = before.find((file) => file.path === "index.html");
+    if (!index) throw new Error("fixture index is missing");
+    await writeFile(join(root, "release/web/dist/index.html"), stampIndex(index.bytes, binding.webDigest));
+    const files = await readWebFiles(join(root, "release/web/dist"));
     await writeFile(join(root, "release/web/inventory.json"), canonicalJson({
-        schemaVersion: 1,
+        schemaVersion: 2,
         preset: "monitor",
         compositionId,
         generatedRoot: `apps/web/.selected-web/${compositionId}`,
         outputDirectory: `target/distributions/${compositionId}/web/dist`,
         selectedRoutes: routes,
         publicAssets: ["rustzen.png"],
-        emittedFiles: ["index.html", "rustzen.png"],
+        emittedFiles: files.map((file) => file.path),
+        fileInventory: files.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
         moduleIds: [`apps/web/.selected-web/${compositionId}/index.tsx`],
+        binding,
     }));
+    await writeFile(join(root, "release/web/binding.json"), canonicalBindingBytes(binding));
 }
 export async function produce(root: string) {
     await produceContainerExport({ selection, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: expectedCommands(), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: { platform: "linux", arch: "x64" } });

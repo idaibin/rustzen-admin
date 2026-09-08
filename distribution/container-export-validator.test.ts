@@ -198,14 +198,46 @@ test("host validator binds Web inventory identity, emitted files and excluded mo
     } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("host validator rejects descriptor, inventory, stamped HTML, and emitted-file binding mutations", async () => {
+    const root = await createExport();
+    const inventoryPath = join(root, "release/web/inventory.json");
+    const bindingPath = join(root, "release/web/binding.json");
+    try {
+        const descriptor = await Bun.file(bindingPath).json();
+        descriptor.webDigest = "0".repeat(64);
+        await writeFile(bindingPath, canonicalJson(descriptor)); await produce(root);
+        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("binding differs");
+
+        await createInventory(root);
+        const inventory = await Bun.file(inventoryPath).json();
+        inventory.binding.webDigest = "0".repeat(64);
+        await writeFile(inventoryPath, canonicalJson(inventory)); await produce(root);
+        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("binding differs");
+
+        await createInventory(root);
+        const files = await Bun.file(inventoryPath).json();
+        files.fileInventory[0].sha256 = "0".repeat(64);
+        await writeFile(inventoryPath, canonicalJson(files)); await produce(root);
+        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("file digest mismatch");
+
+        await createInventory(root);
+        const indexPath = join(root, "release/web/dist/index.html");
+        const index = await Bun.file(indexPath).text();
+        const changed = index.replace(/[a-f0-9]{64}/, "0".repeat(64));
+        await writeFile(indexPath, changed);
+        const stamped = await Bun.file(inventoryPath).json();
+        const entry = stamped.fileInventory.find((file: { path: string }) => file.path === "index.html");
+        entry.sha256 = sha256(changed); entry.size = new TextEncoder().encode(changed).length;
+        await writeFile(inventoryPath, canonicalJson(stamped)); await produce(root);
+        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("binding stamp mismatch");
+    } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("host validator requires every declared public asset in the emitted snapshot", async () => {
     const root = await createExport();
     try {
         await rm(join(root, "release/web/dist/rustzen.png"));
-        const inventoryPath = join(root, "release/web/inventory.json");
-        const inventory = await Bun.file(inventoryPath).json();
-        inventory.emittedFiles = ["index.html"];
-        await writeFile(inventoryPath, canonicalJson(inventory));
+        await createInventory(root);
         await produce(root);
         await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("public asset is absent");
     } finally { await rm(root, { recursive: true, force: true }); }
@@ -231,7 +263,7 @@ test("host validator binds selected Web routes, public assets, and output text",
         await createInventory(root);
         await writeFile(join(root, "release/web/dist/index.html"), "no selected Web API text");
         await produce(root);
-        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("missing required text");
+        await expect(verifyContainerExport(root, selection, sourceIdentity, releaseVersion)).rejects.toThrow("binding marker");
     } finally {
         await rm(root, { recursive: true, force: true });
     }

@@ -13,6 +13,8 @@ import type { StagingInput } from "./native-staging.ts";
 import { VerifiedContainerExportSnapshot } from "./container-export-validator.ts";
 import { parseInventory } from "../scripts/distribution-web-inventory-policy.ts";
 import type { BuildInputs } from "./release-manifest-types.ts";
+import { resolveSelection } from "./resolver.ts";
+import { readVerifiedWebSource } from "./native-staging-web-source.ts";
 
 const sourceToken = Symbol("verified native source");
 const sourceStates = new WeakMap<VerifiedNativeSource, VerifiedNativeSourceState>();
@@ -105,8 +107,18 @@ export async function fromPathStagingInput(
     if (canonicalJson(units.map(unitIdentity)) !== canonicalJson(layout.layout.units))
         throw new Error("staging units differ from native layout");
 
-    const web = server ? await readArtifactFileTree(required(input.webRoot, "webRoot")) : [];
-    if (server && !web.length) throw new Error("staging Web root must not be empty");
+    let web: ArtifactFile[] = [];
+    let selectedRoutes = [...input.selectedRoutes];
+    if (server) {
+        const verifiedWeb = await readVerifiedWebSource(
+            required(input.webRoot, "webRoot"),
+            input.selection,
+        );
+        web = verifiedWeb.web;
+        selectedRoutes = verifiedWeb.selectedRoutes;
+        const descriptor = verifiedWeb.descriptor;
+        contracts.push(copy(descriptor, "contracts/web/binding.json"));
+    }
     return verified({
         files: [...binary, ...contracts, ...units, ...web.map((file) => copy(file, `web/${file.entry.path}`))]
             .sort((left, right) => left.entry.path.localeCompare(right.entry.path)),
@@ -117,7 +129,7 @@ export async function fromPathStagingInput(
             ...(apiDigest ? { apiDigest, schemaDigest } : {}),
         },
         selection: input.selection,
-        buildInputs: buildInputs(input),
+        buildInputs: { ...buildInputs(input), selectedRoutes },
     });
 }
 
@@ -146,6 +158,7 @@ export function fromContainerSnapshot(
         ...contracts.map((path) =>
             snapshotFile(snapshot, `release/contracts/${path}`, `contracts/${path}`, "0644"),
         ),
+        snapshotFile(snapshot, "release/web/binding.json", "contracts/web/binding.json", "0644"),
         ...Object.entries(nativeUnitBytes(selection)).map(([path, text]) => unit(path, text)),
         ...snapshot
             .artifacts("release/web/dist/")

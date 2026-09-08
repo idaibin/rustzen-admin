@@ -1,8 +1,16 @@
-import { cp, lstat, mkdir, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { resolveSelection } from "../distribution/resolver.ts";
 import { supportsSelectedWeb } from "../distribution/selected-web-producer.ts";
+import {
+    WEB_BINDING_SLOT,
+    canonicalBindingBytes,
+    createWebBinding,
+    readWebFiles,
+    stampIndex,
+    verifyWebBinding,
+} from "../distribution/selected-web-binding.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 const webRoot = join(repositoryRoot, "apps/web");
@@ -25,6 +33,7 @@ const sourceRoutes = [
     "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
     "apps/web/src/routes/monitoring/-incident-drawer.tsx",
     "apps/web/src/routes/monitoring/-node-details.tsx",
+    "apps/web/src/routes/monitoring/-node-alert-policy.tsx",
     "apps/web/src/routes/monitoring/-node-onboarding.tsx",
     "apps/web/src/routes/monitoring/-save-state.ts",
     "apps/web/src/routes/system/-role-actions.tsx",
@@ -132,42 +141,41 @@ const styleLinks = styleEntries
 await rm(join(outputRoot, "dist", ".selected-web"), { recursive: true, force: true });
 await Bun.write(
     join(outputRoot, "dist", "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title></head><body><div id="root"></div><script type="module" src="/${mainEntry}"></script></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div><script type="module" src="/${mainEntry}"></script></body></html>`,
 );
-const emittedFiles = await listFiles(join(outputRoot, "dist"));
+const selectedApiBytes = await Bun.file(join(generatedRoot, "api.ts")).bytes();
+await Bun.write(join(outputRoot, "api.ts"), selectedApiBytes);
+const preStampFiles = await readWebFiles(join(outputRoot, "dist"));
+const binding = createWebBinding({
+    compositionId: selection.compositionId,
+    selectedApiBytes,
+    files: preStampFiles,
+});
+const unstampedIndex = preStampFiles.find((file) => file.path === "index.html");
+if (!unstampedIndex) throw new Error("selected Web bundle has no index.html");
+await Bun.write(
+    join(outputRoot, "dist", "index.html"),
+    stampIndex(unstampedIndex.bytes, binding.webDigest),
+);
+const emittedFiles = await readWebFiles(join(outputRoot, "dist"));
+verifyWebBinding({ binding, compositionId: selection.compositionId, selectedApiBytes, files: emittedFiles });
 
 const output = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     preset: selection.preset,
     compositionId: selection.compositionId,
     generatedRoot: relative(repositoryRoot, generatedRoot),
     outputDirectory: relative(repositoryRoot, join(outputRoot, "dist")),
     selectedRoutes,
     publicAssets,
-    emittedFiles,
+    emittedFiles: emittedFiles.map((file) => file.path),
+    fileInventory: emittedFiles.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
     moduleIds: normalizeModuleIds(viteInventory.moduleIds),
+    binding,
 };
 await Bun.write(join(outputRoot, "inventory.json"), `${JSON.stringify(output, null, 2)}\n`);
+await Bun.write(join(outputRoot, "binding.json"), canonicalBindingBytes(binding));
 console.log(JSON.stringify(output, null, 2));
-
-async function listFiles(directory: string, root = directory): Promise<string[]> {
-    const entries = await readdir(directory, { withFileTypes: true });
-    const nested = await Promise.all(
-        entries.map(async (entry) => {
-            const path = join(directory, entry.name);
-            if (entry.isSymbolicLink())
-                throw new Error(`selected Web output contains symlink: ${path}`);
-            if (entry.isDirectory()) return listFiles(path, root);
-            if (!entry.isFile())
-                throw new Error(`selected Web output contains unsupported entry: ${path}`);
-            const state = await lstat(path);
-            if (state.isSymbolicLink())
-                throw new Error(`selected Web output contains symlink: ${path}`);
-            return [relative(root, path).replaceAll("\\", "/")];
-        }),
-    );
-    return nested.flat().sort();
-}
 
 function normalizeModuleIds(moduleIds: unknown): string[] {
     if (!Array.isArray(moduleIds) || moduleIds.some((id) => typeof id !== "string"))

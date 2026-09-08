@@ -94,6 +94,8 @@ async function populate() {
     const files = [
         ...executable,
         "release/web/inventory.json",
+        "release/web/binding.json",
+        "release/web/api.ts",
         "release/web/dist/index.html",
         "release/web/dist/assets/Z.js",
         "release/web/dist/assets/a.js",

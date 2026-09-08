@@ -11,6 +11,15 @@ import {
     produceSelectedProtocol,
     reviewedProtocolOutput,
 } from "./selected-protocol.ts";
+import {
+    WEB_BINDING_SLOT,
+    canonicalBindingBytes,
+    createWebBinding,
+    readWebFiles,
+    stampIndex,
+} from "./selected-web-binding.ts";
+import { resolveSelection } from "./resolver.ts";
+import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.ts";
 
 export const monitorSelection = {
     preset: "monitor",
@@ -31,19 +40,24 @@ export const manifestContractDigests = {
     protocolArtifactDigest: h("e"),
 };
 
-export async function releaseFixture(kind: "server" | "agent" = "server") {
+export async function releaseFixture(
+    kind: "server" | "agent" = "server",
+    requestedSelection?: unknown,
+) {
     const root = await mkdtemp(join(tmpdir(), "rz-manifest-"));
     const artifactRoot = join(root, "artifact");
-    const webRoot = join(root, "web");
+    const webOutputRoot = join(root, "web");
+    const webRoot = join(webOutputRoot, "dist");
     const apiRoot = join(root, "api");
     const schemaRoot = join(root, "schema");
     const configRoot = join(root, "selected-config");
     const nativeRoot = join(root, "native");
     const protocolRoot = join(root, "protocol");
-    const selection =
+    const selection = requestedSelection ?? (
         kind === "server"
             ? monitorSelection
-            : { preset: "node-agent", target: monitorSelection.target };
+            : { preset: "node-agent", target: monitorSelection.target }
+    );
     await mkdir(configRoot, { recursive: true });
     await writeFile(
         join(configRoot, "config.json"),
@@ -75,8 +89,10 @@ export async function releaseFixture(kind: "server" | "agent" = "server") {
             await chmod(join(artifactRoot, "bin", name), 0o755);
         }
         await mkdir(join(webRoot, "assets"), { recursive: true });
-        await writeFile(join(webRoot, "index.html"), "<main>monitor</main>");
-        await writeFile(join(webRoot, "assets", "main.js"), "monitor");
+        const index = `<meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /><main>monitor</main>`;
+        await writeFile(join(webRoot, "index.html"), index);
+        await writeFixtureWebPolicyFiles(webRoot, selection);
+        await writeFixtureWebBinding(webRoot, selection);
     } else {
         await writeFile(join(artifactRoot, "bin", "rz-monitor-agent"), "agent");
         await chmod(join(artifactRoot, "bin", "rz-monitor-agent"), 0o755);
@@ -93,11 +109,73 @@ export async function releaseFixture(kind: "server" | "agent" = "server") {
     };
 }
 
+export async function writeFixtureWebPolicyFiles(
+    webRoot: string,
+    selection: unknown,
+) {
+    await mkdir(join(webRoot, "assets"), { recursive: true });
+    await writeFile(
+        join(webRoot, "assets", "main.js"),
+        [
+            "/api/auth/login",
+            "/api/auth/me",
+            "/api/monitor/",
+            "/api/system/users",
+            "/api/system/roles",
+            "/api/system/menus/options",
+            "/monitoring/overview",
+            ...(resolveSelection(selection).preset === "monitor-notify"
+                ? [
+                      "/api/notifications/stream",
+                      "/api/notifications/unread-count",
+                      "Message center",
+                  ]
+                : []),
+        ].join("\n"),
+    );
+    await writeFile(join(webRoot, "rustzen.png"), "fixture-logo");
+}
+
+export async function writeFixtureWebBinding(webRoot: string, selection: unknown) {
+    const plan = resolveSelection(selection);
+    const files = await readWebFiles(webRoot);
+    const index = files.find((file) => file.path === "index.html");
+    if (!index) throw new Error("fixture Web index is missing");
+    const selectedApiBytes = new TextEncoder().encode("fixture-selected-api");
+    const binding = createWebBinding({
+        compositionId: plan.compositionId,
+        selectedApiBytes,
+        files,
+    });
+    await writeFile(join(webRoot, "index.html"), stampIndex(index.bytes, binding.webDigest));
+    await writeFile(join(webRoot, "..", "binding.json"), canonicalBindingBytes(binding));
+    await writeFile(join(webRoot, "..", "api.ts"), selectedApiBytes);
+    const finalFiles = await readWebFiles(webRoot);
+    await writeFile(
+        join(webRoot, "..", "inventory.json"),
+        JSON.stringify({
+            schemaVersion: 2,
+            preset: plan.preset,
+            compositionId: plan.compositionId,
+            generatedRoot: `apps/web/.selected-web/${plan.compositionId}`,
+            outputDirectory: `target/distributions/${plan.compositionId}/web/dist`,
+            selectedRoutes: selectedWebRoutes(plan),
+            publicAssets: ["rustzen.png"],
+            emittedFiles: finalFiles.map((file) => file.path),
+            fileInventory: finalFiles.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
+            moduleIds: [
+                `apps/web/.selected-web/${plan.compositionId}/index.tsx`,
+            ],
+            binding,
+        }),
+    );
+}
+
 export async function serverManifestFixture(
     selection = monitorSelection,
     binaries?: { admin: string; monitor: string },
 ) {
-    const fixture = await releaseFixture();
+    const fixture = await releaseFixture("server", selection);
     const binaryRoot = join(fixture.root, "staging-binary");
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
     for (const name of ["rz-admin", "rz-monitor"]) {
@@ -121,6 +199,7 @@ export async function serverManifestFixture(
     });
     const manifest = await produceReleaseManifest({
         ...manifestInputs,
+        selectedRoutes: selectedWebRoutes(resolveSelection(selection)),
         selection,
         staging: staged,
     });
@@ -134,7 +213,7 @@ export async function stagedPayloadFixture(
         : { preset: "node-agent", target: monitorSelection.target },
     binarySource?: string,
 ) {
-    const fixture = await releaseFixture(kind);
+    const fixture = await releaseFixture(kind, selection);
     const binaryRoot = join(fixture.root, "staging-binary");
     const names =
         kind === "server" ? ["rz-admin", "rz-monitor"] : ["rz-monitor-agent"];
