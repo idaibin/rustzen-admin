@@ -380,7 +380,17 @@ async fn locate_element(page: &Page, selector: &str) -> Result<chromiumoxide::El
 async fn wait_for(page: &Page, selector: &str) -> Result<(), AppError> {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        if locate_element(page, selector).await.is_ok() {
+        let found = if is_xpath(selector) {
+            locate_element(page, selector).await.is_ok()
+        } else {
+            let script = selector_exists_script(selector)?;
+            page.evaluate(script)
+                .await
+                .ok()
+                .and_then(|result| result.value().and_then(Value::as_bool))
+                .unwrap_or(false)
+        };
+        if found {
             return Ok(());
         }
         if Instant::now() >= deadline {
@@ -388,6 +398,11 @@ async fn wait_for(page: &Page, selector: &str) -> Result<(), AppError> {
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+}
+
+fn selector_exists_script(selector: &str) -> Result<String, AppError> {
+    let selector = serde_json::to_string(selector).map_err(AppError::internal)?;
+    Ok(format!("Boolean(document.querySelector({selector}))"))
 }
 
 #[cfg(test)]
@@ -449,6 +464,17 @@ mod shutdown_tests {
         assert!(!is_xpath("#kw"));
         assert!(!is_xpath("button.submit"));
         assert!(!is_xpath("[data-testid='btn']"));
+    }
+}
+
+#[cfg(test)]
+mod wait_for_tests {
+    use super::selector_exists_script;
+
+    #[test]
+    fn css_selector_is_json_encoded_for_live_document_queries() {
+        let script = selector_exists_script("button[data-name='a\\\"b']").unwrap();
+        assert_eq!(script, "Boolean(document.querySelector(\"button[data-name='a\\\\\\\"b']\"))");
     }
 }
 
