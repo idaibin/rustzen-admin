@@ -1,3 +1,4 @@
+use crate::install_server_activation_process::{systemctl, validate_selected_config};
 use crate::{
     install_admission::{PrivateParent, PublishError},
     install_crypto::read_regular,
@@ -280,37 +281,4 @@ fn require_ready(source: &SourceConfig, release: &ServerRelease) -> Result<(), S
         &release.build_id,
         &release.composition_id,
     )
-}
-
-fn systemctl(args: &[&str]) -> Result<(), String> {
-    #[cfg(debug_assertions)]
-    let binary = std::env::var_os("RUSTZEN_SYSTEMCTL_RECORDER")
-        .unwrap_or_else(|| "/usr/bin/systemctl".into());
-    #[cfg(not(debug_assertions))]
-    let binary = std::ffi::OsString::from("/usr/bin/systemctl");
-    if Command::new(binary)
-        .args(args)
-        .status()
-        .map_err(|_| "systemctl invocation failed")?
-        .success()
-    {
-        Ok(())
-    } else {
-        Err("systemctl activation failed".into())
-    }
-}
-
-fn validate_selected_config(source: &SourceConfig) -> Result<(), String> {
-    for (binary, config) in [("rz-admin", &source.admin), ("rz-monitor", &source.monitor)] {
-        let mut command = Command::new(Path::new(ROOT).join("current/bin").join(binary));
-        command.arg("validate-config");
-        for line in std::str::from_utf8(config).map_err(|_| "selected config is invalid")?.lines() {
-            let (key, value) = line.split_once('=').ok_or("selected config is invalid")?;
-            command.env(key, value);
-        }
-        if !command.status().map_err(|_| "selected config validation could not start")?.success() {
-            return Err("selected config validation failed".into());
-        }
-    }
-    Ok(())
 }

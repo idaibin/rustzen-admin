@@ -18,6 +18,7 @@ mod install_pairing;
 mod install_selection;
 mod install_server_activation;
 mod install_server_activation_journal;
+mod install_server_activation_process;
 mod install_server_activation_state;
 mod install_server_config;
 mod install_server_database;

@@ -63,6 +63,18 @@ Not verified**. The separate container-export closure now supplies stable
 same-batch BuildKit and Linux artifact evidence, but does not issue that
 certificate.
 
+## P8e Monitor native runtime gate
+
+The Linux/amd64 gate first rereads the canonical certificate through the issued
+capability, then runs `rz verify`, dry-run, fresh `apply`, `install-status` and
+`activate-monitor-server` inside a disposable PID1 container. It captures
+publication/activation markers, enabled and active units, MainPID executable
+inode/digests, two health bindings, owner login and default-password rejection,
+omitted Insights/Reports absence, restart and both service start orders. A
+separate process rereads and parses the runtime evidence. This is local
+target-like evidence; browser, load and deployed-host verification remain
+separate.
+
 The first P8b container closure is verified separately from certification. Its
 static boundary test must reject a non-Linux/amd64 build stage, an omitted Monitor
 source-identity requirement, a target other than x86_64 musl, a missing explicit

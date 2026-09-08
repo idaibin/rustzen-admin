@@ -670,6 +670,19 @@ exist before the issuer: no certificate is emitted until one orchestrator captur
 the real source/toolchain, verifies one stable release snapshot and publishes the
 result with crash-safe no-replace semantics.
 
+### P8e native runtime evidence
+
+P8e treats the issued certificate as admission evidence only. Its verifier
+accepts the unforgeable issued capability and the one canonical certificate path,
+reopens that regular file with `O_NOFOLLOW`, bounds and identity-checks the read,
+parses canonical bytes and compares them with the capability. It returns only
+the certificate hash and its build, manifest, archive and envelope digests.
+
+The runtime record is separate canonical JSON. It binds that admission tuple to
+one Linux/amd64 disposable PID1 run, publication and activation markers,
+enabled/active units, MainPID executable inode/digests and both health bindings.
+It does not certify browser, load, release readiness or a deployed host.
+
 The nonresident rz installation executor owns apply/status/recover independently
 of Admin deploy tables. The current recovery slice resumes only interrupted
 fresh payload publication for the same exact revalidated archive, envelope and

@@ -7,7 +7,10 @@ use crate::{
     install_server_release::ServerRelease,
     install_service_parent::ServiceParent,
 };
-use std::{path::Path, process::Command};
+use std::{
+    path::Path,
+    process::{Command, Stdio},
+};
 
 const MAX_DATABASE_BYTES: usize = 256 * 1024 * 1024;
 
@@ -118,6 +121,7 @@ fn run_database_command(
     };
     let mut command = Command::new("/usr/sbin/runuser");
     command.args(["-u", user, "--", &format!("/opt/rz/current/bin/{binary}"), mode]);
+    command.stdout(Stdio::null());
     for line in
         std::str::from_utf8(config).map_err(|_| "selected database config is invalid")?.lines()
     {

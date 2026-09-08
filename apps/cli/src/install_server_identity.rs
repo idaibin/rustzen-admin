@@ -121,7 +121,13 @@ fn validate_groups(group: &str, name: &str) -> Result<u32, String> {
 }
 
 fn run(binary: &str, args: &[&str], message: &str) -> Result<(), String> {
-    if Command::new(binary).args(args).status().map_err(|_| message)?.success() {
+    if Command::new(binary)
+        .args(args)
+        .stdout(Stdio::null())
+        .status()
+        .map_err(|_| message)?
+        .success()
+    {
         Ok(())
     } else {
         Err(message.into())
@@ -155,6 +161,7 @@ fn owner_command(
         );
     }
     command.stdin(Stdio::piped());
+    command.stdout(Stdio::null());
     Ok(command)
 }
 

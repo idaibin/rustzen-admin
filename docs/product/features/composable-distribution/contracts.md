@@ -265,6 +265,16 @@ orchestrator must capture one exact release inventory before and after extractio
 Agent protocol extraction remains a separate witness operation and cannot make
 the Agent binary a member of the Monitor server archive.
 
+### P8e Monitor native runtime evidence
+
+`monitor-native-runtime-evidence` is canonical JSON for one disposable
+`linux/amd64` PID1 execution. It contains only the certificate SHA-256,
+build/manifest/archive/envelope digests, publication and activation marker
+digests, the Admin and Monitor MainPID executable inode/digests, and their two
+health build/composition bindings. All fields are closed and required. The
+certificate's `runtime`, `browser`, `load` and `releaseReady` remain literal
+`false`; this record is evidence, not installation or release authorization.
+
 ### P8b Monitor container export
 
 The Monitor Docker export accepts only `DISTRIBUTION=monitor`,

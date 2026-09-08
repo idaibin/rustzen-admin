@@ -30,6 +30,13 @@ validated Monitor container snapshot and a reread signed release triplet, then
 atomically writes one canonical certificate. It does not change installation,
 `current`, systemd, browser, load or deployment state.
 
+P8e consumes the issued certificate capability only to admit one already
+published certificate into a disposable Linux/amd64 Monitor runtime gate. It
+does not extend the certificate or change its four literal later-layer flags.
+The gate separately captures canonical runtime evidence after `rz verify`,
+dry-run, fresh apply, status and server activation. A certificate is not an
+installation authorization and no `current` pointer or operator host changes.
+
 ## Milestones and responsibility
 
 | Stage | Concrete implementation | Exit evidence | State |
