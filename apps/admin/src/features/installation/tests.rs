@@ -14,7 +14,7 @@ use crate::{
     infra::auth_runtime::{ServerAuthContextLoader, jwt_codec},
 };
 
-use super::{InstallationState, protected_routes, public_routes};
+use super::{InstallationState, protected_routes, public_routes, service::web_digest};
 
 fn module_state(pool: sqlx::SqlitePool) -> ModuleControlState {
     ModuleControlState {
@@ -37,7 +37,7 @@ async fn anonymous_binding_is_exact_json_and_never_cached() {
         serde_json::from_slice(&to_bytes(response.into_body(), 512).await.unwrap()).unwrap();
     assert_eq!(body.as_object().unwrap().len(), 2);
     assert_eq!(body["bindingVersion"], 1);
-    assert_eq!(body["webDigest"].as_str().unwrap().len(), 64);
+    assert_eq!(body["webDigest"], web_digest());
     assert_eq!(contracts[0].path, "/__web-binding");
 }
 
@@ -76,6 +76,7 @@ async fn installation_uses_authenticated_identity_and_selected_state() {
     let body: serde_json::Value =
         serde_json::from_slice(&to_bytes(authenticated.into_body(), 4096).await.unwrap()).unwrap();
     assert_eq!(body["data"]["featureIds"], serde_json::json!(["access", "monitor"]));
+    assert_eq!(body["data"]["webDigest"], web_digest());
     assert_eq!(body["data"]["capabilities"], serde_json::json!(["*", "monitor:node:view"]));
     assert_eq!(body["data"]["services"][0]["id"], "monitor");
     assert_eq!(body["data"]["services"][0]["state"], "unavailable");

@@ -61,7 +61,7 @@ verify-distribution-selection:
 
 # Builds a composition-qualified Monitor Web artifact and rejects excluded emitted routes/API/assets.
 verify-distribution-web:
-    pnpm dlx bun@1.3.14 test distribution/selected-web-binding.test.ts scripts/distribution-web-inventory-policy.test.ts scripts/distribution-verify-web.test.ts
+    pnpm dlx bun@1.3.14 test distribution/selected-web-binding.test.ts distribution/selected-web-bootstrap.test.ts scripts/distribution-web-inventory-policy.test.ts scripts/distribution-verify-web.test.ts scripts/selected-web-bootstrap-browser-cases.test.mjs scripts/verify-selected-web-browser-admission.test.mjs scripts/verify-selected-web-runtime-attestation.test.mjs scripts/verify-selected-web-bootstrap-browser.test.mjs
 
 verify-service-wiring:
     scripts/test-verify-services.sh

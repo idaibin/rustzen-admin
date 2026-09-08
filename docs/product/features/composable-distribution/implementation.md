@@ -296,6 +296,32 @@ before dynamically loading the content-addressed entry with SRI and applies one 
 cache-busting recovery attempt. The Admin build gate validates the exact 11-field
 inventory-v2 schema and canonical metadata, sorted route/asset/module/emitted/file
 tables, the actual file set and bytes, selected API digest and normalized Web digest.
+`scripts/verify-selected-web-bootstrap-browser.py` is the executable P8f-B
+Chromium gate. It requires a fresh output path plus an explicit live selected-Admin
+`--admin-url`; it starts only loopback fault fixtures and headless Chromium, never a
+user-facing browser. Its fixture records every pre-entry request and
+exercises the success, binding-mismatch, network, SRI/entry-failure and retry paths.
+It publishes a canonical receipt only when the anonymous binding is the first API or
+JavaScript request after the document/static assets, carries neither its fixture
+proof cookie nor authorization, and the successful authenticated installation
+inventory has the same digest. Failures request no API at all, except the anonymous
+binding, and never execute the business entry; the SRI case may request its entry
+but still must not execute it. The receipt separates the one automatic cache-busting
+reload from a manual Retry navigation, which must return to the canonical deep link
+without the cache-busting parameter. It also binds Chromium version, Admin health
+identity, HTML/binding/installation digests and every case assertion to that run.
+The gate reads the owner secret only from a caller-supplied mode-`0600` file and
+never accepts it as an argument, stores it in evidence, or prints it. Its SRI
+fault payload has a unique execution side effect; the SRI case fails if that marker
+appears, while the sensitivity fixture removes bootstrap integrity and must execute
+the same marker so the gate proves that its SRI assertion can detect execution.
+After every case, including manual Retry's separate one-reload budget, the gate
+rereads health and writes a compact sorted canonical JSON receipt.
+The secret reader opens its `0600` current-user regular file once with no-follow
+semantics and validates/reads that same descriptor. CDP transport reads complete
+handshakes and frames under deadlines, while browser state uses bounded polling.
+Each case records equal before/after selected
+health binding identities, including the SRI sensitivity negative case.
 The module table is checked by selected owner, safe path, allowed dependency and
 required generated/source roots. Its complete JSON byte digest is not fixed because
 host and fresh Linux Vite graphs may contain different allowed module entries.
@@ -363,3 +389,37 @@ P8b captured-byte staging is implemented locally: host-verified snapshot bytes
 produce the private Monitor server staging tree and its unsigned release manifest
 without rereading the export root. It remains before signing, release
 publication, installation, systemd, browser and load evidence.
+
+The Chromium gate is admitted only through the existing P8e published
+source-build certificate verifier. It requires the export root, release result,
+certificate, trusted public key, expected source identity and the running
+`rz-admin` binary. Before any evidence directory is made, that verifier derives
+and checks the release build/composition identity and the certified Admin binary
+digest; the gate then rejects different health, installation or stamped Web
+digests and hashes the binary again after the run. The receipt records the
+verified release tuple and a canonical path/SHA-256 table for the gate, fixture,
+case table, admission helper and certificate verifier sources. Binding mismatch
+and network failure have a cumulative zero-entry-JavaScript assertion across the
+initial navigation, its automatic reload and manual Retry; the SRI entry-load failure remains allowed to request its
+integrity-bound entry, but it must never execute it. The separate SRI
+sensitivity receipt records its requests, marker and health identities before
+and after the deliberately removed integrity attribute. Focused fixture tests inject
+eager entry receipts for both binding failures and exercise the same runtime request
+boundary used by the Chromium gate.
+
+Admission also derives the repository's current Admin-browser source identity with
+`scripts/admin-browser-source-identity.sh`, strictly parses its three tab-separated
+`HEAD`, `state`, and tree-digest fields, normalizes them as
+`git:<HEAD> tree:<digest> state:<state>`, and requires that value to equal the supplied
+expected identity. The gate records both values and includes that script in the
+provenance table. It repeats the complete admission after Chromium closes and
+rejects any canonical admission change before the sole evidence-directory write.
+
+For containerized Admin runs, `--runtime-container` adds a runtime attestation
+before and after Chromium. It fixes a running Linux/amd64 container ID and the
+unique Admin host-port-to-container-port mapping, resolves the container-side
+LISTEN socket inode from `/proc/net/tcp` or `/proc/net/tcp6`, and accepts exactly
+one owning PID found through `/proc/*/fd`. Its executable SHA-256 must match the
+certificate-admitted `rz-admin` binary; the observed PID, device and inode are held
+stable only by the before/after runtime-tuple comparison. Both tuples must be equal
+before the receipt is published.

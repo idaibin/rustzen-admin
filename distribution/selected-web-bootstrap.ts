@@ -23,7 +23,7 @@ const root=document.getElementById("root"),bindingName=["rustzen","web","binding
 const stamp=meta&&meta.getAttribute("content")||"";
 const canonical=()=>{const value=new URL(location.href);value.searchParams.delete(reloadParam);return value;};
 const attemptKey=()=>{const value=canonical();return stamp+"|"+value.pathname+value.search+value.hash;};
-const showFailure=()=>{root.innerHTML='<main role="alert"><h1>Unable to start Rustzen Monitor</h1><p>The application files do not match this server.</p><button id="rustzen-web-retry" type="button">Retry</button></main>';document.getElementById("rustzen-web-retry").onclick=()=>{try{sessionStorage.removeItem(markerKey)}catch{}location.reload()};};
+const showFailure=()=>{root.innerHTML='<main role="alert"><h1>Unable to start Rustzen Monitor</h1><p>The application files do not match this server.</p><button id="rustzen-web-retry" type="button">Retry</button></main>';document.getElementById("rustzen-web-retry").onclick=()=>{try{sessionStorage.removeItem(markerKey)}catch{}location.replace(canonical().href)};};
 const fail=()=>{let attempted=true;try{attempted=sessionStorage.getItem(markerKey)===attemptKey();if(!attempted)sessionStorage.setItem(markerKey,attemptKey())}catch{}if(attempted){showFailure();return}const next=new URL(location.href);next.searchParams.set(reloadParam,Date.now().toString(36));location.replace(next.href);};
 const validDigest=value=>typeof value==="string"&&/^[a-f0-9]{64}$/.test(value);
 const start=async()=>{try{

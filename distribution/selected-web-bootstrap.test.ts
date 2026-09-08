@@ -5,30 +5,40 @@ import { createSelectedWebBootstrap } from "./selected-web-bootstrap.ts";
 const digest = "a".repeat(64);
 
 type Harness = ReturnType<typeof harness>;
+type ScriptEntry = Record<string, unknown> & { onerror?: () => void };
+type BootstrapElement = { innerHTML?: string; onclick?: null | (() => void) };
 
-function harness(responseDigest = digest, reject = false) {
+function harness(input: {
+    responseDigest?: string;
+    reject?: boolean;
+    body?: string;
+    contentType?: string;
+    contentLength?: string | null;
+} = {}) {
+    const { responseDigest = digest, reject = false, body, contentType = "application/json", contentLength = null } = input;
     const storage = new Map<string, string>();
-    const appended: Record<string, unknown>[] = [];
+    const appended: ScriptEntry[] = [];
     const replacements: string[] = [];
-    const root = { innerHTML: "" };
+    const root: BootstrapElement = { innerHTML: "" };
     const retry = { onclick: null as null | (() => void) };
     const requests: Array<{ path: string; options: Record<string, unknown> }> = [];
     const document = {
-        getElementById: (id: string) => (id === "root" ? root : retry),
+        getElementById: (id: string): BootstrapElement => (id === "root" ? root : retry),
         querySelector: () => ({ getAttribute: () => digest }),
-        createElement: () => ({}) as Record<string, unknown>,
-        head: { append: (entry: Record<string, unknown>) => appended.push(entry) },
+        createElement: () => ({}) as ScriptEntry,
+        head: { append: (entry: ScriptEntry) => appended.push(entry) },
     };
     const fetch = async (path: string, options: Record<string, unknown>) => {
         requests.push({ path, options });
         if (reject) throw new Error("offline");
-        const body = JSON.stringify({ bindingVersion: 1, webDigest: responseDigest });
+        const responseBody = body ?? JSON.stringify({ bindingVersion: 1, webDigest: responseDigest });
         return {
             ok: true,
             headers: {
-                get: (name: string) => (name === "content-type" ? "application/json" : null),
+                get: (name: string) =>
+                    name === "content-type" ? contentType : name === "content-length" ? contentLength : null,
             },
-            text: async () => body,
+            text: async () => responseBody,
         };
     };
     const sessionStorage = {
@@ -86,7 +96,7 @@ describe("selected Web bootstrap", () => {
     });
 
     test("preserves a deep link, reloads once, then fails closed on mismatch", async () => {
-        const target = harness("b".repeat(64));
+        const target = harness({ responseDigest: "b".repeat(64) });
         await run(target);
         expect(target.appended).toHaveLength(0);
         expect(target.replacements).toHaveLength(1);
@@ -100,10 +110,42 @@ describe("selected Web bootstrap", () => {
     });
 
     test("keeps business code unloaded when the binding request fails", async () => {
-        const target = harness(digest, true);
+        const target = harness({ reject: true });
         await run(target);
         expect(target.appended).toHaveLength(0);
         expect(target.requests).toHaveLength(1);
+    });
+
+    test("fails closed for malformed bindings without appending the entry", async () => {
+        for (const input of [
+            { body: "{}" },
+            { body: JSON.stringify({ bindingVersion: 1, webDigest: digest, extra: true }) },
+            { body: JSON.stringify({ bindingVersion: 2, webDigest: digest }) },
+            { body: JSON.stringify({ bindingVersion: 1, webDigest: digest }), contentType: "text/html" },
+            { body: JSON.stringify({ bindingVersion: 1, webDigest: digest }), contentLength: "257" },
+        ]) {
+            const target = harness(input);
+            await run(target);
+            expect(target.appended).toHaveLength(0);
+            expect(target.requests).toHaveLength(1);
+        }
+    });
+
+    test("fails closed when the integrity-bound entry cannot load and retry restores the deep link", async () => {
+        const target = harness();
+        await run(target);
+        expect(target.appended).toHaveLength(1);
+        target.appended[0].onerror?.();
+        expect(target.replacements).toHaveLength(1);
+        await run(target);
+        target.appended[1].onerror?.();
+        expect(target.root.innerHTML).toContain('role="alert"');
+        target.document.getElementById("rustzen-web-retry").onclick?.();
+        const retry = new URL(target.replacements[1]);
+        expect(retry.pathname).toBe("/monitoring/nodes");
+        expect(retry.searchParams.get("q")).toBe("web");
+        expect(retry.searchParams.has("__rz_web_reload")).toBe(false);
+        expect(retry.hash).toBe("#node-1");
     });
 
     test("rejects an unsafe or empty entry", () => {
