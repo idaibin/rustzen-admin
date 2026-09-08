@@ -20,28 +20,17 @@ function branches(dockerfile: string) {
     const aarch64 = dockerfile.match(
         /elif \[ "\$\{TARGET_TRIPLE\}" = "aarch64-unknown-linux-gnu" \]; then([\s\S]*?)else/,
     );
-    const full = dockerfile.match(
-        /else \\\n        RUSTFLAGS=([\s\S]*?)\n    fi/,
-    );
-    if (!monitor || !aarch64 || !full)
-        throw new Error("Dockerfile build branches are incomplete");
+    const full = dockerfile.match(/else \\\n        RUSTFLAGS=([\s\S]*?)\n    fi/);
+    if (!monitor || !aarch64 || !full) throw new Error("Dockerfile build branches are incomplete");
     return { monitor: monitor[1], aarch64: aarch64[1], full: full[1] };
 }
 function assertDockerfileGuard(dockerfile: string) {
     if (!dockerfile.includes('case "${DISTRIBUTION}" in full|monitor)'))
-        throw new Error(
-            "Dockerfile must restrict DISTRIBUTION to full|monitor",
-        );
-    if (
-        !dockerfile.includes(
-            "cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded",
-        )
-    )
-        throw new Error(
-            "Dockerfile must compare selected Web source and embedded file hashes",
-        );
+        throw new Error("Dockerfile must restrict DISTRIBUTION to full|monitor");
+    if (!dockerfile.includes("cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded"))
+        throw new Error("Dockerfile must compare selected Web source and embedded file hashes");
     for (const required of [
-        'ARG SOURCE_IDENTITY=',
+        "ARG SOURCE_IDENTITY=",
         'test -n "${SOURCE_IDENTITY}"',
         'test "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl"',
         "scripts/distribution-produce-contracts.ts",
@@ -86,26 +75,36 @@ describe("Docker distribution input", () => {
         expect(validateDistribution("monitor")).toBe("monitor");
     });
     test("Dockerfile has exact monitor/server-agent and full output inventories", async () => {
-        const dockerfile = await Bun.file(
-            resolve(import.meta.dir, "../Dockerfile"),
-        ).text();
+        const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
         assertDockerfileGuard(dockerfile);
-        expect(
-            dockerfile.indexOf("DISTRIBUTION must be full or monitor"),
-        ).toBeLessThan(dockerfile.indexOf("COPY --from=bun-runtime"));
+        expect(dockerfile.indexOf("DISTRIBUTION must be full or monitor")).toBeLessThan(
+            dockerfile.indexOf("COPY --from=bun-runtime"),
+        );
+    });
+    test("fresh Linux selected Web passes the same portable Admin build gate", async () => {
+        const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
+        const produced = dockerfile.indexOf("bun scripts/distribution-build-web.ts");
+        const embedded = dockerfile.indexOf(
+            'cp "target/distributions/${composition}/web/inventory.json"',
+        );
+        const compiled = dockerfile.indexOf(
+            'cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features monitor-distribution',
+        );
+        expect(produced).toBeGreaterThan(0);
+        expect(embedded).toBeGreaterThan(produced);
+        expect(compiled).toBeGreaterThan(embedded);
+        const gate = await Bun.file(
+            resolve(import.meta.dir, "../apps/admin/build_support/selected_web.rs"),
+        ).text();
+        expect(gate).not.toContain("INVENTORY_SHA256");
+        expect(gate).not.toContain("canonical inventory digest");
     });
     test("rejects output pollution, omission and non-propagating build failures", async () => {
-        const dockerfile = await Bun.file(
-            resolve(import.meta.dir, "../Dockerfile"),
-        ).text();
+        const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
         [
+            (s: string) => s.replace('case "${DISTRIBUTION}" in full|monitor)', ""),
             (s: string) =>
-                s.replace('case "${DISTRIBUTION}" in full|monitor)', ""),
-            (s: string) =>
-                s.replace(
-                    "cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded",
-                    "",
-                ),
+                s.replace("cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded", ""),
             (s: string) =>
                 s.replace(
                     "/out/witness/bin/rz-monitor-agent",
@@ -116,19 +115,12 @@ describe("Docker distribution input", () => {
                     '/out/release/server/bin/rz-monitor" &&',
                     '/out/release/server/bin/rz-reports" &&',
                 ),
+            (s: string) => s.replace("/out/bin/rz-reports", "/out/bin/rz-extra"),
+            (s: string) => s.replace("/out/bin/rz-insights", "/out/bin/rz-extra"),
+            (s: string) => s.replace("/out/release/server/bin/rz-admin", "/out/bin/rz-admin"),
+            (s: string) => s.replace("/out/release/server/bin/rz-monitor", "/out/bin/rz-monitor"),
             (s: string) =>
-                s.replace("/out/bin/rz-reports", "/out/bin/rz-extra"),
-            (s: string) =>
-                s.replace("/out/bin/rz-insights", "/out/bin/rz-extra"),
-            (s: string) =>
-                s.replace("/out/release/server/bin/rz-admin", "/out/bin/rz-admin"),
-            (s: string) =>
-                s.replace("/out/release/server/bin/rz-monitor", "/out/bin/rz-monitor"),
-            (s: string) =>
-                s.replace(
-                    "/out/witness/bin/rz-monitor-agent",
-                    "/out/bin/rz-monitor-agent",
-                ),
+                s.replace("/out/witness/bin/rz-monitor-agent", "/out/bin/rz-monitor-agent"),
             (s: string) =>
                 s.replace(
                     '/out/witness/bin/rz-monitor-agent"',
@@ -146,8 +138,13 @@ describe("Docker distribution input", () => {
                 ),
             (s: string) => s.replace("rustzen-reports &&", "rustzen-reports;"),
             (s: string) => s.replace('test -n "${SOURCE_IDENTITY}"', "true"),
-            (s: string) => s.replace("bun scripts/distribution-produce-container-export.ts", "bun scripts/missing-export.ts"),
-            (s: string) => s.replace("RUSTZEN_CONTAINER_BUILD_COMMANDS=", "RUSTZEN_CONTAINER_COMMANDS="),
+            (s: string) =>
+                s.replace(
+                    "bun scripts/distribution-produce-container-export.ts",
+                    "bun scripts/missing-export.ts",
+                ),
+            (s: string) =>
+                s.replace("RUSTZEN_CONTAINER_BUILD_COMMANDS=", "RUSTZEN_CONTAINER_COMMANDS="),
             (s: string) => s.replace(" scripts/distribution-web-inventory-schema.ts", ""),
         ].forEach((mutation, index) => {
             try {

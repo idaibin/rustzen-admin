@@ -270,6 +270,9 @@ before dynamically loading the content-addressed entry with SRI and applies one 
 cache-busting recovery attempt. The Admin build gate validates the exact 11-field
 inventory-v2 schema and canonical metadata, sorted route/asset/module/emitted/file
 tables, the actual file set and bytes, selected API digest and normalized Web digest.
+The module table is checked by selected owner, safe path, allowed dependency and
+required generated/source roots. Its complete JSON byte digest is not fixed because
+host and fresh Linux Vite graphs may contain different allowed module entries.
 Its mutation harness invokes the real Monitor `cargo check` for every metadata class
 and restores a clean positive build. Source and focused tests close generation, route,
 authentication, cache and failure-state behavior. A newly derived signed artifact and
