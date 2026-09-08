@@ -20,6 +20,12 @@
                 "path": "/api/system/users/{id}"
             },
             {
+                "access": { "kind": "public" },
+                "method": "GET",
+                "operation": "getWebBinding",
+                "path": "/__web-binding"
+            },
+            {
                 "access": { "kind": "authenticated" },
                 "method": "GET",
                 "operation": "logout",
@@ -30,6 +36,12 @@
                 "method": "GET",
                 "operation": "getCurrentAdminUser",
                 "path": "/api/auth/me"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "GET",
+                "operation": "getInstallation",
+                "path": "/api/installation"
             },
             {
                 "access": {

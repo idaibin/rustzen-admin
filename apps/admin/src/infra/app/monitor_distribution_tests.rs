@@ -38,8 +38,10 @@ fn route_inventory_contains_access_and_monitor_navigation_only() {
     let contracts = documented_all_contracts();
     let paths = contracts.iter().map(|contract| contract.path.as_str()).collect::<Vec<_>>();
     for required in [
+        "/__web-binding",
         "/api/auth/login",
         "/api/auth/me",
+        "/api/installation",
         "/api/account/profile",
         "/api/system/users",
         "/api/system/roles",

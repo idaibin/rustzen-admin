@@ -1,3 +1,4 @@
+import { installationAPI } from "@/api/installation/api";
 import { monitorAPI } from "@/api/monitor/api";
 import { apiRequest } from "@/api/request";
 import { appMessage, MessageContent } from "@/api/runtime";
@@ -90,4 +91,4 @@ const systemAPI = {
     },
 };
 
-export { accountAPI, appMessage, authAPI, MessageContent, monitorAPI, systemAPI };
+export { accountAPI, appMessage, authAPI, installationAPI, MessageContent, monitorAPI, systemAPI };

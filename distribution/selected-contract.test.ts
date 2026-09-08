@@ -33,7 +33,7 @@ test("selected contract accepts only the complete current registration corpus", 
         const b = await produceSelectedContract(selection, out, runner);
         expect(a.sha256).toBe(b.sha256);
         const { contract } = await readSelectedApiContract(out, selection);
-        expect(contract.owners.admin.routes).toHaveLength(21);
+        expect(contract.owners.admin.routes).toHaveLength(23);
         expect(contract.owners.monitor.routes).toHaveLength(13);
         expect(contract.owners.monitor.menus).toHaveLength(4);
         await expect(

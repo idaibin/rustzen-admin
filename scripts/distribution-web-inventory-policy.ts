@@ -79,6 +79,7 @@ export function assertModuleIds(
         "apps/web/src/components/theme-provider.tsx",
     ]);
     const allowedSourceDirectories = [
+        "apps/web/src/api/installation/",
         "apps/web/src/api/monitor/",
         ...(hasNotifications
             ? ["apps/web/src/api/notifications/", "apps/web/src/notifications/"]

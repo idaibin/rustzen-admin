@@ -260,6 +260,22 @@ validator rejects a changed descriptor, inventory, API source, stamped HTML or
 emitted asset before native staging/release derivation. HTTP bootstrap and
 browser behavior remain later closures.
 
+P8f-B implements the Monitor-distribution HTTP bootstrap boundary. Admin validates
+and embeds the P8f-A binding, rejects a packaged/runtime composition mismatch before
+listening, serves anonymous `GET /__web-binding` and authenticated
+`GET /api/installation` with no-store caching, and keeps both routes out of Full
+until Full has an equivalent packaged binding. Selected HTML contains a dependency-free
+inline bootstrap instead of an eager module tag; it validates the anonymous response
+before dynamically loading the content-addressed entry with SRI and applies one bounded
+cache-busting recovery attempt. The Admin build gate validates the exact 11-field
+inventory-v2 schema and canonical metadata, sorted route/asset/module/emitted/file
+tables, the actual file set and bytes, selected API digest and normalized Web digest.
+Its mutation harness invokes the real Monitor `cargo check` for every metadata class
+and restores a clean positive build. Source and focused tests close generation, route,
+authentication, cache and failure-state behavior. A newly derived signed artifact and
+external Chromium runtime remain the P8f-B acceptance evidence rather than reusing a
+pre-change P8d/P8e tuple.
+
 The generic server-staging entry applies the same complete selected-Web policy
 and derives its build-route identity from the verified inventory. It cannot
 publish a self-consistent Full or Reports bundle under a Monitor selection.

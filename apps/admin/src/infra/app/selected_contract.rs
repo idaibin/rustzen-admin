@@ -62,7 +62,9 @@ mod tests {
             serde_json::from_str(&super::selected_contract_json("admin").unwrap()).unwrap();
         let routes = value["routes"].as_array().unwrap();
         assert_eq!(value["version"], 1);
-        assert_eq!(routes.len(), 21);
+        assert_eq!(routes.len(), 23);
+        assert!(routes.iter().any(|route| route["path"] == "/__web-binding"));
+        assert!(routes.iter().any(|route| route["path"] == "/api/installation"));
         assert!(routes.iter().any(|route| route["path"] == "/api/auth/login"));
         assert!(routes.iter().any(|route| route["path"] == "/api/system/modules/navigation"));
         assert!(!routes.iter().any(|route| route["path"] == "/api/reports"));

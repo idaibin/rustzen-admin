@@ -48,6 +48,8 @@ pub async fn serve(uri: Uri) -> Response {
                 mime_guess::from_path(served_path).first_or_octet_stream().as_ref().to_string();
             let cache_control = if served_path.starts_with("assets/") {
                 "public, max-age=31536000, immutable"
+            } else if served_path == "index.html" {
+                "no-store"
             } else {
                 "no-cache"
             };
@@ -72,20 +74,34 @@ mod tests {
         http::{StatusCode, Uri},
     };
 
-    use super::serve;
     #[cfg(feature = "monitor-distribution")]
-    use super::{SELECTED_WEB_INVENTORY, WebAssets};
+    use super::SELECTED_WEB_INVENTORY;
+    use super::{WebAssets, serve};
 
     #[tokio::test]
     async fn embedded_release_contains_index_and_spa_fallback() {
         for path in ["/", "/monitoring/overview"] {
             let response = serve(path.parse::<Uri>().expect("uri")).await;
             assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()[axum::http::header::CACHE_CONTROL], "no-store");
             let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
             assert!(
                 body.windows(15).any(|window| window == b"<div id=\"root\">") || !body.is_empty()
             );
         }
+    }
+
+    #[tokio::test]
+    async fn content_addressed_assets_remain_immutable() {
+        let asset = WebAssets::iter()
+            .find(|path| path.starts_with("assets/") && path.ends_with(".js"))
+            .expect("embedded JavaScript asset");
+        let response = serve(format!("/{asset}").parse::<Uri>().expect("uri")).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[axum::http::header::CACHE_CONTROL],
+            "public, max-age=31536000, immutable"
+        );
     }
 
     #[cfg(feature = "monitor-distribution")]

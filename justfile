@@ -25,6 +25,7 @@ prepare-monitor-embed:
 verify-monitor-admin:
     pnpm dlx bun@1.3.14 test scripts/distribution-verify-docker.test.ts
     just prepare-monitor-embed
+    pnpm dlx bun@1.3.14 test scripts/distribution-admin-web-build-gate.test.ts
     cargo test -p rustzen-config --no-default-features --features admin-monitor
     cargo test -p rustzen-admin --no-default-features --features monitor-distribution -- --test-threads=1
     cargo clippy -p rustzen-admin --no-default-features --features monitor-distribution -- -D warnings

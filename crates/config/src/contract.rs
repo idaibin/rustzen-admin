@@ -230,7 +230,6 @@ mod tests {
     fn keys(contract: &super::ConfigContract) -> Vec<&str> {
         contract.fields.iter().map(|field| field.key).collect()
     }
-    #[cfg(feature = "notifications")]
     fn secret_refs(contract: &super::ConfigContract) -> Vec<(&str, &str)> {
         contract
             .fields

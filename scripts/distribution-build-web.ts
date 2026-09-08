@@ -11,6 +11,7 @@ import {
     stampIndex,
     verifyWebBinding,
 } from "../distribution/selected-web-binding.ts";
+import { createSelectedWebBootstrap } from "../distribution/selected-web-bootstrap.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 const webRoot = join(repositoryRoot, "apps/web");
@@ -138,10 +139,14 @@ const styleLinks = styleEntries
     .sort()
     .map((file: string) => `<link rel="stylesheet" href="/${file}" />`)
     .join("");
+const bootstrap = createSelectedWebBootstrap({
+    entryPath: mainEntry,
+    entryBytes: await Bun.file(join(outputRoot, "dist", mainEntry)).bytes(),
+});
 await rm(join(outputRoot, "dist", ".selected-web"), { recursive: true, force: true });
 await Bun.write(
     join(outputRoot, "dist", "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div><script type="module" src="/${mainEntry}"></script></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div>${bootstrap.html}</body></html>`,
 );
 const selectedApiBytes = await Bun.file(join(generatedRoot, "api.ts")).bytes();
 await Bun.write(join(outputRoot, "api.ts"), selectedApiBytes);
@@ -158,7 +163,12 @@ await Bun.write(
     stampIndex(unstampedIndex.bytes, binding.webDigest),
 );
 const emittedFiles = await readWebFiles(join(outputRoot, "dist"));
-verifyWebBinding({ binding, compositionId: selection.compositionId, selectedApiBytes, files: emittedFiles });
+verifyWebBinding({
+    binding,
+    compositionId: selection.compositionId,
+    selectedApiBytes,
+    files: emittedFiles,
+});
 
 const output = {
     schemaVersion: 2,

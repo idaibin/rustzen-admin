@@ -1,3 +1,7 @@
+#[cfg(feature = "monitor-distribution")]
+use crate::features::installation::{
+    InstallationState, protected_routes as installation_routes, public_routes as web_binding_routes,
+};
 #[cfg(feature = "notifications")]
 use crate::features::notifications::{
     admission_types::AdmissionPolicy, ingress, maintenance, realtime::RealtimeHub,
@@ -102,6 +106,9 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         DelegationSigner::new(CONFIG.ipc_token.as_bytes())?,
     )
     .await?;
+    #[cfg(feature = "monitor-distribution")]
+    let installation_state =
+        InstallationState::load(module_state.clone()).map_err(std::io::Error::other)?;
 
     let (documented_routes, documented_contracts) = documented_protected_routes();
     #[cfg(feature = "notifications")]
@@ -126,6 +133,17 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(pool.clone());
 
     let public_api: Router = public_auth_router.with_state(pool.clone());
+    #[cfg(feature = "monitor-distribution")]
+    let (web_binding, _) = web_binding_routes().into_parts();
+    #[cfg(feature = "monitor-distribution")]
+    let (installation_router, installation_contracts) = installation_routes().into_parts();
+    #[cfg(feature = "monitor-distribution")]
+    let installation_api: Router = installation_router
+        .route_layer(middleware::from_fn_with_state(
+            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
+            auth_middleware,
+        ))
+        .with_state(installation_state);
     let (module_control_router, module_control_contracts) = control_routes().into_parts();
     #[cfg(feature = "full")]
     let module_control: Router = module_control_router
@@ -147,6 +165,12 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let permission_codes = contract_permission_codes(
         documented_contracts.iter().chain(module_control_contracts.iter()),
     );
+    #[cfg(feature = "monitor-distribution")]
+    let permission_codes = {
+        let mut permission_codes = permission_codes;
+        permission_codes.extend(contract_permission_codes(installation_contracts.iter()));
+        permission_codes
+    };
     PermissionService::sync_permission_codes(&pool, &permission_codes).await?;
 
     #[cfg(feature = "full")]
@@ -167,6 +191,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .merge(public_api)
         .merge(protected_api)
         .merge(module_control);
+    #[cfg(feature = "monitor-distribution")]
+    let admin_routes = admin_routes.merge(web_binding).merge(installation_api);
     #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&avatars_prefix, avatars_service);
     #[cfg(feature = "full")]

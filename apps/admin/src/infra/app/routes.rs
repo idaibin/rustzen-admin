@@ -1,3 +1,7 @@
+#[cfg(feature = "monitor-distribution")]
+use crate::features::installation::{
+    protected_routes as installation_routes, public_routes as web_binding_routes,
+};
 #[cfg(feature = "notifications")]
 use crate::features::notifications::notification_routes;
 #[cfg(feature = "full")]
@@ -76,6 +80,13 @@ pub(crate) fn documented_all_contracts() -> Vec<RouteContract> {
     contracts.extend(public_contracts);
     let (_, control_contracts) = control_routes().into_parts();
     contracts.extend(control_contracts);
+    #[cfg(feature = "monitor-distribution")]
+    {
+        let (_, installation_contracts) = installation_routes().into_parts();
+        let (_, binding_contracts) = web_binding_routes().into_parts();
+        contracts.extend(installation_contracts);
+        contracts.extend(binding_contracts);
+    }
     contracts
 }
 

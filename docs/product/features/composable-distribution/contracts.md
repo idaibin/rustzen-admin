@@ -416,6 +416,42 @@ inventory returns the same digest. A differing buildId alone is not a mismatch
 when Web bytes and the verified client/API contract still match. Public health
 exposes only liveness/readiness, not the inventory.
 
+For the `monitor-distribution` closure, the anonymous response is raw JSON rather
+than the ordinary Admin envelope and has exactly the two fields above. Both it
+and the authenticated inventory use `Content-Type: application/json` and
+`Cache-Control: no-store`. The authenticated response uses the ordinary
+`ApiResponse` envelope and its `data` is exactly:
+
+```json
+{
+  "releaseVersion": "<semver>",
+  "compositionId": "<sha256>",
+  "buildId": "<sha256>",
+  "webDigest": "<sha256>",
+  "featureIds": ["access", "monitor"],
+  "services": [
+    { "id": "monitor", "state": "healthy", "releaseVersion": "<semver-or-null>" }
+  ],
+  "capabilities": ["<current-authoritative-grant>"]
+}
+```
+
+`featureIds`, `services`, and `capabilities` are sorted and unique. Enabling the
+notifications feature adds only `notifications` to `featureIds`; it does not
+invent another service process. Service state is one of `healthy`, `unavailable`,
+or `incompatible`, comes from the selected in-memory module registry and never
+contains an endpoint, path, internal error, or an unselected module. Capabilities
+come from the same authoritative current-user snapshot that authenticates the
+request. The owner wildcard remains `*`; the inventory does not expand or infer
+grants.
+
+The packaged binding owns `webDigest`. The verified installation singleton owns
+`compositionId` and `buildId`; the compiled package owns `releaseVersion`. Admin
+must reject startup before binding its listener when the packaged binding
+composition differs from the verified installation composition. These two routes
+are registered only by the `monitor-distribution` Admin composition until Full
+Web produces and embeds the same binding contract.
+
 ## Internal producer API
 
 ### Directional signatures and key lifecycle

@@ -413,6 +413,23 @@ view. This contract covers distributions built with this bootstrap, not arbitrar
 legacy HTML that never implemented it. Previously cached bytes are not claimed
 to be physically erased from the user's browser.
 
+For P8f-B the Monitor HTML contains no eager business entry tag. Its dependency-free
+inline bootstrap reads the single stamped meta value, fetches the anonymous binding
+with omitted credentials and no-store caching, bounds and validates the exact JSON,
+then dynamically creates the content-addressed module entry with SHA-256 SRI. The
+bootstrap owns the one-attempt recovery marker in session storage and preserves the
+current local pathname, query and fragment. It clears the marker after a successful
+entry load; an explicit retry from the static error view starts a new attempt.
+
+Admin embeds the canonical selected-Web binding alongside the assets. Build-time
+validation requires the descriptor, schema-v2 inventory and stamped HTML to agree.
+At process startup, the embedded binding composition is compared with the same
+environment-derived installation identity already verified against Admin's singleton
+database row. The resulting immutable identity is shared by the two access-owned
+handlers. Dynamic selected-service state comes only from the in-memory module registry,
+while current-user capabilities come only from the authenticated request context.
+Neither handler reads another process database or routes through the module gateway.
+
 ## Route, permission and navigation consistency
 
 Admin-native contract registration and `ModuleRouter` remain route authorities.
