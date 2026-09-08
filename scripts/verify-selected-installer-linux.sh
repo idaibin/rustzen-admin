@@ -11,6 +11,9 @@ RUSTZEN_INSTALLER_TARGET=aarch64-unknown-linux-gnu RUSTZEN_INSTALLER_OUTPUT="$fi
 for mutation in artifact-class unknown-top-level unknown-owner-field; do
   RUSTZEN_INSTALLER_TARGET=aarch64-unknown-linux-gnu RUSTZEN_INSTALLER_SCHEMA_MUTATION="$mutation" RUSTZEN_INSTALLER_OUTPUT="$fixtures/schema-$mutation" pnpm dlx bun@1.3.14 scripts/distribution-installer-fixture.ts
 done
+for mutation in binding index-stamp web-file; do
+  RUSTZEN_INSTALLER_TARGET=aarch64-unknown-linux-gnu RUSTZEN_INSTALLER_WEB_MUTATION="$mutation" RUSTZEN_INSTALLER_OUTPUT="$fixtures/web-$mutation" pnpm dlx bun@1.3.14 scripts/distribution-installer-fixture.ts
+done
 RUSTZEN_INSTALLER_TARGET=aarch64-unknown-linux-gnu RUSTZEN_INSTALLER_ARTIFACT=node-agent RUSTZEN_INSTALLER_OUTPUT="$fixtures/agent" pnpm dlx bun@1.3.14 scripts/distribution-installer-fixture.ts
 for mutation in duplicate omitted path header checksum-width padding trailing; do
   RUSTZEN_INSTALLER_TARGET=aarch64-unknown-linux-gnu RUSTZEN_INSTALLER_MUTATION="$mutation" RUSTZEN_INSTALLER_OUTPUT="$fixtures/$mutation" pnpm dlx bun@1.3.14 scripts/distribution-installer-fixture.ts
@@ -100,6 +103,10 @@ docker run --rm --platform linux/arm64 \
     done
     for mutation in artifact-class unknown-top-level unknown-owner-field; do
       bad="target/installer-fixtures/schema-$mutation"
+      ! "$rz" --json verify --archive "$bad/archive.tar" --manifest "$bad/release-manifest.json" --envelope "$bad/signature-envelope.json" --trusted-public-key "$bad/public.pem" --key-id installer-test
+    done
+    for mutation in binding index-stamp web-file; do
+      bad="target/installer-fixtures/web-$mutation"
       ! "$rz" --json verify --archive "$bad/archive.tar" --manifest "$bad/release-manifest.json" --envelope "$bad/signature-envelope.json" --trusted-public-key "$bad/public.pem" --key-id installer-test
     done
     bad=target/installer-fixtures/agent-bad

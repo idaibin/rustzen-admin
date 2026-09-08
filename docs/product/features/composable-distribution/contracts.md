@@ -75,6 +75,14 @@ the canonical emitted `{path,sha256}` list after normalizing the sole HTML stamp
 back to `__RUSTZEN_WEB_DIGEST__`; inventory file hashes instead use final bytes.
 The descriptor has no build ID and neither an environment variable nor a caller
 provided value can stand in for it.
+The installer repeats this algorithm over archive bytes: it requires the exact
+canonical four-field `contracts/web/binding.json`, binds its composition and
+normalized Web digest to the manifest, requires the selected API digest to be a
+canonical SHA-256 identifier (the source-build/export admission separately binds
+that identifier to the selected API bytes),
+normalizes exactly one stamped
+`web/index.html`, and hashes the sorted Web path/byte-digest table. The signed
+final-file hashes and the normalized `webDigest` are independent checks.
 
 The manifest producer accepts only builder-created, current-user-private, quiescent
 staging. Node has no portable `openat`: the producer therefore uses no-link directory
@@ -274,6 +282,18 @@ Agent protocol extraction remains a separate witness operation and cannot make
 the Agent binary a member of the Monitor server archive.
 
 ### P8e Monitor native runtime evidence
+
+The native runtime verifier accepts exactly six explicit inputs:
+`--export-root`, `--release-result`, `--certificate`, `--public-key`, and
+`--expected-source-identity`, and `--output`. The source identity is an
+independent caller assertion and must not be derived from the export. The first
+five identify the same current Monitor export, signed
+release tuple, published source-build certificate and trust key. `--output`
+must resolve beneath `target/rz`, its parent must already exist, and the final
+path must not exist or be a symlink. It must not equal, contain, or be contained
+by the export, release root, certificate directory, or public key. The complete
+tuple is verified before the output is created or Docker is called. The verifier never follows historical
+pointer files, chooses a prior release, or erases an output directory.
 
 `monitor-native-runtime-evidence` is canonical JSON for one disposable
 `linux/amd64` PID1 execution. It contains only the certificate SHA-256,

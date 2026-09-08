@@ -82,7 +82,7 @@ pub(super) fn scan_archive(
     expected.sort();
     let mut count = 0;
     let mut seen = BTreeSet::new();
-    let mut contracts = BTreeMap::new();
+    let mut payload = BTreeMap::new();
     let mut offset = 0;
     while offset + 512 <= bytes.len() && bytes[offset..offset + 512].iter().any(|b| *b != 0) {
         let (path, size, mode) = canonical_ustar_header(&bytes[offset..offset + 512])?;
@@ -117,9 +117,7 @@ pub(super) fn scan_archive(
             {
                 return Err("archive member differs from manifest".into());
             }
-            if e.path.starts_with("contracts/") {
-                contracts.insert(e.path.clone(), &bytes[offset + 512..end]);
-            }
+            payload.insert(e.path.clone(), &bytes[offset + 512..end]);
         };
         count += 1;
         offset = padded;
@@ -130,6 +128,6 @@ pub(super) fn scan_archive(
     {
         return Err("archive ordering, padding or trailing bytes are invalid".into());
     }
-    validate_payload_contracts(manifest, &contracts)?;
+    validate_payload_contracts(manifest, &payload)?;
     Ok(count)
 }

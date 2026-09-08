@@ -75,6 +75,17 @@ separate process rereads and parses the runtime evidence. This is local
 target-like evidence; browser, load and deployed-host verification remain
 separate.
 
+Its CLI rejects missing, duplicate, unknown or positional arguments, historical
+pointer files, paths outside the allowed boundary and any existing/symlink
+output. A run must supply a newly produced release result and certificate for
+the explicit export plus an independently obtained expected source identity.
+It rejects every ancestor, descendant or equal relationship between output and
+the export, release root, certificate directory or public key. Executable
+negative tests prove rejection before output creation or Docker invocation and
+prove the input tree remains byte-for-byte unchanged. Evidence can be published
+only into one new child of `target/rz`; failure evidence may be appended there
+but the directory is never reused or recursively removed.
+
 The first P8b container closure is verified separately from certification. Its
 static boundary test must reject a non-Linux/amd64 build stage, an omitted Monitor
 source-identity requirement, a target other than x86_64 musl, a missing explicit
@@ -195,6 +206,7 @@ and commands in the design are not current working commands.
 | D27 | Keep buildId but change Web bytes/digest | Build validation rejects descriptor/inventory/stamp disagreement; at runtime HTML/backend webDigest mismatch blocks the business entry and credentials, and the dynamically loaded entry has matching SHA-256 integrity |
 | D27a | Add/remove an inventory-v2 field; change or reorder routes, assets, module owners/paths, emitted/file tables, generated/output roots, binding descriptor, selected API source, stamped HTML or any emitted asset | Admin compile and selected-Web/container validation reject before staging; the exact 11-field metadata, semantic selected-owner policy, canonical order, normalized digest and final stamped-file inventory must all agree. Allowed host/Linux module-graph differences pass without a platform-specific inventory-byte digest |
 | D27b | Feed direct staging a self-consistent Web bundle with another preset/composition/routes/assets/modules or excluded Reports text | The complete selected-Web policy rejects it; caller route strings cannot alter the build identity derived from verified inventory |
+| D27c | Re-sign a release after changing binding.json, the index stamp, or another Web file and updating its final file hash | `rz verify` rejects because the canonical binding, normalized HTML and actual Web-byte digest no longer form the signed manifest tuple |
 | D28 | node-agent with Web/server fields; server missing schema owner | Discriminated manifest validation fails before installation writes |
 | D28a | Canonical manifest producer/validator receives unknown/duplicate/escaped/link/mode/size/hash fields, server-Agent mixing or a digest without its actual source discriminator | Reject before archive/signature/install; canonical resolver, selected-Web file table and binary byte digest inputs are the only accepted sources |
 | D28b | Monitor recovery journal has a changed archive/envelope/manifest tuple, unsafe metadata, an occupied root, a replaced empty/sentinel/wrong-nonce work root, a copied marker on an incomplete root, or a final root with missing/extra/truncated/replaced payload or retained triplet | Reject without modifying the root. The exact tuple converges after either cleanup fault only after the completion marker and manifest-derived final layout, payload digests/modes, retained triplet and current link all verify; no continuation marker or sibling journal remains. |

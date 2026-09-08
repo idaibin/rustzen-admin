@@ -36,6 +36,32 @@ does not extend the certificate or change its four literal later-layer flags.
 The gate separately captures canonical runtime evidence after `rz verify`,
 dry-run, fresh apply, status and server activation. A certificate is not an
 installation authorization and no `current` pointer or operator host changes.
+The verifier takes the current export root, release-result JSON, certificate,
+public key, independently supplied expected source identity and a caller-selected fresh output directory as exact arguments. It
+contains no P8d pointer filenames or reusable output path and never removes an
+existing output. It runs the existing published-certificate verifier before
+creating that directory or calling Docker, and rejects any input/output ancestry overlap.
+
+`rz verify` reads every archive payload member needed by the contract verifier.
+For server artifacts it parses canonical `contracts/web/binding.json`, checks
+its composition and Web digest against the release manifest, validates the
+selected API digest shape, replaces the sole
+matching HTML digest stamp with the fixed slot in memory, then hashes the sorted
+`{path,sha256}` Web table with the same algorithm as the TypeScript producer.
+The earlier source-build/export admission owns the byte-level selected API check.
+
+For one current export, use the existing producers in this order (all output
+paths must be new):
+
+```bash
+read -r source_head source_state source_tree < <(scripts/admin-browser-source-identity.sh)
+expected_source_identity="git:$source_head tree:$source_tree state:$source_state"
+pnpm dlx bun@1.3.14 scripts/distribution-publish-monitor-container-release.ts --selection distribution/fixtures/monitor.json --export-root "$export_root" --expected-source-identity "$expected_source_identity" --output-base "$release_output" --private-key "$private_key" --public-key "$public_key" --key-id "$key_id" > "$release_result"
+release_root=$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).root)' "$release_result")
+pnpm dlx bun@1.3.14 scripts/distribution-issue-source-build-certificate.ts --selection distribution/fixtures/monitor.json --export-root "$export_root" --expected-source-identity "$expected_source_identity" --release-root "$release_root" --public-key "$public_key" --key-id "$key_id" > "$certificate_result"
+certificate=$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).path)' "$certificate_result")
+scripts/verify-monitor-native-runtime-linux-amd64.sh --export-root "$export_root" --release-result "$release_result" --certificate "$certificate" --public-key "$public_key" --expected-source-identity "$expected_source_identity" --output "$runtime_output"
+```
 
 ## Milestones and responsibility
 

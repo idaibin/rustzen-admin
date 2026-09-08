@@ -3,46 +3,70 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-output=target/rz/p8e-monitor-native-runtime
-export_pointer=target/rz/p8d-postcommit-export-path.txt
-release_pointer=target/rz/p8d-postcommit-release-result-path.txt
-certificate_pointer=target/rz/p8d-postcommit-certificate-result-path.txt
-key_pointer=target/rz/p8d-postcommit-key-path.txt
-for pointer in "$export_pointer" "$release_pointer" "$certificate_pointer" "$key_pointer"; do
-  test -f "$pointer"
-  test "$(wc -l < "$pointer" | tr -d ' ')" = 1
+usage() {
+  echo "usage: $0 --export-root PATH --release-result FILE --certificate FILE --public-key FILE --expected-source-identity ID --output NEW_DIRECTORY" >&2
+  exit 2
+}
+test "$#" -eq 12 || usage
+while test "$#" -gt 0; do
+  case "$1" in
+    --export-root) test -z "${export_arg:-}" || usage; export_arg="$2" ;;
+    --release-result) test -z "${release_arg:-}" || usage; release_arg="$2" ;;
+    --certificate) test -z "${certificate_arg:-}" || usage; certificate_arg="$2" ;;
+    --public-key) test -z "${key_arg:-}" || usage; key_arg="$2" ;;
+    --expected-source-identity) test -z "${source_identity:-}" || usage; source_identity="$2" ;;
+    --output) test -z "${output_arg:-}" || usage; output_arg="$2" ;;
+    *) usage ;;
+  esac
+  test -n "$2" || usage
+  shift 2
 done
-export_root="$(<"$export_pointer")"
-release_result="$(<"$release_pointer")"
-certificate_result="$(<"$certificate_pointer")"
-key_root="$(<"$key_pointer")"
+for value in "${export_arg:-}" "${release_arg:-}" "${certificate_arg:-}" "${key_arg:-}" "${source_identity:-}" "${output_arg:-}"; do test -n "$value" || usage; done
+canonical_file() { test -f "$1" && test ! -L "$1" && realpath "$1"; }
+canonical_directory() { test -d "$1" && test ! -L "$1" && realpath "$1"; }
+export_root="$(canonical_directory "$export_arg")"
+release_result="$(canonical_file "$release_arg")"
+certificate="$(canonical_file "$certificate_arg")"
+public_key="$(canonical_file "$key_arg")"
+for path in "$export_root" "$release_result" "$certificate"; do
+  case "$path" in "$root"/*) ;; *) echo "runtime input must be beneath repository root: $path" >&2; exit 2 ;; esac
+done
+output_name="$(basename "$output_arg")"
+test "$output_name" != . && test "$output_name" != .. && test -n "$output_name" || usage
+output_parent="$(cd "$(dirname "$output_arg")" && pwd -P)"
+case "$output_parent" in "$root/target/rz"|"$root/target/rz"/*) ;; *) echo "--output parent must be beneath target/rz" >&2; exit 2 ;; esac
+output="$output_parent/$output_name"
+test ! -e "$output" && test ! -L "$output" || { echo "--output must not exist: $output" >&2; exit 2; }
+reject_overlap() {
+  case "$output/" in "$1/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
+  case "$1/" in "$output/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
+}
+for protected in "$export_root" "$release_result" "$(dirname "$certificate")" "$public_key"; do reject_overlap "$protected"; done
 release_root="$(pnpm dlx bun@1.3.14 -e 'console.log(JSON.parse(await Bun.file(process.argv[1]).text()).root)' "$release_result")"
-certificate="$(pnpm dlx bun@1.3.14 -e 'console.log(JSON.parse(await Bun.file(process.argv[1]).text()).path)' "$certificate_result")"
-source_identity="$(pnpm dlx bun@1.3.14 -e 'console.log(JSON.parse(await Bun.file(process.argv[1]).text()).sourceIdentityInput)' "$export_root/release/container-provenance.json")"
+release_root="$(canonical_directory "$release_root")"
+case "$release_root" in "$root"/*) ;; *) echo "release root must be beneath repository root" >&2; exit 2 ;; esac
+reject_overlap "$release_root"
 key_id="$(pnpm dlx bun@1.3.14 -e 'console.log(JSON.parse(await Bun.file(process.argv[1]).text()).payload.keyId)' "$release_root/signature-envelope.json")"
 archive="$release_root/archive.tar"
 manifest="$release_root/release-manifest.json"
 envelope="$release_root/signature-envelope.json"
-public_key="$key_root/public.pem"
 for artifact in "$archive" "$manifest" "$envelope" "$certificate" "$public_key"; do test -f "$artifact"; done
+admission="$(pnpm dlx bun@1.3.14 scripts/distribution-verify-published-source-build-certificate.ts \
+  --selection distribution/fixtures/monitor.json --export-root "$export_root" \
+  --expected-source-identity "$source_identity" --release-root "$release_root" \
+  --public-key "$public_key" --key-id "$key_id" --certificate "$certificate")"
+mkdir "$output"
+printf '%s\n' "$admission" > "$output/published-certificate.json"
 
-rm -rf "$output"
-mkdir -p "$output"
 test "$(docker version --format '{{.Server.Arch}}')" = amd64
 test "$(docker run --rm --platform linux/amd64 debian:bookworm-slim uname -m)" = x86_64
 docker run --rm --platform linux/amd64 -v "$root:/work:ro" -w /work \
   -v rustzen-p8e-cli-cargo:/usr/local/cargo/registry -v rustzen-p8e-cli-target:/cargo-target \
   rust:1.95-bookworm cargo build --release -p rustzen-cli --target-dir /cargo-target
-docker run --rm --platform linux/amd64 -v rustzen-p8e-cli-target:/cargo-target:ro -v "$root/$output:/output" \
+docker run --rm --platform linux/amd64 -v rustzen-p8e-cli-target:/cargo-target:ro -v "$output:/output" \
   debian:bookworm-slim cp /cargo-target/release/rz /output/rz
 cli="$output/rz"
 test -x "$cli"
-pnpm dlx bun@1.3.14 scripts/distribution-verify-published-source-build-certificate.ts \
-  --selection distribution/fixtures/monitor.json --export-root "$export_root" \
-  --expected-source-identity "$source_identity" --release-root "$release_root" \
-  --public-key "$public_key" --key-id "$key_id" --certificate "$certificate" \
-  > "$output/published-certificate.json"
-
 name="rz-p8e-native-runtime-$$"
 setup="$name-setup"
 image=rz-p8e-systemd-bookworm-amd64-v1
