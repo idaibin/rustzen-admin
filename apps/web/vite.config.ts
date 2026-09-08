@@ -14,17 +14,24 @@ const selectedPreset = process.env.RUSTZEN_WEB_PRESET;
 const selectedRoot = process.env.RUSTZEN_WEB_SELECTED_ROOT;
 const selectedOutput = process.env.RUSTZEN_WEB_OUTPUT_DIR;
 const selectedViteInventory = process.env.RUSTZEN_WEB_VITE_INVENTORY;
-const isMonitorBuild = selectedPreset === "monitor" && Boolean(selectedRoot) && Boolean(selectedOutput);
+const isMonitorBuild =
+    ["monitor", "monitor-notify"].includes(selectedPreset ?? "") &&
+    Boolean(selectedRoot) &&
+    Boolean(selectedOutput);
 
 if (selectedPreset && !isMonitorBuild) {
-    throw new Error("selected Web builds currently support only the monitor preset");
+    throw new Error("selected Web builds currently support only monitor compositions");
 }
 
 const selectedPath = (...segments: string[]) => resolve(selectedRoot!, ...segments);
 const selectedInventoryPlugin = isMonitorBuild
     ? {
           name: "rustzen-selected-web-inventory",
-          generateBundle(this: { getModuleIds: () => Iterable<string> }, _options: unknown, bundle: object) {
+          generateBundle(
+              this: { getModuleIds: () => Iterable<string> },
+              _options: unknown,
+              bundle: object,
+          ) {
               writeFileSync(
                   selectedViteInventory!,
                   `${JSON.stringify(

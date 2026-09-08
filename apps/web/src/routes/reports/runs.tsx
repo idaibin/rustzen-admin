@@ -3,7 +3,7 @@ import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Tag } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { reportsQueryOptions } from "@/api/reports/query-options";
@@ -15,11 +15,11 @@ import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
-import { RunDetails } from "./-runs/run-details";
 import { RetryRunButton } from "./-runs/retry-run-button";
+import { RunDetails } from "./-runs/run-details";
 import { RunDialog } from "./-runs/run-dialog";
-import { REPORTS_FLOW_VIEW } from "./-schedule-permissions";
 import { getRunStatusMeta, isActiveRun } from "./-runs/status";
+import { REPORTS_FLOW_VIEW } from "./-schedule-permissions";
 
 export const Route = createFileRoute("/reports/runs")({ component: RunsPage });
 
@@ -35,6 +35,9 @@ function RunsPage() {
     const [current, setCurrent] = useState(1);
     const [selected, setSelected] = useState<Reports.Run>();
     const client = useQueryClient();
+    const generation = useAuthStore((state) => state.authGeneration);
+    const selectedGeneration = useRef(generation);
+    const visibleSelected = selectedGeneration.current === generation ? selected : undefined;
     const canViewFlows = useAuthStore((state) => state.checkPermissions(REPORTS_FLOW_VIEW));
     const { data: flows = [] } = useQuery({
         ...reportsQueryOptions.flows(),
@@ -50,16 +53,31 @@ function RunsPage() {
         typeof window === "undefined"
             ? null
             : new URLSearchParams(window.location.search).get("runId");
-    const { data: linkedRun } = useQuery({
-        queryKey: ["reports", "run", linkedRunId],
+    const {
+        data: linkedRun,
+        error: linkedRunError,
+        isFetching: linkedRunFetching,
+    } = useQuery({
+        queryKey: ["reports", "run", generation, linkedRunId],
         queryFn: () => reportsAPI.run(linkedRunId!),
         enabled: Boolean(linkedRunId),
+        retry: false,
+        staleTime: 0,
+        refetchOnMount: "always",
     });
     const total = data?.total ?? 0;
 
     useEffect(() => {
+        if (linkedRunError || linkedRunFetching) {
+            setSelected(undefined);
+            return;
+        }
         if (linkedRun) setSelected(linkedRun);
-    }, [linkedRun]);
+    }, [linkedRun, linkedRunError, linkedRunFetching]);
+    useEffect(() => {
+        selectedGeneration.current = generation;
+        setSelected(undefined);
+    }, [generation]);
     useEffect(() => {
         if (data === undefined || isFetching) return;
         const lastPage = Math.max(1, Math.ceil(total / pageSize));
@@ -239,7 +257,7 @@ function RunsPage() {
                 />
             </DataTableShell>
             <RunDetails
-                run={selected}
+                run={visibleSelected}
                 onClose={() => setSelected(undefined)}
                 onRetried={setSelected}
             />

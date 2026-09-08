@@ -184,6 +184,10 @@ verify-admin-notification-sse-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-admin-notification-sse-linux.test.mjs
     scripts/verify-admin-notification-sse-linux.sh
 
+verify-message-center-browser-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-message-center-browser-linux.test.mjs
+    scripts/verify-message-center-browser-linux.sh
+
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
     scripts/verify-schedule-form-linux.sh

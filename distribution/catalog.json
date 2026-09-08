@@ -108,7 +108,7 @@
                     "reason": "Reports producer Linux certification and realtime delivery are not implemented."
                 }
             ],
-            "webRoots": [],
+            "webRoots": ["apps/web/src/routes/-notifications-shell.tsx"],
             "schemaOwners": ["admin-notifications"],
             "schemaOwnerIntersections": [
                 {

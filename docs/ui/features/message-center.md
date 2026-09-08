@@ -3,8 +3,10 @@
 Status: P5a and P5b durable-inbox backend contracts, P7a Access session
 authority, and P7b backend SSE are implemented and verified locally through
 source tests, independent review, and a selected-composition Linux runtime
-gate. The P7 message-center and realtime contract below is frozen. P7c Web
-remains pending and has no implemented UI acceptance yet.
+gate. The P7 message-center and realtime contract below is frozen. P7c Web is
+implemented and locally verified at source, type-check, full-build,
+selected/pure-composition and disposable Linux Chromium layers. The published
+browser evidence is `target/rz/message-center-browser/current/manifest.json`.
 
 ## Product boundary
 
@@ -89,7 +91,7 @@ field. The Monitor route must resolve that exact incident through its authorized
 API and treat 403/404 as inaccessible without falling back to another incident.
 Unknown producer/topic/subject combinations have no navigation action.
 
-## P7 realtime contract (P7b backend implemented; P7c pending)
+## P7 realtime contract (P7b backend and P7c Web implemented locally)
 
 Notifications-selected Admin exposes `GET /api/notifications/stream` as one
 direct authenticated fetch-SSE endpoint. The Bearer JWT and optional
@@ -138,8 +140,17 @@ create a user-facing partial message. Existing inbox rows remain readable while
 new notification admission is paused. Duplicate producer retries remain
 idempotent, and the UI never infers delivery from an event that was rejected.
 
-P7b's disposable Linux runtime gate does not establish browser, reverse-proxy,
-sustained-load, native-systemd or production-deployment acceptance. Those
-runtime layers and the P7c Web behavior remain pending.
+P7c source tests exercise the streaming parser, transport policy, lifecycle
+seams, fixed subject mapping and UI state ownership. The full Web build and both
+`monitor-notify` and pure `monitor` selected builds pass; the pure artifact has
+no notification-owned source module, API path, schema object, ingress listener
+or message-center shell. The published disposable `linux/arm64` Chromium gate
+passes eleven desktop/mobile journeys, direct and same-origin-proxy SSE
+preflights, one browser-origin stream per journey, event-driven durable
+count/list reconciliation, stream-401 login recovery, durable
+loading/empty/paging/read states, 403 clearing, in-app Monitor incident deep
+linking, exact screenshots and owned-container cleanup. Global-1,000 sustained
+load, native systemd, production reverse-proxy and production deployment remain
+pending for P8 or target-environment acceptance.
 Monitor and Reports producer delivery remains P6 and does not depend on a
 browser connection.

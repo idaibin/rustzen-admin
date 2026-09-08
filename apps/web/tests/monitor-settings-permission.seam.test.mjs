@@ -46,7 +46,7 @@ test("node policy shows its source and allows managers to save or reset an overr
 });
 
 test("Nodes keeps cached rows visible and provides a background-refresh retry", () => {
-    expect(nodesSource).toContain("hasNodesBackgroundRefreshFailure(data, error)");
+    expect(nodesSource).toContain("hasMonitorBackgroundRefreshFailure(data, error)");
     expect(nodesSource).toContain("<BackgroundRefreshNotice");
     expect(nodesSource).toContain("onRetry={() => void refetch()}");
 });

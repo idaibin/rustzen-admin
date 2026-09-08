@@ -2,7 +2,7 @@ import { CheckCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icon
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Drawer, Pagination, Select, Space, Tag, Typography } from "antd";
+import { Button, Pagination, Select, Space, Tag, Typography } from "antd";
 import { useMemo, useState } from "react";
 
 import { monitorAPI } from "@/api";
@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
 import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
+import { IncidentDrawer } from "./-incident-drawer";
 
 export const Route = createFileRoute("/monitoring/incidents")({
     component: MonitoringIncidentsPage,
@@ -25,6 +26,11 @@ function MonitoringIncidentsPage() {
     const [kind, setKind] = useState<"all" | Monitor.IncidentKind>("all");
     const [current, setCurrent] = useState(1);
     const [selected, setSelected] = useState<Monitor.IncidentSummary>();
+    const [linkedId, setLinkedId] = useState(() =>
+        typeof window === "undefined"
+            ? undefined
+            : (new URLSearchParams(window.location.search).get("incidentId") ?? undefined),
+    );
     const query = useMemo<Monitor.IncidentQuery>(
         () => ({
             current,
@@ -228,64 +234,14 @@ function MonitoringIncidentsPage() {
                     />
                 </div>
             </DataTableShell>
-            <IncidentDrawer incident={selected} onClose={() => setSelected(undefined)} />
+            <IncidentDrawer
+                incident={selected}
+                incidentId={selected?.id ?? linkedId}
+                onClose={() => {
+                    setSelected(undefined);
+                    setLinkedId(undefined);
+                }}
+            />
         </PageCard>
-    );
-}
-
-function IncidentDrawer({
-    incident,
-    onClose,
-}: {
-    incident?: Monitor.IncidentSummary;
-    onClose: () => void;
-}) {
-    const { data, error, isPending, refetch } = useQuery({
-        queryKey: ["monitor", "incident", incident?.id],
-        queryFn: () => monitorAPI.incident(incident!.id),
-        enabled: Boolean(incident),
-    });
-    return (
-        <Drawer
-            open={Boolean(incident)}
-            onClose={onClose}
-            title={data?.title ?? incident?.title ?? t("事件详情", "Incident details")}
-            size="large"
-            destroyOnHidden
-        >
-            {isPending ? (
-                <DataState
-                    kind="loading"
-                    title={t("正在加载事件详情", "Loading incident details")}
-                    compact
-                />
-            ) : error ? (
-                <DataState
-                    kind="error"
-                    title={t("事件详情加载失败", "Failed to load incident details")}
-                    action={<Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>}
-                    compact
-                />
-            ) : data ? (
-                <Space orientation="vertical" className="w-full">
-                    <Typography.Text>
-                        {data.node.hostname} · {data.node.nodeId}
-                    </Typography.Text>
-                    <Typography.Text>
-                        {t("阈值", "Threshold")}: {data.thresholdPercent ?? "-"}% ·{" "}
-                        {t("观测值", "Observed")}: {data.observedPercent ?? "-"}%
-                    </Typography.Text>
-                    <Typography.Text>
-                        {t("打开时间", "Opened")}: {formatDateTime(data.openedAt)}
-                    </Typography.Text>
-                    <Typography.Text>
-                        {t("解决原因", "Resolution reason")}: {data.resolutionReason ?? "-"}
-                    </Typography.Text>
-                    <pre className="max-h-72 overflow-auto rounded bg-muted p-3 text-xs">
-                        {JSON.stringify(data.details, null, 2)}
-                    </pre>
-                </Space>
-            ) : null}
-        </Drawer>
     );
 }

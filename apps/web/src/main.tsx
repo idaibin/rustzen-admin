@@ -5,7 +5,9 @@ import "antd/dist/reset.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { bindAuthenticatedQueryCache } from "@/lib/auth-query-cache";
 import { LocaleProvider } from "@/lib/i18n";
+import { useAuthStore } from "@/store/useAuthStore";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -21,6 +23,8 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+bindAuthenticatedQueryCache(queryClient, useAuthStore);
 
 const router = createRouter({
     routeTree,

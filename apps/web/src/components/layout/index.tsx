@@ -18,9 +18,10 @@ import { getMenuData, getSearchRouteItems, type AppRouteItem, type AppRoutePath 
 interface BaseLayoutProps {
     children: ReactNode;
     hidden?: boolean;
+    headerActions?: ReactNode;
 }
 
-export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
+export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayoutProps) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const screens = Grid.useBreakpoint();
@@ -131,6 +132,7 @@ export const BaseLayout = ({ children, hidden = false }: BaseLayoutProps) => {
                     <AppSearch routes={searchRoutes} onSelect={handleSearchSelect} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                    {headerActions}
                     <LanguageSwitch />
                     <ThemeSwitch />
                     <UserMenu

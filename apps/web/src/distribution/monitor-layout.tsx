@@ -19,7 +19,7 @@ const routes = [
     ["/system/role", "角色", "Roles", "system:role:list", <TeamOutlined />],
 ] as const;
 
-export const BaseLayout = ({ children, hidden = false }: { children: ReactNode; hidden?: boolean }) => {
+export const BaseLayout = ({ children, hidden = false, headerActions }: { children: ReactNode; hidden?: boolean; headerActions?: ReactNode }) => {
     const location = useLocation();
     const router = useRouter();
     const userInfo = useAuthStore((state) => state.userInfo);
@@ -59,6 +59,7 @@ export const BaseLayout = ({ children, hidden = false }: { children: ReactNode; 
             </aside>
             <header className="shell-header">
                 <div className="ms-auto flex shrink-0 items-center gap-2">
+                    {headerActions}
                     <LanguageSwitch />
                     <ThemeSwitch />
                     <Dropdown
