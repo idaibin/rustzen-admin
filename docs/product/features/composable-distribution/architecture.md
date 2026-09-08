@@ -624,6 +624,28 @@ the Agent package is certified. The current closure provides the certificate
 schema, expected-input verifier and explicit binary contract extraction; issuer,
 stable batch capture and certificate publication remain unimplemented.
 
+The first P8b build-batch closure is a Linux/amd64 BuildKit export for the
+admitted `monitor` server selection only. It requires the musl target and a
+caller-supplied source-identity input. The caller selects `--platform
+linux/amd64`, and the export producer rejects any other runtime platform without
+changing the shared full-build stage. It then writes exactly two roots: `release`
+and `witness`. `release/server/bin` contains only `rz-admin` and `rz-monitor`;
+`witness/bin` contains only `rz-monitor-agent`. The latter is read only for the
+Controller/Agent protocol comparison and is outside the server payload.
+
+Within that same build stage, the selected Web producer emits its inventory and
+`dist` under `release/web`; API, fresh-schema, selected-config, reviewed
+protocol and native-layout producers write beneath `release/contracts`. Every
+binary-facing producer receives an explicit temporary release binary root made
+from the already-built Linux executables. It must not invoke Cargo, use a debug
+target or receive a fixture helper. The terminal export records canonical
+`release/output-manifest.json` over the payload and
+`release/container-provenance.json` with the raw selection input and digest,
+source-identity input, `rustc -Vv`, target triple, Linux/amd64 platform and
+exact Cargo command arrays. These files are batch evidence only: they neither
+issue a source-build certificate nor sign, publish, install or mark a release
+current.
+
 The planned canonical `source-build-manifest` has exactly `source`, `build`
 and `artifact` certified layers. It binds the source identity/tree digest,
 toolchain/build ID/binary digests, and manifest/archive/envelope digests. Its

@@ -40,15 +40,31 @@ function assertDockerfileGuard(dockerfile: string) {
         throw new Error(
             "Dockerfile must compare selected Web source and embedded file hashes",
         );
+    for (const required of [
+        'ARG SOURCE_IDENTITY=',
+        'test -n "${SOURCE_IDENTITY}"',
+        'test "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl"',
+        "scripts/distribution-produce-contracts.ts",
+        "scripts/distribution-produce-protocol.ts",
+        "scripts/distribution-produce-native-layout.ts",
+        "bun scripts/distribution-produce-container-export.ts",
+        "--binary-root /tmp/rz-monitor-producers",
+        "--output-root /out/release/contracts/protocol",
+        "--output-root /out/release/contracts/native",
+        "--output-root /out",
+        "RUSTZEN_CONTAINER_BUILD_COMMANDS=",
+    ])
+        if (!dockerfile.includes(required))
+            throw new Error(`Dockerfile is missing P8b Monitor export boundary: ${required}`);
     const b = branches(dockerfile);
     if (!b.aarch64.includes("rustzen-reports &&"))
         throw new Error("aarch64 build failure must stop install");
     exact(
         installs(b.monitor),
         [
-            "/out/agent/bin/rz-monitor-agent",
-            "/out/server/bin/rz-admin",
-            "/out/server/bin/rz-monitor",
+            "/out/release/server/bin/rz-admin",
+            "/out/release/server/bin/rz-monitor",
+            "/out/witness/bin/rz-monitor-agent",
         ],
         "monitor",
     );
@@ -81,7 +97,7 @@ describe("Docker distribution input", () => {
         const dockerfile = await Bun.file(
             resolve(import.meta.dir, "../Dockerfile"),
         ).text();
-        for (const mutation of [
+        [
             (s: string) =>
                 s.replace('case "${DISTRIBUTION}" in full|monitor)', ""),
             (s: string) =>
@@ -91,40 +107,36 @@ describe("Docker distribution input", () => {
                 ),
             (s: string) =>
                 s.replace(
-                    "/out/agent/bin/rz-monitor-agent",
-                    "/out/server/bin/rz-monitor-agent",
+                    "/out/witness/bin/rz-monitor-agent",
+                    "/out/release/server/bin/rz-monitor-agent",
                 ),
             (s: string) =>
                 s.replace(
-                    '/out/server/bin/rz-monitor" &&',
-                    '/out/server/bin/rz-reports" &&',
+                    '/out/release/server/bin/rz-monitor" &&',
+                    '/out/release/server/bin/rz-reports" &&',
                 ),
             (s: string) =>
                 s.replace("/out/bin/rz-reports", "/out/bin/rz-extra"),
             (s: string) =>
                 s.replace("/out/bin/rz-insights", "/out/bin/rz-extra"),
             (s: string) =>
-                s.replace("/out/server/bin/rz-admin", "/out/bin/rz-admin"),
+                s.replace("/out/release/server/bin/rz-admin", "/out/bin/rz-admin"),
             (s: string) =>
-                s.replace("/out/server/bin/rz-monitor", "/out/bin/rz-monitor"),
+                s.replace("/out/release/server/bin/rz-monitor", "/out/bin/rz-monitor"),
             (s: string) =>
                 s.replace(
-                    "/out/agent/bin/rz-monitor-agent",
+                    "/out/witness/bin/rz-monitor-agent",
                     "/out/bin/rz-monitor-agent",
                 ),
             (s: string) =>
-                s.replace("/out/bin/rz-admin", "/out/server/bin/rz-admin"),
-            (s: string) =>
-                s.replace("/out/bin/rz-monitor", "/out/agent/bin/rz-monitor"),
-            (s: string) =>
                 s.replace(
-                    '/out/agent/bin/rz-monitor-agent"',
-                    '/out/agent/bin/rz-monitor-agent" && install -m 0755 "/app/sentinel" "/out/bin/rz-reports"',
+                    '/out/witness/bin/rz-monitor-agent"',
+                    '/out/witness/bin/rz-monitor-agent" && install -m 0755 "/app/sentinel" "/out/bin/rz-reports"',
                 ),
             (s: string) =>
                 s.replace(
-                    '/out/agent/bin/rz-monitor-agent"',
-                    '/out/agent/bin/rz-monitor-agent" && install -m 0755 "/app/sentinel" "/out/other/bin/rz-extra"',
+                    '/out/witness/bin/rz-monitor-agent"',
+                    '/out/witness/bin/rz-monitor-agent" && install -m 0755 "/app/sentinel" "/out/other/bin/rz-extra"',
                 ),
             (s: string) =>
                 s.replace(
@@ -132,8 +144,17 @@ describe("Docker distribution input", () => {
                     '/out/bin/rz-reports" && install -m 0755 "/app/sentinel" "/out/server/bin/rz-extra"',
                 ),
             (s: string) => s.replace("rustzen-reports &&", "rustzen-reports;"),
-        ])
-            expect(() => assertDockerfileGuard(mutation(dockerfile))).toThrow();
+            (s: string) => s.replace('test -n "${SOURCE_IDENTITY}"', "true"),
+            (s: string) => s.replace("bun scripts/distribution-produce-container-export.ts", "bun scripts/missing-export.ts"),
+            (s: string) => s.replace("RUSTZEN_CONTAINER_BUILD_COMMANDS=", "RUSTZEN_CONTAINER_COMMANDS="),
+        ].forEach((mutation, index) => {
+            try {
+                assertDockerfileGuard(mutation(dockerfile));
+            } catch {
+                return;
+            }
+            throw new Error(`mutation ${index} must fail closed`);
+        });
     });
     test("rejects empty, misspelled and custom compositions before build", () => {
         for (const value of ["", "monitr", "custom"])

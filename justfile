@@ -291,9 +291,19 @@ verify-monitor-selected-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/selected-protocol.test.ts distribution/release-manifest-protocol.test.ts
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-protocol.ts --selection distribution/fixtures/monitor.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-protocol.ts --selection distribution/fixtures/node-agent.json
+    pnpm dlx bun@1.3.14 test distribution/selected-protocol.test.ts distribution/release-manifest-protocol.test.ts scripts/distribution-produce-protocol-cli.test.ts
+    just _produce-selected-protocol distribution/fixtures/monitor.json
+    just _produce-selected-protocol distribution/fixtures/node-agent.json
+
+_produce-selected-protocol SELECTION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    selection="{{SELECTION}}"
+    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection "$selection" | node -e 'let value=""; process.stdin.on("data", chunk => value += chunk); process.stdin.on("end", () => console.log(JSON.parse(value).compositionId))')
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-protocol.ts \
+        --selection "$selection" \
+        --binary-root target/debug \
+        --output-root "target/distributions/${composition}/contracts/protocol"
 
 verify-monitor-config-descriptors:
     cargo test -p rustzen-config --no-default-features --features admin-monitor

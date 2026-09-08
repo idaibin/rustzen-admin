@@ -255,6 +255,30 @@ orchestrator must capture one exact release inventory before and after extractio
 Agent protocol extraction remains a separate witness operation and cannot make
 the Agent binary a member of the Monitor server archive.
 
+### P8b Monitor container export
+
+The Monitor Docker export accepts only `DISTRIBUTION=monitor`,
+`TARGET_TRIPLE=x86_64-unknown-linux-musl` and a nonempty `SOURCE_IDENTITY`
+build input. The caller must select Linux/amd64 and the producer verifies that
+runtime platform inside the build stage. Before the terminal
+export it must have these payload members:
+
+| Root | Required members |
+| --- | --- |
+| `release/server/bin` | `rz-admin`, `rz-monitor` |
+| `witness/bin` | `rz-monitor-agent` |
+| `release/web` | `inventory.json`, nonempty selected `dist/` |
+| `release/contracts` | `api/api.json`, `schema/schema.json`, `config/config.json`, `protocol/protocol.json`, `native/native-layout.json` |
+
+No other payload root, server binary or witness binary is valid. The canonical
+`release/output-manifest.json` records every payload file's relative path,
+mode, size and SHA-256. `release/container-provenance.json` records the exact
+selection input and canonical digest, source-identity input, `rustc -Vv`, target
+triple, `linux/amd64` build platform, exact command arrays and the output-manifest
+digest. Both documents reject links and unsupported file modes. They are not a
+`source-build-manifest`, cannot set a certification boolean and cannot be used to
+publish, install, sign or update a current pointer.
+
 The installer rejects duplicate paths, absolute paths, parent traversal,
 unexpected links/files, oversized members, incorrect modes, unknown capabilities,
 missing units/assets, and hash/signature mismatches before switching anything.

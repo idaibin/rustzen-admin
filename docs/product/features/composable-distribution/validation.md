@@ -49,6 +49,18 @@ inputs and makes contract extraction require an explicit binary directory. The
 issuer, stable same-batch inventory, crash-safe publication, Colima build and
 Linux artifact evidence remain **Not implemented / Not verified**.
 
+The first P8b container closure is verified separately from certification. Its
+static boundary test must reject a non-Linux/amd64 build stage, an omitted Monitor
+source-identity requirement, a target other than x86_64 musl, a missing explicit
+binary root for protocol extraction, omission of any Web/API/schema/config/protocol/native
+output, a misplaced or extra server/witness binary, a missing output manifest or
+provenance record, and a build path that omits the exact command arrays. Its
+artifact test creates an exact temporary payload and rejects missing contracts,
+unexpected payload paths, links, unsupported modes and non-Linux/amd64 provenance.
+Passing these tests establishes source and static producer closure only. A real
+Colima BuildKit export must still inspect the emitted files and execute selected
+Linux binary/contract checks before it can serve as P8b artifact evidence.
+
 Exhaustively validate dependency closure and generated inventories for the
 finite capability catalog. Compile and integration-test official presets plus
 every custom selection actually released. Additional pairwise combinations are

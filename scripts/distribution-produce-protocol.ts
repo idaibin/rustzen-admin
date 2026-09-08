@@ -4,15 +4,23 @@ import { produceSelectedProtocol } from "../distribution/selected-protocol.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
 
 const root = resolve(import.meta.dir, "..");
-const [flag, selectionPath] = Bun.argv.slice(2);
-if (flag !== "--selection" || !selectionPath)
+const args = values(
+    Bun.argv.slice(2),
+    new Set(["--selection", "--binary-root", "--output-root"]),
+);
+const selectionPath = args.get("--selection");
+const binaryRootInput = args.get("--binary-root");
+const outputRootInput = args.get("--output-root");
+if (!selectionPath || !binaryRootInput || !outputRootInput || args.size !== 3)
     throw new Error(
-        "usage: bun scripts/distribution-produce-protocol.ts --selection <selection.json>",
+        "usage: --selection <selection.json> --binary-root <release-binary-root> --output-root <output-root>",
     );
+const binaryRoot = resolve(root, binaryRootInput);
+const outputRoot = resolve(root, outputRootInput);
 
 const run = (name: string) => {
     const result = Bun.spawnSync(
-        [join(root, "target/debug", name), "contract", "protocol"],
+        [join(binaryRoot, name), "contract", "protocol"],
         {
             cwd: "/tmp",
             env: { PATH: process.env.PATH ?? "" },
@@ -27,23 +35,29 @@ const run = (name: string) => {
 
 const selection = await Bun.file(resolve(root, selectionPath)).json();
 const plan = resolveSelection(selection);
-const rootPath = join(
-    root,
-    "target/distributions",
-    plan.compositionId,
-    "contracts/protocol",
-);
 const produced = await produceSelectedProtocol(
     selection,
-    rootPath,
+    outputRoot,
     run("rz-monitor"),
     run("rz-monitor-agent"),
 );
+
+function values(input: string[], allowed: Set<string>) {
+    if (input.length % 2 !== 0) return new Map<string, string>();
+    const result = new Map<string, string>();
+    for (let index = 0; index < input.length; index += 2) {
+        const name = input[index], value = input[index + 1];
+        if (!name || !value || !allowed.has(name) || result.has(name))
+            return new Map<string, string>();
+        result.set(name, value);
+    }
+    return result;
+}
 console.log(
     canonicalJson({
         artifactClass: plan.artifactClass,
         compositionId: plan.compositionId,
-        path: join(rootPath, "protocol.json"),
+        path: join(outputRoot, "protocol.json"),
         sha256: produced.sha256,
     }),
 );
