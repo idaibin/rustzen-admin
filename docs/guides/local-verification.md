@@ -128,10 +128,12 @@ still create parallel tasks.
 ## Nodes onboarding and configuration verification
 
 - Nodes now owns Add node and Global settings drawers; the independent settings route and menu are removed. The live Monitor manifest exposes only overview, nodes, incidents and summaries.
-- Built-in Browser verified required-node-ID validation, generated
-  `rz-monitor-agent` setup command, waiting before an Agent report, and connected
-  after a real local Agent reported as `local-dev-node`. Task-owned verification
-  services were stopped after the checks.
+- Add node is the current six-step offline installation explanation: it names the
+  signed archive, release manifest, envelope, trusted public key, key ID,
+  Controller pinning, root-only configuration source, and activation phase. The
+  informational Drawer contains no token, URL, input, copy action, or executable
+  command; its primary action remains disabled until those target-host boundaries
+  are integrated.
 - Global settings loaded and saved all four defaults together; the saved update time was read back. Values remain 90%, 90%, 90% and 90 seconds.
 - At 390px viewport width, the drawer was corrected from 736px overflow to exactly 390px, then visually inspected. Desktop viewport restored afterward.
 - Eight focused frontend checks, TypeScript and scoped lint passed. Remote-host installation, Windows setup, and complete role/browser error matrices were not exercised.

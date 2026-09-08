@@ -20,7 +20,8 @@ import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
 import { GlobalAlertSettings } from "./-global-alert-settings";
-import { NodeDetails, PolicySourceTag } from "./-node-details";
+import { NodeAlertPolicySourceTag } from "./-node-alert-policy";
+import { NodeDetails } from "./-node-details";
 import { NodeOnboarding } from "./-node-onboarding";
 import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
 
@@ -75,7 +76,7 @@ function MonitoringNodesPage() {
             title: t("告警策略", "Alert policy"),
             dataIndex: "alertPolicySource",
             width: 110,
-            render: (_, row) => <PolicySourceTag source={row.alertPolicySource} />,
+            render: (_, row) => <NodeAlertPolicySourceTag source={row.alertPolicySource} />,
         },
         {
             title: t("内存", "Memory"),
