@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "bun:test";
+import { selectedCargoBuilds } from "../distribution/selected-cargo-producer.ts";
+import { resolveSelection } from "../distribution/resolver.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 
@@ -16,12 +18,28 @@ test(
             const output = join(scratch, "contracts");
             await mkdir(cwd);
             expect(existsSync(target)).toBeFalse();
+            const selectionPath = join(
+                repositoryRoot,
+                "distribution/fixtures/monitor-notify.json",
+            );
+            const plan = resolveSelection(await Bun.file(selectionPath).json());
+            for (const command of selectedCargoBuilds(plan)) {
+                const build = Bun.spawnSync(command, {
+                    cwd: repositoryRoot,
+                    env: { ...process.env, CARGO_TARGET_DIR: target },
+                    stdout: "pipe",
+                    stderr: "pipe",
+                });
+                expect(build.exitCode).toBe(0);
+            }
             const result = Bun.spawnSync(
                 [
                     process.execPath,
                     join(repositoryRoot, "scripts/distribution-produce-contracts.ts"),
                     "--selection",
-                    join(repositoryRoot, "distribution/fixtures/monitor-notify.json"),
+                    selectionPath,
+                    "--binary-root",
+                    join(target, "debug"),
                 ],
                 {
                     cwd,

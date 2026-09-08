@@ -614,6 +614,27 @@ The admission result contains no artifact digest and cannot be consumed as a
 release certificate; later source/build, native, runtime, browser and load
 reports each bind their own immutable inputs.
 
+The pending P8b issuer must consume an admitted Monitor plan through one
+release-binary batch. Cargo will produce `rz-admin` and `rz-monitor` into an
+explicit release directory; the contract, protocol, staging and manifest
+producers must read that directory and never silently run a second debug Cargo
+build. The Agent executable is used only to obtain and compare the reviewed
+protocol witness. It is neither copied into the server payload nor evidence that
+the Agent package is certified. The current closure provides the certificate
+schema, expected-input verifier and explicit binary contract extraction; issuer,
+stable batch capture and certificate publication remain unimplemented.
+
+The planned canonical `source-build-manifest` has exactly `source`, `build`
+and `artifact` certified layers. It binds the source identity/tree digest,
+toolchain/build ID/binary digests, and manifest/archive/envelope digests. Its
+four later-layer booleans are permanently false: native runtime, browser journey,
+load and `releaseReady`. The production release gate must continue to reject a
+plan until separate immutable evidence satisfies every later layer; certificate
+creation never writes a `current` pointer. The schema and expected-input verifier
+exist before the issuer: no certificate is emitted until one orchestrator captures
+the real source/toolchain, verifies one stable release snapshot and publishes the
+result with crash-safe no-replace semantics.
+
 The nonresident rz installation executor owns apply/status/recover independently
 of Admin deploy tables. The current recovery slice resumes only interrupted
 fresh payload publication for the same exact revalidated archive, envelope and

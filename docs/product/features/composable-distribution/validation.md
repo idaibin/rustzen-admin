@@ -26,6 +26,29 @@ sets. The current admitted set is `monitor` and `node-agent`.
 Admission is not a certificate and cannot satisfy any native, browser, load,
 installation or release gate.
 
+## P8b Monitor source-build certificate contract
+
+The pending Monitor P8b issuer must accept an admitted production `monitor`
+selection and one explicit release binary root. It must reject an implicit Cargo build, a
+debug/rebuilt contract producer, a different composition, missing or extra
+server binary, fixture helper on the positive path, noncanonical contract or
+manifest, and any archive or envelope digest mismatch. It records one immutable
+`source-build-manifest` after staging and local detached-signature verification.
+
+Its structural parser rejects unknown fields/layers, non-Monitor selections and
+every attempt to set `runtime`, `browser`, `load` or `releaseReady` true. The
+expected-input verifier separately rejects altered source/build/artifact identities.
+The issuer must capture those inputs itself; CLI-provided digest or toolchain
+claims are not authoritative. Successful P8b evidence still requires
+separate Linux `rz verify`, dry-run and fresh apply verification, then native
+runtime, browser and load evidence before a release gate can open or a `current`
+pointer can change.
+
+The current closure verifies only the canonical schema against authoritative
+inputs and makes contract extraction require an explicit binary directory. The
+issuer, stable same-batch inventory, crash-safe publication, Colima build and
+Linux artifact evidence remain **Not implemented / Not verified**.
+
 Exhaustively validate dependency closure and generated inventories for the
 finite capability catalog. Compile and integration-test official presets plus
 every custom selection actually released. Additional pairwise combinations are

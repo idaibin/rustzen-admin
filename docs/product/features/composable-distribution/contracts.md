@@ -228,6 +228,33 @@ artifacts/current-full-regression regardless of key trust. The full preset must
 match its exact declared feature closure; a preset label cannot override omitted
 features. Test identity/trust/root restrictions are defined in validation.md.
 
+### P8b Monitor source-build certificate
+
+`source-build-manifest` is the canonical JSON certificate contract for one
+production `monitor` server tuple. It binds the resolver's exact preset, target,
+artifact class, composition ID, capabilities and services to three and only three
+certified layers: `source` (source identity and tree digest), `build` (toolchain,
+build ID and exact `rz-admin`/`rz-monitor` file digests), and `artifact` (manifest,
+archive and detached-envelope digests). The manifest is parsed against the same
+selection before its digest is admitted.
+
+The certificate has no extensible status field. `runtime`, `browser`, `load` and
+`releaseReady` are required literal `false`; no `current` pointer, installation,
+deployment, Agent witness or later acceptance result can be included. A changed
+field, additional layer, changed capability closure or production label is a new
+certificate input and must be rebuilt. Verification requires both the structural
+parser and the authoritative selection, verified release manifest, captured
+source identity/toolchain and archive/envelope digests; parsing valid hash shapes
+alone is never acceptance. The source-build certificate is evidence for its
+three named layers only.
+
+Contract extraction accepts an explicit release binary directory. It never invokes
+Cargo itself: the caller supplies `rz-admin` and `rz-monitor`. This extraction
+step does not prove that they share a build batch. The later certification
+orchestrator must capture one exact release inventory before and after extraction.
+Agent protocol extraction remains a separate witness operation and cannot make
+the Agent binary a member of the Monitor server archive.
+
 The installer rejects duplicate paths, absolute paths, parent traversal,
 unexpected links/files, oversized members, incorrect modes, unknown capabilities,
 missing units/assets, and hash/signature mismatches before switching anything.

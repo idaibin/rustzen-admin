@@ -305,10 +305,14 @@ verify-monitor-config-descriptors:
     bash -c 'cd /tmp && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-admin" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor-agent" contract config selected >/dev/null'
 
 verify-monitor-selected-contract:
-    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts
     pnpm dlx bun@1.3.14 test scripts/distribution-produce-contracts.test.ts
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor-notify.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json
+    cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
+    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor.json --binary-root target/debug
+    cargo build -p rustzen-admin --no-default-features --features monitor-distribution,notifications --bin rz-admin
+    cargo build -p rustzen-monitor --no-default-features --features notifications --bin rz-monitor
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor-notify.json --binary-root target/debug
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json --binary-root target/debug
