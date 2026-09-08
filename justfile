@@ -278,6 +278,11 @@ verify-distribution-selected-release:
     pnpm dlx bun@1.3.14 test distribution/release-envelope.test.ts distribution/release-publisher.test.ts scripts/distribution-publish-selected-release.integration.test.ts
     scripts/verify-selected-release-linux.sh
 
+verify-monitor-container-release:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/release-key-file.test.ts distribution/container-export-release.test.ts scripts/distribution-publish-selected-release.integration.test.ts
+    scripts/verify-monitor-container-release-linux.sh
+
 verify-distribution-selected-installer:
     scripts/verify-selected-installer-linux.sh
 

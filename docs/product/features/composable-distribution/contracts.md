@@ -997,3 +997,25 @@ extra inputs before creating output. The resulting staging has exactly two serve
 selected contract files, layout-bound unit bytes and flattened `web/**` output.
 It excludes witness files and all export metadata. Its manifest is an unsigned
 local derivation and is not a release triplet or publication authorization.
+
+### Captured container signed-release command
+
+`distribution-publish-monitor-container-release` accepts exactly one each of
+`--selection`, `--export-root`, `--expected-source-identity`, `--output-base`,
+`--private-key`, `--public-key` and `--key-id`; it rejects positional, unknown,
+repeated and missing arguments. It host-validates the export, retains the
+snapshot, creates P8b staging, derives the manifest from its stable reread, and
+calls the existing selected-release publisher. The final release lives beside
+that staging at its fixed `release/` path and cannot overwrite an existing final.
+
+Both PEM inputs are opened with `O_NOFOLLOW`, must be regular files owned by
+the current uid, remain identity-stable during the bounded 16 KiB read, and are
+never printed. The private PEM must be mode `0600`; the public PEM may be
+`0600` or `0644`. The public PEM and supplied key ID are the independent trust
+inputs used for the post-publication `verifyReleaseSnapshot` reread.
+
+The public input is exactly one SPKI `PUBLIC KEY` PEM block: private-key PEMs,
+certificates and appended PEM blocks are rejected before staging. Its decoded
+SPKI must match the Ed25519 private signing key. The final reread is bound to
+all three hashes returned by publication and to the staged build ID, so a
+same-user replacement with another otherwise valid triplet is rejected.

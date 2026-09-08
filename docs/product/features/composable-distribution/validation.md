@@ -5,6 +5,16 @@ below is claimed complete. Native staging tests cover exact inventory, stable
 reads, no replacement, publish locking, temporary cleanup and manifest snapshot
 binding.
 
+P8c adds focused unit and CLI integration tests for captured-snapshot signing:
+strict arguments; private/public PEM ownership, mode, link, size and stable-read
+rejection; strict single-SPKI public PEM and key-pair rejection; exact three-file
+immutable final inventory; publication-bound signature reread; and
+existing-final refusal. The Linux verifier is a synthetic end-to-end triplet
+gate: it creates a fixture export and ephemeral Ed25519 key inside Linux, then
+checks `find`/`stat`, reread verification, tamper rejection and final-output
+refusal without emitting a PEM. It is not an actual P8b container export,
+installer, systemd, browser, load or deployment gate.
+
 Execution progress and the current fresh-only repository policy are tracked in
 [implementation](implementation.md). Tests concerning historical upgrades or
 rollback compatibility from the reviewed draft have been replaced below by

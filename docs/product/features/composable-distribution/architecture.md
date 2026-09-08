@@ -793,3 +793,17 @@ checks their paths and hashes against the retained native-layout artifact. The
 release manifest is then made by stable reread of that newly published staging
 tree, never by reopening the container export root. This closure does not sign,
 publish a release, install, create `current`, or run systemd.
+
+### P8c captured-byte signed release
+
+P8c takes the retained `VerifiedContainerExportSnapshot` through P8b staging
+and reuses the selected-release publisher to create one immutable signed
+triplet. Its final directory contains only `archive.tar`,
+`release-manifest.json` and `signature-envelope.json`, each a `0644` regular
+file. The publisher rereads and verifies that triplet against the independently
+supplied public key before returning it. The private key is a local signing
+input, read through a no-follow stable-file boundary; it is never embedded in
+the staging tree, archive, manifest, envelope, logs or CLI JSON output.
+
+P8c does not establish a certificate authority, install a release, alter
+`current`, create systemd state, start a process, or prove browser/load work.
