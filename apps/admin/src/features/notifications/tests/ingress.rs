@@ -13,13 +13,22 @@ pub(super) const CURRENT: &[u8] = b"0123456789abcdef0123456789abcdef";
 const PREVIOUS: &[u8] = b"previous-key-0123456789abcdef-1234";
 
 pub(super) fn body(event_id: &str, summary: &str) -> Vec<u8> {
+    body_at(event_id, summary, Utc.with_ymd_and_hms(2026, 9, 7, 0, 0, 0).unwrap())
+}
+
+pub(super) fn body_at(
+    event_id: &str,
+    summary: &str,
+    occurred_at: chrono::DateTime<Utc>,
+) -> Vec<u8> {
     serde_json::to_vec(&NotificationEvent {
         schema_version: 1,
         event_id: event_id.into(),
         producer: "monitor".into(),
         topic: "monitor.incident.opened".into(),
-        occurred_at: "2026-09-07T00:00:00Z".into(),
-        expires_at: "2026-09-08T00:00:00Z".into(),
+        occurred_at: occurred_at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        expires_at: (occurred_at + chrono::Duration::days(1))
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         subject: NotificationSubject {
             kind: "monitor-incident".into(),
             id: format!("incident-{event_id}"),
@@ -203,7 +212,7 @@ async fn dedicated_http_route_enforces_protocol_headers_and_content_type() {
     .unwrap();
     let app = crate::features::notifications::ingress_http::router(state);
     let now = Utc::now();
-    let payload = body("event-http", "opened");
+    let payload = body_at("event-http", "opened", now);
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
     let signed =
         signer.sign(&payload, now.timestamp(), now.timestamp() + 60, "nonce-http").unwrap();

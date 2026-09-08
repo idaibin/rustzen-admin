@@ -1,9 +1,9 @@
 use super::{
-    ingress::{CURRENT, body},
+    ingress::{CURRENT, body_at},
     support::{TestDatabase, grant, policy},
 };
 use crate::features::notifications::ingress::{IngestOutcome, IngressState};
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use rustzen_ipc::{
     EVENT_CREATED_HEADER, EVENT_EXPIRES_HEADER, EVENT_KEY_ID_HEADER, EVENT_NONCE_HEADER,
     EVENT_PRODUCER_HEADER, EVENT_SIGNATURE_HEADER, EVENT_VERSION_HEADER, NotificationSigner,
@@ -44,8 +44,8 @@ async fn admin_commit_survives_lost_response_and_reconciles_after_business_expir
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-    let now = Utc.with_ymd_and_hms(2026, 9, 7, 0, 0, 0).unwrap();
-    let payload = body("event-response-lost", "opened");
+    let now = Utc::now();
+    let payload = body_at("event-response-lost", "opened", now);
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
     let transport_now = Utc::now().timestamp();
     let signed =
