@@ -92,7 +92,7 @@ those remain P4 producer stages and the release gate remains closed.
 | fresh installation identity | Exact signed build/class/composition/target and current schema/data contracts | Exact signed build/class/composition/target and current Agent config/protocol |
 
 Docker Monitor producer output is physically separated before any archive work:
-`/out/server/bin` contains exactly `rz-admin` and `rz-monitor`; `/out/agent/bin`
+`release/server/bin` contains exactly `rz-admin` and `rz-monitor`; `witness/bin`
 contains exactly `rz-monitor-agent`. Full remains `/out/bin` with its five binaries.
 This is a build-output boundary only; manifest, archive, signing and installation remain P4 work.
 
@@ -985,3 +985,15 @@ build IDs, archive and manifest SHA-256 values, and the Agent protocol ID.
 Verification receives an independent trusted public key and matching key ID;
 it never obtains trust material from the release directory. Production signing
 requires a production manifest. Installer extraction remains a later boundary.
+
+### Captured container staging boundary
+
+`produceMonitorNativeStagingManifest` accepts a verified Monitor export snapshot,
+`outputParent` and `trustedRoot`. Release version, source identity, recorded
+toolchain and selected routes are snapshot-derived; callers cannot
+supply substitutes. The retained native-source capability carries these fields
+with its bytes; the low-level publisher accepts no metadata fields and rejects
+extra inputs before creating output. The resulting staging has exactly two server binaries, five
+selected contract files, layout-bound unit bytes and flattened `web/**` output.
+It excludes witness files and all export metadata. Its manifest is an unsigned
+local derivation and is not a release triplet or publication authorization.

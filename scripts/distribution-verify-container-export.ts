@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import { canonicalJson } from "../distribution/release-manifest-core.ts";
 import { verifyContainerExport } from "../distribution/container-export-validator.ts";
+import { readWorkspaceVersion } from "../distribution/workspace-version.ts";
 
 const root = resolve(import.meta.dir, "..");
 const args = parse(Bun.argv.slice(2));
@@ -14,6 +15,7 @@ const snapshot = await verifyContainerExport(
     resolve(root, exportRoot),
     await Bun.file(resolve(root, selectionPath)).json(),
     expectedSourceIdentity,
+    await readWorkspaceVersion(root),
 );
 console.log(canonicalJson({
     compositionId: snapshot.manifest().compositionId,

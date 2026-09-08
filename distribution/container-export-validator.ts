@@ -18,10 +18,13 @@ type OutputManifest = {
 };
 type Provenance = {
     schemaVersion: 1; kind: "monitor-container-provenance"; buildPlatform: "linux/amd64";
-    targetTriple: "x86_64-unknown-linux-musl"; selection: unknown; selectionSha256: string;
+    targetTriple: "x86_64-unknown-linux-musl"; releaseVersion: string; selection: unknown; selectionSha256: string;
     sourceIdentityInput: string; rustcVv: string; buildCommands: string[][]; outputManifestSha256: string;
 };
 const snapshotConstructionToken = Symbol("verified container export snapshot");
+let createVerifiedContainerSnapshot: (
+    files: ArtifactFile[], manifest: OutputManifest, provenance: Provenance,
+) => VerifiedContainerExportSnapshot;
 export class VerifiedContainerExportSnapshot {
     #files: Map<string, ArtifactFile>; #manifest: OutputManifest; #provenance: Provenance;
     private constructor(
@@ -38,20 +41,30 @@ export class VerifiedContainerExportSnapshot {
         }]));
         this.#manifest = structuredClone(manifest);
         this.#provenance = structuredClone(provenance);
+        Object.freeze(this);
     }
-    static createVerified(
-        token: symbol,
-        files: ArtifactFile[],
-        manifest: OutputManifest,
-        provenance: Provenance,
-    ) {
-        return new VerifiedContainerExportSnapshot(token, files, manifest, provenance);
+    static {
+        createVerifiedContainerSnapshot = (files, manifest, provenance) =>
+            new VerifiedContainerExportSnapshot(snapshotConstructionToken, files, manifest, provenance);
     }
     manifest() { return structuredClone(this.#manifest); }
     recordedProvenance() { return structuredClone(this.#provenance); }
-    file(path: string) { const file = required(this.#files, path); if (sha256(file.bytes) !== file.entry.sha256) throw new Error(`verified snapshot digest differs: ${path}`); return new Uint8Array(file.bytes); }
+    selection() { return structuredClone(this.#provenance.selection); }
+    artifact(path: string): ArtifactFile {
+        const file = required(this.#files, path);
+        if (sha256(file.bytes) !== file.entry.sha256)
+            throw new Error(`verified snapshot digest differs: ${path}`);
+        return { entry: structuredClone(file.entry), bytes: new Uint8Array(file.bytes) };
+    }
+    artifacts(prefix: string): ArtifactFile[] {
+        if (!prefix || prefix.startsWith("/") || prefix.includes("\\") || !prefix.endsWith("/"))
+            throw new Error("verified snapshot artifact prefix is invalid");
+        return this.paths().filter((path) => path.startsWith(prefix)).map((path) => this.artifact(path));
+    }
     paths() { return [...this.#files.keys()].sort(compareContainerExportPath); }
 }
+Object.freeze(VerifiedContainerExportSnapshot.prototype);
+Object.freeze(VerifiedContainerExportSnapshot);
 
 const serverPaths = ["release/server/bin/rz-admin", "release/server/bin/rz-monitor"];
 const witnessPath = "witness/bin/rz-monitor-agent";
@@ -69,19 +82,23 @@ const commands = [
 
 /** Reads and validates one immutable Monitor container export without executing Linux binaries. */
 export async function verifyContainerExport(
-    root: string, selectionInput: unknown, expectedSourceIdentity: string,
+    root: string, selectionInput: unknown, expectedSourceIdentity: string, expectedReleaseVersion: string,
 ): Promise<VerifiedContainerExportSnapshot> {
     const plan = resolveSelection(selectionInput);
     if (plan.preset !== "monitor" || plan.artifactClass !== "server" || plan.target !== "x86_64-unknown-linux-musl")
         throw new Error("container export validator supports only Monitor server selection");
     if (typeof expectedSourceIdentity !== "string" || !expectedSourceIdentity || /[\r\n]/.test(expectedSourceIdentity))
         throw new Error("expected source identity must be nonempty single-line text");
+    if (typeof expectedReleaseVersion !== "string" || !expectedReleaseVersion || expectedReleaseVersion.length > 64 || /[\r\n]/.test(expectedReleaseVersion))
+        throw new Error("expected releaseVersion must be nonempty single-line text");
     const files = await readArtifactFileTree(root, { maxFiles: 512, maxDirectoryEntries: 256, maxTotalEntries: 768, maxDepth: 8, maxFileBytes: 64 * 1024 * 1024, maxTotalBytes: 128 * 1024 * 1024, metadataPaths, maxMetadataBytes: 256 * 1024 });
     const byPath = new Map(files.map((file) => [file.entry.path, file]));
     const manifestFile = required(byPath, "release/output-manifest.json");
     const provenanceFile = required(byPath, "release/container-provenance.json");
     const manifest = parseManifest(manifestFile.bytes);
     const provenance = parseProvenance(provenanceFile.bytes);
+    if (provenance.releaseVersion !== expectedReleaseVersion)
+        throw new Error("container provenance releaseVersion differs from workspace version");
     const payload = files.filter((file) => !metadataPaths.includes(file.entry.path));
     verifyModes(files);
     exact(paths(files), [...manifest.files.map((file) => file.path), ...metadataPaths].sort(), "container export inventory");
@@ -106,12 +123,7 @@ export async function verifyContainerExport(
     verifyMonitorExportElf(admin, "rz-admin");
     verifyMonitorExportElf(monitor, "rz-monitor");
     verifyMonitorExportElf(agent, "rz-monitor-agent");
-    return VerifiedContainerExportSnapshot.createVerified(
-        snapshotConstructionToken,
-        files,
-        manifest,
-        provenance,
-    );
+    return createVerifiedContainerSnapshot(files, manifest, provenance);
 }
 function verifyWeb(files: Map<string, ArtifactFile>, payload: ArtifactFile[], plan: ReturnType<typeof resolveSelection>) {
     const inventory = parseInventory(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(required(files, "release/web/inventory.json").bytes)));
@@ -141,8 +153,8 @@ function parseManifest(bytes: Uint8Array): OutputManifest {
 }
 function parseProvenance(bytes: Uint8Array): Provenance {
     const value = json(bytes, "container provenance");
-    objectKeys(value, ["buildCommands", "buildPlatform", "kind", "outputManifestSha256", "rustcVv", "schemaVersion", "selection", "selectionSha256", "sourceIdentityInput", "targetTriple"], "container provenance");
-    if (value.schemaVersion !== 1 || value.kind !== "monitor-container-provenance" || value.buildPlatform !== "linux/amd64" || value.targetTriple !== "x86_64-unknown-linux-musl")
+    objectKeys(value, ["buildCommands", "buildPlatform", "kind", "outputManifestSha256", "releaseVersion", "rustcVv", "schemaVersion", "selection", "selectionSha256", "sourceIdentityInput", "targetTriple"], "container provenance");
+    if (value.schemaVersion !== 1 || value.kind !== "monitor-container-provenance" || value.buildPlatform !== "linux/amd64" || value.targetTriple !== "x86_64-unknown-linux-musl" || typeof value.releaseVersion !== "string" || !value.releaseVersion || value.releaseVersion.length > 64 || /[\r\n]/.test(value.releaseVersion))
         throw new Error("container provenance identity is invalid");
     validHash(text(value.selectionSha256, "container provenance selectionSha256"));
     validHash(text(value.outputManifestSha256, "container provenance outputManifestSha256"));

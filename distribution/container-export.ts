@@ -15,6 +15,7 @@ export type ContainerExportInput = {
     sourceIdentity: string;
     buildCommands: BuildCommand[];
     rustcVv: string;
+    releaseVersion: string;
     runtime?: { platform: string; arch: string };
 };
 
@@ -38,6 +39,8 @@ export async function produceContainerExport(input: ContainerExportInput) {
         throw new Error("container source identity input must be nonempty single-line text");
     if (!input.rustcVv.includes("rustc "))
         throw new Error("container provenance requires rustc -Vv output");
+    if (!validText(input.releaseVersion) || input.releaseVersion.length > 64)
+        throw new Error("container provenance releaseVersion is invalid");
     if (
         !Array.isArray(input.buildCommands) ||
         input.buildCommands.length === 0 ||
@@ -82,6 +85,7 @@ export async function produceContainerExport(input: ContainerExportInput) {
         kind: "monitor-container-provenance" as const,
         buildPlatform: "linux/amd64",
         targetTriple: input.targetTriple,
+        releaseVersion: input.releaseVersion,
         selection: input.selection,
         selectionSha256: sha256(canonicalJson(input.selection)),
         sourceIdentityInput: input.sourceIdentity,

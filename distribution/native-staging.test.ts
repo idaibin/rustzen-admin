@@ -1,15 +1,23 @@
-import { chmod, lstat, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { nativeUnitBytes } from "./native-layout.ts";
 import {
     produceNativeStaging,
+    publishNativeStagingBytes,
     setNativeStagingBeforePublishHookForTest,
 } from "./native-staging.ts";
 import {
     releaseFixture,
     monitorSelection,
 } from "./release-manifest-fixtures.ts";
+import { sha256 } from "./release-manifest-core.ts";
+import {
+    fromPathStagingInput,
+    VerifiedNativeSource,
+} from "./native-staging-source.ts";
+import { setAtomicRenameBeforeCallHookForTest } from "./atomic-rename.ts";
 
 async function roots(kind: "server" | "agent") {
     const fixture = await releaseFixture(kind);
@@ -110,6 +118,111 @@ test("native staging rejects polluted and missing selected inputs", async () => 
     }
 });
 
+test("verified-byte publisher rejects path escapes before output side effects", async () => {
+    const { fixture } = await roots("server");
+    const outputParent = join(fixture.root, "output");
+    const planted = join(fixture.root, "review-planted");
+    try {
+        await expect(publishNativeStagingBytes({
+            outputParent,
+            trustedRoot: fixture.root,
+            source: { files: [{ entry: { path: "../../../review-planted", type: "file", mode: "0644", size: 1, sha256: "0".repeat(64) }, bytes: new Uint8Array([1]) }], digests: { configDigest: "0".repeat(64), nativeLayoutDigest: "0".repeat(64), protocolArtifactDigest: "0".repeat(64) } } as any,
+        })).rejects.toThrow("capability");
+        expect(await Bun.file(planted).exists()).toBeFalse();
+        expect(await Bun.file(join(outputParent, ".native-staging")).exists()).toBeFalse();
+    } finally { await rm(fixture.root, { recursive: true, force: true }); }
+});
+
+test("verified-byte publisher rejects forged binary capability before output side effects", async () => {
+    const { fixture } = await roots("server");
+    const outputParent = join(fixture.root, "forged-output");
+    const bytes = new TextEncoder().encode("arbitrary");
+    const forged = {
+        files: () => [{
+            entry: {
+                path: "bin/rz-admin",
+                type: "file",
+                mode: "0755",
+                size: bytes.length,
+                sha256: sha256(bytes),
+            },
+            bytes,
+        }],
+        digests: () => ({}),
+    };
+    try {
+        expect(() => new (VerifiedNativeSource as any)(Symbol("forged"), forged))
+            .toThrow("construction is internal");
+        await expect(publishNativeStagingBytes({
+            outputParent,
+            trustedRoot: fixture.root,
+            source: forged as any,
+        })).rejects.toThrow("capability is invalid");
+        expect(await Bun.file(join(outputParent, ".native-staging")).exists()).toBeFalse();
+    } finally {
+        await rm(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test("verified-byte publisher rejects method shadowing on a real capability", async () => {
+    const { fixture, binaryRoot, selection } = await roots("server");
+    const outputParent = join(fixture.root, "shadow-output");
+    const input = {
+        selection,
+        outputParent,
+        trustedRoot: fixture.root,
+        releaseVersion: "1.0.0",
+        sourceIdentity: "test-source",
+        toolchain: "test-toolchain",
+        selectedRoutes: [],
+        binaryRoot,
+        webRoot: fixture.webRoot,
+        apiRoot: fixture.apiRoot,
+        schemaRoot: fixture.schemaRoot,
+        configRoot: fixture.configRoot,
+        nativeRoot: fixture.nativeRoot,
+        protocolRoot: fixture.protocolRoot,
+    };
+    try {
+        const source = await fromPathStagingInput(input, true);
+        expect(() => Object.defineProperty(source, "files", {
+            value: () => [{ bytes: new TextEncoder().encode("arbitrary") }],
+        })).toThrow();
+        expect(await Bun.file(join(outputParent, ".native-staging")).exists()).toBeFalse();
+    } finally {
+        await rm(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test("verified-byte publisher rejects metadata substitutions before output side effects", async () => {
+    const { fixture, binaryRoot, selection } = await roots("server");
+    const outputParent = join(fixture.root, "metadata-output");
+    const input = {
+        selection, outputParent, trustedRoot: fixture.root,
+        releaseVersion: "1.0.0", sourceIdentity: "test-source",
+        toolchain: "test-toolchain", selectedRoutes: [], binaryRoot,
+        webRoot: fixture.webRoot, apiRoot: fixture.apiRoot,
+        schemaRoot: fixture.schemaRoot, configRoot: fixture.configRoot,
+        nativeRoot: fixture.nativeRoot, protocolRoot: fixture.protocolRoot,
+    };
+    try {
+        const source = await fromPathStagingInput(input, true);
+        for (const [field, value] of [
+            ["selection", { ...selection, extra: true }],
+            ["buildInputs", { releaseVersion: "9.9.9" }],
+            ["releaseVersion", "9.9.9"],
+            ["sourceIdentity", "other-source"],
+            ["toolchain", "other-toolchain"],
+            ["selectedRoutes", ["other.tsx"]],
+        ] as const) {
+            await expect(publishNativeStagingBytes({
+                outputParent, trustedRoot: fixture.root, source, [field]: value,
+            } as any)).rejects.toThrow("inputs are invalid");
+        }
+        expect(await Bun.file(join(outputParent, ".native-staging")).exists()).toBeFalse();
+    } finally { await rm(fixture.root, { recursive: true, force: true }); }
+});
+
 test("native staging never replaces an existing build-qualified payload", async () => {
     const { fixture, binaryRoot, selection } = await roots("agent");
     const input = {
@@ -191,6 +304,34 @@ test("native staging uses one lock and removes only its failed publish state", a
         ).toBe("");
     } finally {
         setNativeStagingBeforePublishHookForTest();
+        await rm(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test("native staging preserves a final created at the atomic rename boundary", async () => {
+    const { fixture, binaryRoot, selection } = await roots("agent");
+    const input = {
+        selection, outputParent: join(fixture.root, "atomic-out"), trustedRoot: fixture.root,
+        releaseVersion: "1.0.2", sourceIdentity: "test-source",
+        toolchain: "test-toolchain", selectedRoutes: [], binaryRoot,
+        configRoot: fixture.configRoot, nativeRoot: fixture.nativeRoot,
+        protocolRoot: fixture.protocolRoot,
+    };
+    const seed = await produceNativeStaging({ ...input, outputParent: join(fixture.root, "seed") });
+    const final = join(input.outputParent, ".native-staging", seed.buildId, selection.target, "node-agent", "payload");
+    let plantedInode: number | undefined;
+    try {
+        setAtomicRenameBeforeCallHookForTest(() => {
+            mkdirSync(final);
+            plantedInode = lstatSync(final).ino;
+        });
+        await expect(produceNativeStaging(input)).rejects.toThrow("atomic");
+        const before = await lstat(final);
+        expect(before.isDirectory()).toBeTrue();
+        expect(before.ino).toBe(plantedInode);
+        expect(await readdir(final)).toEqual([]);
+    } finally {
+        setAtomicRenameBeforeCallHookForTest();
         await rm(fixture.root, { recursive: true, force: true });
     }
 });

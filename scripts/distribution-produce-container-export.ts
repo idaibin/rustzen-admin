@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import { canonicalJson } from "../distribution/release-manifest-core.ts";
 import { produceContainerExport } from "../distribution/container-export.ts";
+import { readWorkspaceVersion } from "../distribution/workspace-version.ts";
 
 const root = resolve(import.meta.dir, "..");
 const args = values(Bun.argv.slice(2), new Set(["--selection", "--output-root"]));
@@ -23,6 +24,7 @@ const produced = await produceContainerExport({
     sourceIdentity,
     buildCommands: JSON.parse(commands),
     rustcVv: new TextDecoder().decode(rustc.stdout),
+    releaseVersion: await readWorkspaceVersion(root),
 });
 console.log(canonicalJson({
     compositionId: produced.manifest.compositionId,

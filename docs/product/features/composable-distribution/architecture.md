@@ -779,3 +779,17 @@ Monitor targets emit the descriptor; their canonical descriptor/digest pair must
 match each other and the reviewed golden before a composition-qualified protocol
 artifact is published. The manifest derives the pairing ID and build input from
 that artifact, preventing caller substitution.
+
+### P8b captured-byte native staging
+
+The next P8b closure accepts only a `VerifiedContainerExportSnapshot` returned by
+the host validator. It derives the Monitor selection, source identity, recorded
+toolchain and selected routes from retained snapshot records, never from CLI
+claims. It copies only `release/server/bin/*`, `release/contracts/*` and
+`release/web/dist/*` into a private build-qualified staging tree as `bin/*`,
+`contracts/*` and `web/*`; the witness Agent, Web inventory, output manifest
+and provenance are excluded. It recreates units from `nativeUnitBytes` and
+checks their paths and hashes against the retained native-layout artifact. The
+release manifest is then made by stable reread of that newly published staging
+tree, never by reopening the container export root. This closure does not sign,
+publish a release, install, create `current`, or run systemd.
