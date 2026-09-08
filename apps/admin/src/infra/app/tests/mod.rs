@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use super::*;
 use async_trait::async_trait;
 use axum::{
+    Extension, Router,
     body::{Body, to_bytes},
     extract::ConnectInfo,
     http::{Method, Request, StatusCode, header},
@@ -11,17 +12,25 @@ use axum::{
     routing::any,
 };
 use rustzen_auth::{
-    auth::{AuthClaims, AuthContextLoader, CurrentUser, JwtCodec},
+    auth::{AuthClaims, AuthContextLoader, CurrentUser, JwtCodec, auth_middleware},
     error::CoreError,
 };
 use rustzen_ipc::{AccessMode, DelegationSigner, ModuleManifest, RouteManifest};
 use tower::ServiceExt;
 
+use crate::features::manage::deploy::service::DeployService;
 use crate::features::modules::{
     registry::{ModuleRegistry, RegistrySnapshot},
     service::ModuleControlState,
     types::{ModuleCondition, ModuleRuntime, ModuleSpec},
 };
+use crate::{
+    features::{auth::public_auth_routes, modules::gateway},
+    infra::{db::run_migrations, permission::PermissionService},
+};
+use sqlx::SqlitePool;
+
+use super::routes::{admin_cors, health};
 
 #[derive(Clone)]
 struct TestLoader;
