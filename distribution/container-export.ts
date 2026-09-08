@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import { compareContainerExportPath } from "./container-export-path.ts";
 
 type FileEntry = { path: string; mode: "0644" | "0755"; size: number; sha256: string };
 type BuildCommand = string[];
@@ -146,5 +147,5 @@ async function listFiles(root: string, ignored: Set<string>, directory = root): 
             throw new Error(`container export has unsupported mode: ${relativePath}`);
         return [{ path: relativePath, mode, size: bytes.byteLength, sha256: sha256(bytes) }];
     }));
-    return nested.flat().sort((left, right) => left.path.localeCompare(right.path));
+    return nested.flat().sort((left, right) => compareContainerExportPath(left.path, right.path));
 }

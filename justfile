@@ -259,6 +259,11 @@ verify-distribution-native-layout:
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor.json
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/node-agent.json
 
+verify-distribution-container-export selection export_root expected_source_identity:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    pnpm dlx bun@1.3.14 test distribution/container-export.test.ts distribution/container-export-validator.test.ts distribution/release-manifest-artifacts-limits.test.ts scripts/distribution-verify-docker.test.ts scripts/distribution-verify-container-export.test.ts
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-container-export.ts --selection "{{selection}}" --export-root "{{export_root}}" --expected-source-identity "{{expected_source_identity}}"
+
 verify-distribution-native-staging:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts

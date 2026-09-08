@@ -24,6 +24,11 @@ test("container export records one exact Monitor payload and provenance", async 
         expect(result.provenance.outputManifestSha256).toMatch(/^[a-f0-9]{64}$/);
         expect(await Bun.file(join(root, "release/output-manifest.json")).json()).toEqual(result.manifest);
         expect(await Bun.file(join(root, "release/container-provenance.json")).json()).toEqual(result.provenance);
+        expect(result.manifest.files.map((file) => file.path)).toEqual(
+            result.manifest.files.map((file) => file.path).sort((left, right) =>
+                left < right ? -1 : left > right ? 1 : 0,
+            ),
+        );
     } finally {
         await rm(root, { recursive: true, force: true });
     }
@@ -89,6 +94,8 @@ async function populate() {
         ...executable,
         "release/web/inventory.json",
         "release/web/dist/index.html",
+        "release/web/dist/assets/Z.js",
+        "release/web/dist/assets/a.js",
         "release/contracts/api/api.json",
         "release/contracts/config/config.json",
         "release/contracts/schema/schema.json",

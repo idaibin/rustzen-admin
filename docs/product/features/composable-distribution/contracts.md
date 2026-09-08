@@ -279,6 +279,24 @@ digest. Both documents reject links and unsupported file modes. They are not a
 `source-build-manifest`, cannot set a certification boolean and cannot be used to
 publish, install, sign or update a current pointer.
 
+`distribution-verify-container-export` is a host-only reader for this export.
+It accepts exactly `--selection`, `--export-root` and
+`--expected-source-identity`, each once and nonempty; unknown, duplicate,
+missing or positional arguments fail before any artifact read. It reads the
+whole export root through the stable artifact reader once, then verifies the
+canonical JSON bytes, exact manifest/provenance schemas and equality with the
+authoritative resolved Monitor selection. Its result retains the snapshot bytes
+for a later issuer; it returns no certificate, signing material or installation
+action.
+
+The binary check is structural and host-independent: each server and witness
+binary must be an ELF64 little-endian x86-64 `ET_DYN` image without `PT_INTERP`,
+and contain `RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary=<name>\n`.
+The validator never runs those binaries. `TARGET_TRIPLE=x86_64-unknown-linux-musl`
+and the three exact recorded static Cargo command arrays establish the target and
+static-build inputs; the ELF parse establishes only the executable format and
+static-PIE traits.
+
 The installer rejects duplicate paths, absolute paths, parent traversal,
 unexpected links/files, oversized members, incorrect modes, unknown capabilities,
 missing units/assets, and hash/signature mismatches before switching anything.

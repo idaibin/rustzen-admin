@@ -44,10 +44,12 @@ separate Linux `rz verify`, dry-run and fresh apply verification, then native
 runtime, browser and load evidence before a release gate can open or a `current`
 pointer can change.
 
-The current closure verifies only the canonical schema against authoritative
-inputs and makes contract extraction require an explicit binary directory. The
-issuer, stable same-batch inventory, crash-safe publication, Colima build and
-Linux artifact evidence remain **Not implemented / Not verified**.
+The source-build certificate closure verifies only the canonical schema against
+authoritative inputs and makes contract extraction require an explicit binary
+directory. Its issuer and crash-safe publication remain **Not implemented /
+Not verified**. The separate container-export closure now supplies stable
+same-batch BuildKit and Linux artifact evidence, but does not issue that
+certificate.
 
 The first P8b container closure is verified separately from certification. Its
 static boundary test must reject a non-Linux/amd64 build stage, an omitted Monitor
@@ -57,9 +59,26 @@ output, a misplaced or extra server/witness binary, a missing output manifest or
 provenance record, and a build path that omits the exact command arrays. Its
 artifact test creates an exact temporary payload and rejects missing contracts,
 unexpected payload paths, links, unsupported modes and non-Linux/amd64 provenance.
-Passing these tests establishes source and static producer closure only. A real
-Colima BuildKit export must still inspect the emitted files and execute selected
-Linux binary/contract checks before it can serve as P8b artifact evidence.
+Passing these tests establishes source and static producer closure only. The
+local P8b gate additionally rebuilds through Colima BuildKit for Linux/amd64,
+requires identical source identity before and after the build, validates the
+whole export on the host, and executes seven selected binary contract commands
+in a networkless read-only container with all capabilities dropped. Six API,
+config and protocol outputs must match the retained contracts; the Agent config
+witness must satisfy its selected structural policy. The host then validates the
+export again. The accepted local export is
+`target/rz/p8b-container-export-verified`.
+
+The P8b host export-validator test corpus builds a temporary canonical Monitor
+export and must reject every unknown/duplicate/missing CLI argument, changed
+source identity, noncanonical JSON, unknown record field, changed
+selection/composition/target, changed manifest file mode/size/digest, missing or
+extra payload member, empty Web `dist`, altered provenance command array, wrong
+Rust host tuple, malformed/non-x86/non-PIE/interpreted ELF and a missing or
+wrong release marker. It retains the exact bytes returned by the one stable root
+read; the test must prove that a post-read replacement cannot affect the exposed
+snapshot. This is host artifact verification only, not a Linux execution,
+certificate, native staging, install or release-gate test.
 
 Exhaustively validate dependency closure and generated inventories for the
 finite capability catalog. Compile and integration-test official presets plus

@@ -189,6 +189,88 @@ export function assertModuleIds(
         throw new Error("selected Web module inventory has no generated route source");
 }
 
+/** Shared selected-Monitor inventory policy for producer verification and exported snapshots. */
+export function assertSelectedWebSnapshot(
+    inventory: Inventory,
+    selection: { preset: string; compositionId: string; webRoots: string[] },
+    emittedFiles: string[],
+    outputText: string,
+) {
+    const routes = [
+        "index.tsx",
+        ...selection.webRoots.map((route) => route.replace("apps/web/src/routes/", "")),
+        "monitoring/-global-alert-settings.tsx",
+        "monitoring/-incident-drawer.tsx",
+        "monitoring/-node-details.tsx",
+        "monitoring/-node-onboarding.tsx",
+        "monitoring/-save-state.ts",
+        "system/-role-actions.tsx",
+        "system/-role-delete-state.ts",
+        "system/-role-dialog.tsx",
+        "system/-role-permission-picker.tsx",
+        "system/-user-actions.tsx",
+        "system/-user-dialog.tsx",
+    ].sort();
+    const hasNotifications = selection.preset === "monitor-notify";
+    const forbidden = [
+        "/api/insights",
+        "/api/reports",
+        "/api/manage",
+        "/api/system/status",
+        "/analytics/",
+        "/reports/",
+        "/manage/deploy",
+        "/manage/task",
+        "/manage/log",
+        "ReactQueryDevtools",
+        "TanStackRouterDevtools",
+        ...(!hasNotifications
+            ? ["/api/notifications", "Message center", "消息中心", "__rustzen_admin_marker__.json"]
+            : []),
+    ];
+    const required = [
+        "/api/auth/login",
+        "/api/auth/me",
+        "/api/monitor/",
+        "/api/system/users",
+        "/api/system/roles",
+        "/api/system/menus/options",
+        "/monitoring/overview",
+        ...(hasNotifications
+            ? ["/api/notifications/stream", "/api/notifications/unread-count", "Message center"]
+            : []),
+    ];
+
+    assertEqual(inventory.preset, selection.preset, "preset");
+    assertEqual(inventory.compositionId, selection.compositionId, "compositionId");
+    assertEqual(
+        inventory.generatedRoot,
+        `apps/web/.selected-web/${selection.compositionId}`,
+        "generatedRoot",
+    );
+    assertEqual(
+        inventory.outputDirectory,
+        `target/distributions/${selection.compositionId}/web/dist`,
+        "outputDirectory",
+    );
+    assertArrayEqual(inventory.selectedRoutes, routes, "selectedRoutes");
+    assertArrayEqual(inventory.publicAssets, ["rustzen.png"], "publicAssets");
+    assertArrayEqual(inventory.emittedFiles, emittedFiles, "emittedFiles");
+    assertModuleIds(inventory.moduleIds, selection.compositionId, hasNotifications);
+    for (const asset of inventory.publicAssets) {
+        if (!inventory.emittedFiles.includes(asset) || !emittedFiles.includes(asset))
+            throw new Error(`selected Web public asset is absent from emitted output: ${asset}`);
+    }
+    for (const value of forbidden) {
+        if (outputText.includes(value))
+            throw new Error(`selected Web output contains excluded text: ${value}`);
+    }
+    for (const value of required) {
+        if (!outputText.includes(value))
+            throw new Error(`selected Web output is missing required text: ${value}`);
+    }
+}
+
 export async function assertSelectedApiSource(apiPath: string) {
     const apiSource = await Bun.file(apiPath).text();
     if (/\/(?:api)\/\s*["'`]\s*\+/.test(apiSource))

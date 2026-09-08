@@ -646,6 +646,18 @@ exact Cargo command arrays. These files are batch evidence only: they neither
 issue a source-build certificate nor sign, publish, install or mark a release
 current.
 
+A host-side P8b validator consumes the exported directory as one stable,
+descriptor-checked snapshot and retains the verified bytes for its caller. It
+parses only canonical output-manifest and provenance records, resolves the
+authoritative caller selection and accepts an explicit expected source-identity
+input. It never accepts a caller-provided digest, toolchain claim or certificate
+claim. On macOS or any other host it does not execute exported Linux binaries:
+it parses their ELF64 little-endian headers and program headers, requires
+`EM_X86_64`, `ET_DYN` and no `PT_INTERP`, then checks the compiled
+`RUSTZEN_RELEASE_MARKER` for the exact expected binary. The fixed musl target
+and recorded static Cargo flags bind the target claim; a stripped ELF alone does
+not prove a libc implementation.
+
 The planned canonical `source-build-manifest` has exactly `source`, `build`
 and `artifact` certified layers. It binds the source identity/tree digest,
 toolchain/build ID/binary digests, and manifest/archive/envelope digests. Its

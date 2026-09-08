@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, open, readdir, realpath } from "node:fs/promises";
+import { lstat, open, opendir, realpath } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { filesDigest, sha256 } from "./release-manifest-core.ts";
 import type { Digest, FileEntry } from "./release-manifest-types.ts";
@@ -12,6 +12,7 @@ type Identity = {
     ctimeNs: bigint;
 };
 export type ArtifactFile = { entry: FileEntry; bytes: Uint8Array };
+export type ArtifactReadLimits = { maxFiles?: number; maxDirectoryEntries?: number; maxTotalEntries?: number; maxDepth?: number; maxFileBytes?: number; maxTotalBytes?: number; metadataPaths?: string[]; maxMetadataBytes?: number };
 let beforeDirectoryHook: ((path: string) => Promise<void> | void) | undefined;
 export const setArtifactDirectoryHookForTest = (
     hook?: (path: string) => Promise<void> | void,
@@ -36,8 +37,9 @@ export async function readArtifactFiles(root: string): Promise<FileEntry[]> {
 }
 export async function readArtifactFileTree(
     root: string,
+    limits?: ArtifactReadLimits,
 ): Promise<ArtifactFile[]> {
-    return scanArtifactFiles(root);
+    return scanArtifactFiles(root, limits);
 }
 export async function readSingleArtifactFile(
     root: string,
@@ -48,11 +50,12 @@ export async function readSingleArtifactFile(
         throw new Error(`artifact must contain exactly ${expectedPath}`);
     return files[0];
 }
-async function scanArtifactFiles(root: string): Promise<ArtifactFile[]> {
+async function scanArtifactFiles(root: string, limits?: ArtifactReadLimits): Promise<ArtifactFile[]> {
     const base = resolve(root);
     const parents = await directoryIdentities(base);
     try {
-        return (await walk(base, base, parents)).sort((a, b) =>
+        const budget = { files: 0, bytes: 0, entries: 0 };
+        return (await walk(base, base, parents, limits, budget, 0)).sort((a, b) =>
             a.entry.path < b.entry.path
                 ? -1
                 : a.entry.path > b.entry.path
@@ -73,11 +76,16 @@ async function walk(
     root: string,
     directory: string,
     parents: Map<string, Identity & { real: string }>,
+    limits: ArtifactReadLimits | undefined,
+    budget: { files: number; bytes: number; entries: number }, depth: number,
 ): Promise<ArtifactFile[]> {
     const result: ArtifactFile[] = [];
     await beforeDirectoryHook?.(directory);
     await verifyDirectory(directory, parents);
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
+    let directoryEntries = 0;
+    for await (const entry of await opendir(directory)) {
+        if (limits?.maxDirectoryEntries !== undefined && ++directoryEntries > limits.maxDirectoryEntries) throw new Error("artifact directory entry limit exceeded");
+        if (limits?.maxTotalEntries !== undefined && ++budget.entries > limits.maxTotalEntries) throw new Error("artifact total entry limit exceeded");
         const path = join(directory, entry.name);
         const before = await lstat(path, { bigint: true });
         if (before.isSymbolicLink())
@@ -87,7 +95,8 @@ async function walk(
                 ...identity(before),
                 real: await realpath(path),
             });
-            result.push(...(await walk(root, path, parents)));
+            if (limits?.maxDepth !== undefined && depth + 1 > limits.maxDepth) throw new Error("artifact depth limit exceeded");
+            result.push(...(await walk(root, path, parents, limits, budget, depth + 1)));
             continue;
         }
         if (!before.isFile())
@@ -101,6 +110,13 @@ async function walk(
         try {
             await afterOpenHook?.(path);
             const opened = await handle.stat({ bigint: true });
+            const size = Number(opened.size);
+            const relativePath = checkedPath(relative(root, path).split(sep).join("/"));
+            const metadata = limits?.metadataPaths?.includes(relativePath);
+            const maximum = metadata ? limits?.maxMetadataBytes ?? limits?.maxFileBytes : limits?.maxFileBytes;
+            if (!Number.isSafeInteger(size) || (maximum !== undefined && size > maximum)) throw new Error("artifact file size limit exceeded");
+            if (limits?.maxFiles !== undefined && ++budget.files > limits.maxFiles) throw new Error("artifact file count limit exceeded");
+            if (limits?.maxTotalBytes !== undefined && (budget.bytes += size) > limits.maxTotalBytes) throw new Error("artifact total size limit exceeded");
             const bytes = await handle.readFile();
             const after = await handle.stat({ bigint: true });
             const pathAfter = await lstat(path, { bigint: true });
@@ -115,9 +131,7 @@ async function walk(
                 throw new Error(`artifact file has invalid mode: ${path}`);
             result.push({
                 entry: {
-                    path: checkedPath(
-                        relative(root, path).split(sep).join("/"),
-                    ),
+                    path: relativePath,
                     type: "file",
                     mode: mode === 0o755n ? "0755" : "0644",
                     size: Number(opened.size),
