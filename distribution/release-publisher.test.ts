@@ -25,6 +25,7 @@ import {
     publishSelectedRelease,
     setReleaseBeforePublishHookForTest,
     verifyReleaseDirectory,
+    verifyReleaseSnapshot,
 } from "./release-publisher.ts";
 import { setReleaseReadHookForTest } from "./release-publisher-files.ts";
 import { setAtomicRenameBeforeCallHookForTest } from "./atomic-rename.ts";
@@ -82,6 +83,9 @@ test("publisher atomically writes and verifies server and Agent release triplets
                     trusted,
                 ),
             ).toEqual(published);
+            expect(
+                (await verifyReleaseSnapshot(published.root, value.selection, trusted)).manifest,
+            ).toEqual(value.manifest);
             await expect(publishSelectedRelease(value)).rejects.toThrow(
                 "output",
             );

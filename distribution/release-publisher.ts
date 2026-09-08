@@ -31,6 +31,9 @@ export type ReleasePublication = {
     manifestSha256: string;
     envelopeSha256: string;
 };
+export type VerifiedReleaseSnapshot = ReleasePublication & {
+    manifest: ReturnType<typeof parseReleaseManifest>;
+};
 let beforePublishHook: (() => Promise<void> | void) | undefined;
 export const setReleaseBeforePublishHookForTest = (
     hook?: () => Promise<void> | void,
@@ -100,6 +103,22 @@ export async function verifyReleaseDirectory(
     trusted: TrustedReleaseKey,
     expected?: ReturnType<typeof releaseEnvelopePayload>,
 ): Promise<ReleasePublication> {
+    const snapshot = await verifyReleaseSnapshot(root, selection, trusted, expected);
+    return {
+        root: snapshot.root,
+        archiveSha256: snapshot.archiveSha256,
+        manifestSha256: snapshot.manifestSha256,
+        envelopeSha256: snapshot.envelopeSha256,
+    };
+}
+
+/** Reads and verifies one immutable release triplet; callers must retain this snapshot. */
+export async function verifyReleaseSnapshot(
+    root: string,
+    selection: unknown,
+    trusted: TrustedReleaseKey,
+    expected?: ReturnType<typeof releaseEnvelopePayload>,
+): Promise<VerifiedReleaseSnapshot> {
     const files = await readReleaseFiles(root);
     const required = [
         "archive.tar",
@@ -131,6 +150,7 @@ export async function verifyReleaseDirectory(
         archiveSha256: sha256(archive),
         manifestSha256: sha256(manifestBytes),
         envelopeSha256: sha256(envelope),
+        manifest,
     };
 }
 async function write(root: string, name: string, bytes: Uint8Array) {
