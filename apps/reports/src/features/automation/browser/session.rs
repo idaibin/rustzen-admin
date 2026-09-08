@@ -65,6 +65,7 @@ pub(super) async fn execute_with_profile(
         let page = init_phase("new page", browser.new_page("about:blank"))
             .await?
             .map_err(AppError::internal)?;
+        init_phase("activate target", page.bring_to_front()).await?.map_err(AppError::internal)?;
         init_phase("initial target navigation", page.goto(&system.base_url))
             .await?
             .map_err(AppError::internal)?;
