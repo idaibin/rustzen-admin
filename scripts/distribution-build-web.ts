@@ -2,6 +2,7 @@ import { cp, lstat, mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { resolveSelection } from "../distribution/resolver.ts";
+import { supportsSelectedWeb } from "../distribution/selected-web-producer.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 const webRoot = join(repositoryRoot, "apps/web");
@@ -12,7 +13,7 @@ if (flag !== "--selection" || !selectionPath) {
 }
 
 const selection = resolveSelection(await Bun.file(resolve(repositoryRoot, selectionPath)).json());
-if (!["monitor", "monitor-notify"].includes(selection.preset))
+if (!supportsSelectedWeb(selection))
     throw new Error("selected Web producer currently supports only monitor compositions");
 const hasNotifications = selection.capabilities.includes("notifications");
 

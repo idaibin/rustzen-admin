@@ -605,6 +605,15 @@ service names/ports before mutation. A different build or composition uses a new
 installation root and new data; old roots are preserved and never read or converted.
 No historical executable/data rollback or compatibility allowlist is generated.
 
+P8 certification has a separate fail-closed admission step. It derives the
+selection from the finite catalog, asks each real producer about the exact
+capability closure and composition identity, and reports missing producer
+families before any expensive build. A custom selection is never admitted by
+resemblance to a named preset.
+The admission result contains no artifact digest and cannot be consumed as a
+release certificate; later source/build, native, runtime, browser and load
+reports each bind their own immutable inputs.
+
 The nonresident rz installation executor owns apply/status/recover independently
 of Admin deploy tables. The current recovery slice resumes only interrupted
 fresh payload publication for the same exact revalidated archive, envelope and
@@ -705,8 +714,9 @@ Admin, Monitor Controller and Monitor Agent expose versioned descriptors before
 dotenv startup. Descriptors contain keys, types, requirement/default classes and
 named secret references, never environment values or secret literals.
 The producer combines exact reviewed descriptors into a composition-qualified
-`contracts/config/config.json`; Server contains only `access` and `monitor`,
-while Agent contains only `monitor-agent`. Manifest generation reads those
+`contracts/config/config.json`; Monitor server contains `access` and `monitor`
+(and adds `notifications` for the notification composition), while Agent contains
+only `monitor-agent`. Manifest generation reads those
 canonical bytes through the stable-file boundary and derives `configDigest`.
 
 The protocol producer uses the same stable single-file boundary. Both compiled

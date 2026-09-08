@@ -33,7 +33,7 @@ test("selected contract accepts only the complete current registration corpus", 
         const b = await produceSelectedContract(selection, out, runner);
         expect(a.sha256).toBe(b.sha256);
         const { contract } = await readSelectedApiContract(out, selection);
-        expect(contract.owners.admin.routes).toHaveLength(20);
+        expect(contract.owners.admin.routes).toHaveLength(21);
         expect(contract.owners.monitor.routes).toHaveLength(13);
         expect(contract.owners.monitor.menus).toHaveLength(4);
         await expect(
@@ -52,7 +52,7 @@ test("selected contract accepts only the complete current registration corpus", 
 test("monitor-notify adds the inbox owner and protected delivery diagnostics", () => {
     const contract = completeSelectedApiContractForTest(notifySelection);
     expect(Object.keys(contract.owners)).toEqual(["admin", "monitor", "notifications"]);
-    expect(contract.owners.notifications?.routes).toHaveLength(5);
+    expect(contract.owners.notifications?.routes).toHaveLength(6);
     expect(contract.owners.monitor.routes).toHaveLength(14);
     expect(
         contract.owners.monitor.routes.find(
@@ -73,6 +73,7 @@ test("monitor-notify adds the inbox owner and protected delivery diagnostics", (
         contract.owners.notifications?.routes.map((route) => route.path),
     ).toEqual([
         "/api/notifications",
+        "/api/notifications/stream",
         "/api/notifications/unread-count",
         "/api/notifications/{id}",
         "/api/notifications/read-all",

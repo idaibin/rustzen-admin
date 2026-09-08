@@ -52,6 +52,9 @@ distribution-plan selection="distribution/fixtures/monitor.json":
 distribution-release-gate selection="distribution/fixtures/monitor.json":
     pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts release-gate --selection "{{selection}}"
 
+distribution-source-build-readiness selection="distribution/fixtures/monitor.json":
+    pnpm dlx bun@1.3.14 scripts/distribution-source-build-readiness.ts --selection "{{selection}}" --require-ready
+
 verify-distribution-selection:
     pnpm dlx bun@1.3.14 test distribution scripts/distribution-resolve.test.ts
 

@@ -37,12 +37,38 @@ reproduce those behaviors in the new distribution pipeline.
 | P5 | Optional Admin inbox, current recipient authorization, sequence-bounded reads and retention budgets | Fresh SQLite transaction/concurrency/retention tests | P5a and P5b implemented and verified locally: selected dual-ledger schema and authenticated reads plus durable accounting, bounded retention, atomic admission, startup/periodic maintenance, pressure refusal and true two-pool concurrency. Producer delivery and realtime invalidation remain P6/P7. |
 | P6 | Monitor and Reports optional outbox/relay, trusted initiator, fenced claims and bounded ambiguity | Lifecycle/crash/dedupe/recipient tests | P6a Monitor incident delivery and P6b Reports terminal publication are **Closed locally / Passed** by their source-bound disposable `linux/arm64` Colima gates, including selected/pure process, schema, transaction, relay, authorization and negative-artifact evidence. |
 | P7 | Direct Admin fetch-SSE and shell integration | Stream/parser/cancellation tests and real browser/proxy reconciliation | **Closed locally / Passed.** P7a auth/session authority and P7b backend SSE passed source, independent-review and disposable `linux/arm64` runtime gates. P7c adds the notifications-owned durable inbox shell and one authenticated fetch-SSE lifecycle. Its final browser manifest is `target/rz/message-center-browser/runs/20260908T034234Z-91415/manifest.json` (SHA-256 `abf2d85978f080c339bce8498205cdb650303009ea104da7dc68051426afdd77`), binding dirty source tree `c407429cf9cc88ddf340540f3f656566417521adc22fdb075bf4ab3de21eb9d6` to six Linux binaries, selected/pure Web inventories and 18 exact receipts. Eleven Chromium journeys prove desktop/mobile layout, durable loading/empty/detail/paging/read states, one browser-origin SSE lifecycle per journey, event-driven count/list reconciliation, stream-401 login recovery, 403 clearing and in-app Monitor incident deep linking. Direct and same-origin-proxy SSE return `200 text/event-stream` with Bearer headers and no URL secret. The pure Monitor composition has no notification-owned Web module, schema object, API route, ingress listener or service owner. Global-1,000 sustained load, native systemd, production reverse-proxy and production deployment remain **Not verified** for P8 or target acceptance. |
-| P8 | Certify each shipped selection and current product journeys | Measured artifact, native runtime, browser, load and absence report for exact build | Queued after applicable stages |
+| P8 | Certify each shipped selection and current product journeys | Measured artifact, native runtime, browser, load and absence report for exact build | P8a readiness admission is implemented: every named catalog preset has a canonical fixture and an exhaustive source/build producer audit. It admits only `monitor` and `node-agent` to later certification commands; `monitor-notify`, target `full`, `analytics`, `reports`, test-only regression and every `custom` selection fail closed. No P8 distribution is certified by this audit. |
 
 The first current-full-regression artifact is an internal test fixture. It must
 not be labeled or published as target full, which includes notifications. A
 resolved selection is only a plan: until actual Rust/Web/schema/packaging
 producers pass, release readiness is false and release requests fail closed.
+
+### P8 certification admission matrix
+
+P8 starts with a deterministic admission check so an incomplete preset cannot
+reach an expensive build and later be mislabeled as certified. The audit resolves
+every preset in `distribution/catalog.json` and asks each real Cargo, Web, API,
+schema, config, native-layout and protocol producer whether it supports the exact
+capability closure and composition identity. `custom` always requires its own
+exact assessment and is rejected by this first slice, even when its capability
+closure happens to match a named preset.
+
+| Selection | Current producer evidence | P8a result | Remaining certification boundary |
+| --- | --- | --- | --- |
+| `monitor` | Selected Admin/Controller Cargo, Web, API/schema/config, protocol and native-layout producers; signed apply and Linux activation gates exist | Admitted to source/build certification | One fixed clean build basis and final acceptance report |
+| `monitor-notify` | Selected Admin/Controller Cargo, Web, API/schema/config and notification runtime/browser gates; the Monitor protocol is unchanged | Rejected | Merge the access and notifications config owners into one selected native Admin layout, then produce the composition-bound source/build report |
+| `node-agent` | Agent Cargo, config, protocol, native layout, signed apply and controlled Linux pairing evidence | Admitted to source/build certification | Final PID1/service restart and shipped-target report |
+| `analytics` | Catalog and application baseline only | Rejected | Selected Admin/Insights Cargo boundary, Web graph and contracts |
+| `reports` | Catalog, Reports application and notification producer slices only | Rejected | Selected Admin/Reports Cargo boundary, Web graph and contracts |
+| target `full` | Default full regression builds and journeys exist, but optional Admin/Insights/Reports selected producers are incomplete | Rejected | Exact target-full selected producers and its own full acceptance report |
+| `current-full-regression` | Internal test fixture | Rejected | Permanently ineligible for production certification |
+| `custom` | Resolver closure only | Rejected | Explicit producer assessment and all gates for that exact composition |
+
+Admission means only that all producer families required by the source/build
+gate are present. It does not change `producerReadiness`, open the production
+release gate, produce a native target, sign an archive, install, deploy or prove
+a product journey.
 
 ## Source grounding refreshed for execution
 

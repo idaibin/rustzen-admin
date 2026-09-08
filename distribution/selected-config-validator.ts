@@ -2,6 +2,10 @@ import goldenOwners from "./fixtures/monitor-config-owners.json";
 import notificationMonitorOwner from "./fixtures/monitor-notify-config-owner.json";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import {
+    isExactSupportedPlan,
+    type SourceBuildPlan,
+} from "./source-build-plan.ts";
 
 export type SelectedConfigContract = {
     artifactClass: "server" | "node-agent";
@@ -9,6 +13,10 @@ export type SelectedConfigContract = {
     preset: "monitor" | "monitor-notify" | "node-agent";
     owners: Record<string, unknown>;
 };
+
+/** Config descriptors exist for these exact reviewed closures only. */
+export const supportsSelectedConfig = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["monitor", "monitor-notify", "node-agent"]);
 
 export function completeSelectedConfigForTest(
     selectionInput: unknown,
@@ -72,7 +80,8 @@ export function parseSelectedConfigBytes(
 function supportedPlan(selectionInput: unknown) {
     const plan = resolveSelection(selectionInput);
     const valid =
-        plan.artifactClass === "server"
+        supportsSelectedConfig(plan) &&
+        (plan.artifactClass === "server"
             ? (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
               canonicalJson(plan.configOwners) ===
                   canonicalJson(
@@ -83,7 +92,7 @@ function supportedPlan(selectionInput: unknown) {
             : plan.artifactClass === "node-agent" &&
               plan.preset === "node-agent" &&
               canonicalJson(plan.configOwners) ===
-                  canonicalJson(["monitor-agent"]);
+                  canonicalJson(["monitor-agent"]));
     if (!valid)
         throw new Error(
             "selected config supports only monitor/monitor-notify server or node-agent",

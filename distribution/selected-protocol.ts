@@ -3,15 +3,23 @@ import { join } from "node:path";
 import { readSingleArtifactFile } from "./release-manifest-artifacts.ts";
 import { canonicalJson, sha256, validHash } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import {
+    isExactSupportedPlan,
+    type SourceBuildPlan,
+} from "./source-build-plan.ts";
 
 export type SelectedProtocol = {
     version: 1;
     artifactClass: "server" | "node-agent";
     compositionId: string;
-    preset: "monitor" | "node-agent";
+    preset: "monitor" | "monitor-notify" | "node-agent";
     descriptor: string;
     digest: string;
 };
+
+/** Both Controller and Agent emit this descriptor for these exact closures. */
+export const supportsSelectedProtocol = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["monitor", "monitor-notify", "node-agent"]);
 
 const goldenFile = await Bun.file(
     new URL("./fixtures/monitor-protocol.json", import.meta.url),
@@ -126,19 +134,21 @@ function identity(selection: unknown) {
     const plan = resolveSelection(selection);
     if (
         !(
-            (plan.preset === "monitor" && plan.artifactClass === "server") ||
-            (plan.preset === "node-agent" &&
+            (supportsSelectedProtocol(plan) &&
+                ["monitor", "monitor-notify"].includes(plan.preset) &&
+                plan.artifactClass === "server") ||
+            (supportsSelectedProtocol(plan) && plan.preset === "node-agent" &&
                 plan.artifactClass === "node-agent")
         )
     )
         throw new Error(
-            "selected protocol supports only monitor server or node-agent",
+            "selected protocol supports only monitor server compositions or node-agent",
         );
     return {
         version: 1 as const,
         artifactClass: plan.artifactClass,
         compositionId: plan.compositionId,
-        preset: plan.preset as "monitor" | "node-agent",
+        preset: plan.preset as "monitor" | "monitor-notify" | "node-agent",
     };
 }
 

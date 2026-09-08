@@ -15,7 +15,7 @@ type Capability = {
     configOwners: string[];
     units: string[];
 };
-type Catalog = {
+export type Catalog = {
     schemaVersion: number;
     capabilities: Capability[];
     presets: Record<

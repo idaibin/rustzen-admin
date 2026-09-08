@@ -4,6 +4,7 @@ import { produceSelectedContract } from "../distribution/selected-contract.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
 import { produceSchemaContract } from "../distribution/schema-contract.ts";
 import { produceSelectedConfig } from "../distribution/selected-config.ts";
+import { selectedCargoBuilds } from "../distribution/selected-cargo-producer.ts";
 
 const root = resolve(import.meta.dir, "..");
 const [flag, selectionPath] = Bun.argv.slice(2);
@@ -95,53 +96,7 @@ if (plan.artifactClass === "node-agent") {
 }
 
 function buildSelectedProducers() {
-    const builds: string[][] = [];
-    if (plan.artifactClass === "node-agent") {
-        builds.push([
-            "cargo",
-            "build",
-            "-p",
-            "rustzen-monitor",
-            "--no-default-features",
-            "--features",
-            "agent",
-            "--bin",
-            "rz-monitor-agent",
-        ]);
-    } else if (plan.preset === "monitor" || plan.preset === "monitor-notify") {
-        const adminFeatures =
-            plan.preset === "monitor-notify"
-                ? "monitor-distribution,notifications"
-                : "monitor-distribution";
-        builds.push(
-            [
-                "cargo",
-                "build",
-                "-p",
-                "rustzen-admin",
-                "--no-default-features",
-                "--features",
-                adminFeatures,
-                "--bin",
-                "rz-admin",
-            ],
-            [
-                "cargo",
-                "build",
-                "-p",
-                "rustzen-monitor",
-                "--no-default-features",
-                "--features",
-                plan.preset === "monitor-notify" ? "notifications" : "controller",
-                "--bin",
-                "rz-monitor",
-            ],
-        );
-    } else {
-        throw new Error(
-            "contract producer supports only monitor, monitor-notify, or node-agent",
-        );
-    }
+    const builds = selectedCargoBuilds(plan);
     for (const command of builds) {
         const result = Bun.spawnSync(command, {
             cwd: root,

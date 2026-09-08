@@ -3,6 +3,10 @@ import { basename, dirname, join, resolve } from "node:path";
 import { readSingleArtifactFile } from "./release-manifest-artifacts.ts";
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import {
+    isExactSupportedPlan,
+    type SourceBuildPlan,
+} from "./source-build-plan.ts";
 
 const sources = {
     admin: "apps/admin/migrations/sqlite-monitor/0001_init.sql",
@@ -21,6 +25,10 @@ export type SchemaContract = {
     preset: "monitor" | "monitor-notify";
     owners: Partial<Record<Owner, { dataContractId: string; schemaSha256: string }>>;
 };
+
+/** Fresh-install SQL schemas are selected only for the reviewed server closures. */
+export const supportsSelectedSchema = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["monitor", "monitor-notify"]);
 
 export async function produceSchemaContract(
     selectionInput: unknown,
@@ -137,6 +145,7 @@ function selectedSchemaPlan(selectionInput: unknown) {
               ? ["admin", "admin-notifications", "monitor", "monitor-notifications"]
               : null;
     if (
+        !supportsSelectedSchema(plan) ||
         supportedOwners === null ||
         plan.artifactClass !== "server" ||
         canonicalJson(plan.schemaOwners) !== canonicalJson(supportedOwners)

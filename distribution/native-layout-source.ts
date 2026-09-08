@@ -1,6 +1,10 @@
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { distributionCatalog, resolveSelection } from "./resolver.ts";
 import { completeSelectedConfigForTest } from "./selected-config-validator.ts";
+import {
+    isExactSupportedPlan,
+    type SourceBuildPlan,
+} from "./source-build-plan.ts";
 
 export type NativeUnit = { path: string; sha256: string };
 export type NativeConfig = {
@@ -18,6 +22,10 @@ export type NativeLayout = {
     units: NativeUnit[];
     configs: NativeConfig[];
 };
+
+/** systemd layouts have been materialized only for these exact closures. */
+export const supportsNativeLayout = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["monitor", "node-agent"]);
 
 const unit = (path: string, text: string): NativeUnit => ({
     path,
@@ -61,7 +69,11 @@ export function nativeUnitBytes(
     catalog: typeof distributionCatalog = distributionCatalog,
 ): Record<string, string> {
     const plan = resolveSelection(selection, catalog);
-    if (plan.preset === "monitor" && plan.artifactClass === "server")
+    if (
+        supportsNativeLayout(plan) &&
+        plan.preset === "monitor" &&
+        plan.artifactClass === "server"
+    )
         return {
             "systemd/rz-admin.service": service(
                 "Rustzen Admin",
@@ -80,7 +92,11 @@ export function nativeUnitBytes(
             "systemd/rz.target":
                 "[Unit]\nDescription=Rustzen Monitor Services\nWants=rz-admin.service rz-monitor.service\nAfter=network.target\n\n[Install]\nWantedBy=multi-user.target\n",
         };
-    if (plan.preset === "node-agent" && plan.artifactClass === "node-agent")
+    if (
+        supportsNativeLayout(plan) &&
+        plan.preset === "node-agent" &&
+        plan.artifactClass === "node-agent"
+    )
         return {
             "systemd/rz-monitor-agent.service": service(
                 "Rustzen Monitor Agent",
@@ -99,9 +115,14 @@ export function generatedNativeLayout(
     catalog: typeof distributionCatalog = distributionCatalog,
 ): NativeLayout {
     const plan = resolveSelection(selection, catalog);
-    const server = plan.preset === "monitor" && plan.artifactClass === "server";
+    const server =
+        supportsNativeLayout(plan) &&
+        plan.preset === "monitor" &&
+        plan.artifactClass === "server";
     const agent =
-        plan.preset === "node-agent" && plan.artifactClass === "node-agent";
+        supportsNativeLayout(plan) &&
+        plan.preset === "node-agent" &&
+        plan.artifactClass === "node-agent";
     if (!server && !agent)
         throw new Error(
             "native layout supports only monitor server or node-agent",

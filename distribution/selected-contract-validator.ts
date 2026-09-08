@@ -3,12 +3,20 @@ import notificationOwner from "./fixtures/monitor-notify-api-owner.json";
 import notificationMonitorOwner from "./fixtures/monitor-notify-monitor-api-owner.json";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import {
+    isExactSupportedPlan,
+    type SourceBuildPlan,
+} from "./source-build-plan.ts";
 
 export type SelectedApiContract = {
     compositionId: string;
     preset: "monitor" | "monitor-notify";
     owners: typeof goldenOwners & { notifications?: typeof notificationOwner };
 };
+
+/** The API producer is intentionally limited to the reviewed server closures. */
+export const supportsSelectedApiContract = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["monitor", "monitor-notify"]);
 
 export function completeSelectedApiContractForTest(
     selectionInput: unknown,
@@ -85,6 +93,7 @@ function supportedSelection(selectionInput: unknown) {
                 ]
               : null;
     if (
+        !supportsSelectedApiContract(selection) ||
         expectedOwners === null ||
         selection.artifactClass !== "server" ||
         canonicalJson(selection.schemaOwners) !==

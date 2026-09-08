@@ -16,6 +16,7 @@ import {
 } from "./selected-protocol.ts";
 
 const server = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
+const notifyServer = { preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
 const agent = { preset: "node-agent", target: "x86_64-unknown-linux-musl" };
 
 test("selected protocol requires matching reviewed Controller and Agent outputs", async () => {
@@ -29,6 +30,17 @@ test("selected protocol requires matching reviewed Controller and Agent outputs"
             reviewedProtocolOutput(),
         );
         expect(result.protocol.digest).toMatch(/^[a-f0-9]{64}$/);
+        expect(completeSelectedProtocol(notifyServer).preset).toBe("monitor-notify");
+        expect(completeSelectedProtocol(notifyServer).descriptor).toBe(
+            result.protocol.descriptor,
+        );
+        const notifyResult = await produceSelectedProtocol(
+            notifyServer,
+            join(root, "notify"),
+            reviewedProtocolOutput(),
+            reviewedProtocolOutput(),
+        );
+        expect(notifyResult.protocol.compositionId).not.toBe(result.protocol.compositionId);
         const output = reviewedProtocolOutput();
         const [descriptor] = output.split("\n");
         const mutatedDescriptor = descriptor.replace(

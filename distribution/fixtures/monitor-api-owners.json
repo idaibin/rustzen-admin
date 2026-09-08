@@ -116,6 +116,15 @@
                 "path": "/api/system/users"
             },
             {
+                "access": {
+                    "capabilities": ["system:user:password"],
+                    "kind": "require"
+                },
+                "method": "POST",
+                "operation": "revokeUserSessions",
+                "path": "/api/system/users/{id}/sessions/revoke-all"
+            },
+            {
                 "access": { "kind": "authenticated" },
                 "method": "PUT",
                 "operation": "changeAccountPassword",

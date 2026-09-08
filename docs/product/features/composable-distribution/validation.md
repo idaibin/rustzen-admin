@@ -17,6 +17,15 @@ Official first-release presets are `full`, `monitor`, `monitor-notify`,
 selection, eligible for distribution only after the same tests pass for its
 exact composition and build. Passing `full` never certifies a subset.
 
+Before a source/build certification command runs, the P8a admission audit must
+cover every named catalog preset and must reject unknown or incomplete producer
+sets. The current admitted set is `monitor` and `node-agent`.
+`monitor-notify`, target `full`, `analytics`, `reports`,
+`current-full-regression` and `custom` return a machine-readable blocked result;
+`--require-ready` exits nonzero.
+Admission is not a certificate and cannot satisfy any native, browser, load,
+installation or release gate.
+
 Exhaustively validate dependency closure and generated inventories for the
 finite capability catalog. Compile and integration-test official presets plus
 every custom selection actually released. Additional pairwise combinations are
