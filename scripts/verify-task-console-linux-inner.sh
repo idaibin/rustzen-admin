@@ -41,8 +41,7 @@ run_browser() {
   local name=$1 steps=$2 flow run status
   flow=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_system" --arg name "$name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')" "$admin/api/reports/flows" | jq -er '.data.id')
   run=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$flow" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs" | jq -er '.data.id')
-  for _ in $(seq 1 900); do status=$(curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run" | jq -er '.data.status'); [ "$status" = succeeded ] && break; case "$status" in failed|cancelled) exit 1;; esac; sleep .1; done
-  test "$status" = succeeded
+  for _ in $(seq 1 900); do status=$(curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run" | jq -er '.data.status'); case "$status" in succeeded|failed|cancelled) break;; esac; sleep .1; done
   curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run" > "/verify/evidence/browser-$name-run.json"
   curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run/steps" > "/verify/evidence/browser-$name-steps.json"
   curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run/artifacts" > "/verify/evidence/browser-$name-artifacts.json"
@@ -83,7 +82,7 @@ run_fault_browser() {
   curl -fsS http://127.0.0.1:19805/__verify_proxy_health >/dev/null
   browser_system=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$name" '{name:$name,baseUrl:"http://127.0.0.1:19805/health",enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id')
   steps=$(jq -nc --arg expected "$expected" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:".shell-content"},{action:"assertText",selector:".shell-content",text:$expected},{action:"assertNoHorizontalOverflow"}]')
-  run=$(run_browser "$name" "$steps")
+  run=$(run_browser "$name" "$steps") || return 1
   if [ "$mode" = empty ]; then
     curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json"
     jq -e '.code == 0 and .message == "Success" and .data == [] and .total == 0' "/verify/evidence/$name-response.json" >/dev/null
