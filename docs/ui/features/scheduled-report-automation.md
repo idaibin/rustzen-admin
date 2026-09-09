@@ -279,3 +279,17 @@ In `full`, the existing Runs page places the same compact delivery card above it
 It uses the Reports run-view permission, shows only aggregate delivery state,
 and exposes loading, forbidden and recoverable-error Retry states. No menu,
 page or notification payload is added.
+
+The Reports Linux Chromium state-gate extension is **Closed locally / Passed**
+only when `target/rz/reports-ui-state/current/manifest.json` matches the current
+checkout through its validator. That current manifest is authoritative for the
+source identity, platform, Chromium version, journeys, receipts, and screenshots.
+Its disposable notifications-enabled Reports process seeds deterministic pending
+and quarantine count/byte totals, all five gap counters, and first/last/success
+timestamps. Owner at `1440x900` and a `reports:run:view` session at `390x844`
+verify the card at `/reports/runs` without horizontal overflow; owner and viewer
+API receipts must equal the final SQLite aggregate. Its three timestamps use the
+selected application locale (`en-US` or `zh-CN`) under the verifier's UTC timezone.
+Rendered error and 403 Retry states remain covered by the component seam, not
+this browser runtime proof. Native systemd and production deployment remain
+unverified.

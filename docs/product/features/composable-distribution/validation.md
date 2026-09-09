@@ -342,6 +342,14 @@ result, expiry and reconciliation horizons, completion-clock backoff,
 Retry-After bounding, deterministic 1-to-60-second jitter, all five gap counters,
 the 60-second diagnostic limiter and startup accounting tamper refusal. The
 Linux Reports runtime gate is `just verify-reports-notification-runtime-linux`.
+The separate Reports UI-state Linux Chromium extension for the Runs delivery
+card is **Closed locally / Passed** only when
+`target/rz/reports-ui-state/current/manifest.json` validates against the current
+checkout. The current manifest is authoritative for source identity, platform,
+browser version, journeys, receipts, and screenshots. Its four manager/viewer
+journeys bind deterministic aggregate API receipts and final SQLite equality;
+error and forbidden Retry rendering remains a component-test seam. Native
+systemd and production deployment are still unverified.
 It uses fresh Admin and Reports databases, the real Admin gateway and
 delegation signature, a real Reports worker/relay, real loopback TCP ingress and
 the pinned Linux Chromium verifier. It covers manual success/failure, queued and

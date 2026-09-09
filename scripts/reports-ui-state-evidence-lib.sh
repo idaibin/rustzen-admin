@@ -12,7 +12,7 @@ CASES
 reports_ui_state_expected_actions() {
     case "$1" in
         managerProcessing)
-            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","click","waitFor","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","click","pause","waitFor","click","waitFor"]'
+            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","waitFor","assertText","assertText","assertText","assertText","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","click","waitFor","assertText","assertText","click","pause","waitFor","click","waitFor"]'
             ;;
         managerRuntimeFailure)
             printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","assertText","click","waitFor","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","click","waitFor"]'
@@ -21,7 +21,7 @@ reports_ui_state_expected_actions() {
             printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","assertText","assertText","assertText","assertAbsent","waitFor","assertNoHorizontalOverflow","screenshotViewport"]'
             ;;
         viewOnlyMobile)
-            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","assertAbsent","assertAbsent","assertAbsent","assertAbsent","goto","waitFor","assertAbsent","assertAbsent","assertAbsent","click","waitFor","assertAbsent","assertNoHorizontalOverflow","screenshotViewport"]'
+            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","assertAbsent","assertAbsent","assertAbsent","assertAbsent","goto","waitFor","waitFor","assertText","assertText","assertText","assertText","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","assertAbsent","assertAbsent","assertAbsent","click","waitFor","assertAbsent"]'
             ;;
         *) return 1 ;;
     esac
@@ -60,10 +60,38 @@ verify_reports_ui_state_manifest() (
         and (.partialFixture | .enqueuedRunId | type == "string" and length > 0)
         and (.partialFixture.skippedRunLinked == false)
         and (.viewOnly.scheduleMutationStatus == 403 and .viewOnly.retryStatus == 403)
+        and (.deliveryHealth.gapTotal == 15)
+        and (.deliveryHealth.ownerReceipt.file == "reports-delivery-owner.json")
+        and (.deliveryHealth.viewerReceipt.file == "reports-delivery-viewer.json")
+        and (.deliveryHealth.ownerReceipt.file != .deliveryHealth.viewerReceipt.file)
+        and ([.deliveryHealth.ownerReceipt,.deliveryHealth.viewerReceipt] | all(
+            (.file | type == "string" and test("^reports-delivery-(owner|viewer)\\.json$"))
+            and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+        ))
         and (.artifacts | type == "array" and length == 4)
         and ([.artifacts[] | .case] | sort) == ($expected_cases | sort)
         and ([.artifacts[] | . as $artifact | $expected_artifacts[$artifact.case] as $expected | $expected != null and $artifact.file == $expected.file and $artifact.viewport.width == $expected.width and $artifact.viewport.height == $expected.height and $artifact.dimensions == ("\($expected.width) x \($expected.height)") and ($artifact.sha256 | type == "string" and test("^[0-9a-f]{64}$"))] | all)
     ' "$manifest" >/dev/null
+)
+
+verify_reports_ui_state_delivery_receipts() (
+    set -e
+    local directory=$1 manifest=$2 receipt file_name expected_hash actual_hash
+    for receipt in ownerReceipt viewerReceipt; do
+        file_name=$(jq -er --arg receipt "$receipt" '.deliveryHealth[$receipt].file' "$manifest")
+        test "$file_name" = "reports-delivery-${receipt%Receipt}.json" || return 1
+        expected_hash=$(jq -er --arg receipt "$receipt" '.deliveryHealth[$receipt].sha256' "$manifest")
+        actual_hash=$(shasum -a 256 "$directory/$file_name" | awk '{print $1}')
+        test "$actual_hash" = "$expected_hash" || return 1
+        jq -e '
+            .data == {
+              pendingCount:2,pendingBytes:1024,quarantineCount:3,quarantineBytes:2048,
+              omittedCount:1,expiredCount:2,unconfirmedCount:3,quarantinedCount:4,
+              quarantineEvictedCount:5,firstGapAt:"2026-09-10T01:02:03Z",
+              lastGapAt:"2026-09-10T02:03:04Z",lastSuccessAt:"2026-09-10T03:04:05Z"
+            }
+        ' "$directory/$file_name" >/dev/null || return 1
+    done
 )
 
 verify_reports_ui_state_artifacts() (

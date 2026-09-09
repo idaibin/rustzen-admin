@@ -204,7 +204,7 @@ verify-schedule-form-linux:
     scripts/verify-schedule-form-linux.sh
 
 verify-reports-ui-state-linux:
-    pnpm dlx bun@1.3.14 test scripts/verify-reports-ui-state-linux.test.mjs
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-ui-state-linux.test.mjs scripts/reports-ui-state-browser-lib.test.mjs
     scripts/verify-reports-ui-state-linux.sh
 
 verify-task-console-linux:

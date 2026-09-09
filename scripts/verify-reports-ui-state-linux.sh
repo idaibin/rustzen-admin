@@ -102,10 +102,13 @@ run_bounded "$timeout" "$docker_bin" run \
     --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$tree_sha" \
     --env RUSTZEN_VERIFY_PLATFORM="$platform" \
     --env RUSTZEN_VERIFY_CHROMIUM_VERSION=120.0.6099.224-1~deb11u1 \
+    --env TZ=UTC \
     --mount "type=bind,src=$staged,dst=/verify/bin,readonly" \
     --mount "type=bind,src=$candidate,dst=/verify/evidence" \
     --mount "type=bind,src=$root/scripts/verify-reports-ui-state-linux-inner.sh,dst=/verify/run.sh,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-inner-lib.sh,dst=/verify/inner-lib.sh,readonly" \
+    --mount "type=bind,src=$root/scripts/reports-ui-state-delivery-lib.sh,dst=/verify/delivery-lib.sh,readonly" \
+    --mount "type=bind,src=$root/scripts/reports-ui-state-browser-lib.sh,dst=/verify/browser-lib.sh,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-fixture.py,dst=/verify/fixture.py,readonly" \
     "$verifier_image" bash /verify/run.sh
 run_bounded "$cleanup_timeout" "$docker_bin" rm "$container" >/dev/null
@@ -113,6 +116,7 @@ run_bounded "$cleanup_timeout" "$docker_bin" rm "$container" >/dev/null
 verify_reports_ui_state_manifest "$candidate/manifest.json" "$head" "$tree_state" "$tree_sha" "$platform"
 verify_reports_ui_state_artifacts "$candidate" "$candidate/manifest.json"
 verify_reports_ui_state_receipts "$candidate" "$candidate/manifest.json"
+verify_reports_ui_state_delivery_receipts "$candidate" "$candidate/manifest.json"
 verify_reports_ui_state_source_evidence "$candidate" "$candidate/manifest.json"
 verify_staged_binaries
 read -r final_head final_state final_sha < <("$root/scripts/admin-browser-source-identity.sh")
