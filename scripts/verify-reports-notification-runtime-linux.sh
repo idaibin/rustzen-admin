@@ -146,18 +146,19 @@ if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --pl
     rustup target add $target_triple >/dev/null
     export RUSTFLAGS='-C target-feature=+crt-static'
     out=/out
-    target=/cargo-target
+    selected_target=/cargo-target
+    pure_target=/cargo-target/pure-v1
     command -v flock >/dev/null
     exec 9>/cargo-target/.gate.lock
     flock -x 9
-    cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-admin --bin rz-admin
-    install -m 0755 \"\$target/$target_triple/release/rz-admin\" \"\$out/rz-admin-selected\"
-    cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-reports --bin rz-reports
-    install -m 0755 \"\$target/$target_triple/release/rz-reports\" \"\$out/rz-reports-selected\"
-    cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
-    install -m 0755 \"\$target/$target_triple/release/rz-admin\" \"\$out/rz-admin-pure\"
-    cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-reports --no-default-features --bin rz-reports
-    install -m 0755 \"\$target/$target_triple/release/rz-reports\" \"\$out/rz-reports-pure\"
+    cargo build --release --target $target_triple --target-dir \"\$selected_target\" -p rustzen-admin --bin rz-admin
+    install -m 0755 \"\$selected_target/$target_triple/release/rz-admin\" \"\$out/rz-admin-selected\"
+    cargo build --release --target $target_triple --target-dir \"\$selected_target\" -p rustzen-reports --bin rz-reports
+    install -m 0755 \"\$selected_target/$target_triple/release/rz-reports\" \"\$out/rz-reports-selected\"
+    cargo build --release --target $target_triple --target-dir \"\$pure_target\" -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
+    install -m 0755 \"\$pure_target/$target_triple/release/rz-admin\" \"\$out/rz-admin-pure\"
+    cargo build --release --target $target_triple --target-dir \"\$pure_target\" -p rustzen-reports --no-default-features --bin rz-reports
+    install -m 0755 \"\$pure_target/$target_triple/release/rz-reports\" \"\$out/rz-reports-pure\"
   "
 then :; else
   status=$?

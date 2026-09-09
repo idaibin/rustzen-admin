@@ -36,6 +36,8 @@ function hasBlockingBuildTargetLock(script) {
     const flockLines = build.match(/^\s*flock\b.*$/gm) ?? [];
     const lock = build.indexOf("exec 9>/cargo-target/.gate.lock");
     const flock = build.indexOf("flock -x 9");
+    const builds = build.match(/cargo build --release --target \$target_triple/g) ?? [];
+    const installs = build.match(/install -m 0755/g) ?? [];
     const firstBuild = build.indexOf("cargo build --release --target $target_triple");
     const finalInstall = build.lastIndexOf("rz-reports-pure");
     return locks.length === 1
@@ -46,7 +48,30 @@ function hasBlockingBuildTargetLock(script) {
         && lock > -1
         && flock > lock
         && flock < firstBuild
+        && builds.length === 4
+        && installs.length === 4
         && finalInstall > firstBuild;
+}
+
+function hasFeatureIsolatedTargets(script) {
+    const build = script.slice(
+        script.indexOf('if run_bounded "$build_timeout"'),
+        script.indexOf('\n  "\nthen :; else'),
+    );
+    const selected = '--target-dir \\"\\$selected_target\\"';
+    const pure = '--target-dir \\"\\$pure_target\\"';
+    const pairs = [
+        'cargo build --release --target $target_triple --target-dir \\"\\$selected_target\\" -p rustzen-admin --bin rz-admin\n    install -m 0755 \\"\\$selected_target/$target_triple/release/rz-admin\\" \\"\\$out/rz-admin-selected\\"',
+        'cargo build --release --target $target_triple --target-dir \\"\\$selected_target\\" -p rustzen-reports --bin rz-reports\n    install -m 0755 \\"\\$selected_target/$target_triple/release/rz-reports\\" \\"\\$out/rz-reports-selected\\"',
+        'cargo build --release --target $target_triple --target-dir \\"\\$pure_target\\" -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin\n    install -m 0755 \\"\\$pure_target/$target_triple/release/rz-admin\\" \\"\\$out/rz-admin-pure\\"',
+        'cargo build --release --target $target_triple --target-dir \\"\\$pure_target\\" -p rustzen-reports --no-default-features --bin rz-reports\n    install -m 0755 \\"\\$pure_target/$target_triple/release/rz-reports\\" \\"\\$out/rz-reports-pure\\"',
+    ];
+    return build.includes("selected_target=/cargo-target")
+        && build.includes("pure_target=/cargo-target/pure-v1")
+        && build.split(selected).length === 3
+        && build.split(pure).length === 3
+        && build.indexOf(selected) < build.indexOf(pure)
+        && pairs.every((pair) => build.includes(pair));
 }
 
 describe("Reports notification Linux runtime gate", () => {
@@ -82,10 +107,14 @@ describe("Reports notification Linux runtime gate", () => {
         expect(outer).toContain('--mount "type=volume,src=$target_cache,dst=/cargo-target"');
         expect(outer).toContain('--mount "type=bind,src=$staged,dst=/out"');
         expect(outer).toContain('out=/out');
-        expect(outer).toContain('target=/cargo-target');
+        expect(outer).toContain('selected_target=/cargo-target');
+        expect(outer).toContain('pure_target=/cargo-target/pure-v1');
         expect(outer).not.toContain('target/reports-notification-runtime/cargo');
         expect(outer).toContain('apt-get install -y --no-install-recommends musl-tools util-linux');
         expect(hasBlockingBuildTargetLock(outer)).toBeTrue();
+        expect(hasFeatureIsolatedTargets(outer)).toBeTrue();
+        expect(outer).toContain('binary="$staged/$name"');
+        expect(outer).toContain('shasum -a 256 "$staged/$name"');
     });
 
     test("rejects missing, nonblocking, or redirected build-target locks", () => {
@@ -94,6 +123,15 @@ describe("Reports notification Linux runtime gate", () => {
             outer.replace("flock -x 9", "flock -n -x 9"),
             outer.replace("/cargo-target/.gate.lock", "/cargo-target/other.lock"),
         ]) expect(hasBlockingBuildTargetLock(mutated)).toBeFalse();
+    });
+
+    test("rejects shared selected/pure targets or split pure targets", () => {
+        for (const mutated of [
+            outer.replace("pure_target=/cargo-target/pure-v1", "pure_target=/cargo-target"),
+            outer.replace('\\"\\$pure_target\\" -p rustzen-reports --no-default-features', '\\"\\$selected_target\\" -p rustzen-reports --no-default-features'),
+            outer.replace('\\"\\$selected_target\\" -p rustzen-reports --bin rz-reports', '\\"\\$pure_target\\" -p rustzen-reports --bin rz-reports'),
+            outer.replace('\\"\\$pure_target\\" -p rustzen-admin --no-default-features', '\\"\\$selected_target\\" -p rustzen-admin --no-default-features'),
+        ]) expect(hasFeatureIsolatedTargets(mutated)).toBeFalse();
     });
 
     test("builds positive and negative artifacts and drives real TCP plus SQLite", () => {
