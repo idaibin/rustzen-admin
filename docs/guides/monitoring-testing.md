@@ -197,6 +197,15 @@ dual-node step generator therefore uses the image's already-pinned Python standa
 library; the generated JSON is independently reconstructed and compared by the host
 Bun evidence verifier after the container exits.
 
+The named verifier container must be absent before a successful run is published.
+On failure, cleanup keeps the previous `current` link, removes staged binaries and
+the lock, and stores only bounded diagnostic output plus non-secret provenance under
+`target/rz/monitor-agent-multi-node-ui/failed-runs/<run-id>/`. Browser definitions,
+API receipts, screenshots, and fixture credentials are excluded from failed-run
+evidence. If Docker removal or the following absence check fails, the gate reports
+a cleanup failure and retains its ownership lock. A later run is rejected until the
+operator removes the named residual container and the stale lock.
+
 Its evidence is local, disposable Linux-container evidence only. It does not replace
 the native dual-Agent gate and does not certify systemd PID 1, independent hosts,
 production TLS, or the complete Monitoring UI state matrix.

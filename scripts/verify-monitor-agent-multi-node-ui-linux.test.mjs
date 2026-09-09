@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
@@ -119,19 +119,46 @@ describe("dual-Agent Nodes Chromium gate", () => {
             expect(await Bun.file(join(directory, "current/manifest.json")).text()).toBe("new");
         } finally { rmSync(directory, { recursive: true, force: true }); }
     });
-    test("outer bounds stubborn Docker cleanup and removes candidate, staged binaries, and lock", async () => {
+    test("outer removes the container and retains only safe failed-run diagnostics", async () => {
         const directory = mkdtempSync(join(tmpdir(), "rz-dual-agent-ui-cleanup-")); const fake = join(directory, "docker");
-        writeFileSync(fake, "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1; done\n"); run(["chmod", "+x", fake]);
+        writeFileSync(fake, "#!/bin/sh\ncase \"$1:$2\" in logs:*) printf 'bounded diagnostic\\n';; rm:-f) exit 0;; ps:-a) exit 0;; *) exit 2;; esac\n"); run(["chmod", "+x", fake]);
         try {
             const result = run(["bash", outer], { RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_CLEANUP: "1", RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_ROOT: directory, RUSTZEN_MONITOR_MULTI_NODE_UI_DOCKER: fake, RUSTZEN_MONITOR_MULTI_NODE_UI_CLEANUP_TIMEOUT: "1" });
             expect(result.exitCode).not.toBe(0);
             expect(await Bun.file(join(directory, ".candidate")).exists()).toBeFalse();
             expect(await Bun.file(join(directory, ".binaries")).exists()).toBeFalse();
             expect(await Bun.file(join(directory, ".verify.lock")).exists()).toBeFalse();
+            expect(run(["readlink", join(directory, "current")]).stdout.toString().trim()).toBe("runs/old");
+            expect(await Bun.file(join(directory, "failed-runs/test/failure-summary.tsv")).text()).toContain("cleanupStatus\t0\n");
+            expect(await Bun.file(join(directory, "failed-runs/test/container.log")).text()).toContain("bounded diagnostic");
+            expect(await Bun.file(join(directory, "failed-runs/test/build-provenance.txt")).text()).toBe("safe");
+            expect(await Bun.file(join(directory, "failed-runs/test/browser-steps.json")).exists()).toBeFalse();
         } finally { rmSync(directory, { recursive: true, force: true }); }
+    });
+    test("outer retains the ownership lock when Docker removal is not proven", async () => {
+        for (const mode of ["rm-fail", "ps-present", "ps-error", "timeout"]) {
+            const directory = mkdtempSync(join(tmpdir(), `rz-dual-agent-ui-${mode}-`)); const fake = join(directory, "docker");
+            writeFileSync(fake, `#!/bin/sh
+case "$1:$2" in
+  logs:*) printf 'safe diagnostic\\n';;
+  rm:-f) [ "$RZ_FAKE_MODE" != timeout ] || { trap '' TERM; sleep 60; }; [ "$RZ_FAKE_MODE" != rm-fail ];;
+  ps:-a) case "$RZ_FAKE_MODE" in ps-present) printf 'stubborn\\n';; ps-error) echo 'daemon unavailable' >&2; exit 1;; esac;;
+  *) exit 2;;
+esac
+`); run(["chmod", "+x", fake]);
+            try {
+                const result = run(["bash", outer], { RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_CLEANUP: "1", RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_ROOT: directory, RUSTZEN_MONITOR_MULTI_NODE_UI_DOCKER: fake, RUSTZEN_MONITOR_MULTI_NODE_UI_CLEANUP_TIMEOUT: "1", RZ_FAKE_MODE: mode });
+                expect(result.exitCode).toBe(125);
+                expect(existsSync(join(directory, ".verify.lock"))).toBeTrue();
+                expect(run(["readlink", join(directory, "current")]).stdout.toString().trim()).toBe("runs/old");
+                expect(await Bun.file(join(directory, "failed-runs/test/failure-summary.tsv")).text()).toContain("cleanupStatus\t125\n");
+                expect(await Bun.file(join(directory, "failed-runs/test/browser-steps.json")).exists()).toBeFalse();
+            } finally { rmSync(directory, { recursive: true, force: true }); }
+        }
     });
     test("command and documentation expose the separately bounded browser gate", async () => {
         expect(await Bun.file(join(root, "justfile")).text()).toContain("verify-monitor-agent-multi-node-ui-linux:");
         expect(await Bun.file(join(root, "docs/guides/monitoring-testing.md")).text()).toContain("two 1440x900 detail PNGs");
+        expect(await Bun.file(join(root, "docs/guides/monitoring-testing.md")).text()).toContain("failed-runs/<run-id>");
     });
 });

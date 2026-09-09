@@ -54,7 +54,12 @@ curl --fail --silent "${auth[@]}" "$admin/api/reports/flows" > /verify/evidence/
 jq -e --arg flow "$flow" '[.data[] | select(.id == $flow)] | length == 1' /verify/evidence/browser-flow.json >/dev/null
 run=$(curl --fail --silent "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$flow" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs" | jq -er '.data.id')
 for _ in $(seq 1 900); do status=$(curl --fail --silent "${auth[@]}" "$admin/api/reports/runs/$run" | jq -er '.data.status'); [ "$status" != queued ] && [ "$status" != running ] && break; sleep .1; done
-test "$status" = succeeded
+if [ "$status" != succeeded ]; then
+  echo "browser run failed with status=$status" >&2
+  curl --fail --silent "${auth[@]}" "$admin/api/reports/runs/$run" | jq -c '.data | {id,status,error,startedAt,finishedAt}' >&2 || true
+  curl --fail --silent "${auth[@]}" "$admin/api/reports/runs/$run/steps" | jq -c '[.data[] | {stepIndex,action,status,durationMs,message}]' >&2 || true
+  exit 1
+fi
 curl --fail --silent "${auth[@]}" "$admin/api/reports/runs/$run/steps" > /verify/evidence/browser-steps-receipt.json
 receipt_sha=$(sha256sum /verify/evidence/browser-steps-receipt.json | awk '{print $1}')
 receipt_bytes=$(wc -c < /verify/evidence/browser-steps-receipt.json | tr -d ' ')
