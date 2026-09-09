@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 
-const [pageSource, actionSource] = await Promise.all([
+const [pageSource, actionSource, tableShellSource] = await Promise.all([
     Bun.file("src/routes/manage/task.tsx").text(),
     Bun.file("src/routes/manage/-task-console-actions.tsx").text(),
+    Bun.file("src/components/table/data-table-shell.tsx").text(),
 ]);
 const source = `${pageSource}\n${actionSource}`;
 
@@ -21,6 +22,8 @@ test("maintenance task console keeps the fixed control and observation seams", (
     expect(source).toContain('code="manage:task:run"');
     expect(source).toContain('disabled={isFetching || record.running}');
     expect(source).toContain('data-status={status ?? "never"}');
+    expect(pageSource).toContain('testId="maintenance-task-table"');
+    expect(tableShellSource).toContain("data-testid={testId}");
     expect(source).toContain('kind="empty"');
     expect(source).toContain('kind="error"');
     expect(source).toContain('scroll={{ x: "max-content", y: "100%" }}');

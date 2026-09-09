@@ -4,10 +4,12 @@ export function DataTableShell({
     ariaLabel,
     children,
     fill = false,
+    testId,
 }: {
     ariaLabel: string;
     children: ReactNode;
     fill?: boolean;
+    testId?: string;
 }) {
     const shellRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +50,7 @@ export function DataTableShell({
     return (
         <div
             ref={shellRef}
+            data-testid={testId}
             className={
                 fill
                     ? "data-table-shell data-table-shell-fill flex min-h-0 flex-1 flex-col overflow-hidden"
