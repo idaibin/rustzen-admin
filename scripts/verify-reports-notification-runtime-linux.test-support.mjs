@@ -157,7 +157,8 @@ async function fakeDocker(args) {
     if (process.env.FAKE_BLOCK === stage) await Bun.sleep(30_000);
     if (stage === "build" && process.env.FAKE_BUILD_EXIT) process.exit(Number(process.env.FAKE_BUILD_EXIT));
     if (stage === "build") {
-        const bin = join(process.env.FAKE_EVIDENCE_ROOT, "build/aarch64/bin");
+        const outputMount = args.find((arg) => arg.includes("dst=/out"));
+        const bin = outputMount.match(/src=([^,]+)/)[1];
         mkdirSync(bin, { recursive: true });
         for (const name of ["rz-admin-selected", "rz-reports-selected", "rz-admin-pure", "rz-reports-pure"]) {
             writeFileSync(join(bin, name), `fake-${name}`);

@@ -27,6 +27,28 @@ function lines(text) {
     return text.trimEnd().split("\n").length;
 }
 
+function hasBlockingBuildTargetLock(script) {
+    const build = script.slice(
+        script.indexOf('if run_bounded "$build_timeout"'),
+        script.indexOf('\n  "\nthen :; else'),
+    );
+    const locks = [...build.matchAll(/exec\s+\d+>(\/cargo-target\/\S+)/g)].map((match) => match[1]);
+    const flockLines = build.match(/^\s*flock\b.*$/gm) ?? [];
+    const lock = build.indexOf("exec 9>/cargo-target/.gate.lock");
+    const flock = build.indexOf("flock -x 9");
+    const firstBuild = build.indexOf("cargo build --release --target $target_triple");
+    const finalInstall = build.lastIndexOf("rz-reports-pure");
+    return locks.length === 1
+        && locks[0] === "/cargo-target/.gate.lock"
+        && flockLines.length === 1
+        && flockLines[0].trim() === "flock -x 9"
+        && !build.includes("flock -n")
+        && lock > -1
+        && flock > lock
+        && flock < firstBuild
+        && finalInstall > firstBuild;
+}
+
 describe("Reports notification Linux runtime gate", () => {
     test("is bounded, source-bound, atomically published, and compact", () => {
         expect(lines(outer)).toBeLessThan(300);
@@ -55,6 +77,23 @@ describe("Reports notification Linux runtime gate", () => {
         expect(outer).toContain('validate_seconds "$runtime_timeout" RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT 1800');
         expect(outer).toContain('if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container"');
         expect(outer).toContain('if run_bounded "$runtime_timeout" "$docker_bin" run --name "$runtime_container"');
+        expect(outer).toContain('target_cache_schema=v1');
+        expect(outer).toContain('rustzen-reports-notify-target-${target_cache_schema}-${architecture}-${target_triple}-rust195-crtstatic');
+        expect(outer).toContain('--mount "type=volume,src=$target_cache,dst=/cargo-target"');
+        expect(outer).toContain('--mount "type=bind,src=$staged,dst=/out"');
+        expect(outer).toContain('out=/out');
+        expect(outer).toContain('target=/cargo-target');
+        expect(outer).not.toContain('target/reports-notification-runtime/cargo');
+        expect(outer).toContain('apt-get install -y --no-install-recommends musl-tools util-linux');
+        expect(hasBlockingBuildTargetLock(outer)).toBeTrue();
+    });
+
+    test("rejects missing, nonblocking, or redirected build-target locks", () => {
+        for (const mutated of [
+            outer.replace("flock -x 9", ""),
+            outer.replace("flock -x 9", "flock -n -x 9"),
+            outer.replace("/cargo-target/.gate.lock", "/cargo-target/other.lock"),
+        ]) expect(hasBlockingBuildTargetLock(mutated)).toBeFalse();
     });
 
     test("builds positive and negative artifacts and drives real TCP plus SQLite", () => {
@@ -155,6 +194,10 @@ describe("Reports notification Linux runtime gate", () => {
             expect(fixture.current()).not.toBe("runs/previous");
             expect(fixture.active()).toEqual([]);
             expect(fixture.dockerCalls().match(/container inspect/g)?.length).toBe(2);
+            expect(fixture.dockerCalls()).toContain(
+                "type=volume,src=rustzen-reports-notify-target-v1-aarch64-aarch64-unknown-linux-musl-rust195-crtstatic,dst=/cargo-target",
+            );
+            expect(fixture.dockerCalls()).toContain("dst=/out");
             expect(existsSync(join(fixture.evidence, fixture.current(), "manifest.json"))).toBeTrue();
         } finally {
             fixture.cleanup();
@@ -201,6 +244,24 @@ describe("Reports notification Linux runtime gate", () => {
         }
     }, 20_000);
 
+    test("cleans the outer gate after a build timeout before retry", () => {
+        const fixture = fakeGateFixture(outerUrl.pathname, { block: "build", buildTimeout: "1" });
+        try {
+            expect(runFakeGate(fixture).exitCode).toBe(124);
+            expect(fixture.current()).toBe("runs/previous");
+            expect(fixture.active()).toEqual([]);
+            expect(fixture.locked()).toBeFalse();
+            fixture.env.FAKE_BLOCK = "";
+            fixture.env.RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT = "5";
+            expect(runFakeGate(fixture).exitCode).toBe(0);
+            expect(fixture.current()).toStartWith("runs/");
+            expect(fixture.active()).toEqual([]);
+            expect(fixture.locked()).toBeFalse();
+        } finally {
+            fixture.cleanup();
+        }
+    }, 15_000);
+
     for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
         test(`returns ${exitCode}, cleans resources, and preserves current on ${signal}`, async () => {
             const fixture = fakeGateFixture(outerUrl.pathname, { block: "build", buildTimeout: "30" });
@@ -210,6 +271,12 @@ describe("Reports notification Linux runtime gate", () => {
                 expect(fixture.current()).toBe("runs/previous");
                 expect(fixture.failed().length).toBe(1);
                 expect(fixture.active()).toEqual([]);
+                expect(fixture.locked()).toBeFalse();
+                fixture.env.FAKE_BLOCK = "";
+                expect(runFakeGate(fixture).exitCode).toBe(0);
+                expect(fixture.current()).toStartWith("runs/");
+                expect(fixture.active()).toEqual([]);
+                expect(fixture.locked()).toBeFalse();
             } finally {
                 fixture.cleanup();
             }

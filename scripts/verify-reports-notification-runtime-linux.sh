@@ -102,6 +102,8 @@ mkdir -p "$evidence_root/runs" "$evidence_root/failed-runs"
   exit 1
 }
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+target_cache_schema=v1
+target_cache="rustzen-reports-notify-target-${target_cache_schema}-${architecture}-${target_triple}-rust195-crtstatic"
 lock="$evidence_root/.verify.lock"
 candidate="$evidence_root/.candidate-$run_id"
 staged="$evidence_root/.binaries-$run_id"
@@ -132,20 +134,22 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 read -r head source_state source_sha < <("$source_identity")
-build_root="$evidence_root/build/$architecture"
-rm -rf "$build_root"
-mkdir -p "$build_root/bin"
 build_active=1
 if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --platform "$platform" \
   --mount "type=bind,src=$root,dst=/work" \
   --mount type=volume,src=rustzen-reports-notify-cargo,dst=/usr/local/cargo/registry \
+  --mount "type=volume,src=$target_cache,dst=/cargo-target" \
+  --mount "type=bind,src=$staged,dst=/out" \
   -w /work rust:1.95-bookworm bash -euo pipefail -c "
     apt-get update >/dev/null
-    apt-get install -y --no-install-recommends musl-tools >/dev/null
+    apt-get install -y --no-install-recommends musl-tools util-linux >/dev/null
     rustup target add $target_triple >/dev/null
     export RUSTFLAGS='-C target-feature=+crt-static'
-    out=target/rz/reports-notification-runtime/build/$architecture/bin
-    target=target/reports-notification-runtime/cargo
+    out=/out
+    target=/cargo-target
+    command -v flock >/dev/null
+    exec 9>/cargo-target/.gate.lock
+    flock -x 9
     cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-admin --bin rz-admin
     install -m 0755 \"\$target/$target_triple/release/rz-admin\" \"\$out/rz-admin-selected\"
     cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-reports --bin rz-reports
@@ -169,10 +173,9 @@ build_active=0
 
 binary_hashes='{}'
 for name in rz-admin-selected rz-reports-selected rz-admin-pure rz-reports-pure; do
-  binary="$build_root/bin/$name"
+  binary="$staged/$name"
   test -x "$binary"
   "$file_bin" "$binary" | grep -q "$file_pattern"
-  cp "$binary" "$staged/$name"
   hash=$(shasum -a 256 "$staged/$name" | awk '{print $1}')
   binary_hashes=$(jq -nc --argjson current "$binary_hashes" --arg name "$name" --arg hash "$hash" '$current + {($name):$hash}')
 done
