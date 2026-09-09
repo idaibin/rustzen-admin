@@ -39,9 +39,30 @@ elif args[0] == "run":
             key, content = args[index + 1].split("=", 1); env[key] = content
         if value == "--mount" and ",dst=/verify/evidence" in args[index + 1]: candidate = args[index + 1].split("src=", 1)[1].split(",dst=", 1)[0]
     def write(name, value): open(os.path.join(candidate, name), "wb").write(value)
-    receipts = ["tasks.json", "list-only-tasks.json", "list-only-runs-before.json", "list-only-post.json", "list-only-status.txt", "list-only-runs-after.json", "owner-runs-after.json", "empty-receipt.json", "empty-response.json", "error-receipt.json", "browser-owner-run.json", "browser-owner-steps.json", "browser-owner-artifacts.json", "browser-owner-record-run.json", "browser-owner-record-steps.json", "browser-owner-record-artifacts.json", "browser-viewer-run.json", "browser-viewer-steps.json", "browser-viewer-artifacts.json", "browser-empty-run.json", "browser-empty-steps.json", "browser-empty-artifacts.json", "browser-error-run.json", "browser-error-steps.json", "browser-error-artifacts.json"]
+    receipts = ["tasks.json", "list-only-tasks.json", "list-only-runs-before.json", "list-only-post.json", "list-only-status.txt", "list-only-runs-after.json", "owner-runs-after.json", "task-transition-receipt.json", "empty-receipt.json", "empty-response.json", "error-receipt.json", "browser-owner-run.json", "browser-owner-steps.json", "browser-owner-artifacts.json", "browser-owner-record-run.json", "browser-owner-record-steps.json", "browser-owner-record-artifacts.json", "browser-viewer-run.json", "browser-viewer-steps.json", "browser-viewer-artifacts.json", "browser-empty-run.json", "browser-empty-steps.json", "browser-empty-artifacts.json", "browser-error-run.json", "browser-error-steps.json", "browser-error-artifacts.json"]
     payloads = {name: b"{}" for name in receipts}
-    payloads.update({"list-only-runs-before.json": b'{"data":[],"total":0}', "list-only-runs-after.json": b'{"data":[],"total":0}', "empty-receipt.json": b'{"method":"GET","mode":"empty","route":"/api/manage/tasks","hitCount":1}', "empty-response.json": b'{"code":0,"message":"Success","data":[],"total":0}', "browser-owner-run.json": b'{"data":{"status":"succeeded"}}', "browser-owner-record-run.json": b'{"data":{"status":"succeeded"}}'})
+    payloads.update({"list-only-runs-before.json": b'{"data":[],"total":0}', "list-only-runs-after.json": b'{"data":[],"total":0}', "task-transition-receipt.json": b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":2,"hitCount":3}', "empty-receipt.json": b'{"method":"GET","mode":"empty","route":"/api/manage/tasks","hitCount":1,"transitionRunId":null,"transitionReads":0}', "empty-response.json": b'{"code":0,"message":"Success","data":[],"total":0}', "error-receipt.json": b'{"method":"GET","mode":"http","route":"/api/manage/tasks","hitCount":1,"transitionRunId":null,"transitionReads":0}'})
+    for name in ["owner", "owner-record", "viewer", "empty", "error"]:
+        run_id = "record" if name == "owner-record" else name
+        payloads[f"browser-{name}-run.json"] = json.dumps({"data":{"id":run_id,"status":"succeeded"}}).encode()
+        payloads[f"browser-{name}-steps.json"] = json.dumps({"data":[{"runId":run_id,"status":"succeeded"}]}).encode()
+        artifacts = [{"runId":run_id,"kind":"screenshot","fileName":f"{name}.png"}] if name in ["owner", "viewer"] else []
+        payloads[f"browser-{name}-artifacts.json"] = json.dumps({"data":artifacts}).encode()
+    tamper = os.environ.get("RUSTZEN_TASK_CONSOLE_TEST_TAMPER")
+    if tamper == "empty-transition": payloads["empty-receipt.json"] = b'{"method":"GET","mode":"empty","route":"/api/manage/tasks","hitCount":1,"transitionRunId":null,"transitionReads":1}'
+    if tamper == "error-receipt": payloads["error-receipt.json"] = b'{"method":"GET","mode":"http","route":"/api/manage/tasks","hitCount":1,"transitionRunId":"wrong","transitionReads":0}'
+    if tamper == "browser-failure": payloads["browser-error-run.json"] = b'{"data":{"id":"error","status":"failed"}}'
+    if tamper == "transition-mode": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"http","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":2,"hitCount":3}'
+    if tamper == "transition-route": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/wrong","transitionRunId":"manual","transitionReads":2,"hitCount":3}'
+    if tamper == "transition-run": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"wrong","transitionReads":2,"hitCount":3}'
+    if tamper == "transition-reads": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":1,"hitCount":3}'
+    if tamper == "transition-hits": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":2,"hitCount":2}'
+    if tamper == "transition-string": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":"2","hitCount":"3"}'
+    if tamper == "transition-null": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":null,"hitCount":null}'
+    if tamper == "transition-float": payloads["task-transition-receipt.json"] = b'{"method":"GET","mode":"task-transition","route":"/api/manage/tasks","transitionRunId":"manual","transitionReads":2.5,"hitCount":3.5}'
+    if tamper == "cross-run": payloads["browser-error-artifacts.json"] = b'{"data":[{"runId":"owner","kind":"live-frame","fileName":"live.png"}]}'
+    if tamper == "owner-empty": payloads["browser-owner-artifacts.json"] = b'{"data":[]}'
+    if tamper == "viewer-empty": payloads["browser-viewer-artifacts.json"] = b'{"data":[]}'
     for name, value in payloads.items(): write(name, value)
     def png(width, height):
         raw = b"\0" + b"\0\0\0" * width
@@ -51,12 +72,14 @@ elif args[0] == "run":
     def descriptor(name):
         value = open(os.path.join(candidate, name), "rb").read(); return {"file": name, "sha256": hashlib.sha256(value).hexdigest(), "bytes": len(value)}
     manifest = {"schemaVersion": 2, "status": "passed", "gitHead": env["RUSTZEN_VERIFY_HEAD"], "sourceTreeState": env["RUSTZEN_VERIFY_SOURCE_TREE_STATE"], "sourceTreeSha256": env["RUSTZEN_VERIFY_SOURCE_TREE_SHA256"], "platform": env["RUSTZEN_VERIFY_PLATFORM"], "buildProvenanceSha256": env["RUSTZEN_VERIFY_BUILD_PROVENANCE_SHA256"], "binaries": [{"name": name, "sha256": sha} for name, sha in json.loads(env["RUSTZEN_VERIFY_BINARY_HASHES"]).items()], "api": {"taskCount": 3, "manualRun": {"id": "manual", "status": "success"}, "listOnlyPost": 403}, "browser": {"ownerRun": "owner", "recordRun": "record", "viewerRun": "viewer", "emptyRun": "empty", "errorRun": "error"}, "receipts": [descriptor(name) for name in receipts], "screenshots": [{**descriptor("task-console-desktop.png"), "dimensions": "1440 x 900", "viewport": {"width": 1440, "height": 900}}, {**descriptor("task-console-mobile.png"), "dimensions": "390 x 844", "viewport": {"width": 390, "height": 844}}]}
-    tamper = os.environ.get("RUSTZEN_TASK_CONSOLE_TEST_TAMPER")
     if tamper == "binary": manifest["binaries"][0]["sha256"] = "0" * 64
     if tamper == "viewport": manifest["screenshots"][0]["viewport"]["width"] = 1439
     if tamper == "screenshot": write("task-console-desktop.png", b"tampered")
     if tamper == "receipt": write("tasks.json", b"tampered")
     write("manifest.json", json.dumps(manifest).encode())
+    multi = {"manifest-front": "manifest.json", "manifest-back": "manifest.json", "run-front": "browser-owner-run.json", "run-back": "browser-owner-run.json", "steps-front": "browser-owner-steps.json", "steps-back": "browser-owner-steps.json", "fault-front": "empty-receipt.json", "fault-back": "error-receipt.json"}
+    if tamper in multi:
+        path = os.path.join(candidate, multi[tamper]); original = open(path, "rb").read(); write(multi[tamper], (b'{}\n' + original) if tamper.endswith("front") else (original + b'\n{}'))
 `); chmodSync(docker, 0o755);
     const verifier = join(directory, "verifier.sh"); writeFileSync(verifier, "#!/bin/sh\nprintf 'fake-image fake-key fake-provenance\\n'\n"); chmodSync(verifier, 0o755);
     const evidence = join(directory, "evidence");
@@ -78,6 +101,7 @@ test("task-console gate binds complete provenance, exact cleanup, and atomic cur
     expect(inner).toContain('[data-status=success]');
     expect(inner).toContain(".transitionRunId | tostring");
     expect(outer).toContain("$candidate/task-transition-receipt.json");
+    for (const value of ["verify_single_json_documents", "length == 1", "verify_fault_receipts", "transitionRunId == null", "transitionReads == 0", "mode == \"task-transition\"", "$reads >= 2", "($reads | floor) == $reads", "($hits | floor) == $hits", "verify_browser_receipts", "owner-record:recordRun", "kind == \"screenshot\"", ".data.status == \"succeeded\""]) expect(outer).toContain(value);
     expect(inner.match(/\{action:"assertNoHorizontalOverflow"\}/g)).toHaveLength(4);
     expect(inner).toContain('run=$(run_browser "$name" "$steps") || browser_status=$?');
     expect(inner).not.toContain('runs/$run/run');
@@ -119,8 +143,17 @@ test("stubborn or unverifiable Docker cleanup retains the ownership lock and can
     }
 });
 
+test("publishes only complete fault and browser receipt semantics", () => {
+    const item = fixture();
+    try {
+        const result = run(environment(item)); expect(result.exitCode, new TextDecoder().decode(result.stderr)).toBe(0);
+        expect(readlinkSync(join(item.evidence, "current"))).toMatch(/^runs\//);
+        expect(existsSync(join(item.evidence, ".verify.lock"))).toBeFalse();
+    } finally { item.cleanup(); }
+});
+
 test("rejects binary, PNG, viewport, and receipt tampering without replacing current", () => {
-    for (const tamper of ["binary", "screenshot", "viewport", "receipt"]) {
+    for (const tamper of ["binary", "screenshot", "viewport", "receipt", "empty-transition", "error-receipt", "browser-failure", "manifest-front", "manifest-back", "run-front", "run-back", "steps-front", "steps-back", "fault-front", "fault-back", "transition-mode", "transition-route", "transition-run", "transition-reads", "transition-hits", "transition-string", "transition-null", "transition-float", "cross-run", "owner-empty", "viewer-empty"]) {
         const item = fixture();
         try {
             mkdirSync(join(item.evidence, "runs", "old"), { recursive: true }); writeFileSync(join(item.evidence, "runs", "old", "manifest.json"), "old"); Bun.spawnSync(["ln", "-s", "runs/old", join(item.evidence, "current")]);
@@ -128,7 +161,7 @@ test("rejects binary, PNG, viewport, and receipt tampering without replacing cur
             expect(readlinkSync(join(item.evidence, "current"))).toBe("runs/old"); expect(failed(item)).toHaveLength(1); assertSafeFailure(item);
         } finally { item.cleanup(); }
     }
-}, 30_000);
+}, 90_000);
 
 test("failed evidence retains only bounded safe browser receipts", () => {
     const item = fixture();
