@@ -15,6 +15,8 @@ bounded as one hot-path check. Docker architecture discovery is separately
 capped at 10 seconds before either stage starts; dependency installation never
 runs inside the business container. Reports also bounds the complete Chromium launch,
 including CDP connection, to 30 seconds before it starts a browser flow.
+Reports maps `headless=true` to Chromium's new headless mode and `headless=false`
+to headed mode; this choice does not disable or otherwise alter Chromium sandboxing.
 The build recipe targets the Colima/Docker VM's native release architecture. It
 freezes the complete source identity before Docker snapshots the context and
 requires the same identity after compilation before writing provenance; a

@@ -18,7 +18,9 @@ smallest scheduling policy around that loop and keeps browser execution owned
 by Reports.
 
 Reports browser execution runs under the dedicated unprivileged `rz-reports`
-service account with Chromium sandboxing enabled. Browser sessions use a
+service account with Chromium sandboxing enabled. `headless=true` explicitly
+uses Chromium's new headless mode; `headless=false` uses headed mode. This
+selection does not change Chromium sandboxing. Browser sessions use a
 deterministic 1440x900 viewport so operator flows and their screenshot evidence
 do not depend on a host default. The run target is activated before its first
 navigation so page visibility and lifecycle APIs describe the target under

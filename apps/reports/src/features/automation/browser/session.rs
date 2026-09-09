@@ -1,4 +1,4 @@
-use chromiumoxide::browser::{Browser, BrowserConfig};
+use chromiumoxide::browser::{Browser, BrowserConfig, BrowserConfigBuilder};
 use chromiumoxide::handler::viewport::Viewport;
 use futures::{Future, StreamExt};
 use serde_json::Value;
@@ -10,6 +10,13 @@ use super::{
     BROWSER_INIT_TIMEOUT, BROWSER_SHUTDOWN_TIMEOUT, ExecutionContext, VIEWPORT_HEIGHT,
     VIEWPORT_WIDTH, artifacts, execute_steps,
 };
+
+fn apply_browser_headless_mode(
+    builder: BrowserConfigBuilder,
+    headless: bool,
+) -> BrowserConfigBuilder {
+    if headless { builder.new_headless_mode() } else { builder.with_head() }
+}
 
 pub(super) async fn execute_with_profile(
     state: &AppState,
@@ -36,9 +43,7 @@ pub(super) async fn execute_with_profile(
     if let Some(path) = state.browser_path.as_deref() {
         builder = builder.chrome_executable(path);
     }
-    if !state.headless {
-        builder = builder.with_head();
-    }
+    builder = apply_browser_headless_mode(builder, state.headless);
     let config = builder.build().map_err(AppError::internal)?;
     if *shutdown.borrow() {
         return Err(AppError::Interrupted);
@@ -159,7 +164,19 @@ async fn close_browser(browser: &mut Browser, mut handler: tokio::task::JoinHand
 mod tests {
     use std::future;
 
-    use super::phase_timeout;
+    use super::{BrowserConfig, apply_browser_headless_mode, phase_timeout};
+
+    #[test]
+    fn browser_headless_mode_uses_new_headless_only_when_requested() {
+        let new_headless = apply_browser_headless_mode(BrowserConfig::builder(), true)
+            .build()
+            .expect("new headless config");
+        let headed = apply_browser_headless_mode(BrowserConfig::builder(), false)
+            .build()
+            .expect("headed config");
+        assert!(format!("{new_headless:?}").contains("headless: New"));
+        assert!(format!("{headed:?}").contains("headless: False"));
+    }
 
     #[tokio::test]
     async fn launch_timeout_rejects_a_pending_complete_launch() {
