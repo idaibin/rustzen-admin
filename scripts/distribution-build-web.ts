@@ -56,11 +56,15 @@ const copyRoute = async (source: string) => {
     const destination = join(routeRoot, relativeRoute);
     await mkdir(dirname(destination), { recursive: true });
     let content = await Bun.file(join(repositoryRoot, source)).text();
+    if (relativeRoute === "monitoring/incidents.tsx" && !hasNotifications) {
+        content = content.replace('import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";\n', "").replace('    const deliveryCard = <NotificationDeliveryCard queryKey={["monitor", "notification-delivery"]} queryFn={monitorAPI.notificationDelivery} />;\n', "").replaceAll('                {deliveryCard}\n', "").replaceAll('            {deliveryCard}\n', "");
+    }
     if (relativeRoute === "__root.tsx" && !hasNotifications) {
         content = content
             .replace('import { NotificationShell } from "./-notifications-shell";\n', "")
             .replace(" headerActions={token ? <NotificationShell /> : null}", "");
     }
+    if (relativeRoute === "monitoring/incidents.tsx" && !hasNotifications && /NotificationDeliveryCard|deliveryCard|notification-delivery/.test(content)) throw new Error("pure Monitor incidents retains notification delivery");
     await Bun.write(destination, content);
 };
 
@@ -77,7 +81,7 @@ await Bun.write(
 await cp(join(webRoot, "public/rustzen.png"), join(generatedRoot, "public/rustzen.png"));
 await Bun.write(
     join(generatedRoot, "api.ts"),
-    await Bun.file(join(webRoot, "src/distribution/monitor-api.ts")).text(),
+    await Bun.file(join(webRoot, hasNotifications ? "src/distribution/monitor-notify-api.ts" : "src/distribution/monitor-api.ts")).text(),
 );
 await Bun.write(
     join(generatedRoot, "layout.tsx"),

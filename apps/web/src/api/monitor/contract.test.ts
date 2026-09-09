@@ -17,6 +17,7 @@ test("monitor client declares only the controller monitoring routes", () => {
         "/api/monitor/alert-settings",
         "/api/monitor/alert-settings",
         "/api/monitor/daily-summaries",
+        "/api/monitor/notification-delivery",
     ]);
     expect(Object.values(monitorAPIContract).every((route) => !route.path.includes("checks"))).toBe(
         true,
@@ -31,6 +32,10 @@ test("Monitoring route reads preserve typed HTTP failures for route-local states
             headers: { "content-type": "application/json" },
         })) as unknown as typeof fetch;
     try {
+        await expect(monitorAPI.notificationDelivery()).rejects.toMatchObject({
+            name: "ApiRequestError",
+            status: 403,
+        });
         await expect(monitorAPI.overview()).rejects.toMatchObject({
             name: "ApiRequestError",
             status: 403,

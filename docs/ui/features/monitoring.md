@@ -44,6 +44,13 @@ The route remains `/monitoring/incidents`.
 | Nodes / Global Settings drawer | One configuration Card with CPU, memory, disk and offline controls; one Save and last-update footer | Four controls share one Form; outlined numeric inputs remain visible on the panel. Management permission controls editing and Save. |
 | Daily Summaries | PageCard, DataTableShell, ProTable, separate bottom Pagination and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. It refreshes in the background every 30 seconds. At the 390px narrow layout, Date, Node, and Coverage remain visible; Samples and the resource, offline, and incident detail columns are hidden until the `sm` breakpoint so rows do not collapse into vertical text or crop at the right edge. |
 
+The reusable notification-delivery card appears above Incidents only in the
+`full` and `monitor-notify` selections. It displays pending and quarantine
+counts with their charged bytes, the sum of all five irreversible gap counters,
+and formatted nullable delivery timestamps. Pure `monitor` has no card,
+notification endpoint, or card test identifier in its generated or emitted Web
+artifact.
+
 ## States and accessibility
 
 - Loading, empty, populated, error/retry and permission behavior stay distinct on
@@ -139,3 +146,11 @@ signed release files and a root-only secret provisioning boundary. It presents o
 Ant Design steps for archive, manifest, envelope, trusted key, key ID, root-only config
 format, and CLI phases. Its primary execution action is disabled. It contains no copied
 shell block, token field, token value, or direct Agent command.
+
+## Notification delivery health
+
+In `full` and `monitor-notify`, the Incidents page places a compact delivery
+card above its table. It shows pending and quarantine counts, the irreversible total
+(omitted+expired+unconfirmed+quarantined+evicted), first/last gap and last
+success. Zero gaps is healthy; a nonzero total is explicit. Loading, 403 and
+500 are distinct and each recoverable state has Retry. No payload is rendered.

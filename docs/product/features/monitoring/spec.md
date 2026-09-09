@@ -174,7 +174,7 @@ belong to the UI specification rather than this product document.
 
 - Agent configuration synchronization or a bidirectional control channel.
 - Agent-side database, alert engine, incident store, report engine, query handler, or Outbox.
-- Custom or per-node alert rules, cooldown, hysteresis, notification delivery, and alert escalation.
+- Custom or per-node alert rules, cooldown, hysteresis, notification delivery configuration, and alert escalation.
 - Configurable network, service, process, log, or command checks.
 - Weekly, monthly, yearly, APM, tracing, log-warehouse, or cloud-orchestration capabilities.
 - Compatibility fallbacks for replaced Monitor or `rustzen-inspect` protocols and databases.

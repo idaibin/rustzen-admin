@@ -1,7 +1,9 @@
 import { installationAPI } from "@/api/installation/api";
-import { monitorCoreAPI as monitorAPI } from "@/api/monitor/core-api";
+import { monitorAPI } from "@/api/monitor/api";
 import { apiRequest } from "@/api/request";
 import { appMessage, MessageContent } from "@/api/runtime";
+
+// notification marker: this selected template retains the Monitor delivery API.
 
 const authAPI = {
     login: (data: Auth.LoginRequest) =>
@@ -51,7 +53,8 @@ const systemAPI = {
                 method: "PUT",
                 params: data,
             }),
-        delete: (id: number) => apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
+        delete: (id: number) =>
+            apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
         status: (id: number, status: number) =>
             apiRequest<boolean>({
                 url: `/api/system/users/${id}/status`,
@@ -86,7 +89,8 @@ const systemAPI = {
                 method: "PUT",
                 params: data,
             }),
-        delete: (id: number) => apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
+        delete: (id: number) =>
+            apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
         options: () => apiRequest<Role.OptionItem[]>({ url: "/api/system/roles/options" }),
     },
 };

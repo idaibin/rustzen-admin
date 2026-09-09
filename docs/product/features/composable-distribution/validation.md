@@ -258,6 +258,7 @@ evidence. A source lockfile listing an omitted dependency is not runtime leakage
 | N08 | Same ID with modified body | 409, no new writes; producer quarantines |
 | N09 | Admin down within configured capacity/horizon | Monitoring and Reports continue; events replay after recovery |
 | N10 | Outbox capacity/horizon exceeded | Business detection continues; durable gap/expiry counters visible; no false complete-delivery claim |
+| N10a | Authorized delivery status read | Each module's exact protected route returns aggregate status; public or allowlisted access is rejected |
 | N11 | Fanout fails mid-transaction | Receipt and partial recipients roll back; later retry can complete |
 | N12 | New permission grant after original acceptance | No automatic historical subscription |
 | N13 | Permission revoked or module disabled | List/count/detail/read/SSE never expose now-inaccessible messages |

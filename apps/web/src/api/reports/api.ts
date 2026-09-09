@@ -1,8 +1,14 @@
 import { routePath } from "@/api/module-contract";
+import type { NotificationDeliveryStatus } from "@/api/notification-delivery";
 import { reportsAPIContract as contract } from "@/api/reports/contract";
 import { apiBlob, apiDownload, apiRequest } from "@/api/request";
 
 export const reportsAPI = {
+    notificationDelivery: () =>
+        apiRequest<NotificationDeliveryStatus>({
+            url: contract.notificationDelivery.path,
+            silent: true,
+        }),
     settings: () =>
         apiRequest<Reports.InstallationSettings>({
             url: contract.settings.path,

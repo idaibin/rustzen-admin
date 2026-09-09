@@ -312,7 +312,7 @@ runtime platform inside the build stage. Before the terminal
 export it must have these payload members:
 
 | Root | Required members |
-| --- | --- |
+| --- | --- | --- |
 | `release/server/bin` | `rz-admin`, `rz-monitor` |
 | `witness/bin` | `rz-monitor-agent` |
 | `release/web` | `inventory.json`, nonempty selected `dist/` |
@@ -491,7 +491,7 @@ the request target exactly as forwarded after one defined URI normalization;
 do not independently reorder/decode query parameters at the receiver.
 
 | Direction | Covered fields |
-| --- | --- |
+| --- | --- | --- |
 | User delegation | Domain/version, keyId, target module and current module instance, operation ID, method, path/query, content type, body SHA-256, user ID, sid, current authz epoch, created/expiry, nonce |
 | Notification event | Domain/version, keyId, producer ID, Admin audience, method, fixed path with no query, content type, body SHA-256, created/expiry, nonce |
 
@@ -560,7 +560,7 @@ even though duplicate business events consume no new inbox storage.
 Initial topics:
 
 | Topic | Producer | Business transition | Required recipient access |
-| --- | --- | --- | --- |
+| --- | --- | --- |
 | `monitor.incident.opened` | Monitor | First transition to active | `monitor:incident:view` |
 | `monitor.incident.resolved` | Monitor | Active to resolved, including policy-driven resolution | `monitor:incident:view` |
 | `reports.run.completed` | Reports | Running to succeeded | Initiator still allowed to view the run |
@@ -652,9 +652,28 @@ notification_outbox
   attempts, next_attempt_at, lease_until, lease_token, reconcile_until, last_error_code
 
 notification_delivery_status
-  id = 1, omitted_count, expired_count, unconfirmed_count, quarantined_count,
-  first_gap_at, last_gap_at, last_success_at
+  id = 1
+  pending_count
+  pending_bytes
+  quarantine_count
+  quarantine_bytes
+  omitted_count
+  expired_count
+  unconfirmed_count
+  quarantined_count
+  quarantine_evicted_count
+  first_gap_at
+  last_gap_at
+  last_success_at
 ```
+
+Authorized Monitor incident viewers and Reports run viewers read this aggregate
+through exact `GET /api/{module}/notification-delivery` routes. The response has
+`pendingCount`, `pendingBytes`, `quarantineCount`, `quarantineBytes`, five
+irreversible gap counters (`omittedCount`, `expiredCount`, `unconfirmedCount`,
+`quarantinedCount`, `quarantineEvictedCount`), and nullable `firstGapAt`,
+`lastGapAt`, and `lastSuccessAt` timestamps; notification payloads are never
+returned.
 
 One relay runs per producer process. It claims a bounded batch with a lease,
 retries after crashed leases, and preserves event order per subject for pending
@@ -843,7 +862,7 @@ All endpoints infer the user from authentication. There is no client-controlled
 `userId` used to choose the inbox.
 
 | Method / path | Request | Response / invariant |
-| --- | --- | --- |
+| --- | --- |
 | GET `/api/notifications` | Authenticated-encrypted opaque cursor, integer limit 1..100, optional unread filter | Accessible messages in stable newest-first order, next cursor, revision; internal sequence is omitted |
 | GET `/api/notifications/unread-count` | None | Authorized unread count + revision |
 | GET `/api/notifications/{id}` | None | Accessible message or 404 |

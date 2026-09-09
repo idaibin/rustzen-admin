@@ -9,6 +9,7 @@ import { appMessage, reportsAPI } from "@/api";
 import { reportsQueryOptions } from "@/api/reports/query-options";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
+import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
@@ -66,6 +67,7 @@ function RunsPage() {
         refetchOnMount: "always",
     });
     const total = data?.total ?? 0;
+    const deliveryCard = <NotificationDeliveryCard queryKey={["reports", "notification-delivery"]} queryFn={reportsAPI.notificationDelivery} />;
 
     useEffect(() => {
         if (linkedRunError || linkedRunFetching) {
@@ -180,12 +182,14 @@ function RunsPage() {
     if (!data?.data.length && isPending)
         return (
             <PageCard title={title} description={description} actions={actions}>
+                {deliveryCard}
                 <DataState kind="loading" title={t("正在加载填报执行", "Loading report runs")} />
             </PageCard>
         );
     if (!data?.data.length && error)
         return (
             <PageCard title={title} description={description} actions={actions}>
+                {deliveryCard}
                 <DataState
                     kind="error"
                     title={t("填报执行加载失败", "Failed to load report runs")}
@@ -204,6 +208,7 @@ function RunsPage() {
     if (total === 0)
         return (
             <PageCard title={title} description={description} actions={actions}>
+                {deliveryCard}
                 <DataState
                     kind="empty"
                     title={t("暂无填报执行", "No report runs")}
@@ -214,6 +219,7 @@ function RunsPage() {
 
     return (
         <PageCard title={title} description={description} actions={actions}>
+            {deliveryCard}
             {error ? (
                 <DataState
                     kind="error"

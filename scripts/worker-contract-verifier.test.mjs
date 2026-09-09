@@ -113,3 +113,10 @@ describe("manifest/frontend route contract comparison", () => {
         ]);
     });
 });
+
+test("does not allowlist notification delivery for Monitor or Reports", () => {
+    for (const [module, prefix] of [["monitor", "/api/monitor"], ["reports", "/api/reports"]]) {
+        const result = compareManifestRoutes(module, manifest([{ method: "GET", path: "/notification-delivery", access: "public" }], prefix), {});
+        expect(result.extra).toEqual([{ key: `GET ${prefix}/notification-delivery`, access: "public" }]);
+    }
+});

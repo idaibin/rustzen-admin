@@ -2,6 +2,7 @@ import type { ModuleApiRoute } from "@/api/module-contract";
 
 export const reportsAPIContract = {
     systems: { method: "GET", path: "/api/reports/systems" },
+    notificationDelivery: { method: "GET", path: "/api/reports/notification-delivery" },
     createSystem: { method: "POST", path: "/api/reports/systems" },
     updateSystem: { method: "PUT", path: "/api/reports/systems/{id}" },
     deleteSystem: { method: "DELETE", path: "/api/reports/systems/{id}" },

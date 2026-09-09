@@ -18,6 +18,10 @@ of this feature.
 
 When notifications are omitted from a composition, its Admin schema, API
 routes, Web roots, timers and service startup contain no message-center owner.
+Monitor incidents and Reports runs retain their existing pages, but omitted
+compositions show no delivery health or delivery card. Only a
+notifications-capable selection may show the compact authorized aggregate; it
+adds neither a menu nor payload display.
 P5a adds only the selected backend schema and authenticated read APIs. It does
 not add a hidden bell, empty placeholder, polling task or disconnected Web
 route before the Web slice is implemented.
@@ -62,27 +66,27 @@ HTML from a producer and does not accept a producer-supplied URL.
 
 ## P7 state matrix
 
-| State | Presentation | Allowed action / transition |
-| --- | --- | --- |
-| Closed | Bell and current unread badge only | Open registers one client lifecycle and reconciles the durable count/list. |
-| Initial loading | Drawer skeleton with title retained | Close remains available; no stale row action is enabled. |
-| Empty | “No messages” with the active filter named | Switch all/unread or close. |
-| Populated | Newest-first rows with producer, safe title/summary, occurred time and read state | Open detail; request the next opaque page when present. |
-| Unread filter | Only server-authorized unread rows from its own snapshot | Filter change discards cursor/pages and starts one fresh query. |
-| Page loading | Existing rows remain visible with one bounded loading affordance | Repeated load-more is disabled until the request settles. |
-| Detail loading | Drawer context stays visible; detail body is skeleton-only | 404/403 closes the detail without retaining protected content. |
-| Detail ready | Plain text fields and fixed subject action, if supported | Mark this message read; navigate only through the fixed mapping below. |
-| Marking one read | Row action and duplicate requests disabled | Success applies the returned first-read state, then reconciles count. |
-| Marking all read | One pending control scoped to the preceding server snapshot | Later arrivals remain unread; success reconciles list and count. |
-| Retention gap | 30-day retention explanation beside empty/end state | No recovery or “load expired” action is offered. |
-| Recoverable HTTP/network error | Inline retry without clearing already reconciled rows | Retry is single-flight with the current auth generation. |
-| 401 / expired session | Drawer content is cleared | Stop SSE/retries and enter the existing login flow. |
-| 403 / module unavailable | No protected row or existence detail remains | Show the existing unavailable/forbidden state; do not retry rapidly. |
-| SSE connected | No extra success chrome | Advisory revision invalidates cached count/list only. |
-| SSE reconnecting | Subtle connection status; durable rows remain | Exponential retry from 1 to 30 seconds with jitter; one connection attempt. |
-| Lag / reconcile required | Connection closes after the advisory | Fetch durable count/list before reconnecting. |
-| Hidden / frozen | Timers and stream may stop | On visible/pageshow, discard stale generation, reconcile, then subscribe once. |
-| Logout / auth-store change / pagehide | No message-center work remains | Abort fetch, parser, retry timer and stream; BFCache restore starts fresh. |
+| State                                 | Presentation                                                                      | Allowed action / transition                                                    |
+| ------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Closed                                | Bell and current unread badge only                                                | Open registers one client lifecycle and reconciles the durable count/list.     |
+| Initial loading                       | Drawer skeleton with title retained                                               | Close remains available; no stale row action is enabled.                       |
+| Empty                                 | “No messages” with the active filter named                                        | Switch all/unread or close.                                                    |
+| Populated                             | Newest-first rows with producer, safe title/summary, occurred time and read state | Open detail; request the next opaque page when present.                        |
+| Unread filter                         | Only server-authorized unread rows from its own snapshot                          | Filter change discards cursor/pages and starts one fresh query.                |
+| Page loading                          | Existing rows remain visible with one bounded loading affordance                  | Repeated load-more is disabled until the request settles.                      |
+| Detail loading                        | Drawer context stays visible; detail body is skeleton-only                        | 404/403 closes the detail without retaining protected content.                 |
+| Detail ready                          | Plain text fields and fixed subject action, if supported                          | Mark this message read; navigate only through the fixed mapping below.         |
+| Marking one read                      | Row action and duplicate requests disabled                                        | Success applies the returned first-read state, then reconciles count.          |
+| Marking all read                      | One pending control scoped to the preceding server snapshot                       | Later arrivals remain unread; success reconciles list and count.               |
+| Retention gap                         | 30-day retention explanation beside empty/end state                               | No recovery or “load expired” action is offered.                               |
+| Recoverable HTTP/network error        | Inline retry without clearing already reconciled rows                             | Retry is single-flight with the current auth generation.                       |
+| 401 / expired session                 | Drawer content is cleared                                                         | Stop SSE/retries and enter the existing login flow.                            |
+| 403 / module unavailable              | No protected row or existence detail remains                                      | Show the existing unavailable/forbidden state; do not retry rapidly.           |
+| SSE connected                         | No extra success chrome                                                           | Advisory revision invalidates cached count/list only.                          |
+| SSE reconnecting                      | Subtle connection status; durable rows remain                                     | Exponential retry from 1 to 30 seconds with jitter; one connection attempt.    |
+| Lag / reconcile required              | Connection closes after the advisory                                              | Fetch durable count/list before reconnecting.                                  |
+| Hidden / frozen                       | Timers and stream may stop                                                        | On visible/pageshow, discard stale generation, reconcile, then subscribe once. |
+| Logout / auth-store change / pagehide | No message-center work remains                                                    | Abort fetch, parser, retry timer and stream; BFCache restore starts fresh.     |
 
 Safe subject navigation is a closed mapping: Monitor incident messages may open
 `/monitoring/incidents?incidentId=<encoded-id>` and Reports run messages may open

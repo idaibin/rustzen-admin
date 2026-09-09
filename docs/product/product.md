@@ -142,13 +142,13 @@ page search, module status, headings and state messages use these names.
 Internal service names, routes, permissions, child-page names and browser
 execution scope remain unchanged.
 
-| Product term | Current meaning | Product owner |
-| --- | --- | --- |
-| Admin | Control plane, identity, RBAC, release, and Web host. | Admin |
-| Monitoring | Node, resource metric, alert, incident, and daily-summary operations. | Monitoring |
-| Analytics | Instance-wide event overview and detail queries. | Analytics |
-| Automation | Target systems, browser filling templates, runs, artifacts, and live frames. Display name of the Reports-owned module, not a separately shipped module. | Reports |
-| Report Center | A possible future cross-module report catalog. It is not implemented. | Deferred |
+| Product term  | Current meaning                                                                                                                                         | Product owner |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Admin         | Control plane, identity, RBAC, release, and Web host.                                                                                                   | Admin         |
+| Monitoring    | Node, resource metric, alert, incident, and daily-summary operations.                                                                                   | Monitoring    |
+| Analytics     | Instance-wide event overview and detail queries.                                                                                                        | Analytics     |
+| Automation    | Target systems, browser filling templates, runs, artifacts, and live frames. Display name of the Reports-owned module, not a separately shipped module. | Reports       |
+| Report Center | A possible future cross-module report catalog. It is not implemented.                                                                                   | Deferred      |
 
 Technical ownership and stable internal names are defined in
 [`architecture.md`](../architecture.md) and
@@ -156,12 +156,12 @@ Technical ownership and stable internal names are defined in
 
 ## Module purposes and direction
 
-| Product area | Internal name | Current purpose | Direction | Explicit non-goal |
-| --- | --- | --- | --- | --- |
-| Admin | Admin | Trusted control plane for identity, RBAC, module state, system status, operations, and releases. | Clarify installation, access, diagnosis, update, and recovery. | ERP, generic CRUD generation, low-code admin, or workflow builder. |
-| Monitoring | Monitor | Managed-node, resource metric, alert, incident, and daily-summary operations. | Improve the path from signal to actionable incident for small installations. | Full APM, tracing, log warehouse, or cloud orchestrator. |
-| Analytics | Insights | Lightweight installation-wide activity collection, overview, detail, and retention. | Make the retained signals useful before adding event families or segmentation. | Marketing automation, general BI, warehouse, or multi-tenant analytics. |
-| Automation | Reports | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
+| Product area | Internal name | Current purpose                                                                                                 | Direction                                                                          | Explicit non-goal                                                                |
+| ------------ | ------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Admin        | Admin         | Trusted control plane for identity, RBAC, module state, system status, operations, and releases.                | Clarify installation, access, diagnosis, update, and recovery.                     | ERP, generic CRUD generation, low-code admin, or workflow builder.               |
+| Monitoring   | Monitor       | Managed-node, resource metric, alert, incident, and daily-summary operations.                                   | Improve the path from signal to actionable incident for small installations.       | Full APM, tracing, log warehouse, or cloud orchestrator.                         |
+| Analytics    | Insights      | Lightweight installation-wide activity collection, overview, detail, and retention.                             | Make the retained signals useful before adding event families or segmentation.     | Marketing automation, general BI, warehouse, or multi-tenant analytics.          |
+| Automation   | Reports       | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
 
 ## Confirmed decisions
 
@@ -218,8 +218,11 @@ The former `rustzen-inspect` remains only a behavior and failure-scenario
 reference. Do not copy its Admin, system, project, deployment, permission,
 runtime-layout, protocol, or database layers. Monitoring alert policies and
 reports are authorized only within the Monitoring central ownership and
-retention rules. Notification delivery and reports beyond the 30-day data
-window are not Monitoring capabilities.
+retention rules. Notification delivery configuration and reports beyond the
+30-day data window are not Monitoring capabilities; authorized operators can
+read aggregate delivery health for existing Monitoring incidents only in a
+notifications-capable selection. Omitted-notification selections render no
+delivery-health card or endpoint.
 
 ### Analytics
 
@@ -307,7 +310,8 @@ behavior. They do not justify a fifth process or a new contract crate today.
 - Rejected: copying a former repository's Admin shell, authentication, RBAC,
   deployment, or directory layout into a module.
 - Deferred: multi-project Analytics, Reports credentials/datasets/
-  expression-group DSL/notifications/webhooks, Monitoring notification delivery
+  expression-group DSL/webhooks, Monitoring notification delivery
+  configuration
   and reports beyond its 30-day window, Report Center, and a fifth process.
   Monitoring global/node thresholds and daily summaries are implemented within
   the current central-monitoring scope.
