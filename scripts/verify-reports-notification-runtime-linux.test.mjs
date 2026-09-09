@@ -104,6 +104,13 @@ describe("Reports notification Linux runtime gate", () => {
         expect(evidenceValidator).toContain("$runtimeIdentity[0].user.uid > 0");
     });
 
+    test("keeps every runtime-gate pause within the saved FlowStep limit", () => {
+        expect(inner).toContain('long_flow=$(flow long \'[{"action":"pause","durationMs":30000}]\')');
+        const durations = [...inner.matchAll(/"durationMs":(\d+)/g)].map((match) => Number(match[1]));
+        expect(durations.length).toBeGreaterThan(0);
+        expect(durations.every((duration) => duration <= 30_000)).toBeTrue();
+    });
+
     test("uses the frozen signature domain without adding an unpinned runtime", () => {
         expect(client).toContain('DOMAIN = "rz-notification-producer-v1"');
         expect(client).toContain("9668d0b7d9dbc9f6f341554fdb1da55b51f35f145dfbd4b98ecfb88e06cf80c0");

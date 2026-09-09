@@ -15,7 +15,7 @@ use super::{
 mod artifacts;
 mod layout;
 mod session;
-
+mod timeout;
 use artifacts::{save_screenshot, save_viewport_screenshot, try_save_live_frame};
 use layout::assert_page_element_layout;
 
@@ -88,6 +88,10 @@ pub(super) async fn execute_steps(
             continue;
         }
         let started = Instant::now();
+        let step_timeout = timeout::for_step(
+            step,
+            Duration::from_secs(settings.default_step_timeout_seconds as u64),
+        );
         let result = tokio::select! {
             cancellation = wait_for_cancellation(context) => {
                 cancellation?;
@@ -105,10 +109,7 @@ pub(super) async fn execute_steps(
                 .await?;
                 return Err(AppError::Cancelled);
             }
-            result = tokio::time::timeout(
-                Duration::from_secs(settings.default_step_timeout_seconds as u64),
-                execute_step(context, step),
-            ) => result,
+            result = tokio::time::timeout(step_timeout, execute_step(context, step)) => result,
         };
         let duration = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
         let outcome = match result {
@@ -332,8 +333,7 @@ async fn execute_step(
             Ok(StepOutcome::Continue)
         }
         FlowStep::Pause { duration_ms } => {
-            let duration = Duration::from_millis((*duration_ms).min(30_000));
-            tokio::time::sleep(duration).await;
+            tokio::time::sleep(Duration::from_millis(*duration_ms)).await;
             Ok(StepOutcome::Continue)
         }
     }

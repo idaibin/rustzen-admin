@@ -27,6 +27,13 @@ it exceeds 4,000,000 pixels or 4 MiB, and one run may retain at most 16 MiB of
 screenshot artifacts; rejected captures leave no artifact row or temporary
 file. These execution limits apply equally to ordinary and scheduled runs.
 
+
+## Evidence status
+
+Historical successful commands, screenshots, and assertions are not current acceptance. A local verification claim requires a source-bound current manifest whose source identity, platform, declared receipts, artifact hashes, and terminal status match the checkout under review. If that manifest is absent, incomplete, or mismatched, the related browser, HTTP, or runtime statement is **Not verified**.
+
+Native systemd startup, browser seccomp under a restricted native Linux profile, deployment after installation, and a deployed scheduler reaching its due time remain **Not verified**.
+
 ## Current implementation and verification status
 
 The Reports service and the Reports Templates route now implement this slice:
@@ -36,28 +43,25 @@ and the `enqueued`-to-run link are present. The user-facing module name is
 **自动化 / Automation** while Reports remains the service, route, capability,
 template, and run-data owner.
 
-Repository tests cover scheduler timing, idempotency, stale-snapshot handling,
-and persistence. The focused worker verifier is the HTTP acceptance seam for
-daily/weekly CRUD, direct capability denial, real due occurrence readback,
-`enqueued`/`skipped` decisions, and run linkage. The target-backed Linux
-Chromium verifier creates a next-minute daily schedule for a healthy flow,
-bounded-waits for the real scheduler poll to persist its `enqueued` occurrence
-and `runId`, then follows the Templates run link into the exact Runs audit. It
-also renders a deliberately isolated SQLite `missed` occurrence fixture with
-its due instant and reason as separate fields, then proves the no-link state; that fixture does not claim to exercise the
-scheduler's create-time `effectiveAt` admission. The browser verifier covers
-the Reports execution browser, real screenshot artifacts, cleanup, and
-schedule-only delegated permission requests; the Web seam tests fix the
-route's selector and schedule view/manage gates plus terminal retry visibility,
-the shared per-source pending key, success selection of the direct child, and
-failure preservation of the source selection. The schedule-save seam verifies
-that a request failure remains in the open form for retry and that only a
-successful refresh announces and closes the dialog. The four-service verifier
-covers startup ordering, failure isolation, gateway contracts, and each
-service database restore. A Colima Debian/amd64 run covers Reports as an
-unprivileged user with browser user namespaces, WAL files, recovery blocking,
-logs, and screenshots. The rendered Web route, a real systemd boot, and browser
-seccomp under a confined native Linux host remain **Not verified**.
+Repository tests and local gates are intended to exercise scheduler timing,
+idempotency, stale-snapshot handling, persistence, daily/weekly HTTP CRUD,
+capability denial, occurrence/run linkage, and browser-rendered Templates
+flows. The target-backed Linux Chromium gate is intended to create a
+next-minute daily schedule, wait for the persisted `enqueued` occurrence and
+`runId`, and follow the Templates link to its exact Runs audit. Its isolated
+SQLite `missed` fixture is limited to rendering a due instant, reason, and
+no-link state; it does not exercise the scheduler's create-time `effectiveAt`
+admission. The Web seams are intended to cover selector and schedule
+view/manage gates, terminal retry visibility, shared retry pending state,
+direct-child selection, failure preservation, and save retry behavior. The
+four-service gate is intended to exercise startup ordering, failure isolation,
+gateway contracts, and service database restore.
+
+Those gate outcomes establish HTTP, browser, or local Linux claims only when a
+source-bound current manifest matches this checkout. Without that manifest,
+the rendered Web route and all gate-derived runtime behavior are **Not
+verified**. Real systemd boot and browser seccomp under a confined native Linux
+host remain **Not verified**.
 
 Reports flows may use the bounded `assertValue` and `assertAbsent` steps in
 addition to the existing browser DSL. `assertValue` compares an element's
@@ -135,21 +139,22 @@ Retention may delete an older source run while retaining a newer child. In that
 case the child's lineage reference is cleared, the deleted source cannot be
 retried, and no lineage guarantee is made across the deleted record.
 
-The rendered retry acceptance uses a real failed source and verifies the
-returned direct child by ID rather than assuming it remains queued. A Runs-list
-retry must select that child audit; retrying from the failed source audit must
-select the same direct child. The source run response, steps, and artifacts are
-unchanged across both actions. Succeeded and nonterminal runs have no rendered
-Retry action. A real user with `reports:run:view` but no `reports:run:manage`
-cannot see Retry and receives the backend permission rejection. A Runs-only
-viewer must not trigger a flows request that requires `reports:flow:view`; the
-flow column uses the persisted `flowId` when that optional name lookup is not
-authorized. Run creation retains its existing managed flow-picker behavior.
-The target-backed browser evidence covers 1440x900 dark/en-US and 390x844
-light/zh-CN, including key copy, no horizontal overflow, and no permission
-error toast, while retaining the existing schedule and fault verification
-matrix. The target-backed Linux Chromium gate now verifies this rendered
-acceptance.
+The rendered retry gate is intended to use a real failed source and compare the
+returned direct child by ID rather than assume it remains queued. A Runs-list
+retry is expected to select that child audit; retrying from the failed source
+audit is expected to select the same direct child. The source run response,
+steps, and artifacts must remain unchanged across both actions. Succeeded and
+nonterminal runs have no rendered Retry action. A user with
+`reports:run:view` but no `reports:run:manage` cannot see Retry and receives
+the backend permission rejection. A Runs-only viewer must not trigger a flows
+request requiring `reports:flow:view`; the flow column uses the persisted
+`flowId` when that optional name lookup is not authorized. Run creation retains
+its managed flow-picker behavior.
+
+The target-backed browser gate is intended to cover 1440x900 dark/en-US and
+390x844 light/zh-CN, key copy, no horizontal overflow, and no permission error
+toast, alongside schedule and fault checks. This rendered acceptance is **Not
+verified** unless its current source-bound manifest matches the checkout.
 
 The scheduler resolves local schedule time using the installation timezone and
 applies one fixed 60-second lateness window:
@@ -251,7 +256,7 @@ tables, forms, dialogs, and run evidence.
 | Empty | Query succeeded with no schedules. | Explain how to create one when permitted. |
 | Error | List/save/trigger read failed. | Show retry; preserve form values and last good rows. |
 | Permission | Caller lacks view/manage capability. | Hide mutation actions and show the existing permission state. |
-| Processing | Save, enable/disable, delete, or manual due-check is running. | Disable duplicate actions and retain the selected schedule. |
+| Processing | Save, enable/disable, or delete is running. | Disable duplicate actions and retain the selected schedule. |
 | Partial | A list contains mixed occurrence outcomes. | Keep each outcome and reason; never summarize as all successful. |
 
 ### SR-UI-002 rendered form acceptance
@@ -261,9 +266,9 @@ root and the real Templates route. It is separate from the wider Admin browser
 gate so its form assertions and evidence can evolve without enlarging that
 general-purpose verifier.
 
-The gate has passed on Colima Linux/arm64. Its atomic `current` manifest records
-`status: passed`, canonical platform `linux/arm64`, and the manager 1440x900
-dark/en-US plus schedule-view-only 390x844 light/zh-CN screenshots.
+The SR-UI-002 assertions are current evidence only when its source-bound `current`
+manifest matches this checkout. Otherwise its Colima platform, screenshots, and form
+assertions are **Not verified**.
 
 - A schedule manager at 1440x900, dark/en-US sees the installation timezone and
   creates a daily schedule, then changes it to weekly with a weekday. The
@@ -347,19 +352,20 @@ policy removes them.
   rows; initial failure is never shown as an empty list.
 - Fixed copy is localized in Simplified Chinese and English; user-created
   names and runtime error text remain unchanged.
-- The linked UI matrix passes desktop/narrow, light/dark, loading/empty/error/
-  permission/processing/partial, keyboard focus, localization wrapping, and
-  no-overflow checks.
+- The linked UI matrix is intended to cover desktop/narrow, light/dark,
+  loading/empty/error/permission/processing/partial, keyboard focus,
+  localization wrapping, and no-overflow checks; it is **Not verified** without
+  a matching current source-bound manifest.
 
 ## Verification matrix
 
 | Layer | Evidence | Acceptance |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Source/static | schedule lifecycle, due identity, capability, and client mapping review | No cron parser, secret bypass, duplicate route catalog, or cross-service DB access. |
-| Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Daily/weekly, skip, idempotency, and failure evidence pass. |
-| HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage are observable locally. |
-| Browser            | Reports browser verifier, SR-UI-002 form gate, schedule permission seam, and Reports state-closure gate | Verified target-backed Templates lifecycle: create daily, edit weekly, disable/enable, delete, schedule-view-only action hiding, and a real next-minute scheduler `enqueued` occurrence linked to its exact Runs audit. SR-UI-002 additionally verifies manager local no-request failures, secret-policy rejection without persistence, timezone/cadence display, cancel/save focus restoration, and the manager 1440x900 dark/en-US plus view-only 390x844 light/zh-CN screenshots without horizontal overflow. A separate controlled SQLite fixture renders `missed` with distinct due and reason fields and no run link. Runs retry is also verified for terminal visibility, list/audit child selection, view-only denial, source-evidence preservation, and shared direct-child identity. Published `verify-reports-ui-state-linux` evidence closes the manager processing, partial, runtime-failure, combined view-only, and retained-evidence rendering paths locally. |
-| Runtime/deployment | four-service verifier plus Colima Linux Reports gate | Local four-process isolation and Linux non-root browser/userns/WAL/recovery/log behavior pass; real systemd and native-host browser seccomp remain **Not verified**. |
+| Automated | Reports scheduler/service, persistence, input-safety, and contract tests | Intended to cover daily/weekly, skip, idempotency, and failure evidence; results require current test output. |
+| HTTP | Focused worker verifier creates, lists, reads, retries terminal runs, updates, enables/disables, and deletes daily/weekly schedules, then reads real occurrence/run state | Intended to cover schedule view/manage denial, retry denial for non-terminal runs, `enqueued`/`skipped`, source immutability, and run linkage. It is **Not verified** without a matching current source-bound manifest. |
+| Browser | Reports browser verifier, SR-UI-002 form gate, schedule permission seam, and Reports state-closure gate | Intended to cover Templates create/edit/disable/enable/delete, schedule-view-only hiding, next-minute `enqueued` linkage, manager no-request failures, secret-policy rejection, timezone/cadence display, focus restoration, two viewports, `missed` rendering, retry behavior, processing/partial/runtime-failure/view-only rendering, and retained evidence. It is **Not verified** without a matching current source-bound manifest. |
+| Runtime/deployment | four-service verifier plus Colima Linux Reports gate | A matching current source-bound manifest is required for local four-process and Linux browser evidence; otherwise it is **Not verified**. Real systemd and native-host browser seccomp remain **Not verified**. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
@@ -391,33 +397,43 @@ The cadence, skip policy, run ownership, permission boundary, failure semantics,
 and non-goals are implemented in the current Reports/Web slice. Focused local
 Rust, HTTP, and script seams are required before this status can be claimed.
 The stated Templates success lifecycle, state-closure rendering, and two
-viewports are verified locally. Other response matrices, real systemd
-installation, native-host browser seccomp, and external delivery remain
-**Not verified**.
+viewports require matching current manifests; otherwise they are **Not verified**.
+Other response matrices, real systemd installation, native-host browser seccomp,
+deployment after installation, and deployed due-time scheduling remain **Not verified**.
 
 ## Current Linux Chromium acceptance
 
-The release gate verifies the target-backed Reports schedule lifecycle: create daily, edit weekly, disable, enable, and delete. It separately proves schedule-view-only users cannot receive management controls and captures desktop dark/en-US plus mobile light/zh-CN evidence without horizontal overflow. It also verifies Runs retry from the list and audit surfaces, exact direct-child selection, terminal visibility, view-only denial, and preservation of source evidence. The existing ten mutation-failure cases remain required and do not substitute for these success paths. Other visual matrices, native systemd, and native-host seccomp remain **Not verified**.
+The release gate is intended to exercise the target-backed Reports schedule
+lifecycle: create daily, edit weekly, disable, enable, and delete. It is also
+intended to cover schedule-view-only management hiding, desktop dark/en-US and
+mobile light/zh-CN screenshots without horizontal overflow, and Runs retry from
+list and audit surfaces with direct-child selection, terminal visibility,
+view-only denial, and source-evidence preservation. The existing ten
+mutation-failure cases remain required and do not substitute for these success
+paths. These claims are **Not verified** unless a matching current
+source-bound manifest is present. Other visual matrices, native systemd, and
+native-host seccomp remain **Not verified**.
 
 ## Reports state-closure Linux Chromium acceptance
 
-`just verify-reports-ui-state-linux` passed as the local state-closure gate for
-this feature. It uses the existing four-service Linux verifier and published an
-atomic, source-bound manifest. A manager desktop flow held a controlled
-30-second executor pause, captured the active processing state, explicitly
-cancelled it, and retained the cancelled pause-step receipt. It also captured a
-real terminal runtime failure with its failed step and error, and the existing
-Retry action. Before and after retry it compares immutable source run, steps,
-and artifacts snapshots by file hash, so opening a retry child cannot replace
-retained source evidence. The manifest binds each of the four browser runs to
-its complete run-step receipt and its uniquely named, exact-viewport screenshot.
+`just verify-reports-ui-state-linux` is a local state-closure gate. Its assertions
+are accepted only from a current source-bound manifest that matches this checkout;
+without that manifest they are **Not verified**. When run against a matching
+manifest, the manager desktop flow is intended to hold a controlled 30-second
+executor pause, capture active processing, cancel it, and retain the cancelled
+pause-step receipt. It is also intended to capture terminal runtime failure,
+its failed step and error, and the Retry action. Before and after retry it
+compares immutable source run, steps, and artifacts snapshots by file hash, so
+opening a retry child cannot replace retained source evidence. The manifest
+binds each of the four browser runs to its complete run-step receipt and its
+uniquely named, exact-viewport screenshot.
 
 The same gate adds two controlled rendering fixtures to the disposable Reports
 SQLite database: one `enqueued` occurrence with a real run link and one
-`skipped` occurrence with a distinct due/reason and no link. They prove the
-Templates partial summary and row-level distinction only; they are not claimed
-as scheduler API history. A single view-only role receives schedule and run
-read capabilities, sees neither `schedule-create`, `schedule-edit`,
+`skipped` occurrence with a distinct due/reason and no link. With a matching
+manifest, these fixtures are intended to cover the Templates partial summary
+and row-level distinction only; they are not scheduler API history. A single
+view-only role receives schedule and run read capabilities, sees neither `schedule-create`, `schedule-edit`,
 `schedule-toggle`, `schedule-delete`, `run-create`, `run-cancel-*`, nor Retry
 controls at the mobile surface, and receives 403 responses for the
 corresponding direct mutations. This local gate does not verify deployed

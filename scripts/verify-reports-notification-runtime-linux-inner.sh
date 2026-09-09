@@ -76,7 +76,7 @@ system=$(api POST /api/reports/systems '{"name":"Runtime fixture","baseUrl":"htt
 flow(){ api POST /api/reports/flows "$(jq -nc --arg s "$system" --arg n "$1" --argjson x "$2" '{systemId:$s,name:$n,steps:$x}')" | jq -er .data.id; }
 success_flow=$(flow success '[{"action":"pause","durationMs":3000}]')
 failed_flow=$(flow failed '[{"action":"assertText","selector":"body","text":"never present"}]')
-long_flow=$(flow long '[{"action":"pause","durationMs":300000}]')
+long_flow=$(flow long '[{"action":"pause","durationMs":30000}]')
 revoked_flow=$(flow revoked '[{"action":"pause","durationMs":3000},{"action":"assertText","selector":"body","text":"never present"}]')
 
 step admin-outage-and-backfill
