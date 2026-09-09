@@ -24,9 +24,12 @@ print(sqlite3.connect(sys.argv[1],timeout=5).execute(sys.argv[2]).fetchone()[0])
 PY
 }
 execute(){ python3 - "$@" <<'PY'
-import sqlite3,sys
+import sqlite3,sys,time
 db,query,*args=sys.argv[1:]
-with sqlite3.connect(db,timeout=5) as connection: connection.execute(query,args)
+with sqlite3.connect(db,timeout=5) as connection:
+    # The verifier image's Python SQLite can predate schema triggers using unixepoch().
+    connection.create_function("unixepoch", 0, lambda: int(time.time()))
+    connection.execute(query,args)
 PY
 }
 wait_scalar(){ for _ in $(seq 1 400); do [ "$(scalar "$1" "$2" 2>/dev/null || true)" = "$3" ] && return; sleep .05; done; echo "timeout: $2 = $3" >&2; return 1; }

@@ -109,6 +109,16 @@ function hasStagedBuildSource(script) {
         && cargo > workdir;
 }
 
+function hasVerifierUnixepochCompatibility(script) {
+    const start = script.indexOf("execute(){");
+    const end = script.indexOf("wait_scalar(){", start);
+    const execute = script.slice(start, end);
+    const registration = 'connection.create_function("unixepoch", 0, lambda: int(time.time()))';
+    return execute.includes("import sqlite3,sys,time")
+        && execute.includes(registration)
+        && execute.indexOf(registration) < execute.indexOf("connection.execute(query,args)");
+}
+
 describe("Reports notification Linux runtime gate", () => {
     test("is bounded, source-bound, atomically published, and compact", () => {
         expect(lines(outer)).toBeLessThan(300);
@@ -234,6 +244,15 @@ describe("Reports notification Linux runtime gate", () => {
         expect(inner).not.toContain("--no-sandbox");
         expect(evidenceValidator).toContain("valid_reports_identity");
         expect(evidenceValidator).toContain("$runtimeIdentity[0].user.uid > 0");
+    });
+
+    test("keeps verifier-side role writes compatible with unixepoch schema triggers", () => {
+        expect(hasVerifierUnixepochCompatibility(inner)).toBeTrue();
+        for (const mutated of [
+            inner.replace('connection.create_function("unixepoch", 0, lambda: int(time.time()))', ""),
+            inner.replace('connection.create_function("unixepoch", 0, lambda: int(time.time()))', 'connection.create_function("unixepoch", 1, lambda: int(time.time()))'),
+            inner.replace("import sqlite3,sys,time", "import sqlite3,sys"),
+        ]) expect(hasVerifierUnixepochCompatibility(mutated)).toBeFalse();
     });
 
     test("keeps every runtime-gate pause within the saved FlowStep limit", () => {
