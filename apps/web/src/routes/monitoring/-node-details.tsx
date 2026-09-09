@@ -17,6 +17,7 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
     });
     return (
         <Drawer
+            data-testid="monitor-node-details"
             open={Boolean(node)}
             onClose={onClose}
             title={node?.hostname ?? t("节点详情", "Node details")}
@@ -28,6 +29,12 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                 <Space orientation="vertical" className="w-full" size="middle">
                     <Typography.Text type="secondary">
                         {node.nodeId} · v{node.agentVersion} · {formatDateTime(node.lastReportAt)}
+                    </Typography.Text>
+                    <Typography.Text
+                        data-testid={`monitor-node-details-boot-id-${node.nodeId}`}
+                        type="secondary"
+                    >
+                        {t("启动标识", "Boot ID")}: {node.bootId}
                     </Typography.Text>
                     <NodeAlertPolicy key={node.nodeId} nodeId={node.nodeId} />
                     <div className="grid gap-3 md:grid-cols-3">
@@ -49,7 +56,11 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                             ))}
                         </Card>
                     </div>
-                    <Card className="h-80">
+                    <Card
+                        className="h-80"
+                        data-testid={`monitor-node-history-5m-${node.nodeId}`}
+                        title={t("5 分钟聚合历史", "5-minute history")}
+                    >
                         {isPending ? (
                             <DataState
                                 kind="loading"
@@ -97,7 +108,7 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                         ) : (
                             <DataState
                                 kind="empty"
-                                title={t("最近 24 小时暂无指标", "No metrics in the last 24 hours")}
+                                title={t("暂无 5 分钟聚合指标", "No 5-minute metrics available")}
                                 compact
                             />
                         )}

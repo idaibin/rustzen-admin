@@ -48,6 +48,12 @@ function MonitoringNodesPage() {
                     <div className="text-xs text-muted-foreground">
                         {row.nodeId} · v{row.agentVersion}
                     </div>
+                    <div
+                        data-testid={`monitor-node-boot-id-${row.nodeId}`}
+                        className="text-xs text-muted-foreground"
+                    >
+                        {t("启动标识", "Boot ID")}: {row.bootId}
+                    </div>
                 </div>
             ),
         },
@@ -110,6 +116,7 @@ function MonitoringNodesPage() {
             render: (_, row) => (
                 <Button
                     data-testid="monitor-node-view"
+                    data-node-id={row.nodeId}
                     type="link"
                     onClick={() => setSelected(row)}
                 >
@@ -193,6 +200,7 @@ function MonitoringNodesPage() {
                         />
                     ) : null}
                     <ProTable
+                        data-testid="monitor-nodes-table"
                         rowKey="nodeId"
                         columns={columns}
                         dataSource={data}

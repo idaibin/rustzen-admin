@@ -168,3 +168,19 @@ source digest, platform, staged binary digests, service UID evidence, readiness 
 Admin query outcomes, and recovery result; it never contains the Agent token. This is
 real Linux process and service-account evidence, not a systemd PID 1, remote-host,
 production TLS, or independent-kernel test.
+
+## Linux dual-Agent Nodes Chromium gate
+
+`just verify-monitor-agent-multi-node-ui-linux` reuses the two real Agent runtime
+topology and adds the Admin Web shell plus Reports-driven Chromium. It binds the
+current source identity and SHA-256 values for Admin, Monitor, Reports, and Agent
+binaries. The gate obtains the two node ID/current boot ID pairs from Admin, opens the
+Nodes list and each detail Drawer, checks the same boot ID and the 5-minute history
+surface, and publishes one ordered browser-step receipt plus two 1440x900 detail PNGs
+with SHA-256 and byte-size evidence. The manifest also binds the exact submitted
+step list and the Reports API's persisted flow definition before it accepts the
+receipt's contiguous successful step sequence.
+
+Its evidence is local, disposable Linux-container evidence only. It does not replace
+the native dual-Agent gate and does not certify systemd PID 1, independent hosts,
+production TLS, or the complete Monitoring UI state matrix.

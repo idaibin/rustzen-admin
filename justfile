@@ -169,6 +169,11 @@ verify-monitoring-ui-state-linux:
 verify-monitor-agent-multi-node-linux:
     scripts/verify-monitor-agent-multi-node-linux.sh
 
+# Render two real Agent reports in Nodes and record Chromium evidence.
+verify-monitor-agent-multi-node-ui-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-monitor-agent-multi-node-ui-linux.test.mjs
+    scripts/verify-monitor-agent-multi-node-ui-linux.sh
+
 # Run the selected Monitor incident relay against Admin's dedicated loopback ingress.
 verify-monitor-notification-runtime-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-monitor-notification-runtime-linux.test.mjs

@@ -152,6 +152,12 @@ input, copied shell block, token, or direct Agent-start command. The execution p
 action remains disabled while the console cannot obtain signed release files or provision
 a local root-only secret.
 
+The Nodes inventory presents node ID, agent version, and current boot ID as supporting
+metadata. The details Drawer repeats the selected node's boot ID above its policy and
+places its titled 5-minute history in the existing bounded chart region. These are
+operational identifiers, so they use normal readable text and remain available to
+automated browser evidence without changing the table or Drawer ownership.
+
 Use the declared system-compatible sans-serif tokens. Do not use marketing display type
 inside the authenticated console.
 

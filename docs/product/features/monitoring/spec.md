@@ -133,7 +133,7 @@ Monitoring does not provide weekly, monthly, or yearly reports.
 ## User-visible areas
 
 - Overview: online and offline node totals, active incidents, and latest resource summary.
-- Nodes: latest node state and up to 30 days of CPU, memory, and per-mount disk history.
+- Nodes: latest node state, its current boot ID, and up to 30 days of CPU, memory, and per-mount disk history. Opening a node shows the same current boot ID and a 5-minute-bucket history chart.
 - Alert incidents (告警事件, `/monitoring/incidents`): active incidents and resolved incidents still within retention; status and type
   selections apply immediately and return to page one.
 - Nodes / Global settings: the four global default thresholds and whether each alert is enabled.
@@ -220,6 +220,13 @@ continued reporting after the central processes restart without registering a th
 node. It records only source and binary identity plus non-secret runtime evidence.
 The disposable container shares one kernel and does not boot systemd, provision a
 remote host, or establish production TLS acceptance.
+
+The separate dual-Agent Nodes browser gate reuses that topology with Admin, Monitor,
+Reports, and two real Agent processes. Chromium opens the Nodes inventory and each
+node detail, checks the node-ID-to-current-boot-ID mapping and the 5-minute history
+surface, and records ordered run receipts plus one 1440x900 PNG for each detail. It is local container evidence for
+the console projection of two real Agent reports; it does not prove systemd PID 1,
+multi-host networking, production TLS, or the complete Monitoring visual matrix.
 
 ## Node onboarding
 
