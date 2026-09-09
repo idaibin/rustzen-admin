@@ -74,6 +74,41 @@ function hasFeatureIsolatedTargets(script) {
         && pairs.every((pair) => build.includes(pair));
 }
 
+function hasStagedBuildSource(script) {
+    const build = script.slice(
+        script.indexOf('if run_bounded "$build_timeout"'),
+        script.indexOf('\n  "\nthen :; else'),
+    );
+    const aptUpdate = build.indexOf("apt-get update");
+    const install = build.indexOf("apt-get install -y --no-install-recommends musl-tools util-linux");
+    const rustup = build.indexOf("rustup target add $target_triple");
+    const lock = build.indexOf("flock -x 9");
+    const copy = build.indexOf("tar -C /source");
+    const workdir = build.indexOf("cd /work");
+    const cargo = build.indexOf("cargo build --release --target $target_triple");
+    return build.includes('--mount "type=bind,src=$root,dst=/source,readonly"')
+        && build.includes("--tmpfs /work:rw,size=512m")
+        && !build.includes('--mount "type=bind,src=$root,dst=/work"')
+        && build.includes("-cf - Cargo.toml Cargo.lock rust-toolchain.toml apps crates | tar -C /work -xf -")
+        && build.includes("--exclude='target'")
+        && build.includes("--exclude='.git'")
+        && build.includes("--exclude='apps/server'")
+        && build.includes("--exclude='apps/web/node_modules'")
+        && build.includes("--exclude='apps/web/.selected-web'")
+        && build.includes("--exclude='apps/web/.vite'")
+        && build.includes("--exclude='apps/web/dist-*.zip'")
+        && !build.includes("--exclude='apps/web/dist'")
+        && !build.includes("--exclude='apps/admin/selected-web'")
+        && aptUpdate > -1
+        && install > aptUpdate
+        && rustup > install
+        && lock > rustup
+        && lock > -1
+        && copy > lock
+        && workdir > copy
+        && cargo > workdir;
+}
+
 describe("Reports notification Linux runtime gate", () => {
     test("is bounded, source-bound, atomically published, and compact", () => {
         expect(lines(outer)).toBeLessThan(300);
@@ -100,6 +135,8 @@ describe("Reports notification Linux runtime gate", () => {
         expect(outer).not.toContain("RUSTZEN_REPORTS_NOTIFY_TIMEOUT");
         expect(outer).toContain('validate_seconds "$build_timeout" RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT 7200');
         expect(outer).toContain('validate_seconds "$runtime_timeout" RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT 1800');
+        expect(outer).toContain('source_inputs=(apps/web/dist apps/admin/selected-web)');
+        expect(outer.match(/"\$source_identity" "\$\{source_inputs\[@\]\}"/g)).toHaveLength(2);
         expect(outer).toContain('if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container"');
         expect(outer).toContain('if run_bounded "$runtime_timeout" "$docker_bin" run --name "$runtime_container"');
         expect(outer).toContain('target_cache_schema=v1');
@@ -113,6 +150,7 @@ describe("Reports notification Linux runtime gate", () => {
         expect(outer).toContain('apt-get install -y --no-install-recommends musl-tools util-linux');
         expect(hasBlockingBuildTargetLock(outer)).toBeTrue();
         expect(hasFeatureIsolatedTargets(outer)).toBeTrue();
+        expect(hasStagedBuildSource(outer)).toBeTrue();
         expect(outer).toContain('binary="$staged/$name"');
         expect(outer).toContain('shasum -a 256 "$staged/$name"');
     });
@@ -132,6 +170,17 @@ describe("Reports notification Linux runtime gate", () => {
             outer.replace('\\"\\$selected_target\\" -p rustzen-reports --bin rz-reports', '\\"\\$pure_target\\" -p rustzen-reports --bin rz-reports'),
             outer.replace('\\"\\$pure_target\\" -p rustzen-admin --no-default-features', '\\"\\$selected_target\\" -p rustzen-admin --no-default-features'),
         ]) expect(hasFeatureIsolatedTargets(mutated)).toBeFalse();
+    });
+
+    test("rejects host-source builds or excluded required web artifacts", () => {
+        for (const mutated of [
+            outer.replace("dst=/source,readonly", "dst=/work"),
+            outer.replace("--tmpfs /work:rw,size=512m", ""),
+            outer.replace("--exclude='apps/web/.selected-web'", "--exclude='apps/web/dist'"),
+            outer.replace("--exclude='apps/server'", ""),
+            outer.replace("--exclude='apps/web/.vite'", ""),
+            outer.replace("--exclude='apps/web/dist-*.zip'", ""),
+        ]) expect(hasStagedBuildSource(mutated)).toBeFalse();
     });
 
     test("builds positive and negative artifacts and drives real TCP plus SQLite", () => {
@@ -236,6 +285,9 @@ describe("Reports notification Linux runtime gate", () => {
                 "type=volume,src=rustzen-reports-notify-target-v1-aarch64-aarch64-unknown-linux-musl-rust195-crtstatic,dst=/cargo-target",
             );
             expect(fixture.dockerCalls()).toContain("dst=/out");
+            expect(fixture.dockerCalls()).toContain("dst=/source,readonly");
+            expect(fixture.dockerCalls()).toContain("--tmpfs /work:rw,size=512m");
+            expect(fixture.dockerCalls()).not.toContain("dst=/work");
             expect(existsSync(join(fixture.evidence, fixture.current(), "manifest.json"))).toBeTrue();
         } finally {
             fixture.cleanup();

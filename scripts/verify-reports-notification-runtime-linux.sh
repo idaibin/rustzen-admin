@@ -4,6 +4,7 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 docker_bin=${RUSTZEN_REPORTS_NOTIFY_DOCKER:-docker}
 source_identity=${RUSTZEN_REPORTS_NOTIFY_SOURCE_IDENTITY:-"$root/scripts/admin-browser-source-identity.sh"}
+source_inputs=(apps/web/dist apps/admin/selected-web)
 verifier_helper=${RUSTZEN_REPORTS_NOTIFY_VERIFIER_HELPER:-"$root/scripts/ensure-admin-browser-verifier-image.sh"}
 file_bin=${RUSTZEN_REPORTS_NOTIFY_FILE:-file}
 build_timeout=${RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT:-3600}
@@ -133,24 +134,27 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-read -r head source_state source_sha < <("$source_identity")
+read -r head source_state source_sha < <("$source_identity" "${source_inputs[@]}")
 build_active=1
 if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --platform "$platform" \
-  --mount "type=bind,src=$root,dst=/work" \
+  --mount "type=bind,src=$root,dst=/source,readonly" \
   --mount type=volume,src=rustzen-reports-notify-cargo,dst=/usr/local/cargo/registry \
   --mount "type=volume,src=$target_cache,dst=/cargo-target" \
   --mount "type=bind,src=$staged,dst=/out" \
+  --tmpfs /work:rw,size=512m \
   -w /work rust:1.95-bookworm bash -euo pipefail -c "
     apt-get update >/dev/null
     apt-get install -y --no-install-recommends musl-tools util-linux >/dev/null
     rustup target add $target_triple >/dev/null
+    command -v flock >/dev/null
+    exec 9>/cargo-target/.gate.lock
+    flock -x 9
+    tar -C /source --exclude='target' --exclude='.git' --exclude='apps/server' --exclude='apps/web/node_modules' --exclude='apps/web/.selected-web' --exclude='apps/web/.vite' --exclude='apps/web/dist-*.zip' -cf - Cargo.toml Cargo.lock rust-toolchain.toml apps crates | tar -C /work -xf -
+    cd /work
     export RUSTFLAGS='-C target-feature=+crt-static'
     out=/out
     selected_target=/cargo-target
     pure_target=/cargo-target/pure-v1
-    command -v flock >/dev/null
-    exec 9>/cargo-target/.gate.lock
-    flock -x 9
     cargo build --release --target $target_triple --target-dir \"\$selected_target\" -p rustzen-admin --bin rz-admin
     install -m 0755 \"\$selected_target/$target_triple/release/rz-admin\" \"\$out/rz-admin-selected\"
     cargo build --release --target $target_triple --target-dir \"\$selected_target\" -p rustzen-reports --bin rz-reports
@@ -252,7 +256,7 @@ while IFS=$'\t' read -r file sha bytes; do
   test "$(shasum -a 256 "$candidate/$file" | awk '{print $1}')" = "$sha"
   test "$(stat -f %z "$candidate/$file" 2>/dev/null || stat -c %s "$candidate/$file")" = "$bytes"
 done < <(jq -r '.receipts[] | [.file,.sha256,.bytes] | @tsv' "$candidate/manifest.json")
-read -r final_head final_state final_sha < <("$source_identity")
+read -r final_head final_state final_sha < <("$source_identity" "${source_inputs[@]}")
 [ "$final_head:$final_state:$final_sha" = "$head:$source_state:$source_sha" ] || {
   echo 'source tree changed during notification runtime gate' >&2
   exit 1
