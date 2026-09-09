@@ -26,6 +26,7 @@ test("maintenance task console keeps the fixed control and observation seams", (
     expect(tableShellSource).toContain("data-testid={testId}");
     expect(source).toContain('kind="empty"');
     expect(source).toContain('kind="error"');
+    expect(pageSource).toContain('retry: false');
     expect(source).toContain('scroll={{ x: "max-content", y: "100%" }}');
     expect(source).not.toContain("Schedule editor");
     expect(source).not.toContain("enable task");

@@ -22,6 +22,7 @@ function TaskPage() {
     const { data, error, isPending, isFetching, refetch } = useQuery({
         queryKey: taskQueryKeys.list(),
         queryFn: manageAPI.task.list,
+        retry: false,
         refetchInterval: (query) => taskListRefreshInterval(query.state.data?.data),
     });
     const rows = data?.data ?? [];
