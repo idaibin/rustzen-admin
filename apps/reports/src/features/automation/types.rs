@@ -75,6 +75,8 @@ pub enum FlowStep {
         max_height: Option<u32>,
         #[serde(default)]
         within_viewport_right: bool,
+        #[serde(default)]
+        within_viewport: bool,
     },
     AssertFocus {
         selector: String,

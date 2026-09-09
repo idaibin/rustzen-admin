@@ -274,6 +274,7 @@ async fn execute_step(
             visible_count,
             max_height,
             within_viewport_right,
+            within_viewport,
         } => {
             assert_page_element_layout(
                 context.page,
@@ -282,6 +283,7 @@ async fn execute_step(
                 *visible_count,
                 *max_height,
                 *within_viewport_right,
+                *within_viewport,
             )
             .await?;
             Ok(StepOutcome::Continue)

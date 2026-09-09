@@ -229,7 +229,8 @@ remote host, or establish production TLS acceptance.
 The separate dual-Agent Nodes browser gate reuses that topology with Admin, Monitor,
 Reports, and two real Agent processes. Chromium opens the Nodes inventory and each
 node detail, checks the node-ID-to-current-boot-ID mapping and the 5-minute history
-surface, and records ordered run receipts plus one 1440x900 PNG for each detail. It is local container evidence for
+surface, brings its CPU and memory markers into the viewport, and records ordered run
+receipts plus one 1440x900 PNG for each detail with both markers visible. It is local container evidence for
 the console projection of two real Agent reports; it does not prove systemd PID 1,
 multi-host networking, production TLS, or the complete Monitoring visual matrix.
 

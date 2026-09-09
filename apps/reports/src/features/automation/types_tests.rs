@@ -11,6 +11,7 @@ fn element_layout_step_round_trips_its_public_json_contract() {
         "visibleCount": 3,
         "maxHeight": 64,
         "withinViewportRight": true,
+        "withinViewport": true,
     });
     let step: FlowStep = serde_json::from_value(value.clone()).expect("deserialize layout step");
     assert_eq!(step.action(), "assertElementLayout");

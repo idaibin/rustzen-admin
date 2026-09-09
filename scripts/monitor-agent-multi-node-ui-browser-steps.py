@@ -26,6 +26,8 @@ def details(node_id, boot_id):
         {"action": "waitFor", "selector": history},
         {"action": "assertText", "selector": history, "text": "5-minute history"},
         {"action": "waitFor", "selector": f"{history} .recharts-line-dot"},
+        {"action": "click", "selector": f"{history} .recharts-line-dot"},
+        {"action": "assertElementLayout", "selector": f"{history} .recharts-line-dot", "elementCount": 2, "visibleCount": 2, "withinViewport": True},
         {"action": "screenshotViewport", "name": f"monitor-agent-{node_id}-detail-dark-en"},
         {"action": "pressKey", "key": "Escape"},
     ]

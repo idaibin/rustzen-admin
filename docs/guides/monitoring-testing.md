@@ -187,8 +187,9 @@ topology and adds the Admin Web shell plus Reports-driven Chromium. It binds the
 current source identity and SHA-256 values for Admin, Monitor, Reports, and Agent
 binaries. The gate obtains the two node ID/current boot ID pairs from Admin, opens the
 Nodes list and each detail Drawer, checks the same boot ID and the 5-minute history
-surface, and publishes one ordered browser-step receipt plus two 1440x900 detail PNGs
-with SHA-256 and byte-size evidence. The manifest also binds the exact submitted
+surface, scrolls its two single-bucket series markers into the viewport, verifies both
+are visible, and publishes one ordered browser-step receipt plus two 1440x900 detail PNGs.
+Each PNG has SHA-256 and byte-size evidence. The manifest also binds the exact submitted
 step list and the Reports API's persisted flow definition before it accepts the
 receipt's contiguous successful step sequence.
 

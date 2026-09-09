@@ -38,6 +38,7 @@ declare namespace Reports {
               visibleCount?: number;
               maxHeight?: number;
               withinViewportRight?: boolean;
+              withinViewport?: boolean;
           }
         | { action: "assertFocus"; selector: string }
         | {

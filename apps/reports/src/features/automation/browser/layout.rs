@@ -10,6 +10,7 @@ pub(super) struct ElementLayoutExpectation {
     pub(super) visible_count: Option<u32>,
     pub(super) max_height: Option<u32>,
     pub(super) within_viewport_right: bool,
+    pub(super) within_viewport: bool,
 }
 
 #[derive(Deserialize)]
@@ -19,7 +20,11 @@ struct ElementLayoutMetrics {
     visible_count: u32,
     max_height: Option<f64>,
     max_right: Option<f64>,
+    min_left: Option<f64>,
+    min_top: Option<f64>,
+    max_bottom: Option<f64>,
     inner_width: f64,
+    inner_height: f64,
 }
 
 pub(super) async fn assert_page_element_layout(
@@ -29,6 +34,7 @@ pub(super) async fn assert_page_element_layout(
     visible_count: Option<u32>,
     max_height: Option<u32>,
     within_viewport_right: bool,
+    within_viewport: bool,
 ) -> Result<(), AppError> {
     let metrics =
         page.evaluate(element_layout_script(selector)?).await.map_err(AppError::internal)?;
@@ -39,6 +45,7 @@ pub(super) async fn assert_page_element_layout(
             visible_count,
             max_height,
             within_viewport_right,
+            within_viewport,
         },
     )
 }
@@ -56,7 +63,7 @@ pub(super) fn element_layout_script(selector: &str) -> Result<String, AppError> 
                     && style.opacity !== '0'
                     && rect.width > 0
                     && rect.height > 0;
-                return shown ? [{{ height: rect.height, right: rect.right }}] : [];
+                return shown ? [{{ height: rect.height, left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }}] : [];
             }});
             return {{
                 elementCount: elements.length,
@@ -67,7 +74,17 @@ pub(super) fn element_layout_script(selector: &str) -> Result<String, AppError> 
                 maxRight: visible.length
                     ? Math.max(...visible.map((item) => item.right))
                     : null,
+                minLeft: visible.length
+                    ? Math.min(...visible.map((item) => item.left))
+                    : null,
+                minTop: visible.length
+                    ? Math.min(...visible.map((item) => item.top))
+                    : null,
+                maxBottom: visible.length
+                    ? Math.max(...visible.map((item) => item.bottom))
+                    : null,
                 innerWidth: window.innerWidth,
+                innerHeight: window.innerHeight,
             }};
         }})()"#
     ))
@@ -123,6 +140,23 @@ pub(super) fn assert_element_layout(
             )));
         }
     }
+    if expected.within_viewport {
+        let edges = [metrics.min_left, metrics.min_top, metrics.max_right, metrics.max_bottom];
+        if edges.iter().any(|edge| !edge.is_some_and(f64::is_finite))
+            || !metrics.inner_width.is_finite()
+            || !metrics.inner_height.is_finite()
+            || metrics.inner_width <= 0.0
+            || metrics.inner_height <= 0.0
+            || metrics.min_left.is_some_and(|edge| edge < -0.5)
+            || metrics.min_top.is_some_and(|edge| edge < -0.5)
+            || metrics.max_right.is_some_and(|edge| edge > metrics.inner_width + 0.5)
+            || metrics.max_bottom.is_some_and(|edge| edge > metrics.inner_height + 0.5)
+        {
+            return Err(AppError::Conflict(
+                "assertElementLayout found an element outside the viewport".into(),
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -138,6 +172,7 @@ mod tests {
             visible_count: Some(3),
             max_height: Some(64),
             within_viewport_right: true,
+            within_viewport: true,
         }
     }
 
@@ -147,7 +182,11 @@ mod tests {
             "visibleCount": visible,
             "maxHeight": height,
             "maxRight": right,
+            "minLeft": 0,
+            "minTop": 0,
+            "maxBottom": 844,
             "innerWidth": 390,
+            "innerHeight": 844,
         })
     }
 
@@ -158,7 +197,11 @@ mod tests {
             "visibleCount": 3,
             "maxHeight": 63.5,
             "maxRight": 389.5,
+            "minLeft": 0.0,
+            "minTop": 0.0,
+            "maxBottom": 843.5,
             "innerWidth": 390.0,
+            "innerHeight": 844.0,
         });
         assert!(assert_element_layout(Some(&valid), expectation()).is_ok());
         for invalid in [
@@ -170,6 +213,13 @@ mod tests {
             assert!(assert_element_layout(Some(&invalid), expectation()).is_err());
         }
         assert!(assert_element_layout(None, expectation()).is_err());
+        for invalid in [
+            json!({"elementCount":9,"visibleCount":3,"maxHeight":63,"minLeft":-1,"minTop":0,"maxRight":389,"maxBottom":843,"innerWidth":390,"innerHeight":844}),
+            json!({"elementCount":9,"visibleCount":3,"maxHeight":63,"minLeft":0,"minTop":-1,"maxRight":389,"maxBottom":843,"innerWidth":390,"innerHeight":844}),
+            json!({"elementCount":9,"visibleCount":3,"maxHeight":63,"minLeft":0,"minTop":0,"maxRight":389,"maxBottom":845,"innerWidth":390,"innerHeight":844}),
+        ] {
+            assert!(assert_element_layout(Some(&invalid), expectation()).is_err());
+        }
     }
 
     #[test]

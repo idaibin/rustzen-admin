@@ -23,7 +23,7 @@
 | `fill` | `selector: string`, `value: string` | 表单输入，自动触发 `input` 与 `change` 事件 | `{"action": "fill", "selector": "#kw", "value": "{{input.keyword}}"}` |
 | `click` | `selector: string` | 元素点击，支持 CSS 与 XPath | `{"action": "click", "selector": "#su"}` |
 | `assertText` | `selector: string`, `text: string` | 目标区域文本断言包含校验 | `{"action": "assertText", "selector": "#received", "text": "OK"}` |
-| `assertElementLayout` | `selector: string`，以及 `elementCount?`、`visibleCount?`、`maxHeight?`、`withinViewportRight?` 中至少一项 | 对 CSS selector 的匹配数量、可见数量、可见元素最大高度或视口右边界进行断言 | `{"action":"assertElementLayout","selector":"thead th","elementCount":9,"visibleCount":3,"maxHeight":64,"withinViewportRight":true}` |
+| `assertElementLayout` | `selector: string`，以及 `elementCount?`、`visibleCount?`、`maxHeight?`、`withinViewportRight?`、`withinViewport?` 中至少一项 | 对 CSS selector 的匹配数量、CSS 可见数量、可见元素最大高度、视口右边界或完整视口边界进行断言；`withinViewport` 要求每个可见元素的上下左右边界都位于当前截图视口内 | `{"action":"assertElementLayout","selector":"thead th","elementCount":9,"visibleCount":3,"maxHeight":64,"withinViewport":true}` |
 | `screenshot` | `name?: string` | 现场存证截图保存（若步骤执行失败，系统亦会自动保存 failure 快照） | `{"action": "screenshot", "name": "result"}` |
 | `guardExists` | `selector: string`, `onMissing?: "continue" \| "skipNext" \| "stop" \| "fail"` | 条件保护与元素存在性检测，支持未命中时继续、跳过下一步、提前成功结束或报错 | `{"action": "guardExists", "selector": "#modal-close", "onMissing": "skipNext"}` |
 | `pressKey` | `key: string` | 触发键盘按键（如 Enter、Escape 等），支持输入框回车提交 | `{"action": "pressKey", "key": "Enter"}` |

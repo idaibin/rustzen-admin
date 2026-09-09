@@ -148,12 +148,14 @@ fn validate_flow(system: &System, steps: &[FlowStep]) -> Result<(), AppError> {
                 visible_count,
                 max_height,
                 within_viewport_right,
+                within_viewport,
             } => validate_element_layout(
                 selector,
                 *element_count,
                 *visible_count,
                 *max_height,
                 *within_viewport_right,
+                *within_viewport,
             )?,
             FlowStep::AssertFocus { selector } => validate_selector(selector)?,
             FlowStep::GuardExists { selector, on_missing } => {
@@ -209,6 +211,7 @@ fn validate_element_layout(
     visible_count: Option<u32>,
     max_height: Option<u32>,
     within_viewport_right: bool,
+    within_viewport: bool,
 ) -> Result<(), AppError> {
     validate_selector(selector)?;
     if selector.starts_with("//") || selector.starts_with("xpath=") {
@@ -218,6 +221,7 @@ fn validate_element_layout(
         && visible_count.is_none()
         && max_height.is_none()
         && !within_viewport_right
+        && !within_viewport
     {
         return Err(AppError::InvalidInput(
             "assertElementLayout requires at least one condition".into(),
@@ -283,6 +287,7 @@ mod tests {
                 visible_count: Some(3),
                 max_height: Some(64),
                 within_viewport_right: true,
+                within_viewport: false,
             },
         ];
         assert!(validate_flow(&system, &steps).is_ok());
@@ -309,9 +314,9 @@ mod tests {
 
     #[test]
     fn validate_element_layout_requires_css_and_a_bounded_condition() {
-        assert!(validate_element_layout(".table", Some(9), Some(3), Some(64), true).is_ok());
-        assert!(validate_element_layout(".table", None, None, None, false).is_err());
-        assert!(validate_element_layout(".table", None, None, Some(0), false).is_err());
-        assert!(validate_element_layout("//table", None, None, Some(64), false).is_err());
+        assert!(validate_element_layout(".table", Some(9), Some(3), Some(64), true, false).is_ok());
+        assert!(validate_element_layout(".table", None, None, None, false, false).is_err());
+        assert!(validate_element_layout(".table", None, None, Some(0), false, false).is_err());
+        assert!(validate_element_layout("//table", None, None, Some(64), false, false).is_err());
     }
 }
