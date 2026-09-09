@@ -155,6 +155,7 @@ async function fakeDocker(args) {
     writeFileSync(join(process.env.FAKE_STATE_ROOT, name), String(process.pid));
     const stage = args.includes("rust:1.95-bookworm") ? "build" : "runtime";
     if (process.env.FAKE_BLOCK === stage) await Bun.sleep(30_000);
+    if (stage === "build" && process.env.FAKE_BUILD_EXIT) process.exit(Number(process.env.FAKE_BUILD_EXIT));
     if (stage === "build") {
         const bin = join(process.env.FAKE_EVIDENCE_ROOT, "build/aarch64/bin");
         mkdirSync(bin, { recursive: true });
@@ -202,7 +203,8 @@ export function fakeGateFixture(outer, options = {}) {
         RUSTZEN_REPORTS_NOTIFY_VERIFIER_HELPER: verifier,
         RUSTZEN_REPORTS_NOTIFY_FILE: file,
         RUSTZEN_REPORTS_NOTIFY_EVIDENCE_ROOT: evidence,
-        RUSTZEN_REPORTS_NOTIFY_TIMEOUT: options.timeout ?? "5",
+        RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT: options.buildTimeout ?? "5",
+        RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT: options.runtimeTimeout ?? "5",
         RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT: "1",
         RUSTZEN_REPORTS_NOTIFY_KILL_GRACE: "1",
         FAKE_EVIDENCE_ROOT: evidence,
@@ -210,6 +212,7 @@ export function fakeGateFixture(outer, options = {}) {
         FAKE_CALL_LOG: calls,
         FAKE_TAMPER: options.tamper ?? "",
         FAKE_BLOCK: options.block ?? "",
+        FAKE_BUILD_EXIT: options.buildExit ?? "",
         FAKE_RUNTIME_EXIT: options.runtimeExit ?? "",
         FAKE_RM_FAIL: options.rmFail ? "1" : "",
     };
@@ -219,6 +222,7 @@ export function fakeGateFixture(outer, options = {}) {
         current: () => readlinkSync(join(evidence, "current")),
         active: () => readdirSync(states),
         failed: () => existsSync(join(evidence, "failed-runs")) ? readdirSync(join(evidence, "failed-runs")) : [],
+        locked: () => existsSync(join(evidence, ".verify.lock")),
         dockerCalls: () => existsSync(calls) ? readFileSync(calls, "utf8") : "",
     };
 }

@@ -33,7 +33,8 @@ describe("Reports notification Linux runtime gate", () => {
         expect(lines(inner)).toBeLessThan(300);
         expect(lines(client)).toBeLessThan(300);
         for (const value of [
-            "RUSTZEN_REPORTS_NOTIFY_TIMEOUT",
+            "RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT",
+            "RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT",
             "admin-browser-source-identity.sh",
             "sourceTreeSha256",
             "atomic_replace_symlink",
@@ -49,6 +50,11 @@ describe("Reports notification Linux runtime gate", () => {
         expect(justfile).toContain("scripts/verify-reports-notification-runtime-linux.sh");
         expect(evidenceValidator).toContain('length==25');
         expect(evidenceValidator).toContain('test("^[A-Za-z0-9][A-Za-z0-9._-]*$")');
+        expect(outer).not.toContain("RUSTZEN_REPORTS_NOTIFY_TIMEOUT");
+        expect(outer).toContain('validate_seconds "$build_timeout" RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT 7200');
+        expect(outer).toContain('validate_seconds "$runtime_timeout" RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT 1800');
+        expect(outer).toContain('if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container"');
+        expect(outer).toContain('if run_bounded "$runtime_timeout" "$docker_bin" run --name "$runtime_container"');
     });
 
     test("builds positive and negative artifacts and drives real TCP plus SQLite", () => {
@@ -125,14 +131,19 @@ describe("Reports notification Linux runtime gate", () => {
         for (const script of [outerUrl.pathname, innerUrl.pathname]) {
             expect(Bun.spawnSync(["bash", "-n", script]).exitCode).toBe(0);
         }
-        const result = Bun.spawnSync({
-            cmd: ["bash", outerUrl.pathname],
-            env: { ...process.env, RUSTZEN_REPORTS_NOTIFY_TIMEOUT: "0" },
-            stdout: "pipe",
-            stderr: "pipe",
-        });
-        expect(result.exitCode).toBe(2);
-        expect(new TextDecoder().decode(result.stderr)).toContain("must be 1..1800 seconds");
+        for (const [name, value, limit] of [
+            ["RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT", "0", "7200"],
+            ["RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT", "1801", "1800"],
+        ]) {
+            const result = Bun.spawnSync({
+                cmd: ["bash", outerUrl.pathname],
+                env: { ...process.env, [name]: value },
+                stdout: "pipe",
+                stderr: "pipe",
+            });
+            expect(result.exitCode).toBe(2);
+            expect(new TextDecoder().decode(result.stderr)).toContain(`${name} must be 1..${limit} seconds`);
+        }
     });
 
     test("publishes only after both fake Docker containers are absent", () => {
@@ -168,22 +179,31 @@ describe("Reports notification Linux runtime gate", () => {
         }
     }, 30_000);
 
-    test("returns 124 and retains failure evidence after a blocked run", () => {
-        const fixture = fakeGateFixture(outerUrl.pathname, { block: "build", timeout: "1" });
-        try {
-            const result = runFakeGate(fixture);
-            expect(result.exitCode).toBe(124);
-            expect(fixture.current()).toBe("runs/previous");
-            expect(fixture.failed().length).toBe(1);
-            expect(fixture.active()).toEqual([]);
-        } finally {
-            fixture.cleanup();
+    test("distinguishes watchdog timeout from a stage exit of 124", () => {
+        for (const [stage, options, message] of [
+            ["build", { block: "build", buildTimeout: "1", runtimeTimeout: "5" }, "build stage timed out after 1s"],
+            ["runtime", { block: "runtime", buildTimeout: "5", runtimeTimeout: "1" }, "runtime stage timed out after 1s"],
+            ["build", { buildExit: "124" }, "build stage failed (status 124)"],
+            ["runtime", { runtimeExit: "124" }, "runtime stage failed (status 124)"],
+        ]) {
+            const fixture = fakeGateFixture(outerUrl.pathname, options);
+            try {
+                const result = runFakeGate(fixture);
+                expect(result.exitCode, stage).toBe(124);
+                expect(new TextDecoder().decode(result.stderr), stage).toContain(message);
+                expect(fixture.current(), stage).toBe("runs/previous");
+                expect(fixture.failed().length, stage).toBe(1);
+                expect(fixture.active(), stage).toEqual([]);
+                expect(fixture.locked(), stage).toBeFalse();
+            } finally {
+                fixture.cleanup();
+            }
         }
-    });
+    }, 20_000);
 
     for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
         test(`returns ${exitCode}, cleans resources, and preserves current on ${signal}`, async () => {
-            const fixture = fakeGateFixture(outerUrl.pathname, { block: "build", timeout: "30" });
+            const fixture = fakeGateFixture(outerUrl.pathname, { block: "build", buildTimeout: "30" });
             try {
                 const result = await runSignaledFakeGate(fixture, signal);
                 expect(result.exitCode).toBe(exitCode);
@@ -204,6 +224,7 @@ describe("Reports notification Linux runtime gate", () => {
             expect(fixture.current()).toBe("runs/previous");
             expect(fixture.failed().length).toBe(1);
             expect(fixture.active()).toEqual([]);
+            expect(new TextDecoder().decode(result.stderr)).toContain("runtime stage failed (status 7)");
             expect(fixture.dockerCalls()).toContain("logs rz-reports-selected-runtime-");
             const failed = join(fixture.evidence, "failed-runs", fixture.failed()[0]);
             expect(existsSync(join(failed, "steps.log"))).toBeTrue();

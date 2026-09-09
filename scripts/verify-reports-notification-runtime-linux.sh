@@ -6,13 +6,15 @@ docker_bin=${RUSTZEN_REPORTS_NOTIFY_DOCKER:-docker}
 source_identity=${RUSTZEN_REPORTS_NOTIFY_SOURCE_IDENTITY:-"$root/scripts/admin-browser-source-identity.sh"}
 verifier_helper=${RUSTZEN_REPORTS_NOTIFY_VERIFIER_HELPER:-"$root/scripts/ensure-admin-browser-verifier-image.sh"}
 file_bin=${RUSTZEN_REPORTS_NOTIFY_FILE:-file}
-timeout=${RUSTZEN_REPORTS_NOTIFY_TIMEOUT:-900}
+build_timeout=${RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT:-3600}
+runtime_timeout=${RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT:-900}
 cleanup_timeout=${RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT:-10}
 kill_grace=${RUSTZEN_REPORTS_NOTIFY_KILL_GRACE:-5}
 evidence_root=${RUSTZEN_REPORTS_NOTIFY_EVIDENCE_ROOT:-"$root/target/rz/reports-notification-runtime"}
 current="$evidence_root/current"
 command_pid=
 watchdog_pid=
+bounded_timed_out=0
 build_active=0
 runtime_active=0
 
@@ -35,12 +37,14 @@ validate_seconds() {
   case "$value" in ''|*[!0-9]*) echo "$name must be a positive integer" >&2; exit 2 ;; esac
   [ "$value" -gt 0 ] && [ "$value" -le "$maximum" ] || { echo "$name must be 1..$maximum seconds" >&2; exit 2; }
 }
-validate_seconds "$timeout" RUSTZEN_REPORTS_NOTIFY_TIMEOUT 1800
+validate_seconds "$build_timeout" RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT 7200
+validate_seconds "$runtime_timeout" RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT 1800
 validate_seconds "$cleanup_timeout" RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT 30
 validate_seconds "$kill_grace" RUSTZEN_REPORTS_NOTIFY_KILL_GRACE 5
 
 run_bounded() {
   seconds=$1; shift
+  bounded_timed_out=0
   marker=$(mktemp "${TMPDIR:-/tmp}/rz-reports-selected-timeout.XXXXXX")
   rm -f "$marker"
   "$@" & command_pid=$!
@@ -48,7 +52,7 @@ run_bounded() {
   if wait "$command_pid"; then status=0; else status=$?; fi
   stop_tree "$watchdog_pid"
   wait "$watchdog_pid" 2>/dev/null || true
-  [ ! -e "$marker" ] || status=124
+  [ ! -e "$marker" ] || { status=124; bounded_timed_out=1; }
   rm -f "$marker"
   command_pid=
   watchdog_pid=
@@ -132,7 +136,7 @@ build_root="$evidence_root/build/$architecture"
 rm -rf "$build_root"
 mkdir -p "$build_root/bin"
 build_active=1
-run_bounded "$timeout" "$docker_bin" run --name "$build_container" --platform "$platform" \
+if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --platform "$platform" \
   --mount "type=bind,src=$root,dst=/work" \
   --mount type=volume,src=rustzen-reports-notify-cargo,dst=/usr/local/cargo/registry \
   -w /work rust:1.95-bookworm bash -euo pipefail -c "
@@ -151,6 +155,15 @@ run_bounded "$timeout" "$docker_bin" run --name "$build_container" --platform "$
     cargo build --release --target $target_triple --target-dir \"\$target\" -p rustzen-reports --no-default-features --bin rz-reports
     install -m 0755 \"\$target/$target_triple/release/rz-reports\" \"\$out/rz-reports-pure\"
   "
+then :; else
+  status=$?
+  if [ "$bounded_timed_out" -eq 1 ]; then
+    echo "build stage timed out after ${build_timeout}s" >&2
+  else
+    echo "build stage failed (status $status)" >&2
+  fi
+  exit "$status"
+fi
 remove_container "$build_container"
 build_active=0
 
@@ -179,7 +192,7 @@ read -r verifier_image verifier_key verifier_sha < <(
   RUSTZEN_UI_VERIFIER_DOCKER="$docker_bin" "$verifier_helper" --platform "$platform"
 )
 runtime_active=1
-run_bounded "$timeout" "$docker_bin" run --name "$runtime_container" --platform "$platform" \
+if run_bounded "$runtime_timeout" "$docker_bin" run --name "$runtime_container" --platform "$platform" \
   --security-opt seccomp=unconfined \
   --env RUSTZEN_VERIFY_HEAD="$head" --env RUSTZEN_VERIFY_SOURCE_TREE_STATE="$source_state" \
   --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$source_sha" --env RUSTZEN_VERIFY_ARCHITECTURE="$architecture" \
@@ -192,6 +205,15 @@ run_bounded "$timeout" "$docker_bin" run --name "$runtime_container" --platform 
   --mount "type=bind,src=$root/scripts/verify-reports-notification-runtime-linux-inner.sh,dst=/verify/run.sh,readonly" \
   --mount "type=bind,src=$root/scripts/reports-notification-runtime-client.py,dst=/verify/client.py,readonly" \
   "$verifier_image" bash /verify/run.sh
+then :; else
+  status=$?
+  if [ "$bounded_timed_out" -eq 1 ]; then
+    echo "runtime stage timed out after ${runtime_timeout}s" >&2
+  else
+    echo "runtime stage failed (status $status)" >&2
+  fi
+  exit "$status"
+fi
 remove_container "$runtime_container"
 runtime_active=0
 
