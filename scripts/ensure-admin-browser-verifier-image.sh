@@ -4,6 +4,7 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 docker_bin=${RUSTZEN_UI_VERIFIER_DOCKER:-docker}
 dockerfile=${RUSTZEN_UI_VERIFIER_DOCKERFILE:-"$root/scripts/admin-browser-verifier.Dockerfile"}
+dockerfile_policy="$root/scripts/verify-admin-browser-verifier-dockerfile.mjs"
 schema=1
 base_image='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd'
 snapshot_timestamp=20240131T000000Z
@@ -59,6 +60,7 @@ while [ "$#" -gt 0 ]; do
     *) usage ;;
   esac
 done
+"$dockerfile_policy" "$dockerfile" >/dev/null
 if [ -z "$platform" ]; then
   architecture=$(run_bounded_capture 10 "$docker_bin" info --format '{{.Architecture}}') || {
     echo "Docker architecture discovery failed or exceeded 10 seconds" >&2

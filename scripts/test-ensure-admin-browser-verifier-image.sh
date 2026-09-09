@@ -40,6 +40,36 @@ chmod +x "$tmp/docker"
 platform=linux/arm64
 dockerfile="$tmp/verifier.Dockerfile"
 cp "$root/scripts/admin-browser-verifier.Dockerfile" "$dockerfile"
+policy="$root/scripts/verify-admin-browser-verifier-dockerfile.mjs"
+"$policy" "$dockerfile"
+for mutation in rolling-update second-install late-source-cleanup security-source ftp-source third-party-source; do
+  mutated="$tmp/$mutation.Dockerfile"
+  case "$mutation" in
+    rolling-update) { printf 'RUN apt-get update\n'; cat "$dockerfile"; } >"$mutated" ;;
+    second-install) { cat "$dockerfile"; printf '\nRUN apt-get -qq install jq\n'; } >"$mutated" ;;
+    late-source-cleanup)
+      sed '/rm -f \/etc\/apt\/sources.list.d\/\*/d' "$dockerfile" >"$mutated"
+      printf '\nRUN rm -f /etc/apt/sources.list.d/*\n' >>"$mutated" ;;
+    security-source) { cat "$dockerfile"; printf '\nRUN echo "deb http://security.debian.org bullseye-security main"\n'; } >"$mutated" ;;
+    ftp-source) { cat "$dockerfile"; printf '\nRUN echo "deb http://ftp.debian.org/debian bullseye main"\n'; } >"$mutated" ;;
+    third-party-source) { cat "$dockerfile"; printf '\nRUN echo "deb https://packages.example.invalid stable main"\n'; } >"$mutated" ;;
+  esac
+  if "$policy" "$mutated" >/dev/null 2>&1; then
+    echo "Dockerfile policy accepted mutation: $mutation" >&2
+    exit 1
+  fi
+done
+cat >"$tmp/docker-forbidden" <<DOCKER
+#!/bin/sh
+touch "$tmp/docker-called"
+exit 1
+DOCKER
+chmod +x "$tmp/docker-forbidden"
+if RUSTZEN_UI_VERIFIER_DOCKERFILE="$tmp/rolling-update.Dockerfile" RUSTZEN_UI_VERIFIER_DOCKER="$tmp/docker-forbidden" "$ensure" --platform "$platform" >/dev/null 2>&1; then
+  echo 'ensure accepted an invalid verifier Dockerfile' >&2
+  exit 1
+fi
+test ! -e "$tmp/docker-called"
 key=$(RUSTZEN_UI_VERIFIER_DOCKERFILE="$dockerfile" "$ensure" --platform "$platform" --print-key)
 provenance=$(printf 'schemaVersion=1\nkey=%s\nplatform=%s\nbaseImage=%s\nsnapshot=%s\nchromiumVersion=%s\n' "$key" "$platform" 'debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' 20240131T000000Z 120.0.6099.224-1~deb11u1)
 export FAKE_STATE="$tmp/state" FAKE_LOG="$tmp/log" FAKE_PROBE="$tmp/probe" FAKE_SCHEMA=1 FAKE_KEY="$key" FAKE_PLATFORM="$platform" FAKE_SNAPSHOT=20240131T000000Z FAKE_CHROMIUM=120.0.6099.224-1~deb11u1 FAKE_BASE='debian@sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd' FAKE_PROVENANCE="$provenance"
