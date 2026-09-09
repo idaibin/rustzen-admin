@@ -205,6 +205,11 @@ verify-reports-ui-state-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-reports-ui-state-linux.test.mjs
     scripts/verify-reports-ui-state-linux.sh
 
+verify-task-console-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-task-console-linux.test.mjs
+    scripts/verify-task-console-linux.sh
+
+
 e2e-modules browser_path:
     just verify-modules-mvp
     just verify-automation-browser "{{browser_path}}"

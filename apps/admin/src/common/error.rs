@@ -68,6 +68,10 @@ pub enum ServiceError {
     #[error("Email already exists")]
     EmailConflict,
 
+    /// A maintenance task already owns its single-run lock.
+    #[error("Task is already running")]
+    TaskAlreadyRunning,
+
     /// An operation was attempted that is invalid given the current state.
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
@@ -175,6 +179,9 @@ impl From<ServiceError> for AppError {
             }
             ServiceError::EmailConflict => {
                 app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
+            }
+            ServiceError::TaskAlreadyRunning => {
+                app_error(StatusCode::CONFLICT, 10203, "Task is already running.")
             }
             ServiceError::DatabaseQueryFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,

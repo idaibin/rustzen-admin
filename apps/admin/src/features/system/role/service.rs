@@ -242,7 +242,7 @@ mod tests {
         for code in [
             "system:module:list",
             "system:status:view",
-            "manage:task:list",
+            "manage:task:run",
             "manage:deploy:list",
             "system:*",
             "manage:*",

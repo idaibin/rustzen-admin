@@ -55,8 +55,9 @@ path or required permission changes.
 ## Built-in roles
 
 - `owner` is the only built-in role that receives `*` and the only role that
-  may view or manage system modules, system status, scheduled tasks, and
-  deployment releases.
+  may manage system modules, system status, scheduled task execution, and
+  deployment releases. `manage:task:list` is assignable read-only; task runs
+  remain owner-only.
 - `admin` receives concrete module and ordinary Admin-management capabilities,
   excluding all owner-only capability roots.
 - `viewer` receives concrete read-only capabilities, excluding all owner-only

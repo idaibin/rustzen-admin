@@ -123,7 +123,7 @@ fn builtin_role_policy_keeps_owner_as_only_wildcard_grant() {
 
     assert!(admin_codes.contains(&"system:user:create".to_string()));
     assert!(admin_codes.contains(&"manage:log:export".to_string()));
-    assert!(!admin_codes.contains(&"manage:task:list".to_string()));
+    assert!(admin_codes.contains(&"manage:task:list".to_string()));
     assert!(!admin_codes.contains(&"manage:task:run".to_string()));
     assert!(!admin_codes.contains(&"manage:deploy:list".to_string()));
     assert!(!admin_codes.iter().any(|code| code == "*" || code.ends_with(":*")));
@@ -131,6 +131,7 @@ fn builtin_role_policy_keeps_owner_as_only_wildcard_grant() {
 
     assert!(viewer_codes.contains(&"system:user:list".to_string()));
     assert!(viewer_codes.contains(&"dashboard:view".to_string()));
+    assert!(viewer_codes.contains(&"manage:task:list".to_string()));
     assert!(!viewer_codes.contains(&"manage:deploy:list".to_string()));
     assert!(!viewer_codes.contains(&"system:user:create".to_string()));
     assert!(!viewer_codes.contains(&"manage:task:run".to_string()));
@@ -233,7 +234,7 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
 
     assert_eq!(owner_permissions, vec!["*".to_string()]);
     assert!(admin_permissions.contains(&"system:user:create".to_string()));
-    assert!(!admin_permissions.contains(&"manage:task:list".to_string()));
+    assert!(admin_permissions.contains(&"manage:task:list".to_string()));
     assert!(!admin_permissions.contains(&"manage:task:run".to_string()));
     assert!(!admin_permissions.contains(&"manage:deploy:list".to_string()));
     assert!(!admin_permissions.contains(&"manage:deploy:run".to_string()));
@@ -241,6 +242,7 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
 
     assert!(viewer_permissions.contains(&"dashboard:view".to_string()));
     assert!(viewer_permissions.contains(&"system:user:list".to_string()));
+    assert!(viewer_permissions.contains(&"manage:task:list".to_string()));
     assert!(!viewer_permissions.contains(&"manage:deploy:list".to_string()));
     assert!(!viewer_permissions.contains(&"system:user:create".to_string()));
     assert!(!viewer_permissions.contains(&"manage:task:run".to_string()));

@@ -12,6 +12,7 @@ feature specs record only route-local composition, states, and evidence.
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Current contract; see scoped local verification |
 | Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Local runtime/browser state-closure verified; deployed and native-host runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
+| Admin | [Maintenance task console](./features/admin-maintenance-tasks.md) | [Product spec](../product/features/admin-maintenance-tasks/spec.md) | Current route contract; local Linux runtime evidence pending |
 | Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Current route contract; representative light/dark checks |
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
 | Admin | [Role definition management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge evidence retained |

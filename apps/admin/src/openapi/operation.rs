@@ -285,6 +285,7 @@ fn error_specs(operation: &OperationDescriptor) -> Vec<ErrorSpec> {
         ],
         RunTask => vec![
             json_error("400", "Task cannot be run"),
+            json_error("409", "Task is already running"),
             json_error("404", "Task not found"),
             json_error("500", "Internal server error"),
         ],

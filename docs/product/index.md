@@ -88,6 +88,7 @@ log content and lifecycle.
 | Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Local worker collection/query contract verified; production host-tracker acceptance pending |
 | Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Local runtime/browser state-closure verified; deployed scheduling and native-host acceptance pending |
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
+| Admin | Maintenance task console | [admin-maintenance-tasks](./features/admin-maintenance-tasks/spec.md) | [Admin maintenance task console UI](../ui/features/admin-maintenance-tasks.md) | Current source contract; local Linux runtime evidence pending |
 | Admin | Role definition management | [role-definition-management](./features/role-definition-management/spec.md) | [role-definition-management UI](../ui/features/role-definition-management.md) | Ready |
 | Admin | User role assignment readiness | [user-role-assignment-readiness](./features/user-role-assignment-readiness/spec.md) | [user-role-assignment-readiness UI](../ui/features/user-role-assignment-readiness.md) | Ready |
 

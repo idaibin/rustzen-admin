@@ -1,3 +1,5 @@
+mod catalog;
+mod schedule;
 pub mod handler;
 pub mod repo;
 pub mod service;

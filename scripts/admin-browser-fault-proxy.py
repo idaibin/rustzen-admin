@@ -16,13 +16,15 @@ METHOD = os.environ["RUSTZEN_VERIFY_FAULT_METHOD"]
 RECEIPT = os.environ["RUSTZEN_VERIFY_FAULT_RECEIPT"]
 HITS = 0
 HITS_LOCK = threading.Lock()
+TRANSITION_RUN_ID = None
+TRANSITION_READS = 0
 
 
 def write_receipt(*_args):
     with HITS_LOCK:
         hits = HITS
     with open(RECEIPT, "w", encoding="utf-8") as receipt:
-        json.dump({"method": METHOD, "mode": MODE, "route": ROUTE, "hitCount": hits}, receipt)
+        json.dump({"method": METHOD, "mode": MODE, "route": ROUTE, "hitCount": hits, "transitionRunId": TRANSITION_RUN_ID, "transitionReads": TRANSITION_READS}, receipt)
     raise SystemExit(0)
 
 
@@ -32,11 +34,55 @@ class Proxy(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
 
+    def _forward(self):
+        length = int(self.headers.get("content-length", "0"))
+        body = self.rfile.read(length) if length else None
+        headers = {key: value for key, value in self.headers.items() if key.lower() not in {"host", "connection"}}
+        connection = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=20)
+        connection.request(self.command, self.path, body=body, headers=headers)
+        response = connection.getresponse()
+        return response.status, response.reason, response.getheaders(), response.read()
+
+    def _respond(self, status, reason, headers, body):
+        self.send_response(status, reason)
+        for key, value in headers:
+            if key.lower() not in {"connection", "transfer-encoding", "content-length"}:
+                self.send_header(key, value)
+        self.send_header("content-length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _transition(self, path):
+        global HITS, TRANSITION_RUN_ID, TRANSITION_READS
+        status, reason, headers, body = self._forward()
+        with HITS_LOCK:
+            if self.command == "POST" and path == f"{ROUTE}/cleanup-operation-logs-retention/run":
+                HITS += 1
+                TRANSITION_RUN_ID = json.loads(body).get("data", {}).get("id")
+            elif self.command == "GET" and path == ROUTE and TRANSITION_RUN_ID and TRANSITION_READS == 0:
+                HITS += 1
+                TRANSITION_READS += 1
+                payload = json.loads(body)
+                for task in payload.get("data", []):
+                    if task.get("taskKey") == "cleanup-operation-logs-retention":
+                        task["running"] = True
+                        task["lastStatus"] = "running"
+                body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            elif self.command == "GET" and path == ROUTE and TRANSITION_RUN_ID:
+                HITS += 1
+                TRANSITION_READS += 1
+        self._respond(status, reason, headers, body)
+
     def _handle(self):
         path = self.path.split("?", 1)[0]
         if path == "/__verify_proxy_health":
             self.send_response(204)
             self.end_headers()
+            return
+        if MODE == "task-transition" and (
+            path == ROUTE or path == f"{ROUTE}/cleanup-operation-logs-retention/run"
+        ):
+            self._transition(path)
             return
         if self.command == METHOD and path == ROUTE:
             global HITS
@@ -62,20 +108,15 @@ class Proxy(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-        length = int(self.headers.get("content-length", "0"))
-        body = self.rfile.read(length) if length else None
-        headers = {key: value for key, value in self.headers.items() if key.lower() not in {"host", "connection"}}
-        connection = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=20)
-        connection.request(self.command, self.path, body=body, headers=headers)
-        response = connection.getresponse()
-        response_body = response.read()
-        self.send_response(response.status, response.reason)
-        for key, value in response.getheaders():
-            if key.lower() not in {"connection", "transfer-encoding"}:
-                self.send_header(key, value)
-        self.send_header("content-length", str(len(response_body)))
-        self.end_headers()
-        self.wfile.write(response_body)
+            if MODE == "empty":
+                body = b'{"code":0,"message":"Success","data":[],"total":0}'
+                self.send_response(200)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+        self._respond(*self._forward())
 
     do_GET = _handle
     do_POST = _handle
