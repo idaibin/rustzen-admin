@@ -13,6 +13,11 @@ export async function phase<T>(name: string, clock: Clock, usage: () => Promise<
 export function sameOwner(a: Owner, b: Owner) { return a.pid === b.pid && a.dev === b.dev && a.ino === b.ino && a.sha256 === b.sha256; }
 export function stablePhase(phase: Phase<unknown>) { if (!sameOwner(phase.services.before.admin, phase.services.after.admin) || !sameOwner(phase.services.before.monitor, phase.services.after.monitor)) throw Error("phase service identity differs"); }
 export function faultPhase(phase: Phase<unknown>) { if (!sameOwner(phase.services.before.admin, phase.services.after.admin) || sameOwner(phase.services.before.monitor, phase.services.after.monitor)) throw Error("fault service identity differs"); }
+export function includeEvidenceThrough<T>(phase: Phase<T>, at: number) {
+    if (!Number.isSafeInteger(at) || at < phase.snapshots[0].at) throw Error("phase evidence boundary differs");
+    phase.snapshots[1].at = Math.max(phase.snapshots[1].at, at);
+    return phase;
+}
 export function maxima(values: readonly Reading[]) { if (!values.length) throw Error("missing resource snapshots"); const peak = (key: keyof Reading) => Math.max(...values.map(x => Number(x[key]))); return { rss: peak("rss"), hwm: peak("hwm"), pidsPeak: peak("pidsPeak"), memoryCurrent: peak("memoryCurrent"), memoryPeak: peak("memoryPeak") }; }
 export function quiet(reading: Reading) { return { rss: reading.rss, pidsCurrent: reading.pidsCurrent, at: reading.at }; }
 export function compareQuiet(first: { rss: number; pidsCurrent: number }, second: { rss: number; pidsCurrent: number }) { if (second.rss > first.rss + 16 * 1024 * 1024 || second.pidsCurrent > first.pidsCurrent + 2) throw Error("quiet baseline drift"); }

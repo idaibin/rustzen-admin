@@ -2,8 +2,8 @@ import { corpus, fault, lane, recovery, request, resources, seed, type Clock } f
 import { admitted, credential, directory, freshOutput, json, nativeEvidenceSummary, publish, revalidatedNativeEvidence, stable } from "./monitor-load-admission.ts";
 import { parseMonitorLoadReceipt } from "./monitor-load-receipt-schema.ts";
 import { pureMonitorAbsence, signedSourceBuild } from "./monitor-load-signed.ts";
-import { compareQuiet, faultPhase, maxima, phase, quiet as quietBaseline, stablePhase } from "./monitor-load-sampler.ts";
-import { classify, controlledBoundary, milestones, stableOutage } from "./monitor-load-fault.ts";
+import { compareQuiet, faultPhase, includeEvidenceThrough, maxima, phase, quiet as quietBaseline, stablePhase } from "./monitor-load-sampler.ts";
+import { classify, controlledBoundary, milestones, orderedClock, stableOutage } from "./monitor-load-fault.ts";
 import { certifiedOwner, docker as run, listener, listenerGone, restartedOwner, service, usage } from "./monitor-load-runtime.ts";
 import { image, inspected } from "./verify-selected-web-runtime-attestation.ts";
 const names = [
@@ -97,6 +97,7 @@ for (let round = 0; round < 2; round++) {
 }
 compareQuiet(quietBaselines[0]!, quietBaselines[1]!);
 let observedFault = await phase("fault", clock, () => usage(run, get("--runtime-container")), currentServices, () => outage(get("--runtime-container"), base, token, ids, before.monitor, clock)), events = observedFault.result;
+includeEvidenceThrough(observedFault, events.milestones.at(-1)!.at);
 faultPhase(observedFault); phases.push(observedFault);
 stableOutage(events.boundary);
 milestones(events.milestones);
@@ -226,7 +227,7 @@ async function outage(
         },
     );
     await listenerGone(run, container, 19802);
-    let started = controlled.stopAt,
+    let started = controlled.stopAt, nextFaultAt = orderedClock(() => clock.now(), started),
         out: Array<{
             step: string;
             status?: number;
@@ -249,7 +250,7 @@ async function outage(
             ids,
             clock,
         );
-        let item = classify(result, clock.now());
+        let item = classify(result, nextFaultAt());
         boundary.push(item);
         if (result.status === 503 && result.code === 40001 && boundary.length >= 4 && item.at - boundary[0]!.at >= 750) {
             out.push({
@@ -272,7 +273,7 @@ async function outage(
         step: "listenerReady",
         pid: next.monitor.pid,
         sha256: next.monitor.sha256,
-        at: clock.now(),
+        at: nextFaultAt(),
     });
     let healthy = await request(
         fetch,
@@ -282,6 +283,6 @@ async function outage(
         clock,
     );
     if (!healthy.ok) throw Error("registry unhealthy");
-    out.push({ step: "registryHealthy", at: clock.now() });
+    out.push({ step: "registryHealthy", at: nextFaultAt() });
     return { milestones: out, boundary, boundaryInFlight: controlled.rows };
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import * as c from "./monitor-load-contract.ts";
-import { controlledBoundary } from "./monitor-load-fault.ts";
-import { faultPhase, maxima, phase, quiet, stablePhase } from "./monitor-load-sampler.ts";
+import { controlledBoundary, orderedClock } from "./monitor-load-fault.ts";
+import { faultPhase, includeEvidenceThrough, maxima, phase, quiet, stablePhase } from "./monitor-load-sampler.ts";
 import { validatePhase } from "./monitor-load-receipt-schema.ts";
 test("P8g preflight recipe passes exactly one prepared context", async () => {
     const result = Bun.spawnSync(["just", "--dry-run", "preflight-monitor-load-runtime", "/tmp/context.json"], { cwd: new URL("..", import.meta.url).pathname, stdout: "pipe", stderr: "pipe" });
@@ -91,6 +91,14 @@ test("controlled inflight records completion at resolve and rejects a pre-stop c
     let early = [];
     await expect(controlledBoundary(() => new Promise(resolve => early.push(resolve)), () => ++now, async () => true, async () => { for (const resolve of early) resolve({ status: 503, code: 40001 }); await Promise.resolve(); return ++now; })).rejects.toThrow("cross");
     await expect(controlledBoundary(async () => ({ status: 503, code: 40001 }), () => ++now, async () => true, async () => ++now, 1)).rejects.toThrow("cross");
+});
+test("fault milestone clock orders equal millisecond observations", () => {
+    const next = orderedClock(() => 100, 100);
+    expect([next(), next(), next()]).toEqual([101, 102, 103]);
+    const owner = { pid: 2, dev: "1", ino: "2", sha256: "a".repeat(64) };
+    const reading = at => ({ at, rss: 1, hwm: 1, pidsCurrent: 1, pidsPeak: 1, memoryCurrent: 1, memoryPeak: 1, events: {} });
+    const observed = { name: "fault", workDurationMs: 1, snapshots: [reading(100), reading(102)], services: { before: { admin: owner, monitor: owner }, after: { admin: owner, monitor: { ...owner, pid: 3 } } }, result: {} };
+    expect(includeEvidenceThrough(observed, 103).snapshots[1].at).toBe(103);
 });
 test("P8g injection seam measures complete response without retry", async () => {
     let calls = 0,

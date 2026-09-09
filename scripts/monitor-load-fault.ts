@@ -4,6 +4,10 @@ export type Boundary = {
     code?: number;
     kind: "response" | "timeout" | "transport";
 };
+export function orderedClock(now: () => number, initial: number) {
+    let last = initial;
+    return () => (last = Math.max(last + 1, now()));
+}
 export function classify(
     value: { status?: number; code?: number; failure?: "timeout" | "transport" | "http" | "contract" },
     at: number,
