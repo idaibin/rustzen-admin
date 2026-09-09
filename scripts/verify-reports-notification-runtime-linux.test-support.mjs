@@ -21,7 +21,7 @@ const receipts = [
     "unsigned.json", "public-internal.json", "selected-ingress-listener.txt", "selected-reports-config.json",
     "selected-reports-api.json", "inbox-final.json", "selected-state.json", "pure-admin-api.json",
     "reports-runtime-identity.json", "pure-admin-config.json", "pure-reports-config.json", "pure-reports-api.json", "pure-absence.json",
-    "pure-notification-route.json", "pure-listeners.txt",
+    "pure-notification-route.json", "pure-listeners.txt", "pure-web-binding.json", "pure-installation.json",
 ];
 
 function hash(bytes) {
@@ -102,6 +102,13 @@ function writeRuntimeEvidence(args) {
     json("pure-absence.json", absence);
     json("pure-notification-route.json", { code: 404, message: "Not found", data: null });
     writeFileSync(join(candidate, "pure-listeners.txt"), "LISTEN 127.0.0.1:19844\n");
+    const pureBinding = { bindingVersion: 1, webDigest: values.RUSTZEN_VERIFY_PURE_WEB_DIGEST };
+    const pureInstallation = { code: 0, data: { compositionId: values.RUSTZEN_VERIFY_PURE_COMPOSITION_ID,
+        webDigest: values.RUSTZEN_VERIFY_PURE_WEB_DIGEST, featureIds: ["access", "monitor"] } };
+    if (process.env.FAKE_TAMPER === "pure-binding") pureBinding.webDigest = "0".repeat(64);
+    if (process.env.FAKE_TAMPER === "pure-installation") pureInstallation.data.featureIds = ["access"];
+    json("pure-web-binding.json", pureBinding);
+    json("pure-installation.json", pureInstallation);
     const receiptRows = receipts.map((file) => {
         const bytes = readFileSync(join(candidate, file));
         return { file, sha256: hash(bytes), bytes: bytes.byteLength };
@@ -120,6 +127,7 @@ function writeRuntimeEvidence(args) {
             authentication: { unsigned: 400, badSignature: 401, publicInternal: 404 } },
         pureReports: { notificationSchemaObjects: 0, notificationConfig: false,
             notificationRoute: false, notificationTask: false, notificationListeners: 0 },
+        pureWeb: { compositionId: values.RUSTZEN_VERIFY_PURE_COMPOSITION_ID, webDigest: values.RUSTZEN_VERIFY_PURE_WEB_DIGEST },
         receipts: receiptRows,
     };
     if (process.env.FAKE_TAMPER === "duplicate-receipt") manifest.receipts.push(receiptRows[0]);

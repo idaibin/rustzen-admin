@@ -32,7 +32,8 @@ def valid_reports_identity($identity;$prefix;$uid;$gid):
     authentication:{unsigned:400,badSignature:401,publicInternal:404}}
   and .pureReports == {notificationSchemaObjects:0,notificationConfig:false,
     notificationRoute:false,notificationTask:false,notificationListeners:0}
-  and (.receipts|type=="array" and length==25)
+  and .pureWeb == {compositionId:$pureCompositionId,webDigest:$pureWebDigest}
+  and (.receipts|type=="array" and length==27)
   and ([.receipts[].file]|length==(unique|length))
   and ([.receipts[].file]|sort==($allowlist|sort))
   and all(.receipts[];
@@ -76,4 +77,7 @@ def valid_reports_identity($identity;$prefix;$uid;$gid):
   and ($pureReportsApi[0].routes|all(.path!="/notification-delivery"))
   and $pureAbsence[0] == {admin:[],reports:[]}
   and $pureRoute[0] == {code:404,message:"Not found",data:null}
+  and $pureBinding[0] == {bindingVersion:1,webDigest:$pureWebDigest}
+  and ($pureInstallation[0].code == 0)
+  and ($pureInstallation[0].data|{compositionId,webDigest,featureIds}) == {compositionId:$pureCompositionId,webDigest:$pureWebDigest,featureIds:["access","monitor"]}
   and ($pureListeners|test("19841")|not)

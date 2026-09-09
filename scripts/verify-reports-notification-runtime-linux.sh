@@ -43,6 +43,22 @@ validate_seconds "$runtime_timeout" RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT 1800
 validate_seconds "$cleanup_timeout" RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT 30
 validate_seconds "$kill_grace" RUSTZEN_REPORTS_NOTIFY_KILL_GRACE 5
 
+read_pure_web_binding() {
+  local selected_root binding composition_dir binding_values
+  local -a bindings
+  selected_root="$root/apps/admin/selected-web"
+  test -d "$selected_root" && test ! -L "$selected_root" || { echo 'selected Web root is unsafe' >&2; exit 1; }
+  bindings=()
+  while IFS= read -r binding; do bindings+=("$binding"); done < <(find "$selected_root" -mindepth 2 -maxdepth 2 -type f -name binding.json -print)
+  [ "${#bindings[@]}" -eq 1 ] || { echo 'selected Web binding must be unique' >&2; exit 1; }
+  binding=${bindings[0]}; test ! -L "$binding" || { echo 'selected Web binding is a symlink' >&2; exit 1; }
+  composition_dir=$(basename "$(dirname "$binding")")
+  [ "${#composition_dir}" -eq 64 ] && case "$composition_dir" in *[!0-9a-f]*) false ;; *) true ;; esac || { echo 'selected Web binding directory is invalid' >&2; exit 1; }
+  binding_values=$(jq -er 'select(type=="object" and (keys|sort)==["bindingVersion","compositionId","selectedApiDigest","webDigest"] and .bindingVersion==1 and ([.compositionId,.selectedApiDigest,.webDigest]|all(type=="string" and test("^[0-9a-f]{64}$"))))|[.compositionId,.webDigest]|@tsv' "$binding") || exit 1
+  read -r pure_composition_id pure_web_digest <<<"$binding_values"
+  [ "$pure_composition_id" = "$composition_dir" ] || { echo 'selected Web binding composition mismatch' >&2; exit 1; }
+}
+
 run_bounded() {
   seconds=$1; shift
   bounded_timed_out=0
@@ -135,6 +151,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 read -r head source_state source_sha < <("$source_identity" "${source_inputs[@]}")
+read_pure_web_binding
 build_active=1
 if run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --platform "$platform" \
   --mount "type=bind,src=$root,dst=/source,readonly" \
@@ -206,6 +223,7 @@ if run_bounded "$runtime_timeout" "$docker_bin" run --name "$runtime_container" 
   --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$source_sha" --env RUSTZEN_VERIFY_ARCHITECTURE="$architecture" \
   --env RUSTZEN_VERIFY_PLATFORM="$platform" --env RUSTZEN_VERIFY_BINARY_HASHES="$binary_hashes" \
   --env RUSTZEN_VERIFY_BUILD_PROVENANCE_SHA256="$build_provenance_sha" \
+  --env RUSTZEN_VERIFY_PURE_COMPOSITION_ID="$pure_composition_id" --env RUSTZEN_VERIFY_PURE_WEB_DIGEST="$pure_web_digest" \
   --env RUSTZEN_VERIFY_VERIFIER_IMAGE_ID="$verifier_image" --env RUSTZEN_VERIFY_VERIFIER_KEY="$verifier_key" \
   --env RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256="$verifier_sha" \
   --mount "type=bind,src=$staged,dst=/verify/bin,readonly" \
@@ -232,12 +250,13 @@ receipt_allowlist=$(jq -nc '[
   "unsigned.json","public-internal.json","selected-ingress-listener.txt","selected-reports-config.json",
   "selected-reports-api.json","inbox-final.json","selected-state.json","reports-runtime-identity.json","pure-admin-api.json",
   "pure-admin-config.json","pure-reports-config.json","pure-reports-api.json",
-  "pure-absence.json","pure-notification-route.json","pure-listeners.txt"
+  "pure-absence.json","pure-notification-route.json","pure-listeners.txt","pure-web-binding.json","pure-installation.json"
 ]')
 jq -e --arg head "$head" --arg state "$source_state" --arg sourceSha "$source_sha" \
   --arg architecture "$architecture" --arg platform "$platform" --argjson binaries "$binary_hashes" \
   --arg provenanceSha "$build_provenance_sha" --arg verifierImage "$verifier_image" \
   --arg verifierKey "$verifier_key" --arg verifierSha "$verifier_sha" --argjson allowlist "$receipt_allowlist" \
+  --arg pureCompositionId "$pure_composition_id" --arg pureWebDigest "$pure_web_digest" \
   --slurpfile lifecycle "$candidate/lifecycle.json" --slurpfile outage "$candidate/outage-state.json" \
   --slurpfile retry "$candidate/retry-state.json" --slurpfile scheduled "$candidate/scheduled-state.json" \
   --slurpfile revoked "$candidate/revoked-state.json" --slurpfile proxy "$candidate/drop-proxy.json" \
@@ -249,6 +268,7 @@ jq -e --arg head "$head" --arg state "$source_state" --arg sourceSha "$source_sh
   --slurpfile pureAdminApi "$candidate/pure-admin-api.json" --slurpfile pureAdminConfig "$candidate/pure-admin-config.json" \
   --slurpfile pureReportsConfig "$candidate/pure-reports-config.json" --slurpfile pureReportsApi "$candidate/pure-reports-api.json" \
   --slurpfile pureAbsence "$candidate/pure-absence.json" --slurpfile pureRoute "$candidate/pure-notification-route.json" --rawfile pureListeners "$candidate/pure-listeners.txt" \
+  --slurpfile pureBinding "$candidate/pure-web-binding.json" --slurpfile pureInstallation "$candidate/pure-installation.json" \
   -f "$root/scripts/verify-reports-notification-runtime-evidence.jq" "$candidate/manifest.json" >/dev/null
 test "$(shasum -a 256 "$candidate/build-provenance.tsv" | awk '{print $1}')" = "$build_provenance_sha"
 while IFS=$'\t' read -r file sha bytes; do

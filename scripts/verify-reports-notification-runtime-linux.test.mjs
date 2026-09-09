@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     fakeGateFixture,
@@ -119,6 +120,49 @@ function hasVerifierUnixepochCompatibility(script) {
         && execute.indexOf(registration) < execute.indexOf("connection.execute(query,args)");
 }
 
+function hasPureCompositionEvidence(outerScript, innerScript, validator) {
+    const pureStart = innerScript.indexOf("step pure-selection-absence");
+    const composition = innerScript.indexOf('export RUSTZEN_COMPOSITION_ID="$RUSTZEN_VERIFY_PURE_COMPOSITION_ID"', pureStart);
+    const bootstrap = innerScript.indexOf("rz-admin-pure bootstrap-owner", pureStart);
+    return outerScript.includes("read_pure_web_binding()")
+        && outerScript.includes('while IFS= read -r binding; do bindings+=("$binding"); done < <(find "$selected_root" -mindepth 2 -maxdepth 2 -type f -name binding.json -print)')
+        && outerScript.includes('test ! -L "$binding"')
+        && outerScript.includes('[ "$pure_composition_id" = "$composition_dir" ]')
+        && outerScript.includes('RUSTZEN_VERIFY_PURE_COMPOSITION_ID="$pure_composition_id"')
+        && outerScript.includes('RUSTZEN_VERIFY_PURE_WEB_DIGEST="$pure_web_digest"')
+        && composition > pureStart && bootstrap > composition
+        && innerScript.includes("pure-web-binding.json")
+        && innerScript.includes("pure-installation.json")
+        && validator.includes(".pureWeb == {compositionId:$pureCompositionId,webDigest:$pureWebDigest}")
+        && validator.includes('$pureBinding[0] == {bindingVersion:1,webDigest:$pureWebDigest}')
+        && validator.includes('featureIds:["access","monitor"]');
+}
+
+const compositionId = "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b";
+const webDigest = "22a88f2af530ad9bb42b51b7b0b4432e187f87c365740e6162f563c43129f868";
+const selectedApiDigest = "95f9a00978f1e4302d249ba06aad92e6ef72d0640f51e3642c65ec5bf124ffb3";
+
+function runPureBindingReader(root) {
+    const start = outer.indexOf("read_pure_web_binding() {");
+    const end = outer.indexOf("\nrun_bounded()", start);
+    const reader = join(root, "read-binding.sh");
+    writeFileSync(reader, `#!/bin/bash\nset -euo pipefail\nroot=$1\n${outer.slice(start, end)}\nread_pure_web_binding\nprintf '%s %s\\n' "$pure_composition_id" "$pure_web_digest"\n`);
+    return Bun.spawnSync(["/bin/bash", reader, root], { stdout: "pipe", stderr: "pipe" });
+}
+
+function bindingFixture(count) {
+    const root = mkdtempSync(join(tmpdir(), "rz pure binding "));
+    const selectedRoot = join(root, "apps/admin/selected-web");
+    for (let index = 0; index < count; index += 1) {
+        const id = index === 0 ? compositionId : `${index}`.padStart(64, "1");
+        const directory = join(selectedRoot, id);
+        mkdirSync(directory, { recursive: true });
+        writeFileSync(join(directory, "binding.json"), JSON.stringify({ bindingVersion: 1, compositionId: id,
+            selectedApiDigest, webDigest }));
+    }
+    return root;
+}
+
 describe("Reports notification Linux runtime gate", () => {
     test("is bounded, source-bound, atomically published, and compact", () => {
         expect(lines(outer)).toBeLessThan(300);
@@ -140,7 +184,7 @@ describe("Reports notification Linux runtime gate", () => {
         }
         expect(justfile).toContain("verify-reports-notification-runtime-linux:");
         expect(justfile).toContain("scripts/verify-reports-notification-runtime-linux.sh");
-        expect(evidenceValidator).toContain('length==25');
+        expect(evidenceValidator).toContain('length==27');
         expect(evidenceValidator).toContain('test("^[A-Za-z0-9][A-Za-z0-9._-]*$")');
         expect(outer).not.toContain("RUSTZEN_REPORTS_NOTIFY_TIMEOUT");
         expect(outer).toContain('validate_seconds "$build_timeout" RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT 7200');
@@ -255,6 +299,31 @@ describe("Reports notification Linux runtime gate", () => {
         ]) expect(hasVerifierUnixepochCompatibility(mutated)).toBeFalse();
     });
 
+    test("binds pure Admin identity and runtime evidence to the selected Web binding", () => {
+        expect(hasPureCompositionEvidence(outer, inner, evidenceValidator)).toBeTrue();
+        for (const [outerScript, innerScript, validator] of [
+            [outer.replace('while IFS= read -r binding; do bindings+=("$binding"); done < <(find "$selected_root" -mindepth 2 -maxdepth 2 -type f -name binding.json -print)', ""), inner, evidenceValidator],
+            [outer.replace('test ! -L "$binding"', ""), inner, evidenceValidator],
+            [outer.replace('[ "$pure_composition_id" = "$composition_dir" ]', "true"), inner, evidenceValidator],
+            [outer.replace('RUSTZEN_VERIFY_PURE_COMPOSITION_ID="$pure_composition_id"', 'RUSTZEN_VERIFY_PURE_COMPOSITION_ID="wrong"'), inner, evidenceValidator],
+            [outer, inner.replace('export RUSTZEN_COMPOSITION_ID="$RUSTZEN_VERIFY_PURE_COMPOSITION_ID"', ""), evidenceValidator],
+            [outer, inner, evidenceValidator.replace('featureIds:["access","monitor"]', 'featureIds:["access"]')],
+        ]) expect(hasPureCompositionEvidence(outerScript, innerScript, validator)).toBeFalse();
+    });
+
+    test("reads selected Web bindings with macOS Bash, including a path with spaces", () => {
+        for (const [count, status] of [[1, 0], [0, 1], [2, 1]]) {
+            const root = bindingFixture(count);
+            try {
+                const result = runPureBindingReader(root);
+                expect(result.exitCode, `binding count ${count}`).toBe(status);
+                if (count === 1) expect(new TextDecoder().decode(result.stdout)).toBe(`${compositionId} ${webDigest}\n`);
+            } finally {
+                rmSync(root, { recursive: true, force: true });
+            }
+        }
+    });
+
     test("keeps every runtime-gate pause within the saved FlowStep limit", () => {
         expect(inner).toContain('long_flow=$(flow long \'[{"action":"pause","durationMs":30000}]\')');
         const durations = [...inner.matchAll(/"durationMs":(\d+)/g)].map((match) => Number(match[1]));
@@ -316,7 +385,7 @@ describe("Reports notification Linux runtime gate", () => {
     test("rejects receipt and semantic tampering without replacing current", () => {
         for (const tamper of [
             "duplicate-receipt", "wrong-status", "path-traversal", "lifecycle-status",
-            "pure-status", "reports-root-process", "reports-dir-owner",
+            "pure-status", "pure-binding", "pure-installation", "reports-root-process", "reports-dir-owner",
         ]) {
             const fixture = fakeGateFixture(outerUrl.pathname, { tamper });
             try {
