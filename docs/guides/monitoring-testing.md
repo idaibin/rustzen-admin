@@ -162,6 +162,17 @@ Admin gateway, checks distinct current boot IDs and raw metric samples, restarts
 central processes, and requires both existing nodes to continue reporting without a
 third registration.
 
+The Agent cold build uses `RUSTZEN_MONITOR_MULTI_NODE_BUILD_TIMEOUT` (900 seconds by
+default, capped at 1800). The actual topology uses the separate
+`RUSTZEN_MONITOR_MULTI_NODE_TIMEOUT` budget (240 seconds by default, capped at 600),
+so dependency compilation cannot exhaust or silently extend the runtime acceptance.
+The evidence lock and cleanup trap are installed before that build starts. Both the
+named build container and named runtime container must be absent before evidence can
+be published. Failure-log capture is separately bounded at 15 seconds (operator cap
+60) before TERM, followed by at most 10 seconds of hard-kill grace. That bounded
+window may delay runtime-container removal, but it cannot prevent removal or cleanup;
+a timeout or signal preserves the previous `current` evidence.
+
 Evidence is atomically published below
 `target/rz/monitor-agent-multi-node/current/manifest.json`. The manifest contains the
 source digest, platform, staged binary digests, service UID evidence, readiness events,

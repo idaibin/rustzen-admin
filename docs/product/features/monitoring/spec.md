@@ -217,7 +217,12 @@ logs, node IDs, and readiness sockets against one fresh central database. It req
 both Agents to remain unready while the Controller is unavailable, then verifies
 accepted reports through Admin, two distinct current boot IDs, raw metric samples, and
 continued reporting after the central processes restart without registering a third
-node. It records only source and binary identity plus non-secret runtime evidence.
+node. The source-bound Agent cold build and the runtime scenario have independent,
+bounded budgets: 900 seconds for the build (operator cap 1800) and 240 seconds for
+the runtime (operator cap 600). A build timeout cannot consume or weaken the runtime
+budget. The gate owns a named build container before compilation and removes it on
+success, failure, timeout, or signal before accepting any Agent binary. It records only
+source and binary identity plus non-secret runtime evidence.
 The disposable container shares one kernel and does not boot systemd, provision a
 remote host, or establish production TLS acceptance.
 

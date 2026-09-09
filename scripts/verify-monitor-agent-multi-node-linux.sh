@@ -7,7 +7,9 @@ architecture=${RUSTZEN_UI_LINUX_ARCH:-}
 evidence_root="$root/target/rz/monitor-agent-multi-node"
 current="$evidence_root/current"
 run_timeout=${RUSTZEN_MONITOR_MULTI_NODE_TIMEOUT:-240}
+build_timeout=${RUSTZEN_MONITOR_MULTI_NODE_BUILD_TIMEOUT:-900}
 info_timeout=${RUSTZEN_MONITOR_MULTI_NODE_DOCKER_INFO_TIMEOUT:-10}
+log_timeout=${RUSTZEN_MONITOR_MULTI_NODE_LOG_TIMEOUT:-15}
 
 validate_seconds() {
   value=$1 name=$2 maximum=$3
@@ -15,7 +17,9 @@ validate_seconds() {
   [ "$value" -gt 0 ] && [ "$value" -le "$maximum" ] || { echo "$name must be 1..$maximum seconds" >&2; exit 2; }
 }
 validate_seconds "$run_timeout" RUSTZEN_MONITOR_MULTI_NODE_TIMEOUT 600
+validate_seconds "$build_timeout" RUSTZEN_MONITOR_MULTI_NODE_BUILD_TIMEOUT 1800
 validate_seconds "$info_timeout" RUSTZEN_MONITOR_MULTI_NODE_DOCKER_INFO_TIMEOUT 60
+validate_seconds "$log_timeout" RUSTZEN_MONITOR_MULTI_NODE_LOG_TIMEOUT 60
 
 run_bounded() {
   seconds=$1; shift
@@ -33,6 +37,28 @@ run_bounded_capture() {
   cat "$capture"
   rm -f "$capture"
   return "$command_status"
+}
+remove_container() {
+  name=$1
+  run_bounded 30 "$docker_bin" rm -f "$name" >/dev/null 2>&1 || true
+  remaining=$(run_bounded_capture 15 "$docker_bin" ps -a --filter "name=^/${name}$" --format '{{.Names}}') || return 1
+  [ -z "$remaining" ]
+}
+candidate= staged_bin_dir= container= build_container= lock_dir=
+cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  cleanup_failed=0
+  [ -z "$build_container" ] || remove_container "$build_container" || cleanup_failed=1
+  if [ -n "$candidate" ] && [ -d "$candidate" ] && [ -n "$container" ]; then
+    run_bounded "$log_timeout" "$docker_bin" logs "$container" >"$candidate/container.log" 2>&1 || true
+  fi
+  [ -z "$container" ] || remove_container "$container" || cleanup_failed=1
+  [ -z "$staged_bin_dir" ] || rm -rf "$staged_bin_dir"
+  [ "$status" -eq 0 ] || { [ -z "$candidate" ] || rm -rf "$candidate"; }
+  [ -z "$lock_dir" ] || rm -rf "$lock_dir"
+  [ "$cleanup_failed" -eq 0 ] || status=1
+  exit "$status"
 }
 atomic_replace_symlink() {
   source_path=$1 target_path=$2
@@ -127,6 +153,24 @@ if [ "${RUSTZEN_MONITOR_MULTI_NODE_TEST_SIGNAL:-}" = INT ] || [ "${RUSTZEN_MONIT
   trap cleanup_signal EXIT; trap on_interrupt INT; trap on_terminate TERM
   kill -"$test_signal" "$$"
 fi
+if [ "${RUSTZEN_MONITOR_MULTI_NODE_TEST_EXIT_CLEANUP:-}" = 1 ]; then
+  evidence_root=${RUSTZEN_MONITOR_MULTI_NODE_TEST_ROOT:?}
+  current="$evidence_root/current"; candidate="$evidence_root/.candidate"; staged_bin_dir="$evidence_root/.binaries"; lock_dir="$evidence_root/.verify.lock"
+  build_container=rz-monitor-multi-node-build-exit-test; container=rz-monitor-multi-node-exit-test
+  mkdir -p "$evidence_root/runs/old" "$candidate" "$staged_bin_dir" "$lock_dir"
+  printf old >"$evidence_root/runs/old/manifest.json"; ln -s runs/old "$current"
+  trap cleanup EXIT; trap on_interrupt INT; trap on_terminate TERM
+  exit 9
+fi
+if [ "${RUSTZEN_MONITOR_MULTI_NODE_TEST_BUILD_CLEANUP:-}" = 1 ]; then
+  build_container=rz-monitor-multi-node-build-test
+  build_status=0
+  run_bounded 5 "$docker_bin" run --name "$build_container" || build_status=$?
+  [ "$build_status" -ne 0 ] || { echo "build cleanup seam unexpectedly succeeded" >&2; exit 1; }
+  remove_container "$build_container" || { echo "build cleanup seam leaked its container" >&2; exit 1; }
+  echo "Monitor multi-node build cleanup seam passed"
+  exit 0
+fi
 
 if [ -z "$architecture" ]; then
   architecture=$(run_bounded_capture "$info_timeout" "$docker_bin" info --format '{{.Architecture}}') || { echo "Docker architecture discovery failed or exceeded its timeout" >&2; exit 1; }
@@ -146,13 +190,7 @@ done
 agent_build_dir="$root/target/rz/monitor-agent-multi-node/build/$architecture"
 agent_bin="$agent_build_dir/rz-monitor-agent"
 mkdir -p "$agent_build_dir"
-run_bounded "$run_timeout" "$docker_bin" run --rm --platform "$platform" -v "$root:/work" -w /work -v rustzen-monitor-multi-node-cargo:/usr/local/cargo/registry rust:1.95-bookworm \
-  bash -euo pipefail -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends musl-tools >/dev/null && rustup target add $target_triple >/dev/null && cargo build --release --target $target_triple -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent --target-dir target/monitor-agent-multi-node/cargo"
-cp "$root/target/monitor-agent-multi-node/cargo/$target_triple/release/rz-monitor-agent" "$agent_bin"
-file "$agent_bin" | grep -q "$file_pattern"
 agent_provenance="$agent_build_dir/rz-monitor-agent.provenance.tsv"
-write_agent_provenance "$agent_provenance" "$agent_bin"
-verify_agent_provenance "$agent_provenance" "$agent_bin" || { echo "Agent build provenance does not match the current source basis" >&2; exit 1; }
 test -s "$bin_dir/build-provenance.txt"
 awk -F '\t' -v head="$head" -v state="$source_tree_state" -v digest="$source_tree_sha256" '
   $1 == "gitHead" && $2 == head { found_head = 1 }
@@ -160,24 +198,23 @@ awk -F '\t' -v head="$head" -v state="$source_tree_state" -v digest="$source_tre
   $1 == "sourceTreeSha256" && $2 == digest { found_digest = 1 }
   END { exit !(found_head && found_state && found_digest) }
 ' "$bin_dir/build-provenance.txt" || { echo "Linux server binaries do not match the current source-tree build provenance" >&2; exit 1; }
-lock_dir="$evidence_root/.verify.lock"; run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"; candidate="$evidence_root/.candidate-$run_id"; staged_bin_dir="$evidence_root/.binaries-$run_id"; container="rz-monitor-multi-node-$run_id"
+lock_dir="$evidence_root/.verify.lock"; run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"; candidate="$evidence_root/.candidate-$run_id"; staged_bin_dir="$evidence_root/.binaries-$run_id"; container="rz-monitor-multi-node-$run_id"; build_container="rz-monitor-multi-node-build-$run_id"
 status=1
-cleanup() {
-  status=$?
-  trap - EXIT INT TERM
-  if [ -d "$candidate" ]; then "$docker_bin" logs "$container" >"$candidate/container.log" 2>&1 || true; fi
-  "$docker_bin" rm -f "$container" >/dev/null 2>&1 || true
-  rm -rf "$staged_bin_dir"
-  [ "$status" -eq 0 ] || rm -rf "$candidate"
-  rm -rf "$lock_dir"
-  exit "$status"
-}
 mkdir -p "$evidence_root/runs"
 if ! mkdir "$lock_dir" 2>/dev/null; then echo "another Monitor multi-node verification owns $lock_dir" >&2; exit 1; fi
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$candidate" "$staged_bin_dir"
+build_status=0
+run_bounded "$build_timeout" "$docker_bin" run --name "$build_container" --platform "$platform" -v "$root:/work" -w /work -v rustzen-monitor-multi-node-cargo:/usr/local/cargo/registry rust:1.95-bookworm \
+  bash -euo pipefail -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends musl-tools >/dev/null && rustup target add $target_triple >/dev/null && cargo build --release --target $target_triple -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent --target-dir target/monitor-agent-multi-node/cargo" || build_status=$?
+remove_container "$build_container" || { echo "Agent build container cleanup failed" >&2; exit 1; }
+[ "$build_status" -eq 0 ] || { echo "Agent build failed or exceeded ${build_timeout}s" >&2; exit "$build_status"; }
+cp "$root/target/monitor-agent-multi-node/cargo/$target_triple/release/rz-monitor-agent" "$agent_bin"
+file "$agent_bin" | grep -q "$file_pattern"
+write_agent_provenance "$agent_provenance" "$agent_bin"
+verify_agent_provenance "$agent_provenance" "$agent_bin" || { echo "Agent build provenance does not match the current source basis" >&2; exit 1; }
 for name in rz-admin rz-monitor; do cp "$bin_dir/$name" "$staged_bin_dir/$name"; done
 cp "$agent_bin" "$staged_bin_dir/rz-monitor-agent"
 admin_hash=$(sha256sum "$staged_bin_dir/rz-admin" | awk '{print $1}')
@@ -199,6 +236,7 @@ run_bounded "$run_timeout" "$docker_bin" run --name "$container" --platform "$pl
   --mount "type=bind,src=$root/scripts/verify-monitor-agent-multi-node-linux-inner.sh,dst=/verify/run.sh,readonly" \
   --mount "type=bind,src=$root/scripts/monitor-agent-multi-node-readiness.py,dst=/verify/readiness.py,readonly" \
   "$verifier_image" bash /verify/run.sh
+remove_container "$container" || { echo "Monitor multi-node runtime container cleanup failed" >&2; exit 1; }
 jq -e --arg sha "$source_tree_sha256" '.schemaVersion == 1 and .status == "partial" and .sourceTreeSha256 == $sha and (.serviceUsers | length) == 2 and (.readiness.events | length) == 2 and .recovery.thirdNodeRegistered == false' "$candidate/manifest.json" >/dev/null
 read -r final_head final_source_tree_state final_source_tree_sha256 < <("$root/scripts/admin-browser-source-identity.sh")
 test "$final_head" = "$head" && test "$final_source_tree_state" = "$source_tree_state" && test "$final_source_tree_sha256" = "$source_tree_sha256"

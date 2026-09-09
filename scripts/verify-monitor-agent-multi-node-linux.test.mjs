@@ -13,6 +13,8 @@ function runGate(env) {
 describe("Monitor dual-Agent Linux gate contract", () => {
     test("is bounded, source-bound, atomically published, and independently exposed", () => {
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TIMEOUT");
+        expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_BUILD_TIMEOUT");
+        expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_LOG_TIMEOUT");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_DOCKER_INFO_TIMEOUT");
         expect(gate).toContain("admin-browser-source-identity.sh");
         expect(gate).toContain("atomic_replace_symlink");
@@ -20,6 +22,10 @@ describe("Monitor dual-Agent Linux gate contract", () => {
         expect(gate).toContain("refusing to replace legacy Monitor multi-node evidence directory");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_PUBLISH_FAILURE");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_SETUP_FAILURE");
+        expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_BUILD_CLEANUP");
+        expect(gate).toContain('--name "$build_container"');
+        expect(gate).toContain('remove_container "$build_container"');
+        expect(gate).toContain('remove_container "$container"');
         expect(justfile).toContain("verify-monitor-agent-multi-node-linux:");
         expect(justfile).toContain("scripts/verify-monitor-agent-multi-node-linux.sh");
     });
@@ -49,6 +55,7 @@ describe("Monitor dual-Agent Linux gate contract", () => {
         Bun.spawnSync(["chmod", "+x", fakeDocker]);
         expect(runGate({ RUSTZEN_MONITOR_MULTI_NODE_DOCKER: fakeDocker, RUSTZEN_MONITOR_MULTI_NODE_DOCKER_INFO_TIMEOUT: "1" }).exitCode).not.toBe(0);
         expect(runGate({ RUSTZEN_UI_LINUX_ARCH: "aarch64", RUSTZEN_MONITOR_MULTI_NODE_TIMEOUT: "0" }).exitCode).toBe(2);
+        expect(runGate({ RUSTZEN_UI_LINUX_ARCH: "aarch64", RUSTZEN_MONITOR_MULTI_NODE_BUILD_TIMEOUT: "1801" }).exitCode).toBe(2);
         expect(runGate({ RUSTZEN_UI_LINUX_ARCH: "aarch64", RUSTZEN_MONITOR_MULTI_NODE_DOCKER_INFO_TIMEOUT: "61" }).exitCode).toBe(2);
         for (const [signal, code] of [["INT", 130], ["TERM", 143]]) {
             const root = `/tmp/rz-monitor-multi-signal-${crypto.randomUUID()}`;
@@ -75,6 +82,75 @@ describe("Monitor dual-Agent Linux gate contract", () => {
         expect((await Bun.file(`${publishRoot}/current/manifest.json`).text()).trim()).toBe("new");
         expect(await Bun.file(`${publishRoot}/.missing`).exists()).toBeFalse();
         Bun.spawnSync(["rm", "-rf", publishRoot]);
+        const buildFake = `/tmp/rz-monitor-multi-build-fake-${crypto.randomUUID()}`;
+        const buildState = `${buildFake}.state`;
+        const buildLog = `${buildFake}.log`;
+        await Bun.write(buildFake, `#!/bin/sh
+printf '%s\\n' "$*" >>"${buildLog}"
+case "$1" in
+  run) touch "${buildState}"; exit 137 ;;
+  rm) rm -f "${buildState}" ;;
+  ps) test ! -e "${buildState}" || printf 'rz-monitor-multi-node-build-test\\n' ;;
+  *) exit 2 ;;
+esac
+`);
+        Bun.spawnSync(["chmod", "+x", buildFake]);
+        const buildCleanup = runGate({
+            RUSTZEN_MONITOR_MULTI_NODE_DOCKER: buildFake,
+            RUSTZEN_MONITOR_MULTI_NODE_TEST_BUILD_CLEANUP: "1",
+        });
+        expect(buildCleanup.exitCode).toBe(0);
+        expect(await Bun.file(buildState).exists()).toBeFalse();
+        const buildCalls = await Bun.file(buildLog).text();
+        expect(buildCalls).toContain("run --name rz-monitor-multi-node-build-test");
+        expect(buildCalls).toContain("rm -f rz-monitor-multi-node-build-test");
+        expect(buildCalls).toContain("ps -a --filter name=^/rz-monitor-multi-node-build-test$");
+        Bun.spawnSync(["rm", "-f", buildFake, buildLog]);
+        const exitRoot = `/tmp/rz-monitor-multi-exit-${crypto.randomUUID()}`;
+        const exitFake = `${exitRoot}.docker`;
+        const exitLog = `${exitRoot}.log`;
+        const exitBuildState = `${exitRoot}.build`;
+        const exitRuntimeState = `${exitRoot}.runtime`;
+        await Bun.write(exitBuildState, "live");
+        await Bun.write(exitRuntimeState, "live");
+        await Bun.write(exitFake, `#!/bin/sh
+printf '%s\\n' "$*" >>"${exitLog}"
+case "$1" in
+  logs) trap '' TERM; sleep 30 ;;
+  rm)
+    case "$3" in
+      rz-monitor-multi-node-build-exit-test) rm -f "${exitBuildState}" ;;
+      rz-monitor-multi-node-exit-test) rm -f "${exitRuntimeState}" ;;
+    esac ;;
+  ps)
+    case "$*" in
+      *build-exit-test*) test ! -e "${exitBuildState}" || echo rz-monitor-multi-node-build-exit-test ;;
+      *multi-node-exit-test*) test ! -e "${exitRuntimeState}" || echo rz-monitor-multi-node-exit-test ;;
+    esac ;;
+  *) exit 2 ;;
+esac
+`);
+        Bun.spawnSync(["chmod", "+x", exitFake]);
+        const started = Date.now();
+        const exitCleanup = runGate({
+            RUSTZEN_MONITOR_MULTI_NODE_DOCKER: exitFake,
+            RUSTZEN_MONITOR_MULTI_NODE_LOG_TIMEOUT: "1",
+            RUSTZEN_MONITOR_MULTI_NODE_TEST_EXIT_CLEANUP: "1",
+            RUSTZEN_MONITOR_MULTI_NODE_TEST_ROOT: exitRoot,
+        });
+        expect(exitCleanup.exitCode).toBe(9);
+        expect(Date.now() - started).toBeLessThan(15_000);
+        expect(await Bun.file(exitBuildState).exists()).toBeFalse();
+        expect(await Bun.file(exitRuntimeState).exists()).toBeFalse();
+        expect(await Bun.file(`${exitRoot}/.candidate`).exists()).toBeFalse();
+        expect(await Bun.file(`${exitRoot}/.binaries`).exists()).toBeFalse();
+        expect(await Bun.file(`${exitRoot}/.verify.lock`).exists()).toBeFalse();
+        expect(Bun.spawnSync(["readlink", `${exitRoot}/current`]).stdout.toString().trim()).toBe("runs/old");
+        const exitCalls = await Bun.file(exitLog).text();
+        expect(exitCalls.indexOf("rm -f rz-monitor-multi-node-build-exit-test")).toBeLessThan(exitCalls.indexOf("logs rz-monitor-multi-node-exit-test"));
+        expect(exitCalls.indexOf("logs rz-monitor-multi-node-exit-test")).toBeLessThan(exitCalls.indexOf("rm -f rz-monitor-multi-node-exit-test"));
+        Bun.spawnSync(["rm", "-rf", exitRoot]);
+        Bun.spawnSync(["rm", "-f", exitFake, exitLog]);
         Bun.spawnSync(["rm", "-f", fakeDocker]);
-    });
+    }, 20_000);
 });
