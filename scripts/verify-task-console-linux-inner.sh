@@ -86,7 +86,7 @@ jq -e --arg run "$manual_run" '.mode == "task-transition" and (.transitionRunId 
 browser_system=$(create_system 'Task console viewer')
 viewer_run=$(run_browser viewer "$viewer_steps")
 run_fault_browser() {
-  local mode=$1 expected=$2 name=$3 steps run= proxy= healthy=0 browser_status=0 response_status=0 receipt_status=0
+  local mode=$1 expected=$2 name=$3 selector=.shell-content steps run= proxy= healthy=0 browser_status=0 response_status=0 receipt_status=0
   RUSTZEN_VERIFY_FAULT_METHOD=GET RUSTZEN_VERIFY_FAULT_MODE="$mode" RUSTZEN_VERIFY_FAULT_ROUTE=/api/manage/tasks RUSTZEN_VERIFY_FAULT_RECEIPT="/verify/evidence/$name-receipt.json" python3 /verify/fault-proxy.py >/opt/rz/logs/$name-proxy.log 2>&1 &
   proxy=$!; pids+=("$proxy")
   for _ in $(seq 1 50); do if curl -fsS http://127.0.0.1:19805/__verify_proxy_health >/dev/null; then healthy=1; break; fi; sleep .1; done
@@ -94,13 +94,18 @@ run_fault_browser() {
     browser_status=1
   elif ! browser_system=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$name" '{name:$name,baseUrl:"http://127.0.0.1:19805/health",enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id'); then
     browser_status=1
-  elif ! steps=$(jq -nc --arg expected "$expected" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:".shell-content"},{action:"assertText",selector:".shell-content",text:$expected},{action:"assertNoHorizontalOverflow"}]'); then
-    browser_status=1
-  else
-    run=$(run_browser "$name" "$steps") || browser_status=$?
-    if [ "$mode" = empty ] && [ "$browser_status" -eq 0 ]; then
-      curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json" || response_status=1
-      [ "$response_status" -ne 0 ] || jq -e '.code == 0 and .message == "Success" and .data == [] and .total == 0' "/verify/evidence/$name-response.json" >/dev/null || response_status=1
+  elif [ "$mode" = error ]; then
+    selector='[role=alert]'
+  fi
+  if [ "$browser_status" -eq 0 ]; then
+    if ! steps=$(jq -nc --arg expected "$expected" --arg selector "$selector" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:$selector},{action:"assertText",selector:$selector,text:$expected},{action:"assertNoHorizontalOverflow"}]'); then
+      browser_status=1
+    else
+      run=$(run_browser "$name" "$steps") || browser_status=$?
+      if [ "$mode" = empty ] && [ "$browser_status" -eq 0 ]; then
+        curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json" || response_status=1
+        [ "$response_status" -ne 0 ] || jq -e '.code == 0 and .message == "Success" and .data == [] and .total == 0' "/verify/evidence/$name-response.json" >/dev/null || response_status=1
+      fi
     fi
   fi
   kill -TERM "$proxy" 2>/dev/null || true; wait "$proxy" || true; unset 'pids[${#pids[@]}-1]'

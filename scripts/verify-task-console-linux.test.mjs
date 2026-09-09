@@ -82,6 +82,10 @@ test("task-console gate binds complete provenance, exact cleanup, and atomic cur
     expect(inner).toContain('run=$(run_browser "$name" "$steps") || browser_status=$?');
     expect(inner).not.toContain('runs/$run/run');
     expect(inner).toContain("(.data | type) == \"array\"");
+    expect(inner).toContain("selector='[role=alert]'");
+    expect(inner).toContain('--arg selector "$selector"');
+    expect(inner).toContain('if [ "$browser_status" -eq 0 ]; then\n    if ! steps=$(jq');
+    expect(inner).toContain('else\n      run=$(run_browser "$name" "$steps") || browser_status=$?');
     for (const value of ["chown -R rustzen:rustzen /opt/rz", "XDG_CONFIG_HOME=/opt/rz/.config", "XDG_CACHE_HOME=/opt/rz/.cache", "RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium", "RUSTZEN_REPORTS_MAX_CONCURRENCY=1"]) expect(inner).toContain(value);
     expect(inner).not.toContain("50000");
     expect(justfile).toContain("verify-task-console-linux:");
