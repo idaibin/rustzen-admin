@@ -56,6 +56,10 @@ export RUSTZEN_IPC_TOKEN=local-service-verification-ipc-secret
 export RUSTZEN_MONITOR_AGENT_TOKEN=local-service-verification-agent-secret
 export RUSTZEN_MONITOR_NODE_ID=verify-monitor-node
 export RUSTZEN_MONITOR_CONTROLLER_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT"
+export RUSTZEN_BUILD_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+export RUSTZEN_COMPOSITION_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+export RUSTZEN_MONITOR_SCHEMA_FINGERPRINT=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+export RUSTZEN_MONITOR_DATA_CONTRACT_ID=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$PROJECT_ROOT/target/rz/gateway-latency.json}"
 export RUST_LOG=warn
 
@@ -376,6 +380,10 @@ verify_module_log_diagnostics() {
         "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs/cleanup/confirm")"
     [ "$repeated_status" = 400 ] || { echo "verify-services: reused module-log cleanup token returned $repeated_status" >&2; exit 1; }
 }
+
+"$MONITOR" init-db
+"$MONITOR" bind-database
+"$MONITOR" validate-database
 
 PHASE="admin-alone"
 start_service admin

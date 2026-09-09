@@ -223,6 +223,12 @@ envelopes with surviving module requests, direct delegation rejection, all four
 database corruption/restore boundaries, and the Manifest
 service-restart/route-change/incompatible HTTP contract.
 
+Before the 24 four-service startup orders, the verifier prepares its disposable
+Monitor database with `init-db`, `bind-database`, and `validate-database` in
+that order. The Monitor controller remains fail-closed and does not migrate the
+database at process start. The public Just target runs its pinned Bun static
+harness-contract test before its Rust checks, builds, and dynamic verifier.
+
 The worker verifier also exercises Monitoring shared-capability navigation,
 owner/viewer policy access, report fencing, alert/recovery transitions, pagination,
 and daily/weekly Reports schedule lifecycle. `just verify-modules-mvp` uses the
