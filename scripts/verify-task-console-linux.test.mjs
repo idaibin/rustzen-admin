@@ -76,6 +76,7 @@ test("task-console gate binds complete provenance, exact cleanup, and atomic cur
     expect(inner.indexOf('curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json"')).toBeLessThan(inner.indexOf('kill -TERM "$proxy"'));
     expect(inner).toContain('[data-status=running]');
     expect(inner).toContain('[data-status=success]');
+    for (const value of ["chown -R rustzen:rustzen /opt/rz", "XDG_CONFIG_HOME=/opt/rz/.config", "XDG_CACHE_HOME=/opt/rz/.cache", "RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium", "RUSTZEN_REPORTS_MAX_CONCURRENCY=1"]) expect(inner).toContain(value);
     expect(inner).not.toContain("50000");
     expect(justfile).toContain("verify-task-console-linux:");
 });
