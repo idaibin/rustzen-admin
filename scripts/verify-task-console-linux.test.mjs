@@ -79,7 +79,9 @@ test("task-console gate binds complete provenance, exact cleanup, and atomic cur
     expect(inner).toContain(".transitionRunId | tostring");
     expect(outer).toContain("$candidate/task-transition-receipt.json");
     expect(inner.match(/\{action:"assertNoHorizontalOverflow"\}/g)).toHaveLength(4);
-    expect(inner).toContain('run=$(run_browser "$name" "$steps") || return 1');
+    expect(inner).toContain('run=$(run_browser "$name" "$steps") || browser_status=$?');
+    expect(inner).not.toContain('runs/$run/run');
+    expect(inner).toContain("(.data | type) == \"array\"");
     for (const value of ["chown -R rustzen:rustzen /opt/rz", "XDG_CONFIG_HOME=/opt/rz/.config", "XDG_CACHE_HOME=/opt/rz/.cache", "RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium", "RUSTZEN_REPORTS_MAX_CONCURRENCY=1"]) expect(inner).toContain(value);
     expect(inner).not.toContain("50000");
     expect(justfile).toContain("verify-task-console-linux:");
@@ -123,3 +125,80 @@ test("rejects binary, PNG, viewport, and receipt tampering without replacing cur
         } finally { item.cleanup(); }
     }
 }, 30_000);
+
+test("failed evidence retains only bounded safe browser receipts", () => {
+    const item = fixture();
+    try {
+        expect(run(environment(item, { RUSTZEN_TASK_CONSOLE_TEST_FAILURE_ALLOWLIST: "1" })).exitCode).not.toBe(0);
+        const directory = join(item.evidence, "failed-runs", failed(item)[0]);
+        expect(readdirSync(directory).sort()).toEqual(["browser-owner-run.json", "build-provenance.txt", "failure-summary.tsv"]);
+        const receipt = readFileSync(join(directory, "browser-owner-run.json"), "utf8");
+        expect(receipt).not.toContain("secret"); expect(receipt).not.toContain("token"); expect(receipt).not.toContain("input");
+    } finally { item.cleanup(); }
+});
+
+function runBrowserHarness(caseName) {
+    const directory = mkdtempSync(join(tmpdir(), "rz-task-console-browser-"));
+    const evidence = join(directory, "evidence"); mkdirSync(evidence);
+    const fakeCurl = join(directory, "curl");
+    writeFileSync(fakeCurl, `#!/usr/bin/env bash
+set -euo pipefail
+url="\${@: -1}"
+case "$url" in
+  */api/reports/flows) printf '%s\\n' '{"data":{"id":"flow"}}' ;;
+  */api/reports/runs) printf '%s\\n' '{"data":{"id":"run"}}' ;;
+  */api/reports/runs/run)
+    count_file="$(dirname "$0")/run-reads"; count=0; [ ! -f "$count_file" ] || count=$(cat "$count_file"); count=$((count + 1)); printf '%s' "$count" > "$count_file"
+    case "\${CASE_NAME:?}:$count" in failed:1) printf '%s\\n' '{"data":{"status":"failed"}}' ;; long-running:1|long-running:2) printf '%s\\n' '{"data":{"status":"running"}}' ;; *:1) printf '%s\\n' '{"data":{"status":"succeeded"}}' ;; *) printf '%s\\n' '{"data":{"id":"run","status":"succeeded"}}' ;; esac ;;
+  */api/reports/runs/run/steps) if [ "\${CASE_NAME:?}" = receipt-fetch-failure ]; then exit 7; fi; if [ "\${CASE_NAME:?}" = failed-step ]; then printf '%s\\n' '{"data":[{"runId":"run","status":"failed"}]}' ; else printf '%s\\n' '{"data":[{"runId":"run","status":"succeeded"}]}' ; fi ;;
+  */api/reports/runs/run/artifacts) if [ "\${CASE_NAME:?}" = artifact-invalid ]; then printf '%s\\n' '{"data":{}}'; else printf '%s\\n' '{"data":[]}' ; fi ;;
+  *) exit 9 ;;
+esac
+`); chmodSync(fakeCurl, 0o755);
+    const inner = text("./verify-task-console-linux-inner.sh");
+    const start = inner.indexOf("run_browser() {");
+    const end = inner.indexOf("\ndownload_png()", start);
+    expect(start).toBeGreaterThanOrEqual(0); expect(end).toBeGreaterThan(start);
+    const runBrowser = inner.slice(start, end).replaceAll("/verify/evidence", evidence);
+    const harness = join(directory, "run-browser.sh");
+    writeFileSync(harness, `#!/usr/bin/env bash
+set -uo pipefail
+admin=http://admin
+browser_system=system
+auth=()
+curl_bin=${JSON.stringify(fakeCurl)}
+browser_poll_attempts=2
+${runBrowser}
+set +e
+run_browser owner '[]'
+status=$?
+printf 'RUN_BROWSER_STATUS=%s\\n' "$status"
+exit "$status"
+`); chmodSync(harness, 0o755);
+    const result = Bun.spawnSync({ cmd: ["bash", harness], env: { ...process.env, CASE_NAME: caseName }, stdout: "pipe", stderr: "pipe" });
+    return { directory, evidence, result, cleanup: () => rmSync(directory, { recursive: true, force: true }) };
+}
+
+test("run_browser rejects terminal, polling, step, and receipt failures while retaining available receipts", () => {
+    for (const caseName of ["failed", "long-running", "failed-step", "receipt-fetch-failure", "artifact-invalid"]) {
+        const item = runBrowserHarness(caseName);
+        try {
+            expect(item.result.exitCode, new TextDecoder().decode(item.result.stderr)).not.toBe(0);
+            expect(new TextDecoder().decode(item.result.stdout)).toContain("run");
+            expect(new TextDecoder().decode(item.result.stdout)).toContain("RUN_BROWSER_STATUS=1");
+            expect(existsSync(join(item.evidence, "browser-owner-run.json"))).toBeTrue();
+            expect(existsSync(join(item.evidence, "browser-owner-artifacts.json"))).toBeTrue();
+            if (caseName === "receipt-fetch-failure") expect(statSync(join(item.evidence, "browser-owner-steps.json")).size).toBe(0);
+            else expect(existsSync(join(item.evidence, "browser-owner-steps.json"))).toBeTrue();
+        } finally { item.cleanup(); }
+    }
+}, 30_000);
+
+test("run_browser accepts a succeeded run only after all receipts validate", () => {
+    const item = runBrowserHarness("succeeded");
+    try {
+        expect(item.result.exitCode, new TextDecoder().decode(item.result.stderr)).toBe(0);
+        expect(new TextDecoder().decode(item.result.stdout)).toContain("RUN_BROWSER_STATUS=0");
+        for (const file of ["browser-owner-run.json", "browser-owner-steps.json", "browser-owner-artifacts.json"]) expect(existsSync(join(item.evidence, file))).toBeTrue();
+    } finally { item.cleanup(); }
+});

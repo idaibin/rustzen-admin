@@ -36,18 +36,29 @@ test "$(cat /verify/evidence/list-only-status.txt)" = 403
 curl -fsS "${viewer_auth[@]}" "$admin/api/manage/tasks/$key/runs?current=1&pageSize=50" > /verify/evidence/list-only-runs-after.json
 jq -e '(.total == $after[0].total) and ([.data[] | {id,status}] == [$after[0].data[] | {id,status}])' /verify/evidence/list-only-runs-before.json --slurpfile after /verify/evidence/list-only-runs-after.json >/dev/null
 
-create_system() { curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$1" --arg base "${2:-http://127.0.0.1:19801/health}" '{name:$name,baseUrl:$base,enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id'; }
+curl_bin=${RUSTZEN_TASK_CONSOLE_CURL:-curl}
+browser_poll_attempts=${RUSTZEN_TASK_CONSOLE_BROWSER_POLL_ATTEMPTS:-900}
+create_system() { "$curl_bin" -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$1" --arg base "${2:-http://127.0.0.1:19801/health}" '{name:$name,baseUrl:$base,enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id'; }
 run_browser() {
-  local name=$1 steps=$2 flow run status
-  flow=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_system" --arg name "$name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')" "$admin/api/reports/flows" | jq -er '.data.id')
-  run=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$flow" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs" | jq -er '.data.id')
-  for _ in $(seq 1 900); do status=$(curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run" | jq -er '.data.status'); case "$status" in succeeded|failed|cancelled) break;; esac; sleep .1; done
-  curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run" > "/verify/evidence/browser-$name-run.json"
-  curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run/steps" > "/verify/evidence/browser-$name-steps.json"
-  curl -fsS "${auth[@]}" "$admin/api/reports/runs/$run/artifacts" > "/verify/evidence/browser-$name-artifacts.json"
-  jq -e --arg run "$run" '.data.id == $run and .data.status == "succeeded"' "/verify/evidence/browser-$name-run.json" >/dev/null
-  jq -e --arg run "$run" '(.data | length > 0) and all(.data[]; .runId == $run and .status == "succeeded")' "/verify/evidence/browser-$name-steps.json" >/dev/null
-  printf '%s\n' "$run"
+  local name=$1 steps=$2 flow= run= status= validation_status=0 file
+  if ! flow=$("$curl_bin" -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$browser_system" --arg name "$name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')" "$admin/api/reports/flows" | jq -er '.data.id'); then validation_status=1; fi
+  if [ "$validation_status" -eq 0 ] && ! run=$("$curl_bin" -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$flow" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs" | jq -er '.data.id'); then validation_status=1; fi
+  if [ -n "$run" ]; then
+    for _ in $(seq 1 "$browser_poll_attempts"); do
+      if ! status=$("$curl_bin" -fsS "${auth[@]}" "$admin/api/reports/runs/$run" | jq -er '.data.status'); then validation_status=1; break; fi
+      [ "$status" = succeeded ] && break
+      case "$status" in failed|cancelled) validation_status=1; break;; esac
+      sleep .1
+    done
+    [ "${status:-}" = succeeded ] || validation_status=1
+    "$curl_bin" -fsS "${auth[@]}" "$admin/api/reports/runs/$run" > "/verify/evidence/browser-$name-run.json" || validation_status=1
+    for file in steps artifacts; do "$curl_bin" -fsS "${auth[@]}" "$admin/api/reports/runs/$run/$file" > "/verify/evidence/browser-$name-$file.json" || validation_status=1; done
+    [ ! -f "/verify/evidence/browser-$name-run.json" ] || jq -e --arg run "$run" '.data.id == $run and .data.status == "succeeded"' "/verify/evidence/browser-$name-run.json" >/dev/null || validation_status=1
+    [ ! -f "/verify/evidence/browser-$name-steps.json" ] || jq -e --arg run "$run" '(.data | length > 0) and all(.data[]; .runId == $run and .status == "succeeded")' "/verify/evidence/browser-$name-steps.json" >/dev/null || validation_status=1
+    [ ! -f "/verify/evidence/browser-$name-artifacts.json" ] || jq -e '(.data | type) == "array"' "/verify/evidence/browser-$name-artifacts.json" >/dev/null || validation_status=1
+  else validation_status=1; fi
+  [ -z "$run" ] || printf '%s\n' "$run"
+  return "$validation_status"
 }
 download_png() {
   local run=$1 prefix=$2 output=$3 dimensions hash artifact
@@ -75,20 +86,26 @@ jq -e --arg run "$manual_run" '.mode == "task-transition" and (.transitionRunId 
 browser_system=$(create_system 'Task console viewer')
 viewer_run=$(run_browser viewer "$viewer_steps")
 run_fault_browser() {
-  local mode=$1 expected=$2 name=$3 steps run proxy
+  local mode=$1 expected=$2 name=$3 steps run= proxy= healthy=0 browser_status=0 response_status=0 receipt_status=0
   RUSTZEN_VERIFY_FAULT_METHOD=GET RUSTZEN_VERIFY_FAULT_MODE="$mode" RUSTZEN_VERIFY_FAULT_ROUTE=/api/manage/tasks RUSTZEN_VERIFY_FAULT_RECEIPT="/verify/evidence/$name-receipt.json" python3 /verify/fault-proxy.py >/opt/rz/logs/$name-proxy.log 2>&1 &
   proxy=$!; pids+=("$proxy")
-  for _ in $(seq 1 50); do curl -fsS http://127.0.0.1:19805/__verify_proxy_health >/dev/null && break; sleep .1; done
-  curl -fsS http://127.0.0.1:19805/__verify_proxy_health >/dev/null
-  browser_system=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$name" '{name:$name,baseUrl:"http://127.0.0.1:19805/health",enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id')
-  steps=$(jq -nc --arg expected "$expected" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:".shell-content"},{action:"assertText",selector:".shell-content",text:$expected},{action:"assertNoHorizontalOverflow"}]')
-  run=$(run_browser "$name" "$steps") || return 1
-  if [ "$mode" = empty ]; then
-    curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json"
-    jq -e '.code == 0 and .message == "Success" and .data == [] and .total == 0' "/verify/evidence/$name-response.json" >/dev/null
+  for _ in $(seq 1 50); do if curl -fsS http://127.0.0.1:19805/__verify_proxy_health >/dev/null; then healthy=1; break; fi; sleep .1; done
+  if [ "$healthy" -eq 0 ]; then
+    browser_status=1
+  elif ! browser_system=$(curl -fsS "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg name "$name" '{name:$name,baseUrl:"http://127.0.0.1:19805/health",enabled:true}')" "$admin/api/reports/systems" | jq -er '.data.id'); then
+    browser_status=1
+  elif ! steps=$(jq -nc --arg expected "$expected" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:".shell-content"},{action:"assertText",selector:".shell-content",text:$expected},{action:"assertNoHorizontalOverflow"}]'); then
+    browser_status=1
+  else
+    run=$(run_browser "$name" "$steps") || browser_status=$?
+    if [ "$mode" = empty ] && [ "$browser_status" -eq 0 ]; then
+      curl -fsS http://127.0.0.1:19805/api/manage/tasks > "/verify/evidence/$name-response.json" || response_status=1
+      [ "$response_status" -ne 0 ] || jq -e '.code == 0 and .message == "Success" and .data == [] and .total == 0' "/verify/evidence/$name-response.json" >/dev/null || response_status=1
+    fi
   fi
-  kill -TERM "$proxy"; wait "$proxy" || true; unset 'pids[${#pids[@]}-1]'
-  jq -e '.hitCount >= 1' "/verify/evidence/$name-receipt.json" >/dev/null
+  kill -TERM "$proxy" 2>/dev/null || true; wait "$proxy" || true; unset 'pids[${#pids[@]}-1]'
+  jq -e '.hitCount >= 1' "/verify/evidence/$name-receipt.json" >/dev/null || receipt_status=1
+  [ "$browser_status" -eq 0 ] && [ "$response_status" -eq 0 ] && [ "$receipt_status" -eq 0 ] || return 1
   printf '%s\n' "$run"
 }
 empty_run=$(run_fault_browser empty 'No scheduled tasks' empty)
