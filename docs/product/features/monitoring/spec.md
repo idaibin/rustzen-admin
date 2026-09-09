@@ -206,6 +206,12 @@ The Monitoring behavior is source-resolved. Representative browser coverage and 
 limits are recorded in [local verification](../../../guides/local-verification.md);
 that coverage does not certify every visual, permission, pagination, or deployment state.
 
+The Controller and gateway share a database-pool default of one minimum and
+eight maximum connections. Eight is the measured default for the certified
+four-CPU, 512MiB pure-Monitor runtime profile; deployment-specific overrides
+remain configuration, and must be justified by that deployment's own load
+evidence.
+
 The Linux dual-Agent gate starts two service identities with separate runtime roots,
 logs, node IDs, and readiness sockets against one fresh central database. It requires
 both Agents to remain unready while the Controller is unavailable, then verifies
@@ -243,7 +249,11 @@ message; the Drawer does not add a second toast for the same rejection.
 Nodes refresh in the background every 30 seconds. Each inventory refresh reads node
 state and the matching latest disk samples in one SQLite read transaction, using a
 bounded number of indexed Controller queries; it does not issue one disk-sample query
-per node or combine node state from one report with disks from another. A failed
+per node or combine node state from one report with disks from another. Controller may
+reuse one successful serialized immutable Nodes response snapshot for at most 250ms. Concurrent cache misses
+share one refresh; accepted Agent reports and successful global/node policy writes or
+resets invalidate it before returning. Failed reads are never cached. Admin still checks
+the authoritative session and current permission on every gateway request. A failed
 background refresh
 retains the last successful inventory and exposes its update time, Retry, and an
 explicit refresh action. An initial load failure continues to use the blocking

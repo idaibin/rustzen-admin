@@ -6,6 +6,7 @@
 
 mod acceptance;
 mod background;
+mod cache;
 #[cfg(feature = "notifications")]
 mod delivery;
 mod policy;
@@ -19,6 +20,7 @@ use rustzen_ipc::{ModuleRouter, Require};
 use crate::app::AppState;
 
 pub(crate) use background::spawn_background;
+pub(crate) use cache::NodesCache;
 
 #[cfg(test)]
 pub(crate) use acceptance::{record_at, submit};

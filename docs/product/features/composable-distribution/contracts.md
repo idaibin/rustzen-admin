@@ -1103,3 +1103,14 @@ certificates and appended PEM blocks are rejected before staging. Its decoded
 SPKI must match the Ed25519 private signing key. The final reread is bound to
 all three hashes returned by publication and to the staged build ID, so a
 same-user replacement with another otherwise valid triplet is rejected.
+
+### P8g Monitor load receipt
+
+`monitor-load-evidence` is canonical JSON written only after P8g completes. It
+contains closed release/source/native/browser/runtime identities; fixed dataset
+identity; both lane offered/completed/result/quantile values; drain/quiet samples;
+cgroup and process maxima; ordered fault milestones; recovery results; and pure
+Monitor SSE absence evidence. It must not contain credentials, request bodies,
+JWTs, raw node payloads, arbitrary logs, or an extensible status field. Its
+runtime evidence has `load:true` only in this separate receipt; the source-build
+certificate remains literal `load:false`.

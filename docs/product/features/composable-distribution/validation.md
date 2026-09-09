@@ -465,3 +465,56 @@ plus the Agent token, and check the fixed fencing fixture corpus.
 | D55 | Pin signed Monitor Server and published Agent fixtures; alter signature, tuple, endpoint, Agent protocol, profile bytes or replace the profile with a link | Pinning fails closed before a profile write; a valid root-owned profile gates deployed production Agent startup before logging/network work; the isolated development command remains runnable without `/opt/rz` installation state |
 
 | D08e | Verify a Monitor container export, then delete or replace its export root before captured-byte staging | Staging and its unsigned manifest retain only verified server binaries/contracts/flattened Web and succeed without reopening the export; witness and metadata remain absent. |
+
+### P8g pure-Monitor exact-artifact load certification
+
+P8g accepts one fresh container only when its P8e native-runtime evidence and
+P8f browser receipt bind the identical signed release/source/build/composition
+and runtime Admin tuple. Its fixed dataset is 100 nodes with four disks each and
+a fixed sentinel. Every response must be `200`, `code==0`, contain all and only
+100 unique node IDs and exactly four disks per node. Login is setup, never a load
+sample. Each of two lanes uses 32 closed-loop workers, four warmup requests per
+worker, then
+60 seconds of monotonic offered requests with at least 3,200 completed requests;
+each request has a 2-second hard timeout, no retry, and measures submission
+through full body. Each lane requires zero HTTP/transport/timeout failures,
+nearest-rank p95 <=500ms and p99 <=1000ms, then a 5-second drain and 30-second
+quiet observation. Each phase has exactly one pre-work and one post-work usage
+snapshot; probes are excluded from its work duration and there is no periodic
+sampling cadence. The quiet baseline uses the post-quiet current RSS and
+`pidsCurrent` values;
+the run therefore exercises the Controller's bounded Nodes snapshot cache while
+the Admin gateway still performs authoritative authorization on every request.
+The admitted binaries use the shared default database pool of one minimum and
+eight maximum connections; an environment override is not part of the certified
+fixture.
+Each snapshot pair is strictly ordered and spans the recorded phase work duration;
+the receipt rejects a missing, third, reversed, too-short or identity-discontinuous
+pair. Non-fault phases retain the same Admin and Monitor identity; the fault phase
+allows only the separately recorded Monitor restart and requires unchanged Admin.
+`pidsCurrent` is used for quiet and cross-lane bounds, while `pidsPeak` and
+`memoryPeak` apply the global cumulative limits. Other Docker operations have a ten-second bound. The receipt records measured lane, drain, quiet, fault, and
+recovery work durations; the two lanes require at least 60s, each drain 5s,
+each quiet observation 30s, and recovery 10s. It records the fixed eight
+authoritative inputs, all twelve P8e sidecars, and fault/recovery readings in
+the overall maximum and event-drift comparison.
+lane two may add at most 16MiB RSS and two processes over lane one.
+
+The disposable container has exactly four CPUs, `memory.max=512MiB` and
+`pids.max=256`. Combined Admin+Monitor RSS peak is at most 384MiB and process
+peak at most 64. `memory.events` max/oom/oom_kill and `pids.events` max do not
+grow; receipts retain cgroup memory/pid samples plus VmHWM or smaps_rollup.
+The fault stage records stop, listener disappearance, a new listener PID, and
+healthy registry in monotonic order. Stable outage permits only 503/code 40001;
+boundary in-flight results are separate. The verifier freezes Monitor before
+launching those requests, admits the boundary only after four Monitor-side
+established sockets contain unread request bytes (idle keepalive sockets do not
+count), then freezes Admin so those responses cannot finish early. It kills the
+frozen Monitor MainPID, confirms that exact PID is absent, records the
+confirmed-dead boundary, stops Monitor, and only then thaws Admin. The four
+dedicated boundary requests have a ten-second timeout; normal load requests keep
+their two-second timeout. This leaves no thaw-to-stop success window. A 401, 500, timeout, stale 200,
+unchanged PID, or wrong executable fails. Recovery is 32 workers for 10 seconds
+with at least 512 samples and the same latency/zero-failure bounds. Pure Monitor
+has no SSE owner: the generic 1,000-SSE target is `notApplicable`, proven by
+signed API/Web/schema absence and a runtime SSE-route 404.

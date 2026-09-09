@@ -182,6 +182,7 @@ pub async fn update_settings(
     ModuleJson(i): ModuleJson<SettingInput>,
 ) -> AppResult<serde_json::Value> {
     apply_settings(&s.pool, i).await?;
+    s.nodes_cache.invalidate().await;
     Ok(ApiResponse::success(settings_value(&s.pool).await?))
 }
 
@@ -214,6 +215,7 @@ pub async fn update_node_settings(
     ModuleJson(input): ModuleJson<SettingInput>,
 ) -> AppResult<serde_json::Value> {
     apply_node_settings(&s.pool, &node_id, input).await?;
+    s.nodes_cache.invalidate().await;
     Ok(ApiResponse::success(node_settings_value(&s.pool, &node_id).await?))
 }
 
@@ -222,6 +224,7 @@ pub async fn reset_node_settings(
     Path(node_id): Path<String>,
 ) -> AppResult<serde_json::Value> {
     reset_node_settings_for(&s.pool, &node_id).await?;
+    s.nodes_cache.invalidate().await;
     Ok(ApiResponse::success(node_settings_value(&s.pool, &node_id).await?))
 }
 

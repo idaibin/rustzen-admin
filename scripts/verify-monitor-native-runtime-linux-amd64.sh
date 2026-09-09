@@ -4,10 +4,10 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 usage() {
-  echo "usage: $0 --export-root PATH --release-result FILE --certificate FILE --public-key FILE --expected-source-identity ID --output NEW_DIRECTORY" >&2
+  echo "usage: $0 --export-root PATH --release-result FILE --certificate FILE --public-key FILE --expected-source-identity ID --output NEW_DIRECTORY [--retain-container-output FILE --retain-owner-token TOKEN]" >&2
   exit 2
 }
-test "$#" -eq 12 || usage
+test "$#" -eq 12 -o "$#" -eq 16 || usage
 while test "$#" -gt 0; do
   case "$1" in
     --export-root) test -z "${export_arg:-}" || usage; export_arg="$2" ;;
@@ -16,6 +16,8 @@ while test "$#" -gt 0; do
     --public-key) test -z "${key_arg:-}" || usage; key_arg="$2" ;;
     --expected-source-identity) test -z "${source_identity:-}" || usage; source_identity="$2" ;;
     --output) test -z "${output_arg:-}" || usage; output_arg="$2" ;;
+    --retain-container-output) test -z "${retain_arg:-}" || usage; retain_arg="$2" ;;
+    --retain-owner-token) test -z "${retain_owner:-}" || usage; retain_owner="$2" ;;
     *) usage ;;
   esac
   test -n "$2" || usage
@@ -37,6 +39,13 @@ output_parent="$(cd "$(dirname "$output_arg")" && pwd -P)"
 case "$output_parent" in "$root/target/rz"|"$root/target/rz"/*) ;; *) echo "--output parent must be beneath target/rz" >&2; exit 2 ;; esac
 output="$output_parent/$output_name"
 test ! -e "$output" && test ! -L "$output" || { echo "--output must not exist: $output" >&2; exit 2; }
+if test -n "${retain_arg:-}"; then
+  test "${retain_owner:-}" != "" && printf '%s' "$retain_owner" | grep -Eq '^[a-f0-9-]{32,64}$' || usage
+  retain_name="$(basename "$retain_arg")"; test -n "$retain_name" && test "$retain_name" != . && test "$retain_name" != .. || usage
+  retain_parent="$(cd "$(dirname "$retain_arg")" && pwd -P)"
+  case "$retain_parent" in "$root/target/rz"|"$root/target/rz"/*) ;; *) echo "--retain-container-output must be beneath target/rz" >&2; exit 2 ;; esac
+  retain_output="$retain_parent/$retain_name"; test ! -e "$retain_output" && test ! -L "$retain_output" || { echo "--retain-container-output must be fresh" >&2; exit 2; }
+fi
 reject_overlap() {
   case "$output/" in "$1/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
   case "$1/" in "$output/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
@@ -71,6 +80,7 @@ name="rz-p8e-native-runtime-$$"
 setup="$name-setup"
 image=rz-p8e-systemd-bookworm-amd64-v1
 private=/root/rz-p8e-artifacts
+admin_host=127.0.0.1; test -z "${retain_output:-}" || admin_host=0.0.0.0
 cleanup() {
   status=$?
   if [ "$status" -ne 0 ] && docker ps -a --format '{{.Names}}' | grep -Fxq "$name"; then
@@ -78,7 +88,8 @@ cleanup() {
     docker exec "$name" journalctl --no-pager -u rz-admin.service -u rz-monitor.service >> "$output/runtime.log" 2>&1 || true
     docker logs "$name" >> "$output/runtime.log" 2>&1 || true
   fi
-  docker rm -f "$name" "$setup" >/dev/null 2>&1 || true
+  if test "$status" -ne 0 || test -z "${retain_output:-}"; then docker rm -f "$name" >/dev/null 2>&1 || true; fi
+  docker rm -f "$setup" >/dev/null 2>&1 || true
   exit "$status"
 }
 trap cleanup EXIT
@@ -87,7 +98,11 @@ if ! docker image inspect "$image" >/dev/null 2>&1; then
   docker commit "$setup" "$image" >/dev/null
   docker rm "$setup" >/dev/null
 fi
-docker run -d --name "$name" --privileged --cgroupns=host --platform linux/amd64 --tmpfs /run --tmpfs /run/lock "$image" /sbin/init >/dev/null
+if test -n "${retain_output:-}"; then
+  docker run -d --name "$name" --label "io.rustzen.p8g-owner=${retain_owner:?}" --privileged --cgroupns=private --cpus 4 --memory 512m --pids-limit 256 -p 127.0.0.1::19801 --platform linux/amd64 --tmpfs /run --tmpfs /run/lock "$image" /sbin/init >/dev/null
+else
+  docker run -d --name "$name" --privileged --cgroupns=host --platform linux/amd64 --tmpfs /run --tmpfs /run/lock "$image" /sbin/init >/dev/null
+fi
 for attempt in $(seq 1 30); do docker exec "$name" systemctl is-system-running --wait >/dev/null 2>&1 && break || sleep 1; done
 docker exec "$name" /bin/bash -c 'state=$(systemctl is-system-running || true); test "$state" = running -o "$state" = degraded'
 docker exec "$name" install -d -m 0700 "$private"
@@ -117,7 +132,7 @@ docker exec "$name" /bin/bash -euo pipefail -c '
   install -d -m 0700 /root/rz-activation
   cat > /root/rz-activation/server.env <<EOF
 RUSTZEN_ENV=production
-RUSTZEN_ADMIN_HOST=127.0.0.1
+RUSTZEN_ADMIN_HOST='"$admin_host"'
 RUSTZEN_ADMIN_PORT=19801
 RUSTZEN_MONITOR_PORT=19802
 RUSTZEN_ADMIN_RUNTIME_ROOT=/var/lib/rustzen-admin
@@ -197,4 +212,10 @@ docker cp "$name:/opt/rz/state/monitor-server-activation.json" "$output/activati
 docker exec "$name" /bin/bash -euo pipefail -c 'true' >> "$output/runtime.log" 2>&1
 pnpm dlx bun@1.3.14 -e 'import { monitorNativeRuntimeEvidenceBytes } from "./distribution/monitor-native-runtime-evidence.ts"; const read=(p)=>Bun.file(p).json(); const [f,admission,release,verify,dry,apply,status,activation,publication,activationMarker]=await Promise.all(process.argv.slice(1,11).map(read)); const fail=(m)=>{throw new Error(m)}; if(admission.selection.target!=="x86_64-unknown-linux-musl"||admission.selection.artifactClass!=="server") fail("admission selection is invalid"); if(admission.buildId!==release.buildId||admission.manifestSha256!==release.manifestSha256||admission.archiveSha256!==release.archiveSha256||admission.envelopeSha256!==release.envelopeSha256) fail("admission release tuple differs"); if(admission.selection.compositionId!==f.compositionId||admission.buildId!==f.buildId||verify.data.build_id!==f.buildId||verify.data.target!==admission.selection.target||apply.data.release.build_id!==f.buildId||dry.data.release.build_id!==f.buildId||status.data.markerPresent!==true||status.data.runnable!==false||activation.data.unit!=="rz.target") fail("CLI tuple differs"); const marker=publication.journal; if(marker.buildId!==f.buildId||marker.target!==admission.selection.target||marker.artifactClass!==admission.selection.artifactClass||marker.compositionId!==f.compositionId||marker.keyId!==f.keyId||marker.archiveSha256!==admission.archiveSha256||marker.manifestSha256!==admission.manifestSha256||marker.envelopeSha256!==admission.envelopeSha256||publication.state!=="payload-published"||activationMarker.buildId!==f.buildId||activationMarker.state!=="ready") fail("marker tuple differs"); const binary=admission.binaryDigests; if(JSON.stringify(binary)!==JSON.stringify([{path:"bin/rz-admin",sha256:f.adminSha256},{path:"bin/rz-monitor",sha256:f.monitorSha256}])) fail("certificate binary digest differs"); const evidence={schemaVersion:1,kind:"monitor-native-runtime-evidence",platform:"linux/amd64",selection:{preset:"monitor",target:admission.selection.target,artifactClass:admission.selection.artifactClass,compositionId:f.compositionId,buildId:f.buildId},release:{keyId:f.keyId,certificateSha256:admission.certificateSha256,manifestSha256:admission.manifestSha256,archiveSha256:admission.archiveSha256,envelopeSha256:admission.envelopeSha256,binaryDigests:binary},installation:{verify:true,dryRun:true,apply:true,installStatus:true},markers:{publicationSha256:f.publicationSha256,activationSha256:f.activationSha256},services:[{unit:"rz-admin.service",mainPid:f.adminPid,executable:{dev:f.adminDev,ino:f.adminIno,sha256:f.adminSha256}},{unit:"rz-monitor.service",mainPid:f.monitorPid,executable:{dev:f.monitorDev,ino:f.monitorIno,sha256:f.monitorSha256}}],health:[{service:"admin",buildId:f.buildId,compositionId:f.compositionId},{service:"monitor",buildId:f.buildId,compositionId:f.compositionId}],checks:{ownerLogin:true,defaultPasswordsRejected:true,insightsAbsent:true,reportsAbsent:true,restart:true,adminThenMonitor:true,monitorThenAdmin:true},runtime:true,browser:false,load:false,releaseReady:false}; await Bun.write(process.argv[11],monitorNativeRuntimeEvidenceBytes(evidence));' "$output/facts.json" "$output/published-certificate.json" "$release_result" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json" "$output/monitor-native-runtime-evidence.json"
 pnpm dlx bun@1.3.14 -e 'import { revalidateMonitorNativeRuntime } from "./distribution/monitor-native-runtime-revalidator.ts"; await revalidateMonitorNativeRuntime({evidencePath:process.argv[1],admissionPath:process.argv[2],releaseResultPath:process.argv[3],factsPath:process.argv[4],loginEvidencePath:process.argv[5],verifyPath:process.argv[6],dryRunPath:process.argv[7],applyPath:process.argv[8],statusPath:process.argv[9],activatePath:process.argv[10],publicationMarkerPath:process.argv[11],activationMarkerPath:process.argv[12]});' "$output/monitor-native-runtime-evidence.json" "$output/published-certificate.json" "$release_result" "$output/facts.json" "$output/login-evidence.json" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json"
+if test -n "${retain_output:-}"; then
+  host_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "19801/tcp") 0).HostPort}}' "$name")"
+  host_ip="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "19801/tcp") 0).HostIp}}' "$name")"
+  test "$host_ip" = 127.0.0.1 && test "$host_port" -gt 0
+  pnpm dlx bun@1.3.14 -e 'import { canonicalJson } from "./distribution/release-manifest-core.ts"; const [out,name,id,image,port,evidence,ownerToken]=process.argv.slice(1); await Bun.write(out,canonicalJson({containerId:id,containerName:name,containerPort:19801,hostPort:Number(port),imageId:image,nativeEvidence:evidence,ownerToken}));' "$retain_output" "$name" "$(docker inspect --format '{{.Id}}' "$name")" "$(docker inspect --format '{{.Image}}' "$name")" "$host_port" "$output/monitor-native-runtime-evidence.json" "$retain_owner"
+fi
 echo "P8e exact-artifact Linux/amd64 PID1 runtime gate PASS: $output/monitor-native-runtime-evidence.json"

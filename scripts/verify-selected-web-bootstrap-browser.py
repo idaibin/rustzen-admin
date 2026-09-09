@@ -58,6 +58,11 @@ def runtime_attestation(args, verified):
     if result.returncode: raise RuntimeError(f"runtime attestation failed: {result.stderr.strip()}")
     return json.loads(result.stdout)
 
+def validate_receipt(path):
+    command = ["pnpm", "dlx", "bun@1.3.14", "scripts/selected-web-bootstrap-browser-receipt.ts", str(path)]
+    result = subprocess.run(command, cwd=Path(__file__).parent.parent, capture_output=True, text=True)
+    if result.returncode: raise RuntimeError(f"browser receipt schema failed: {result.stderr.strip()}")
+
 def entry_requests(receipt):
     return [row for row in receipt if row["path"].startswith("/assets/") and row["path"].endswith(".js")]
 
@@ -243,7 +248,14 @@ def main():
     manifest = {"schemaVersion":1,"status":"passed","chromiumVersion":chromiumVersion,"adminHealth":{"initial":health,"final":final_health},"digests":{"buildId":binding["buildId"],"compositionId":binding["compositionId"],"html":success["stamp"],"binding":success["stamp"],"installation":success["value"]["webDigest"],"verified":verified["webDigest"],"adminBinary":{"before":admin_before,"after":admin_after}},"release":verified["admission"],"sourceIdentity":{"expected":verified["expectedSourceIdentity"],"current":verified["currentSourceIdentity"]},"runtime":{"before":runtime_before,"after":runtime_after},"verifier":{"sources":verified["provenance"]},"integritySensitivityPassed":integritySensitivityPassed,"sensitivity":sensitivity,"cases":results}
     receipt = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
     if json.dumps(json.loads(receipt), sort_keys=True, separators=(",", ":")).encode() != receipt: raise RuntimeError("browser receipt is not canonical")
-    output.mkdir(parents=False)
-    path = output / "manifest.json"; path.write_bytes(receipt)
+    candidate = output.parent / f".{output.name}.manifest-{os.getpid()}"
+    try:
+        candidate.write_bytes(receipt)
+        validate_receipt(candidate)
+        output.mkdir(parents=False)
+        path = output / "manifest.json"; candidate.replace(path)
+        validate_receipt(path)
+    finally:
+        if candidate.exists(): candidate.unlink()
 
 if __name__ == "__main__": main()

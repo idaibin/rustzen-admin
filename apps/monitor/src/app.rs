@@ -10,6 +10,7 @@ use crate::{config, features, infra, module_routes::build_module_routes};
 pub(crate) struct AppState {
     pub pool: SqlitePool,
     pub agent_token: Arc<str>,
+    pub nodes_cache: Arc<features::monitoring::NodesCache>,
     manifest: Arc<ModuleManifest>,
 }
 
@@ -43,6 +44,7 @@ pub(crate) fn build_app(
     let state = AppState {
         pool,
         agent_token: Arc::from(agent_token),
+        nodes_cache: Arc::new(features::monitoring::NodesCache::default()),
         manifest: Arc::new(manifest.clone()),
     };
     let app = Router::new()
@@ -176,8 +178,12 @@ mod tests {
     async fn agent_report_route_returns_401_without_token_and_422_for_invalid_input() {
         let pool = migrated_test_pool().await;
         let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
-        let state =
-            AppState { pool, agent_token: Arc::from("agent-secret"), manifest: Arc::new(manifest) };
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
         let report = AgentReport {
             node_id: "route-node".to_string(),
             boot_id: Uuid::new_v4(),
@@ -205,6 +211,7 @@ mod tests {
             State(AppState {
                 pool: invalid_pool.clone(),
                 agent_token: Arc::from("agent-secret"),
+                nodes_cache: Arc::new(Default::default()),
                 manifest: state.manifest.clone(),
             }),
             request,
@@ -226,8 +233,12 @@ mod tests {
     async fn agent_report_route_returns_accepted_duplicate_and_stale_envelopes() {
         let pool = migrated_test_pool().await;
         let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
-        let state =
-            AppState { pool, agent_token: Arc::from("agent-secret"), manifest: Arc::new(manifest) };
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
         let boot = Uuid::new_v4();
         let at = chrono::Utc::now();
         let report = AgentReport {
@@ -266,8 +277,12 @@ mod tests {
     async fn historical_fenced_reports_return_200_statuses_but_new_sequence_is_422() {
         let pool = migrated_test_pool().await;
         let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
-        let state =
-            AppState { pool, agent_token: Arc::from("agent-secret"), manifest: Arc::new(manifest) };
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
         let received = chrono::Utc::now();
         let historical = received - chrono::Duration::minutes(10);
         let first_boot = Uuid::new_v4();

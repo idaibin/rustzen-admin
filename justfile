@@ -347,3 +347,20 @@ verify-monitor-selected-contract:
     pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor-notify.json --binary-root target/debug
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json --binary-root target/debug
+
+verify-monitor-load-contract:
+    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
+    apps/web/node_modules/typescript/bin/tsc --noEmit --strict false --target ESNext --module Preserve --moduleResolution bundler --allowImportingTsExtensions --skipLibCheck --typeRoots apps/web/node_modules/@types --types bun,node scripts/monitor-load-admission.ts scripts/monitor-load-contract.ts scripts/monitor-load-fault.ts scripts/monitor-load-receipt-schema.ts scripts/monitor-load-runtime.ts scripts/monitor-load-sampler.ts scripts/monitor-load-signed.ts scripts/selected-web-bootstrap-browser-receipt.ts scripts/verify-monitor-load-certification.ts scripts/verify-monitor-load-runtime-preflight.ts scripts/prepared-monitor-load-context.ts
+    pnpm dlx bun@1.3.14 test scripts/monitor-load-contract.test.mjs scripts/monitor-load-mutation.test.mjs scripts/monitor-load-retain.test.mjs
+
+prepare-monitor-load-runtime export_root release_result certificate public_key expected_source_identity native_output browser_output context_output chromium="chromium":
+    scripts/prepare-monitor-load-runtime.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --native-output "{{native_output}}" --browser-output "{{browser_output}}" --context-output "{{context_output}}" --chromium "{{chromium}}"
+
+preflight-monitor-load-runtime context:
+    pnpm dlx bun@1.3.14 scripts/verify-monitor-load-runtime-preflight.ts "{{context}}"
+
+cleanup-monitor-load-runtime context:
+    scripts/cleanup-monitor-load-runtime.sh "{{context}}"
+
+verify-monitor-load-certification native_runtime_evidence browser_receipt export_root release_result certificate public_key expected_source_identity admin_bin admin_url password_file agent_token_file runtime_container output:
+    pnpm dlx bun@1.3.14 scripts/verify-monitor-load-certification.ts --native-runtime-evidence "{{native_runtime_evidence}}" --browser-receipt "{{browser_receipt}}" --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --admin-bin "{{admin_bin}}" --admin-url "{{admin_url}}" --password-file "{{password_file}}" --agent-token-file "{{agent_token_file}}" --runtime-container "{{runtime_container}}" --output "{{output}}"

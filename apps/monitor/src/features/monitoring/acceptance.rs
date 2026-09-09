@@ -37,9 +37,11 @@ pub async fn submit(
         .map_err(|error| AppError::unprocessable(format!("invalid agent report: {error}")))?;
     let received_at = Utc::now();
     report.validate().map_err(|e| AppError::unprocessable(e.to_string()))?;
-    Ok(ApiResponse::success(AgentResponseData {
-        status: record_at(&state.pool, report, received_at).await?,
-    }))
+    let status = record_at(&state.pool, report, received_at).await?;
+    if status == AgentReportStatus::Accepted {
+        state.nodes_cache.invalidate().await;
+    }
+    Ok(ApiResponse::success(AgentResponseData { status }))
 }
 
 pub(crate) async fn record_at(

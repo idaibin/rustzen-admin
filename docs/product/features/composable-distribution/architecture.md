@@ -850,3 +850,38 @@ the staging tree, archive, manifest, envelope, logs or CLI JSON output.
 
 P8c does not establish a certificate authority, install a release, alter
 `current`, create systemd state, start a process, or prove browser/load work.
+
+### P8g exact-artifact Monitor load evidence
+
+P8g is a separate disposable-container measurement layer. It fully revalidates
+the historical P8e signed release/runtime evidence and separately binds the
+current P8f Admin tuple; P8e process IDs never need to equal disposable
+container processes. It samples only the
+Admin gateway route for the Monitor fixed dataset. Thirty-two closed-loop workers
+issue one request at a time; connection reuse is transport-owned and not asserted.
+The Controller may serve its documented 250ms, write-invalidated serialized immutable Nodes
+snapshot; this does not cache or bypass Admin authorization and failed refreshes are
+not retained. The shared database pool uses one minimum and eight maximum
+connections by default. Eight is the measured default for this four-CPU,
+512MiB profile and remains operator-overridable for separately measured
+deployment profiles.
+The collector owns monotonic full-body timing, failure
+classification, nearest-rank quantiles and cgroup/process observations. Each
+measured phase has exactly two synchronous boundary readings: one before its
+work clock starts and one after its work clock stops. Probe time is outside the
+recorded work duration; there is no periodic sampler or sampling cadence to
+distort request timing. Readings retain `pidsCurrent` and cumulative
+`pidsPeak` separately. Quiet and cross-lane comparisons use current PID usage;
+global limits use cumulative peaks, which may never mask a current-usage
+violation. Every non-fault phase proves unchanged Admin and Monitor identities.
+The fault phase alone records the Monitor restart while requiring Admin identity
+to remain unchanged. It does not add a Monitor
+route, queue, schema, Web module or SSE service. A controlled
+Monitor stop/restart proves the gateway's outage and recovery boundary while the
+signed executable and registry return to the same identity.
+
+`prepare-monitor-load-runtime` invokes P8e once with its explicit retain flag,
+which alone creates the loopback-mapped systemd container with four CPUs,
+512MiB and 256 pids. It immediately runs P8f against that same container and
+writes a canonical context. Failed preparation removes the container and its
+0600 credentials; the context-driven cleanup command removes both after P8g.

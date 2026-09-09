@@ -21,7 +21,7 @@ use serde::Deserialize;
 ))]
 use serde::de::DeserializeOwned;
 
-pub(crate) const DEFAULT_DB_MAX_CONN: u32 = 4;
+pub(crate) const DEFAULT_DB_MAX_CONN: u32 = 8;
 pub(crate) const DEFAULT_DB_MIN_CONN: u32 = 1;
 pub(crate) const DEFAULT_DB_CONN_TIMEOUT: u64 = 10;
 pub(crate) const DEFAULT_DB_IDLE_TIMEOUT: u64 = 600;
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(config.db_min_conn, None);
         assert_eq!(config.db_conn_timeout, None);
         assert_eq!(config.db_idle_timeout, None);
-        assert_eq!(config.max_connections(), 4);
+        assert_eq!(config.max_connections(), 8);
         assert_eq!(config.idle_timeout(), Some(std::time::Duration::from_secs(600)));
     }
 

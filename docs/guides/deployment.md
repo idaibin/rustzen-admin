@@ -158,6 +158,11 @@ pool limits, logging, timezone, retention, and task timeout use code defaults
 unless explicitly overridden. Do not add blank optional values; an absent
 numeric override remains `None`, while explicit zero is parsed as zero.
 
+The shared database pool defaults to one minimum and eight maximum connections.
+The eight-connection maximum is the certified default for the four-CPU,
+512MiB pure-Monitor runtime profile; operators may override it for a measured
+deployment profile with `RUSTZEN_DB_MAX_CONN`.
+
 Supported optional overrides are:
 
 - `RUSTZEN_ADMIN_HOST`, `RUSTZEN_ADMIN_PORT`

@@ -1,6 +1,11 @@
 use std::{collections::BTreeMap, future::Future};
 
-use axum::extract::{Path, State};
+use axum::{
+    body::Body,
+    extract::{Path, State},
+    http::{StatusCode, header},
+    response::Response,
+};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use rustzen_ipc::{ModuleQuery, Page, Pagination};
 use rustzen_storage::SqlitePool;
@@ -192,8 +197,24 @@ where
     Ok(values)
 }
 
-pub async fn nodes(State(s): State<AppState>) -> AppResult<Vec<serde_json::Value>> {
-    Ok(ApiResponse::success(node_values(&s.pool, Utc::now()).await?))
+pub async fn nodes(State(s): State<AppState>) -> Result<Response, AppError> {
+    let body = s
+        .nodes_cache
+        .get_or_load(|| async {
+            let values = node_values(&s.pool, Utc::now()).await?;
+            serde_json::to_vec(&ApiResponse::success(values).0)
+                .map(axum::body::Bytes::from)
+                .map_err(|error| {
+                    tracing::error!(%error, "Monitor node response serialization failed");
+                    AppError::database()
+                })
+        })
+        .await?;
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body))
+        .expect("static Monitor Nodes response is valid"))
 }
 pub async fn node(
     State(s): State<AppState>,

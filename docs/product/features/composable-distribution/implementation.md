@@ -423,3 +423,31 @@ one owning PID found through `/proc/*/fd`. Its executable SHA-256 must match the
 certificate-admitted `rz-admin` binary; the observed PID, device and inode are held
 stable only by the before/after runtime-tuple comparison. Both tuples must be equal
 before the receipt is published.
+
+P8g implements the pure-Monitor exact-artifact load gate. It revalidates the
+complete P8e signed release/runtime evidence set, then independently binds the
+current P8f Admin tuple and current certified Monitor binary; historical P8e
+process IDs are not required to equal disposable P8f container processes. It uses the documented fixed 100-node/four-disk
+sentinel corpus through the Admin gateway, and publishes a canonical receipt
+only after both measured lanes, resource checks, controlled Monitor outage and
+recovery complete. The generic notification SSE capacity target remains an
+explicit pure-Monitor N/A with signed absence and runtime 404 evidence.
+The controlled outage freezes Admin after admitting four Monitor-side in-flight
+sockets, kills the frozen Monitor MainPID, confirms the old PID is absent, and
+records that confirmed-dead boundary before stopping Monitor and thawing Admin.
+Its dedicated requests use a ten-second timeout so the observer can prove their
+responses finish after confirmed death; normal load requests retain two seconds.
+Every load, drain, quiet, fault and recovery phase records exactly two resource
+snapshots: immediately before work and immediately after work. The work duration
+therefore excludes both Docker probes and has no periodic sampling cadence.
+Readings preserve current and cumulative PID values separately. Non-fault phase
+snapshots require unchanged Admin and Monitor owners; fault snapshots require
+the documented Monitor restart and unchanged Admin owner. The parser rejects
+missing, additional, reversed or too-short snapshot pairs and peak/current
+substitution.
+The Monitor Nodes handler uses one process-local 250ms serialized immutable response snapshot with a
+single refresh owner. Accepted reports and successful policy mutations invalidate
+it; cache hits never skip the Admin gateway's authoritative authorization. The
+shared database pool default is one minimum and eight maximum connections; the
+eight-connection maximum is the measured default for the certified four-CPU,
+512MiB pure-Monitor runtime.
