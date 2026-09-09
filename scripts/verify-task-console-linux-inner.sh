@@ -72,7 +72,7 @@ manual_run=$(jq -er '.data[] | select(.triggerType == "manual" and .status == "s
 record_steps=$(jq -nc --arg key "$key" --arg run "$manual_run" '[{action:"setUiPreferences",theme:"dark",locale:"en-US"},{action:"setViewport",width:1440,height:900},{action:"goto",url:"/login"},{action:"waitFor",selector:"#login_username"},{action:"fill",selector:"#login_username",value:"owner"},{action:"fill",selector:"#login_password",value:"rustzen@123"},{action:"click",selector:"button[type=submit]"},{action:"waitFor",selector:".shell-content"},{action:"goto",url:"/manage/task"},{action:"waitFor",selector:"[data-testid=maintenance-task-records-\($key)]"},{action:"click",selector:"[data-testid=maintenance-task-records-\($key)]"},{action:"waitFor",selector:"[data-testid=maintenance-task-records-dialog-\($key)]"},{action:"waitFor",selector:"[data-testid=maintenance-task-run-status-\($run)]"},{action:"assertText",selector:"[data-testid=maintenance-task-run-status-\($run)]",text:"Success"},{action:"assertNoHorizontalOverflow"}]')
 record_run=$(run_browser owner-record "$record_steps")
 kill -TERM "$transition_proxy"; wait "$transition_proxy" || true; unset 'pids[${#pids[@]}-1]'
-jq -e --arg run "$manual_run" '.mode == "task-transition" and .transitionRunId == $run and .transitionReads >= 2 and .hitCount >= 3' /verify/evidence/task-transition-receipt.json >/dev/null
+jq -e --arg run "$manual_run" '.mode == "task-transition" and (.transitionRunId | tostring) == $run and .transitionReads >= 2 and .hitCount >= 3' /verify/evidence/task-transition-receipt.json >/dev/null
 browser_system=$(create_system 'Task console viewer')
 viewer_run=$(run_browser viewer "$viewer_steps")
 run_fault_browser() {
