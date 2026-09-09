@@ -15,14 +15,14 @@ LABEL io.rustzen.browser-verifier.schema="${VERIFIER_SCHEMA}" \
       io.rustzen.browser-verifier.chromium-version="${CHROMIUM_VERSION}" \
       io.rustzen.browser-verifier.base-image="${BASE_IMAGE}"
 
-RUN apt-get update \
+RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && printf '%s\n' \
       "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/${SNAPSHOT_TIMESTAMP} bullseye main" \
       "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/${SNAPSHOT_TIMESTAMP} bullseye-security main" \
       >/etc/apt/sources.list \
     && rm -f /etc/apt/sources.list.d/* \
-    && apt-get update \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
       "chromium=${CHROMIUM_VERSION}" \
       "chromium-common=${CHROMIUM_VERSION}" \
