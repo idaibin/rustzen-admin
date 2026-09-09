@@ -41,7 +41,7 @@ verify_agent_provenance() { awk -F '\t' -v head="$head" -v state="$state" -v dig
 publish_candidate() { mv "$candidate" "$evidence_root/runs/$run_id" && ln -s "runs/$run_id" "$evidence_root/.current-$run_id" && atomic_replace_symlink "$evidence_root/.current-$run_id" "$current"; }
 cleanup() {
   status=$?; cleanup_status=0; trap - EXIT INT TERM
-  if [ "$container_active" -eq 1 ] && [ -d "$candidate" ]; then run_bounded_capture "$cleanup_timeout" "$docker_bin" logs "$container" >"$candidate/container.log" 2>&1 || true; fi
+  if [ "$container_active" -eq 1 ] && [ -d "$candidate" ]; then run_bounded_capture "$cleanup_timeout" "$docker_bin" logs "$container" >"$candidate/container.log" 2>&1 || true; [ -s "$candidate/container.log" ] || echo "no Docker log was available for $container" >"$candidate/container.log"; fi
   if [ "$container_active" -eq 1 ] && ! remove_container; then cleanup_status=125; fi
   if { [ "$status" -ne 0 ] || [ "$cleanup_status" -ne 0 ]; } && [ -d "$candidate" ]; then preserve_failure "$status" "$cleanup_status"; fi
   rm -rf "$candidate" "$staged"

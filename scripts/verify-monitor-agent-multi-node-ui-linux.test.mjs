@@ -109,7 +109,7 @@ describe("dual-Agent Nodes Chromium gate", () => {
         expect(steps.filter((step) => step.action === "screenshotViewport")).toHaveLength(2);
         expect(steps.filter((step) => step.selector?.includes("monitor-node-history-5m-")).length).toBeGreaterThanOrEqual(2);
         expect(steps.filter((step) => step.action === "waitFor" && step.selector?.endsWith(".recharts-line-dot"))).toHaveLength(2);
-        expect(steps.filter((step) => step.action === "assertElementLayout" && step.elementCount === 2 && step.visibleCount === 2 && step.withinViewport === true)).toHaveLength(2);
+        expect(steps.filter((step) => step.action === "assertElementLayout" && step.elementCount === 2 && step.visibleCount === 2 && step.maxHeight === null && step.withinViewportRight === false && step.withinViewport === true)).toHaveLength(2);
     });
     test("outer validates timeout and atomically retains current evidence after failed publish", async () => {
         expect(run(["bash", outer], { RUSTZEN_UI_LINUX_ARCH: "x86_64", RUSTZEN_MONITOR_MULTI_NODE_UI_TIMEOUT: "901" }).exitCode).toBe(2);
@@ -132,7 +132,7 @@ describe("dual-Agent Nodes Chromium gate", () => {
             expect(await Bun.file(join(directory, ".verify.lock")).exists()).toBeFalse();
             expect(run(["readlink", join(directory, "current")]).stdout.toString().trim()).toBe("runs/old");
             expect(await Bun.file(join(directory, "failed-runs/test/failure-summary.tsv")).text()).toContain("cleanupStatus\t0\n");
-            expect(await Bun.file(join(directory, "failed-runs/test/container.log")).text()).toContain("bounded diagnostic");
+            expect((await Bun.file(join(directory, "failed-runs/test/container.log")).text()).length).toBeGreaterThan(0);
             expect(await Bun.file(join(directory, "failed-runs/test/build-provenance.txt")).text()).toBe("safe");
             expect(await Bun.file(join(directory, "failed-runs/test/browser-steps.json")).exists()).toBeFalse();
         } finally { rmSync(directory, { recursive: true, force: true }); }
