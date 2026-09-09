@@ -126,6 +126,12 @@ and the last-update time. Closing either drawer returns to the node list and
 discards unsaved form state. A failed network save keeps this Drawer and its
 draft open with an inline retryable error. Drawers fit mobile width and preserve
 keyboard focus.
+
+Node details shows the current boot ID and the 5-minute CPU/memory history. When
+history points exist, the chart uses a fixed-height inner plot area within the Card;
+the responsive chart must not collapse because the Card body has content-driven height.
+A one-bucket history shows visible markers for both series; longer histories may hide
+point markers and use their lines.
 ## Node onboarding availability
 
 The Nodes Drawer is informational until the Web product has a secure delivery path for

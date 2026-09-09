@@ -133,7 +133,7 @@ Monitoring does not provide weekly, monthly, or yearly reports.
 ## User-visible areas
 
 - Overview: online and offline node totals, active incidents, and latest resource summary.
-- Nodes: latest node state, its current boot ID, and up to 30 days of CPU, memory, and per-mount disk history. Opening a node shows the same current boot ID and a 5-minute-bucket history chart.
+- Nodes: latest node state, its current boot ID, and up to 30 days of CPU, memory, and per-mount disk history. Opening a node shows the same current boot ID and a 5-minute-bucket history chart. When points exist, the chart reserves a fixed-height plot area so the responsive chart is visible inside the Drawer. A single bucket renders visible CPU and memory markers; multiple buckets render their series lines.
 - Alert incidents (告警事件, `/monitoring/incidents`): active incidents and resolved incidents still within retention; status and type
   selections apply immediately and return to page one.
 - Nodes / Global settings: the four global default thresholds and whether each alert is enabled.

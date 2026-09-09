@@ -79,32 +79,34 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                                 compact
                             />
                         ) : data?.points.length ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data.points}>
-                                    <XAxis
-                                        dataKey="collectedAt"
-                                        tickFormatter={(value) =>
-                                            new Date(String(value)).toLocaleTimeString()
-                                        }
-                                    />
-                                    <YAxis domain={[0, 100]} />
-                                    <Tooltip />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="cpuPercent"
-                                        name="CPU %"
-                                        stroke="var(--chart-1)"
-                                        dot={false}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="memoryPercent"
-                                        name={t("内存 %", "Memory %")}
-                                        stroke="var(--chart-2)"
-                                        dot={false}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <div className="h-56 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={data.points}>
+                                        <XAxis
+                                            dataKey="collectedAt"
+                                            tickFormatter={(value) =>
+                                                new Date(String(value)).toLocaleTimeString()
+                                            }
+                                        />
+                                        <YAxis domain={[0, 100]} />
+                                        <Tooltip />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="cpuPercent"
+                                            name="CPU %"
+                                            stroke="var(--chart-1)"
+                                            dot={data.points.length === 1}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="memoryPercent"
+                                            name={t("内存 %", "Memory %")}
+                                            stroke="var(--chart-2)"
+                                            dot={data.points.length === 1}
+                                        />
+                                        </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         ) : (
                             <DataState
                                 kind="empty"

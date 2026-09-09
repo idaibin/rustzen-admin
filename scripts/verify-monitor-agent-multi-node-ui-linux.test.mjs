@@ -108,6 +108,7 @@ describe("dual-Agent Nodes Chromium gate", () => {
         const steps = JSON.parse(new TextDecoder().decode(result.stdout));
         expect(steps.filter((step) => step.action === "screenshotViewport")).toHaveLength(2);
         expect(steps.filter((step) => step.selector?.includes("monitor-node-history-5m-")).length).toBeGreaterThanOrEqual(2);
+        expect(steps.filter((step) => step.selector?.endsWith(".recharts-line-dot"))).toHaveLength(2);
     });
     test("outer validates timeout and atomically retains current evidence after failed publish", async () => {
         expect(run(["bash", outer], { RUSTZEN_UI_LINUX_ARCH: "x86_64", RUSTZEN_MONITOR_MULTI_NODE_UI_TIMEOUT: "901" }).exitCode).toBe(2);
