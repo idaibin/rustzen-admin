@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, readlinkSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
@@ -9,6 +9,10 @@ const gatePath = new URL("./verify-task-console-linux.sh", import.meta.url).path
 const text = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const run = (env) => Bun.spawnSync({ cmd: ["bash", gatePath], env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
+
+test("task-console gate entrypoint is executable", () => {
+    expect(statSync(gatePath).mode & 0o111).not.toBe(0);
+});
 
 function fixture({ badProvenance = false, changedSource = false } = {}) {
     const directory = mkdtempSync(join(tmpdir(), "rz-task-console-gate-"));
