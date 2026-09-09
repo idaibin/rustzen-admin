@@ -12,7 +12,7 @@ CASES
 reports_ui_state_expected_actions() {
     case "$1" in
         managerProcessing)
-            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","click","waitFor","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport"]'
+            printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","click","waitFor","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","click","pause","waitFor","click","waitFor"]'
             ;;
         managerRuntimeFailure)
             printf '%s\n' '["setUiPreferences","setViewport","goto","waitFor","fill","fill","click","waitFor","goto","waitFor","assertText","click","waitFor","assertText","assertText","assertNoHorizontalOverflow","screenshotViewport","click","waitFor"]'

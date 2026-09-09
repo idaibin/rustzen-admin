@@ -10,7 +10,7 @@ const screenshotCases = {
     viewOnlyMobile: ["reports-view-only-mobile-light-zh.png", 390, 844],
 };
 const receiptActions = {
-    managerProcessing: ["setUiPreferences", "setViewport", "goto", "waitFor", "fill", "fill", "click", "waitFor", "goto", "waitFor", "click", "waitFor", "assertText", "assertText", "assertNoHorizontalOverflow", "screenshotViewport"],
+    managerProcessing: ["setUiPreferences", "setViewport", "goto", "waitFor", "fill", "fill", "click", "waitFor", "goto", "waitFor", "click", "waitFor", "assertText", "assertText", "assertNoHorizontalOverflow", "screenshotViewport", "click", "pause", "waitFor", "click", "waitFor"],
     managerRuntimeFailure: ["setUiPreferences", "setViewport", "goto", "waitFor", "fill", "fill", "click", "waitFor", "goto", "waitFor", "assertText", "click", "waitFor", "assertText", "assertText", "assertNoHorizontalOverflow", "screenshotViewport", "click", "waitFor"],
     managerPartial: ["setUiPreferences", "setViewport", "goto", "waitFor", "fill", "fill", "click", "waitFor", "goto", "waitFor", "assertText", "assertText", "assertText", "assertAbsent", "waitFor", "assertNoHorizontalOverflow", "screenshotViewport"],
     viewOnlyMobile: ["setUiPreferences", "setViewport", "goto", "waitFor", "fill", "fill", "click", "waitFor", "goto", "waitFor", "assertAbsent", "assertAbsent", "assertAbsent", "assertAbsent", "goto", "waitFor", "assertAbsent", "assertAbsent", "assertAbsent", "click", "waitFor", "assertAbsent", "assertNoHorizontalOverflow", "screenshotViewport"],
@@ -34,11 +34,30 @@ test("Reports state gate keeps the declared closure bounded and source-bound", a
     expect(outer).toContain("verify_reports_ui_state_receipts");
     expect(outer).toContain("verify_reports_ui_state_source_evidence");
     expect(inner).toContain("RUSTZEN_REPORTS_MAX_CONCURRENCY=2");
-    expect(inner).toContain('"durationMs":30000');
+    const activeFlow = inner.slice(inner.indexOf("active_steps="), inner.indexOf("active_run="));
+    const activeFilter = activeFlow.match(/jq -nc '([^']+)'/)?.[1];
+    const activeSteps = Bun.spawnSync(["jq", "-nc", activeFilter ?? "error(\"missing active flow\")"]);
+    expect(activeSteps.exitCode).toBe(0);
+    const activePauses = JSON.parse(new TextDecoder().decode(activeSteps.stdout))
+        .filter((step) => step.action === "pause")
+        .map((step) => step.durationMs);
+    expect(activePauses).toHaveLength(10);
+    expect(activePauses.every((duration) => duration <= 30_000)).toBeTrue();
     expect(inner).toContain("processing-run-steps.json");
     expect(inner).toContain('text:"1. goto"');
     expect(inner).not.toContain('text:"Waiting for step results"');
     expect(inner).not.toContain('text:"2. pause"');
+    const processingCase = inner.slice(inner.indexOf("processing_steps="), inner.indexOf("processing_browser_run="));
+    const screenshot = processingCase.indexOf('screenshotViewport",name:"reports-processing-desktop-dark-en"');
+    const closeAudit = processingCase.indexOf('selector:"button.ant-modal-close"');
+    const settleAuditClose = processingCase.indexOf('{action:"pause",durationMs:300}', closeAudit);
+    const cancel = processingCase.indexOf('selector:"[data-testid=run-cancel-\\($run)]"');
+    expect(screenshot).toBeGreaterThan(-1);
+    expect(closeAudit).toBeGreaterThan(screenshot);
+    expect(settleAuditClose).toBeGreaterThan(closeAudit);
+    expect(cancel).toBeGreaterThan(settleAuditClose);
+    expect(processingCase).toContain('selector:"[data-testid=run-cancel-\\($run)][disabled]"');
+    expect(inner).not.toContain('"$admin/api/reports/runs/$active_run/cancel"');
     expect(inner).toContain('selector:"tr:has([data-testid=run-retry-list-\\($run)])"');
     expect(inner).not.toContain('selector:".ant-table-row",text:"assertText did not match"');
     const failureCase = inner.slice(inner.indexOf("failure_steps="), inner.indexOf("failure_browser_run="));

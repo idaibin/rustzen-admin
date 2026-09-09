@@ -23,7 +23,8 @@ change does not expand browser execution or rename existing child pages.
 zh-CN/en-US. The route-local schedule panel and API client are implemented;
 SR-UI-002 has its two named rendered runtime captures. The processing, partial,
 runtime-failure, combined view-only, and retained-evidence matrix is verified
-by the published atomic `verify-reports-ui-state-linux` evidence manifest.
+only when the atomic `verify-reports-ui-state-linux` current manifest matches
+this checkout; otherwise it remains **Not verified**.
 
 The Linux runtime browser gate additionally exercises rendered schedule create
 and edit through a container-only route-exact proxy. Both a disconnected request
@@ -70,9 +71,10 @@ light/dark, keyboard, localization wrapping, and the complete rendered state
 matrix are therefore **Not verified**.
 
 The state-closure gate uses the same Reports components and four-service
-runtime. Its published manager capture held the executor at its supported
-30-second controlled pause, captured the active-run processing state, then
-explicitly cancelled it and retained the cancelled pause-step receipt. It shows
+runtime. Its manager flow is intended to hold the executor with a bounded series
+of individually supported 30-second pauses, capture the active-run processing
+state, then close the audit and use the rendered run-cancel control. A matching
+current manifest verifies the cancelled pause-step receipt. It shows
 a real terminal failure with the failed step, error, and existing Retry control.
 It compares the source run, steps, and artifacts before and after the retry so
 the selected child cannot replace retained evidence. Its controlled disposable
@@ -217,11 +219,12 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | SR-UI-003 | `source-extracted`: current DataState and run outcome tags | Verified target-backed `enqueued` rendering; controlled isolated SQLite fixture covers `missed` | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows distinct due/reason fields; a null `dueAt` falls back to `dueLocal` plus installation timezone; enqueued alone links a run | P1 | real scheduler poll plus isolated fixture; forced response matrix remains outside browser scope |
 | SR-UI-004 | `source-extracted`: existing run detail linkage | Verified target-backed rendered schedule-to-run link | Each `enqueued` occurrence links to existing run evidence; `skipped` has distinct due/reason fields, with `dueLocal` plus installation timezone when `dueAt` is null, and no run link; no cloned viewer | P1 | Templates link opens exact Runs audit; isolated fixture proves no-link state |
 | SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate |
-| SR-UI-006 | `source-extracted`: existing Reports DataState, schedule outcome, run audit, and Retry composition | Verified by published `verify-reports-ui-state-linux` manifest | Manager processing, partial decision rows, runtime failure, retry source preservation, and a combined schedule/run view-only role remain distinct on their rendered surfaces | P1 | Linux Chromium state-closure gate with atomic manifest, four run-step receipts, controlled partial fixture, manager/mobile screenshots, and source before/after hashes |
+| SR-UI-006 | `source-extracted`: existing Reports DataState, schedule outcome, run audit, and Retry composition | Verified only by a matching current `verify-reports-ui-state-linux` manifest | Manager processing, partial decision rows, runtime failure, retry source preservation, and a combined schedule/run view-only role remain distinct on their rendered surfaces | P1 | Linux Chromium state-closure gate with atomic manifest, four run-step receipts, controlled partial fixture, manager/mobile screenshots, and source before/after hashes |
 
-`SR-UI-006` is verified locally by its named gate. Native systemd, confined
-native-host seccomp, deployed scheduling, and the remaining visual matrices
-outside this bounded state-closure evidence remain **Not verified**.
+`SR-UI-006` is verified locally only when its named gate's current manifest
+matches this checkout. Native systemd, confined native-host seccomp, deployed
+scheduling, and the remaining visual matrices outside this bounded state-closure
+evidence remain **Not verified**.
 
 ## Responsive and verification matrix
 

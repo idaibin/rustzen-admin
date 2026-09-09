@@ -422,9 +422,10 @@ native-host seccomp remain **Not verified**.
 `just verify-reports-ui-state-linux` is a local state-closure gate. Its assertions
 are accepted only from a current source-bound manifest that matches this checkout;
 without that manifest they are **Not verified**. When run against a matching
-manifest, the manager desktop flow is intended to hold a controlled 30-second
-executor pause, capture active processing, cancel it, and retain the cancelled
-pause-step receipt. It is also intended to capture terminal runtime failure,
+manifest, the manager desktop flow is intended to hold a bounded series of
+individually supported 30-second executor pauses, capture active processing,
+then close the audit and use the rendered run-cancel control. It retains the
+cancelled pause-step receipt. It is also intended to capture terminal runtime failure,
 its failed step and error, and the Retry action. Before and after retry it
 compares immutable source run, steps, and artifacts snapshots by file hash, so
 opening a retry child cannot replace retained source evidence. The manifest

@@ -114,8 +114,8 @@ save_run_steps() {
 }
 
 system_id=$(create_system 'Reports UI state target')
-active_flow=$(create_flow 'Reports processing source' \
-    '[{"action":"goto","url":"/health"},{"action":"pause","durationMs":30000}]')
+active_steps=$(jq -nc '[{action:"goto",url:"/health"}]+[range(0;10)|{action:"pause",durationMs:30000}]')
+active_flow=$(create_flow 'Reports processing source' "$active_steps")
 active_run=$(create_run "$active_flow")
 wait_for_status "$active_run" running
 
@@ -136,11 +136,14 @@ processing_steps=$(jq -nc --arg run "$active_run" '
       {action:"assertText",selector:".ant-modal",text:"Report run in progress"},
       {action:"assertText",selector:".ant-modal",text:"1. goto"},
       {action:"assertNoHorizontalOverflow"},
-      {action:"screenshotViewport",name:"reports-processing-desktop-dark-en"}
+      {action:"screenshotViewport",name:"reports-processing-desktop-dark-en"},
+      {action:"click",selector:"button.ant-modal-close"},
+      {action:"pause",durationMs:300},
+      {action:"waitFor",selector:"[data-testid=run-cancel-\($run)]"},
+      {action:"click",selector:"[data-testid=run-cancel-\($run)]"},
+      {action:"waitFor",selector:"[data-testid=run-cancel-\($run)][disabled]"}
     ]')
 processing_browser_run=$(run_browser_case managerProcessing "$processing_steps")
-cancel_response=$(curl_json "${owner_auth[@]}" -X POST "$admin/api/reports/runs/$active_run/cancel")
-test "$(jq -er '.data.status' <<<"$cancel_response")" = cancelling
 wait_for_status "$active_run" cancelled
 curl_json "${owner_auth[@]}" "$admin/api/reports/runs/$active_run" > /verify/evidence/processing-run.json
 curl_json "${owner_auth[@]}" "$admin/api/reports/runs/$active_run/steps" > /verify/evidence/processing-run-steps.json
