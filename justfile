@@ -130,6 +130,7 @@ verify-automation-browser browser_path:
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
 
 verify-reports-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-linux.test.mjs
     scripts/verify-reports-linux.sh
 
 # Run the full Linux services and drive the rendered Admin UI through Reports Chromium.

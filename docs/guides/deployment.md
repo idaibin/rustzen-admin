@@ -241,7 +241,14 @@ Chromium screenshot, user namespaces, WAL files, recovery blocking, log
 ownership, and cleanup. On an Apple Silicon host the amd64 container requires
 an unconfined outer Docker profile for emulation, so this check reports browser
 seccomp and real systemd as **Not verified**; validate both on a confined native
-Linux system before production acceptance.
+Linux system before production acceptance. The public Just target first runs its
+pinned Bun static three-key configuration-contract test, then starts this
+dynamic container gate.
+
+The verifier injects an independent Reports notification event key of at least
+32 bytes, with its own key identifier. It is distinct from both the IPC token
+and Reports credential key so production configuration validation exercises the
+three-key boundary. This gate does not verify notification delivery itself.
 
 The 2026-07-15 same-host benchmark used protected
 `GET /api/monitor/nodes`, concurrency 32, 128 warm-up requests and 320 measured

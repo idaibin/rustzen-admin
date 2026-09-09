@@ -29,7 +29,9 @@ docker run --name "$name" --platform linux/amd64 --security-opt seccomp=unconfin
   ! setpriv --reuid=rz-reports --regid=rz-reports --init-groups --no-new-privs -- test ! -e /opt/rz/data/recovery-blocked
   rm /opt/rz/data/recovery-blocked
   setpriv --reuid=rz-reports --regid=rz-reports --init-groups --no-new-privs -- unshare -Ur true
-  setpriv --reuid=rz-reports --regid=rz-reports --init-groups --no-new-privs -- env HOME=/opt/rz/data/reports XDG_CONFIG_HOME=/opt/rz/data/reports/.config XDG_CACHE_HOME=/opt/rz/data/reports/.cache RUSTZEN_ENV=production RUSTZEN_RUNTIME_ROOT=/opt/rz RUSTZEN_IPC_TOKEN=linux-ipc RUSTZEN_REPORTS_CREDENTIAL_KEY=linux-key RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium RUSTZEN_REPORTS_PORT=19804 /opt/rz/current/bin/rz-reports serve >/tmp/reports-service.log 2>&1 & pid=$!
+  EVENT_KEY=reports-linux-notification-event-key-0001
+  test "${#EVENT_KEY}" -ge 32
+  setpriv --reuid=rz-reports --regid=rz-reports --init-groups --no-new-privs -- env HOME=/opt/rz/data/reports XDG_CONFIG_HOME=/opt/rz/data/reports/.config XDG_CACHE_HOME=/opt/rz/data/reports/.cache RUSTZEN_ENV=production RUSTZEN_RUNTIME_ROOT=/opt/rz RUSTZEN_IPC_TOKEN=linux-ipc RUSTZEN_REPORTS_CREDENTIAL_KEY=linux-key RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY_ID=reports-linux-v1 RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY="$EVENT_KEY" RUSTZEN_REPORTS_BROWSER_PATH=/usr/bin/chromium RUSTZEN_REPORTS_PORT=19804 /opt/rz/current/bin/rz-reports serve >/tmp/reports-service.log 2>&1 & pid=$!
   for n in $(seq 1 100); do curl -fsS http://127.0.0.1:19804/health >/dev/null && break; sleep .1; done
   curl -fsS http://127.0.0.1:19804/health >/dev/null
   test "$(awk "/^Uid:/{print \$2}" /proc/$pid/status)" = "$(id -u rz-reports)"
