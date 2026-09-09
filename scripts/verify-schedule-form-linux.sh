@@ -232,7 +232,7 @@ jq -e --arg head "$head" --arg state "$tree_state" --arg sha "$tree_sha" --arg p
   .schemaVersion == 1 and .status == "passed" and .gitHead == $head and
   .sourceTreeState == $state and .sourceTreeSha256 == $sha and .platform == $platform and
   .localValidation.proxyPostCount == 0 and .secretPolicy.proxyPostCount == 1 and
-  .secretPolicy.rowDelta == 0 and .viewOnly.managementVisible == false and
+  .secretPolicy.rowDelta == 0 and .viewOnly == {managementVisible:false,dueTime:"10:16 · UTC"} and
   (.runs.daily | type == "string" and length > 0) and
   (.artifacts | length) == 2 and
   ([.artifacts[] | select(.file == "schedule-form-desktop-dark-en.png" and (.sha256 | test("^[0-9a-f]{64}$")) and .dimensions == "1440 x 900")] | length) == 1 and

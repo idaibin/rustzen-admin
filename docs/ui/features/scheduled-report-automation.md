@@ -51,6 +51,12 @@ panel renders daily/weekly values, installation timezone, next due, and the
 latest occurrence; only an occurrence with `runId` exposes the existing run
 link.
 
+The route passes its schedule-manage result to the panel's column composition.
+Only a manager assembles the fixed-width actions column. A view-only panel has
+no actions column at all, so its 390px table keeps the full due-time and
+timezone value such as `10:16 · UTC` visible. The browser flow asserts that
+exact value, the absent actions, and no horizontal overflow.
+
 The static seam tests verify selector/gate composition and the route-local retry
 behavior: failed/cancelled visibility, one per-source pending key shared by the
 list and detail, child selection after success, and source preservation after
@@ -102,7 +108,7 @@ same rendered viewer flow, and its direct mutation requests are denied.
 | Responsibility | Current owner | Decision |
 | --------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Page shell and section heading | `PageCard`/existing route heading | Reuse |
-| Schedule list and paging | `DataTableShell` + route-local `ProTable` | Reuse; columns remain route-local |
+| Schedule list and paging | `DataTableShell` + route-local `ProTable` | Reuse; schedule columns are route-local; the manager-only actions column is assembled separately from view-only columns |
 | Loading, empty, error, permission, processing | `DataState` | Reuse |
 | Schedule form | Existing Ant Design `Form`, `Select`, time/date controls | Reuse; route-local validation |
 | Enable/disable and outcome labels | Ant Design `Tag`/`Switch` with semantic theme | Wrap route-local meaning; no new status component |
@@ -223,7 +229,7 @@ outside this bounded state-closure evidence remain **Not verified**.
 | -------- | ---------------- | ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Required | 1920x1080 @ 100% | light / zh-CN | Templates schedule populated | Columns, actions, next due, and timezone helper align with existing PageCard; no overflow. |
 | Required | 1440x900 @ 100% | dark / en-US | Target-backed schedule lifecycle | Daily create, weekly edit, disable/enable and delete; key copy and no horizontal overflow verified. |
-| Required | 390x844 @ 100% | light / zh-CN | Schedule-view-only list | Management actions are hidden; key copy and no horizontal overflow verified. |
+| Required | 390x844 @ 100% | light / zh-CN | Schedule-view-only list | No actions column is assembled; `10:16 · UTC` is fully visible, mutation controls are absent, and there is no horizontal overflow. |
 | Required | 1440x900 @ 100%  | dark / en-US  | Managed Runs retry               | List retry selects the exact direct-child audit; key copy and no horizontal overflow verified.                                                                           |
 | Required | 390x844 @ 100%   | light / zh-CN | Runs-view-only list              | Retry is hidden, no unauthorized flow lookup or permission-error toast is rendered, and the backend rejects the same user; key copy and no horizontal overflow verified. |
 | Required | 390x844 @ 100% | dark / en-US | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable. |

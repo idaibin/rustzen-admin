@@ -226,6 +226,9 @@ Non-goals:
 
 - `reports:schedule:view` gates schedule list/detail; `reports:schedule:manage`
   gates create/update/enable/disable/delete. Backend checks remain authoritative.
+- A view-only schedule list does not assemble an actions column. It keeps each
+  due time and timezone fully readable; mutation controls and their fixed table
+  width are absent rather than CSS-hidden.
 - Owner receives both boundaries. Admin receives them only through the normal
   Reports management policy. Viewer receives view only. Custom roles follow
   the existing generated capability catalog.
@@ -255,7 +258,7 @@ tables, forms, dialogs, and run evidence.
 | Populated | Schedules or run links are available. | Show cadence, timezone, next due, and last occurrence decision; show a run link only for `enqueued`. |
 | Empty | Query succeeded with no schedules. | Explain how to create one when permitted. |
 | Error | List/save/trigger read failed. | Show retry; preserve form values and last good rows. |
-| Permission | Caller lacks view/manage capability. | Hide mutation actions and show the existing permission state. |
+| Permission | Caller lacks view/manage capability. | A view-only list omits the actions column; browser acceptance at 390px asserts the complete `10:16 · UTC` due value and no horizontal overflow. |
 | Processing | Save, enable/disable, or delete is running. | Disable duplicate actions and retain the selected schedule. |
 | Partial | A list contains mixed occurrence outcomes. | Keep each outcome and reason; never summarize as all successful. |
 

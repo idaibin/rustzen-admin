@@ -3,13 +3,16 @@ import { describe, expect, test } from "bun:test";
 const gate = await Bun.file(new URL("./verify-schedule-form-linux.sh", import.meta.url)).text();
 const inner = await Bun.file(new URL("./verify-schedule-form-linux-inner.sh", import.meta.url)).text();
 const driver = await Bun.file(new URL("./schedule-form-browser-steps.mjs", import.meta.url)).text();
+const schedulePanel = await Bun.file(new URL("../apps/web/src/routes/reports/-templates/schedule-panel.tsx", import.meta.url)).text();
+const scheduleColumns = await Bun.file(new URL("../apps/web/src/routes/reports/-templates/schedule-columns.tsx", import.meta.url)).text();
 const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
 const gatePath = new URL("./verify-schedule-form-linux.sh", import.meta.url).pathname;
 const runGate = (env) => Bun.spawnSync({ cmd: ["bash", gatePath], env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
+const viewerSteps = driver.slice(driver.indexOf("viewer: viewer(["), driver.indexOf("\n    ]),", driver.indexOf("viewer: viewer([")));
 
 test("SR-UI-002 gate keeps browser actions, evidence, and no-request proof scoped", () => {
     for (const value of ["admin-browser-source-identity.sh", "atomic_replace_symlink", "browser-steps.json", "RUSTZEN_SCHEDULE_FORM_TIMEOUT"]) expect(gate).toContain(value);
-    for (const value of ["localValidation", "proxyPostCount", "secretPolicy", "assertFocus", "managementVisible"]) expect(`${inner}\n${driver}`).toContain(value);
+    for (const value of ["localValidation", "proxyPostCount", "secretPolicy", "assertFocus", "managementVisible", "10:16 · UTC", "schedule-timezone-"]) expect(`${inner}\n${driver}`).toContain(value);
     expect(inner).toContain("local case_name=$1 system_id=$2 case_steps=$3 body flow_id run_id case_status");
     expect(inner).toContain("--argjson steps \"$case_steps\"");
     for (const value of ["case_diagnostics", "create-daily", "/steps", "/artifacts", "tail -n 40"]) expect(inner).toContain(value);
@@ -23,8 +26,32 @@ test("SR-UI-002 gate keeps browser actions, evidence, and no-request proof scope
     expect(inner).toContain('secret_posts" = 1');
     expect(driver).toContain('schedule-create');
     expect(driver).toContain('schedule-edit');
+    expect(driver).toContain('assertElementLayout", selector: "[data-testid^=schedule-timezone-]", visibleCount: 1, withinViewportRight: true');
+    expect(gate).toContain('.viewOnly == {managementVisible:false,dueTime:"10:16 · UTC"}');
+    expect(schedulePanel).toContain("state.checkPermissions(REPORTS_SCHEDULE_MANAGE)");
+    expect(schedulePanel).toContain("createScheduleColumns({ flowOptions, canManageSchedules, onSaved: refresh })");
+    expect(scheduleColumns).toContain("if (canManageSchedules)");
+    expect(scheduleColumns).toContain("columns.push({");
+    expect(scheduleColumns).toContain("width: 230");
+    expect(scheduleColumns).toContain("data-testid={`schedule-timezone-${row.id}`}");
+    expect(scheduleColumns).toContain('data-testid="schedule-actions-column"');
     expect(gate).not.toContain("verify-admin-browser-linux-inner.sh");
     expect(justfile).toContain("verify-schedule-form-linux:");
+});
+
+test("viewer steps directly reject every schedule action control", () => {
+    for (const selector of [
+        "schedule-actions-column",
+        "schedule-create",
+        "schedule-dialog",
+        "schedule-edit",
+        "schedule-toggle",
+        "schedule-delete",
+    ]) {
+        expect(viewerSteps).toContain(`{ action: "assertAbsent", selector: "[data-testid=${selector}]" }`);
+    }
+    expect(viewerSteps).toContain('text: "10:16 · UTC"');
+    expect(viewerSteps).toContain('{ action: "assertNoHorizontalOverflow" }');
 });
 
 test("focus assertions wait for Ant Modal restoration", () => {
