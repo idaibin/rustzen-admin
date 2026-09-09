@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 const root = new URL("..", import.meta.url).pathname;
 const outer = new URL("./verify-monitor-agent-multi-node-ui-linux.sh", import.meta.url).pathname;
 const evidence = new URL("./verify-monitor-agent-multi-node-ui-evidence.mjs", import.meta.url).pathname;
-const stepsDriver = new URL("./monitor-agent-multi-node-ui-browser-steps.mjs", import.meta.url).pathname;
+const stepsDriver = new URL("./monitor-agent-multi-node-ui-browser-steps.py", import.meta.url).pathname;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const run = (command, env = {}) => Bun.spawnSync({ cmd: command, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
 
@@ -19,7 +19,7 @@ function fixture() {
     for (const [key, name] of Object.entries({ admin: "rz-admin", monitor: "rz-monitor", reports: "rz-reports", agent: "rz-monitor-agent" })) {
         const bytes = Buffer.from(key); writeFileSync(join(staged, name), bytes); hashes[key] = digest(bytes);
     }
-    const expected = JSON.parse(new TextDecoder().decode(run([process.execPath, stepsDriver, "linux-agent-a", "linux-agent-b"], { RUSTZEN_VERIFY_BOOT_A: "boot-a", RUSTZEN_VERIFY_BOOT_B: "boot-b" }).stdout));
+    const expected = JSON.parse(new TextDecoder().decode(run(["python3", stepsDriver, "linux-agent-a", "linux-agent-b"], { RUSTZEN_VERIFY_BOOT_A: "boot-a", RUSTZEN_VERIFY_BOOT_B: "boot-b" }).stdout));
     writeFileSync(join(directory, "browser-steps.json"), JSON.stringify(expected));
     const flow = Buffer.from(JSON.stringify({ data: [{ id: "flow-1", steps: expected }] }));
     writeFileSync(join(directory, "browser-flow.json"), flow);
@@ -102,8 +102,8 @@ describe("dual-Agent Nodes Chromium gate", () => {
         } catch (error) { throw error; }
     });
     test("driver opens both details, captures both, and validates arguments", () => {
-        expect(run([process.execPath, stepsDriver]).exitCode).not.toBe(0);
-        const result = run([process.execPath, stepsDriver, "linux-agent-a", "linux-agent-b"], { RUSTZEN_VERIFY_BOOT_A: "boot-a", RUSTZEN_VERIFY_BOOT_B: "boot-b" });
+        expect(run(["python3", stepsDriver]).exitCode).not.toBe(0);
+        const result = run(["python3", stepsDriver, "linux-agent-a", "linux-agent-b"], { RUSTZEN_VERIFY_BOOT_A: "boot-a", RUSTZEN_VERIFY_BOOT_B: "boot-b" });
         expect(result.exitCode).toBe(0);
         const steps = JSON.parse(new TextDecoder().decode(result.stdout));
         expect(steps.filter((step) => step.action === "screenshotViewport")).toHaveLength(2);

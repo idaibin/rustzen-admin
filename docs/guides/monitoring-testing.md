@@ -192,6 +192,11 @@ with SHA-256 and byte-size evidence. The manifest also binds the exact submitted
 step list and the Reports API's persisted flow definition before it accepts the
 receipt's contiguous successful step sequence.
 
+The pinned browser verifier intentionally contains no Node or Bun runtime. Its small
+dual-node step generator therefore uses the image's already-pinned Python standard
+library; the generated JSON is independently reconstructed and compared by the host
+Bun evidence verifier after the container exits.
+
 Its evidence is local, disposable Linux-container evidence only. It does not replace
 the native dual-Agent gate and does not certify systemd PID 1, independent hosts,
 production TLS, or the complete Monitoring UI state matrix.

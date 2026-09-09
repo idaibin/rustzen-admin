@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in chromium curl dpkg-query file groupadd jq setpriv sha256sum ss useradd; do command -v "$command" >/dev/null; done
+for command in chromium curl dpkg-query file groupadd jq python3 setpriv sha256sum ss useradd; do command -v "$command" >/dev/null; done
 for port in 19801 19802 19804; do ! ss -H -ltn "sport = :$port" | grep -q . || { echo "port occupied: $port" >&2; exit 1; }; done
 groupadd -g 2410 rz-central
 useradd -u 2410 -g rz-central -M -s /usr/sbin/nologin rz-central
@@ -46,7 +46,7 @@ jq -e '.data | length == 2 and ([.[].bootId] | unique | length) == 2' <<<"$nodes
 boot_a=$(jq -er '.data[] | select(.nodeId == "linux-agent-a") | .bootId' <<<"$nodes")
 boot_b=$(jq -er '.data[] | select(.nodeId == "linux-agent-b") | .bootId' <<<"$nodes")
 export RUSTZEN_VERIFY_BOOT_A="$boot_a" RUSTZEN_VERIFY_BOOT_B="$boot_b"
-steps=$(node /verify/steps.mjs linux-agent-a linux-agent-b)
+steps=$(python3 /verify/steps.py linux-agent-a linux-agent-b)
 printf '%s\n' "$steps" > /verify/evidence/browser-steps.json
 system=$(curl --fail --silent "${auth[@]}" -H 'content-type: application/json' -d '{"name":"Dual Agent Nodes Chromium","baseUrl":"http://127.0.0.1:19801/health","enabled":true}' "$admin/api/reports/systems" | jq -er '.data.id')
 flow=$(curl --fail --silent "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg system "$system" --argjson steps "$steps" '{systemId:$system,name:"Dual Agent Nodes Chromium",steps:$steps}')" "$admin/api/reports/flows" | jq -er '.data.id')
