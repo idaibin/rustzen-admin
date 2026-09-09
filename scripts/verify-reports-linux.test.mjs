@@ -20,3 +20,10 @@ test("Reports Linux verifier keeps production event, IPC, and credential keys se
     expect(launch).toContain("RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY_ID=reports-linux-v1");
     expect(launch).toContain('RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY="$EVENT_KEY"');
 });
+
+test("Reports Linux verifier installs CA roots through its sole package command", () => {
+    const installs = [...script.matchAll(/^  apt-get install -y --no-install-recommends (.*)$/gm)];
+
+    expect(installs).toHaveLength(1);
+    expect(installs[0]?.[1].split(" ")).toContain("ca-certificates");
+});

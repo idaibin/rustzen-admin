@@ -243,7 +243,9 @@ an unconfined outer Docker profile for emulation, so this check reports browser
 seccomp and real systemd as **Not verified**; validate both on a confined native
 Linux system before production acceptance. The public Just target first runs its
 pinned Bun static three-key configuration-contract test, then starts this
-dynamic container gate.
+dynamic container gate. Its disposable Debian image installs CA roots because
+the Reports production HTTP client fails closed unless the system trust store is
+available.
 
 The verifier injects an independent Reports notification event key of at least
 32 bytes, with its own key identifier. It is distinct from both the IPC token

@@ -19,7 +19,7 @@ trap cleanup EXIT
 docker run --name "$name" --platform linux/amd64 --security-opt seccomp=unconfined -v "$binary:/tmp/rz-reports:ro" debian:bookworm-slim bash -ec '
   trap "status=\$?; printf \"reports Linux verifier failed line %s status %s: %s\\n\" \"\$LINENO\" \"\$status\" \"\${BASH_COMMAND}\" >&2; cat /tmp/reports-service.log 2>/dev/null || true; ps -ef || true; ls -ld /opt/rz /opt/rz/data /opt/rz/data/reports /opt/rz/data/reports/db || true" ERR
   apt-get update >/dev/null
-  apt-get install -y --no-install-recommends chromium chromium-sandbox sqlite3 curl jq openssl busybox procps util-linux >/dev/null
+  apt-get install -y --no-install-recommends ca-certificates chromium chromium-sandbox sqlite3 curl jq openssl busybox procps util-linux >/dev/null
   groupadd --system rz-reports; useradd --system --gid rz-reports --home-dir /opt/rz/data/reports --shell /usr/sbin/nologin rz-reports
   umask 077; mkdir -p /opt/rz/releases/current/bin /opt/rz/data/reports/db /opt/rz/data/reports/.config /opt/rz/data/reports/.cache /opt/rz/logs/reports /srv; chmod 0755 /opt/rz /opt/rz/releases /opt/rz/releases/current /opt/rz/releases/current/bin; chmod 0711 /opt/rz/data /opt/rz/logs; chown -R rz-reports:rz-reports /opt/rz/data/reports /opt/rz/logs/reports
   install -m 0755 /tmp/rz-reports /opt/rz/releases/current/bin/rz-reports; ln -s releases/current /opt/rz/current
