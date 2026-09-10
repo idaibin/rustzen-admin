@@ -9,6 +9,7 @@ import { discoverVerifierSources } from "./selected-web-browser-provenance.ts";
 test("P8f-B provenance contract matches the current recursive closure", async () => {
     const discovered = await discoverVerifierSources(process.cwd(), undefined, businessRoots);
     expect([...discovered, ...businessFixed, "bootstrap.json", "context.json"].sort()).toEqual([...requiredBusinessProvenance]);
+    expect(requiredBusinessProvenance).toContain("scripts/monitor-notify-business-cdp.ts");
 });
 
 test("P8f-B rejects a changed root, indirect dependency, or shell after capture", async () => {

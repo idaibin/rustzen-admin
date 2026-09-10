@@ -19,6 +19,11 @@ test("P8f-B stops the verified witness before issuing business reports", () => {
 test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for Chrome", async () => {
     const wrapper = await Bun.file(new URL("./verify-monitor-notify-business-browser-linux.sh", import.meta.url)).text();
     expect(driver).not.toContain("expression.slice");
+    expect(driver).not.toContain("CDP evaluate failed: ${detail}");
+    expect(driver).not.toContain("value.error.message");
+    expect(driver).toContain("Network.requestWillBeSentExtraInfo");
+    expect(driver).toContain("streamDiagnostics(streamItems)");
+    expect(driver).toContain("wallTime: value.params.wallTime");
     expect(wrapper).toContain('kill -KILL "$chrome_pid"');
     expect(wrapper).toContain("for _ in $(seq 1 100)");
 });

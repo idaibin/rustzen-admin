@@ -14,7 +14,7 @@ export const requiredBusinessProvenance = [
     "distribution/source-build-plan.ts", "distribution/workspace-version.ts",
     "scripts/cleanup-retained-p8e-container.sh", "scripts/distribution-web-allowed-packages.ts", "scripts/distribution-web-inventory-policy.ts", "scripts/distribution-web-inventory-schema.ts",
     "scripts/monitor-load-admission.ts", "scripts/monitor-load-signed.ts", "scripts/monitor-notify-business-admission.ts", "scripts/monitor-notify-business-browser-driver.ts",
-    "scripts/monitor-notify-business-browser-receipt.ts", "scripts/monitor-notify-business-context.ts", "scripts/monitor-notify-business-provenance.ts",
+    "scripts/monitor-notify-business-browser-receipt.ts", "scripts/monitor-notify-business-cdp.ts", "scripts/monitor-notify-business-context.ts", "scripts/monitor-notify-business-provenance.ts",
     "scripts/selected-web-bootstrap-browser-receipt.ts", "scripts/selected-web-browser-provenance.ts", "scripts/verify-monitor-notify-business-browser-linux.sh",
     "scripts/verify-monitor-notify-business-browser-workflow-linux.sh",
 ] as const;
