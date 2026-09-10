@@ -45,9 +45,9 @@ certification, publication nor release evidence.
 Admission is not a certificate and cannot satisfy any native, browser, load,
 installation or release gate.
 
-## P8b Monitor source-build certificate contract
+## P8b selected-server source-build certificate contract
 
-P8d accepts an admitted production `monitor` snapshot and signed release root,
+P8d accepts an admitted production `monitor` or `monitor-notify` server snapshot and signed release root,
 not an explicit binary root or caller-provided source/build claims. It rejects
 forged snapshots, invalid source identity, release mutations, cross-evidence
 mismatch, unexpected inventory/modes, unsafe publication parents, races and
@@ -56,7 +56,8 @@ reject a fully signed manifest that differs from retained snapshot bytes, and
 reject forged publication capabilities. Linux/amd64 synthetic end-to-end
 validation covers the issuer, canonical certificate, reread and tamper rejection.
 
-Its structural parser rejects unknown fields/layers, non-Monitor selections and
+Its structural parser rejects unknown fields/layers, every selection except the
+exact `monitor` or `monitor-notify` selected-server plans, and
 every attempt to set `runtime`, `browser`, `load` or `releaseReady` true. The
 expected-input verifier separately rejects altered source/build/artifact identities.
 The issuer must capture those inputs itself; CLI-provided digest or toolchain
@@ -67,8 +68,7 @@ pointer can change.
 
 The source-build certificate closure verifies only the canonical schema against
 authoritative inputs and makes contract extraction require an explicit binary
-directory. Its issuer and crash-safe publication remain **Not implemented /
-Not verified**. The separate container-export closure now supplies stable
+directory. Its issuer and crash-safe publication are implemented for the reviewed selected-server snapshots; native, browser, load and release readiness remain **Not verified**. The separate container-export closure now supplies stable
 same-batch BuildKit and Linux artifact evidence, but does not issue that
 certificate.
 
@@ -95,7 +95,7 @@ prove the input tree remains byte-for-byte unchanged. Evidence can be published
 only into one new child of `target/rz`; failure evidence may be appended there
 but the directory is never reused or recursively removed.
 
-The first P8b container closure is verified separately from certification. Its
+The P8b selected-server container closure is verified separately from certification. Its
 static boundary test admits only the reviewed `monitor` and `monitor-notify`
 fixture/feature cases and must reject a non-Linux/amd64 build stage, an omitted Monitor
 source-identity requirement, a target other than x86_64 musl, a missing explicit
@@ -487,7 +487,7 @@ plus the Agent token, and check the fixed fencing fixture corpus.
 | D54 | Produce Server and Agent config artifacts; mutate composition, owner, field metadata, canonical bytes, inventory or file identity | Exact class-specific descriptors are required; Manifest derives `configDigest` from stable artifact bytes and rejects caller hashes |
 | D55 | Pin signed Monitor Server and published Agent fixtures; alter signature, tuple, endpoint, Agent protocol, profile bytes or replace the profile with a link | Pinning fails closed before a profile write; a valid root-owned profile gates deployed production Agent startup before logging/network work; the isolated development command remains runnable without `/opt/rz` installation state |
 
-| D08e | Verify a Monitor container export, then delete or replace its export root before captured-byte staging | Staging and its unsigned manifest retain only verified server binaries/contracts/flattened Web and succeed without reopening the export; witness and metadata remain absent. |
+| D08e | Verify a selected-server container export, then delete or replace its export root before captured-byte staging | Staging and its unsigned manifest retain only verified server binaries/contracts/flattened Web and succeed without reopening the export; witness and metadata remain absent. |
 
 ### P8g pure-Monitor exact-artifact load certification
 

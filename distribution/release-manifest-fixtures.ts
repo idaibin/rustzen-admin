@@ -70,15 +70,16 @@ export async function releaseFixture(
         reviewedProtocolOutput(),
         reviewedProtocolOutput(),
     );
+    const serverSelection = kind === "server" ? selection : monitorSelection;
     await produceSchemaContract(
-        monitorSelection,
+        serverSelection,
         join(import.meta.dir, ".."),
         schemaRoot,
     );
     await mkdir(apiRoot, { recursive: true });
     await writeFile(
         join(apiRoot, "api.json"),
-        canonicalJson(completeSelectedApiContractForTest(monitorSelection)),
+        canonicalJson(completeSelectedApiContractForTest(serverSelection)),
     );
     await mkdir(join(artifactRoot, "bin"), { recursive: true });
     await mkdir(join(artifactRoot, "config"), { recursive: true });

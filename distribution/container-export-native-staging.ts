@@ -6,9 +6,10 @@ import { fromContainerSnapshot } from "./native-staging-source.ts";
 import { readVerifiedNativeSource } from "./native-staging-source.ts";
 import { produceReleaseManifest, type ReleaseManifest } from "./release-manifest.ts";
 import { resolveSelection } from "./resolver.ts";
+import { reviewedContainerServerPlan } from "./container-export-plan.ts";
 import { type VerifiedContainerExportSnapshot } from "./container-export-validator.ts";
 
-/** Builds Monitor staging only from the retained verified container snapshot bytes. */
+/** Builds reviewed server staging only from the retained verified container snapshot bytes. */
 export async function produceMonitorNativeStagingManifest(input: {
     snapshot: VerifiedContainerExportSnapshot;
     outputParent: string;
@@ -16,8 +17,7 @@ export async function produceMonitorNativeStagingManifest(input: {
 }): Promise<{ staging: StagingResult; manifest: ReleaseManifest }> {
     const selection = input.snapshot.selection();
     const plan = resolveSelection(selection);
-    if (plan.preset !== "monitor" || plan.artifactClass !== "server")
-        throw new Error("container native staging supports only Monitor server snapshots");
+    reviewedContainerServerPlan(plan);
     const source = fromContainerSnapshot(input.snapshot);
     const captured = readVerifiedNativeSource(source);
     const staging = await publishNativeStagingBytes({

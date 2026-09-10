@@ -73,3 +73,19 @@ test("issuer rejects a fully signed manifest that differs from retained snapshot
         await rm(trustedRoot, { recursive: true, force: true });
     }
 });
+
+test("issuer and publisher retain monitor-notify selection", async () => {
+    const notify = { schemaVersion: 1, preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
+    const exportRoot = await createExport(notify);
+    const trustedRoot = await mkdtemp(join(tmpdir(), "rz-source-build-notify-"));
+    const keys = generateKeyPairSync("ed25519");
+    const privateKey = keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const trusted = { keyId: "source-build-notify", publicKey: keys.publicKey.export({ type: "spki", format: "pem" }).toString() };
+    try {
+        const snapshot = await verifyContainerExport(exportRoot, notify, sourceIdentity, releaseVersion);
+        const release = await publishMonitorContainerRelease({ snapshot, outputParent: join(trustedRoot, "output"), trustedRoot, privateKey, trusted });
+        const published = await publishSourceBuildCertificate({ issued: await issueSourceBuildCertificate({ snapshot, releaseRoot: release.root, trustedRoot, trusted }) });
+        expect(published.certificate.selection.preset).toBe("monitor-notify");
+        expect(published.certificate.releaseReady).toBeFalse();
+    } finally { await rm(exportRoot, { recursive: true, force: true }); await rm(trustedRoot, { recursive: true, force: true }); }
+});

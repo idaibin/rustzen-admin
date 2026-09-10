@@ -2,6 +2,7 @@ import { canonicalJson, sha256, validHash } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
 import { parseReleaseManifest, type ReleaseManifest } from "./release-manifest.ts";
 import { auditSourceBuildReadiness } from "./source-build-readiness.ts";
+import { reviewedContainerServerPlan } from "./container-export-plan.ts";
 
 export type SourceBuildCertificate = {
     schemaVersion: 1;
@@ -43,8 +44,7 @@ export function produceSourceBuildCertificate(
     input: SourceBuildCertificateInput,
 ): SourceBuildCertificate {
     const plan = resolveSelection(input.selection);
-    if (plan.preset !== "monitor" || plan.artifactClass !== "server")
-        throw new Error("source-build certification currently supports only monitor server");
+    reviewedContainerServerPlan(plan);
     if (!auditSourceBuildReadiness(input.selection).admissionReady)
         throw new Error("source-build certification requires producer admission");
     const manifest = parseReleaseManifest(input.manifest, input.selection);
@@ -131,8 +131,7 @@ export function parseSourceBuildCertificate(
             "source-build certificate cannot claim runtime, browser, load, or release readiness",
         );
     const plan = resolveSelection(selection);
-    if (plan.preset !== "monitor" || plan.artifactClass !== "server")
-        throw new Error("source-build certification currently supports only monitor server");
+    reviewedContainerServerPlan(plan);
     if (!auditSourceBuildReadiness(selection).admissionReady)
         throw new Error("source-build certification requires producer admission");
     const expected = {

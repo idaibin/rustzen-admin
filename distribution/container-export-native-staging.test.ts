@@ -51,3 +51,16 @@ test("captured staging CLI requires exact arguments", async () => {
         }
     } finally { await rm(join(repositoryRoot, outputBase), { recursive: true, force: true }); await rm(root, { recursive: true, force: true }); }
 });
+
+test("captured export bytes stage exact monitor-notify payload", async () => {
+    const notify = { schemaVersion: 1, preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
+    const root = await createExport(notify);
+    const trusted = await mkdtemp(join(tmpdir(), "rz-captured-notify-stage-"));
+    try {
+        const snapshot = await verifyContainerExport(root, notify, sourceIdentity, releaseVersion);
+        const result = await produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted });
+        expect(result.manifest.preset).toBe("monitor-notify");
+        expect(result.manifest.binaryDigests.map((entry) => entry.path)).toEqual(["bin/rz-admin", "bin/rz-monitor"]);
+        expect(result.staging.files.map((entry) => entry.path)).not.toContain("bin/rz-monitor-agent");
+    } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
+});

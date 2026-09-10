@@ -58,7 +58,7 @@ test("monitor source-build certificate binds exact manifest and cannot claim lat
                 archiveSha256: h("b"),
                 envelopeSha256: h("c"),
             }),
-        ).toThrow("only monitor");
+        ).toThrow("manifest preset");
         for (const changed of [
             {
                 ...value,
@@ -105,4 +105,16 @@ test("monitor source-build certificate binds exact manifest and cannot claim lat
     } finally {
         await rm(fixture.root, { recursive: true, force: true });
     }
+});
+
+test("monitor-notify certificate binds its exact selected manifest", async () => {
+    const notify = { preset: "monitor-notify", target: monitorSelection.target };
+    const fixture = await serverManifestFixture(notify);
+    try {
+        const input = { selection: notify, manifest: fixture.manifest, sourceTreeSha256: h("a"), toolchain: "rustc 1.90", archiveSha256: h("b"), envelopeSha256: h("c") };
+        const value = produceSourceBuildCertificate(input);
+        expect(value.selection.preset).toBe("monitor-notify");
+        expect(value.runtime).toBeFalse(); expect(value.browser).toBeFalse(); expect(value.load).toBeFalse(); expect(value.releaseReady).toBeFalse();
+        expect(() => parseSourceBuildCertificate(value, { preset: "monitor", target: monitorSelection.target })).toThrow("selection differs");
+    } finally { await rm(fixture.root, { recursive: true, force: true }); }
 });

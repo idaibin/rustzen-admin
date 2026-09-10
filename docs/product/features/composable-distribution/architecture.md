@@ -643,7 +643,7 @@ The admission result contains no artifact digest and cannot be consumed as a
 release certificate; later source/build, native, runtime, browser and load
 reports each bind their own immutable inputs.
 
-P8d consumes an admitted Monitor plan only through the retained
+P8d consumes an admitted `monitor` or `monitor-notify` server plan only through the retained
 `VerifiedContainerExportSnapshot` and a verified signed release triplet. It
 derives source identity, tree digest, toolchain, build ID, binary and full
 manifest inventory from those inputs; no CLI digest, tree, toolchain or manifest

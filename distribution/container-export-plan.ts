@@ -5,8 +5,12 @@ export type ContainerServerPlan = SourceBuildPlan & {
     artifactClass: "server";
 };
 
+export function isReviewedContainerServerPlan(plan: SourceBuildPlan): plan is ContainerServerPlan {
+    return isExactSupportedPlan(plan, ["monitor", "monitor-notify"]);
+}
+
 export function reviewedContainerServerPlan(plan: SourceBuildPlan): asserts plan is ContainerServerPlan {
-    if (!isExactSupportedPlan(plan, ["monitor", "monitor-notify"]))
+    if (!isReviewedContainerServerPlan(plan))
         throw new Error("container export supports only reviewed monitor server selections");
 }
 

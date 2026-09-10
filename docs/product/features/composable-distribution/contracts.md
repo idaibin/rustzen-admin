@@ -244,10 +244,9 @@ artifacts/current-full-regression regardless of key trust. The full preset must
 match its exact declared feature closure; a preset label cannot override omitted
 features. Test identity/trust/root restrictions are defined in validation.md.
 
-### P8b Monitor source-build certificate
+### P8b selected-server source-build certificate
 
-`source-build-manifest` is the canonical JSON certificate contract for one
-production `monitor` server tuple. It binds the resolver's exact preset, target,
+`source-build-manifest` is the canonical JSON certificate contract for one production selected-server (`monitor` or `monitor-notify`) tuple. It binds the resolver's exact preset, target,
 artifact class, composition ID, capabilities and services to three and only three
 certified layers: `source` (source identity and tree digest), `build` (toolchain,
 build ID and exact `rz-admin`/`rz-monitor` file digests), and `artifact` (manifest,
@@ -303,7 +302,7 @@ health build/composition bindings. All fields are closed and required. The
 certificate's `runtime`, `browser`, `load` and `releaseReady` remain literal
 `false`; this record is evidence, not installation or release authorization.
 
-### P8b Monitor container export
+### P8b selected-server container export
 
 The selected Docker export accepts only `DISTRIBUTION=monitor` or
 `DISTRIBUTION=monitor-notify`, each mapped to a fixed fixture and matching
@@ -334,7 +333,7 @@ It accepts exactly `--selection`, `--export-root` and
 missing or positional arguments fail before any artifact read. It reads the
 whole export root through the stable artifact reader once, then verifies the
 canonical JSON bytes, exact manifest/provenance schemas and equality with the
-authoritative resolved Monitor selection. Its result retains the snapshot bytes
+authoritative resolved selected-server selection. Its result retains the snapshot bytes
 for a later issuer; it returns no certificate, signing material or installation
 action.
 
@@ -1092,7 +1091,7 @@ requires a production manifest. Installer extraction remains a later boundary.
 
 ### Captured container staging boundary
 
-`produceMonitorNativeStagingManifest` accepts a verified Monitor export snapshot,
+`produceMonitorNativeStagingManifest` accepts a verified selected-server export snapshot,
 `outputParent` and `trustedRoot`. Release version, source identity, recorded
 toolchain and selected routes are snapshot-derived; callers cannot
 supply substitutes. The retained native-source capability carries these fields
