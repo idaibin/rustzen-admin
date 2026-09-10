@@ -9,7 +9,15 @@ mod openapi;
 compile_error!("full and selected-distribution are mutually exclusive Admin compositions");
 #[cfg(all(feature = "selected-distribution", feature = "reports-notifications"))]
 compile_error!("Reports notifications require the full Admin composition");
-#[cfg(not(any(feature = "full", feature = "monitor-distribution")))]
+#[cfg(all(feature = "analytics-distribution", feature = "notifications"))]
+compile_error!("Analytics distribution does not include notifications");
+#[cfg(all(feature = "monitor-distribution", feature = "analytics-distribution"))]
+compile_error!("select one selected Admin composition feature");
+#[cfg(not(any(
+    feature = "full",
+    feature = "monitor-distribution",
+    feature = "analytics-distribution"
+)))]
 compile_error!("select exactly one reviewed Admin composition feature");
 
 #[cfg(feature = "full")]
@@ -68,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "selected-distribution")]
     if let Command::ContractConfigSelected(owner) = &command {
         let contract = match owner.as_str() {
-            "access" => rustzen_config::admin_monitor_contract(),
+            "access" => selected_admin_config_contract(),
             #[cfg(feature = "notifications")]
             "notifications" => rustzen_config::notifications_contract(),
             _ => return Err(std::io::Error::other("config owner is not selected").into()),
@@ -209,6 +217,18 @@ impl Command {
 #[cfg(feature = "selected-distribution")]
 fn selected_config_owner(owner: &str) -> bool {
     owner == "access" || (cfg!(feature = "notifications") && owner == "notifications")
+}
+
+#[cfg(feature = "selected-distribution")]
+fn selected_admin_config_contract() -> rustzen_config::ConfigContract {
+    #[cfg(feature = "monitor-distribution")]
+    {
+        rustzen_config::admin_monitor_contract()
+    }
+    #[cfg(feature = "analytics-distribution")]
+    {
+        rustzen_config::admin_insights_contract()
+    }
 }
 
 #[derive(Debug)]

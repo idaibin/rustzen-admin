@@ -11,6 +11,7 @@ use rust_embed::RustEmbed;
 struct FullWebAssets;
 
 #[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
+#[cfg(feature = "monitor-distribution")]
 #[derive(RustEmbed)]
 #[folder = "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/dist"]
 struct MonitorWebAssets;
@@ -20,14 +21,23 @@ struct MonitorWebAssets;
 #[folder = "selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/dist"]
 struct MonitorNotifyWebAssets;
 
+#[cfg(feature = "analytics-distribution")]
+#[derive(RustEmbed)]
+#[folder = "selected-web/62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40/dist"]
+struct AnalyticsWebAssets;
+
 #[cfg(feature = "full")]
 type WebAssets = FullWebAssets;
 #[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
+#[cfg(feature = "monitor-distribution")]
 type WebAssets = MonitorWebAssets;
 #[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 type WebAssets = MonitorNotifyWebAssets;
+#[cfg(feature = "analytics-distribution")]
+type WebAssets = AnalyticsWebAssets;
 
 #[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
+#[cfg(feature = "monitor-distribution")]
 const SELECTED_WEB_INVENTORY: &str = include_str!(
     "../../selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/inventory.json"
 );
@@ -35,10 +45,17 @@ const SELECTED_WEB_INVENTORY: &str = include_str!(
 const SELECTED_WEB_INVENTORY: &str = include_str!(
     "../../selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/inventory.json"
 );
+#[cfg(feature = "analytics-distribution")]
+const SELECTED_WEB_INVENTORY: &str = include_str!(
+    "../../selected-web/62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40/inventory.json"
+);
 #[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
+#[cfg(feature = "monitor-distribution")]
 const SELECTED_WEB_PRESET: &str = "monitor";
 #[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 const SELECTED_WEB_PRESET: &str = "monitor-notify";
+#[cfg(feature = "analytics-distribution")]
+const SELECTED_WEB_PRESET: &str = "analytics";
 
 pub async fn serve(uri: Uri) -> Response {
     #[cfg(feature = "selected-distribution")]
@@ -97,7 +114,12 @@ mod tests {
 
     #[tokio::test]
     async fn embedded_release_contains_index_and_spa_fallback() {
-        for path in ["/", "/monitoring/overview"] {
+        let selected_path = if cfg!(feature = "analytics-distribution") {
+            "/analytics/overview"
+        } else {
+            "/monitoring/overview"
+        };
+        for path in ["/", selected_path] {
             let response = serve(path.parse::<Uri>().expect("uri")).await;
             assert_eq!(response.status(), StatusCode::OK);
             assert_eq!(response.headers()[axum::http::header::CACHE_CONTROL], "no-store");
@@ -123,9 +145,11 @@ mod tests {
 
     #[cfg(feature = "selected-distribution")]
     #[test]
-    fn monitor_embed_is_composition_qualified_and_excludes_full_capabilities() {
+    fn selected_embed_is_composition_qualified_and_excludes_other_capabilities() {
         assert!(SELECTED_WEB_INVENTORY.contains(&format!("\"preset\": \"{SELECTED_WEB_PRESET}\"")));
-        let composition = if SELECTED_WEB_PRESET == "monitor" {
+        let composition = if SELECTED_WEB_PRESET == "analytics" {
+            "62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40"
+        } else if SELECTED_WEB_PRESET == "monitor" {
             "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b"
         } else {
             "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d"
@@ -134,13 +158,24 @@ mod tests {
         for asset in WebAssets::iter() {
             let bytes = WebAssets::get(asset.as_ref()).expect("embedded asset").data;
             let text = String::from_utf8_lossy(&bytes);
-            for forbidden in [
-                "/api/insights",
-                "/api/reports",
-                "/api/manage",
-                "ReactQueryDevtools",
-                "TanStackRouterDevtools",
-            ] {
+            let forbidden = if SELECTED_WEB_PRESET == "analytics" {
+                [
+                    "/api/monitor",
+                    "/api/reports",
+                    "/api/manage",
+                    "ReactQueryDevtools",
+                    "TanStackRouterDevtools",
+                ]
+            } else {
+                [
+                    "/api/insights",
+                    "/api/reports",
+                    "/api/manage",
+                    "ReactQueryDevtools",
+                    "TanStackRouterDevtools",
+                ]
+            };
+            for forbidden in forbidden {
                 assert!(
                     !text.contains(forbidden),
                     "selected embedded asset {asset} contains {forbidden}"

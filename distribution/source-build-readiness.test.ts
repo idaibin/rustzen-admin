@@ -73,6 +73,10 @@ describe("P8 source/build certification admission", () => {
         const audit = auditSourceBuildReadiness(fixture("analytics"));
         expect(audit.availableProducers).toContain("web");
         expect(audit.missingProducers).toContain("cargo");
+        const insights = distributionCatalog.capabilities.find(({ id }) => id === "insights");
+        expect(insights?.packageTargets[0]?.reason).toContain(
+            "Insights service Cargo, selected Admin source/schema and selected Web are implemented",
+        );
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {

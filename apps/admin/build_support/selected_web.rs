@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 const MONITOR_ROUTES: &str = "403.tsx\n404.tsx\n__root.tsx\nindex.tsx\nlogin.tsx\nmonitoring.tsx\nmonitoring/-global-alert-settings.tsx\nmonitoring/-incident-drawer.tsx\nmonitoring/-node-alert-policy.tsx\nmonitoring/-node-details.tsx\nmonitoring/-node-onboarding.tsx\nmonitoring/-save-state.ts\nmonitoring/incidents.tsx\nmonitoring/nodes.tsx\nmonitoring/overview.tsx\nmonitoring/summaries.tsx\nprofile.tsx\nsystem/-role-actions.tsx\nsystem/-role-delete-state.ts\nsystem/-role-dialog.tsx\nsystem/-role-permission-picker.tsx\nsystem/-user-actions.tsx\nsystem/-user-dialog.tsx\nsystem/role.tsx\nsystem/user.tsx";
 const MONITOR_NOTIFY_ROUTES: &str = "-notifications-shell.tsx\n403.tsx\n404.tsx\n__root.tsx\nindex.tsx\nlogin.tsx\nmonitoring.tsx\nmonitoring/-global-alert-settings.tsx\nmonitoring/-incident-drawer.tsx\nmonitoring/-node-alert-policy.tsx\nmonitoring/-node-details.tsx\nmonitoring/-node-onboarding.tsx\nmonitoring/-save-state.ts\nmonitoring/incidents.tsx\nmonitoring/nodes.tsx\nmonitoring/overview.tsx\nmonitoring/summaries.tsx\nprofile.tsx\nsystem/-role-actions.tsx\nsystem/-role-delete-state.ts\nsystem/-role-dialog.tsx\nsystem/-role-permission-picker.tsx\nsystem/-user-actions.tsx\nsystem/-user-dialog.tsx\nsystem/role.tsx\nsystem/user.tsx";
+const ANALYTICS_ROUTES: &str = "403.tsx\n404.tsx\n__root.tsx\nanalytics.tsx\nanalytics/-event-target.ts\nanalytics/details.tsx\nanalytics/overview.tsx\nindex.tsx\nlogin.tsx\nprofile.tsx\nsystem/-role-actions.tsx\nsystem/-role-delete-state.ts\nsystem/-role-dialog.tsx\nsystem/-role-permission-picker.tsx\nsystem/-user-actions.tsx\nsystem/-user-dialog.tsx\nsystem/role.tsx\nsystem/user.tsx";
 
 struct SelectedWeb {
     preset: &'static str,
@@ -18,7 +19,15 @@ pub fn selected_web_root() -> &'static str {
 }
 
 fn selected_web() -> SelectedWeb {
-    if std::env::var_os("CARGO_FEATURE_NOTIFICATIONS").is_some() {
+    if std::env::var_os("CARGO_FEATURE_ANALYTICS_DISTRIBUTION").is_some() {
+        SelectedWeb {
+            preset: "analytics",
+            composition_id: "62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40",
+            root: "selected-web/62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40",
+            generated_root: "apps/web/.selected-web/62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40",
+            output_directory: "target/distributions/62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40/web/dist",
+        }
+    } else if std::env::var_os("CARGO_FEATURE_NOTIFICATIONS").is_some() {
         SelectedWeb {
             preset: "monitor-notify",
             composition_id: "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
@@ -75,6 +84,7 @@ pub fn validate_selected_web() {
 
     let selected_api = std::fs::read(&api_path)
         .unwrap_or_else(|_| panic!("monitor distribution requires selected Web API: {api_path}"));
+    crate::selected_api::validate(selected.preset, &selected_api);
     assert_eq!(
         binding["selectedApiDigest"].as_str(),
         Some(sha256(&selected_api).as_str()),
@@ -139,8 +149,12 @@ fn validate_inventory_contract(inventory: &Value, selected: &SelectedWeb) {
         inventory["outputDirectory"], selected.output_directory,
         "selected Web output mismatch"
     );
-    let expected_routes =
-        if selected.preset == "monitor" { MONITOR_ROUTES } else { MONITOR_NOTIFY_ROUTES };
+    let expected_routes = match selected.preset {
+        "monitor" => MONITOR_ROUTES,
+        "monitor-notify" => MONITOR_NOTIFY_ROUTES,
+        "analytics" => ANALYTICS_ROUTES,
+        _ => unreachable!("selected Web preset is fixed"),
+    };
     assert_eq!(
         string_array(&inventory["selectedRoutes"], "selected routes"),
         expected_routes.split('\n').collect::<Vec<_>>(),
@@ -153,7 +167,7 @@ fn validate_inventory_contract(inventory: &Value, selected: &SelectedWeb) {
     );
     let modules = string_array(&inventory["moduleIds"], "module IDs");
     let prefix = format!("apps/web/.selected-web/{}/", selected.composition_id);
-    crate::module_policy::validate(&modules, &prefix, selected.preset == "monitor-notify");
+    crate::module_policy::validate(&modules, &prefix, selected.preset);
 }
 
 fn string_array<'a>(value: &'a Value, label: &str) -> Vec<&'a str> {

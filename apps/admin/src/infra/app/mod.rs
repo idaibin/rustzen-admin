@@ -8,7 +8,7 @@ pub(crate) use routes::documented_protected_routes;
 pub use runtime::run_server;
 
 #[cfg(all(test, feature = "selected-distribution"))]
-mod monitor_distribution_tests;
+mod selected_distribution_tests;
 #[cfg(all(test, feature = "full"))]
 mod tests;
 

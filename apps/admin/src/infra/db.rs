@@ -12,8 +12,22 @@ use crate::infra::config::CONFIG;
 
 #[cfg(feature = "full")]
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/sqlite");
+#[cfg(all(feature = "selected-distribution", feature = "monitor-distribution"))]
+macro_rules! selected_migrator {
+    () => {
+        sqlx::migrate!("./migrations/sqlite-monitor")
+    };
+}
+
+#[cfg(all(feature = "selected-distribution", feature = "analytics-distribution"))]
+macro_rules! selected_migrator {
+    () => {
+        sqlx::migrate!("./migrations/sqlite-analytics")
+    };
+}
+
 #[cfg(feature = "selected-distribution")]
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/sqlite-monitor");
+static MIGRATOR: sqlx::migrate::Migrator = selected_migrator!();
 
 #[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 const NOTIFICATION_LEDGER: &str = "_sqlx_admin_notifications_migrations";
@@ -338,7 +352,7 @@ mod full_schema_tests {
 }
 
 #[cfg(all(test, feature = "selected-distribution"))]
-mod monitor_distribution_tests {
+mod selected_distribution_tests {
     use super::*;
     use crate::{
         features::auth::service::AuthService,
@@ -357,7 +371,18 @@ mod monitor_distribution_tests {
         (pool, objects)
     }
 
-    async fn assert_access_and_monitor_objects(pool: &SqlitePool, objects: &[String]) {
+    fn selected_module_id() -> &'static str {
+        #[cfg(feature = "monitor-distribution")]
+        {
+            "monitor"
+        }
+        #[cfg(feature = "analytics-distribution")]
+        {
+            "insights"
+        }
+    }
+
+    async fn assert_access_and_selected_module_objects(pool: &SqlitePool, objects: &[String]) {
         for required in [
             "users",
             "roles",
@@ -384,7 +409,7 @@ mod monitor_distribution_tests {
                 .fetch_all(pool)
                 .await
                 .expect("selected modules"),
-            ["monitor"]
+            [selected_module_id()]
         );
     }
 
@@ -392,7 +417,7 @@ mod monitor_distribution_tests {
     #[tokio::test]
     async fn pure_monitor_schema_has_no_notification_tables_or_ledger() {
         let (pool, objects) = fresh_schema_objects().await;
-        assert_access_and_monitor_objects(&pool, &objects).await;
+        assert_access_and_selected_module_objects(&pool, &objects).await;
         for excluded in [
             "notification_accounting",
             "notifications",
@@ -409,7 +434,7 @@ mod monitor_distribution_tests {
     #[tokio::test]
     async fn monitor_notify_schema_has_notification_tables_and_second_ledger() {
         let (pool, objects) = fresh_schema_objects().await;
-        assert_access_and_monitor_objects(&pool, &objects).await;
+        assert_access_and_selected_module_objects(&pool, &objects).await;
         for required in [
             "notification_accounting",
             "notifications",

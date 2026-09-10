@@ -70,10 +70,14 @@ async fn concurrent_wal_writer_cannot_turn_login_into_a_busy_snapshot() {
 async fn write_during_logins(pool: SqlitePool, barrier: Arc<Barrier>) {
     barrier.wait().await;
     for _ in 0..100 {
-        sqlx::query("UPDATE modules SET enabled=NOT enabled WHERE id='monitor'")
-            .execute(&pool)
-            .await
-            .expect("concurrent writer");
+        sqlx::query(if cfg!(feature = "analytics-distribution") {
+            "UPDATE modules SET enabled=NOT enabled WHERE id='insights'"
+        } else {
+            "UPDATE modules SET enabled=NOT enabled WHERE id='monitor'"
+        })
+        .execute(&pool)
+        .await
+        .expect("concurrent writer");
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
 }

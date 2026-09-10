@@ -116,7 +116,7 @@ closure happens to match a named preset.
 | `monitor` | Selected Admin/Controller Cargo, Web, API/schema/config, protocol and native-layout producers; signed apply and Linux activation gates exist | Admitted to source/build certification | One fixed clean build basis and final acceptance report |
 | `monitor-notify` | Current exact Linux/amd64 50-file export at `target/rz/p8fb-r9-monitor-notify-export-20260910T125008Z`, dirty source `git:cb357c671b88ecfaf5987a30b7de39f0ef125a0d tree:a419bf42ace680f08ff6b3f25631aa7c9516c4fe68324377a6352b510e29d427 state:dirty`, build `d1aab233941aae6b513733c5f6f4f78a5e2cd264cdfc32e937692a1be2dd52c5`, composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d`, signed archive/manifest/envelope/certificate `045b0094d8822783c923bc0402fdc06925e54fd51ad12907790dbc2e12dd313c` / `bd0355b61da631780f98bfdd6d049b665e7e36c40d521612e4e6272bc06efaa7` / `0f50bcbafa225a7bd74c0b4f545990fe08f1dcefe95e5a69ae1744349c790ccb` / `d62a6d9db4d71369636783e43205ea1b75558a16c4192e233f1b8331e94822cf`, native evidence `target/rz/p8fb-r9-native-20260910T125008Z/monitor-native-runtime-evidence.json` (SHA-256 `bdaea45a3b5b78e53501c36ecbc0b8aaa4512f5b8d5fea3b1739ab97745443f8`) and business receipt `target/rz/p8fb-r9-business-20260910T125008Z/receipt.json` (SHA-256 `3ab76a4af846da1e56fff144d942fd1da52888440195f8542b50f7026a066c89`) | Signed certificate, systemd PID1, verified Agent sequences 2–4, incident/inbox, Chrome 153 Bearer GET SSE without a URL token, strict same-clock ordering, Monitor-visible and Insights/Reports-absent routes, detail deep link/read/reload, and 1440×900 visual screenshots passed | `browser:true`; `load:false` and `releaseReady:false`. P8g load and production deployment remain Not verified |
 | `node-agent` | Agent Cargo, config, protocol, native layout, signed apply and controlled Linux pairing evidence | Admitted to source/build certification | Final PID1/service restart and shipped-target report |
-| `analytics` | Explicit pure-Insights service build plus a composition-qualified selected Web artifact containing only access and Analytics routes/API imports; its verifier checks exact files, source modules, byte digests and Monitor/Reports/notifications absence | Rejected | Selected Admin Cargo, API, schema, config, protocol and native-layout producers; the completed service/Web slices do not admit the server producer family |
+| `analytics` | Explicit pure-Insights service build, selected Admin source composition/fresh schema, and a composition-qualified selected Web artifact containing only access and Analytics routes/API imports; the Admin build verifies the exact Web and two-read API authority | Rejected | Complete Cargo, API, schema, config, protocol and native-layout producers; the completed service/Admin/Web slices do not admit the server producer family |
 | `reports` | Catalog, Reports application and notification producer slices only | Rejected | Selected Admin/Reports Cargo boundary, Web graph and contracts |
 | target `full` | Default full regression builds and journeys exist, but optional Admin/Insights/Reports selected producers are incomplete | Rejected | Exact target-full selected producers and its own full acceptance report |
 | `current-full-regression` | Internal test fixture | Rejected | Permanently ineligible for production certification |
@@ -210,6 +210,16 @@ login. The full Admin regression passes 126 tests with one benchmark ignored.
 This verifies the backend composition and the declared essential Web root
 contract; P3 still owns generation and physical verification of the selected
 Web bundle and selected API artifact.
+
+Analytics selected-Web input is now generated and verified for composition
+`62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40`. Its
+artifact contains access plus Analytics overview/detail routes and the two
+Insights reads only; Monitor, Reports, notifications and management owners are
+rejected by the inventory and API-source policies. The pure Insights service,
+Analytics Admin composition with its isolated fresh schema, and this Web
+artifact are source/build evidence only. Complete Cargo, selected
+API/schema/config/protocol/native producers and runtime certification remain
+required before P8 can admit Analytics.
 
 The Monitor native producer embeds only the verified composition-qualified copy at `apps/admin/selected-web/<compositionId>/dist`; the generic `apps/web/dist` is used only by the full composition. The Admin build script rejects a missing selected inventory, a composition mismatch, or an absent selected `index.html`. Docker accepts only the reviewed `monitor` and `monitor-notify` presets, each mapped by a literal Docker case to its fixture and exact Admin/Monitor Cargo features. Each physically emits server `rz-admin`/`rz-monitor` to `release/server/bin` and Agent `rz-monitor-agent` to `witness/bin`; selected Web and API/schema/config/protocol/native-layout contracts carry the same composition. The branches build and verify selected Web before copying it to the corresponding embedded directory and compiling Admin.
 

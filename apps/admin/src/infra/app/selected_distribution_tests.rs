@@ -34,7 +34,7 @@ async fn authenticated_token(pool: &SqlitePool, user_id: i64, username: &str) ->
 }
 
 #[test]
-fn route_inventory_contains_access_and_monitor_navigation_only() {
+fn route_inventory_contains_access_and_selected_navigation_only() {
     let contracts = documented_all_contracts();
     let paths = contracts.iter().map(|contract| contract.path.as_str()).collect::<Vec<_>>();
     for required in [
@@ -55,7 +55,7 @@ fn route_inventory_contains_access_and_monitor_navigation_only() {
             .iter()
             .filter(|path| path.starts_with("/api/system/menus"))
             .all(|path| *path == "/api/system/menus/options"),
-        "monitor distribution must expose only the permission-options menu route"
+        "selected distribution must expose only the permission-options menu route"
     );
     for excluded_prefix in [
         "/api/manage/",
@@ -80,7 +80,10 @@ fn route_inventory_contains_access_and_monitor_navigation_only() {
         6,
         "monitor-notify must expose the exact notification route owner"
     );
-    assert_eq!(ModuleSpec::fixed().iter().map(|module| module.id).collect::<Vec<_>>(), ["monitor"]);
+    assert_eq!(
+        ModuleSpec::fixed().iter().map(|module| module.id).collect::<Vec<_>>(),
+        if cfg!(feature = "analytics-distribution") { ["insights"] } else { ["monitor"] }
+    );
 }
 
 #[tokio::test]

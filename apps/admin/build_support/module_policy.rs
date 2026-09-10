@@ -135,7 +135,9 @@ const RC_COMPONENTS: &[&str] = &[
     "virtual-list",
 ];
 
-pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool) {
+pub fn validate(module_ids: &[&str], generated_prefix: &str, preset: &str) {
+    let notifications = preset == "monitor-notify";
+    let analytics = preset == "analytics";
     let mut generated = 0;
     for raw in module_ids {
         let id = raw.split_once('?').map_or(*raw, |(path, _)| path);
@@ -149,6 +151,13 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool
             generated += 1;
         } else if id.starts_with("apps/web/.selected-web/") {
             panic!("selected Web module inventory contains another composition source: {raw}");
+        } else if analytics
+            && (id.contains("/monitor/")
+                || id.contains("/reports/")
+                || id.contains("/notifications/")
+                || id.contains("/manage/"))
+        {
+            panic!("Analytics selected Web module inventory contains an excluded owner: {raw}");
         } else if !notifications
             && matches!(
                 id,
@@ -173,15 +182,14 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool
         }
     }
     assert!(generated > 0, "selected Web module inventory has no generated route source");
-    let mut required = vec![
-        "apps/web/src/api/installation/api.ts",
-        if notifications {
+    let mut required = vec!["apps/web/src/api/installation/api.ts", "apps/web/src/api/request.ts"];
+    if !analytics {
+        required.push(if notifications {
             "apps/web/src/api/monitor/api.ts"
         } else {
             "apps/web/src/api/monitor/core-api.ts"
-        },
-        "apps/web/src/api/request.ts",
-    ];
+        });
+    }
     if notifications {
         required.push("apps/web/src/api/notifications/api.ts");
     }
@@ -233,7 +241,7 @@ mod tests {
                 "apps/web/src/api/request.ts",
             ],
             PREFIX,
-            false,
+            "monitor",
         );
     }
 
@@ -250,7 +258,7 @@ mod tests {
                 "apps/web/src/api/request.ts",
             ],
             PREFIX,
-            true,
+            "monitor-notify",
         );
     }
 
@@ -266,7 +274,7 @@ mod tests {
                 "apps/web/src/api/request.ts",
             ],
             PREFIX,
-            false,
+            "monitor",
         );
     }
 
@@ -282,7 +290,7 @@ mod tests {
                 "apps/web/src/api/request.ts",
             ],
             PREFIX,
-            false,
+            "monitor",
         );
     }
 }

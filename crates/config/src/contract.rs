@@ -22,6 +22,7 @@ pub struct ConfigField {
 
 #[cfg(any(
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
     feature = "notifications",
@@ -37,6 +38,7 @@ fn field(
 }
 #[cfg(any(
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
     feature = "notifications",
@@ -63,6 +65,7 @@ fn optional_secret(key: &'static str, secret_ref: &'static str) -> ConfigField {
 }
 #[cfg(any(
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
     feature = "reports"
@@ -74,7 +77,12 @@ fn runtime_fields() -> Vec<ConfigField> {
         field("RUSTZEN_TIMEZONE", "timezone", false, "built-in"),
     ]
 }
-#[cfg(any(feature = "admin-monitor", feature = "monitor-controller", feature = "reports"))]
+#[cfg(any(
+    feature = "admin-monitor",
+    feature = "admin-insights",
+    feature = "monitor-controller",
+    feature = "reports"
+))]
 fn database_fields() -> Vec<ConfigField> {
     vec![
         field("RUSTZEN_DB_CONN_TIMEOUT", "seconds", false, "built-in"),
@@ -85,6 +93,7 @@ fn database_fields() -> Vec<ConfigField> {
 }
 #[cfg(any(
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
     feature = "notifications",
@@ -184,6 +193,23 @@ pub fn admin_monitor_contract() -> ConfigContract {
     contract("access", "rz-admin", fields)
 }
 
+#[cfg(feature = "admin-insights")]
+pub fn admin_insights_contract() -> ConfigContract {
+    let mut fields = runtime_fields();
+    fields.extend(database_fields());
+    fields.extend([
+        field("RUSTZEN_ADMIN_HOST", "host", false, "built-in"),
+        field("RUSTZEN_ADMIN_PORT", "port", false, "built-in"),
+        field("RUSTZEN_ADMIN_SQLITE_PATH", "path", false, "built-in"),
+        field("RUSTZEN_INSIGHTS_PORT", "port", false, "built-in"),
+        field("RUSTZEN_INTERNAL_HOST", "host", false, "built-in"),
+        secret("RUSTZEN_IPC_TOKEN", "insights.ipc"),
+        field("RUSTZEN_JWT_EXPIRATION", "seconds", false, "built-in"),
+        secret("RUSTZEN_JWT_SECRET", "auth.jwt"),
+    ]);
+    contract("access", "rz-admin", fields)
+}
+
 #[cfg(feature = "monitor-controller")]
 pub fn monitor_controller_contract() -> ConfigContract {
     let mut fields = runtime_fields();
@@ -220,6 +246,7 @@ pub fn monitor_agent_contract() -> ConfigContract {
     test,
     any(
         feature = "admin-monitor",
+        feature = "admin-insights",
         feature = "monitor-controller",
         feature = "monitor-agent",
         feature = "notifications",
@@ -241,7 +268,10 @@ mod tests {
         for field in &contract.fields {
             let value_type = match field.key {
                 "RUSTZEN_ADMIN_HOST" | "RUSTZEN_INTERNAL_HOST" => "host",
-                "RUSTZEN_ADMIN_PORT" | "RUSTZEN_MONITOR_PORT" | "RUSTZEN_REPORTS_PORT" => "port",
+                "RUSTZEN_ADMIN_PORT"
+                | "RUSTZEN_INSIGHTS_PORT"
+                | "RUSTZEN_MONITOR_PORT"
+                | "RUSTZEN_REPORTS_PORT" => "port",
                 "RUSTZEN_ADMIN_SQLITE_PATH"
                 | "RUSTZEN_MONITOR_SQLITE_PATH"
                 | "RUSTZEN_REPORTS_SQLITE_PATH"
@@ -286,6 +316,11 @@ mod tests {
             let (required, default_class, secret_ref) = match field.key {
                 "RUSTZEN_IPC_TOKEN" if contract.owner == "reports" => {
                     (true, "development-only", Some("reports.ipc"))
+                }
+                "RUSTZEN_IPC_TOKEN"
+                    if contract.fields.iter().any(|field| field.key == "RUSTZEN_INSIGHTS_PORT") =>
+                {
+                    (true, "development-only", Some("insights.ipc"))
                 }
                 "RUSTZEN_IPC_TOKEN" => (true, "development-only", Some("monitor.ipc")),
                 "RUSTZEN_JWT_SECRET" => (true, "development-only", Some("auth.jwt")),
@@ -385,6 +420,8 @@ mod tests {
             super::notifications_contract(),
             #[cfg(feature = "admin-monitor")]
             super::admin_monitor_contract(),
+            #[cfg(feature = "admin-insights")]
+            super::admin_insights_contract(),
             #[cfg(feature = "monitor-controller")]
             super::monitor_controller_contract(),
             #[cfg(feature = "monitor-agent")]
@@ -444,6 +481,37 @@ mod tests {
         assert_eq!(
             secret_refs(&contract),
             [("RUSTZEN_IPC_TOKEN", "monitor.ipc"), ("RUSTZEN_JWT_SECRET", "auth.jwt")]
+        );
+    }
+
+    #[cfg(feature = "admin-insights")]
+    #[test]
+    fn analytics_admin_descriptor_is_exact() {
+        let contract = super::admin_insights_contract();
+        assert_eq!((contract.owner, contract.consumer), ("access", "rz-admin"));
+        assert_eq!(
+            keys(&contract),
+            [
+                "RUSTZEN_ADMIN_HOST",
+                "RUSTZEN_ADMIN_PORT",
+                "RUSTZEN_ADMIN_SQLITE_PATH",
+                "RUSTZEN_DB_CONN_TIMEOUT",
+                "RUSTZEN_DB_IDLE_TIMEOUT",
+                "RUSTZEN_DB_MAX_CONN",
+                "RUSTZEN_DB_MIN_CONN",
+                "RUSTZEN_ENV",
+                "RUSTZEN_INSIGHTS_PORT",
+                "RUSTZEN_INTERNAL_HOST",
+                "RUSTZEN_IPC_TOKEN",
+                "RUSTZEN_JWT_EXPIRATION",
+                "RUSTZEN_JWT_SECRET",
+                "RUSTZEN_RUNTIME_ROOT",
+                "RUSTZEN_TIMEZONE",
+            ]
+        );
+        assert_eq!(
+            secret_refs(&contract),
+            [("RUSTZEN_IPC_TOKEN", "insights.ipc"), ("RUSTZEN_JWT_SECRET", "auth.jwt")]
         );
     }
 

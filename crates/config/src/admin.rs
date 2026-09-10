@@ -10,13 +10,14 @@ use crate::shared::{
 const DEFAULT_ADMIN_HOST: &str = "0.0.0.0";
 const DEFAULT_ADMIN_PORT: u16 = 9801;
 const DEFAULT_INTERNAL_HOST: &str = "127.0.0.1";
+#[cfg(any(feature = "admin", feature = "admin-monitor"))]
 const DEFAULT_MONITOR_PORT: u16 = 9802;
-#[cfg(feature = "admin")]
+#[cfg(any(feature = "admin", feature = "admin-insights"))]
 const DEFAULT_INSIGHTS_PORT: u16 = 9803;
 #[cfg(feature = "admin")]
 const DEFAULT_REPORTS_PORT: u16 = 9804;
 const DEFAULT_ADMIN_SQLITE_PATH: &str = "./data/db/admin.db";
-#[cfg(feature = "admin")]
+#[cfg(any(feature = "admin", feature = "admin-monitor"))]
 const DEFAULT_MONITOR_SQLITE_PATH: &str = "./data/db/monitor.db";
 #[cfg(feature = "admin")]
 const DEFAULT_INSIGHTS_SQLITE_PATH: &str = "./data/db/insights.db";
@@ -60,9 +61,10 @@ pub struct AdminConfig {
     pub admin_port: Option<u16>,
     #[serde(default)]
     pub internal_host: Option<String>,
+    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
     #[serde(default)]
     pub monitor_port: Option<u16>,
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin", feature = "admin-insights"))]
     #[serde(default)]
     pub insights_port: Option<u16>,
     #[cfg(feature = "admin")]
@@ -70,7 +72,7 @@ pub struct AdminConfig {
     pub reports_port: Option<u16>,
     #[serde(default)]
     pub admin_sqlite_path: Option<String>,
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
     #[serde(default)]
     pub monitor_sqlite_path: Option<String>,
     #[cfg(feature = "admin")]
@@ -175,13 +177,24 @@ impl AdminConfig {
         self.internal_host.as_deref().unwrap_or(DEFAULT_INTERNAL_HOST)
     }
 
+    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
     pub fn monitor_port(&self) -> u16 {
         self.monitor_port.unwrap_or(DEFAULT_MONITOR_PORT)
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin", feature = "admin-insights"))]
     pub fn insights_port(&self) -> u16 {
         self.insights_port.unwrap_or(DEFAULT_INSIGHTS_PORT)
+    }
+
+    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    pub fn monitor_base_url(&self) -> String {
+        format!("http://{}:{}", self.internal_host(), self.monitor_port())
+    }
+
+    #[cfg(any(feature = "admin", feature = "admin-insights"))]
+    pub fn insights_base_url(&self) -> String {
+        format!("http://{}:{}", self.internal_host(), self.insights_port())
     }
 
     #[cfg(feature = "admin")]
@@ -244,7 +257,7 @@ impl AdminConfig {
         self.database_path(self.admin_sqlite_path.as_deref(), DEFAULT_ADMIN_SQLITE_PATH)
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
     pub fn monitor_database_path(&self) -> PathBuf {
         self.database_path(self.monitor_sqlite_path.as_deref(), DEFAULT_MONITOR_SQLITE_PATH)
     }
@@ -257,10 +270,6 @@ impl AdminConfig {
     #[cfg(feature = "admin")]
     pub fn reports_database_path(&self) -> PathBuf {
         self.database_path(self.reports_sqlite_path.as_deref(), DEFAULT_REPORTS_SQLITE_PATH)
-    }
-
-    pub fn monitor_base_url(&self) -> String {
-        format!("http://{}:{}", self.internal_host(), self.monitor_port())
     }
 
     #[cfg(feature = "notifications")]
@@ -317,11 +326,6 @@ impl AdminConfig {
                 .zip(self.reports_notification_previous_event_key_expires_at)
                 .map(|((id, key), expires)| (id, key, expires)),
         )
-    }
-
-    #[cfg(feature = "admin")]
-    pub fn insights_base_url(&self) -> String {
-        format!("http://{}:{}", self.internal_host(), self.insights_port())
     }
 
     #[cfg(feature = "admin")]
@@ -580,6 +584,36 @@ mod monitor_distribution_tests {
         assert!(rotating.validate().is_err());
         rotating.notification_previous_event_key_expires_at = Some(now + 121);
         assert!(rotating.validate().is_err());
+    }
+}
+
+#[cfg(all(test, feature = "admin-insights", not(feature = "admin")))]
+mod analytics_distribution_tests {
+    use figment::{Figment, providers::Serialized};
+    use serde::Serialize;
+
+    use super::AdminConfig;
+
+    #[derive(Serialize)]
+    struct Settings<'a> {
+        insights_port: u16,
+        insights_sqlite_path: &'a str,
+        monitor_port: &'a str,
+        reports_port: &'a str,
+    }
+
+    #[test]
+    fn analytics_admin_parses_only_access_and_insights_endpoint_settings() {
+        let config: AdminConfig = Figment::new()
+            .merge(Serialized::defaults(Settings {
+                insights_port: 19003,
+                insights_sqlite_path: "",
+                monitor_port: "not-a-number",
+                reports_port: "not-a-number",
+            }))
+            .extract()
+            .expect("other process settings are outside the Analytics Admin config");
+        assert_eq!(config.insights_base_url(), "http://127.0.0.1:19003");
     }
 }
 

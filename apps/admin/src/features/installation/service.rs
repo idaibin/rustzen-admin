@@ -1,6 +1,9 @@
 use rustzen_auth::auth::CurrentUser;
 
-use crate::features::modules::{service::ModuleControlState, types::ModuleCondition};
+use crate::features::modules::{
+    service::ModuleControlState,
+    types::{ModuleCondition, selected_module_id},
+};
 
 use super::types::{InstallationResponse, SelectedServiceResponse, SelectedServiceState};
 
@@ -83,7 +86,7 @@ pub fn web_digest() -> &'static str {
 }
 
 fn selected_feature_ids() -> Vec<&'static str> {
-    let features = vec!["access", "monitor"];
+    let features = vec!["access", selected_module_id()];
     #[cfg(feature = "notifications")]
     let features = {
         let mut features = features;

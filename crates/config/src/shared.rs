@@ -3,6 +3,7 @@ use std::{path::PathBuf, time::Duration};
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -14,6 +15,7 @@ use serde::Deserialize;
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -28,6 +30,7 @@ pub(crate) const DEFAULT_DB_IDLE_TIMEOUT: u64 = 600;
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "reports"
@@ -39,6 +42,7 @@ pub(crate) const DEFAULT_MONITOR_AGENT_TOKEN: &str =
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -150,6 +154,7 @@ impl RuntimeConfig {
     #[cfg(any(
         feature = "admin",
         feature = "admin-monitor",
+        feature = "admin-insights",
         feature = "insights",
         feature = "monitor-controller",
         feature = "monitor-agent",
@@ -206,6 +211,7 @@ impl DatabaseConfig {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -218,6 +224,7 @@ pub(crate) fn load<T: DeserializeOwned>() -> Result<T, ConfigError> {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -230,6 +237,7 @@ pub(crate) fn local<T: DeserializeOwned>() -> Result<T, ConfigError> {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -250,6 +258,7 @@ pub(crate) fn default_runtime_root() -> String {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "reports"
@@ -266,6 +275,7 @@ pub(crate) fn default_monitor_agent_token() -> String {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -292,6 +302,7 @@ pub fn valid_monitor_agent_token(value: &str) -> bool {
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",
@@ -310,6 +321,7 @@ pub(crate) fn ensure_optional_non_empty(
 #[cfg(any(
     feature = "admin",
     feature = "admin-monitor",
+    feature = "admin-insights",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",

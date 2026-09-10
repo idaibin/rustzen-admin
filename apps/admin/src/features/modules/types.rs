@@ -17,15 +17,28 @@ pub struct ModuleSpec {
 
 impl ModuleSpec {
     pub fn fixed() -> Vec<Self> {
-        #[allow(unused_mut)]
-        let mut modules =
-            vec![Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() }];
         #[cfg(feature = "full")]
-        modules.extend([
+        return vec![
+            Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() },
             Self { id: "insights", name: "分析", base_url: CONFIG.insights_base_url() },
             Self { id: "reports", name: "报表", base_url: CONFIG.reports_base_url() },
-        ]);
-        modules
+        ];
+        #[cfg(feature = "monitor-distribution")]
+        return vec![Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() }];
+        #[cfg(feature = "analytics-distribution")]
+        vec![Self { id: "insights", name: "分析", base_url: CONFIG.insights_base_url() }]
+    }
+}
+
+#[cfg(feature = "selected-distribution")]
+pub(crate) const fn selected_module_id() -> &'static str {
+    #[cfg(feature = "monitor-distribution")]
+    {
+        "monitor"
+    }
+    #[cfg(feature = "analytics-distribution")]
+    {
+        "insights"
     }
 }
 
@@ -171,14 +184,14 @@ mod tests {
 }
 
 #[cfg(all(test, feature = "selected-distribution"))]
-mod monitor_distribution_tests {
+mod selected_distribution_tests {
     use super::ModuleSpec;
 
     #[test]
-    fn fixed_module_order_contains_only_monitor() {
+    fn fixed_module_order_contains_only_the_selected_service() {
         assert_eq!(
             ModuleSpec::fixed().into_iter().map(|spec| spec.id).collect::<Vec<_>>(),
-            ["monitor"]
+            [super::selected_module_id()]
         );
     }
 }

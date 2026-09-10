@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { stat, utimes } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -17,24 +18,73 @@ const cargo = [
     "monitor-distribution",
 ];
 
-const checkFeatures = (features: string) => Bun.spawnSync([
-    "cargo", "check", "-p", "rustzen-admin", "--no-default-features", "--features", features,
-], {
-    cwd: root,
-    env: { ...process.env, CARGO_TERM_COLOR: "never" },
-    stdout: "pipe",
-    stderr: "pipe",
+const checkFeatures = (features: string) =>
+    Bun.spawnSync(
+        ["cargo", "check", "-p", "rustzen-admin", "--no-default-features", "--features", features],
+        {
+            cwd: root,
+            env: { ...process.env, CARGO_TERM_COLOR: "never" },
+            stdout: "pipe",
+            stderr: "pipe",
+        },
+    );
+
+test("Analytics Admin binds the reviewed API authority digest", async () => {
+    const analyticsId = "62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40";
+    const embedRoot = resolve(root, "apps/admin/selected-web", analyticsId);
+    const expected = "3f1799bcf33b1d18a479486401c35bc43820b8e89eb1381b9cc8ec9e1464e85d";
+    const source = await Bun.file(
+        resolve(root, "apps/web/src/distribution/analytics-api.ts"),
+    ).bytes();
+    const policy = await Bun.file(resolve(root, "apps/admin/build_support/selected_api.rs")).text();
+    const binding = await Bun.file(resolve(embedRoot, "binding.json")).json();
+    const inventory = await Bun.file(resolve(embedRoot, "inventory.json")).json();
+
+    expect(createHash("sha256").update(source).digest("hex")).toBe(expected);
+    expect(policy).toContain(expected);
+    expect(binding.selectedApiDigest).toBe(expected);
+    expect(inventory.binding.selectedApiDigest).toBe(expected);
 });
 
 test("Admin accepts only reviewed composition feature unions", () => {
-    for (const features of ["full", "monitor-distribution", "monitor-distribution,notifications"])
+    for (const features of [
+        "full",
+        "monitor-distribution",
+        "monitor-distribution,notifications",
+        "analytics-distribution",
+    ])
         expect(checkFeatures(features).exitCode, features).toBe(0);
 
     for (const [features, marker] of [
         ["selected-distribution", "select exactly one reviewed Admin composition feature"],
-        ["selected-distribution,notifications", "select exactly one reviewed Admin composition feature"],
-        ["monitor-distribution,reports-notifications", "Reports notifications require the full Admin composition"],
-        ["full,monitor-distribution", "full and selected-distribution are mutually exclusive"],
+        [
+            "selected-distribution,notifications",
+            "select exactly one reviewed Admin composition feature",
+        ],
+        [
+            "monitor-distribution,reports-notifications",
+            "Reports notifications require the full Admin composition",
+        ],
+        ["full,monitor-distribution", "select exactly one Admin configuration profile"],
+        [
+            "analytics-distribution,notifications",
+            "admin-insights cannot include another process configuration",
+        ],
+        [
+            "monitor-distribution,analytics-distribution",
+            "select exactly one Admin configuration profile",
+        ],
+        ["full,analytics-distribution", "select exactly one Admin configuration profile"],
+        [
+            "analytics-distribution,rustzen-config/admin",
+            "select exactly one Admin configuration profile",
+        ],
+        ...["insights", "monitor-controller", "monitor-agent", "reports", "notifications"].map(
+            (feature) => [
+                `analytics-distribution,rustzen-config/${feature}`,
+                "admin-insights cannot include another process configuration",
+            ],
+        ),
     ]) {
         const result = checkFeatures(features);
         expect(result.exitCode, features).not.toBe(0);

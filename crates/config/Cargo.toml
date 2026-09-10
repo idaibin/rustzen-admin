@@ -9,6 +9,7 @@ publish = false
 default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"]
 admin = []
 admin-monitor = []
+admin-insights = []
 notifications = ["dep:rustzen-ipc"]
 reports-notifications = ["reports", "notifications"]
 insights = []

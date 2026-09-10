@@ -61,7 +61,7 @@
                     "package": "rustzen-insights",
                     "binary": "rz-insights",
                     "status": "blocked",
-                    "reason": "Selected Cargo features and selected Web graph are not implemented."
+                    "reason": "Insights service Cargo, selected Admin source/schema and selected Web are implemented; complete server contracts, native packaging and runtime certification are not complete."
                 }
             ],
             "webRoots": [

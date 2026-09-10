@@ -22,6 +22,19 @@ prepare-monitor-embed:
     pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/monitor.json
     composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "target/distributions/$composition/web/binding.json" "target/distributions/$composition/web/api.ts" "apps/admin/selected-web/$composition/"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
 
+prepare-analytics-embed:
+    pnpm dlx bun@1.3.14 scripts/distribution-build-web.ts --selection distribution/fixtures/analytics.json
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/analytics.json
+    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/analytics.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "target/distributions/$composition/web/binding.json" "target/distributions/$composition/web/api.ts" "apps/admin/selected-web/$composition/"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
+
+verify-analytics-admin:
+    just prepare-analytics-embed
+    cargo test -p rustzen-config --no-default-features --features admin-insights
+    cargo test -p rustzen-admin --no-default-features --features analytics-distribution -- --test-threads=1
+    cargo clippy -p rustzen-admin --no-default-features --features analytics-distribution -- -D warnings
+    cargo build -p rustzen-admin --no-default-features --features analytics-distribution
+    pnpm dlx bun@1.3.14 test scripts/distribution-admin-web-build-gate.test.ts
+
 verify-monitor-admin:
     pnpm dlx bun@1.3.14 test scripts/distribution-verify-docker.test.ts
     just prepare-monitor-embed

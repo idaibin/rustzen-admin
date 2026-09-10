@@ -1,5 +1,7 @@
 #[path = "build_support/module_policy.rs"]
 mod module_policy;
+#[path = "build_support/selected_api.rs"]
+mod selected_api;
 #[path = "build_support/selected_web.rs"]
 mod selected_web;
 

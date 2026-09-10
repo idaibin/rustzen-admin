@@ -1,6 +1,25 @@
 //! Focused runtime configuration for the four Rustzen applications.
 
-#[cfg(any(feature = "admin", feature = "admin-monitor"))]
+#[cfg(any(
+    all(feature = "admin", feature = "admin-monitor"),
+    all(feature = "admin", feature = "admin-insights"),
+    all(feature = "admin-monitor", feature = "admin-insights")
+))]
+compile_error!("select exactly one Admin configuration profile");
+
+#[cfg(all(
+    feature = "admin-insights",
+    any(
+        feature = "insights",
+        feature = "monitor-controller",
+        feature = "monitor-agent",
+        feature = "reports",
+        feature = "notifications"
+    )
+))]
+compile_error!("admin-insights cannot include another process configuration");
+
+#[cfg(any(feature = "admin", feature = "admin-monitor", feature = "admin-insights"))]
 mod admin;
 #[cfg(feature = "monitor-agent")]
 mod agent_activation;
@@ -14,6 +33,8 @@ mod reports;
 mod shared;
 
 pub use contract::ConfigContract;
+#[cfg(feature = "admin-insights")]
+pub use contract::admin_insights_contract;
 #[cfg(feature = "admin-monitor")]
 pub use contract::admin_monitor_contract;
 #[cfg(feature = "monitor-agent")]
@@ -25,7 +46,7 @@ pub use contract::notifications_contract;
 #[cfg(feature = "reports")]
 pub use contract::reports_contract;
 
-#[cfg(any(feature = "admin", feature = "admin-monitor"))]
+#[cfg(any(feature = "admin", feature = "admin-monitor", feature = "admin-insights"))]
 pub use admin::AdminConfig;
 #[cfg(feature = "monitor-agent")]
 pub use agent_activation::{
