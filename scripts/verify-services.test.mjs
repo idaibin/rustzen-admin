@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const script = await Bun.file(new URL("./verify-services.sh", import.meta.url)).text();
 const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
@@ -33,11 +36,21 @@ test("four-service verifier binds Monitor's selected database before every contr
     expect(startService).not.toMatch(/monitor\).*\b(?:init-db|bind-database|validate-database)\b/);
 });
 
-test("public verifier target runs the contract harness and current authority test", () => {
-    const target = justfile.slice(justfile.indexOf("verify-services:"), justfile.indexOf("\nverify-modules-mvp:"));
-    expect(target).toContain("pnpm dlx bun@1.3.14 test scripts/verify-services.test.mjs");
-    expect(target).toContain("gateway_fails_closed_when_the_authority_database_is_closed");
-    expect(target).not.toContain("warm_gateway_streams_with_memory_auth_and_a_closed_database");
+const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs";
+
+function justRecipe(name, nextName) {
+    return justfile.slice(justfile.indexOf(`${name}:`), justfile.indexOf(`\n${nextName}:`));
+}
+
+test("public verifier targets run pinned latency contracts before Rust builds", () => {
+    const serviceTarget = justRecipe("verify-services", "verify-modules-mvp");
+    const mvpTarget = justRecipe("verify-modules-mvp", "contract-generate");
+    for (const target of [serviceTarget, mvpTarget]) {
+        expect(target).toContain(latencyContractCommand);
+        expect(target.indexOf(latencyContractCommand)).toBeLessThan(target.indexOf("cargo build"));
+    }
+    expect(serviceTarget).toContain("gateway_fails_closed_when_the_authority_database_is_closed");
+    expect(serviceTarget).not.toContain("warm_gateway_streams_with_memory_auth_and_a_closed_database");
 });
 
 const pinnedBunWrapper = 'run_bun() {\n    pnpm dlx bun@1.3.14 "$@"\n}';
@@ -60,5 +73,34 @@ test("service verifier rejects bare Bun in every supported shell position", () =
         'bun -e "console.log(1)" | cat',
     ]) {
         expect(hasBareBun(`${script}\n${mutation}`)).toBeTrue();
+    }
+});
+
+test("service verifier validates profiles before temporary state and derives their output paths", () => {
+    expect(script).toContain('RUSTZEN_VERIFY_BUILD_PROFILE="${RUSTZEN_VERIFY_BUILD_PROFILE:-release}"');
+    expect(script).toContain('debug) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency-debug.json" ;;');
+    expect(script).toContain('release) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency.json" ;;');
+    expect(script).toContain('export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$latency_output_default}"');
+    expect(script.indexOf('RUSTZEN_VERIFY_BUILD_PROFILE="${RUSTZEN_VERIFY_BUILD_PROFILE:-release}"')).toBeLessThan(script.indexOf('ROOT="$(mktemp -d'));
+});
+
+test("invalid profile exits before creating the disposable service root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-services-profile-"));
+    try {
+        const result = Bun.spawnSync({
+            cmd: [
+                "/usr/bin/env", `TMPDIR=${root}`, "RUSTZEN_VERIFY_BUILD_PROFILE=profiling",
+                new URL("./verify-services.sh", import.meta.url).pathname,
+                ...Array(6).fill("/usr/bin/true"),
+            ],
+            stdout: "pipe", stderr: "pipe",
+        });
+        expect(result.exitCode).not.toBe(0);
+        expect(new TextDecoder().decode(result.stderr).trim()).toBe(
+            "verify-services: RUSTZEN_VERIFY_BUILD_PROFILE must be debug or release",
+        );
+        expect(await readdir(root)).toEqual([]);
+    } finally {
+        await rm(root, { recursive: true, force: true });
     }
 });

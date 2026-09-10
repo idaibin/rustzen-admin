@@ -30,6 +30,15 @@ for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI" "$AGENT"; do
     fi
 done
 
+RUSTZEN_VERIFY_BUILD_PROFILE="${RUSTZEN_VERIFY_BUILD_PROFILE:-release}"
+case "$RUSTZEN_VERIFY_BUILD_PROFILE" in
+    debug) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency-debug.json" ;;
+    release) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency.json" ;;
+    *) echo "verify-services: RUSTZEN_VERIFY_BUILD_PROFILE must be debug or release" >&2; exit 1 ;;
+esac
+export RUSTZEN_VERIFY_BUILD_PROFILE
+export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$latency_output_default}"
+
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/rz-services.XXXXXX")"
 mkdir -p "$ROOT/logs" "$ROOT/pids" "$ROOT/backups" "$PROJECT_ROOT/target/rz"
 PHASE="startup"
@@ -60,7 +69,6 @@ export RUSTZEN_BUILD_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export RUSTZEN_COMPOSITION_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 export RUSTZEN_MONITOR_SCHEMA_FINGERPRINT=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 export RUSTZEN_MONITOR_DATA_CONTRACT_ID=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
-export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$PROJECT_ROOT/target/rz/gateway-latency.json}"
 export RUST_LOG=warn
 
 run_bun() {

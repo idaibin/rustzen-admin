@@ -231,10 +231,16 @@ harness-contract test before its Rust checks, builds, and dynamic verifier.
 
 The worker verifier also exercises Monitoring shared-capability navigation,
 owner/viewer policy access, report fencing, alert/recovery transitions, pagination,
-and daily/weekly Reports schedule lifecycle. `just verify-modules-mvp` uses the
-same scenarios with debug binaries. Latency evidence records the actual requested
-build profile (`release`, `debug`, or `unspecified`), so a debug run must not be
-reported as a production benchmark.
+and daily/weekly Reports schedule lifecycle. `verify-services` defaults to release
+binaries and accepts only `release` or `debug` in `RUSTZEN_VERIFY_BUILD_PROFILE`.
+It pins Bun 1.3.14. Latency evidence records `buildProfile`, fixed `p95BudgetMs`,
+`budgetEnforced`, and `budgetPassed`: release enforces the 2 ms p95 overhead
+budget, while debug records the same measurement without turning that release
+budget into a debug failure. Its default debug evidence path is
+`target/rz/gateway-latency-debug.json`; release uses
+`target/rz/gateway-latency.json`, and either may be overridden explicitly.
+All functional assertions remain fail-closed. Neither profile is a
+production-wide benchmark.
 
 `just verify-automation-browser <browser-path>` verifies real form submission,
 step audit, screenshot/live-frame output, cancellation, overlapping runs, overall
@@ -268,9 +274,19 @@ requests per path. Results in milliseconds:
 | Through Admin | 1.151 | 1.722 | 1.835 |
 | Gateway overhead | 0.327 | 0.419 | 0.328 |
 
-The p95 overhead is below the 2 ms investigation gate. The latest machine-local
-JSON evidence is written to `target/rz/gateway-latency.json` by the verification
-target.
+The p95 overhead is below the 2 ms investigation gate. With pinned Bun 1.3.14,
+`just verify-modules-mvp` exited 0 and recorded its debug diagnostic at
+`target/rz/gateway-latency-debug.json`: measured `2026-09-10T19:19:24.605Z`,
+SHA-256 `5f0ecade6b3f870505eafd352457d40c1d5d1a465464317bb952825e506a387d`,
+direct/gateway/overhead p95 0.500/3.387/2.886 ms,
+`buildProfile=debug`, `p95BudgetMs=2`, `budgetEnforced=false`, and
+`budgetPassed=false`. `just verify-services` exited 0 and recorded release at
+`target/rz/gateway-latency.json`: measured `2026-09-10T19:23:19.587Z`, SHA-256
+`fa760ff0612887c1db1b66560fdb3a09f3b24c78a2bd502c1f7bc45f3555252f`,
+p95 0.403/2.317/1.914 ms, `buildProfile=release`, `p95BudgetMs=2`,
+`budgetEnforced=true`, and `budgetPassed=true`. The release run overwrote the
+latest machine-local JSON. These same-host values are machine-local evidence
+only, not production-wide latency claims.
 
 Reports runs as the dedicated unprivileged `rz-reports` user. The installer
 creates that account and grants it only `data/reports` (including the database

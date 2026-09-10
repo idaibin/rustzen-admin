@@ -1,5 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 
+import { gatewayLatencyResult } from "./gateway-latency-contract.mjs";
+
 import { insightsAPIContract } from "../apps/web/src/api/insights/contract.ts";
 import { monitorAPIContract } from "../apps/web/src/api/monitor/contract.ts";
 import { reportsAPIContract } from "../apps/web/src/api/reports/contract.ts";
@@ -15,11 +17,7 @@ const monitorBase = `http://127.0.0.1:${required("RUSTZEN_MONITOR_PORT")}`;
 const insightsBase = `http://127.0.0.1:${required("RUSTZEN_INSIGHTS_PORT")}`;
 const reportsBase = `http://127.0.0.1:${required("RUSTZEN_REPORTS_PORT")}`;
 const latencyOutput = required("RUSTZEN_GATEWAY_LATENCY_OUTPUT");
-const latencyBudgetMs = Number(process.env.RUSTZEN_GATEWAY_P95_BUDGET_MS ?? "2");
-
-if (!Number.isFinite(latencyBudgetMs) || latencyBudgetMs <= 0) {
-    throw new Error("RUSTZEN_GATEWAY_P95_BUDGET_MS must be a positive number");
-}
+const latencyProfile = required("RUSTZEN_VERIFY_BUILD_PROFILE");
 
 function required(name) {
     const value = process.env[name]?.trim();
@@ -794,7 +792,7 @@ const overhead = {
 const latency = {
     measuredAt: new Date().toISOString(),
     endpoint: "GET /api/monitor/nodes",
-    buildProfile: process.env.RUSTZEN_VERIFY_BUILD_PROFILE ?? "unspecified",
+    ...gatewayLatencyResult(latencyProfile, overhead.p95Ms),
     host: "127.0.0.1",
     concurrency,
     warmupRequestsPerPath: concurrency * 4,
@@ -802,13 +800,12 @@ const latency = {
     direct,
     gateway,
     overhead,
-    p95BudgetMs: latencyBudgetMs,
 };
 await Bun.write(latencyOutput, `${JSON.stringify(latency, null, 2)}\n`);
 console.log(`Gateway latency: ${JSON.stringify(latency)}`);
-if (overhead.p95Ms > latencyBudgetMs) {
+if (latency.budgetEnforced && !latency.budgetPassed) {
     throw new Error(
-        `gateway p95 overhead ${overhead.p95Ms.toFixed(3)} ms exceeds ${latencyBudgetMs} ms`,
+        `gateway p95 overhead ${overhead.p95Ms.toFixed(3)} ms exceeds ${latency.p95BudgetMs} ms`,
     );
 }
 

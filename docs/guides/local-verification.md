@@ -35,8 +35,20 @@ Verification used new task-owned databases; existing application data was not re
   1920x1080 light Chinese and 1440x900 dark English show no document overflow.
 - Services: 24 startup orders, Admin-alone login, independent process termination,
   disabled/unavailable module responses, four database restores, CLI status,
-  Manifest contracts, and gateway latency passed. Debug p95 gateway overhead was
-  0.694 ms at concurrency 32 with 320 samples per path; this is local debug evidence.
+  Manifest contracts, and gateway latency passed. The verifier pins Bun 1.3.14.
+  `just verify-modules-mvp` exited 0 with debug evidence
+  `target/rz/gateway-latency-debug.json` (measured `2026-09-10T19:19:24.605Z`,
+  SHA-256 `5f0ecade6b3f870505eafd352457d40c1d5d1a465464317bb952825e506a387d`):
+  direct/gateway/overhead p95 were 0.500/3.387/2.886 ms at concurrency 32 with
+  320 samples per path; `buildProfile=debug`, `p95BudgetMs=2`,
+  `budgetEnforced=false`, and `budgetPassed=false`. It is diagnostic only.
+  `just verify-services` exited 0 with release evidence
+  `target/rz/gateway-latency.json` (measured `2026-09-10T19:23:19.587Z`,
+  SHA-256 `fa760ff0612887c1db1b66560fdb3a09f3b24c78a2bd502c1f7bc45f3555252f`):
+  p95 was 0.403/2.317/1.914 ms; `buildProfile=release`, `p95BudgetMs=2`,
+  `budgetEnforced=true`, and `budgetPassed=true`. The release run overwrote the
+  latest machine-local JSON. These are machine-local measurements, not
+  production-wide latency claims.
 
 ## Reproduction and evidence
 

@@ -17,3 +17,10 @@ test("the worker contract rejects unsafe pathname fields from Insights details",
     expect(workerVerifier).toContain("/[?#]/.test(event[field])");
     expect(workerVerifier).toContain("Insights details exposed an unsafe ${field}");
 });
+
+test("worker latency evidence records profile enforcement separately from the fixed budget", () => {
+    expect(workerVerifier).toContain('import { gatewayLatencyResult } from "./gateway-latency-contract.mjs"');
+    expect(workerVerifier).toContain('const latencyProfile = required("RUSTZEN_VERIFY_BUILD_PROFILE")');
+    expect(workerVerifier).toContain('...gatewayLatencyResult(latencyProfile, overhead.p95Ms)');
+    expect(workerVerifier).toContain('latency.budgetEnforced && !latency.budgetPassed');
+});
