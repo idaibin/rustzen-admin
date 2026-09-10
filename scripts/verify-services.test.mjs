@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const script = await Bun.file(new URL("./verify-services.sh", import.meta.url)).text();
 const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
+const moduleLogHelper = await Bun.file(new URL("./verify-module-log-diagnostics.sh", import.meta.url)).text();
 
 test("four-service verifier binds Monitor's selected database before every controller start", () => {
     const identityNames = [
@@ -103,4 +104,33 @@ test("invalid profile exits before creating the disposable service root", async 
     } finally {
         await rm(root, { recursive: true, force: true });
     }
+});
+
+
+test("module-log diagnostics are sourced after cleanup is installed and before their call", () => {
+    const helperPath = 'MODULE_LOG_HELPER="$PROJECT_ROOT/scripts/verify-module-log-diagnostics.sh"';
+    const source = '. "$MODULE_LOG_HELPER"';
+    const trap = "trap cleanup EXIT INT TERM";
+    const call = "verify_module_log_diagnostics";
+    expect(script).toContain(helperPath);
+    expect(script).toContain('if [ ! -f "$MODULE_LOG_HELPER" ] || [ -L "$MODULE_LOG_HELPER" ]; then');
+    expect(script).toContain(source);
+    expect(script).not.toContain("verify_module_log_diagnostics() {");
+    expect(moduleLogHelper).toContain("verify_module_log_diagnostics() {");
+    expect(script.indexOf(trap)).toBeLessThan(script.indexOf(source));
+    expect(script.indexOf(source)).toBeLessThan(script.lastIndexOf(call));
+    expect(moduleLogHelper).toContain("const expectedLines = 24_000;");
+});
+
+test("module-log helper propagates a failed pinned Bun command", () => {
+    const helper = new URL("./verify-module-log-diagnostics.sh", import.meta.url).pathname;
+    const result = Bun.spawnSync({
+        cmd: [
+            "sh", "-ceu",
+            'run_bun() { return 23; }; ROOT="$2"; RUSTZEN_ADMIN_TOKEN=x; denied_token=y; . "$1"; verify_module_log_diagnostics',
+            "sh", helper, tmpdir(),
+        ],
+        stdout: "pipe", stderr: "pipe",
+    });
+    expect(result.exitCode).toBe(23);
 });
