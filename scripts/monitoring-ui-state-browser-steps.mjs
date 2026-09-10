@@ -56,6 +56,8 @@ const mobile = (steps) => [
     ...steps,
 ];
 
+const errorAlert = "[role=alert]:not([data-testid^=notification-delivery])";
+
 const loading = (route, screenshotName) =>
     desktop([
         { action: "goto", url: route.path },
@@ -72,10 +74,10 @@ const loading = (route, screenshotName) =>
 const initialFailure = (route, status) =>
     desktop([
         { action: "goto", url: route.path },
-        { action: "waitFor", selector: "[role=alert]" },
+        { action: "waitFor", selector: errorAlert },
         {
             action: "assertText",
-            selector: "[role=alert]",
+            selector: errorAlert,
             text: status === 403 ? route.permission : route.failure,
         },
         { action: "assertAbsent", selector: route.marker },
@@ -87,11 +89,12 @@ const backgroundFailure = (route, status) =>
         { action: "goto", url: route.path },
         { action: "waitFor", selector: route.marker },
         { action: "assertText", selector: route.marker, text: route.markerText },
-        { action: "pause", durationMs: 30_500 },
-        { action: "waitFor", selector: "[role=alert]" },
+        { action: "pause", durationMs: 15_000 },
+        { action: "pause", durationMs: 16_000 },
+        { action: "waitFor", selector: errorAlert },
         {
             action: "assertText",
-            selector: "[role=alert]",
+            selector: errorAlert,
             text:
                 status === 403
                     ? route.permission

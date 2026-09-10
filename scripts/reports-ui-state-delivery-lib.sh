@@ -7,6 +7,7 @@ import sqlite3
 import sys
 
 with sqlite3.connect(sys.argv[1], timeout=5.0) as connection:
+    connection.execute("BEGIN IMMEDIATE")
     cursor = connection.execute(
         """
         UPDATE notification_delivery_status SET
@@ -35,7 +36,8 @@ import time
 for _ in range(100):
     with sqlite3.connect(sys.argv[1], timeout=5.0) as connection:
         pending = connection.execute(
-            "SELECT COUNT(*) FROM notification_outbox WHERE state IN ('pending','reconciling') OR lease_token IS NOT NULL"
+            "SELECT COUNT(*) FROM notification_outbox "
+            "WHERE state IN ('pending','reconciling') OR lease_token IS NOT NULL"
         ).fetchone()[0]
     if pending == 0:
         raise SystemExit(0)

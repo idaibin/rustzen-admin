@@ -6,7 +6,7 @@ env_value() { printenv "$1" 2>/dev/null || true; }
 docker_bin=$(env_value RUSTZEN_MONITORING_UI_STATE_DOCKER)
 [ -n "$docker_bin" ] || docker_bin=docker
 timeout=$(env_value RUSTZEN_MONITORING_UI_STATE_TIMEOUT)
-[ -n "$timeout" ] || timeout=900
+[ -n "$timeout" ] || timeout=2100
 info_timeout=$(env_value RUSTZEN_MONITORING_UI_STATE_DOCKER_INFO_TIMEOUT)
 [ -n "$info_timeout" ] || info_timeout=10
 cleanup_timeout=$(env_value RUSTZEN_MONITORING_UI_STATE_DOCKER_CLEANUP_TIMEOUT)

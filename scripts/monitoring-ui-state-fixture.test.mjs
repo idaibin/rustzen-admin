@@ -23,6 +23,19 @@ test("four Monitoring success payloads match Web types and Monitor handlers", as
             if (health?.ok) break;
             await Bun.sleep(25);
         }
+        expect((await fetch(base + "/__monitoring_fixture/mode", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ overview: "slow" }),
+        })).ok).toBe(true);
+        const slowStarted = performance.now();
+        expect((await fetch(base + "/api/monitor/overview")).status).toBe(200);
+        expect(performance.now() - slowStarted).toBeGreaterThanOrEqual(4_500);
+        expect((await fetch(base + "/__monitoring_fixture/mode", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ overview: "success" }),
+        })).ok).toBe(true);
         const overview = await (await fetch(base + "/api/monitor/overview")).json();
         expectKeys(overview, ["code", "message", "data"]);
         expectKeys(overview.data, [
@@ -117,4 +130,4 @@ test("four Monitoring success payloads match Web types and Monitor handlers", as
         fixture.kill();
         await fixture.exited;
     }
-});
+}, 10_000);

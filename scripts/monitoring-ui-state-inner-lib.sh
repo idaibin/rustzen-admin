@@ -226,3 +226,18 @@ wait_for_health reports http://127.0.0.1:19804/health
 python3 -B /verify/fixture.py >/opt/rz/logs/fixture.log 2>&1 &
 pids+=("$!")
 wait_for_health fixture http://127.0.0.1:19806/__monitoring_fixture/health
+
+monitor_fixture_reads() {
+    curl_json http://127.0.0.1:19806/__monitoring_fixture/receipt \
+        | jq -er '.requests | length'
+}
+
+monitor_wait_run() {
+    local run=$1 status
+    for retry in $(seq 1 900); do
+        status=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$run" \
+            | jq -er '.data.status') || return 1
+        case "$status" in queued|running) sleep .1 ;; *) printf '%s\n' "$status"; return 0 ;; esac
+    done
+    return 1
+}

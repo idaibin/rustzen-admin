@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 UPSTREAM_HOST = os.environ.get("RUSTZEN_MONITORING_FIXTURE_UPSTREAM", "127.0.0.1")
 UPSTREAM_PORT = int(os.environ.get("RUSTZEN_MONITORING_FIXTURE_UPSTREAM_PORT", "19801"))
 PORT = int(os.environ.get("RUSTZEN_MONITORING_FIXTURE_PORT", "19806"))
+SLOW_SECONDS = float(os.environ.get("RUSTZEN_MONITORING_FIXTURE_SLOW_SECONDS", "5"))
 ROUTES = {
     "/api/monitor/overview": "overview",
     "/api/monitor/nodes": "nodes",
@@ -208,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
                 entry["mode"] = next_status
                 entry["fail_after_first_status"] = None
         if mode == "slow":
-            time.sleep(1)
+            time.sleep(SLOW_SECONDS)
         if mode in FAIL_AFTER_STATUSES:
             self.send_json(
                 int(mode),

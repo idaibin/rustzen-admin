@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+reports_delivery_lib="$root/scripts/reports-ui-state-delivery-lib.sh"
+monitor_delivery_lib="$root/scripts/monitoring-ui-state-delivery-lib.sh"
 
 for seam_variable in \
     RUSTZEN_MONITORING_UI_STATE_TEST_TIMEOUT \
@@ -20,7 +22,7 @@ done
 . "$root/scripts/monitoring-ui-state-gate-lib.sh"
 . "$root/scripts/monitoring-ui-state-evidence-lib.sh"
 
-validate_timeout "$timeout" RUSTZEN_MONITORING_UI_STATE_TIMEOUT 1800
+validate_timeout "$timeout" RUSTZEN_MONITORING_UI_STATE_TIMEOUT 2400
 validate_timeout "$info_timeout" RUSTZEN_MONITORING_UI_STATE_DOCKER_INFO_TIMEOUT 60
 validate_timeout \
     "$cleanup_timeout" RUSTZEN_MONITORING_UI_STATE_DOCKER_CLEANUP_TIMEOUT 30
@@ -126,6 +128,9 @@ run_bounded \
     --mount "type=bind,src=$root/scripts/verify-monitoring-ui-state-linux-inner.sh,dst=/verify/run.sh,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-fixture.py,dst=/verify/fixture.py,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-inner-lib.sh,dst=/verify/inner-lib.sh,readonly" \
+    --mount "type=bind,src=$root/scripts/monitoring-ui-state-retry-lib.sh,dst=/verify/retry-lib.sh,readonly" \
+    --mount "type=bind,src=$reports_delivery_lib,dst=/verify/reports-delivery-lib.sh,readonly" \
+    --mount "type=bind,src=$monitor_delivery_lib,dst=/verify/monitor-delivery-lib.sh,readonly" \
     "$verifier_image" \
     bash /verify/run.sh
 run_bounded "$cleanup_timeout" "$docker_bin" rm "$container" >/dev/null
@@ -140,6 +145,8 @@ verify_manifest \
 verify_fixture_receipt "$candidate/fixture-receipt.json"
 verify_artifacts "$candidate" "$candidate/manifest.json"
 verify_evidence_files "$candidate" "$candidate/manifest.json"
+verify_delivery_health "$candidate" "$candidate/manifest.json"
+verify_delivery_artifacts "$candidate" "$candidate/manifest.json"
 verify_staged_binaries
 read -r final_head final_state final_sha < <(
     "$root/scripts/admin-browser-source-identity.sh"

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
 import { ApiRequestError } from "@/api/request";
@@ -66,4 +67,15 @@ test("Incident filters remain named controls for immediate page-one queries", as
     expect(source).toContain('aria-label={t("告警状态", "Incident status")}');
     expect(source).toContain('aria-label={t("告警类型", "Incident kind")}');
     expect(source).toContain("setCurrent(1);");
+});
+
+test("Incidents retains three readable mobile columns and truncates long event content", async () => {
+    const source = await Bun.file("src/routes/monitoring/incidents.tsx").text();
+
+    expect(source).toContain("width: 160");
+    expect(source).toContain('className: "monitoring-incident-primary-column"');
+    expect(source).toContain('responsive: ["sm"]');
+    expect(source.match(/monitoring-incident-detail-column/g)).toHaveLength(2);
+    expect(source).toContain('className="truncate font-medium"');
+    expect(source).toContain('className="truncate text-xs text-muted-foreground"');
 });

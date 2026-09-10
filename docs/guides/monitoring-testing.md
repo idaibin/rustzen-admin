@@ -150,6 +150,21 @@ After each slice run its named focused tests, then `cargo fmt --all -- --check`,
 `cargo test -p rustzen-monitor`, and `git diff --check`. Cross-module completion additionally runs
 `just verify-modules-mvp`; browser and deployed multi-node behavior remain separate gates.
 
+## Monitoring UI state Linux gate
+
+`just verify-monitoring-ui-state-linux` has one total container budget controlled by
+`RUSTZEN_MONITORING_UI_STATE_TIMEOUT`: 2100 seconds by default and at most 2400.
+It covers the 23 route-state browser runs, their eight 31-second background waits,
+four 5-second loading fixtures, and delivery-card runs; Docker architecture discovery
+and cleanup retain their separate bounded timeouts.
+
+The local gate closes only when
+`target/rz/monitoring-ui-state/current/manifest.json` matches the current checkout
+and has `status: "passed"`. Its receipt set covers 23 canonical route runs, 18
+owner and 26 viewer delivery steps, four screenshots, real Monitor SQLite and
+authorized API receipts, permission behavior, and either zero retries or a
+recorded single retry receipt.
+
 ## Linux dual-Agent runtime gate
 
 `just verify-monitor-agent-multi-node-linux` is a bounded, native-architecture

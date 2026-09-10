@@ -165,6 +165,7 @@ verify-monitoring-ui-state-linux:
         scripts/monitoring-ui-state-cleanup.test.mjs \
         scripts/monitoring-ui-state-layout.test.mjs \
         scripts/monitoring-ui-state-provenance.test.mjs \
+        scripts/monitoring-ui-state-delivery-lib.test.mjs \
         scripts/verify-monitoring-ui-state-linux.test.mjs
     scripts/verify-monitoring-ui-state-linux.sh
 

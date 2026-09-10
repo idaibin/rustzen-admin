@@ -14,8 +14,8 @@ import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
-import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
 import { IncidentDrawer } from "./-incident-drawer";
+import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
 
 export const Route = createFileRoute("/monitoring/incidents")({
     component: MonitoringIncidentsPage,
@@ -80,7 +80,12 @@ function MonitoringIncidentsPage() {
         </Space>
     );
 
-    const deliveryCard = <NotificationDeliveryCard queryKey={["monitor", "notification-delivery"]} queryFn={monitorAPI.notificationDelivery} />;
+    const deliveryCard = (
+        <NotificationDeliveryCard
+            queryKey={["monitor", "notification-delivery"]}
+            queryFn={monitorAPI.notificationDelivery}
+        />
+    );
     const permissionDenied = isMonitorPermissionDenied(error);
     if (permissionDenied)
         return (
@@ -143,20 +148,33 @@ function MonitoringIncidentsPage() {
         {
             title: t("事件", "Incident"),
             key: "title",
+            width: 160,
+            className: "monitoring-incident-primary-column",
             render: (_, row) => (
-                <div>
-                    <div className="font-medium">{row.title}</div>
-                    <div className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                    <div className="truncate font-medium" title={row.title}>
+                        {row.title}
+                    </div>
+                    <div
+                        className="truncate text-xs text-muted-foreground"
+                        title={`${row.nodeId} · ${row.target}`}
+                    >
                         {row.nodeId} · {row.target}
                     </div>
                 </div>
             ),
         },
-        { title: t("类型", "Kind"), dataIndex: "kind", width: 130 },
+        {
+            title: t("类型", "Kind"),
+            dataIndex: "kind",
+            width: 130,
+            responsive: ["sm"],
+            className: "monitoring-incident-detail-column",
+        },
         {
             title: t("状态", "Status"),
             dataIndex: "status",
-            width: 120,
+            width: 96,
             render: (_, row) => (
                 <Tag
                     color={row.status === "active" ? "error" : "success"}
@@ -176,12 +194,14 @@ function MonitoringIncidentsPage() {
             title: t("最近观察", "Last observed"),
             dataIndex: "lastObservedAt",
             width: 190,
+            responsive: ["sm"],
+            className: "monitoring-incident-detail-column",
             render: (_, row) => formatDateTime(row.lastObservedAt),
         },
         {
             title: t("详情", "Details"),
             key: "actions",
-            width: 88,
+            width: 64,
             fixed: "right",
             render: (_, row) => (
                 <Button type="link" onClick={() => setSelected(row)}>

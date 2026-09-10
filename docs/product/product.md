@@ -224,6 +224,15 @@ read aggregate delivery health for existing Monitoring incidents only in a
 notifications-capable selection. Omitted-notification selections render no
 delivery-health card or endpoint.
 
+The Monitor delivery-card Linux Chromium extension has a local, checkout-bound
+closure: it passes only when
+`target/rz/monitoring-ui-state/current/manifest.json` matches the current
+checkout and has `status: "passed"`. That evidence validates 23 canonical
+route runs, 18 owner and 26 viewer delivery steps, four screenshots, real
+Monitor SQLite and authorized API receipts, permission behavior, and either
+zero retries or a recorded single retry receipt. Pure Monitor absence remains a
+selected-Web composition-gate result.
+
 ### Analytics
 
 Retain the current single-project, instance-wide Analytics behavior. The former
