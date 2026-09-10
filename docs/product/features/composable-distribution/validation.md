@@ -531,6 +531,22 @@ for the existing four bootstrap/SRI/retry cases and uses a separately retained n
 container; it has no monitor-notify business journey receipt, so browser, load and release
 readiness remain Not verified.
 
+The exact monitor-notify bootstrap run is
+`target/rz/p8f-notify-bootstrap-browser-20260910-r1/manifest.json` with SHA-256
+`1785ad619ee750fb705771fdf1b3aeefa4ac773a51414e0b2f7a4d808de07c87`.
+Headless Chrome 153 passed success, binding-mismatch, binding-network-failure and
+SRI-entry-failure cases; only the success case executed the selected entry. The
+receipt binds product source `git:3d6aeec719d5acc9b26b114ceedef5ac9c700444 tree:a1f5e7e55952fd22d36ca8228c93ee5109a1316cf0e76b72cb7fa5f456af1b9a state:dirty`
+and verifier source `git:f4921380a3c7c074ac9810855b87c5a73fcb9352 tree:c191cd5eb8cde27c8d95235a2fe1821e5d724399ad4089410edd90921d75edfa state:dirty`
+separately. Its retained runtime remained byte-bound before and after the browser
+gate, and the owner-labelled container was removed afterward. The paired fresh
+P8e runtime record is
+`target/rz/p8f-notify-bootstrap-native-20260910-r1/monitor-native-runtime-evidence.json`
+with SHA-256 `870f2dec63ed679c18c957a1b7285aed0f747d193a22927e2a0b4879fe92551b`.
+This closes bootstrap/static browser behavior for the old signed tuple only;
+authenticated Monitor, alert, inbox, SSE, persistence, load and deployment
+acceptance remain Not verified.
+
 ### P8g pure-Monitor exact-artifact load certification
 
 P8g accepts one fresh container only when its P8e native-runtime evidence and

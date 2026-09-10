@@ -114,7 +114,7 @@ closure happens to match a named preset.
 | Selection | Current producer evidence | P8a result | Remaining certification boundary |
 | --- | --- | --- | --- |
 | `monitor` | Selected Admin/Controller Cargo, Web, API/schema/config, protocol and native-layout producers; signed apply and Linux activation gates exist | Admitted to source/build certification | One fixed clean build basis and final acceptance report |
-| `monitor-notify` | Exact Linux/amd64 50-file container export at `target/rz/p8b-monitor-notify-export-20260910T065139Z`, composition `0aac2acc…`, signed P8c/P8d release/certificate, and retained P8e runtime evidence `target/rz/p8e-monitor-notify-native-runtime-20260910-r2/monitor-native-runtime-evidence.json` (SHA-256 `aa15c498…`) | Exact build/export, signed source-build certificate and old-tuple fresh-install/PID1 evidence recorded | Browser, load, deployment and current-HEAD rebuild remain Not verified |
+| `monitor-notify` | Exact Linux/amd64 50-file container export at `target/rz/p8b-monitor-notify-export-20260910T065139Z`, composition `0aac2acc…`, signed P8c/P8d release/certificate, retained P8e runtime evidence, and P8f bootstrap receipt `target/rz/p8f-notify-bootstrap-browser-20260910-r1/manifest.json` (SHA-256 `1785ad61…`) | Exact build/export, signed source-build certificate, old-tuple fresh-install/PID1 and four-case bootstrap/static browser evidence recorded | Authenticated product journeys, load, deployment and current-HEAD rebuild remain Not verified |
 | `node-agent` | Agent Cargo, config, protocol, native layout, signed apply and controlled Linux pairing evidence | Admitted to source/build certification | Final PID1/service restart and shipped-target report |
 | `analytics` | Catalog and application baseline only | Rejected | Selected Admin/Insights Cargo boundary, Web graph and contracts |
 | `reports` | Catalog, Reports application and notification producer slices only | Rejected | Selected Admin/Reports Cargo boundary, Web graph and contracts |
@@ -303,8 +303,20 @@ but it accepts product identity only through the signed certificate/export tuple
 rejects cross-preset input before Chromium. `verify-monitor-notify-bootstrap-browser`
 uses a retained notify P8e container only to execute the four existing bootstrap/SRI/retry
 cases; it is separate from `prepare-monitor-load-runtime` and cleans that container. This
-source/static closure does not claim a monitor-notify business journey, browser evidence or
-P8g/load result.
+source/static implementation alone does not claim a monitor-notify business journey,
+browser acceptance or P8g/load result; an exact runtime receipt is required.
+
+That bootstrap closure passed for the old signed monitor-notify tuple at
+`target/rz/p8f-notify-bootstrap-browser-20260910-r1/manifest.json` (SHA-256
+`1785ad619ee750fb705771fdf1b3aeefa4ac773a51414e0b2f7a4d808de07c87`).
+Chrome 153 executed the selected entry only for the success case and rejected
+binding mismatch, binding fetch failure and SRI entry failure without changing
+the retained Admin executable/runtime attestation. The paired fresh P8e record
+is `target/rz/p8f-notify-bootstrap-native-20260910-r1/monitor-native-runtime-evidence.json`
+(SHA-256 `870f2dec63ed679c18c957a1b7285aed0f747d193a22927e2a0b4879fe92551b`).
+The retained owner-labelled container was removed after receipt publication.
+Authenticated product journeys, alert delivery, inbox/SSE behavior, load and
+deployment remain separate gates.
 
 P8f-A implements the selected-Web build binding: the Monitor producer stamps
 only its generated HTML after deriving the normalized file-table digest, writes
