@@ -22,7 +22,8 @@ full = [
     "dep:tar",
     "tower-http/fs",
 ]
-monitor-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
+selected-distribution = ["rustzen-config/admin-monitor", "dep:rust-embed", "dep:mime_guess"]
+monitor-distribution = ["selected-distribution"]
 notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "dep:hex", "rustzen-config/notifications"]
 reports-notifications = ["notifications", "rustzen-config/reports-notifications"]
 

@@ -10,38 +10,38 @@ use rust_embed::RustEmbed;
 #[folder = "../web/dist"]
 struct FullWebAssets;
 
-#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+#[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
 #[derive(RustEmbed)]
 #[folder = "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/dist"]
 struct MonitorWebAssets;
 
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 #[derive(RustEmbed)]
 #[folder = "selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/dist"]
 struct MonitorNotifyWebAssets;
 
 #[cfg(feature = "full")]
 type WebAssets = FullWebAssets;
-#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+#[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
 type WebAssets = MonitorWebAssets;
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 type WebAssets = MonitorNotifyWebAssets;
 
-#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+#[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
 const SELECTED_WEB_INVENTORY: &str = include_str!(
     "../../selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/inventory.json"
 );
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 const SELECTED_WEB_INVENTORY: &str = include_str!(
     "../../selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/inventory.json"
 );
-#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+#[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
 const SELECTED_WEB_PRESET: &str = "monitor";
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 const SELECTED_WEB_PRESET: &str = "monitor-notify";
 
 pub async fn serve(uri: Uri) -> Response {
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     debug_assert!(
         SELECTED_WEB_INVENTORY.contains(&format!("\"preset\": \"{SELECTED_WEB_PRESET}\""))
     );
@@ -91,7 +91,7 @@ mod tests {
         http::{StatusCode, Uri},
     };
 
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     use super::{SELECTED_WEB_INVENTORY, SELECTED_WEB_PRESET};
     use super::{WebAssets, serve};
 
@@ -121,7 +121,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     #[test]
     fn monitor_embed_is_composition_qualified_and_excludes_full_capabilities() {
         assert!(SELECTED_WEB_INVENTORY.contains(&format!("\"preset\": \"{SELECTED_WEB_PRESET}\"")));

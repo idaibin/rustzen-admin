@@ -170,7 +170,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "monitor-distribution"))]
+#[cfg(all(test, feature = "selected-distribution"))]
 mod monitor_distribution_tests {
     use super::ModuleSpec;
 

@@ -17,6 +17,31 @@ const cargo = [
     "monitor-distribution",
 ];
 
+const checkFeatures = (features: string) => Bun.spawnSync([
+    "cargo", "check", "-p", "rustzen-admin", "--no-default-features", "--features", features,
+], {
+    cwd: root,
+    env: { ...process.env, CARGO_TERM_COLOR: "never" },
+    stdout: "pipe",
+    stderr: "pipe",
+});
+
+test("Admin accepts only reviewed composition feature unions", () => {
+    for (const features of ["full", "monitor-distribution", "monitor-distribution,notifications"])
+        expect(checkFeatures(features).exitCode, features).toBe(0);
+
+    for (const [features, marker] of [
+        ["selected-distribution", "select exactly one reviewed Admin composition feature"],
+        ["selected-distribution,notifications", "select exactly one reviewed Admin composition feature"],
+        ["monitor-distribution,reports-notifications", "Reports notifications require the full Admin composition"],
+        ["full,monitor-distribution", "full and selected-distribution are mutually exclusive"],
+    ]) {
+        const result = checkFeatures(features);
+        expect(result.exitCode, features).not.toBe(0);
+        expect(new TextDecoder().decode(result.stderr), features).toContain(marker);
+    }
+}, 120_000);
+
 test("Rust and producer package owner policies stay identical", async () => {
     const source = await Bun.file(
         resolve(root, "apps/admin/build_support/module_policy.rs"),

@@ -1,7 +1,7 @@
 use rustzen_storage::sqlite::{
     DatabaseConnectionOptions, SqlitePool, connect_sqlite_with_options, database_url_from_path,
 };
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 #[cfg(feature = "full")]
 use std::path::Path;
@@ -12,13 +12,13 @@ use crate::infra::config::CONFIG;
 
 #[cfg(feature = "full")]
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/sqlite");
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/sqlite-monitor");
 
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 const NOTIFICATION_LEDGER: &str = "_sqlx_admin_notifications_migrations";
 
-#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[cfg(all(feature = "selected-distribution", feature = "notifications"))]
 fn notification_migrator() -> sqlx::migrate::Migrator {
     let mut migrator = sqlx::migrate!("./migrations/sqlite-notifications");
     migrator.dangerous_set_table_name(NOTIFICATION_LEDGER);
@@ -113,7 +113,7 @@ pub use rustzen_storage::sqlite::test_connection;
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
     tracing::info!("Running embedded database migrations...");
     MIGRATOR.run(pool).await?;
-    #[cfg(all(feature = "notifications", feature = "monitor-distribution"))]
+    #[cfg(all(feature = "notifications", feature = "selected-distribution"))]
     {
         notification_migrator().run(pool).await?;
     }
@@ -121,12 +121,12 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::migrate::Migr
     Ok(())
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub async fn verify_selected_schema(pool: &SqlitePool) -> Result<(), String> {
     verify_selected_schema_for_identity(pool, &selected_identity()?).await
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 async fn verify_selected_schema_for_identity(
     pool: &SqlitePool,
     identity: &(String, String, String, String),
@@ -139,7 +139,7 @@ async fn verify_selected_schema_for_identity(
         &MIGRATOR,
     )
     .await?;
-    #[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+    #[cfg(all(feature = "selected-distribution", feature = "notifications"))]
     verify_migration_ledger(
         pool,
         NOTIFICATION_LEDGER,
@@ -159,7 +159,7 @@ async fn verify_selected_schema_for_identity(
     Ok(())
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 async fn verify_migration_ledger(
     pool: &SqlitePool,
     ledger: &str,
@@ -183,7 +183,7 @@ async fn verify_migration_ledger(
     Ok(())
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub async fn verify_selected_database() -> Result<(), String> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
@@ -200,13 +200,13 @@ pub async fn verify_selected_database() -> Result<(), String> {
     result
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub async fn bind_selected_identity(pool: &SqlitePool) -> Result<(), String> {
     let identity = selected_identity()?;
     bind_identity(pool, &identity).await
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 async fn bind_identity(
     pool: &SqlitePool,
     identity: &(String, String, String, String),
@@ -232,7 +232,7 @@ async fn bind_identity(
     if changed == 1 { Ok(()) } else { Err("Admin installation identity binding failed".into()) }
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 async fn verify_selected_identity(
     pool: &SqlitePool,
     expected: &(String, String, String, String),
@@ -252,7 +252,7 @@ async fn verify_selected_identity(
     }
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 fn selected_identity() -> Result<(String, String, String, String), String> {
     let value = |name| {
         std::env::var(name)
@@ -271,7 +271,7 @@ fn selected_identity() -> Result<(String, String, String, String), String> {
     ))
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 async fn schema_inventory(
     pool: &SqlitePool,
 ) -> Result<Vec<(String, String, String, String)>, String> {
@@ -337,7 +337,7 @@ mod full_schema_tests {
     }
 }
 
-#[cfg(all(test, feature = "monitor-distribution"))]
+#[cfg(all(test, feature = "selected-distribution"))]
 mod monitor_distribution_tests {
     use super::*;
     use crate::{

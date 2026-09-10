@@ -5,10 +5,12 @@ mod middleware;
 #[cfg(feature = "full")]
 mod openapi;
 
-#[cfg(all(feature = "full", feature = "monitor-distribution"))]
-compile_error!("full and monitor-distribution are mutually exclusive Admin compositions");
+#[cfg(all(feature = "full", feature = "selected-distribution"))]
+compile_error!("full and selected-distribution are mutually exclusive Admin compositions");
+#[cfg(all(feature = "selected-distribution", feature = "reports-notifications"))]
+compile_error!("Reports notifications require the full Admin composition");
 #[cfg(not(any(feature = "full", feature = "monitor-distribution")))]
-compile_error!("select exactly one Admin composition feature");
+compile_error!("select exactly one reviewed Admin composition feature");
 
 #[cfg(feature = "full")]
 use crate::features::manage::deploy::service::DeployService;
@@ -29,13 +31,13 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let command = Command::parse(std::env::args().skip(1))?;
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     if command == Command::ValidateConfig {
         rustzen_config::load_dotenv_if_present()?;
         let _ = CONFIG.admin_database_path();
         return Ok(());
     }
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     if matches!(command, Command::BindDatabase | Command::ValidateDatabase) {
         rustzen_config::load_dotenv_if_present()?;
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
@@ -55,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         });
     }
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     if let Command::ContractSelected(owner) = &command {
         println!(
             "{}",
@@ -63,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         return Ok(());
     }
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     if let Command::ContractConfigSelected(owner) = &command {
         let contract = match owner.as_str() {
             "access" => rustzen_config::admin_monitor_contract(),
@@ -91,31 +93,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match command {
             Command::Serve => run_server().await,
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::BootstrapOwner => {
                 crate::infra::bootstrap_owner::replace_seed_owner().await.map_err(|error| {
                     Box::new(std::io::Error::other(error)) as Box<dyn std::error::Error>
                 })
             }
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::VerifyOwner => {
                 crate::infra::bootstrap_owner::verify_owner().await.map_err(|error| {
                     Box::new(std::io::Error::other(error)) as Box<dyn std::error::Error>
                 })
             }
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::ValidateConfig => unreachable!("validation mode exits before runtime startup"),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::ValidateDatabase => {
                 unreachable!("database validation exits before runtime startup")
             }
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::BindDatabase => unreachable!("database binding exits before runtime startup"),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::ContractSelected(_) => {
                 unreachable!("contract mode exits before runtime startup")
             }
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Command::ContractConfigSelected(_) => {
                 unreachable!("contract mode exits before runtime startup")
             }
@@ -134,19 +136,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum Command {
     Serve,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     BootstrapOwner,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     VerifyOwner,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     ValidateConfig,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     ValidateDatabase,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     BindDatabase,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     ContractSelected(String),
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     ContractConfigSelected(String),
     #[cfg(feature = "full")]
     UpdateWorker(i64),
@@ -161,17 +163,17 @@ impl Command {
         let args = args.into_iter().collect::<Vec<_>>();
         match args.as_slice() {
             [mode] if mode == "serve" => Ok(Self::Serve),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [mode] if mode == "bootstrap-owner" => Ok(Self::BootstrapOwner),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [mode] if mode == "verify-owner" => Ok(Self::VerifyOwner),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [mode] if mode == "validate-config" => Ok(Self::ValidateConfig),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [mode] if mode == "validate-database" => Ok(Self::ValidateDatabase),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [mode] if mode == "bind-database" => Ok(Self::BindDatabase),
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [domain, mode, owner]
                 if domain == "contract"
                     && mode == "selected"
@@ -179,7 +181,7 @@ impl Command {
             {
                 Ok(Self::ContractSelected(owner.clone()))
             }
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             [domain, kind, mode, owner]
                 if domain == "contract"
                     && kind == "config"
@@ -204,7 +206,7 @@ impl Command {
     }
 }
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 fn selected_config_owner(owner: &str) -> bool {
     owner == "access" || (cfg!(feature = "notifications") && owner == "notifications")
 }
@@ -244,20 +246,20 @@ mod tests {
             Some(Command::UpdateRecover)
         );
         assert!(Command::parse(["monitor".to_string(), "controller".to_string()]).is_err());
-        #[cfg(feature = "monitor-distribution")]
+        #[cfg(feature = "selected-distribution")]
         assert_eq!(
             Command::parse(["contract".to_string(), "selected".to_string(), "admin".to_string(),])
                 .ok(),
             Some(Command::ContractSelected("admin".into()))
         );
-        #[cfg(feature = "monitor-distribution")]
+        #[cfg(feature = "selected-distribution")]
         assert_eq!(
             Command::parse(["validate-database".to_string()]).ok(),
             Some(Command::ValidateDatabase)
         );
-        #[cfg(feature = "monitor-distribution")]
+        #[cfg(feature = "selected-distribution")]
         assert_eq!(Command::parse(["bind-database".to_string()]).ok(), Some(Command::BindDatabase));
-        #[cfg(feature = "monitor-distribution")]
+        #[cfg(feature = "selected-distribution")]
         assert_eq!(
             Command::parse([
                 "contract".to_string(),
@@ -268,7 +270,7 @@ mod tests {
             .ok(),
             Some(Command::ContractConfigSelected("access".into()))
         );
-        #[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+        #[cfg(all(feature = "selected-distribution", feature = "notifications"))]
         assert_eq!(
             Command::parse([
                 "contract".to_string(),
@@ -279,7 +281,7 @@ mod tests {
             .ok(),
             Some(Command::ContractConfigSelected("notifications".into()))
         );
-        #[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+        #[cfg(all(feature = "selected-distribution", not(feature = "notifications")))]
         assert!(
             Command::parse([
                 "contract".to_string(),
@@ -289,7 +291,7 @@ mod tests {
             ])
             .is_err()
         );
-        #[cfg(feature = "monitor-distribution")]
+        #[cfg(feature = "selected-distribution")]
         assert!(Command::parse(["openapi".to_string()]).is_err());
         assert!(Command::parse(std::iter::empty()).is_err());
     }

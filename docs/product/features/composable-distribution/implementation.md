@@ -189,6 +189,10 @@ and unmatched paths return JSON 404 instead of the SPA shell. Its embedded fresh
 initialization owns only the access tables/views plus the selected
 `monitor` module row. Full-only configuration fields and the direct task,
 release and system-status dependencies are absent from the minimal composition.
+The shared minimal-host code uses the internal `selected-distribution` feature;
+the reviewed `monitor-distribution` preset enables it. The Admin entry point
+still rejects an internal-feature-only build, so this refactor does not create
+another shippable composition or broaden the Monitor package.
 
 ```sh
 just verify-monitor-admin

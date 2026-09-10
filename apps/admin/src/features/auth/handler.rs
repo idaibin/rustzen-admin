@@ -37,7 +37,7 @@ pub async fn login(
     #[cfg(feature = "full")]
     let response =
         AuthService::login_with_audit(&pool, &username, &password, audit_command).await?;
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let response = AuthService::login(&pool, &username, &password).await?;
     Ok(ApiResponse::success(response))
 }

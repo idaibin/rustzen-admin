@@ -1,4 +1,4 @@
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub mod access;
 #[cfg(feature = "full")]
 pub mod menu;
@@ -25,7 +25,7 @@ pub fn system_contract_routes() -> ContractRouter<SqlitePool> {
         .expect("static system contract")
         .nest("/status", status::status_routes())
         .expect("static system contract");
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let router = router
         .nest("/menus", access::permission_option_routes())
         .expect("static monitor access contract");

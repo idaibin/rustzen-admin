@@ -69,6 +69,7 @@ pub enum ServiceError {
     EmailConflict,
 
     /// A maintenance task already owns its single-run lock.
+    #[cfg(feature = "full")]
     #[error("Task is already running")]
     TaskAlreadyRunning,
 
@@ -180,6 +181,7 @@ impl From<ServiceError> for AppError {
             ServiceError::EmailConflict => {
                 app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
             }
+            #[cfg(feature = "full")]
             ServiceError::TaskAlreadyRunning => {
                 app_error(StatusCode::CONFLICT, 10203, "Task is already running.")
             }

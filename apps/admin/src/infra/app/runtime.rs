@@ -1,4 +1,4 @@
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 use crate::features::installation::{
     InstallationState, protected_routes as installation_routes, public_routes as web_binding_routes,
 };
@@ -43,7 +43,7 @@ use super::routes::{admin_cors, contract_permission_codes, documented_protected_
 #[tracing::instrument(name = "run_server")]
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Initializing database connection pool...");
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     crate::infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = create_default_pool().await?;
     #[cfg(feature = "full")]
@@ -106,7 +106,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         DelegationSigner::new(CONFIG.ipc_token.as_bytes())?,
     )
     .await?;
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let installation_state =
         InstallationState::load(module_state.clone()).map_err(std::io::Error::other)?;
 
@@ -124,7 +124,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
             auth_middleware,
         ))
         .with_state(pool.clone());
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let protected_api: Router = documented_routes
         .route_layer(middleware::from_fn_with_state(
             (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
@@ -133,11 +133,11 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(pool.clone());
 
     let public_api: Router = public_auth_router.with_state(pool.clone());
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let (web_binding, _) = web_binding_routes().into_parts();
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let (installation_router, installation_contracts) = installation_routes().into_parts();
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let installation_api: Router = installation_router
         .route_layer(middleware::from_fn_with_state(
             (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
@@ -153,7 +153,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
             auth_middleware,
         ))
         .with_state(module_state.clone());
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(
             (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
@@ -165,7 +165,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let permission_codes = contract_permission_codes(
         documented_contracts.iter().chain(module_control_contracts.iter()),
     );
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let permission_codes = {
         let mut permission_codes = permission_codes;
         permission_codes.extend(contract_permission_codes(installation_contracts.iter()));
@@ -191,13 +191,13 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .merge(public_api)
         .merge(protected_api)
         .merge(module_control);
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let admin_routes = admin_routes.merge(web_binding).merge(installation_api);
     #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&avatars_prefix, avatars_service);
     #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&uploads_prefix, uploads_service);
-    #[cfg(any(feature = "full", feature = "monitor-distribution"))]
+    #[cfg(any(feature = "full", feature = "selected-distribution"))]
     let admin_routes = admin_routes.fallback(crate::infra::web::serve);
     let admin_routes = admin_routes.layer(admin_cors());
     let app = Router::new()

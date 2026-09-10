@@ -72,9 +72,9 @@ pub enum OperationDescriptor {
     UpdateModuleEnabled,
     GetModuleNavigation,
     GetDashboardModules,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     GetWebBinding,
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     GetInstallation,
     ListNotifications,
     GetNotificationUnreadCount,
@@ -138,9 +138,9 @@ impl OperationDescriptor {
             Self::UpdateModuleEnabled => "updateModuleEnabled",
             Self::GetModuleNavigation => "getModuleNavigation",
             Self::GetDashboardModules => "getDashboardModules",
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Self::GetWebBinding => "getWebBinding",
-            #[cfg(feature = "monitor-distribution")]
+            #[cfg(feature = "selected-distribution")]
             Self::GetInstallation => "getInstallation",
             Self::ListNotifications => "listNotifications",
             Self::GetNotificationUnreadCount => "getNotificationUnreadCount",

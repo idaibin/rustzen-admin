@@ -2,7 +2,7 @@ pub mod account;
 pub mod auth;
 #[cfg(feature = "full")]
 pub mod dashboard;
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub mod installation;
 #[cfg(feature = "full")]
 pub mod manage;

@@ -1,6 +1,6 @@
 use super::*;
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 pub(crate) fn selected_contract_json(owner: &str) -> Result<String, String> {
     if owner != "admin" && owner != "notifications" {
         return Err("selected Admin contract owner must be admin or notifications".into());
@@ -54,7 +54,7 @@ pub(crate) fn selected_contract_json(owner: &str) -> Result<String, String> {
         .map_err(|error| error.to_string())
 }
 
-#[cfg(all(test, feature = "monitor-distribution"))]
+#[cfg(all(test, feature = "selected-distribution"))]
 mod tests {
     #[test]
     fn selected_contract_uses_the_registered_minimal_admin_surface() {

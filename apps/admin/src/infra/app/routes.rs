@@ -1,4 +1,4 @@
-#[cfg(feature = "monitor-distribution")]
+#[cfg(feature = "selected-distribution")]
 use crate::features::installation::{
     protected_routes as installation_routes, public_routes as web_binding_routes,
 };
@@ -73,14 +73,14 @@ pub(crate) fn documented_protected_routes() -> (Router<SqlitePool>, Vec<RouteCon
     routes.into_parts()
 }
 
-#[cfg(any(feature = "full", feature = "monitor-distribution", test))]
+#[cfg(any(feature = "full", feature = "selected-distribution", test))]
 pub(crate) fn documented_all_contracts() -> Vec<RouteContract> {
     let (_, mut contracts) = documented_protected_routes();
     let (_, public_contracts) = public_auth_routes().into_parts();
     contracts.extend(public_contracts);
     let (_, control_contracts) = control_routes().into_parts();
     contracts.extend(control_contracts);
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     {
         let (_, installation_contracts) = installation_routes().into_parts();
         let (_, binding_contracts) = web_binding_routes().into_parts();
@@ -91,7 +91,7 @@ pub(crate) fn documented_all_contracts() -> Vec<RouteContract> {
 }
 
 pub(super) async fn health() -> axum::Json<HealthResponse> {
-    #[cfg(feature = "monitor-distribution")]
+    #[cfg(feature = "selected-distribution")]
     let response = HealthResponse::ok_selected(env!("CARGO_PKG_VERSION"));
     #[cfg(feature = "full")]
     let response = HealthResponse::ok(env!("CARGO_PKG_VERSION"));
