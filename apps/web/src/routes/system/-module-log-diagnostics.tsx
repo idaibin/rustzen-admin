@@ -5,12 +5,13 @@ import {
 } from "@ant-design/icons";
 import { ProTable } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Input, Select, Space, Table, Typography } from "antd";
+import { Alert, Button, Input, Select, Space, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import {
     MODULE_LOG_MODULES,
-    type ModuleLogCleanupPreview,
+    type ModuleLogCleanupPreview as ModuleLogCleanupPreviewData,
     type ModuleLogCleanupResult,
     type ModuleLogFile,
     type ModuleLogModule,
@@ -21,8 +22,7 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
-import { CleanupResult, FailureList } from "./-module-log-cleanup-result";
-import { formatDateTime, getCleanupCandidateColumns } from "./-module-log-table-utils";
+import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { getModuleLogColumns } from "./-module-log-columns";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -51,7 +51,7 @@ function ModuleLogDiagnosticsContent() {
     const [tailFile, setTailFile] = useState<ModuleLogFile | null>(null);
     const [tailCursor, setTailCursor] = useState<string | undefined>();
     const [tailOpen, setTailOpen] = useState(false);
-    const [cleanupPreview, setCleanupPreview] = useState<ModuleLogCleanupPreview | null>(null);
+    const [cleanupPreview, setCleanupPreview] = useState<ModuleLogCleanupPreviewData | null>(null);
     const [cleanupResult, setCleanupResult] = useState<ModuleLogCleanupResult | null>(null);
     const [cleanupClock, setCleanupClock] = useState(() => Date.now());
 
@@ -135,110 +135,6 @@ function ModuleLogDiagnosticsContent() {
             query={tailQuery}
         />
     );
-
-    const renderCleanupPreview = () => {
-        if (previewError) {
-            return (
-                <Alert
-                    type="error"
-                    showIcon
-                    message={t("清理预览失败", "Cleanup preview failed")}
-                    description={previewError}
-                />
-            );
-        }
-        if (cleanupPreview) {
-            return (
-                <div className="space-y-3">
-                    <Alert
-                        type={cleanupExpired ? "warning" : "info"}
-                        showIcon
-                        message={
-                            cleanupExpired
-                                ? t(
-                                      "预览已过期，请重新生成。",
-                                      "Preview expired; generate a new preview.",
-                                  )
-                                : t(
-                                      `预览有效至 ${formatDateTime(cleanupPreview.expiresAt)}`,
-                                      `Preview expires at ${formatDateTime(cleanupPreview.expiresAt)}`,
-                                  )
-                        }
-                        description={t(
-                            `仅处理 ${cleanupPreview.cutoffDate} 之前的固定模块日志；当前文件不会删除。`,
-                            `Only fixed-module logs before ${cleanupPreview.cutoffDate} are eligible; active files are never deleted.`,
-                        )}
-                    />
-                    {cleanupPreview.failures.length ? (
-                        <FailureAlert
-                            title={t("部分文件无法预览", "Some files could not be previewed")}
-                            failures={cleanupPreview.failures}
-                        />
-                    ) : null}
-                    {cleanupPreview.candidates.length ? (
-                        <Table
-                            data-testid="module-log-cleanup-candidates"
-                            rowKey={(record) => `${record.module}:${record.date}`}
-                            size="small"
-                            pagination={false}
-                            dataSource={cleanupPreview.candidates}
-                            columns={getCleanupCandidateColumns()}
-                            scroll={{ x: 520 }}
-                        />
-                    ) : (
-                        <DataState
-                            kind="empty"
-                            title={t("没有符合条件的日志", "No eligible logs")}
-                            description={t(
-                                "当前保留策略下没有可清理文件。",
-                                "No files match the current retention cutoff.",
-                            )}
-                            compact
-                        />
-                    )}
-                    {cleanupPreview.candidates.length ? (
-                        <ConfirmDialog
-                            disabled={cleanupExpired || confirmMutation.isPending}
-                            destructive
-                            trigger={
-                                <Button
-                                    data-testid="module-log-cleanup-confirm-trigger"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    disabled={cleanupExpired || confirmMutation.isPending}
-                                    loading={confirmMutation.isPending}
-                                >
-                                    {t("确认清理", "Confirm cleanup")}
-                                </Button>
-                            }
-                            title={t("确认删除过期模块日志？", "Delete expired module logs?")}
-                            description={t(
-                                "确认后将重新校验文件安全性和预览快照。已变化、当前或不安全的文件会保留并列出失败原因。",
-                                "Files are rechecked against the preview. Changed, active, or unsafe files are retained and reported.",
-                            )}
-                            confirmLabel={t("删除并记录结果", "Delete and record result")}
-                            confirmTestId="module-log-cleanup-confirm"
-                            onConfirm={async () => {
-                                if (cleanupExpired) {
-                                    throw new Error(
-                                        t(
-                                            "预览已过期，请重新生成。",
-                                            "The preview expired; generate a new one.",
-                                        ),
-                                    );
-                                }
-                                await confirmMutation.mutateAsync(cleanupPreview.token);
-                            }}
-                        />
-                    ) : null}
-                </div>
-            );
-        }
-        if (cleanupResult) {
-            return <CleanupResult result={cleanupResult} />;
-        }
-        return null;
-    };
 
     return (
         <div data-testid="module-log-panel">
@@ -340,14 +236,47 @@ function ModuleLogDiagnosticsContent() {
                     description={confirmError}
                 />
             ) : null}
-            {previewMutation.isPending ? (
-                <DataState
-                    kind="processing"
-                    title={t("正在生成清理预览", "Preparing cleanup preview")}
-                    compact
-                />
-            ) : null}
-            {renderCleanupPreview()}
+            <ModuleLogCleanupPreviewSection
+                confirmAction={
+                    cleanupPreview?.candidates.length && !previewError ? (
+                        <ConfirmDialog
+                            disabled={cleanupExpired || confirmMutation.isPending}
+                            destructive
+                            trigger={
+                                <Button
+                                    data-testid="module-log-cleanup-confirm-trigger"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    disabled={cleanupExpired || confirmMutation.isPending}
+                                    loading={confirmMutation.isPending}
+                                >
+                                    {t("确认清理", "Confirm cleanup")}
+                                </Button>
+                            }
+                            title={t("确认删除过期模块日志？", "Delete expired module logs?")}
+                            description={t(
+                                "确认后将重新校验文件安全性和预览快照。已变化、当前或不安全的文件会保留并列出失败原因。",
+                                "Files are rechecked against the preview. Changed, active, or unsafe files are retained and reported.",
+                            )}
+                            confirmLabel={t("删除并记录结果", "Delete and record result")}
+                            confirmTestId="module-log-cleanup-confirm"
+                            onConfirm={async () => {
+                                if (cleanupExpired) {
+                                    throw new Error(
+                                        t("预览已过期，请重新生成。", "The preview expired; generate a new one."),
+                                    );
+                                }
+                                await confirmMutation.mutateAsync(cleanupPreview.token);
+                            }}
+                        />
+                    ) : null
+                }
+                error={previewError}
+                isExpired={cleanupExpired}
+                isPending={previewMutation.isPending}
+                preview={cleanupPreview}
+                result={cleanupResult}
+            />
             {fileQuery.error && files.length ? (
                 <Alert
                     type="warning"
@@ -418,16 +347,43 @@ function ModuleLogDiagnosticsContent() {
     );
 }
 
-
-function FailureAlert({
-    title,
-    failures,
-}: {
-    title: string;
-    failures: { module: string; fileName: string; reason: string }[];
-}) {
-    return <Alert type="warning" showIcon message={title} description={<FailureList failures={failures} />} />;
+interface ModuleLogCleanupPreviewSectionProps {
+    confirmAction: ReactNode;
+    error: string | null;
+    isExpired: boolean;
+    isPending: boolean;
+    preview: ModuleLogCleanupPreviewData | null;
+    result: ModuleLogCleanupResult | null;
 }
+
+export function ModuleLogCleanupPreviewSection({
+    confirmAction,
+    error,
+    isExpired,
+    isPending,
+    preview,
+    result,
+}: ModuleLogCleanupPreviewSectionProps) {
+    return (
+        <>
+            {isPending ? (
+                <DataState
+                    kind="processing"
+                    title={t("正在生成清理预览", "Preparing cleanup preview")}
+                    compact
+                />
+            ) : null}
+            <ModuleLogCleanupPreview
+                confirmAction={error ? null : confirmAction}
+                error={error}
+                isExpired={isExpired}
+                preview={preview}
+                result={result}
+            />
+        </>
+    );
+}
+
 
 function openTail(
     record: ModuleLogFile,
