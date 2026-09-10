@@ -1,14 +1,12 @@
 import {
-    ClockCircleOutlined,
     DeleteOutlined,
     DownloadOutlined,
     EyeOutlined,
-    FileSearchOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Card, Drawer, Input, Select, Space, Table, Tag, Typography } from "antd";
+import { Alert, Button, Input, Select, Space, Table, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -23,6 +21,7 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -191,99 +190,16 @@ function ModuleLogDiagnosticsContent() {
         [],
     );
 
-    const openTailButton = tailFile ? (
-        <Drawer
-            data-testid="module-log-tail-drawer"
-            title={
-                <Space>
-                    <FileSearchOutlined />
-                    <span>
-                        {tailFile.module} / {tailFile.date}
-                    </span>
-                </Space>
-            }
-            open={tailOpen}
-            width={720}
+    const openTailButton = (
+        <ModuleLogTailDrawer
+            error={tailError}
+            file={tailFile}
             onClose={() => setTailOpen(false)}
-            destroyOnHidden
-        >
-            {tailError ? (
-                <DataState
-                    kind="error"
-                    title={t("模块日志读取失败", "Failed to read module log")}
-                    description={tailError}
-                    action={
-                        <Button type="primary" onClick={() => void tailQuery.refetch()}>
-                            {t("重新加载", "Reload")}
-                        </Button>
-                    }
-                    compact
-                />
-            ) : tailQuery.isPending ? (
-                <DataState
-                    kind="loading"
-                    title={t("正在读取日志尾部", "Loading log tail")}
-                    compact
-                />
-            ) : tailQuery.data ? (
-                <div className="space-y-4">
-                    <Space wrap>
-                        <Tag>{tailQuery.data.module}</Tag>
-                        <Tag>{tailQuery.data.date}</Tag>
-                        <Typography.Text type="secondary">
-                            {t(
-                                `${tailQuery.data.lineCount} 行 / ${formatBytes(tailQuery.data.byteCount)}`,
-                                `${tailQuery.data.lineCount} lines / ${formatBytes(tailQuery.data.byteCount)}`,
-                            )}
-                        </Typography.Text>
-                    </Space>
-                    {tailQuery.data.truncated ? (
-                        <Alert
-                            type="warning"
-                            showIcon
-                            message={t(
-                                "内容已按安全上限截断。可继续读取更早内容。",
-                                "Content was truncated at the safety limit. Load older content to continue.",
-                            )}
-                        />
-                    ) : null}
-                    {tailQuery.data.content ? (
-                        <Card
-                            data-testid="module-log-tail-content"
-                            size="small"
-                            title={t("受限日志尾部", "Bounded log tail")}
-                            styles={{ body: { padding: 12 } }}
-                        >
-                            <pre className="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
-                                {tailQuery.data.content}
-                            </pre>
-                        </Card>
-                    ) : (
-                        <DataState
-                            kind="empty"
-                            title={t("日志文件为空", "Log file is empty")}
-                            compact
-                        />
-                    )}
-                    {tailQuery.data.nextCursor ? (
-                        <Button
-                            icon={<ClockCircleOutlined />}
-                            loading={tailQuery.isFetching}
-                            onClick={() => setTailCursor(tailQuery.data?.nextCursor ?? undefined)}
-                        >
-                            {t("读取更早内容", "Load older content")}
-                        </Button>
-                    ) : null}
-                </div>
-            ) : (
-                <DataState
-                    kind="empty"
-                    title={t("未找到日志内容", "No log content found")}
-                    compact
-                />
-            )}
-        </Drawer>
-    ) : null;
+            onLoadOlder={(cursor) => setTailCursor(cursor)}
+            open={tailOpen}
+            query={tailQuery}
+        />
+    );
 
     const renderCleanupPreview = () => {
         if (previewError) {
