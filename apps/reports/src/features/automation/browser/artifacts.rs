@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{app::AppState, common::error::AppError};
 
-use super::{BROWSER_SHUTDOWN_TIMEOUT, repo};
+use super::{super::repo, BROWSER_SHUTDOWN_TIMEOUT};
 
 const MAX_SCREENSHOT_PIXELS: u64 = 4_000_000;
 const MAX_SCREENSHOT_BYTES: usize = 4 * 1024 * 1024;

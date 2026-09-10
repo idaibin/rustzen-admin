@@ -8,7 +8,7 @@ use crate::{app::AppState, common::error::AppError};
 use super::super::types::{Flow, Run, System};
 use super::{
     BROWSER_INIT_TIMEOUT, BROWSER_SHUTDOWN_TIMEOUT, ExecutionContext, VIEWPORT_HEIGHT,
-    VIEWPORT_WIDTH, artifacts, execute_steps,
+    VIEWPORT_WIDTH, artifacts, steps::execute_steps,
 };
 
 fn apply_browser_headless_mode(
