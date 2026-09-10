@@ -1,5 +1,4 @@
 import { DeleteOutlined } from "@ant-design/icons";
-import { ProTable } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
@@ -16,11 +15,11 @@ import {
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
-import { DataTableShell } from "@/components/table/data-table-shell";
 import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { getModuleLogColumns } from "./-module-log-columns";
 import { ModuleLogActions, ModuleLogToolbar } from "./-module-log-controls";
+import { ModuleLogFileList } from "./-module-log-file-list";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -239,70 +238,19 @@ function ModuleLogDiagnosticsContent() {
                     preview={cleanupPreview}
                     result={cleanupResult}
                 />
-                {fileQuery.error && files.length ? (
-                    <Alert
-                        type="warning"
-                        showIcon
-                        message={t(
-                            "日志列表刷新失败，仍显示上次结果",
-                            "Refresh failed; showing the last result",
-                        )}
-                        description={metadataError ?? undefined}
-                    />
-                ) : null}
-                {!files.length && fileQuery.isPending ? (
-                    <DataState kind="loading" title={t("正在加载模块日志", "Loading module logs")} />
-                ) : !files.length && fileQuery.error ? (
-                    <DataState
-                        kind="error"
-                        title={t("模块日志加载失败", "Failed to load module logs")}
-                        description={metadataError ?? undefined}
-                        action={
-                            <Button type="primary" onClick={() => void fileQuery.refetch()}>
-                                {t("重新加载", "Reload")}
-                            </Button>
-                        }
-                    />
-                ) : !files.length ? (
-                    <DataState
-                        kind="empty"
-                        title={t("暂无模块日志文件", "No module log files")}
-                        description={t(
-                            "仅展示 admin、monitor、insights、reports 四个固定模块的日志文件。",
-                            "Only the fixed admin, monitor, insights, and reports modules are shown.",
-                        )}
-                    />
-                ) : (
-                    <DataTableShell ariaLabel={t("模块日志文件", "Module log files table")}>
-                        <ProTable<ModuleLogFile>
-                            rowKey={(record) => `${record.module}:${record.date}`}
-                            columns={columns}
-                            dataSource={files}
-                            loading={fileQuery.isFetching}
-                            search={false}
-                            options={false}
-                            pagination={false}
-                            rowSelection={{
-                                selectedRowKeys: selectedKeys,
-                                renderCell: (_checked, record, _index, originNode) => (
-                                    <span data-testid={`module-log-select-${record.module}-${record.date}`}>
-                                        {originNode}
-                                    </span>
-                                ),
-                                onChange: (keys, rows) => {
-                                    setSelectedKeys(keys);
-                                    setSelectedFiles(rows);
-                                },
-                                getCheckboxProps: (record) => ({ disabled: !record.readable }),
-                            }}
-                            locale={{
-                                emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
-                            }}
-                            toolBarRender={false}
-                            tableAlertOptionRender={false}
-                        />
-                    </DataTableShell>
-                )}
+                <ModuleLogFileList
+                    columns={columns}
+                    error={metadataError}
+                    files={files}
+                    isFetching={fileQuery.isFetching}
+                    isPending={fileQuery.isPending}
+                    onReload={() => void fileQuery.refetch()}
+                    onSelectionChange={(keys, rows) => {
+                        setSelectedKeys(keys);
+                        setSelectedFiles(rows);
+                    }}
+                    selectedKeys={selectedKeys}
+                />
                 {openTailButton}
             </PageCard>
         </div>
