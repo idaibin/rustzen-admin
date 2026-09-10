@@ -72,6 +72,10 @@ directory. Its issuer and crash-safe publication are implemented for the reviewe
 same-batch BuildKit and Linux artifact evidence, but does not issue that
 certificate.
 
+The exact `monitor-notify` P8c/P8d evidence manifest is
+`target/rz/p8cd-monitor-notify-evidence-manifest-20260910.json`. It binds the
+old dirty export identity `git:3d6aeec719d5acc9b26b114ceedef5ac9c700444 tree:a1f5e7e55952fd22d36ca8228c93ee5109a1316cf0e76b72cb7fa5f456af1b9a state:dirty`, composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d` and build `d2c4e0f452c7400927059bc499822ef1218a9c47547ca88eb25706bbfa1426bd` to archive `92a5c59f0dcc8b34058f785a840187212a7cb7eb53a656d338010a7b183fa4ce`, manifest `c74e970ca5729e5e985b233b7153d604a66866e855c720c2132e758e8c1f1b5b`, envelope `806ee234f003f815a86b230b5665e6ec7b5b83a67c2d7bfd3944d7599aca60c7` and certificate `8eba6380fe0e130288d0038d561b9a61a07abdbaad3ef049068164c3aefd1436`. The host and Linux/amd64 verifier JSON SHA-256 values are both `19acf4cb9484f42f618ccf87a0e164ccc949f922bd29487f71ec2d854d0e63a3` and their bytes match exactly. The private key was deleted; only public key SHA-256 `04db0497facd7cf34e8e0cb8821a386c852bf947275a47a6465263165bc31d8e` remains. This records one old-export tuple, not a rebuild of current `0d99f28` source; all literal `runtime`, `browser`, `load` and `releaseReady` flags remain false, and it proves neither native/PID1, browser nor load behavior.
+
 ## P8e Monitor native runtime gate
 
 The Linux/amd64 gate first rereads the canonical certificate through the issued
