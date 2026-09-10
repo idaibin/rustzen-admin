@@ -414,23 +414,31 @@ only after bounded container cleanup. The small transport probe uses Python's
 standard library because the pinned verifier already contains Python but no Bun
 or OpenSSL; it installs no runtime dependency.
 
-The final P6b Colima run is **Closed locally / Passed** at
-`target/rz/reports-notification-runtime/current/manifest.json` on
-`linux/arm64`. The manifest records 25 exact receipts and six manual terminal
-classes; selected state contains eight `stored` and one `no-recipients` receipt,
-eight messages, eight recipients, zero pending outbox rows and zero values for
-all five gap counters. It records immutable retry initiator, scheduled silence,
-outage backfill, a lost-response retry resolved as duplicate, unsigned `400`,
-bad-signature `401` and public-internal `404`. Selected and pure Reports both
-run as non-root `rz-reports` UID/GID `999`; their runtime, database, log and
-artifact directories are owned by that identity with mode `0750`. The pure
-selection records zero notification schema objects, config, routes, tasks and
-listeners. The first root-run Chromium failure is retained separately at
-`target/rz/reports-notification-runtime/failed-runs/20260907T162006Z-31299/`;
-the published `current` manifest is the final result. This gate does not cover
-native systemd, production deployment, SSE, UI or sustained load, and its
-controlled SQLite setup is limited to scheduled and crashed-running
-preconditions.
+P6a remains the final `linux/arm64` Monitor notification gate. The final P6b
+Colima run is **Closed locally / Passed** at
+`target/rz/reports-notification-runtime/runs/20260910T182747Z-31773/manifest.json`
+on `linux/amd64`, SHA-256
+`32d9a5d38c1a86c823da1f61064cf21c9a10ad25b525548a09ddd2a5a5da9552`. It binds
+head `1c96269d341bd693b8d5486c4f42fb36fe6a314e`, dirty source tree
+`dd299df31d9d2cfd524062f21546280b5340d3475bbf51ff3ef0a5af56eb007b`, build
+provenance SHA-256
+`0199b0630ac97d98c2b6c34ab8ece35a1be85115225a7e2f564b9a1ed30964e9`, and 27
+exact receipts. Selected state contains eight `stored` and one `no-recipients`
+receipt, eight messages, eight recipients, zero pending outbox rows and zero
+values for all five gap counters. It records immutable retry initiator,
+scheduled silence, outage backfill, a lost-response retry resolved as duplicate,
+unsigned `400`, bad-signature `401` and public-internal `404`. Selected and
+pure Reports both run as non-root `rz-reports` UID/GID `999`; their runtime,
+database, log and artifact directories use mode `0750`. Pure Web binds
+composition `8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b`,
+digest `1ce67f44c7ae9f4f7a511ae3bd4c583b5166bf54c951fc0dc2245c3cc71957ec`, and
+feature IDs `access,monitor`; pure selection records zero notification schema
+objects, config, routes, tasks and listeners. The manifest/current record
+binary hashes and build provenance but do not retain binary bytes, so they do
+not support rehashing binary files. Failed runs, including stale-cache
+diagnostics, are not published as `current`. This gate does not cover native
+systemd, production deployment, SSE, UI or sustained load, and its controlled
+SQLite setup is limited to scheduled and crashed-running preconditions.
 
 ## User interface acceptance
 
