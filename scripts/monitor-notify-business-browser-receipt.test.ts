@@ -25,6 +25,8 @@ test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for C
     expect(driver).not.toContain("Network.requestWillBeSentExtraInfo");
     expect(driver).toContain("streamDiagnostics(streamItems)");
     expect(driver).toContain("wallTime: value.params.wallTime");
+    expect(driver).toContain("badgeObservedAt");
+    expect(driver).toContain("browser audit clock did not advance");
     expect(driver).toContain('"subjectRevision"');
     expect(driver).toContain("detailDiagnostics");
     expect(driver).toContain("readAtPresent");
