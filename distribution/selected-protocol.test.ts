@@ -18,6 +18,29 @@ import {
 const server = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
 const notifyServer = { preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
 const agent = { preset: "node-agent", target: "x86_64-unknown-linux-musl" };
+const analytics = { preset: "analytics", target: "x86_64-unknown-linux-musl" };
+
+test("analytics requires matching reviewed Admin and Insights delegation outputs", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-protocol-analytics-"));
+    try {
+        const output = reviewedProtocolOutput(analytics);
+        const result = await produceSelectedProtocol(analytics, join(root, "out"), output, output);
+        expect(result.protocol.preset).toBe("analytics");
+        expect(result.protocol.artifactClass).toBe("server");
+        expect(result.protocol.descriptor).toContain("x-rustzen-ipc-signature");
+        await expect(
+            produceSelectedProtocol(analytics, join(root, "mismatch"), output, reviewedProtocolOutput()),
+        ).rejects.toThrow("peer outputs differ");
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+test("reviewed protocol output rejects unsupported selections", () => {
+    expect(() => reviewedProtocolOutput({ preset: "reports" })).toThrow(
+        "unavailable for this selection",
+    );
+});
 
 test("selected protocol requires matching reviewed Controller and Agent outputs", async () => {
     const root = await mkdtemp(join(tmpdir(), "rz-protocol-"));

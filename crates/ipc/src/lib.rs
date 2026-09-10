@@ -1,6 +1,7 @@
 //! Internal contracts shared by the four Rustzen backend applications.
 
 mod delegation;
+mod delegation_contract;
 mod extract;
 mod health;
 mod manifest;
@@ -12,6 +13,9 @@ pub use delegation::{
     CONTRACT_VERSION, DelegatedAccess, DelegatedContext, DelegationError, DelegationSigner,
     DelegationVerifier, IPC_ACCESS_HEADER, IPC_CONTRACT_VERSION_HEADER, IPC_MODULE_HEADER,
     IPC_REQUEST_ID_HEADER, IPC_SIGNATURE_HEADER, IPC_TIMESTAMP_HEADER, IPC_USER_ID_HEADER,
+};
+pub use delegation_contract::{
+    canonical_delegation_descriptor, delegation_protocol_digest, delegation_protocol_output,
 };
 pub use extract::{ModuleInputRejection, ModuleJson, ModuleJsonRejection, ModuleQuery};
 pub use health::HealthResponse;

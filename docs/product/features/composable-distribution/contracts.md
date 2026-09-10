@@ -1048,11 +1048,12 @@ The selected protocol artifact is canonical JSON with `artifactClass`,
 `compositionId`, `descriptor`, `digest`, `preset`, and `version`; `descriptor`
 is the canonical descriptor byte string, preserving wire integers beyond the
 JavaScript safe-integer range. Its digest is SHA-256 of those descriptor bytes.
-It is accepted only when both real
-Controller and Agent command outputs parse as the same reviewed
-descriptor/digest pair. Server and node-agent artifacts have distinct
-compositions; caller-supplied protocol IDs, cross-class/stale artifacts, links,
-extra files, and changing files are rejected before manifest production.
+It is accepted only when both real peer command outputs parse as the same
+reviewed descriptor/digest pair: Controller+Agent for Monitor and
+Admin+Insights for Analytics delegation. Server and node-agent artifacts have
+distinct compositions; caller-supplied protocol IDs, cross-class/stale
+artifacts, links, extra files, and changing files are rejected before manifest
+production.
 
 ### Selected API artifact
 

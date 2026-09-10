@@ -61,7 +61,7 @@
                     "package": "rustzen-insights",
                     "binary": "rz-insights",
                     "status": "blocked",
-                    "reason": "Insights service Cargo, selected Admin/Insights schema, selected Web/API/config and native-layout producers are implemented; complete server Cargo/protocol, native packaging and runtime certification are not complete."
+                    "reason": "Insights service Cargo, selected Admin/Insights schema, selected Web/API/config/protocol and native-layout producers are implemented; complete server Cargo, native packaging and runtime certification are not complete."
                 }
             ],
             "webRoots": [

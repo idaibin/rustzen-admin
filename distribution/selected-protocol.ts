@@ -12,46 +12,45 @@ export type SelectedProtocol = {
     version: 1;
     artifactClass: "server" | "node-agent";
     compositionId: string;
-    preset: "monitor" | "monitor-notify" | "node-agent";
+    preset: "analytics" | "monitor" | "monitor-notify" | "node-agent";
     descriptor: string;
     digest: string;
 };
 
-/** Both Controller and Agent emit this descriptor for these exact closures. */
+/** Both real protocol peers emit one reviewed descriptor for these exact closures. */
 export const supportsSelectedProtocol = (plan: SourceBuildPlan): boolean =>
-    isExactSupportedPlan(plan, ["monitor", "monitor-notify", "node-agent"]);
+    isExactSupportedPlan(plan, ["analytics", "monitor", "monitor-notify", "node-agent"]);
 
-const goldenFile = await Bun.file(
-    new URL("./fixtures/monitor-protocol.json", import.meta.url),
-).text();
-if (!goldenFile.endsWith("\n"))
-    throw new Error("reviewed protocol descriptor must end with one newline");
-const reviewedDescriptor = goldenFile.slice(0, -1);
-JSON.parse(reviewedDescriptor);
+const reviewedDescriptors = {
+    analytics: await reviewedDescriptor("analytics-protocol.json"),
+    monitor: await reviewedDescriptor("monitor-protocol.json"),
+} as const;
 
-export const reviewedProtocolOutput = () =>
-    `${reviewedDescriptor}\n${sha256(reviewedDescriptor)}\n`;
+export const reviewedProtocolOutput = (selection: unknown = { preset: "monitor" }) => {
+    const descriptor = descriptorFor(selection);
+    return `${descriptor}\n${sha256(descriptor)}\n`;
+};
 
 export function completeSelectedProtocol(selection: unknown): SelectedProtocol {
-    return { ...identity(selection), ...parsedGolden() };
+    return { ...identity(selection), ...parsedGolden(selection) };
 }
 
 export async function produceSelectedProtocol(
     selection: unknown,
     outputRoot: string,
-    controllerOutput: string,
-    agentOutput: string,
+    firstPeerOutput: string,
+    secondPeerOutput: string,
 ) {
     await rejectSymlink(outputRoot);
-    const controller = parseCommandOutput(controllerOutput);
-    const agent = parseCommandOutput(agentOutput);
+    const firstPeer = parseCommandOutput(firstPeerOutput);
+    const secondPeer = parseCommandOutput(secondPeerOutput);
     if (
-        controller.descriptor !== agent.descriptor ||
-        controller.digest !== agent.digest
+        firstPeer.descriptor !== secondPeer.descriptor ||
+        firstPeer.digest !== secondPeer.digest
     )
-        throw new Error("Controller and Agent protocol outputs differ");
+        throw new Error("selected protocol peer outputs differ");
     const protocol = parseSelectedProtocol(
-        { ...identity(selection), ...controller },
+        { ...identity(selection), ...firstPeer },
         selection,
     );
     await rm(outputRoot, { recursive: true, force: true });
@@ -123,10 +122,11 @@ function parseCommandOutput(output: string) {
     return { descriptor: lines[0], digest };
 }
 
-function parsedGolden() {
+function parsedGolden(selection: unknown) {
+    const descriptor = descriptorFor(selection);
     return {
-        descriptor: reviewedDescriptor,
-        digest: sha256(reviewedDescriptor),
+        descriptor,
+        digest: sha256(descriptor),
     };
 }
 
@@ -135,21 +135,37 @@ function identity(selection: unknown) {
     if (
         !(
             (supportsSelectedProtocol(plan) &&
-                ["monitor", "monitor-notify"].includes(plan.preset) &&
+                ["analytics", "monitor", "monitor-notify"].includes(plan.preset) &&
                 plan.artifactClass === "server") ||
             (supportsSelectedProtocol(plan) && plan.preset === "node-agent" &&
                 plan.artifactClass === "node-agent")
         )
     )
         throw new Error(
-            "selected protocol supports only monitor server compositions or node-agent",
+            "selected protocol supports only analytics or monitor server compositions or node-agent",
         );
     return {
         version: 1 as const,
         artifactClass: plan.artifactClass,
         compositionId: plan.compositionId,
-        preset: plan.preset as "monitor" | "monitor-notify" | "node-agent",
+        preset: plan.preset as SelectedProtocol["preset"],
     };
+}
+
+function descriptorFor(selection: unknown): string {
+    const plan = resolveSelection(selection);
+    if (!supportsSelectedProtocol(plan))
+        throw new Error("selected protocol is unavailable for this selection");
+    return plan.preset === "analytics" ? reviewedDescriptors.analytics : reviewedDescriptors.monitor;
+}
+
+async function reviewedDescriptor(file: string): Promise<string> {
+    const bytes = await Bun.file(new URL(`./fixtures/${file}`, import.meta.url)).text();
+    if (!bytes.endsWith("\n"))
+        throw new Error("reviewed protocol descriptor must end with one newline");
+    const descriptor = bytes.slice(0, -1);
+    JSON.parse(descriptor);
+    return descriptor;
 }
 
 async function rejectSymlink(path: string) {

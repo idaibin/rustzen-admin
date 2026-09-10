@@ -1,6 +1,9 @@
 import { join, resolve } from "node:path";
 import { canonicalJson } from "../distribution/release-manifest-core.ts";
-import { produceSelectedProtocol } from "../distribution/selected-protocol.ts";
+import {
+    produceSelectedProtocol,
+    supportsSelectedProtocol,
+} from "../distribution/selected-protocol.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
 
 const root = resolve(import.meta.dir, "..");
@@ -35,11 +38,14 @@ const run = (name: string) => {
 
 const selection = await Bun.file(resolve(root, selectionPath)).json();
 const plan = resolveSelection(selection);
+if (!supportsSelectedProtocol(plan))
+    throw new Error("selected protocol production is unavailable for this selection");
 const produced = await produceSelectedProtocol(
     selection,
     outputRoot,
-    run("rz-monitor"),
-    run("rz-monitor-agent"),
+    ...(plan.preset === "analytics"
+        ? [run("rz-admin"), run("rz-insights")]
+        : [run("rz-monitor"), run("rz-monitor-agent")]),
 );
 
 function values(input: string[], allowed: Set<string>) {

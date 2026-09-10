@@ -520,6 +520,9 @@ Monitor P4 protocol evidence is produced by `just verify-monitor-protocol`,
 the Controller and Agent focused tests, and route-level conformance tests.
 They build both binaries, compare descriptor output, exercise gateway delegation
 plus the Agent token, and check the fixed fencing fixture corpus.
+Analytics selected protocol evidence compares the Admin and Insights canonical
+delegation descriptor before dotenv or runtime initialization. Both closures
+require matching descriptor output and digest from their real peers.
 
 | D51 | Run a selected API producer with empty environment and temporary cwd; mutate a route, owner, namespace or artifact byte | Contract-only binaries remain deterministic; the producer rejects omissions/additions and records only verified artifact bytes |
 | D52 | Produce selected schema evidence from final initialization migrations; mutate owner, digest, canonical bytes, file identity or artifact inventory | Manifest accepts only stable canonical schema evidence for the exact Admin/Monitor or Admin/Insights owner set and derives every schema/data ID from it |
