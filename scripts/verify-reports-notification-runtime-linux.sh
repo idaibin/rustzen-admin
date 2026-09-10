@@ -46,7 +46,7 @@ validate_seconds "$kill_grace" RUSTZEN_REPORTS_NOTIFY_KILL_GRACE 5
 read_pure_web_binding() {
   local selected_root binding composition_dir binding_values
   local -a bindings
-  selected_root="$root/apps/admin/selected-web"
+  selected_root=${RUSTZEN_REPORTS_NOTIFY_SELECTED_WEB_ROOT:-"$root/apps/admin/selected-web"}
   test -d "$selected_root" && test ! -L "$selected_root" || { echo 'selected Web root is unsafe' >&2; exit 1; }
   bindings=()
   while IFS= read -r binding; do bindings+=("$binding"); done < <(find "$selected_root" -mindepth 2 -maxdepth 2 -type f -name binding.json -print)
