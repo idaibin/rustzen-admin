@@ -8,6 +8,7 @@ const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
 const moduleLogHelper = await Bun.file(new URL("./verify-module-log-diagnostics.sh", import.meta.url)).text();
 const databaseIsolationHelper = await Bun.file(new URL("./verify-database-isolation.sh", import.meta.url)).text();
 const lifecycleHelper = await Bun.file(new URL("./verify-service-lifecycle.sh", import.meta.url)).text();
+const authModuleGatewayHelper = await Bun.file(new URL("./verify-service-auth-module-gateway.sh", import.meta.url)).text();
 
 test("four-service verifier binds Monitor's selected database before every controller start", () => {
     const identityNames = [
@@ -39,7 +40,7 @@ test("four-service verifier binds Monitor's selected database before every contr
 
 });
 
-const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs";
+const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-service-auth-module-gateway.test.mjs scripts/verify-services.test.mjs";
 
 function justRecipe(name, nextName) {
     return justfile.slice(justfile.indexOf(`${name}:`), justfile.indexOf(`\n${nextName}:`));
@@ -282,6 +283,26 @@ test("lifecycle helper preserves stop order, forced kill, and source failure pro
     }
     const failure = Bun.spawnSync({
         cmd: ["sh", "-ceu", '. "$1"; service_health_url unknown', "sh", helper],
+        stdout: "pipe", stderr: "pipe",
+    });
+    expect(failure.exitCode).toBe(1);
+});
+
+
+test("auth/module-gateway helper preserves module waits, URLs, envelopes, and failure propagation", () => {
+    const helper = new URL("./verify-service-auth-module-gateway.sh", import.meta.url).pathname;
+    expect(script).toContain('AUTH_MODULE_GATEWAY_HELPER="$PROJECT_ROOT/scripts/verify-service-auth-module-gateway.sh"');
+    expect(script).toContain('if [ ! -f "$AUTH_MODULE_GATEWAY_HELPER" ] || [ -L "$AUTH_MODULE_GATEWAY_HELPER" ]; then');
+    expect(script).toContain('if ! . "$AUTH_MODULE_GATEWAY_HELPER"; then');
+    expect(script.indexOf('. "$AUTH_MODULE_GATEWAY_HELPER"')).toBeGreaterThan(script.indexOf("trap cleanup EXIT INT TERM"));
+    expect(script).not.toContain("wait_for_module_state() {");
+    expect(authModuleGatewayHelper).toContain('[ "$count" -lt 180 ]');
+    expect(authModuleGatewayHelper).toContain("/api/monitor/nodes");
+    expect(authModuleGatewayHelper).toContain("/api/insights/overview");
+    expect(authModuleGatewayHelper).toContain("/api/reports/systems");
+    expect(authModuleGatewayHelper).toContain('payload.code !== 40001 || payload.message !== expected || payload.data !== null');
+    const failure = Bun.spawnSync({
+        cmd: ["sh", "-ceu", '. "$1"; module_gateway_url invalid', "sh", helper],
         stdout: "pipe", stderr: "pipe",
     });
     expect(failure.exitCode).toBe(1);
