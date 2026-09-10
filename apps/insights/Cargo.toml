@@ -6,6 +6,11 @@ edition = "2024"
 license.workspace = true
 publish = false
 
+[features]
+default = ["full"]
+full = ["rustzen-config/default"]
+selected-distribution = ["rustzen-config/insights"]
+
 [[bin]]
 name = "rz-insights"
 path = "src/main.rs"
@@ -14,7 +19,7 @@ path = "src/main.rs"
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 rustzen-auth = { path = "../../crates/auth" }
-rustzen-config = { path = "../../crates/config" }
+rustzen-config = { path = "../../crates/config", default-features = false }
 rustzen-ipc = { path = "../../crates/ipc" }
 rustzen-runtime = { path = "../../crates/runtime" }
 rustzen-storage = { path = "../../crates/storage" }

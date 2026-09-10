@@ -3,10 +3,48 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "bun:test";
-import { selectedCargoBuilds } from "../distribution/selected-cargo-producer.ts";
+import {
+    selectedCargoBuilds,
+    selectedServiceCargoBuilds,
+} from "../distribution/selected-cargo-producer.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
+
+test(
+    "Analytics service producer builds with only the selected Insights config owner",
+    async () => {
+        const scratch = await mkdtemp(join(tmpdir(), "rz-analytics-service-producer-"));
+        try {
+            const plan = resolveSelection(
+                await Bun.file(join(repositoryRoot, "distribution/fixtures/analytics.json")).json(),
+            );
+            for (const command of selectedServiceCargoBuilds(plan)) {
+                const build = Bun.spawnSync(command, {
+                    cwd: repositoryRoot,
+                    env: { ...process.env, CARGO_TARGET_DIR: join(scratch, "target") },
+                    stdout: "pipe",
+                    stderr: "pipe",
+                });
+                expect(new TextDecoder().decode(build.stderr)).not.toContain("error:");
+                expect(build.exitCode).toBe(0);
+            }
+            const tree = Bun.spawnSync([
+                "cargo", "tree", "-p", "rustzen-insights", "--no-default-features",
+                "--features", "selected-distribution", "-e", "features",
+                "-i", "rustzen-config", "--prefix", "none",
+            ], { cwd: repositoryRoot, stdout: "pipe", stderr: "pipe" });
+            expect(tree.exitCode).toBe(0);
+            const configFeatures = new TextDecoder().decode(tree.stdout)
+                .split("\n")
+                .filter((line) => line.startsWith('rustzen-config feature "'));
+            expect(configFeatures).toEqual(['rustzen-config feature "insights"']);
+        } finally {
+            await rm(scratch, { recursive: true, force: true });
+        }
+    },
+    300_000,
+);
 
 test(
     "formal monitor-notify producer builds a clean selected binary and exports real owners",

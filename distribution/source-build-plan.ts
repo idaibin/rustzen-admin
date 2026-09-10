@@ -8,7 +8,7 @@ export type SourceBuildPlan = {
 };
 
 type SupportedComposition = {
-    preset: "monitor" | "monitor-notify" | "node-agent";
+    preset: "monitor" | "monitor-notify" | "analytics" | "node-agent";
     artifactClass: "server" | "node-agent";
     capabilities: string[];
     compositionId: string;
@@ -29,6 +29,12 @@ const supported: Record<SupportedComposition["preset"], SupportedComposition> = 
         artifactClass: "server",
         capabilities: ["access", "monitor", "notifications"],
         compositionId: "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+    },
+    analytics: {
+        preset: "analytics",
+        artifactClass: "server",
+        capabilities: ["access", "insights"],
+        compositionId: "62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40",
     },
     "node-agent": {
         preset: "node-agent",

@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { distributionCatalog, resolveSelection } from "./resolver.ts";
-import { supportsSelectedCargo } from "./selected-cargo-producer.ts";
+import {
+    selectedCargoBuilds,
+    selectedServiceCargoBuilds,
+    supportsSelectedCargo,
+    supportsSelectedServiceCargo,
+} from "./selected-cargo-producer.ts";
 import {
     assertCompleteReadinessInventory,
     auditSourceBuildReadiness,
@@ -54,6 +59,18 @@ describe("P8 source/build certification admission", () => {
         expect(auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers).toEqual(
             [],
         );
+    });
+
+    test("tracks the Analytics service build without admitting the incomplete server family", () => {
+        const plan = resolveSelection(fixture("analytics"));
+        expect(supportsSelectedServiceCargo(plan)).toBeTrue();
+        expect(selectedServiceCargoBuilds(plan)).toEqual([[
+            "cargo", "build", "-p", "rustzen-insights", "--no-default-features",
+            "--features", "selected-distribution", "--bin", "rz-insights",
+        ]]);
+        expect(supportsSelectedCargo(plan)).toBeFalse();
+        expect(() => selectedCargoBuilds(plan)).toThrow();
+        expect(auditSourceBuildReadiness(fixture("analytics")).missingProducers).toContain("cargo");
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {
