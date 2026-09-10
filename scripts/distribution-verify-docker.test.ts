@@ -172,8 +172,8 @@ describe("Docker distribution input", () => {
             throw new Error(`mutation ${index} must fail closed`);
         });
     });
-    test("rejects empty, misspelled and custom compositions before build", () => {
-        for (const value of ["", "monitr", "custom"])
+    test("rejects Analytics, empty, misspelled and custom compositions before build", () => {
+        for (const value of ["", "analytics", "monitr", "custom"])
             expect(() => validateDistribution(value)).toThrow(
                 "DISTRIBUTION must be full, monitor or monitor-notify",
             );

@@ -5,9 +5,7 @@ import { join } from "node:path";
 import { distributionCatalog, resolveSelection } from "./resolver.ts";
 import {
     selectedCargoBuilds,
-    selectedServiceCargoBuilds,
     supportsSelectedCargo,
-    supportsSelectedServiceCargo,
 } from "./selected-cargo-producer.ts";
 import {
     assertCompleteReadinessInventory,
@@ -26,7 +24,7 @@ describe("P8 source/build certification admission", () => {
         }
     });
 
-    test("admits only the three selections with complete source/build producer families", () => {
+    test("keeps the existing Monitor and Agent producer families admitted", () => {
         for (const preset of ["monitor", "monitor-notify", "node-agent"]) {
             const audit = auditSourceBuildReadiness(fixture(preset));
             expect(audit.admissionReady).toBeTrue();
@@ -42,7 +40,7 @@ describe("P8 source/build certification admission", () => {
     });
 
     test("fails closed for incomplete official and test-only selections", () => {
-        for (const preset of ["full", "analytics", "reports", "current-full-regression"]) {
+        for (const preset of ["full", "reports", "current-full-regression"]) {
             const audit = auditSourceBuildReadiness(fixture(preset));
             expect(audit.admissionReady).toBeFalse();
             expect(audit.blockers.length).toBeGreaterThan(0);
@@ -52,10 +50,21 @@ describe("P8 source/build certification admission", () => {
         expect(auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers).toEqual([]);
     });
 
-    test("tracks the Analytics service build without admitting the incomplete server family", () => {
+    test("admits the complete Analytics source producer family without certification", () => {
         const plan = resolveSelection(fixture("analytics"));
-        expect(supportsSelectedServiceCargo(plan)).toBeTrue();
-        expect(selectedServiceCargoBuilds(plan)).toEqual([
+        expect(supportsSelectedCargo(plan)).toBeTrue();
+        expect(selectedCargoBuilds(plan)).toEqual([
+            [
+                "cargo",
+                "build",
+                "-p",
+                "rustzen-admin",
+                "--no-default-features",
+                "--features",
+                "analytics-distribution",
+                "--bin",
+                "rz-admin",
+            ],
             [
                 "cargo",
                 "build",
@@ -68,17 +77,16 @@ describe("P8 source/build certification admission", () => {
                 "rz-insights",
             ],
         ]);
-        expect(supportsSelectedCargo(plan)).toBeFalse();
-        expect(() => selectedCargoBuilds(plan)).toThrow();
         const audit = auditSourceBuildReadiness(fixture("analytics"));
         expect(audit.availableProducers).toEqual([
-            "web", "api", "schema", "config", "native-layout", "protocol",
+            "cargo", "web", "api", "schema", "config", "native-layout", "protocol",
         ]);
-        expect(audit.missingProducers).toEqual(["cargo"]);
-        expect(audit.admissionReady).toBeFalse();
+        expect(audit.missingProducers).toEqual([]);
+        expect(audit.admissionReady).toBeTrue();
+        expect(audit.certified).toBeFalse();
         const insights = distributionCatalog.capabilities.find(({ id }) => id === "insights");
         expect(insights?.packageTargets[0]?.reason).toContain(
-            "Insights service Cargo, selected Admin/Insights schema, selected Web/API/config/protocol and native-layout producers are implemented",
+            "Analytics Admin/Insights selected Cargo, schema, Web/API/config/protocol and native-layout producers are implemented",
         );
     });
 
@@ -120,6 +128,21 @@ describe("P8 source/build certification admission", () => {
         const plan = resolveSelection(fixture("monitor"));
         expect(supportsSelectedCargo(plan)).toBeTrue();
         expect(supportsSelectedCargo({ ...plan, compositionId: "0".repeat(64) })).toBeFalse();
+    });
+
+    test("rejects Cargo producer class, capability and unreviewed selection mutations", () => {
+        const analytics = resolveSelection(fixture("analytics"));
+        for (const plan of [
+            { ...analytics, compositionId: "0".repeat(64) },
+            { ...analytics, capabilities: ["access", "monitor"] },
+            { ...analytics, artifactClass: "node-agent" as const },
+            resolveSelection(fixture("reports")),
+            resolveSelection(fixture("full")),
+            resolveSelection({ preset: "custom", capabilities: ["access", "insights"] }),
+        ]) {
+            expect(supportsSelectedCargo(plan)).toBeFalse();
+            expect(() => selectedCargoBuilds(plan)).toThrow();
+        }
     });
 
     test("rejects a forged named catalog whose Agent closure changes", () => {

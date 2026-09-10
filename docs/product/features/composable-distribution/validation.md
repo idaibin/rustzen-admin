@@ -29,8 +29,11 @@ exact composition and build. Passing `full` never certifies a subset.
 
 Before a source/build certification command runs, the P8a admission audit must
 cover every named catalog preset and must reject unknown or incomplete producer
-sets. The current admitted set is `monitor`, `monitor-notify` and `node-agent`.
-Target `full`, `analytics`, `reports`, `current-full-regression` and `custom`
+sets. The current admitted set is `analytics`, `monitor`, `monitor-notify` and
+`node-agent`. Analytics admission is P8a source/build evidence only: its P8b
+container/staging, signing, runtime, browser and release evidence remain
+unimplemented, and Docker rejects Analytics.
+Target `full`, `reports`, `current-full-regression` and `custom`
 return a machine-readable blocked result; `--require-ready` exits nonzero.
 `monitor-notify` has exact Linux/amd64 build/export evidence at
 `target/rz/p8b-monitor-notify-export-20260910T065139Z`, bound to dirty source
@@ -127,7 +130,7 @@ The record has `runtime:true` and literal `browser:false`, `load:false` and
 `releaseReady:false`. It is exact evidence for that old tuple only: it does not
 prove a current-HEAD rebuild, browser, load or deployment.
 
-The P8b selected-server container closure is verified separately from certification. Its
+The P8b selected-server container closure is verified separately from certification. It
 static boundary test admits only the reviewed `monitor` and `monitor-notify`
 fixture/feature cases and must reject a non-Linux/amd64 build stage, an omitted Monitor
 source-identity requirement, a target other than x86_64 musl, a missing explicit

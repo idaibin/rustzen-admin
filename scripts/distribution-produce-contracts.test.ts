@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { expect, test } from "bun:test";
 import {
     selectedCargoBuilds,
-    selectedServiceCargoBuilds,
 } from "../distribution/selected-cargo-producer.ts";
 import { completeSelectedConfigForTest } from "../distribution/selected-config.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
@@ -81,10 +80,7 @@ test(
             const plan = resolveSelection(
                 await Bun.file(selectionPath).json(),
             );
-            for (const command of [[
-                "cargo", "build", "-p", "rustzen-admin", "--no-default-features",
-                "--features", "analytics-distribution", "--bin", "rz-admin",
-            ], ...selectedServiceCargoBuilds(plan)]) {
+            for (const command of selectedCargoBuilds(plan)) {
                 const build = Bun.spawnSync(command, {
                     cwd: repositoryRoot,
                     env: { ...process.env, CARGO_TARGET_DIR: target },
