@@ -6,16 +6,42 @@ VERIFY="${VERIFY_SERVICES_SCRIPT:-$ROOT/scripts/verify-services.sh}"
 JUSTFILE="${JUSTFILE_PATH:-$ROOT/justfile}"
 MODULE_LOG_HELPER="${VERIFY_SERVICES_MODULE_LOG_HELPER:-$ROOT/scripts/verify-module-log-diagnostics.sh}"
 DATABASE_ISOLATION_HELPER="${VERIFY_SERVICES_DATABASE_ISOLATION_HELPER:-$ROOT/scripts/verify-database-isolation.sh}"
+LIFECYCLE_HELPER="${VERIFY_SERVICES_LIFECYCLE_HELPER:-$ROOT/scripts/verify-service-lifecycle.sh}"
 
 bash -n "$VERIFY"
 sh -n "$MODULE_LOG_HELPER"
 sh -n "$DATABASE_ISOLATION_HELPER"
+sh -n "$LIFECYCLE_HELPER"
 
 grep -Fqx 'AGENT="${6:-target/release/rz-monitor-agent}"' "$VERIFY"
 grep -Fqx 'AGENT="$(absolute_binary "$AGENT")"' "$VERIFY"
 grep -Fqx 'for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI" "$AGENT"; do' "$VERIFY"
 grep -Fqx 'export RUSTZEN_MONITOR_NODE_ID=verify-monitor-node' "$VERIFY"
 grep -Fqx 'export RUSTZEN_REPORTS_SQLITE_PATH=./data/reports/db/reports.db' "$VERIFY"
+grep -Fqx 'LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/verify-service-lifecycle.sh"' "$VERIFY"
+grep -Fqx 'trap initial_cleanup EXIT INT TERM' "$VERIFY"
+grep -Fqx 'if ! sh -n "$LIFECYCLE_HELPER"; then' "$VERIFY"
+grep -Fqx 'if ! . "$LIFECYCLE_HELPER"; then' "$VERIFY"
+grep -Fqx 'if [ ! -f "$LIFECYCLE_HELPER" ] || [ -L "$LIFECYCLE_HELPER" ]; then' "$VERIFY"
+grep -Fqx '    rm -rf "$ROOT"' "$VERIFY"
+grep -Fqx 'if ! sh -n "$LIFECYCLE_HELPER"; then' "$VERIFY"
+grep -Fqx 'if ! . "$LIFECYCLE_HELPER"; then' "$VERIFY"
+grep -Fqx 'trap cleanup EXIT INT TERM' "$VERIFY"
+if grep -Fq 'start_service() {' "$VERIFY"; then
+    echo "verify-services must source lifecycle helpers instead of defining them inline" >&2
+    exit 1
+fi
+grep -Fqx 'start_service() {' "$LIFECYCLE_HELPER"
+grep -Fqx '        admin) "$ADMIN" serve >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
+grep -Fqx '        monitor) "$MONITOR" controller >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
+grep -Fqx '        insights) "$INSIGHTS" serve >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
+grep -Fqx '        reports) "$REPORTS" serve >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
+grep -Fqx '        monitor_agent) "$AGENT" >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
+grep -Fqx '    for name in monitor_agent admin reports insights monitor; do' "$LIFECYCLE_HELPER"
+grep -Fqx '        while kill -0 "$pid" 2>/dev/null && [ "$count" -lt 50 ]; do' "$LIFECYCLE_HELPER"
+grep -Fqx '            sleep 0.1' "$LIFECYCLE_HELPER"
+grep -Fqx '            kill -KILL "$pid" 2>/dev/null || true' "$LIFECYCLE_HELPER"
+grep -Fqx '    while [ "$count" -lt 180 ]; do' "$LIFECYCLE_HELPER"
 grep -Fqx 'MODULE_LOG_HELPER="$PROJECT_ROOT/scripts/verify-module-log-diagnostics.sh"' "$VERIFY"
 grep -Fqx 'if [ ! -f "$MODULE_LOG_HELPER" ] || [ -L "$MODULE_LOG_HELPER" ]; then' "$VERIFY"
 grep -Fqx '. "$MODULE_LOG_HELPER"' "$VERIFY"
@@ -60,7 +86,7 @@ grep -Fqx '    [ "$repeated_status" = 400 ] || { echo "verify-services: reused m
 source_line="$(grep -nF '. "$MODULE_LOG_HELPER"' "$VERIFY" | cut -d: -f1)"
 call_line="$(grep -nF 'verify_module_log_diagnostics' "$VERIFY" | tail -n1 | cut -d: -f1)"
 [[ "$trap_line" -lt "$source_line" && "$source_line" -lt "$call_line" ]]
-grep -Fqx '        monitor_agent) "$AGENT" >"$log" 2>&1 & ;;' "$VERIFY"
+grep -Fqx '        monitor_agent) "$AGENT" >"$log" 2>&1 & ;;' "$LIFECYCLE_HELPER"
 if grep -Fq 'monitor_agent) "$MONITOR" agent' "$VERIFY"; then
     echo "verify-services must start the independent rz-monitor-agent binary" >&2
     exit 1

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -7,6 +7,7 @@ const script = await Bun.file(new URL("./verify-services.sh", import.meta.url)).
 const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
 const moduleLogHelper = await Bun.file(new URL("./verify-module-log-diagnostics.sh", import.meta.url)).text();
 const databaseIsolationHelper = await Bun.file(new URL("./verify-database-isolation.sh", import.meta.url)).text();
+const lifecycleHelper = await Bun.file(new URL("./verify-service-lifecycle.sh", import.meta.url)).text();
 
 test("four-service verifier binds Monitor's selected database before every controller start", () => {
     const identityNames = [
@@ -33,9 +34,9 @@ test("four-service verifier binds Monitor's selected database before every contr
     expect(validate).toBeGreaterThan(bind);
     expect(adminAlone).toBeGreaterThan(validate);
     expect(orders).toBeGreaterThan(validate);
-    const startService = script.slice(script.indexOf("start_service()"), script.indexOf("\nstop_service()"));
-    expect(startService).toContain('monitor) "$MONITOR" controller >"$log" 2>&1 & ;;');
-    expect(startService).not.toMatch(/monitor\).*\b(?:init-db|bind-database|validate-database)\b/);
+    expect(lifecycleHelper).toContain('monitor) "$MONITOR" controller >"$log" 2>&1 & ;;');
+    expect(lifecycleHelper).not.toMatch(/monitor\).*\b(?:init-db|bind-database|validate-database)\b/);
+
 });
 
 const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs";
@@ -176,4 +177,112 @@ test("database-isolation helper propagates an outer lifecycle failure", () => {
         stdout: "pipe", stderr: "pipe",
     });
     expect(result.exitCode).toBe(29);
+});
+
+
+test("lifecycle helper is guarded before the cleanup trap and retains process contracts", () => {
+    const source = '. "$LIFECYCLE_HELPER"';
+    expect(script).toContain('LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/verify-service-lifecycle.sh"');
+    expect(script).toContain('if [ ! -f "$LIFECYCLE_HELPER" ] || [ -L "$LIFECYCLE_HELPER" ]; then');
+    expect(script).toContain('if ! . "$LIFECYCLE_HELPER"; then');
+    expect(script).not.toContain("start_service() {");
+    expect(script.indexOf(source)).toBeLessThan(script.indexOf("trap cleanup EXIT INT TERM"));
+    for (const command of [
+        'admin) "$ADMIN" serve >"$log" 2>&1 & ;;',
+        'monitor) "$MONITOR" controller >"$log" 2>&1 & ;;',
+        'insights) "$INSIGHTS" serve >"$log" 2>&1 & ;;',
+        'reports) "$REPORTS" serve >"$log" 2>&1 & ;;',
+        'monitor_agent) "$AGENT" >"$log" 2>&1 & ;;',
+    ]) expect(lifecycleHelper).toContain(command);
+    expect(lifecycleHelper).toContain('for name in monitor_agent admin reports insights monitor; do');
+    expect(lifecycleHelper).toContain('[ "$count" -lt 50 ]');
+    expect(lifecycleHelper).toContain('kill -KILL "$pid" 2>/dev/null || true');
+    expect(lifecycleHelper).toContain('[ "$count" -lt 180 ]');
+});
+
+test("lifecycle symlink guard removes the disposable root before sourcing", async () => {
+    const project = await mkdtemp(join(tmpdir(), "rz-services-lifecycle-"));
+    try {
+        const scripts = join(project, "scripts");
+        const temporary = join(project, "tmp");
+        await mkdir(scripts);
+        await mkdir(temporary);
+        const runner = join(scripts, "verify-services.sh");
+        const marker = join(scripts, "marker.sh");
+        await writeFile(marker, '#!/usr/bin/env sh\ntouch "$MARKER"\n');
+        await chmod(marker, 0o755);
+        await symlink(marker, join(scripts, "link.sh"));
+        await writeFile(runner, script.replace(
+            'LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/verify-service-lifecycle.sh"',
+            'LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/link.sh"',
+        ));
+        const result = Bun.spawnSync({
+            cmd: ["sh", runner, ...Array(6).fill("/usr/bin/true")],
+            env: { ...process.env, TMPDIR: temporary, MARKER: join(project, "marker-ran") },
+            stdout: "pipe", stderr: "pipe",
+        });
+        expect(result.exitCode).not.toBe(0);
+        expect(await readdir(temporary)).toEqual([]);
+        expect(await Bun.file(join(project, "marker-ran")).exists()).toBeFalse();
+    } finally {
+        await rm(project, { recursive: true, force: true });
+    }
+});
+
+test("malformed regular lifecycle helper removes the disposable root", async () => {
+    const project = await mkdtemp(join(tmpdir(), "rz-services-malformed-"));
+    try {
+        const scripts = join(project, "scripts");
+        const temporary = join(project, "tmp");
+        await mkdir(scripts);
+        await mkdir(temporary);
+        const runner = join(scripts, "verify-services.sh");
+        await writeFile(join(scripts, "malformed.sh"), "(\n");
+        await writeFile(runner, script.replace(
+            'LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/verify-service-lifecycle.sh"',
+            'LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/malformed.sh"',
+        ));
+        const result = Bun.spawnSync({
+            cmd: ["sh", runner, ...Array(6).fill("/usr/bin/true")],
+            env: { ...process.env, TMPDIR: temporary },
+            stdout: "pipe", stderr: "pipe",
+        });
+        expect(result.exitCode).not.toBe(0);
+        expect(await readdir(temporary)).toEqual([]);
+    } finally {
+        await rm(project, { recursive: true, force: true });
+    }
+});
+
+test("lifecycle helper preserves stop order, forced kill, and source failure propagation", async () => {
+    const helper = new URL("./verify-service-lifecycle.sh", import.meta.url).pathname;
+    const order = Bun.spawnSync({
+        cmd: ["sh", "-ceu", '. "$1"; stop_service() { printf "%s\n" "$1"; }; stop_all', "sh", helper],
+        stdout: "pipe", stderr: "pipe",
+    });
+    expect(order.exitCode).toBe(0);
+    expect(new TextDecoder().decode(order.stdout).trim().split("\n")).toEqual([
+        "monitor_agent", "admin", "reports", "insights", "monitor",
+    ]);
+    const root = await mkdtemp(join(tmpdir(), "rz-services-kill-"));
+    try {
+        const timeout = Bun.spawnSync({
+            cmd: [
+                "sh", "-ceu",
+                'ROOT="$2"; mkdir -p "$ROOT/pids"; printf 42 >"$ROOT/pids/admin"; : >"$ROOT/pids/admin.log"; kill() { printf "%s %s\n" "$1" "${2:-}"; return 0; }; sleep() { :; }; wait() { :; }; . "$1"; stop_service admin',
+                "sh", helper, root,
+            ], stdout: "pipe", stderr: "pipe",
+        });
+        expect(timeout.exitCode).toBe(0);
+        const calls = new TextDecoder().decode(timeout.stdout);
+        expect(calls).toContain("-TERM 42");
+        expect(calls).toContain("-KILL 42");
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+    const failure = Bun.spawnSync({
+        cmd: ["sh", "-ceu", '. "$1"; service_health_url unknown', "sh", helper],
+        stdout: "pipe", stderr: "pipe",
+    });
+    expect(failure.exitCode).toBe(1);
 });
