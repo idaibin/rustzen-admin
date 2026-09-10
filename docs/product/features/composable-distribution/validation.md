@@ -551,6 +551,21 @@ acceptance remain Not verified.
 
 P8f-B must prove a signed retained notify runtime from Agent report through Monitor alert and Admin inbox, then an authenticated same-origin Bearer SSE browser journey with no URL secret, selected/absent routes, detail deep link, refresh persistence and read state. Its receipt is canonical and binds P8e/P8f-A sidecars; `browser:true` does not certify load or release readiness.
 
+The current R9 P8f-B closure is the 50-file export at
+`target/rz/p8fb-r9-monitor-notify-export-20260910T125008Z`, bound to dirty source
+`git:cb357c671b88ecfaf5987a30b7de39f0ef125a0d tree:a419bf42ace680f08ff6b3f25631aa7c9516c4fe68324377a6352b510e29d427 state:dirty`,
+build `d1aab233941aae6b513733c5f6f4f78a5e2cd264cdfc32e937692a1be2dd52c5`, composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d`, signed archive/manifest/envelope/certificate
+`045b0094d8822783c923bc0402fdc06925e54fd51ad12907790dbc2e12dd313c` / `bd0355b61da631780f98bfdd6d049b665e7e36c40d521612e4e6272bc06efaa7` / `0f50bcbafa225a7bd74c0b4f545990fe08f1dcefe95e5a69ae1744349c790ccb` / `d62a6d9db4d71369636783e43205ea1b75558a16c4192e233f1b8331e94822cf`, native evidence
+`target/rz/p8fb-r9-native-20260910T125008Z/monitor-native-runtime-evidence.json`
+(SHA-256 `bdaea45a3b5b78e53501c36ecbc0b8aaa4512f5b8d5fea3b1739ab97745443f8`) and
+business receipt `target/rz/p8fb-r9-business-20260910T125008Z/receipt.json`
+(SHA-256 `3ab76a4af846da1e56fff144d942fd1da52888440195f8542b50f7026a066c89`).
+Chrome 153 passed the signed-cert/systemd-PID1 journey through witness Agent sequences
+2–4, incident and inbox reconciliation, no-URL-token Bearer GET SSE, strict same-clock
+ordering, Monitor-visible with Insights/Reports-absent routes, detail deep link/read/reload,
+and 1440×900 visual screenshots. It records `browser:true`, `load:false` and
+`releaseReady:false`; P8g load and production deployment remain Not verified.
+
 ### P8g pure-Monitor exact-artifact load certification
 
 P8g accepts one fresh container only when its P8e native-runtime evidence and
