@@ -25,6 +25,7 @@ def argument():
     parser.add_argument("--chromium", default="chromium")
     parser.add_argument("--username", default="owner")
     parser.add_argument("--password-file", required=True)
+    parser.add_argument("--selection", required=True)
     parser.add_argument("--export-root", required=True)
     parser.add_argument("--release-result", required=True)
     parser.add_argument("--certificate", required=True)
@@ -38,14 +39,14 @@ def sha256(path):
     with open(path, "rb") as handle: return hashlib.file_digest(handle, "sha256").hexdigest()
 
 def admission(args):
-    command = ["pnpm", "dlx", "bun@1.3.14", "scripts/verify-selected-web-browser-admission.ts", "--export-root", args.export_root, "--release-result", args.release_result, "--certificate", args.certificate, "--public-key", args.public_key, "--expected-source-identity", args.expected_source_identity, "--admin-bin", args.admin_bin]
+    command = ["pnpm", "dlx", "bun@1.3.14", "scripts/verify-selected-web-browser-admission.ts", "--selection", args.selection, "--export-root", args.export_root, "--release-result", args.release_result, "--certificate", args.certificate, "--public-key", args.public_key, "--expected-source-identity", args.expected_source_identity, "--admin-bin", args.admin_bin]
     result = subprocess.run(command, cwd=Path(__file__).parent.parent, capture_output=True, text=True)
     if result.returncode: raise SystemExit(f"browser admission failed: {result.stderr.strip()}")
     value = json.loads(result.stdout)
     identity = value.get("admission", {})
     hashes = ("certificateSha256", "manifestSha256", "archiveSha256", "envelopeSha256", "buildId")
     certified_admin = next((row.get("sha256") for row in identity.get("binaryDigests", []) if row.get("path") == "bin/rz-admin"), "")
-    if not all(len(identity.get(key, "")) == 64 for key in hashes) or len(identity.get("selection", {}).get("compositionId", "")) != 64 or len(value.get("webDigest", "")) != 64 or len(certified_admin) != 64 or value.get("expectedSourceIdentity") != args.expected_source_identity or value.get("currentSourceIdentity") != args.expected_source_identity: raise SystemExit("browser admission identity is incomplete")
+    if not all(len(identity.get(key, "")) == 64 for key in hashes) or len(identity.get("selection", {}).get("compositionId", "")) != 64 or len(value.get("webDigest", "")) != 64 or len(certified_admin) != 64 or value.get("productSourceIdentity") != args.expected_source_identity or not value.get("verifierSourceIdentity"): raise SystemExit("browser admission identity is incomplete")
     return value
 
 def assert_admission_stable(before, after):
@@ -245,7 +246,7 @@ def main():
         if runtime_after != runtime_before: raise RuntimeError("runtime attestation changed during browser gate")
     finally: cdp.close()
     success = next(item for item in results if item["case"] == "success")["browser"]
-    manifest = {"schemaVersion":1,"status":"passed","chromiumVersion":chromiumVersion,"adminHealth":{"initial":health,"final":final_health},"digests":{"buildId":binding["buildId"],"compositionId":binding["compositionId"],"html":success["stamp"],"binding":success["stamp"],"installation":success["value"]["webDigest"],"verified":verified["webDigest"],"adminBinary":{"before":admin_before,"after":admin_after}},"release":verified["admission"],"sourceIdentity":{"expected":verified["expectedSourceIdentity"],"current":verified["currentSourceIdentity"]},"runtime":{"before":runtime_before,"after":runtime_after},"verifier":{"sources":verified["provenance"]},"integritySensitivityPassed":integritySensitivityPassed,"sensitivity":sensitivity,"cases":results}
+    manifest = {"schemaVersion":1,"status":"passed","chromiumVersion":chromiumVersion,"adminHealth":{"initial":health,"final":final_health},"digests":{"buildId":binding["buildId"],"compositionId":binding["compositionId"],"html":success["stamp"],"binding":success["stamp"],"installation":success["value"]["webDigest"],"verified":verified["webDigest"],"adminBinary":{"before":admin_before,"after":admin_after}},"release":verified["admission"],"sourceIdentity":{"productSourceIdentity":verified["productSourceIdentity"],"verifierSourceIdentity":verified["verifierSourceIdentity"]},"runtime":{"before":runtime_before,"after":runtime_after},"verifier":{"sources":verified["provenance"]},"integritySensitivityPassed":integritySensitivityPassed,"sensitivity":sensitivity,"cases":results}
     receipt = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
     if json.dumps(json.loads(receipt), sort_keys=True, separators=(",", ":")).encode() != receipt: raise RuntimeError("browser receipt is not canonical")
     candidate = output.parent / f".{output.name}.manifest-{os.getpid()}"

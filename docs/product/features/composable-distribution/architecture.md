@@ -413,6 +413,13 @@ view. This contract covers distributions built with this bootstrap, not arbitrar
 legacy HTML that never implemented it. Previously cached bytes are not claimed
 to be physically erased from the user's browser.
 
+For P8f selected-server browser admission, the bootstrap verifier takes one explicit
+reviewed `monitor` or `monitor-notify` selection. It verifies product source only
+through the selected signed certificate/export tuple; the verifier checkout identity
+is separately recorded with its source-file hashes and is never substituted for the
+product identity. A cross-preset tuple fails before Chromium starts. Legacy
+pure-Monitor receipts remain readable as their historical three-key selection form.
+
 For P8f-B the Monitor HTML contains no eager business entry tag. Its dependency-free
 inline bootstrap reads the single stamped meta value, fetches the anonymous binding
 with omitted credentials and no-store caching, bounds and validates the exact JSON,

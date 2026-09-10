@@ -521,6 +521,16 @@ plus the Agent token, and check the fixed fencing fixture corpus.
 
 | D08e | Verify a selected-server container export, then delete or replace its export root before captured-byte staging | Staging and its unsigned manifest retain only verified server binaries/contracts/flattened Web and succeed without reopening the export; witness and metadata remain absent. |
 
+### P8f selected-server browser admission
+
+P8f requires an explicit reviewed `monitor` or `monitor-notify` selection. The signed
+certificate/export validates product source identity; verifier checkout identity and
+hashed verifier inputs are separate receipt provenance. Cross-preset input must fail
+before Chromium/output creation. The notify bootstrap wrapper has source/static coverage
+for the existing four bootstrap/SRI/retry cases and uses a separately retained notify P8e
+container; it has no monitor-notify business journey receipt, so browser, load and release
+readiness remain Not verified.
+
 ### P8g pure-Monitor exact-artifact load certification
 
 P8g accepts one fresh container only when its P8e native-runtime evidence and

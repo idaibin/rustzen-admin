@@ -8,7 +8,7 @@ const admission = await Bun.file(new URL("./verify-selected-web-browser-admissio
 describe("selected-Web Chromium gate", () => {
     test("requires fresh evidence and executes each bootstrap failure through a loopback fixture", () => {
         expect(Bun.spawnSync(["python3", fixtureTest]).exitCode).toBe(0);
-        for (const value of ["--runtime-container", "--admin-url", "--output", "--chromium", "--password-file", "--export-root", "--release-result", "--certificate", "--public-key", "--expected-source-identity", "--admin-bin", "subprocess.Popen", "--headless=new"])
+        for (const value of ["--runtime-container", "--admin-url", "--output", "--chromium", "--password-file", "--selection", "--export-root", "--release-result", "--certificate", "--public-key", "--expected-source-identity", "--admin-bin", "subprocess.Popen", "--headless=new"])
             expect(gate).toContain(value);
         for (const name of ["success", "bindingMismatch", "bindingNetworkFailure", "sriEntryFailure"])
             expect(gate).toContain(name);

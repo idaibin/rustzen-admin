@@ -304,6 +304,16 @@ set distinguishes notification ingress presence from pure-Monitor absence. All f
 certificate's `runtime`, `browser`, `load` and `releaseReady` remain literal
 `false`; this record is evidence, not installation or release authorization.
 
+### P8f selected-server browser receipt
+
+A P8f receipt binds the reviewed server selection including its `preset`, target,
+composition, build, Web and server-binary digests to the signed release and source-build
+certificate, P8e runtime evidence and retained sidecars. It records verifier source
+identity and exact verifier-source hashes separately from the signed product source
+identity. `browser` is true only after canonical bootstrap and business receipts;
+`load` and `releaseReady` remain false. Historical pure-Monitor receipts without a
+selection preset remain parseable only as that legacy Monitor form.
+
 ### P8b selected-server container export
 
 The selected Docker export accepts only `DISTRIBUTION=monitor` or

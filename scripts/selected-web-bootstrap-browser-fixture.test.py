@@ -86,7 +86,7 @@ with tempfile.TemporaryDirectory() as directory:
     output = Path(directory) / "must-not-exist"
     previous = sys.argv
     try:
-        sys.argv = ["gate", "--admin-url", "http://example.test:80", "--password-file", str(secret), "--output", str(output), "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", "x", "--runtime-container", "x"]
+        sys.argv = ["gate", "--admin-url", "http://example.test:80", "--password-file", str(secret), "--output", str(output), "--selection", "x", "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", "x", "--runtime-container", "x"]
         try: gate.main(); raise AssertionError("invalid preflight accepted")
         except SystemExit: pass
         assert not output.exists()
@@ -95,9 +95,9 @@ with tempfile.TemporaryDirectory() as directory:
 # Admission failures are terminal before Chromium or evidence publication. The
 # certificate verifier remains the authority; these doubles exercise its boundary.
 class AdmissionArgs:
-    export_root = release_result = certificate = public_key = expected_source_identity = admin_bin = "ignored"
-def complete_admission(source="source"):
-    return {"admission":{"certificateSha256":"4" * 64, "manifestSha256":"5" * 64, "archiveSha256":"6" * 64, "envelopeSha256":"7" * 64, "buildId":"2" * 64, "selection":{"compositionId":"3" * 64}, "binaryDigests":[{"path":"bin/rz-admin", "sha256":"8" * 64}]}, "webDigest":"1" * 64, "expectedSourceIdentity":"source", "currentSourceIdentity":source}
+    selection = export_root = release_result = certificate = public_key = expected_source_identity = admin_bin = "ignored"
+def complete_admission(verifier="verifier"):
+    return {"admission":{"certificateSha256":"4" * 64, "manifestSha256":"5" * 64, "archiveSha256":"6" * 64, "envelopeSha256":"7" * 64, "buildId":"2" * 64, "selection":{"preset":"monitor-notify", "target":"x86_64-unknown-linux-musl", "artifactClass":"server", "compositionId":"3" * 64}, "binaryDigests":[{"path":"bin/rz-admin", "sha256":"8" * 64}]}, "webDigest":"1" * 64, "productSourceIdentity":"source", "verifierSourceIdentity":verifier}
 
 original_run = gate.subprocess.run
 try:
@@ -111,9 +111,9 @@ try:
     gate.subprocess.run = lambda *_, **__: gate.subprocess.CompletedProcess([], 0, json.dumps(pseudo), "")
     try: gate.admission(AdmissionArgs()); raise AssertionError("pseudo self-consistent admission accepted")
     except SystemExit as error: assert "incomplete" in str(error)
-    mismatch = complete_admission("different-source")
+    mismatch = complete_admission("")
     gate.subprocess.run = lambda *_, **__: gate.subprocess.CompletedProcess([], 0, json.dumps(mismatch), "")
-    try: gate.admission(AdmissionArgs()); raise AssertionError("current source mismatch accepted")
+    try: gate.admission(AdmissionArgs()); raise AssertionError("missing verifier identity accepted")
     except SystemExit as error: assert "incomplete" in str(error)
 finally: gate.subprocess.run = original_run
 
@@ -124,7 +124,7 @@ with tempfile.TemporaryDirectory() as directory:
     original_admission, previous = gate.admission, sys.argv
     try:
         gate.admission = lambda _: {"adminSha256":"0" * 64, "webDigest":"1" * 64, "admission":{"buildId":"2" * 64, "selection":{"compositionId":"3" * 64}}}
-        sys.argv = ["gate", "--admin-url", "http://127.0.0.1:9", "--password-file", str(secret), "--output", str(output), "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", str(admin_bin), "--runtime-container", "x"]
+        sys.argv = ["gate", "--admin-url", "http://127.0.0.1:9", "--password-file", str(secret), "--output", str(output), "--selection", "x", "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", str(admin_bin), "--runtime-container", "x"]
         try: gate.main(); raise AssertionError("admin digest mismatch accepted")
         except SystemExit as error: assert "admin binary changed" in str(error)
         assert not output.exists()
@@ -136,7 +136,7 @@ with tempfile.TemporaryDirectory() as directory:
     previous, original_run = sys.argv, gate.subprocess.run
     try:
         gate.subprocess.run = lambda *_, **__: gate.subprocess.CompletedProcess([], 1, "", "source identity differs")
-        sys.argv = ["gate", "--admin-url", "http://127.0.0.1:9", "--password-file", str(secret), "--output", str(output), "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", "x", "--runtime-container", "x"]
+        sys.argv = ["gate", "--admin-url", "http://127.0.0.1:9", "--password-file", str(secret), "--output", str(output), "--selection", "x", "--export-root", "x", "--release-result", "x", "--certificate", "x", "--public-key", "x", "--expected-source-identity", "x", "--admin-bin", "x", "--runtime-container", "x"]
         try: gate.main(); raise AssertionError("source admission failure accepted")
         except SystemExit as error: assert "source identity differs" in str(error)
         assert not output.exists()

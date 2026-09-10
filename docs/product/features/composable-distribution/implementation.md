@@ -297,6 +297,15 @@ The composition-qualified producer rejects deviations from the reviewed route
 corpus, and the release manifest binds the verified artifact bytes. Schema and
 configuration artifacts are implemented as separate selected contracts.
 
+P8f selected-server browser work begins with explicit `monitor` or `monitor-notify`
+admission. The bootstrap verifier may record its current checkout as verifier provenance,
+but it accepts product identity only through the signed certificate/export tuple and
+rejects cross-preset input before Chromium. `verify-monitor-notify-bootstrap-browser`
+uses a retained notify P8e container only to execute the four existing bootstrap/SRI/retry
+cases; it is separate from `prepare-monitor-load-runtime` and cleans that container. This
+source/static closure does not claim a monitor-notify business journey, browser evidence or
+P8g/load result.
+
 P8f-A implements the selected-Web build binding: the Monitor producer stamps
 only its generated HTML after deriving the normalized file-table digest, writes
 the canonical descriptor and records final file hashes in inventory v2. The

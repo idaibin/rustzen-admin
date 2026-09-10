@@ -362,6 +362,9 @@ verify-monitor-selected-contract:
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json --binary-root target/debug
 
+verify-monitor-notify-bootstrap-browser export_root release_result certificate public_key expected_source_identity native_output browser_output chromium="chromium":
+    scripts/verify-monitor-notify-bootstrap-browser-linux.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --native-output "{{native_output}}" --browser-output "{{browser_output}}" --chromium "{{chromium}}"
+
 verify-monitor-load-contract:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     apps/web/node_modules/typescript/bin/tsc --noEmit --strict false --target ESNext --module Preserve --moduleResolution bundler --allowImportingTsExtensions --skipLibCheck --typeRoots apps/web/node_modules/@types --types bun,node scripts/monitor-load-admission.ts scripts/monitor-load-contract.ts scripts/monitor-load-fault.ts scripts/monitor-load-receipt-schema.ts scripts/monitor-load-runtime.ts scripts/monitor-load-sampler.ts scripts/monitor-load-signed.ts scripts/selected-web-bootstrap-browser-receipt.ts scripts/verify-monitor-load-certification.ts scripts/verify-monitor-load-runtime-preflight.ts scripts/prepared-monitor-load-context.ts
