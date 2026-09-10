@@ -1,15 +1,9 @@
-use std::{pin::Pin, time::Duration};
-
 use axum::extract::State;
 use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, Utc};
 use rustzen_ipc::{ModuleQuery, Page, Pagination};
-use rustzen_storage::{
-    CoreError, SqliteMaintenancePlan, SqliteMaintenanceReport, SqlitePool, run_sqlite_maintenance,
-};
+use rustzen_storage::SqlitePool;
 use serde::Deserialize;
 use sqlx::Row;
-#[cfg(not(feature = "notifications"))]
-use uuid::Uuid;
 
 use crate::{
     app::AppState,
@@ -19,7 +13,7 @@ use crate::{
     },
 };
 
-use super::{acceptance::LockHook, queries::query_window};
+use super::super::queries::query_window;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,65 +81,6 @@ pub async fn summaries(
     Ok(ApiResponse::success(Page { data, total, success: true }))
 }
 
-pub(crate) fn spawn_background(pool: SqlitePool) {
-    let offline_pool = pool.clone();
-    tokio::spawn(async move {
-        let mut timer = tokio::time::interval(Duration::from_secs(30));
-        loop {
-            timer.tick().await;
-            let now = Utc::now();
-            if let Err(error) = offline_scan_at(&offline_pool, now).await {
-                tracing::error!(%error, "monitor offline scan failed");
-            }
-        }
-    });
-    let summary_pool = pool.clone();
-    tokio::spawn(async move {
-        let mut timer = tokio::time::interval(Duration::from_secs(3_600));
-        loop {
-            timer.tick().await;
-            let now = Utc::now();
-            if let Err(error) = generate_daily_summaries_at(
-                &summary_pool,
-                (now - ChronoDuration::days(1)).date_naive(),
-            )
-            .await
-            {
-                tracing::error!(%error, "monitor daily summary generation failed");
-            }
-        }
-    });
-    tokio::spawn(async move {
-        let mut timer = tokio::time::interval(Duration::from_secs(3_600));
-        loop {
-            timer.tick().await;
-            match cleanup_at(&pool, Utc::now()).await {
-                Ok(report) => {
-                    tracing::debug!(
-                        deleted_rows = report.deleted_rows,
-                        "monitor retention rows deleted"
-                    );
-                    match &report.maintenance {
-                        MaintenanceResult::Succeeded(maintenance) => {
-                            tracing::debug!(
-                                before_freelist = maintenance.before.freelist_count,
-                                after_freelist = maintenance.after.freelist_count,
-                                "monitor SQLite maintenance completed"
-                            );
-                        }
-                        MaintenanceResult::Failed(error) => {
-                            tracing::error!(%error, "monitor SQLite maintenance pending");
-                        }
-                        MaintenanceResult::NotNeeded => {}
-                    }
-                }
-                Err(error) => {
-                    tracing::error!(%error, "monitor retention cleanup failed");
-                }
-            }
-        }
-    });
-}
 pub(crate) async fn generate_daily_summaries_at(
     pool: &SqlitePool,
     day: NaiveDate,
@@ -279,144 +214,4 @@ async fn offline_seconds_for_day(
         total += (to - from).num_seconds().max(0);
     }
     Ok(total)
-}
-
-pub(crate) async fn offline_scan_at(
-    pool: &SqlitePool,
-    now: DateTime<Utc>,
-) -> Result<(), sqlx::Error> {
-    offline_scan_at_inner(pool, now, None).await
-}
-
-#[cfg(test)]
-pub(super) async fn offline_scan_at_with_lock_hook(
-    pool: &SqlitePool,
-    now: DateTime<Utc>,
-    lock_hook: LockHook,
-) -> Result<(), sqlx::Error> {
-    offline_scan_at_inner(pool, now, Some(lock_hook)).await
-}
-
-async fn offline_scan_at_inner(
-    pool: &SqlitePool,
-    now: DateTime<Utc>,
-    lock_hook: Option<LockHook>,
-) -> Result<(), sqlx::Error> {
-    // Liveness must be decided against a snapshot that cannot be changed by a
-    // concurrent report between the read and the incident insert.
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    if let Some(lock_hook) = lock_hook {
-        lock_hook.acquired.notify_one();
-        lock_hook.release.notified().await;
-    }
-    for node in sqlx::query(
-        "SELECT n.node_id,n.last_received_at,
-                COALESCE(s.offline_enabled,g.offline_enabled) AS offline_enabled,
-                COALESCE(s.offline_after_seconds,g.offline_after_seconds)
-                    AS offline_after_seconds
-         FROM monitor_nodes n CROSS JOIN alert_settings g
-         LEFT JOIN node_alert_settings s ON s.node_id=n.node_id
-         WHERE g.id=1",
-    )
-    .fetch_all(&mut *tx)
-    .await?
-    {
-        if node.get::<i64, _>("offline_enabled") == 0 {
-            continue;
-        }
-        let id: String = node.get(0);
-        let last: DateTime<Utc> = DateTime::parse_from_rfc3339(&node.get::<String, _>(1))
-            .map(|value| value.with_timezone(&Utc))
-            .unwrap_or(now);
-        if (now - last).num_seconds() > node.get::<i64, _>("offline_after_seconds") {
-            let t = now.to_rfc3339();
-            #[cfg(feature = "notifications")]
-            crate::notifications::outbox::open(
-                &mut tx,
-                &id,
-                "nodeOffline",
-                "node",
-                "node offline",
-                None,
-                None,
-                &t,
-            )
-            .await?;
-            #[cfg(not(feature = "notifications"))]
-            sqlx::query("INSERT INTO monitor_incidents(id,node_id,kind,target,status,title,opened_at,last_observed_at) VALUES(?,?, 'nodeOffline','node','active','node offline',?,?) ON CONFLICT(node_id,kind,target) WHERE status='active' DO UPDATE SET last_observed_at=excluded.last_observed_at").bind(Uuid::new_v4().to_string()).bind(id).bind(&t).bind(&t).execute(&mut *tx).await?;
-        }
-    }
-    tx.commit().await?;
-    #[cfg(feature = "notifications")]
-    crate::notifications::diagnostics::warn_after_commit(pool).await;
-    Ok(())
-}
-pub(crate) struct CleanupReport {
-    pub deleted_rows: u64,
-    pub maintenance: MaintenanceResult,
-}
-
-#[derive(Debug)]
-pub(crate) enum MaintenanceResult {
-    NotNeeded,
-    Succeeded(SqliteMaintenanceReport),
-    Failed(String),
-}
-
-type MaintenanceFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<SqliteMaintenanceReport, CoreError>> + Send + 'a>>;
-
-pub(crate) async fn cleanup_at(
-    pool: &SqlitePool,
-    now: DateTime<Utc>,
-) -> Result<CleanupReport, AppError> {
-    cleanup_at_with(pool, now, |pool, plan| Box::pin(run_sqlite_maintenance(pool, plan))).await
-}
-
-pub(super) async fn cleanup_at_with<F>(
-    pool: &SqlitePool,
-    now: DateTime<Utc>,
-    maintenance: F,
-) -> Result<CleanupReport, AppError>
-where
-    F: for<'a> Fn(&'a SqlitePool, SqliteMaintenancePlan) -> MaintenanceFuture<'a>,
-{
-    let cutoff = (now - ChronoDuration::days(30)).to_rfc3339();
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let mut deleted_rows = 0;
-    deleted_rows += sqlx::query("DELETE FROM resource_samples WHERE collected_at < ?")
-        .bind(&cutoff)
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
-    deleted_rows += sqlx::query("DELETE FROM disk_samples WHERE collected_at < ?")
-        .bind(&cutoff)
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
-    deleted_rows += sqlx::query("DELETE FROM node_daily_summaries WHERE summary_date < ?")
-        .bind((now - ChronoDuration::days(30)).date_naive().to_string())
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
-    deleted_rows +=
-        sqlx::query("DELETE FROM monitor_incidents WHERE status='resolved' AND resolved_at < ?")
-            .bind(cutoff)
-            .execute(&mut *tx)
-            .await?
-            .rows_affected();
-    tx.commit().await?;
-    let freelist_count: i64 = sqlx::query_scalar("PRAGMA freelist_count").fetch_one(pool).await?;
-    let maintenance = if deleted_rows > 0 || freelist_count > 0 {
-        match maintenance(pool, SqliteMaintenancePlan::reclaim()).await {
-            Ok(report) => MaintenanceResult::Succeeded(report),
-            Err(error) => {
-                tracing::error!(%error, "monitor SQLite maintenance failed; retry pending");
-                MaintenanceResult::Failed(error.to_string())
-            }
-        }
-    } else {
-        MaintenanceResult::NotNeeded
-    };
-    Ok(CleanupReport { deleted_rows, maintenance })
 }
