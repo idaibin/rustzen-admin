@@ -20,19 +20,33 @@ const streamUrl = (url: string): URL | undefined => {
     }
 };
 
-export const exactSseFetchAuthorization = (input: RequestInfo | URL, init: RequestInit | undefined, token: string): boolean => {
+const persistedAuthToken = (serialized: string | null): string | undefined => {
+    try {
+        const value = JSON.parse(serialized ?? "") as { state?: { token?: unknown } };
+        return typeof value.state?.token === "string" ? value.state.token : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
+export const exactPersistedSseAuthorization = (input: RequestInfo | URL, init: RequestInit | undefined, serializedAuth: string | null): boolean => {
     const request = new Request(input, init);
+    const token = persistedAuthToken(serializedAuth);
     return new URL(request.url).pathname === "/api/notifications/stream"
+        && typeof token === "string"
         && request.headers.get("authorization") === `Bearer ${token}`;
 };
 
-export const sseFetchProbeSource = (token: string) => `(() => {
+export const sseFetchProbeSource = () => `(() => {
     const originalFetch = window.fetch;
     Object.defineProperty(window, "__rzP8fbSseBearer", { configurable: true, writable: true, value: [] });
     window.fetch = function(input, init) {
         const request = new Request(input, init);
-        if (new URL(request.url, location.href).pathname === "/api/notifications/stream")
-            window.__rzP8fbSseBearer.push(request.headers.get("authorization") === ${JSON.stringify(`Bearer ${token}`)});
+        if (new URL(request.url, location.href).pathname === "/api/notifications/stream") {
+            let token;
+            try { token = JSON.parse(localStorage.getItem("auth-store") || "").state?.token; } catch {}
+            window.__rzP8fbSseBearer.push(typeof token === "string" && request.headers.get("authorization") === "Bearer " + token);
+        }
         return originalFetch.call(this, input, init);
     };
 })()`;

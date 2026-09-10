@@ -25,6 +25,10 @@ test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for C
     expect(driver).not.toContain("Network.requestWillBeSentExtraInfo");
     expect(driver).toContain("streamDiagnostics(streamItems)");
     expect(driver).toContain("wallTime: value.params.wallTime");
+    expect(driver).toContain("sseFetchProbeSource()")
+    expect(driver).toContain('throw Error("browser SSE fetch probe unavailable")');
+    expect(driver.indexOf('await wait(".shell-content"); await call("Page.addScriptToEvaluateOnNewDocument"')).toBeGreaterThan(driver.indexOf("document.querySelector('button[type=submit]').click()"));
+    expect(driver.indexOf('await call("Page.reload"); await waitProbe(); await wait(".shell-content");')).toBeGreaterThan(driver.indexOf("Page.addScriptToEvaluateOnNewDocument"));
     expect(wrapper).toContain('kill -KILL "$chrome_pid"');
     expect(wrapper).toContain("for _ in $(seq 1 100)");
 });

@@ -1,18 +1,20 @@
 import { expect, test } from "bun:test";
 
-import { exactSseFetchAuthorization, isReadyNotificationStream, observeNotificationStreams, sseFetchProbeSource, streamDiagnostics } from "./monitor-notify-business-cdp.ts";
+import { exactPersistedSseAuthorization, isReadyNotificationStream, observeNotificationStreams, sseFetchProbeSource, streamDiagnostics } from "./monitor-notify-business-cdp.ts";
 
 const stream = (url = "http://example.test/api/notifications/stream") => [{ requestId: "sse-1", method: "GET", url }];
 
-test("P8f-B proves the effective fetch Authorization across Request and init header forms", () => {
-    const token = "test-secret-value", headers = { Authorization: `Bearer ${token}` };
-    expect(exactSseFetchAuthorization("http://example.test/api/notifications/stream", { headers }, token)).toBe(true);
-    expect(exactSseFetchAuthorization(new Request("http://example.test/api/notifications/stream", { headers }), undefined, token)).toBe(true);
-    expect(exactSseFetchAuthorization(new Request("http://example.test/api/notifications/stream", { headers: { Authorization: "Bearer stale" } }), { headers: new Headers(headers) }, token)).toBe(true);
-    expect(exactSseFetchAuthorization("http://example.test/api/notifications/stream", { headers }, "other-token")).toBe(false);
-    expect(exactSseFetchAuthorization("http://example.test/api/notifications", { headers }, token)).toBe(false);
-    expect(sseFetchProbeSource(token)).toContain("new Request(input, init)");
-    expect(sseFetchProbeSource(token)).toContain("__rzP8fbSseBearer.push");
+test("P8f-B proves the effective fetch Authorization from the persisted browser session", () => {
+    const persisted = JSON.stringify({ state: { token: "test-secret-value" } }), headers = { Authorization: "Bearer test-secret-value" };
+    expect(exactPersistedSseAuthorization("http://example.test/api/notifications/stream", { headers }, persisted)).toBe(true);
+    expect(exactPersistedSseAuthorization(new Request("http://example.test/api/notifications/stream", { headers }), undefined, persisted)).toBe(true);
+    expect(exactPersistedSseAuthorization(new Request("http://example.test/api/notifications/stream", { headers: { Authorization: "Bearer stale" } }), { headers: new Headers(headers) }, persisted)).toBe(true);
+    expect(exactPersistedSseAuthorization("http://example.test/api/notifications/stream", { headers }, JSON.stringify({ state: { token: "other-token" } }))).toBe(false);
+    expect(exactPersistedSseAuthorization("http://example.test/api/notifications", { headers }, persisted)).toBe(false);
+    expect(exactPersistedSseAuthorization("http://example.test/api/notifications/stream", { headers }, "not-json")).toBe(false);
+    expect(sseFetchProbeSource()).toContain("new Request(input, init)");
+    expect(sseFetchProbeSource()).toContain('localStorage.getItem("auth-store")');
+    expect(sseFetchProbeSource()).not.toContain("test-secret-value");
     const observations = observeNotificationStreams(
         stream("http://example.test/api/notifications/stream?forbidden=query"),
         new Map([["sse-1", { status: 200, contentType: "text/event-stream; charset=utf-8" }]]),
