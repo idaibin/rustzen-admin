@@ -6,6 +6,7 @@ import { join } from "node:path";
 const script = await Bun.file(new URL("./verify-services.sh", import.meta.url)).text();
 const justfile = await Bun.file(new URL("../justfile", import.meta.url)).text();
 const moduleLogHelper = await Bun.file(new URL("./verify-module-log-diagnostics.sh", import.meta.url)).text();
+const databaseIsolationHelper = await Bun.file(new URL("./verify-database-isolation.sh", import.meta.url)).text();
 
 test("four-service verifier binds Monitor's selected database before every controller start", () => {
     const identityNames = [
@@ -133,4 +134,46 @@ test("module-log helper propagates a failed pinned Bun command", () => {
         stdout: "pipe", stderr: "pipe",
     });
     expect(result.exitCode).toBe(23);
+});
+
+
+test("database isolation is sourced before its post-termination restore phase", () => {
+    const source = '. "$DATABASE_ISOLATION_HELPER"';
+    expect(script).toContain('DATABASE_ISOLATION_HELPER="$PROJECT_ROOT/scripts/verify-database-isolation.sh"');
+    expect(script).toContain('if [ ! -f "$DATABASE_ISOLATION_HELPER" ] || [ -L "$DATABASE_ISOLATION_HELPER" ]; then');
+    expect(script).toContain(source);
+    expect(script).not.toContain("verify_database_isolation() {");
+    expect(databaseIsolationHelper).toContain("expect_corrupt_start_failure() {");
+    expect(databaseIsolationHelper).toContain('reports) path="$ROOT/data/reports/db/reports.db" ;;');
+    expect(databaseIsolationHelper).toContain('*) path="$ROOT/data/db/$database.db" ;;');
+    const adminRestore = databaseIsolationHelper.slice(
+        databaseIsolationHelper.indexOf('if [ "$db_service" = admin ]; then'),
+        databaseIsolationHelper.indexOf('\n    else', databaseIsolationHelper.indexOf('if [ "$db_service" = admin ]; then')),
+    );
+    expect(adminRestore).toContain('wait_for_module_state monitor true true');
+    expect(adminRestore).toContain('wait_for_module_state insights true true');
+    expect(adminRestore).toContain('wait_for_module_state reports true true');
+    expect(databaseIsolationHelper).toContain('for database in admin monitor insights; do');
+    expect(databaseIsolationHelper).toContain('[ -s "$ROOT/data/db/$database.db" ] || {');
+    expect(databaseIsolationHelper.match(/verify_database_isolation (?:monitor monitor|insights insights|reports reports|admin admin)/g)).toEqual([
+        "verify_database_isolation monitor monitor",
+        "verify_database_isolation insights insights",
+        "verify_database_isolation reports reports",
+        "verify_database_isolation admin admin",
+    ]);
+    expect(script.indexOf("trap cleanup EXIT INT TERM")).toBeLessThan(script.indexOf(source));
+    expect(script.indexOf('PHASE="termination-$service"')).toBeLessThan(script.lastIndexOf("verify_database_isolations"));
+});
+
+test("database-isolation helper propagates an outer lifecycle failure", () => {
+    const helper = new URL("./verify-database-isolation.sh", import.meta.url).pathname;
+    const result = Bun.spawnSync({
+        cmd: [
+            "sh", "-ceu",
+            'stop_service() { return 29; }; ROOT="$2"; . "$1"; verify_database_isolation monitor monitor',
+            "sh", helper, tmpdir(),
+        ],
+        stdout: "pipe", stderr: "pipe",
+    });
+    expect(result.exitCode).toBe(29);
 });
