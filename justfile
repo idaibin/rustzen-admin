@@ -271,6 +271,7 @@ verify-distribution-native-layout:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/native-layout.test.ts
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor.json
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor-notify.json
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/node-agent.json
 
 verify-distribution-container-export selection export_root expected_source_identity:

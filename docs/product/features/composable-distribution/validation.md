@@ -29,10 +29,12 @@ exact composition and build. Passing `full` never certifies a subset.
 
 Before a source/build certification command runs, the P8a admission audit must
 cover every named catalog preset and must reject unknown or incomplete producer
-sets. The current admitted set is `monitor` and `node-agent`.
-`monitor-notify`, target `full`, `analytics`, `reports`,
-`current-full-regression` and `custom` return a machine-readable blocked result;
-`--require-ready` exits nonzero.
+sets. The current admitted set is `monitor`, `monitor-notify` and `node-agent`.
+Target `full`, `analytics`, `reports`, `current-full-regression` and `custom`
+return a machine-readable blocked result; `--require-ready` exits nonzero.
+`monitor-notify` admission proves only source/build producer availability; its
+exact build, native runtime, installation, browser and load evidence remain
+Not verified.
 Admission is not a certificate and cannot satisfy any native, browser, load,
 installation or release gate.
 

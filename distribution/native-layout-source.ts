@@ -7,17 +7,19 @@ import {
 } from "./source-build-plan.ts";
 
 export type NativeUnit = { path: string; sha256: string };
-export type NativeConfig = {
+type NativeConfigBase = {
     path: string;
-    owner: string;
     consumer: string;
     keys: string[];
 };
+export type NativeConfig =
+    | (NativeConfigBase & { owner: string; owners?: never })
+    | (NativeConfigBase & { owner?: never; owners: string[] });
 export type NativeLayout = {
     version: 1;
     artifactClass: "server" | "node-agent";
     compositionId: string;
-    preset: "monitor" | "node-agent";
+    preset: "monitor" | "monitor-notify" | "node-agent";
     configOwners: string[];
     units: NativeUnit[];
     configs: NativeConfig[];
@@ -25,7 +27,7 @@ export type NativeLayout = {
 
 /** systemd layouts have been materialized only for these exact closures. */
 export const supportsNativeLayout = (plan: SourceBuildPlan): boolean =>
-    isExactSupportedPlan(plan, ["monitor", "node-agent"]);
+    isExactSupportedPlan(plan, ["monitor", "monitor-notify", "node-agent"]);
 
 const unit = (path: string, text: string): NativeUnit => ({
     path,
@@ -42,25 +44,45 @@ const service = (
     `[Unit]\nDescription=${description}\nWants=network-online.target\nAfter=network-online.target${target ? "\nPartOf=rz.target" : ""}\nStartLimitIntervalSec=60\nStartLimitBurst=5\n\n[Service]\nType=${agent ? "notify" : "simple"}\nUser=${identity}\nGroup=${identity}\nUMask=0027${agent ? "\nNotifyAccess=main\nTimeoutStartSec=infinity" : ""}\nEnvironmentFile=/opt/rz/config/${config}${target ? "\nEnvironmentFile=/opt/rz/config/rz-release.env" : ""}${agent ? "\nStateDirectory=rustzen-monitor-agent\nLogsDirectory=rustzen-monitor-agent\nEnvironment=RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent" : ""}\nExecStart=/opt/rz/current/bin/${command}\nWorkingDirectory=/opt/rz\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=${target ? "rz.target" : "multi-user.target"}\n`;
 
 type Descriptor = { consumer: string; fields: Array<{ key: string }> };
-const config = (selection: unknown, owner: string): NativeConfig => {
-    const owners = completeSelectedConfigForTest(selection).owners as Record<
+const config = (selection: unknown, owners: string[]): NativeConfig => {
+    const ownerDescriptors = completeSelectedConfigForTest(selection).owners as Record<
         string,
         Descriptor
     >;
-    const descriptor = owners[owner];
-    if (
-        !descriptor ||
-        !descriptor.consumer ||
-        !Array.isArray(descriptor.fields)
-    )
-        throw new Error(
-            `native layout missing selected config descriptor: ${owner}`,
-        );
+    const descriptors = owners.map((owner) => {
+        const descriptor = ownerDescriptors[owner];
+        if (
+            !descriptor ||
+            !descriptor.consumer ||
+            !Array.isArray(descriptor.fields)
+        )
+            throw new Error(
+                `native layout missing selected config descriptor: ${owner}`,
+            );
+        return descriptor;
+    });
+    const consumer = descriptors[0]?.consumer;
+    if (!consumer || descriptors.some((descriptor) => descriptor.consumer !== consumer))
+        throw new Error("native layout config owners must share one consumer");
+    if (owners.length === 1) {
+        const descriptor = descriptors[0];
+        return {
+            path: `config/${consumer}.env`,
+            owner: owners[0],
+            consumer,
+            keys: descriptor.fields.map((field) => field.key),
+        };
+    }
+    const keys = descriptors.flatMap((descriptor) =>
+        descriptor.fields.map((field) => field.key),
+    );
+    if (new Set(keys).size !== keys.length)
+        throw new Error("native layout config keys must not repeat");
     return {
-        path: `config/${descriptor.consumer}.env`,
-        owner,
-        consumer: descriptor.consumer,
-        keys: descriptor.fields.map((field) => field.key),
+        path: `config/${consumer}.env`,
+        owners,
+        consumer,
+        keys: keys.sort(),
     };
 };
 
@@ -71,7 +93,7 @@ export function nativeUnitBytes(
     const plan = resolveSelection(selection, catalog);
     if (
         supportsNativeLayout(plan) &&
-        plan.preset === "monitor" &&
+        (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
         plan.artifactClass === "server"
     )
         return {
@@ -107,7 +129,7 @@ export function nativeUnitBytes(
                 true,
             ),
         };
-    throw new Error("native layout supports only monitor server or node-agent");
+    throw new Error("native layout supports only monitor server compositions or node-agent");
 }
 
 export function generatedNativeLayout(
@@ -117,7 +139,7 @@ export function generatedNativeLayout(
     const plan = resolveSelection(selection, catalog);
     const server =
         supportsNativeLayout(plan) &&
-        plan.preset === "monitor" &&
+        (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
         plan.artifactClass === "server";
     const agent =
         supportsNativeLayout(plan) &&
@@ -125,10 +147,14 @@ export function generatedNativeLayout(
         plan.artifactClass === "node-agent";
     if (!server && !agent)
         throw new Error(
-            "native layout supports only monitor server or node-agent",
+            "native layout supports only monitor server compositions or node-agent",
         );
     const owners = plan.configOwners;
-    const expectedOwners = server ? ["access", "monitor"] : ["monitor-agent"];
+    const expectedOwners = server
+        ? plan.preset === "monitor-notify"
+            ? ["access", "monitor", "notifications"]
+            : ["access", "monitor"]
+        : ["monitor-agent"];
     if (canonicalJson(owners) !== canonicalJson(expectedOwners))
         throw new Error(
             "native layout config owners differ from resolved selection",
@@ -143,26 +169,33 @@ export function generatedNativeLayout(
     const units = Object.entries(bytes)
         .map(([path, text]) => unit(path, text))
         .sort((left, right) => left.path.localeCompare(right.path));
-    return server
-        ? {
+    if (server) {
+        const preset = plan.preset === "monitor-notify" ? "monitor-notify" : "monitor";
+        return {
               version: 1,
               artifactClass: "server",
               compositionId: plan.compositionId,
-              preset: "monitor",
+              preset,
               configOwners: owners,
               units,
               configs: [
-                  config(selection, "access"),
-                  config(selection, "monitor"),
+                  config(
+                      selection,
+                      preset === "monitor-notify"
+                          ? ["access", "notifications"]
+                          : ["access"],
+                  ),
+                  config(selection, ["monitor"]),
               ],
-          }
-        : {
-              version: 1,
-              artifactClass: "node-agent",
-              compositionId: plan.compositionId,
-              preset: "node-agent",
-              configOwners: owners,
-              units,
-              configs: [config(selection, "monitor-agent")],
-          };
+        };
+    }
+    return {
+        version: 1,
+        artifactClass: "node-agent",
+        compositionId: plan.compositionId,
+        preset: "node-agent",
+        configOwners: owners,
+        units,
+        configs: [config(selection, ["monitor-agent"])],
+    };
 }

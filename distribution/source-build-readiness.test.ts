@@ -21,8 +21,8 @@ describe("P8 source/build certification admission", () => {
         }
     });
 
-    test("admits only the two selections with complete source/build producer families", () => {
-        for (const preset of ["monitor", "node-agent"]) {
+    test("admits only the three selections with complete source/build producer families", () => {
+        for (const preset of ["monitor", "monitor-notify", "node-agent"]) {
             const audit = auditSourceBuildReadiness(fixture(preset));
             expect(audit.admissionReady).toBeTrue();
             expect(audit.missingProducers).toEqual([]);
@@ -39,7 +39,6 @@ describe("P8 source/build certification admission", () => {
     test("fails closed for incomplete official and test-only selections", () => {
         for (const preset of [
             "full",
-            "monitor-notify",
             "analytics",
             "reports",
             "current-full-regression",
@@ -52,9 +51,9 @@ describe("P8 source/build certification admission", () => {
         expect(auditSourceBuildReadiness(fixture("full")).missingProducers).toContain(
             "web",
         );
-        expect(
-            auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers,
-        ).toEqual(["native-layout"]);
+        expect(auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers).toEqual(
+            [],
+        );
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {

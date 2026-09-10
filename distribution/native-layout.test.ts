@@ -17,6 +17,10 @@ import {
 import { distributionCatalog } from "./resolver.ts";
 
 const server = { preset: "monitor", target: "x86_64-unknown-linux-musl" };
+const notifyServer = {
+    preset: "monitor-notify",
+    target: "x86_64-unknown-linux-musl",
+};
 const agent = { preset: "node-agent", target: "x86_64-unknown-linux-musl" };
 
 const directiveValues = (unit: string, name: string): string[] =>
@@ -86,6 +90,36 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
         "config/rz-admin.env",
         "config/rz-monitor.env",
     ]);
+    expect(serverLayout.configs.map((x) => x.owner)).toEqual([
+        "access",
+        "monitor",
+    ]);
+    expect(sha256(canonicalJson(serverLayout))).toBe(
+        "1dd21c79e11d159e9dbb114ef0225750edde8daae311286d6355c2f53b4ef617",
+    );
+    const notifyLayout = generatedNativeLayout(notifyServer);
+    expect(notifyLayout.preset).toBe("monitor-notify");
+    expect(notifyLayout.units.map((x) => x.path)).toEqual(
+        serverLayout.units.map((x) => x.path),
+    );
+    expect(notifyLayout.configs).toMatchObject([
+        {
+            path: "config/rz-admin.env",
+            consumer: "rz-admin",
+            owners: ["access", "notifications"],
+        },
+        {
+            path: "config/rz-monitor.env",
+            consumer: "rz-monitor",
+            owner: "monitor",
+        },
+    ]);
+    expect(notifyLayout.configs[0].keys).toContain(
+        "RUSTZEN_NOTIFICATION_EVENT_KEY",
+    );
+    expect(notifyLayout.configs[1].keys).toContain(
+        "RUSTZEN_NOTIFICATION_INGRESS_URL",
+    );
     const agentLayout = generatedNativeLayout(agent);
     expect(agentLayout.units.map((x) => x.path)).toEqual([
         "systemd/rz-monitor-agent.service",
@@ -93,6 +127,9 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
     expect(agentLayout.configs.map((x) => x.path)).toEqual([
         "config/rz-monitor-agent.env",
     ]);
+    expect(sha256(canonicalJson(agentLayout))).toBe(
+        "2ff618dfa11246389c17c81dc0b8c8cbf898562461303b1537efc83d6e3fc340",
+    );
     const serverBytes = nativeUnitBytes(server);
     for (const entry of serverLayout.units)
         expect(entry.sha256).toBe(sha256(serverBytes[entry.path]));
@@ -164,6 +201,7 @@ test("native layout rejects extra, missing, duplicate, stale and crossed members
                 sha256: "0".repeat(64),
             }),
         (v) => (v.configs[0].consumer = "rz-monitor-agent"),
+        (v) => (v.configs[0].owner = "monitor"),
         (v) => v.configs[0].keys.push("RUSTZEN_OTHER"),
     ];
     for (const mutate of mutations) {
@@ -203,6 +241,37 @@ test("native layout is canonical, one stable non-link file", async () => {
         await expect(produceNativeLayout(server, out)).rejects.toThrow(
             "symlink",
         );
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+test("monitor-notify rejects mixed and incomplete merged Admin config owners", async () => {
+    type MutableNotifyLayout = {
+        configs: Array<{ owner?: string; owners?: string[]; keys: string[] }>;
+    };
+    const root = await mkdtemp(join(tmpdir(), "rz-native-layout-notify-"));
+    const out = join(root, "out");
+    const artifact = join(out, "native-layout.json");
+    const mutations: Array<(layout: MutableNotifyLayout) => void> = [
+        (layout) => (layout.configs[0].owner = "access"),
+        (layout) => (layout.configs[0].owners = ["notifications", "access"]),
+        (layout) => (layout.configs[0].owners = ["access"]),
+        (layout) => (layout.configs[0].owners = ["access", "notifications", "access"]),
+        (layout) => layout.configs[0].keys.push(layout.configs[0].keys[0]),
+    ];
+    try {
+        await produceNativeLayout(notifyServer, out);
+        for (const mutate of mutations) {
+            const layout = structuredClone(
+                generatedNativeLayout(notifyServer),
+            ) as MutableNotifyLayout;
+            mutate(layout);
+            await writeFile(artifact, canonicalJson(layout));
+            await expect(readNativeLayout(out, notifyServer)).rejects.toThrow(
+                "differs",
+            );
+        }
     } finally {
         await rm(root, { recursive: true, force: true });
     }
