@@ -18,6 +18,7 @@ test("receipt selection admits only the reviewed legacy and explicit tuples", ()
 test("receipt identities require canonical product and verifier identities", () => {
     const identity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:dirty`;
     expect(validReceiptSourceIdentity({ productSourceIdentity: identity, verifierSourceIdentity: identity })).toBe(true);
+    expect(validReceiptSourceIdentity({ productSourceIdentity: identity, verifierSourceIdentity: `git:${"c".repeat(40)} tree:${"d".repeat(64)} state:clean` })).toBe(true);
     expect(validReceiptSourceIdentity({ productSourceIdentity: identity, verifierSourceIdentity: "git:bad" })).toBe(false);
     expect(validReceiptSourceIdentity({ expected: identity, current: identity })).toBe(true);
     expect(validReceiptSourceIdentity({ expected: identity, current: identity.replace("dirty", "clean") })).toBe(false);
