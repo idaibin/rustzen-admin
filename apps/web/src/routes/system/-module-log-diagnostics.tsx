@@ -1,11 +1,7 @@
-import {
-    DeleteOutlined,
-    DownloadOutlined,
-    ReloadOutlined,
-} from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 import { ProTable } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Input, Select, Space, Typography } from "antd";
+import { Alert, Button, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -24,6 +20,7 @@ import { DataTableShell } from "@/components/table/data-table-shell";
 import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { getModuleLogColumns } from "./-module-log-columns";
+import { ModuleLogActions, ModuleLogToolbar } from "./-module-log-controls";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -139,209 +136,174 @@ function ModuleLogDiagnosticsContent() {
     return (
         <div data-testid="module-log-panel">
             <PageCard
-            headingLevel={2}
-            className="shrink-0"
-            title={t("模块日志诊断", "Module log diagnostics")}
-            actions={
-                <Space wrap>
-                    <Button
-                        data-testid="module-log-backup"
-                        icon={<DownloadOutlined />}
-                        disabled={!selectedFiles.length || backupMutation.isPending}
-                        loading={backupMutation.isPending}
-                        onClick={() => backupMutation.mutate()}
-                    >
-                        {t("备份选中文件", "Back up selected")}
-                    </Button>
-                    <Button
-                        data-testid="module-log-cleanup-preview"
-                        icon={<DeleteOutlined />}
-                        loading={previewMutation.isPending}
-                        onClick={() => previewMutation.mutate()}
-                    >
-                        {t("预览清理", "Preview cleanup")}
-                    </Button>
-                </Space>
-            }
-            toolbar={
-                <div className="flex flex-wrap items-center gap-3">
-                    <Select
-                        aria-label={t("模块筛选", "Module filter")}
-                        className="w-36"
-                        value={moduleFilter}
-                        options={[
-                            { label: t("全部模块", "All modules"), value: ALL_MODULES },
-                            ...MODULE_LOG_MODULES.map((module) => ({
-                                label: module,
-                                value: module,
-                            })),
-                        ]}
-                        onChange={(value: ModuleLogModule | typeof ALL_MODULES) =>
-                            setModuleFilter(value)
+                headingLevel={2}
+                className="shrink-0"
+                title={t("模块日志诊断", "Module log diagnostics")}
+                actions={
+                    <ModuleLogActions
+                        backupPending={backupMutation.isPending}
+                        onBackup={() => backupMutation.mutate()}
+                        onPreview={() => previewMutation.mutate()}
+                        previewPending={previewMutation.isPending}
+                        selectedCount={selectedFiles.length}
+                    />
+                }
+                toolbar={
+                    <ModuleLogToolbar
+                        dateFilter={dateFilter}
+                        isFetching={fileQuery.isFetching}
+                        moduleFilter={moduleFilter}
+                        onDateChange={setDateFilter}
+                        onModuleChange={setModuleFilter}
+                        onRefresh={() => void fileQuery.refetch()}
+                    />
+                }
+            >
+                <Typography.Text type="secondary">
+                    {t(
+                        "查看四个本地服务的受限日志尾部，并通过预览安全备份或清理过期文件。操作日志仍保留在独立的日志页面。",
+                        "Inspect bounded tails from the four local services, then preview safe backups or cleanup. Operation logs remain on their separate page.",
+                    )}
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                    {t(
+                        "备份上限 64 MiB；日志尾部最多 256 KiB / 2,000 行。",
+                        "Backup cap: 64 MiB; tail cap: 256 KiB / 2,000 lines.",
+                    )}
+                </Typography.Text>
+                {backupError ? (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message={t("日志备份失败", "Log backup failed")}
+                        description={backupError}
+                    />
+                ) : backupMutation.data ? (
+                    <Alert
+                        data-testid="module-log-backup-summary"
+                        type="success"
+                        showIcon
+                        message={t("日志备份已下载", "Log backup downloaded")}
+                        description={t(
+                            `${backupMutation.data.filename}：${backupMutation.data.fileCount} 个文件，SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}…。`,
+                            `${backupMutation.data.filename}: ${backupMutation.data.fileCount} files, SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}….`,
+                        )}
+                    />
+                ) : null}
+                {confirmError ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message={t("清理确认未完成", "Cleanup confirmation was not completed")}
+                        description={confirmError}
+                    />
+                ) : null}
+                <ModuleLogCleanupPreviewSection
+                    confirmAction={
+                        cleanupPreview?.candidates.length && !previewError ? (
+                            <ConfirmDialog
+                                disabled={cleanupExpired || confirmMutation.isPending}
+                                destructive
+                                trigger={
+                                    <Button
+                                        data-testid="module-log-cleanup-confirm-trigger"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        disabled={cleanupExpired || confirmMutation.isPending}
+                                        loading={confirmMutation.isPending}
+                                    >
+                                        {t("确认清理", "Confirm cleanup")}
+                                    </Button>
+                                }
+                                title={t("确认删除过期模块日志？", "Delete expired module logs?")}
+                                description={t(
+                                    "确认后将重新校验文件安全性和预览快照。已变化、当前或不安全的文件会保留并列出失败原因。",
+                                    "Files are rechecked against the preview. Changed, active, or unsafe files are retained and reported.",
+                                )}
+                                confirmLabel={t("删除并记录结果", "Delete and record result")}
+                                confirmTestId="module-log-cleanup-confirm"
+                                onConfirm={async () => {
+                                    if (cleanupExpired) {
+                                        throw new Error(
+                                            t("预览已过期，请重新生成。", "The preview expired; generate a new one."),
+                                        );
+                                    }
+                                    await confirmMutation.mutateAsync(cleanupPreview.token);
+                                }}
+                            />
+                        ) : null
+                    }
+                    error={previewError}
+                    isExpired={cleanupExpired}
+                    isPending={previewMutation.isPending}
+                    preview={cleanupPreview}
+                    result={cleanupResult}
+                />
+                {fileQuery.error && files.length ? (
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message={t(
+                            "日志列表刷新失败，仍显示上次结果",
+                            "Refresh failed; showing the last result",
+                        )}
+                        description={metadataError ?? undefined}
+                    />
+                ) : null}
+                {!files.length && fileQuery.isPending ? (
+                    <DataState kind="loading" title={t("正在加载模块日志", "Loading module logs")} />
+                ) : !files.length && fileQuery.error ? (
+                    <DataState
+                        kind="error"
+                        title={t("模块日志加载失败", "Failed to load module logs")}
+                        description={metadataError ?? undefined}
+                        action={
+                            <Button type="primary" onClick={() => void fileQuery.refetch()}>
+                                {t("重新加载", "Reload")}
+                            </Button>
                         }
                     />
-                    <Input
-                        aria-label={t("日志日期", "Log date")}
-                        type="date"
-                        value={dateFilter}
-                        onChange={(event) => setDateFilter(event.target.value)}
-                        style={{ width: 160, maxWidth: "100%" }}
+                ) : !files.length ? (
+                    <DataState
+                        kind="empty"
+                        title={t("暂无模块日志文件", "No module log files")}
+                        description={t(
+                            "仅展示 admin、monitor、insights、reports 四个固定模块的日志文件。",
+                            "Only the fixed admin, monitor, insights, and reports modules are shown.",
+                        )}
                     />
-                    <Button
-                        icon={<ReloadOutlined />}
-                        loading={fileQuery.isFetching}
-                        onClick={() => void fileQuery.refetch()}
-                    >
-                        {t("刷新", "Refresh")}
-                    </Button>
-                </div>
-            }
-        >
-            <Typography.Text type="secondary">
-                {t(
-                    "查看四个本地服务的受限日志尾部，并通过预览安全备份或清理过期文件。操作日志仍保留在独立的日志页面。",
-                    "Inspect bounded tails from the four local services, then preview safe backups or cleanup. Operation logs remain on their separate page.",
-                )}
-            </Typography.Text>
-            <Typography.Text type="secondary">
-                {t(
-                    "备份上限 64 MiB；日志尾部最多 256 KiB / 2,000 行。",
-                    "Backup cap: 64 MiB; tail cap: 256 KiB / 2,000 lines.",
-                )}
-            </Typography.Text>
-            {backupError ? (
-                <Alert
-                    type="error"
-                    showIcon
-                    message={t("日志备份失败", "Log backup failed")}
-                    description={backupError}
-                />
-            ) : backupMutation.data ? (
-                <Alert
-                    data-testid="module-log-backup-summary"
-                    type="success"
-                    showIcon
-                    message={t("日志备份已下载", "Log backup downloaded")}
-                    description={t(
-                        `${backupMutation.data.filename}：${backupMutation.data.fileCount} 个文件，SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}…。`,
-                        `${backupMutation.data.filename}: ${backupMutation.data.fileCount} files, SHA-256 ${backupMutation.data.archiveSha256.slice(0, 12)}….`,
-                    )}
-                />
-            ) : null}
-            {confirmError ? (
-                <Alert
-                    type="warning"
-                    showIcon
-                    message={t("清理确认未完成", "Cleanup confirmation was not completed")}
-                    description={confirmError}
-                />
-            ) : null}
-            <ModuleLogCleanupPreviewSection
-                confirmAction={
-                    cleanupPreview?.candidates.length && !previewError ? (
-                        <ConfirmDialog
-                            disabled={cleanupExpired || confirmMutation.isPending}
-                            destructive
-                            trigger={
-                                <Button
-                                    data-testid="module-log-cleanup-confirm-trigger"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    disabled={cleanupExpired || confirmMutation.isPending}
-                                    loading={confirmMutation.isPending}
-                                >
-                                    {t("确认清理", "Confirm cleanup")}
-                                </Button>
-                            }
-                            title={t("确认删除过期模块日志？", "Delete expired module logs?")}
-                            description={t(
-                                "确认后将重新校验文件安全性和预览快照。已变化、当前或不安全的文件会保留并列出失败原因。",
-                                "Files are rechecked against the preview. Changed, active, or unsafe files are retained and reported.",
-                            )}
-                            confirmLabel={t("删除并记录结果", "Delete and record result")}
-                            confirmTestId="module-log-cleanup-confirm"
-                            onConfirm={async () => {
-                                if (cleanupExpired) {
-                                    throw new Error(
-                                        t("预览已过期，请重新生成。", "The preview expired; generate a new one."),
-                                    );
-                                }
-                                await confirmMutation.mutateAsync(cleanupPreview.token);
+                ) : (
+                    <DataTableShell ariaLabel={t("模块日志文件", "Module log files table")}>
+                        <ProTable<ModuleLogFile>
+                            rowKey={(record) => `${record.module}:${record.date}`}
+                            columns={columns}
+                            dataSource={files}
+                            loading={fileQuery.isFetching}
+                            search={false}
+                            options={false}
+                            pagination={false}
+                            rowSelection={{
+                                selectedRowKeys: selectedKeys,
+                                renderCell: (_checked, record, _index, originNode) => (
+                                    <span data-testid={`module-log-select-${record.module}-${record.date}`}>
+                                        {originNode}
+                                    </span>
+                                ),
+                                onChange: (keys, rows) => {
+                                    setSelectedKeys(keys);
+                                    setSelectedFiles(rows);
+                                },
+                                getCheckboxProps: (record) => ({ disabled: !record.readable }),
                             }}
+                            locale={{
+                                emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
+                            }}
+                            toolBarRender={false}
+                            tableAlertOptionRender={false}
                         />
-                    ) : null
-                }
-                error={previewError}
-                isExpired={cleanupExpired}
-                isPending={previewMutation.isPending}
-                preview={cleanupPreview}
-                result={cleanupResult}
-            />
-            {fileQuery.error && files.length ? (
-                <Alert
-                    type="warning"
-                    showIcon
-                    message={t(
-                        "日志列表刷新失败，仍显示上次结果",
-                        "Refresh failed; showing the last result",
-                    )}
-                    description={metadataError ?? undefined}
-                />
-            ) : null}
-            {!files.length && fileQuery.isPending ? (
-                <DataState kind="loading" title={t("正在加载模块日志", "Loading module logs")} />
-            ) : !files.length && fileQuery.error ? (
-                <DataState
-                    kind="error"
-                    title={t("模块日志加载失败", "Failed to load module logs")}
-                    description={metadataError ?? undefined}
-                    action={
-                        <Button type="primary" onClick={() => void fileQuery.refetch()}>
-                            {t("重新加载", "Reload")}
-                        </Button>
-                    }
-                />
-            ) : !files.length ? (
-                <DataState
-                    kind="empty"
-                    title={t("暂无模块日志文件", "No module log files")}
-                    description={t(
-                        "仅展示 admin、monitor、insights、reports 四个固定模块的日志文件。",
-                        "Only the fixed admin, monitor, insights, and reports modules are shown.",
-                    )}
-                />
-            ) : (
-                <DataTableShell ariaLabel={t("模块日志文件", "Module log files table")}>
-                    <ProTable<ModuleLogFile>
-                        rowKey={(record) => `${record.module}:${record.date}`}
-                        columns={columns}
-                        dataSource={files}
-                        loading={fileQuery.isFetching}
-                        search={false}
-                        options={false}
-                        pagination={false}
-                        rowSelection={{
-                            selectedRowKeys: selectedKeys,
-                            renderCell: (_checked, record, _index, originNode) => (
-                                <span data-testid={`module-log-select-${record.module}-${record.date}`}>
-                                    {originNode}
-                                </span>
-                            ),
-                            onChange: (keys, rows) => {
-                                setSelectedKeys(keys);
-                                setSelectedFiles(rows);
-                            },
-                            getCheckboxProps: (record) => ({ disabled: !record.readable }),
-                        }}
-                        locale={{
-                            emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
-                        }}
-                        toolBarRender={false}
-                        tableAlertOptionRender={false}
-                    />
-                </DataTableShell>
-            )}
-            {openTailButton}
+                    </DataTableShell>
+                )}
+                {openTailButton}
             </PageCard>
         </div>
     );
