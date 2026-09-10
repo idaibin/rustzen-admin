@@ -26,6 +26,8 @@ mod agent_activation;
 mod contract;
 #[cfg(feature = "insights")]
 mod insights;
+#[cfg(feature = "insights")]
+mod insights_contract;
 #[cfg(any(feature = "monitor-agent", feature = "monitor-controller"))]
 mod monitor;
 #[cfg(feature = "reports")]
@@ -45,6 +47,8 @@ pub use contract::monitor_controller_contract;
 pub use contract::notifications_contract;
 #[cfg(feature = "reports")]
 pub use contract::reports_contract;
+#[cfg(feature = "insights")]
+pub use insights_contract::insights_contract;
 
 #[cfg(any(feature = "admin", feature = "admin-monitor", feature = "admin-insights"))]
 pub use admin::AdminConfig;

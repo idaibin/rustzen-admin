@@ -1,19 +1,21 @@
 import { join, resolve } from "node:path";
 import { canonicalJson } from "../distribution/release-manifest-core.ts";
 import { produceSelectedContract } from "../distribution/selected-contract.ts";
+import { supportsSelectedApiContract } from "../distribution/selected-contract-validator.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
-import { produceSchemaContract } from "../distribution/schema-contract.ts";
+import { produceSchemaContract, supportsSelectedSchema } from "../distribution/schema-contract.ts";
 import { produceSelectedConfig } from "../distribution/selected-config.ts";
 
 const root = resolve(import.meta.dir, "..");
 const args = Bun.argv.slice(2);
-const parsed = parseArgs(args, ["--selection", "--binary-root"]);
+const parsed = parseArgs(args, ["--selection", "--binary-root", "--kind"]);
 const selectionPath = parsed.get("--selection");
 const binaryRootValue = parsed.get("--binary-root");
-if (!selectionPath || !binaryRootValue) {
+const kind = parsed.get("--kind");
+if (!selectionPath || !binaryRootValue || (kind !== undefined && kind !== "config")) {
     throw new Error(
         "usage: bun scripts/distribution-produce-contracts.ts " +
-            "--selection <selection.json> --binary-root <binary-root>",
+            "--selection <selection.json> --binary-root <binary-root> [--kind config]",
     );
 }
 
@@ -24,12 +26,17 @@ const contractRoot = resolve(
     process.env.RUSTZEN_CONTRACT_OUTPUT_ROOT ??
         join(root, "target/distributions", plan.compositionId, "contracts"),
 );
+if (
+    kind !== "config" &&
+    plan.artifactClass === "server" &&
+    (!supportsSelectedApiContract(plan) || !supportsSelectedSchema(plan))
+)
+    throw new Error(
+        "complete contract production is unavailable; use --kind config for this selection",
+    );
 
 const run = (kind: "admin" | "monitor" | "notifications") => {
-    const binary = join(
-        producerRoot,
-        kind === "monitor" ? "rz-monitor" : "rz-admin",
-    );
+    const binary = join(producerRoot, kind === "monitor" ? "rz-monitor" : "rz-admin");
     const args =
         kind === "monitor"
             ? [binary, "contract", "selected"]
@@ -46,60 +53,45 @@ const run = (kind: "admin" | "monitor" | "notifications") => {
     return JSON.parse(new TextDecoder().decode(result.stdout));
 };
 const runConfig = (
-    kind: "admin" | "monitor" | "agent",
-    owner: "access" | "monitor" | "monitor-agent" | "notifications",
+    kind: "admin" | "insights" | "monitor" | "agent",
+    owner: "access" | "insights" | "monitor" | "monitor-agent" | "notifications",
 ) => {
     const name =
         kind === "admin"
             ? "rz-admin"
-            : kind === "agent"
-              ? "rz-monitor-agent"
-              : "rz-monitor";
+            : kind === "insights"
+              ? "rz-insights"
+              : kind === "agent"
+                ? "rz-monitor-agent"
+                : "rz-monitor";
     const args = [join(producerRoot, name), "contract", "config", "selected"];
     if (kind === "admin") args.push(owner);
-    const result = Bun.spawnSync(
-        args,
-        {
-            cwd: "/tmp",
-            env: { PATH: process.env.PATH ?? "" },
-            stdout: "pipe",
-            stderr: "pipe",
-        },
-    );
-    if (result.exitCode !== 0)
-        throw new Error(new TextDecoder().decode(result.stderr));
+    const result = Bun.spawnSync(args, {
+        cwd: "/tmp",
+        env: { PATH: process.env.PATH ?? "" },
+        stdout: "pipe",
+        stderr: "pipe",
+    });
+    if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr));
     return JSON.parse(new TextDecoder().decode(result.stdout));
 };
 
-const config = await produceSelectedConfig(
-    selection,
-    join(contractRoot, "config"),
-    runConfig,
-);
-if (plan.artifactClass === "node-agent") {
+const config = await produceSelectedConfig(selection, join(contractRoot, "config"), runConfig);
+if (kind === "config" || plan.artifactClass === "node-agent") {
     console.log(canonicalJson({ config }));
 } else {
-    const api = await produceSelectedContract(
-        selection,
-        join(contractRoot, "api"),
-        run,
-    );
-    const schema = await produceSchemaContract(
-        selection,
-        root,
-        join(contractRoot, "schema"),
-    );
+    const api = await produceSelectedContract(selection, join(contractRoot, "api"), run);
+    const schema = await produceSchemaContract(selection, root, join(contractRoot, "schema"));
     console.log(canonicalJson({ api, config, schema }));
 }
 
 function parseArgs(values: string[], allowed: string[]): Map<string, string> {
-    if (values.length !== allowed.length * 2) return new Map();
+    if (values.length % 2 !== 0) return new Map();
     const result = new Map<string, string>();
     for (let index = 0; index < values.length; index += 2) {
         const name = values[index];
         const value = values[index + 1];
-        if (!allowed.includes(name) || result.has(name) || !value?.length)
-            return new Map();
+        if (!allowed.includes(name) || result.has(name) || !value?.length) return new Map();
         result.set(name, value);
     }
     return result;

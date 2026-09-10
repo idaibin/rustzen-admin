@@ -10,8 +10,8 @@ import {
 } from "./selected-config-validator.ts";
 
 export type ConfigRunner = (
-    binary: "admin" | "monitor" | "agent",
-    owner: "access" | "monitor" | "monitor-agent" | "notifications",
+    binary: "admin" | "insights" | "monitor" | "agent",
+    owner: "access" | "insights" | "monitor" | "monitor-agent" | "notifications",
 ) => unknown;
 export {
     completeSelectedConfigForTest,
@@ -28,18 +28,17 @@ export async function produceSelectedConfig(
     const expected = completeSelectedConfigForTest(selectionInput);
     const owners =
         expected.artifactClass === "server"
-            ? {
-                  access: run("admin", "access"),
-                  monitor: run("monitor", "monitor"),
-                  ...(expected.preset === "monitor-notify"
-                      ? { notifications: run("admin", "notifications") }
-                      : {}),
-              }
+            ? expected.preset === "analytics"
+                ? { access: run("admin", "access"), insights: run("insights", "insights") }
+                : {
+                      access: run("admin", "access"),
+                      monitor: run("monitor", "monitor"),
+                      ...(expected.preset === "monitor-notify"
+                          ? { notifications: run("admin", "notifications") }
+                          : {}),
+                  }
             : { "monitor-agent": run("agent", "monitor-agent") };
-    const contract = parseSelectedConfig(
-        { ...expected, owners },
-        selectionInput,
-    );
+    const contract = parseSelectedConfig({ ...expected, owners }, selectionInput);
     await rm(outputRoot, { recursive: true, force: true });
     await mkdir(outputRoot, { recursive: true });
     await writeFile(join(outputRoot, "config.json"), canonicalJson(contract), {

@@ -1,0 +1,175 @@
+{
+    "access": {
+        "version": 1,
+        "owner": "access",
+        "consumer": "rz-admin",
+        "fields": [
+            {
+                "key": "RUSTZEN_ADMIN_HOST",
+                "valueType": "host",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_ADMIN_PORT",
+                "valueType": "port",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_ADMIN_SQLITE_PATH",
+                "valueType": "path",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_CONN_TIMEOUT",
+                "valueType": "seconds",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_IDLE_TIMEOUT",
+                "valueType": "seconds",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_MAX_CONN",
+                "valueType": "integer",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_MIN_CONN",
+                "valueType": "integer",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_ENV",
+                "valueType": "environment",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_INSIGHTS_PORT",
+                "valueType": "port",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_INTERNAL_HOST",
+                "valueType": "host",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_IPC_TOKEN",
+                "valueType": "secret",
+                "required": true,
+                "defaultClass": "development-only",
+                "secretRef": "insights.ipc"
+            },
+            {
+                "key": "RUSTZEN_JWT_EXPIRATION",
+                "valueType": "seconds",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_JWT_SECRET",
+                "valueType": "secret",
+                "required": true,
+                "defaultClass": "development-only",
+                "secretRef": "auth.jwt"
+            },
+            {
+                "key": "RUSTZEN_RUNTIME_ROOT",
+                "valueType": "path",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_TIMEZONE",
+                "valueType": "timezone",
+                "required": false,
+                "defaultClass": "built-in"
+            }
+        ]
+    },
+    "insights": {
+        "version": 1,
+        "owner": "insights",
+        "consumer": "rz-insights",
+        "fields": [
+            {
+                "key": "RUSTZEN_DB_CONN_TIMEOUT",
+                "valueType": "seconds",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_IDLE_TIMEOUT",
+                "valueType": "seconds",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_MAX_CONN",
+                "valueType": "integer",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_DB_MIN_CONN",
+                "valueType": "integer",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_ENV",
+                "valueType": "environment",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_INSIGHTS_PORT",
+                "valueType": "port",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_INSIGHTS_SQLITE_PATH",
+                "valueType": "path",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_INTERNAL_HOST",
+                "valueType": "host",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_IPC_TOKEN",
+                "valueType": "secret",
+                "required": true,
+                "defaultClass": "development-only",
+                "secretRef": "insights.ipc"
+            },
+            {
+                "key": "RUSTZEN_RUNTIME_ROOT",
+                "valueType": "path",
+                "required": false,
+                "defaultClass": "built-in"
+            },
+            {
+                "key": "RUSTZEN_TIMEZONE",
+                "valueType": "timezone",
+                "required": false,
+                "defaultClass": "built-in"
+            }
+        ]
+    }
+}
