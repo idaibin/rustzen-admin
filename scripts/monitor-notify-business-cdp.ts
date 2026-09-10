@@ -52,6 +52,13 @@ export const sseFetchProbeSource = () => `(() => {
     };
 })()`;
 
+export const cdpMilliseconds = (seconds: unknown): number => {
+    const value = typeof seconds === "number" ? seconds : Number.NaN;
+    const milliseconds = Math.round(value * 1_000);
+    if (!Number.isFinite(value) || !Number.isSafeInteger(milliseconds)) throw Error("CDP timestamp differs");
+    return milliseconds;
+};
+
 export const observeNotificationStreams = (
     requests: CdpRequest[],
     responses: Map<string, CdpStreamResponse>,

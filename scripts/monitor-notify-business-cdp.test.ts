@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { exactPersistedSseAuthorization, isReadyNotificationStream, observeNotificationStreams, sseFetchProbeSource, streamDiagnostics } from "./monitor-notify-business-cdp.ts";
+import { cdpMilliseconds, exactPersistedSseAuthorization, isReadyNotificationStream, observeNotificationStreams, sseFetchProbeSource, streamDiagnostics } from "./monitor-notify-business-cdp.ts";
 
 const stream = (url = "http://example.test/api/notifications/stream") => [{ requestId: "sse-1", method: "GET", url }];
 
@@ -42,4 +42,10 @@ test("P8f-B SSE diagnostics distinguish missing request metadata, response readi
     expect(isReadyNotificationStream(missingContentType[0])).toBe(false);
     const ready = observeNotificationStreams(stream(), response, new Map([["sse-1", 1]]), true);
     expect(isReadyNotificationStream(ready[0])).toBe(true);
+});
+
+test("P8f-B canonicalizes fractional CDP seconds to safe integer milliseconds", () => {
+    expect(cdpMilliseconds(1_726_000_000.1234)).toBe(1_726_000_000_123);
+    expect(cdpMilliseconds(12.5)).toBe(12_500);
+    expect(() => cdpMilliseconds(Number.NaN)).toThrow("CDP timestamp differs");
 });

@@ -29,6 +29,8 @@ test("P8f-B rejects cross-subject, sequence, SSE, provenance, and extra-field ta
         (value: any) => { value.journey.api.incident.nodeId = "other"; },
         (value: any) => { value.journey.api.messageDetail.subjectId = "other"; },
         (value: any) => { value.journey.sse.frameBytes = value.journey.sse.frameBytesBefore; },
+        (value: any) => { value.journey.sse.readyTimestamp = 1.5; },
+        (value: any) => { value.journey.api.inbox.listFetchTimestamp = 1.5; },
         (value: any) => { value.provenance.push(value.provenance[0]); },
         (value: any) => { value.provenance[0].path = "extra"; },
         (value: any) => { value.journey.api.inbox.extra = true; },
