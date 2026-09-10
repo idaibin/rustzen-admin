@@ -23,20 +23,26 @@ if (flag !== "--selection" || !selectionPath) {
 
 const selection = resolveSelection(await Bun.file(resolve(repositoryRoot, selectionPath)).json());
 if (!supportsSelectedWeb(selection))
-    throw new Error("selected Web producer currently supports only monitor compositions");
+    throw new Error("selected Web producer does not support this exact composition");
 const hasNotifications = selection.capabilities.includes("notifications");
+const isAnalytics = selection.preset === "analytics";
 
 const outputRoot = join(repositoryRoot, "target/distributions", selection.compositionId, "web");
 const generatedRoot = join(webRoot, ".selected-web", selection.compositionId);
 const routeRoot = join(generatedRoot, "routes");
 const sourceRoutes = [
     ...selection.webRoots,
-    "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
-    "apps/web/src/routes/monitoring/-incident-drawer.tsx",
-    "apps/web/src/routes/monitoring/-node-details.tsx",
-    "apps/web/src/routes/monitoring/-node-alert-policy.tsx",
-    "apps/web/src/routes/monitoring/-node-onboarding.tsx",
-    "apps/web/src/routes/monitoring/-save-state.ts",
+    ...(isAnalytics ? ["apps/web/src/routes/analytics/-event-target.ts"] : []),
+    ...(!isAnalytics
+        ? [
+              "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
+              "apps/web/src/routes/monitoring/-incident-drawer.tsx",
+              "apps/web/src/routes/monitoring/-node-details.tsx",
+              "apps/web/src/routes/monitoring/-node-alert-policy.tsx",
+              "apps/web/src/routes/monitoring/-node-onboarding.tsx",
+              "apps/web/src/routes/monitoring/-save-state.ts",
+          ]
+        : []),
     "apps/web/src/routes/system/-role-actions.tsx",
     "apps/web/src/routes/system/-role-delete-state.ts",
     "apps/web/src/routes/system/-role-dialog.tsx",
@@ -57,14 +63,29 @@ const copyRoute = async (source: string) => {
     await mkdir(dirname(destination), { recursive: true });
     let content = await Bun.file(join(repositoryRoot, source)).text();
     if (relativeRoute === "monitoring/incidents.tsx" && !hasNotifications) {
-        content = content.replace('import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";\n', "").replace(/    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["monitor", "notification-delivery"\]\}\n            queryFn=\{monitorAPI\.notificationDelivery\}\n        \/>\n    \);\n/, "").replaceAll('                {deliveryCard}\n', "").replaceAll('            {deliveryCard}\n', "");
+        content = content
+            .replace(
+                'import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";\n',
+                "",
+            )
+            .replace(
+                /    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["monitor", "notification-delivery"\]\}\n            queryFn=\{monitorAPI\.notificationDelivery\}\n        \/>\n    \);\n/,
+                "",
+            )
+            .replaceAll("                {deliveryCard}\n", "")
+            .replaceAll("            {deliveryCard}\n", "");
     }
     if (relativeRoute === "__root.tsx" && !hasNotifications) {
         content = content
             .replace('import { NotificationShell } from "./-notifications-shell";\n', "")
             .replace(" headerActions={token ? <NotificationShell /> : null}", "");
     }
-    if (relativeRoute === "monitoring/incidents.tsx" && !hasNotifications && /NotificationDeliveryCard|deliveryCard|notification-delivery/.test(content)) throw new Error("pure Monitor incidents retains notification delivery");
+    if (
+        relativeRoute === "monitoring/incidents.tsx" &&
+        !hasNotifications &&
+        /NotificationDeliveryCard|deliveryCard|notification-delivery/.test(content)
+    )
+        throw new Error("pure Monitor incidents retains notification delivery");
     await Bun.write(destination, content);
 };
 
@@ -76,28 +97,46 @@ await cp(join(webRoot, "src/style.css"), join(generatedRoot, "style.css"));
 await cp(join(webRoot, "src/styles"), join(generatedRoot, "styles"), { recursive: true });
 await Bun.write(
     join(routeRoot, "index.tsx"),
-    `import { createFileRoute, redirect } from "@tanstack/react-router";\n\nexport const Route = createFileRoute("/")({ beforeLoad: () => { throw redirect({ to: "/monitoring/overview" }); } });\n`,
+    `import { createFileRoute, redirect } from "@tanstack/react-router";\n\nexport const Route = createFileRoute("/")({ beforeLoad: () => { throw redirect({ to: "${isAnalytics ? "/analytics/overview" : "/monitoring/overview"}" }); } });\n`,
 );
 await cp(join(webRoot, "public/rustzen.png"), join(generatedRoot, "public/rustzen.png"));
 await Bun.write(
     join(generatedRoot, "api.ts"),
-    await Bun.file(join(webRoot, hasNotifications ? "src/distribution/monitor-notify-api.ts" : "src/distribution/monitor-api.ts")).text(),
+    await Bun.file(
+        join(
+            webRoot,
+            isAnalytics
+                ? "src/distribution/analytics-api.ts"
+                : hasNotifications
+                  ? "src/distribution/monitor-notify-api.ts"
+                  : "src/distribution/monitor-api.ts",
+        ),
+    ).text(),
 );
 await Bun.write(
     join(generatedRoot, "layout.tsx"),
-    await Bun.file(join(webRoot, "src/distribution/monitor-layout.tsx")).text(),
+    await Bun.file(
+        join(webRoot, `src/distribution/${isAnalytics ? "analytics" : "monitor"}-layout.tsx`),
+    ).text(),
 );
 await Bun.write(
     join(generatedRoot, "auth-store.ts"),
-    await Bun.file(join(webRoot, "src/distribution/monitor-auth-store.ts")).text(),
+    await Bun.file(
+        join(webRoot, `src/distribution/${isAnalytics ? "analytics" : "monitor"}-auth-store.ts`),
+    ).text(),
 );
 await Bun.write(
     join(generatedRoot, "menu-query-options.ts"),
-    await Bun.file(join(webRoot, "src/distribution/monitor-menu-query-options.ts")).text(),
+    await Bun.file(
+        join(
+            webRoot,
+            `src/distribution/${isAnalytics ? "analytics" : "monitor"}-menu-query-options.ts`,
+        ),
+    ).text(),
 );
 await Bun.write(
     join(generatedRoot, "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><link href="./style.css" rel="stylesheet" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><link href="./style.css" rel="stylesheet" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${isAnalytics ? "Analytics" : "Monitor"}</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
 );
 await Bun.write(
     join(generatedRoot, "main.tsx"),
@@ -150,7 +189,7 @@ const bootstrap = createSelectedWebBootstrap({
 await rm(join(outputRoot, "dist", ".selected-web"), { recursive: true, force: true });
 await Bun.write(
     join(outputRoot, "dist", "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen Monitor</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div>${bootstrap.html}</body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${isAnalytics ? "Analytics" : "Monitor"}</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div>${bootstrap.html}</body></html>`,
 );
 const selectedApiBytes = await Bun.file(join(generatedRoot, "api.ts")).bytes();
 await Bun.write(join(outputRoot, "api.ts"), selectedApiBytes);

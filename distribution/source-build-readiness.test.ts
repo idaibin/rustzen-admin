@@ -42,35 +42,37 @@ describe("P8 source/build certification admission", () => {
     });
 
     test("fails closed for incomplete official and test-only selections", () => {
-        for (const preset of [
-            "full",
-            "analytics",
-            "reports",
-            "current-full-regression",
-        ]) {
+        for (const preset of ["full", "analytics", "reports", "current-full-regression"]) {
             const audit = auditSourceBuildReadiness(fixture(preset));
             expect(audit.admissionReady).toBeFalse();
             expect(audit.blockers.length).toBeGreaterThan(0);
             expect(audit.certified).toBeFalse();
         }
-        expect(auditSourceBuildReadiness(fixture("full")).missingProducers).toContain(
-            "web",
-        );
-        expect(auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers).toEqual(
-            [],
-        );
+        expect(auditSourceBuildReadiness(fixture("full")).missingProducers).toContain("web");
+        expect(auditSourceBuildReadiness(fixture("monitor-notify")).missingProducers).toEqual([]);
     });
 
     test("tracks the Analytics service build without admitting the incomplete server family", () => {
         const plan = resolveSelection(fixture("analytics"));
         expect(supportsSelectedServiceCargo(plan)).toBeTrue();
-        expect(selectedServiceCargoBuilds(plan)).toEqual([[
-            "cargo", "build", "-p", "rustzen-insights", "--no-default-features",
-            "--features", "selected-distribution", "--bin", "rz-insights",
-        ]]);
+        expect(selectedServiceCargoBuilds(plan)).toEqual([
+            [
+                "cargo",
+                "build",
+                "-p",
+                "rustzen-insights",
+                "--no-default-features",
+                "--features",
+                "selected-distribution",
+                "--bin",
+                "rz-insights",
+            ],
+        ]);
         expect(supportsSelectedCargo(plan)).toBeFalse();
         expect(() => selectedCargoBuilds(plan)).toThrow();
-        expect(auditSourceBuildReadiness(fixture("analytics")).missingProducers).toContain("cargo");
+        const audit = auditSourceBuildReadiness(fixture("analytics"));
+        expect(audit.availableProducers).toContain("web");
+        expect(audit.missingProducers).toContain("cargo");
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {
@@ -110,9 +112,7 @@ describe("P8 source/build certification admission", () => {
     test("fails closed when a producer receives a mutated composition identity", () => {
         const plan = resolveSelection(fixture("monitor"));
         expect(supportsSelectedCargo(plan)).toBeTrue();
-        expect(
-            supportsSelectedCargo({ ...plan, compositionId: "0".repeat(64) }),
-        ).toBeFalse();
+        expect(supportsSelectedCargo({ ...plan, compositionId: "0".repeat(64) })).toBeFalse();
     });
 
     test("rejects a forged named catalog whose Agent closure changes", () => {

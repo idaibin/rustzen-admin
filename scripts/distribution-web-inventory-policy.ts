@@ -3,7 +3,11 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 
 import { allowedWebPackages } from "./distribution-web-allowed-packages.ts";
 import type { WebFile } from "../distribution/selected-web-binding.ts";
-export { assertSafeRelativePath, parseInventory, type Inventory } from "./distribution-web-inventory-schema.ts";
+export {
+    assertSafeRelativePath,
+    parseInventory,
+    type Inventory,
+} from "./distribution-web-inventory-schema.ts";
 import { assertSafeRelativePath, type Inventory } from "./distribution-web-inventory-schema.ts";
 
 export function assertEqual(actual: string, expected: string, label: string) {
@@ -63,11 +67,9 @@ export async function listFiles(
     return nested.flat().sort();
 }
 
-export function assertModuleIds(
-    moduleIds: string[],
-    compositionId: string,
-    hasNotifications: boolean,
-) {
+export function assertModuleIds(moduleIds: string[], compositionId: string, preset: string) {
+    const hasNotifications = preset === "monitor-notify";
+    const isAnalytics = preset === "analytics";
     if (new Set(moduleIds).size !== moduleIds.length)
         throw new Error("selected Web module IDs repeat");
     const generatedPrefix = `apps/web/.selected-web/${compositionId}/`;
@@ -80,7 +82,7 @@ export function assertModuleIds(
     ]);
     const allowedSourceDirectories = [
         "apps/web/src/api/installation/",
-        "apps/web/src/api/monitor/",
+        ...(!isAnalytics ? ["apps/web/src/api/monitor/"] : []),
         ...(hasNotifications
             ? ["apps/web/src/api/notifications/", "apps/web/src/notifications/"]
             : []),
@@ -147,7 +149,7 @@ export function assertModuleIds(
     }
     if (!generatedCount)
         throw new Error("selected Web module inventory has no generated route source");
-    for (const owner of requiredModuleOwners(hasNotifications)) {
+    for (const owner of requiredModuleOwners(preset)) {
         if (!moduleIds.some((rawId) => rawId.split("?", 1)[0] === owner))
             throw new Error(`selected Web module inventory is missing required owner: ${owner}`);
     }
@@ -158,12 +160,17 @@ const notificationOnlyMonitorOwners = new Set([
     "apps/web/src/api/monitor/notification-contract.ts",
 ]);
 
-export function requiredModuleOwners(hasNotifications: boolean) {
+export function requiredModuleOwners(preset: string) {
+    const hasNotifications = preset === "monitor-notify";
     return [
         "apps/web/src/api/installation/api.ts",
-        hasNotifications
-            ? "apps/web/src/api/monitor/api.ts"
-            : "apps/web/src/api/monitor/core-api.ts",
+        ...(preset === "analytics"
+            ? []
+            : [
+                  hasNotifications
+                      ? "apps/web/src/api/monitor/api.ts"
+                      : "apps/web/src/api/monitor/core-api.ts",
+              ]),
         "apps/web/src/api/request.ts",
         ...(hasNotifications ? ["apps/web/src/api/notifications/api.ts"] : []),
     ];
@@ -178,12 +185,20 @@ export function assertSelectedWebSnapshot(
 ) {
     const routes = selectedWebRoutes(selection);
     const hasNotifications = selection.preset === "monitor-notify";
+    const isAnalytics = selection.preset === "analytics";
     const forbidden = [
-        "/api/insights",
+        ...(!isAnalytics
+            ? ["/api/insights", "/analytics/"]
+            : [
+                  "/api/monitor",
+                  "/monitoring/",
+                  "/api/insights/collection-policy",
+                  "/api/insights/track",
+                  "/api/insights/tracker.js",
+              ]),
         "/api/reports",
         "/api/manage",
         "/api/system/status",
-        "/analytics/",
         "/reports/",
         "/manage/deploy",
         "/manage/task",
@@ -197,11 +212,12 @@ export function assertSelectedWebSnapshot(
     const required = [
         "/api/auth/login",
         "/api/auth/me",
-        "/api/monitor/",
+        ...(isAnalytics
+            ? ["/api/insights/overview", "/api/insights/events", "/analytics/overview"]
+            : ["/api/monitor/", "/monitoring/overview"]),
         "/api/system/users",
         "/api/system/roles",
         "/api/system/menus/options",
-        "/monitoring/overview",
         ...(hasNotifications
             ? ["/api/notifications/stream", "/api/notifications/unread-count", "Message center"]
             : []),
@@ -228,7 +244,7 @@ export function assertSelectedWebSnapshot(
         throw new Error("selected Web inventory file digest mismatch");
     if (inventory.binding.compositionId !== selection.compositionId)
         throw new Error("selected Web inventory binding composition mismatch");
-    assertModuleIds(inventory.moduleIds, selection.compositionId, hasNotifications);
+    assertModuleIds(inventory.moduleIds, selection.compositionId, selection.preset);
     for (const asset of inventory.publicAssets) {
         if (!inventory.emittedFiles.includes(asset) || !emittedPaths.includes(asset))
             throw new Error(`selected Web public asset is absent from emitted output: ${asset}`);
@@ -244,15 +260,20 @@ export function assertSelectedWebSnapshot(
 }
 
 export function selectedWebRoutes(selection: { webRoots: string[] }) {
+    const monitor = selection.webRoots.some((route) => route.includes("/monitoring"));
     return [
         "index.tsx",
         ...selection.webRoots.map((route) => route.replace("apps/web/src/routes/", "")),
-        "monitoring/-global-alert-settings.tsx",
-        "monitoring/-incident-drawer.tsx",
-        "monitoring/-node-details.tsx",
-        "monitoring/-node-alert-policy.tsx",
-        "monitoring/-node-onboarding.tsx",
-        "monitoring/-save-state.ts",
+        ...(monitor
+            ? [
+                  "monitoring/-global-alert-settings.tsx",
+                  "monitoring/-incident-drawer.tsx",
+                  "monitoring/-node-details.tsx",
+                  "monitoring/-node-alert-policy.tsx",
+                  "monitoring/-node-onboarding.tsx",
+                  "monitoring/-save-state.ts",
+              ]
+            : ["analytics/-event-target.ts"]),
         "system/-role-actions.tsx",
         "system/-role-delete-state.ts",
         "system/-role-dialog.tsx",
@@ -260,12 +281,4 @@ export function selectedWebRoutes(selection: { webRoots: string[] }) {
         "system/-user-actions.tsx",
         "system/-user-dialog.tsx",
     ].sort();
-}
-
-export async function assertSelectedApiSource(apiPath: string) {
-    const apiSource = await Bun.file(apiPath).text();
-    if (/\/(?:api)\/\s*["'`]\s*\+/.test(apiSource))
-        throw new Error("selected Web API adapter dynamically constructs an API namespace");
-    if (/(?:insights|reports|manage|system\/status)/.test(apiSource))
-        throw new Error("selected Web API adapter names an excluded capability");
 }

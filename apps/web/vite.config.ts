@@ -1,9 +1,10 @@
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import { writeFileSync } from "node:fs";
 import { defineConfig, lazyPlugins } from "vite-plus";
-import { resolve } from "node:path";
 
 // Vite+ and Vite 8 expose compatible plugins through distinct type identities.
 type VitePlusPluginList = NonNullable<ReturnType<typeof lazyPlugins>>;
@@ -14,17 +15,17 @@ const selectedPreset = process.env.RUSTZEN_WEB_PRESET;
 const selectedRoot = process.env.RUSTZEN_WEB_SELECTED_ROOT;
 const selectedOutput = process.env.RUSTZEN_WEB_OUTPUT_DIR;
 const selectedViteInventory = process.env.RUSTZEN_WEB_VITE_INVENTORY;
-const isMonitorBuild =
-    ["monitor", "monitor-notify"].includes(selectedPreset ?? "") &&
+const isSelectedBuild =
+    ["monitor", "monitor-notify", "analytics"].includes(selectedPreset ?? "") &&
     Boolean(selectedRoot) &&
     Boolean(selectedOutput);
 
-if (selectedPreset && !isMonitorBuild) {
-    throw new Error("selected Web builds currently support only monitor compositions");
+if (selectedPreset && !isSelectedBuild) {
+    throw new Error("selected Web build preset is unsupported");
 }
 
 const selectedPath = (...segments: string[]) => resolve(selectedRoot!, ...segments);
-const selectedInventoryPlugin = isMonitorBuild
+const selectedInventoryPlugin = isSelectedBuild
     ? {
           name: "rustzen-selected-web-inventory",
           generateBundle(
@@ -58,7 +59,7 @@ export default defineConfig({
         () =>
             [
                 tanstackRouter(
-                    isMonitorBuild
+                    isSelectedBuild
                         ? {
                               autoCodeSplitting: true,
                               routesDirectory: selectedPath("routes"),
@@ -74,7 +75,7 @@ export default defineConfig({
     ),
     resolve: {
         tsconfigPaths: true,
-        alias: isMonitorBuild
+        alias: isSelectedBuild
             ? [
                   { find: /^@\/api$/, replacement: selectedPath("api.ts") },
                   {
@@ -108,8 +109,8 @@ export default defineConfig({
             },
         },
     },
-    publicDir: isMonitorBuild ? selectedPath("public") : "public",
-    build: isMonitorBuild
+    publicDir: isSelectedBuild ? selectedPath("public") : "public",
+    build: isSelectedBuild
         ? {
               outDir: selectedOutput,
               emptyOutDir: true,
