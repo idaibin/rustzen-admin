@@ -108,6 +108,25 @@ activation keys. Both selections retain exactly the Admin and Monitor PID1
 services and keep browser, load and `releaseReady` false. These are source/static
 checks until each selected tuple has a separately retained Linux runtime record.
 
+The monitor-notify record is
+`target/rz/p8e-monitor-notify-native-runtime-20260910-r2/monitor-native-runtime-evidence.json`
+with SHA-256 `aa15c4985ff5ab16b6dd5ef52bd7bbd6709724cfdb5193b2e1b678ebb4710921`.
+It binds old dirty source `git:3d6aeec719d5acc9b26b114ceedef5ac9c700444 tree:a1f5e7e55952fd22d36ca8228c93ee5109a1316cf0e76b72cb7fa5f456af1b9a state:dirty`,
+composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d`,
+build `d2c4e0f452c7400927059bc499822ef1218a9c47547ca88eb25706bbfa1426bd`,
+certificate `8eba6380fe0e130288d0038d561b9a61a07abdbaad3ef049068164c3aefd1436`,
+activation marker `a5a181259015276d3ef7db41c760249c17e88d6a7e79319b1f72bd2cc077587c`
+and publication marker `54476c47a392412d60d8fe588cfbebf536df70f11a981d8c91019937ff6c3e9d`.
+Its Admin and Monitor executable digests are respectively
+`9b73ea1eadc69661fa5ba060367c4d76e658d297bc38f3f1119a246ba313b3cd` and
+`e47ec801568d59a0c70561c75f8b561798da9a83de94238423c447c45c3dd46f`.
+The fresh install/PID1, restart, both start orders, health/MainPID, owner login,
+default-password rejection, Insights/Reports absence and rejected notification
+request all passed; the ingress response was `401` with body `bad-producer`.
+The record has `runtime:true` and literal `browser:false`, `load:false` and
+`releaseReady:false`. It is exact evidence for that old tuple only: it does not
+prove a current-HEAD rebuild, browser, load or deployment.
+
 The P8b selected-server container closure is verified separately from certification. Its
 static boundary test admits only the reviewed `monitor` and `monitor-notify`
 fixture/feature cases and must reject a non-Linux/amd64 build stage, an omitted Monitor

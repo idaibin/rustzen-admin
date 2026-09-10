@@ -34,8 +34,20 @@ P8e now takes an explicit reviewed server selection and preserves that preset
 through published-certificate admission, runtime evidence and revalidation.
 The selected notification activation input supplies its ingress/event-key values
 and records its notification check while retaining only Admin and Monitor units;
-pure Monitor rejects those keys and records an absent ingress. This is source and
-static-test coverage only. No monitor-notify native/PID1 run is claimed here.
+pure Monitor rejects those keys and records an absent ingress. The retained
+monitor-notify Linux/amd64 runtime record is
+`target/rz/p8e-monitor-notify-native-runtime-20260910-r2/monitor-native-runtime-evidence.json`
+(SHA-256 `aa15c4985ff5ab16b6dd5ef52bd7bbd6709724cfdb5193b2e1b678ebb4710921`).
+It binds the old dirty source identity
+`git:3d6aeec719d5acc9b26b114ceedef5ac9c700444 tree:a1f5e7e55952fd22d36ca8228c93ee5109a1316cf0e76b72cb7fa5f456af1b9a state:dirty`,
+composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d`,
+build `d2c4e0f452c7400927059bc499822ef1218a9c47547ca88eb25706bbfa1426bd`
+and certificate `8eba6380fe0e130288d0038d561b9a61a07abdbaad3ef049068164c3aefd1436`.
+A fresh install passed PID1 activation, restart and both start orders, health and
+MainPID bindings, owner login/default-password rejection, and Insights/Reports
+absence. The unauthorized ingress probe returned `401` with `bad-producer`.
+Its literal runtime flag is true; browser, load and `releaseReady` remain false.
+It is not a rebuild of current HEAD and does not prove browser, load or deployment.
 
 P8e consumes the issued certificate capability only to admit one already
 published certificate into a disposable Linux/amd64 Monitor runtime gate. It
@@ -102,7 +114,7 @@ closure happens to match a named preset.
 | Selection | Current producer evidence | P8a result | Remaining certification boundary |
 | --- | --- | --- | --- |
 | `monitor` | Selected Admin/Controller Cargo, Web, API/schema/config, protocol and native-layout producers; signed apply and Linux activation gates exist | Admitted to source/build certification | One fixed clean build basis and final acceptance report |
-| `monitor-notify` | Exact Linux/amd64 50-file container export at `target/rz/p8b-monitor-notify-export-20260910T065139Z`, composition `0aac2acc…`, with host before/after validation and nine restricted commands (eight retained checks plus Agent config witness); Admin native config merges access and notifications owners while Monitor retains its notification configuration | Exact build/export evidence recorded | Native installation/PID1, browser and load remain Not verified; no certification, publication or release claim |
+| `monitor-notify` | Exact Linux/amd64 50-file container export at `target/rz/p8b-monitor-notify-export-20260910T065139Z`, composition `0aac2acc…`, signed P8c/P8d release/certificate, and retained P8e runtime evidence `target/rz/p8e-monitor-notify-native-runtime-20260910-r2/monitor-native-runtime-evidence.json` (SHA-256 `aa15c498…`) | Exact build/export, signed source-build certificate and old-tuple fresh-install/PID1 evidence recorded | Browser, load, deployment and current-HEAD rebuild remain Not verified |
 | `node-agent` | Agent Cargo, config, protocol, native layout, signed apply and controlled Linux pairing evidence | Admitted to source/build certification | Final PID1/service restart and shipped-target report |
 | `analytics` | Catalog and application baseline only | Rejected | Selected Admin/Insights Cargo boundary, Web graph and contracts |
 | `reports` | Catalog, Reports application and notification producer slices only | Rejected | Selected Admin/Reports Cargo boundary, Web graph and contracts |
