@@ -44,7 +44,7 @@ let get = (key: Name) => a.get(key)!, output = await freshOutput(get("--output")
         { path: get("--password-file"), limit: 2 * 1024 * 1024 },
         { path: get("--agent-token-file"), limit: 2 * 1024 * 1024 },
     ], inputs = await Promise.all(inputSpecs.map(({ path, limit }) => stable(path, limit)));
-if (admission.source.expected !== get("--expected-source-identity"))
+if (admission.source.productSourceIdentity !== get("--expected-source-identity"))
     throw Error("source identity differs");
 let { verified, snapshot } = await signedSourceBuild({
     exportRoot, expectedSourceIdentity: get("--expected-source-identity"),

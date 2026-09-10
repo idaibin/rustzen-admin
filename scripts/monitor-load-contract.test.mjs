@@ -149,3 +149,9 @@ test("P8g injected lane enforces offered volume and latency", async () => {
     let recovery = await c.lane(fetcher, "http://x", "t", ids, clock, 10_000, 512);
     expect(recovery.completed).toBeGreaterThanOrEqual(512);
 });
+
+test("P8g certification binds the product source identity", async () => {
+    const source = await Bun.file("scripts/verify-monitor-load-certification.ts").text();
+    expect(source).toContain("admission.source.productSourceIdentity");
+    expect(source).not.toContain("admission.source.expected");
+});
