@@ -20,18 +20,28 @@ const streamUrl = (url: string): URL | undefined => {
     }
 };
 
-export const hasExactBearerAuthorization = (headers: unknown, token: string): boolean => {
-    if (!headers || typeof headers !== "object" || Array.isArray(headers)) return false;
-    const value = (headers as Record<string, unknown>).Authorization
-        ?? (headers as Record<string, unknown>).authorization;
-    return typeof value === "string" && value === `Bearer ${token}`;
+export const exactSseFetchAuthorization = (input: RequestInfo | URL, init: RequestInit | undefined, token: string): boolean => {
+    const request = new Request(input, init);
+    return new URL(request.url).pathname === "/api/notifications/stream"
+        && request.headers.get("authorization") === `Bearer ${token}`;
 };
+
+export const sseFetchProbeSource = (token: string) => `(() => {
+    const originalFetch = window.fetch;
+    Object.defineProperty(window, "__rzP8fbSseBearer", { configurable: true, writable: true, value: [] });
+    window.fetch = function(input, init) {
+        const request = new Request(input, init);
+        if (new URL(request.url, location.href).pathname === "/api/notifications/stream")
+            window.__rzP8fbSseBearer.push(request.headers.get("authorization") === ${JSON.stringify(`Bearer ${token}`)});
+        return originalFetch.call(this, input, init);
+    };
+})()`;
 
 export const observeNotificationStreams = (
     requests: CdpRequest[],
     responses: Map<string, CdpStreamResponse>,
     bytes: Map<string, number>,
-    bearer: Map<string, boolean>,
+    bearer: boolean,
 ): StreamObservation[] => requests.flatMap((request) => {
     const parsed = streamUrl(request.url);
     if (!parsed) return [];
@@ -43,7 +53,7 @@ export const observeNotificationStreams = (
         status: response?.status ?? null,
         eventStream: typeof response?.contentType === "string" && response.contentType.toLowerCase().includes("text/event-stream"),
         bytes: bytes.get(request.requestId) ?? 0,
-        bearer: bearer.has(request.requestId) ? bearer.get(request.requestId)! : null,
+        bearer,
     }];
 });
 

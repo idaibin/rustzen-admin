@@ -21,7 +21,8 @@ test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for C
     expect(driver).not.toContain("expression.slice");
     expect(driver).not.toContain("CDP evaluate failed: ${detail}");
     expect(driver).not.toContain("value.error.message");
-    expect(driver).toContain("Network.requestWillBeSentExtraInfo");
+    expect(driver).toContain("Page.addScriptToEvaluateOnNewDocument");
+    expect(driver).not.toContain("Network.requestWillBeSentExtraInfo");
     expect(driver).toContain("streamDiagnostics(streamItems)");
     expect(driver).toContain("wallTime: value.params.wallTime");
     expect(wrapper).toContain('kill -KILL "$chrome_pid"');
