@@ -19,7 +19,10 @@ import {
     stampIndex,
 } from "./selected-web-binding.ts";
 import { resolveSelection } from "./resolver.ts";
-import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.ts";
+import {
+    requiredModuleOwners,
+    selectedWebRoutes,
+} from "../scripts/distribution-web-inventory-policy.ts";
 
 export const monitorSelection = {
     preset: "monitor",
@@ -166,6 +169,7 @@ export async function writeFixtureWebBinding(webRoot: string, selection: unknown
             fileInventory: finalFiles.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
             moduleIds: [
                 `apps/web/.selected-web/${plan.compositionId}/index.tsx`,
+                ...requiredModuleOwners(plan.preset),
             ],
             binding,
         }),
