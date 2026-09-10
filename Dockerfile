@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 COPY apps/web apps/web
 COPY apps/admin apps/admin
 COPY distribution distribution
-COPY scripts/distribution-build-web.ts scripts/distribution-verify-web.ts scripts/distribution-resolve.ts scripts/distribution-web-inventory-policy.ts scripts/distribution-web-inventory-schema.ts scripts/distribution-web-allowed-packages.ts scripts/distribution-produce-contracts.ts scripts/distribution-produce-protocol.ts scripts/distribution-produce-native-layout.ts scripts/distribution-produce-container-export.ts scripts/
+COPY scripts/distribution-build-web.ts scripts/distribution-verify-web.ts scripts/distribution-resolve.ts scripts/distribution-web-inventory-policy.ts scripts/distribution-web-inventory-schema.ts scripts/distribution-web-allowed-packages.ts scripts/distribution-notification-delivery-closure.ts scripts/distribution-produce-contracts.ts scripts/distribution-produce-protocol.ts scripts/distribution-produce-native-layout.ts scripts/distribution-produce-container-export.ts scripts/
 RUN if [ "${DISTRIBUTION}" = "monitor" ] || [ "${DISTRIBUTION}" = "monitor-notify" ]; then \
       case "${DISTRIBUTION}" in monitor) fixture=distribution/fixtures/monitor.json ;; monitor-notify) fixture=distribution/fixtures/monitor-notify.json ;; *) exit 2 ;; esac; \
       bun scripts/distribution-build-web.ts --selection "${fixture}" && \

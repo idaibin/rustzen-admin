@@ -37,6 +37,10 @@ function assertDockerfileGuard(dockerfile: string) {
         "scripts/distribution-produce-protocol.ts",
         "scripts/distribution-produce-native-layout.ts",
         "scripts/distribution-web-inventory-schema.ts",
+        "scripts/distribution-web-inventory-policy.ts",
+        "scripts/distribution-web-allowed-packages.ts",
+        "scripts/distribution-notification-delivery-closure.ts",
+        "COPY distribution distribution",
         "bun scripts/distribution-produce-container-export.ts",
         "--binary-root /tmp/rz-monitor-producers",
         "--output-root /out/release/contracts/protocol",
@@ -153,6 +157,12 @@ describe("Docker distribution input", () => {
             (s: string) =>
                 s.replace("RUSTZEN_CONTAINER_BUILD_COMMANDS=", "RUSTZEN_CONTAINER_COMMANDS="),
             (s: string) => s.replace(" scripts/distribution-web-inventory-schema.ts", ""),
+            ...[
+                "scripts/distribution-web-inventory-policy.ts",
+                "scripts/distribution-web-allowed-packages.ts",
+                "scripts/distribution-notification-delivery-closure.ts",
+            ].map((source) => (s: string) => s.replace(` ${source}`, "")),
+            (s: string) => s.replace("COPY distribution distribution", "COPY distribution/resolver.ts distribution/resolver.ts"),
         ].forEach((mutation, index) => {
             try {
                 assertDockerfileGuard(mutation(dockerfile));
