@@ -188,8 +188,20 @@ EOF
     test "$(cat "/root/rz-activation/default-$account.status")" = 401
   done
   if test "'"$selection_preset"'" = monitor-notify; then
-    notification_status=$(curl --silent --show-error --output /root/rz-activation/notification-ingress.json --write-out "%{http_code}" --connect-timeout 3 -X POST http://127.0.0.1:19803/internal/v1/notification-events || true)
-    test "$notification_status" = 401 -o "$notification_status" = 403
+    notification_created=$(date +%s)
+    notification_expires=$((notification_created + 60))
+    curl --silent --show-error --output /root/rz-activation/notification-ingress.json --write-out "%{http_code}" --connect-timeout 3 -X POST \
+      -H "content-type: application/json" \
+      -H "x-rustzen-notify-version: 1" \
+      -H "x-rustzen-notify-key-id: p8e-unknown-v1" \
+      -H "x-rustzen-notify-producer: monitor" \
+      -H "x-rustzen-notify-created: $notification_created" \
+      -H "x-rustzen-notify-expires: $notification_expires" \
+      -H "x-rustzen-notify-nonce: p8e-notify-probe-1" \
+      -H "x-rustzen-notify-signature: 0000000000000000000000000000000000000000000000000000000000000000" \
+      --data "{}" \
+      http://127.0.0.1:19803/internal/v1/notification-events > /root/rz-activation/notification-ingress.status
+    test "$(cat /root/rz-activation/notification-ingress.status)" = 401
     printf "unauthorized\n" > /root/rz-activation/notification-ingress.check
   else
     ! curl --silent --show-error --connect-timeout 3 http://127.0.0.1:19803/internal/v1/notification-events >/dev/null 2>&1
@@ -228,6 +240,10 @@ for record in owner-login owner admin viewer; do
 done
 pnpm dlx bun@1.3.14 -e 'const root=process.argv[1]; const read=async(name)=>({status:(await Bun.file(root+"/"+name+".status").text()).trim(),body:JSON.parse(await Bun.file(root+"/"+name+".json").text())}); const owner=await read("owner-login"); const defaults=await Promise.all(["owner","admin","viewer"].map(async(account)=>({account,...await read("default-"+account)}))); await Bun.write(root+"/login-evidence.json", JSON.stringify({owner,defaults}));' "$output"
 docker cp "$name:/root/rz-activation/notification-ingress.check" "$output/notification-ingress.check"
+if test "$selection_preset" = monitor-notify; then
+  docker cp "$name:/root/rz-activation/notification-ingress.status" "$output/notification-ingress.status"
+  docker cp "$name:/root/rz-activation/notification-ingress.json" "$output/notification-ingress.json"
+fi
 docker cp "$name:/opt/rz/state/publication-marker.json" "$output/publication-marker.json"
 docker cp "$name:/opt/rz/state/monitor-server-activation.json" "$output/activation-marker.json"
 docker exec "$name" /bin/bash -euo pipefail -c 'true' >> "$output/runtime.log" 2>&1

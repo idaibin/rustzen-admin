@@ -44,6 +44,17 @@ test("P8e gate requires one explicit current tuple and fresh output", () => {
         "activate-monitor-server",
         "notification-ingress.check",
         "RUSTZEN_NOTIFICATION_EVENT_KEY",
+        "content-type: application/json",
+        "x-rustzen-notify-version: 1",
+        "x-rustzen-notify-key-id: p8e-unknown-v1",
+        "x-rustzen-notify-producer: monitor",
+        "x-rustzen-notify-created:",
+        "x-rustzen-notify-expires:",
+        "x-rustzen-notify-nonce: p8e-notify-probe-1",
+        "x-rustzen-notify-signature: 0000000000000000000000000000000000000000000000000000000000000000",
+        'test "$(cat /root/rz-activation/notification-ingress.status)" = 401',
+        "notification-ingress.status",
+        "notification-ingress.json",
         "monitor-native-runtime-evidence.json",
     ])
         expect(script).toContain(value);
