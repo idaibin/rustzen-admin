@@ -25,6 +25,7 @@ mod install_server_config;
 mod install_server_database;
 mod install_server_identity;
 mod install_server_layout;
+mod install_server_notification_config;
 mod install_server_readiness;
 mod install_server_release;
 mod install_service_parent;

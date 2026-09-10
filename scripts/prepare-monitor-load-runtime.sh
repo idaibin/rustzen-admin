@@ -19,7 +19,7 @@ test ! -e "$password" && test ! -e "$agent" || { echo "context credential path e
 cleanup() { status=$?; if test "$status" -ne 0; then ids="$(docker ps -aq --filter "label=io.rustzen.p8g-owner=$owner_token" 2>/dev/null || true)"; test "$(printf '%s\n' "$ids" | sed '/^$/d' | wc -l | tr -d ' ')" -le 1 || status=1; test -z "$ids" || docker rm -f "$ids" >/dev/null 2>&1 || true; rm -f "$password" "$agent" "$context_output"; rm -rf "$browser_output"; fi; rm -rf "$work"; exit "$status"; }
 trap cleanup EXIT
 printf '%s\n' 'p8e-owner-password-4c819a' > "$password"; printf '%s\n' 'p8e-agent-token-1b73ef' > "$agent"
-scripts/verify-monitor-native-runtime-linux-amd64.sh --export-root "$export_root" --release-result "$release_result" --certificate "$certificate" --public-key "$public_key" --expected-source-identity "$source" --output "$native_output" --retain-container-output "$native_context" --retain-owner-token "$owner_token"
+scripts/verify-monitor-native-runtime-linux-amd64.sh --selection distribution/fixtures/monitor.json --export-root "$export_root" --release-result "$release_result" --certificate "$certificate" --public-key "$public_key" --expected-source-identity "$source" --output "$native_output" --retain-container-output "$native_context" --retain-owner-token "$owner_token"
 container="$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).containerName)' "$native_context")"
 host_port="$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).hostPort)' "$native_context")"
 native_evidence="$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).nativeEvidence)' "$native_context")"

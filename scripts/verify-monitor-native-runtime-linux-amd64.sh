@@ -4,12 +4,13 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 usage() {
-  echo "usage: $0 --export-root PATH --release-result FILE --certificate FILE --public-key FILE --expected-source-identity ID --output NEW_DIRECTORY [--retain-container-output FILE --retain-owner-token TOKEN]" >&2
+  echo "usage: $0 --selection FILE --export-root PATH --release-result FILE --certificate FILE --public-key FILE --expected-source-identity ID --output NEW_DIRECTORY [--retain-container-output FILE --retain-owner-token TOKEN]" >&2
   exit 2
 }
-test "$#" -eq 12 -o "$#" -eq 16 || usage
+test "$#" -eq 14 -o "$#" -eq 18 || usage
 while test "$#" -gt 0; do
   case "$1" in
+    --selection) test -z "${selection_arg:-}" || usage; selection_arg="$2" ;;
     --export-root) test -z "${export_arg:-}" || usage; export_arg="$2" ;;
     --release-result) test -z "${release_arg:-}" || usage; release_arg="$2" ;;
     --certificate) test -z "${certificate_arg:-}" || usage; certificate_arg="$2" ;;
@@ -23,9 +24,12 @@ while test "$#" -gt 0; do
   test -n "$2" || usage
   shift 2
 done
-for value in "${export_arg:-}" "${release_arg:-}" "${certificate_arg:-}" "${key_arg:-}" "${source_identity:-}" "${output_arg:-}"; do test -n "$value" || usage; done
+for value in "${selection_arg:-}" "${export_arg:-}" "${release_arg:-}" "${certificate_arg:-}" "${key_arg:-}" "${source_identity:-}" "${output_arg:-}"; do test -n "$value" || usage; done
 canonical_file() { test -f "$1" && test ! -L "$1" && realpath "$1"; }
 canonical_directory() { test -d "$1" && test ! -L "$1" && realpath "$1"; }
+selection="$(canonical_file "$selection_arg")"
+case "$selection" in "$root"/*) ;; *) echo "selection must be beneath repository root" >&2; exit 2 ;; esac
+selection_preset="$(pnpm dlx bun@1.3.14 -e 'const value=await Bun.file(process.argv[1]).json(); if(value?.preset!=="monitor"&&value?.preset!=="monitor-notify") throw Error("runtime selection is unsupported"); console.log(value.preset)' "$selection")"
 export_root="$(canonical_directory "$export_arg")"
 release_result="$(canonical_file "$release_arg")"
 certificate="$(canonical_file "$certificate_arg")"
@@ -50,7 +54,7 @@ reject_overlap() {
   case "$output/" in "$1/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
   case "$1/" in "$output/"*) echo "--output overlaps protected input: $1" >&2; exit 2 ;; esac
 }
-for protected in "$export_root" "$release_result" "$(dirname "$certificate")" "$public_key"; do reject_overlap "$protected"; done
+for protected in "$selection" "$export_root" "$release_result" "$(dirname "$certificate")" "$public_key"; do reject_overlap "$protected"; done
 release_root="$(pnpm dlx bun@1.3.14 -e 'console.log(JSON.parse(await Bun.file(process.argv[1]).text()).root)' "$release_result")"
 release_root="$(canonical_directory "$release_root")"
 case "$release_root" in "$root"/*) ;; *) echo "release root must be beneath repository root" >&2; exit 2 ;; esac
@@ -61,7 +65,7 @@ manifest="$release_root/release-manifest.json"
 envelope="$release_root/signature-envelope.json"
 for artifact in "$archive" "$manifest" "$envelope" "$certificate" "$public_key"; do test -f "$artifact"; done
 admission="$(pnpm dlx bun@1.3.14 scripts/distribution-verify-published-source-build-certificate.ts \
-  --selection distribution/fixtures/monitor.json --export-root "$export_root" \
+  --selection "$selection" --export-root "$export_root" \
   --expected-source-identity "$source_identity" --release-root "$release_root" \
   --public-key "$public_key" --key-id "$key_id" --certificate "$certificate")"
 mkdir "$output"
@@ -144,6 +148,14 @@ RUSTZEN_IPC_TOKEN=p8e-ipc-token-9ac412
 RUSTZEN_MONITOR_AGENT_TOKEN=p8e-agent-token-1b73ef
 RUSTZEN_BOOTSTRAP_OWNER_PASSWORD=p8e-owner-password-4c819a
 EOF
+  if test "'"$selection_preset"'" = monitor-notify; then
+    cat >> /root/rz-activation/server.env <<EOF
+RUSTZEN_NOTIFICATION_INGRESS_PORT=19803
+RUSTZEN_NOTIFICATION_EVENT_KEY_ID=p8e-notify-v1
+RUSTZEN_NOTIFICATION_EVENT_KEY=p8e-notification-event-key-0123456789
+RUSTZEN_NOTIFICATION_INGRESS_URL=http://127.0.0.1:19803/internal/v1/notification-events
+EOF
+  fi
   chmod 0600 /root/rz-activation/server.env
   /usr/bin/true
   "$rz" --json verify --archive "$private/archive.tar" --manifest "$private/release-manifest.json" --envelope "$private/signature-envelope.json" --trusted-public-key "$private/public.pem" --key-id '"$key_id"' > /root/rz-activation/verify.json
@@ -175,6 +187,14 @@ EOF
     curl --silent --show-error -o "/root/rz-activation/default-$account.json" -w "%{http_code}" -H "content-type: application/json" -d "{\"username\":\"$account\",\"password\":\"rustzen@123\"}" http://127.0.0.1:19801/api/auth/login > "/root/rz-activation/default-$account.status"
     test "$(cat "/root/rz-activation/default-$account.status")" = 401
   done
+  if test "'"$selection_preset"'" = monitor-notify; then
+    notification_status=$(curl --silent --show-error --output /root/rz-activation/notification-ingress.json --write-out "%{http_code}" --connect-timeout 3 -X POST http://127.0.0.1:19803/internal/v1/notification-events || true)
+    test "$notification_status" = 401 -o "$notification_status" = 403
+    printf "unauthorized\n" > /root/rz-activation/notification-ingress.check
+  else
+    ! curl --silent --show-error --connect-timeout 3 http://127.0.0.1:19803/internal/v1/notification-events >/dev/null 2>&1
+    printf "absent\n" > /root/rz-activation/notification-ingress.check
+  fi
   ! grep -R -Fq p8e-owner-password-4c819a /opt/rz
   for absent in /etc/systemd/system/rz-insights.service /etc/systemd/system/rz-reports.service /opt/rz/config/rz-insights.env /opt/rz/config/rz-reports.env /var/lib/rustzen-insights /var/lib/rustzen-reports; do test ! -e "$absent"; done
   systemctl restart rz-admin.service rz-monitor.service
@@ -207,11 +227,12 @@ for record in owner-login owner admin viewer; do
   docker cp "$name:/root/rz-activation/$source.status" "$output/$source.status"
 done
 pnpm dlx bun@1.3.14 -e 'const root=process.argv[1]; const read=async(name)=>({status:(await Bun.file(root+"/"+name+".status").text()).trim(),body:JSON.parse(await Bun.file(root+"/"+name+".json").text())}); const owner=await read("owner-login"); const defaults=await Promise.all(["owner","admin","viewer"].map(async(account)=>({account,...await read("default-"+account)}))); await Bun.write(root+"/login-evidence.json", JSON.stringify({owner,defaults}));' "$output"
+docker cp "$name:/root/rz-activation/notification-ingress.check" "$output/notification-ingress.check"
 docker cp "$name:/opt/rz/state/publication-marker.json" "$output/publication-marker.json"
 docker cp "$name:/opt/rz/state/monitor-server-activation.json" "$output/activation-marker.json"
 docker exec "$name" /bin/bash -euo pipefail -c 'true' >> "$output/runtime.log" 2>&1
-pnpm dlx bun@1.3.14 -e 'import { monitorNativeRuntimeEvidenceBytes } from "./distribution/monitor-native-runtime-evidence.ts"; const read=(p)=>Bun.file(p).json(); const [f,admission,release,verify,dry,apply,status,activation,publication,activationMarker]=await Promise.all(process.argv.slice(1,11).map(read)); const fail=(m)=>{throw new Error(m)}; if(admission.selection.target!=="x86_64-unknown-linux-musl"||admission.selection.artifactClass!=="server") fail("admission selection is invalid"); if(admission.buildId!==release.buildId||admission.manifestSha256!==release.manifestSha256||admission.archiveSha256!==release.archiveSha256||admission.envelopeSha256!==release.envelopeSha256) fail("admission release tuple differs"); if(admission.selection.compositionId!==f.compositionId||admission.buildId!==f.buildId||verify.data.build_id!==f.buildId||verify.data.target!==admission.selection.target||apply.data.release.build_id!==f.buildId||dry.data.release.build_id!==f.buildId||status.data.markerPresent!==true||status.data.runnable!==false||activation.data.unit!=="rz.target") fail("CLI tuple differs"); const marker=publication.journal; if(marker.buildId!==f.buildId||marker.target!==admission.selection.target||marker.artifactClass!==admission.selection.artifactClass||marker.compositionId!==f.compositionId||marker.keyId!==f.keyId||marker.archiveSha256!==admission.archiveSha256||marker.manifestSha256!==admission.manifestSha256||marker.envelopeSha256!==admission.envelopeSha256||publication.state!=="payload-published"||activationMarker.buildId!==f.buildId||activationMarker.state!=="ready") fail("marker tuple differs"); const binary=admission.binaryDigests; if(JSON.stringify(binary)!==JSON.stringify([{path:"bin/rz-admin",sha256:f.adminSha256},{path:"bin/rz-monitor",sha256:f.monitorSha256}])) fail("certificate binary digest differs"); const evidence={schemaVersion:1,kind:"monitor-native-runtime-evidence",platform:"linux/amd64",selection:{preset:"monitor",target:admission.selection.target,artifactClass:admission.selection.artifactClass,compositionId:f.compositionId,buildId:f.buildId},release:{keyId:f.keyId,certificateSha256:admission.certificateSha256,manifestSha256:admission.manifestSha256,archiveSha256:admission.archiveSha256,envelopeSha256:admission.envelopeSha256,binaryDigests:binary},installation:{verify:true,dryRun:true,apply:true,installStatus:true},markers:{publicationSha256:f.publicationSha256,activationSha256:f.activationSha256},services:[{unit:"rz-admin.service",mainPid:f.adminPid,executable:{dev:f.adminDev,ino:f.adminIno,sha256:f.adminSha256}},{unit:"rz-monitor.service",mainPid:f.monitorPid,executable:{dev:f.monitorDev,ino:f.monitorIno,sha256:f.monitorSha256}}],health:[{service:"admin",buildId:f.buildId,compositionId:f.compositionId},{service:"monitor",buildId:f.buildId,compositionId:f.compositionId}],checks:{ownerLogin:true,defaultPasswordsRejected:true,insightsAbsent:true,reportsAbsent:true,restart:true,adminThenMonitor:true,monitorThenAdmin:true},runtime:true,browser:false,load:false,releaseReady:false}; await Bun.write(process.argv[11],monitorNativeRuntimeEvidenceBytes(evidence));' "$output/facts.json" "$output/published-certificate.json" "$release_result" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json" "$output/monitor-native-runtime-evidence.json"
-pnpm dlx bun@1.3.14 -e 'import { revalidateMonitorNativeRuntime } from "./distribution/monitor-native-runtime-revalidator.ts"; await revalidateMonitorNativeRuntime({evidencePath:process.argv[1],admissionPath:process.argv[2],releaseResultPath:process.argv[3],factsPath:process.argv[4],loginEvidencePath:process.argv[5],verifyPath:process.argv[6],dryRunPath:process.argv[7],applyPath:process.argv[8],statusPath:process.argv[9],activatePath:process.argv[10],publicationMarkerPath:process.argv[11],activationMarkerPath:process.argv[12]});' "$output/monitor-native-runtime-evidence.json" "$output/published-certificate.json" "$release_result" "$output/facts.json" "$output/login-evidence.json" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json"
+pnpm dlx bun@1.3.14 -e 'import { monitorNativeRuntimeEvidenceBytes } from "./distribution/monitor-native-runtime-evidence.ts"; const read=(p)=>Bun.file(p).json(); const [f,admission,release,verify,dry,apply,status,activation,publication,activationMarker]=await Promise.all(process.argv.slice(1,11).map(read)); const notification=await Bun.file(process.argv[11]).text(); const fail=(m)=>{throw new Error(m)}; if((admission.selection.preset!=="monitor"&&admission.selection.preset!=="monitor-notify")||admission.selection.target!=="x86_64-unknown-linux-musl"||admission.selection.artifactClass!=="server") fail("admission selection is invalid"); if(admission.buildId!==release.buildId||admission.manifestSha256!==release.manifestSha256||admission.archiveSha256!==release.archiveSha256||admission.envelopeSha256!==release.envelopeSha256) fail("admission release tuple differs"); if(admission.selection.compositionId!==f.compositionId||admission.buildId!==f.buildId||verify.data.build_id!==f.buildId||verify.data.target!==admission.selection.target||apply.data.release.build_id!==f.buildId||dry.data.release.build_id!==f.buildId||status.data.markerPresent!==true||status.data.runnable!==false||activation.data.unit!=="rz.target") fail("CLI tuple differs"); const marker=publication.journal; if(marker.buildId!==f.buildId||marker.target!==admission.selection.target||marker.artifactClass!==admission.selection.artifactClass||marker.compositionId!==f.compositionId||marker.keyId!==f.keyId||marker.archiveSha256!==admission.archiveSha256||marker.manifestSha256!==admission.manifestSha256||marker.envelopeSha256!==admission.envelopeSha256||publication.state!=="payload-published"||activationMarker.buildId!==f.buildId||activationMarker.state!=="ready") fail("marker tuple differs"); const binary=admission.binaryDigests; if(JSON.stringify(binary)!==JSON.stringify([{path:"bin/rz-admin",sha256:f.adminSha256},{path:"bin/rz-monitor",sha256:f.monitorSha256}])) fail("certificate binary digest differs"); const evidence={schemaVersion:1,kind:"monitor-native-runtime-evidence",platform:"linux/amd64",selection:{preset:admission.selection.preset,target:admission.selection.target,artifactClass:admission.selection.artifactClass,compositionId:f.compositionId,buildId:f.buildId},release:{keyId:f.keyId,certificateSha256:admission.certificateSha256,manifestSha256:admission.manifestSha256,archiveSha256:admission.archiveSha256,envelopeSha256:admission.envelopeSha256,binaryDigests:binary},installation:{verify:true,dryRun:true,apply:true,installStatus:true},markers:{publicationSha256:f.publicationSha256,activationSha256:f.activationSha256},services:[{unit:"rz-admin.service",mainPid:f.adminPid,executable:{dev:f.adminDev,ino:f.adminIno,sha256:f.adminSha256}},{unit:"rz-monitor.service",mainPid:f.monitorPid,executable:{dev:f.monitorDev,ino:f.monitorIno,sha256:f.monitorSha256}}],health:[{service:"admin",buildId:f.buildId,compositionId:f.compositionId},{service:"monitor",buildId:f.buildId,compositionId:f.compositionId}],checks:{ownerLogin:true,defaultPasswordsRejected:true,insightsAbsent:true,reportsAbsent:true,restart:true,adminThenMonitor:true,monitorThenAdmin:true,notificationIngress:notification.trim()===(admission.selection.preset==="monitor-notify"?"unauthorized":"absent")?notification.trim():(()=>{throw Error("notification ingress check differs")})()},runtime:true,browser:false,load:false,releaseReady:false}; await Bun.write(process.argv[12],monitorNativeRuntimeEvidenceBytes(evidence));' "$output/facts.json" "$output/published-certificate.json" "$release_result" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json" "$output/notification-ingress.check" "$output/monitor-native-runtime-evidence.json"
+pnpm dlx bun@1.3.14 -e 'import { revalidateMonitorNativeRuntime } from "./distribution/monitor-native-runtime-revalidator.ts"; await revalidateMonitorNativeRuntime({evidencePath:process.argv[1],admissionPath:process.argv[2],releaseResultPath:process.argv[3],factsPath:process.argv[4],loginEvidencePath:process.argv[5],verifyPath:process.argv[6],dryRunPath:process.argv[7],applyPath:process.argv[8],statusPath:process.argv[9],activatePath:process.argv[10],publicationMarkerPath:process.argv[11],activationMarkerPath:process.argv[12],notificationIngressPath:process.argv[13]});' "$output/monitor-native-runtime-evidence.json" "$output/published-certificate.json" "$release_result" "$output/facts.json" "$output/login-evidence.json" "$output/verify.json" "$output/dry-run.json" "$output/apply.json" "$output/install-status.json" "$output/activate.json" "$output/publication-marker.json" "$output/activation-marker.json" "$output/notification-ingress.check"
 if test -n "${retain_output:-}"; then
   host_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "19801/tcp") 0).HostPort}}' "$name")"
   host_ip="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "19801/tcp") 0).HostIp}}' "$name")"

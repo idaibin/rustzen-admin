@@ -9,9 +9,10 @@ const justfile = await Bun.file(resolve(import.meta.dir, "..", "justfile")).text
 
 test("just recipe forwards the explicit runtime tuple", () => {
     expect(justfile).toContain(
-        "verify-monitor-native-runtime-amd64 export_root release_result certificate public_key expected_source_identity output:",
+        "verify-monitor-native-runtime-amd64 selection export_root release_result certificate public_key expected_source_identity output:",
     );
     for (const value of [
+        '--selection "{{selection}}"',
         '--export-root "{{export_root}}"',
         '--release-result "{{release_result}}"',
         '--certificate "{{certificate}}"',
@@ -24,13 +25,14 @@ test("just recipe forwards the explicit runtime tuple", () => {
 
 test("P8e gate requires one explicit current tuple and fresh output", () => {
     for (const value of [
+        "--selection",
         "--export-root",
         "--release-result",
         "--certificate",
         "--public-key",
         "--expected-source-identity",
         "--output",
-        'test "$#" -eq 12',
+        'test "$#" -eq 14',
         'test ! -e "$output"',
         'mkdir "$output"',
         "distribution-verify-published-source-build-certificate.ts",
@@ -40,6 +42,8 @@ test("P8e gate requires one explicit current tuple and fresh output", () => {
         "cargo build --release -p rustzen-cli",
         "test ! -e /root/rz-p8e-dry",
         "activate-monitor-server",
+        "notification-ingress.check",
+        "RUSTZEN_NOTIFICATION_EVENT_KEY",
         "monitor-native-runtime-evidence.json",
     ])
         expect(script).toContain(value);

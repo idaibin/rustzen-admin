@@ -36,8 +36,8 @@ pub(super) struct Activated {
 
 pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
     require_root()?;
-    let source = SourceConfig::read(&input.config)?;
     let release = ServerRelease::load()?;
+    let source = SourceConfig::read(&input.config, release.preset == "monitor-notify")?;
     validate_selected_config(&source)?;
 
     let root = PrivateParent::open(Path::new(ROOT))?;
@@ -46,6 +46,7 @@ pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
     make_payload_executable(&release)?;
     let (admin, monitor) = install_server_identity::ensure_pair()?;
     let state = ServerActivationState::acquire(
+        &release.preset,
         &release.build_id,
         &source.admin,
         &source.monitor,

@@ -280,13 +280,13 @@ orchestrator must capture one exact release inventory before and after extractio
 Agent protocol extraction remains a separate witness operation and cannot make
 the Agent binary a member of the Monitor server archive.
 
-### P8e Monitor native runtime evidence
+### P8e selected-server native runtime evidence
 
-The native runtime verifier accepts exactly six explicit inputs:
-`--export-root`, `--release-result`, `--certificate`, `--public-key`, and
+The native runtime verifier accepts exactly seven explicit inputs:
+`--selection`, `--export-root`, `--release-result`, `--certificate`, `--public-key`, and
 `--expected-source-identity`, and `--output`. The source identity is an
 independent caller assertion and must not be derived from the export. The first
-five identify the same current Monitor export, signed
+six identify the same current reviewed `monitor` or `monitor-notify` export, signed
 release tuple, published source-build certificate and trust key. `--output`
 must resolve beneath `target/rz`, its parent must already exist, and the final
 path must not exist or be a symlink. It must not equal, contain, or be contained
@@ -298,7 +298,9 @@ pointer files, chooses a prior release, or erases an output directory.
 `linux/amd64` PID1 execution. It contains only the certificate SHA-256,
 build/manifest/archive/envelope digests, publication and activation marker
 digests, the Admin and Monitor MainPID executable inode/digests, and their two
-health build/composition bindings. All fields are closed and required. The
+health build/composition bindings. Its preset is closed to the reviewed server
+union, must equal the published-certificate selection, and its selected check
+set distinguishes notification ingress presence from pure-Monitor absence. All fields are closed and required, except that a legacy schema-v1 pure-Monitor record may omit `notificationIngress`; newly emitted Monitor evidence must record `absent`, while monitor-notify evidence must always record `unauthorized`. The
 certificate's `runtime`, `browser`, `load` and `releaseReady` remain literal
 `false`; this record is evidence, not installation or release authorization.
 

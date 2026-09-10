@@ -4,13 +4,13 @@ export type MonitorNativeRuntimeEvidence = {
     schemaVersion: 1;
     kind: "monitor-native-runtime-evidence";
     platform: "linux/amd64";
-    selection: { preset: "monitor"; target: string; artifactClass: "server"; compositionId: string; buildId: string };
+    selection: { preset: "monitor" | "monitor-notify"; target: string; artifactClass: "server"; compositionId: string; buildId: string };
     release: { keyId: string; certificateSha256: string; manifestSha256: string; archiveSha256: string; envelopeSha256: string; binaryDigests: Array<{ path: string; sha256: string }> };
     installation: { verify: true; dryRun: true; apply: true; installStatus: true };
     markers: { publicationSha256: string; activationSha256: string };
     services: Array<{ unit: "rz-admin.service" | "rz-monitor.service"; mainPid: number; executable: { dev: string; ino: string; sha256: string } }>;
     health: Array<{ service: "admin" | "monitor"; buildId: string; compositionId: string }>;
-    checks: { ownerLogin: true; defaultPasswordsRejected: true; insightsAbsent: true; reportsAbsent: true; restart: true; adminThenMonitor: true; monitorThenAdmin: true };
+    checks: { ownerLogin: true; defaultPasswordsRejected: true; insightsAbsent: true; reportsAbsent: true; restart: true; adminThenMonitor: true; monitorThenAdmin: true; notificationIngress?: "absent" | "unauthorized" };
     runtime: true;
     browser: false;
     load: false;
@@ -53,15 +53,15 @@ export function parseMonitorNativeRuntimeEvidence(value: unknown): MonitorNative
     });
     if (canonicalJson(services.map((x) => x.unit)) !== canonicalJson(["rz-admin.service", "rz-monitor.service"]) || canonicalJson(health.map((x) => x.service)) !== canonicalJson(["admin", "monitor"]))
         throw new Error("runtime evidence service inventory is invalid");
-    const checks = object(record.checks, "runtime evidence checks"); only(checks, ["ownerLogin", "defaultPasswordsRejected", "insightsAbsent", "reportsAbsent", "restart", "adminThenMonitor", "monitorThenAdmin"]);
+    const checks = object(record.checks, "runtime evidence checks"); only(checks, ["ownerLogin", "defaultPasswordsRejected", "insightsAbsent", "reportsAbsent", "restart", "adminThenMonitor", "monitorThenAdmin", "notificationIngress"]);
     if (record.runtime !== true || record.browser !== false || record.load !== false || record.releaseReady !== false) throw new Error("runtime evidence later-layer flags are invalid");
-    if (![installation.verify, installation.dryRun, installation.apply, installation.installStatus, checks.ownerLogin, checks.defaultPasswordsRejected, checks.insightsAbsent, checks.reportsAbsent, checks.restart, checks.adminThenMonitor, checks.monitorThenAdmin].every((value) => value === true)) throw new Error("runtime evidence required check is false");
+    if (![installation.verify, installation.dryRun, installation.apply, installation.installStatus, checks.ownerLogin, checks.defaultPasswordsRejected, checks.insightsAbsent, checks.reportsAbsent, checks.restart, checks.adminThenMonitor, checks.monitorThenAdmin].every((value) => value === true) || (selection.preset === "monitor" && checks.notificationIngress !== undefined && checks.notificationIngress !== "absent") || (selection.preset === "monitor-notify" && checks.notificationIngress !== "unauthorized")) throw new Error("runtime evidence required check is false");
     const result = { schemaVersion: 1 as const, kind: "monitor-native-runtime-evidence" as const, platform: "linux/amd64" as const,
-        selection: { preset: selection.preset === "monitor" ? "monitor" as const : (() => { throw new Error("runtime evidence preset is invalid"); })(), target: string(selection.target), artifactClass: selection.artifactClass === "server" ? "server" as const : (() => { throw new Error("runtime evidence artifact class is invalid"); })(), compositionId: validHash(string(selection.compositionId)), buildId: validHash(string(selection.buildId)) },
+        selection: { preset: selection.preset === "monitor" || selection.preset === "monitor-notify" ? selection.preset : (() => { throw new Error("runtime evidence preset is invalid"); })(), target: string(selection.target), artifactClass: selection.artifactClass === "server" ? "server" as const : (() => { throw new Error("runtime evidence artifact class is invalid"); })(), compositionId: validHash(string(selection.compositionId)), buildId: validHash(string(selection.buildId)) },
         release: { keyId: string(release.keyId), certificateSha256: validHash(string(release.certificateSha256)), manifestSha256: validHash(string(release.manifestSha256)), archiveSha256: validHash(string(release.archiveSha256)), envelopeSha256: validHash(string(release.envelopeSha256)), binaryDigests },
         installation: { verify: true as const, dryRun: true as const, apply: true as const, installStatus: true as const },
         markers: { publicationSha256: validHash(string(markers.publicationSha256)), activationSha256: validHash(string(markers.activationSha256)) }, services, health,
-        checks: { ownerLogin: true as const, defaultPasswordsRejected: true as const, insightsAbsent: true as const, reportsAbsent: true as const, restart: true as const, adminThenMonitor: true as const, monitorThenAdmin: true as const }, runtime: true as const, browser: false as const, load: false as const, releaseReady: false as const };
+        checks: { ownerLogin: true as const, defaultPasswordsRejected: true as const, insightsAbsent: true as const, reportsAbsent: true as const, restart: true as const, adminThenMonitor: true as const, monitorThenAdmin: true as const, ...(checks.notificationIngress === undefined ? {} : { notificationIngress: checks.notificationIngress === "absent" || checks.notificationIngress === "unauthorized" ? checks.notificationIngress : (() => { throw new Error("runtime evidence notification check is invalid"); })() }) }, runtime: true as const, browser: false as const, load: false as const, releaseReady: false as const };
     if (result.selection.target !== "x86_64-unknown-linux-musl" || health.some((entry) => entry.buildId !== result.selection.buildId || entry.compositionId !== result.selection.compositionId))
         throw new Error("runtime evidence health bindings differ");
     const serviceDigests = new Map(result.services.map((service) => [service.unit === "rz-admin.service" ? "bin/rz-admin" : "bin/rz-monitor", service.executable.sha256]));

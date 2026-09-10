@@ -30,6 +30,13 @@ validated `monitor` or `monitor-notify` server container snapshot and a reread s
 atomically writes one canonical certificate. It does not change installation,
 `current`, systemd, browser, load or deployment state.
 
+P8e now takes an explicit reviewed server selection and preserves that preset
+through published-certificate admission, runtime evidence and revalidation.
+The selected notification activation input supplies its ingress/event-key values
+and records its notification check while retaining only Admin and Monitor units;
+pure Monitor rejects those keys and records an absent ingress. This is source and
+static-test coverage only. No monitor-notify native/PID1 run is claimed here.
+
 P8e consumes the issued certificate capability only to admit one already
 published certificate into a disposable Linux/amd64 Monitor runtime gate. It
 does not extend the certificate or change its four literal later-layer flags.
@@ -60,7 +67,7 @@ pnpm dlx bun@1.3.14 scripts/distribution-publish-monitor-container-release.ts --
 release_root=$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).root)' "$release_result")
 pnpm dlx bun@1.3.14 scripts/distribution-issue-source-build-certificate.ts --selection distribution/fixtures/monitor.json --export-root "$export_root" --expected-source-identity "$expected_source_identity" --release-root "$release_root" --public-key "$public_key" --key-id "$key_id" > "$certificate_result"
 certificate=$(pnpm dlx bun@1.3.14 -e 'console.log((await Bun.file(process.argv[1]).json()).path)' "$certificate_result")
-scripts/verify-monitor-native-runtime-linux-amd64.sh --export-root "$export_root" --release-result "$release_result" --certificate "$certificate" --public-key "$public_key" --expected-source-identity "$expected_source_identity" --output "$runtime_output"
+scripts/verify-monitor-native-runtime-linux-amd64.sh --selection distribution/fixtures/monitor.json --export-root "$export_root" --release-result "$release_result" --certificate "$certificate" --public-key "$public_key" --expected-source-identity "$expected_source_identity" --output "$runtime_output"
 ```
 
 ## Milestones and responsibility

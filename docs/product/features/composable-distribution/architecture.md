@@ -709,10 +709,16 @@ reopens that regular file with `O_NOFOLLOW`, bounds and identity-checks the read
 parses canonical bytes and compares them with the capability. It returns only
 the certificate hash and its build, manifest, archive and envelope digests.
 
-The runtime record is separate canonical JSON. It binds that admission tuple to
+The runtime record is separate canonical JSON. It binds the exact reviewed
+`monitor` or `monitor-notify` server selection and composition from that admission
+tuple to
 one Linux/amd64 disposable PID1 run, publication and activation markers,
 enabled/active units, MainPID executable inode/digests and both health bindings.
-It does not certify browser, load, release readiness or a deployed host.
+It does not certify browser, load, release readiness or a deployed host. The
+notification selection retains the same two-service PID1 topology, but its
+activation input supplies the notification ingress/key configuration and records
+the selected notification checks; pure Monitor rejects those keys and has no
+notification ingress.
 
 The nonresident rz installation executor owns apply/status/recover independently
 of Admin deploy tables. The current recovery slice resumes only interrupted

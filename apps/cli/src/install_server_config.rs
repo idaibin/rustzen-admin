@@ -22,8 +22,8 @@ pub(super) struct SourceConfig {
     pub(super) owner_password: Vec<u8>,
 }
 impl SourceConfig {
-    pub(super) fn read(path: &Path) -> Result<Self, String> {
-        let values = parse_source(&read_source(path)?)?;
+    pub(super) fn read(path: &Path, notify: bool) -> Result<Self, String> {
+        let values = parse_source(&read_source(path)?, notify)?;
         let admin_root =
             runtime_root(&values, "RUSTZEN_ADMIN_RUNTIME_ROOT", "/var/lib/rustzen-admin")?;
         let monitor_root =
@@ -46,8 +46,12 @@ impl SourceConfig {
         admin_values.insert("RUSTZEN_RUNTIME_ROOT".into(), admin_root.display().to_string());
         let mut monitor_values = values.clone();
         monitor_values.insert("RUSTZEN_RUNTIME_ROOT".into(), monitor_root.display().to_string());
-        let admin = render(&admin_values, ADMIN_KEYS)?;
-        let monitor = render(&monitor_values, MONITOR_KEYS)?;
+        let mut admin = render(&admin_values, ADMIN_KEYS)?;
+        let mut monitor = render(&monitor_values, MONITOR_KEYS)?;
+        if notify {
+            admin.extend(render(&admin_values, ADMIN_NOTIFY_KEYS)?);
+            monitor.extend(render(&monitor_values, MONITOR_NOTIFY_KEYS)?);
+        }
         let admin_port = port(&values, "RUSTZEN_ADMIN_PORT", 9801)?;
         let monitor_port = port(&values, "RUSTZEN_MONITOR_PORT", 9802)?;
         if admin_port == 0 || monitor_port == 0 || admin_port == monitor_port {
@@ -86,6 +90,8 @@ const ADMIN_KEYS: &[&str] = &[
     "RUSTZEN_RUNTIME_ROOT",
     "RUSTZEN_TIMEZONE",
 ];
+use crate::install_server_notification_config::{ADMIN_NOTIFY_KEYS, MONITOR_NOTIFY_KEYS};
+
 const MONITOR_KEYS: &[&str] = &[
     "RUSTZEN_DB_CONN_TIMEOUT",
     "RUSTZEN_DB_IDLE_TIMEOUT",
@@ -101,11 +107,13 @@ const MONITOR_KEYS: &[&str] = &[
     "RUSTZEN_TIMEZONE",
 ];
 
-fn parse_source(bytes: &[u8]) -> Result<BTreeMap<String, String>, String> {
+fn parse_source(bytes: &[u8], notify: bool) -> Result<BTreeMap<String, String>, String> {
     let text = std::str::from_utf8(bytes).map_err(|_| "Monitor server config source is invalid")?;
     let allowed = ADMIN_KEYS
         .iter()
         .chain(MONITOR_KEYS)
+        .chain(ADMIN_NOTIFY_KEYS)
+        .chain(MONITOR_NOTIFY_KEYS)
         .copied()
         .filter(|key| *key != "RUSTZEN_RUNTIME_ROOT")
         .chain([
@@ -114,7 +122,7 @@ fn parse_source(bytes: &[u8]) -> Result<BTreeMap<String, String>, String> {
             "RUSTZEN_MONITOR_RUNTIME_ROOT",
         ])
         .collect::<BTreeSet<_>>();
-    let mut result = BTreeMap::new();
+    let mut result: BTreeMap<String, String> = BTreeMap::new();
     for line in text.lines() {
         let (key, value) = line.split_once('=').ok_or("Monitor server config source is invalid")?;
         if !allowed.contains(key)
@@ -128,7 +136,20 @@ fn parse_source(bytes: &[u8]) -> Result<BTreeMap<String, String>, String> {
             return Err("Monitor server config source is invalid".into());
         }
     }
-    for key in [
+    if !notify && result.keys().any(|key| key.starts_with("RUSTZEN_NOTIFICATION_")) {
+        return Err("Monitor server config source contains notification keys".into());
+    }
+    let required = if notify {
+        vec![
+            "RUSTZEN_NOTIFICATION_EVENT_KEY",
+            "RUSTZEN_NOTIFICATION_EVENT_KEY_ID",
+            "RUSTZEN_NOTIFICATION_INGRESS_PORT",
+            "RUSTZEN_NOTIFICATION_INGRESS_URL",
+        ]
+    } else {
+        vec![]
+    };
+    for key in required.into_iter().chain([
         "RUSTZEN_ENV",
         "RUSTZEN_JWT_SECRET",
         "RUSTZEN_IPC_TOKEN",
@@ -138,7 +159,7 @@ fn parse_source(bytes: &[u8]) -> Result<BTreeMap<String, String>, String> {
         "RUSTZEN_BOOTSTRAP_OWNER_PASSWORD",
         "RUSTZEN_ADMIN_RUNTIME_ROOT",
         "RUSTZEN_MONITOR_RUNTIME_ROOT",
-    ] {
+    ]) {
         if result.get(key).is_none_or(String::is_empty) {
             return Err("Monitor server config source is incomplete".into());
         }
@@ -177,6 +198,10 @@ fn render(values: &BTreeMap<String, String>, keys: &[&str]) -> Result<Vec<u8>, S
                 | "RUSTZEN_ADMIN_SQLITE_PATH"
                 | "RUSTZEN_MONITOR_SQLITE_PATH"
                 | "RUSTZEN_ENV"
+                | "RUSTZEN_NOTIFICATION_EVENT_KEY"
+                | "RUSTZEN_NOTIFICATION_EVENT_KEY_ID"
+                | "RUSTZEN_NOTIFICATION_INGRESS_PORT"
+                | "RUSTZEN_NOTIFICATION_INGRESS_URL"
         ) {
             return Err("Monitor server config source is incomplete".into());
         }
@@ -259,3 +284,7 @@ fn read_source(path: &Path) -> Result<Vec<u8>, String> {
     }
     Ok(bytes)
 }
+
+#[cfg(test)]
+#[path = "install_server_config_tests.rs"]
+mod tests;

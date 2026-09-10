@@ -24,3 +24,15 @@ test("runtime evidence is closed and binds both health records", () => {
     expect(() => parseMonitorNativeRuntimeEvidence({ ...evidence, platform: "linux/arm64" })).toThrow("platform");
     expect(() => parseMonitorNativeRuntimeEvidence({ ...evidence, health: [{ ...evidence.health[0] }, { ...evidence.health[1], buildId: "b".repeat(64) }] })).toThrow("bindings");
 });
+
+test("runtime evidence preserves legacy Monitor shape and binds new notification ingress", () => {
+    expect(new TextDecoder().decode(monitorNativeRuntimeEvidenceBytes(evidence))).toBe(canonicalJson(evidence));
+    const monitor = structuredClone(evidence); monitor.checks.notificationIngress = "absent";
+    expect(parseMonitorNativeRuntimeEvidence(monitor)).toEqual(monitor);
+    const notify = structuredClone(evidence);
+    notify.selection.preset = "monitor-notify";
+    notify.checks.notificationIngress = "unauthorized";
+    expect(parseMonitorNativeRuntimeEvidence(notify)).toEqual(notify);
+    notify.checks.notificationIngress = "absent";
+    expect(() => parseMonitorNativeRuntimeEvidence(notify)).toThrow("required check");
+});

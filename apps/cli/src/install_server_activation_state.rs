@@ -11,6 +11,7 @@ pub(super) struct ServerActivationState {
 }
 impl ServerActivationState {
     pub(super) fn acquire(
+        preset: &str,
         build: &str,
         admin: &[u8],
         monitor: &[u8],
@@ -27,10 +28,9 @@ impl ServerActivationState {
         {
             return Err("selected unit inventory is invalid".into());
         }
-        if schema_fingerprints.keys().map(String::as_str).collect::<Vec<_>>()
-            != ["admin", "monitor"]
-            || data_contract_ids.keys().map(String::as_str).collect::<Vec<_>>()
-                != ["admin", "monitor"]
+        let owners = owners_for_preset(preset)?;
+        if schema_fingerprints.keys().map(String::as_str).collect::<Vec<_>>() != owners
+            || data_contract_ids.keys().map(String::as_str).collect::<Vec<_>>() != owners
         {
             return Err("selected schema identity is invalid".into());
         }
@@ -101,3 +101,16 @@ impl ServerActivationState {
         }
     }
 }
+
+fn owners_for_preset(preset: &str) -> Result<Vec<&'static str>, String> {
+    match preset {
+        "monitor" => Ok(vec!["admin", "monitor"]),
+        "monitor-notify" => {
+            Ok(vec!["admin", "admin-notifications", "monitor", "monitor-notifications"])
+        }
+        _ => Err("selected server preset is invalid".into()),
+    }
+}
+#[cfg(test)]
+#[path = "install_server_activation_state_tests.rs"]
+mod tests;

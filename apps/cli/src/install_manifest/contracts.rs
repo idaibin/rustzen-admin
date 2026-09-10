@@ -132,9 +132,12 @@ fn schema_identity(
     }
     contract_selection_identity(value, manifest)?;
     let owners = value.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
-    if owners.keys().map(String::as_str).collect::<BTreeSet<_>>()
-        != BTreeSet::from(["admin", "monitor"])
-    {
+    let expected = if manifest.preset == "monitor-notify" {
+        BTreeSet::from(["admin", "admin-notifications", "monitor", "monitor-notifications"])
+    } else {
+        BTreeSet::from(["admin", "monitor"])
+    };
+    if owners.keys().map(String::as_str).collect::<BTreeSet<_>>() != expected {
         return Err("schema owners invalid".into());
     }
     for owner in owners.values() {
@@ -160,3 +163,6 @@ fn sorted_strings_value(value: Option<&Value>) -> Result<Vec<String>, String> {
         .map(|x| x.as_str().map(str::to_owned).ok_or("contract owners invalid".into()))
         .collect()
 }
+#[cfg(test)]
+#[path = "contracts_tests.rs"]
+mod tests;

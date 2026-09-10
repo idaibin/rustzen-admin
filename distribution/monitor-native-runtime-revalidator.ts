@@ -5,9 +5,9 @@ const FACT_KEYS = ["keyId", "buildId", "compositionId", "certificateSha256", "ma
 
 export async function revalidateMonitorNativeRuntime(input: {
     evidencePath: string; admissionPath: string; releaseResultPath: string; factsPath: string; loginEvidencePath: string;
-    verifyPath: string; dryRunPath: string; applyPath: string; statusPath: string; activatePath: string; publicationMarkerPath: string; activationMarkerPath: string;
+    verifyPath: string; dryRunPath: string; applyPath: string; statusPath: string; activatePath: string; publicationMarkerPath: string; activationMarkerPath: string; notificationIngressPath?: string;
 }): Promise<MonitorNativeRuntimeEvidence> {
-    if (Object.values(input).some((path) => !path)) fail("runtime revalidator inputs are invalid");
+    if (Object.entries(input).some(([key, path]) => key !== "notificationIngressPath" && !path)) fail("runtime revalidator inputs are invalid");
     const evidenceText = await stableText(input.evidencePath);
     const [admission, release, facts, logins, verify, dryRun, apply, status, activate] = await Promise.all([
         input.admissionPath, input.releaseResultPath, input.factsPath, input.loginEvidencePath, input.verifyPath, input.dryRunPath, input.applyPath, input.statusPath, input.activatePath,
@@ -18,7 +18,7 @@ export async function revalidateMonitorNativeRuntime(input: {
     const activationMarker = parseJson(activationBytes, "activation marker");
     const result = parseMonitorNativeRuntimeEvidence(JSON.parse(evidenceText));
     if (evidenceText !== canonicalJson(result)) fail("runtime evidence is not canonical");
-    bindAdmission(admission, release, result); bindFacts(facts, result); bindLogins(logins);
+    bindAdmission(admission, release, result); bindFacts(facts, result); bindLogins(logins); await bindNotificationIngress(input.notificationIngressPath, result);
     if (facts.publicationSha256 !== sha256(publicationBytes) || facts.activationSha256 !== sha256(activationBytes) || facts.publicationSha256 !== result.markers.publicationSha256 || facts.activationSha256 !== result.markers.activationSha256) fail("marker bytes differ");
     assertCommand(verify, "verify", { build_id: result.selection.buildId, artifact_class: "server", target: result.selection.target, files: "positive" });
     assertCommand(dryRun, "apply", { dry_run: true, release: "release" }); assertRelease(dryRun.data.release, result);
@@ -30,8 +30,16 @@ export async function revalidateMonitorNativeRuntime(input: {
     return result;
 }
 function bindAdmission(admission: Json, release: Json, result: MonitorNativeRuntimeEvidence) {
-    only(admission, ["archiveSha256", "binaryDigests", "buildId", "certificateSha256", "envelopeSha256", "manifestSha256", "selection"]); only(admission.selection, ["artifactClass", "compositionId", "target"]); only(release, ["archiveSha256", "buildId", "envelopeSha256", "manifestSha256", "root"]);
-    if (admission.selection.target !== "x86_64-unknown-linux-musl" || admission.selection.artifactClass !== "server" || admission.buildId !== result.selection.buildId || admission.buildId !== release.buildId || admission.certificateSha256 !== result.release.certificateSha256 || admission.selection.compositionId !== result.selection.compositionId) fail("evidence selection differs");
+    const legacyMonitor = result.selection.preset === "monitor" && result.checks.notificationIngress === undefined;
+    only(admission, ["archiveSha256", "binaryDigests", "buildId", "certificateSha256", "envelopeSha256", "manifestSha256", "selection"]);
+    if (legacyMonitor && admission.selection.preset === undefined) {
+        only(admission.selection, ["artifactClass", "compositionId", "target"]);
+    } else {
+        only(admission.selection, ["artifactClass", "compositionId", "preset", "target"]);
+    }
+    only(release, ["archiveSha256", "buildId", "envelopeSha256", "manifestSha256", "root"]);
+    const preset = legacyMonitor ? admission.selection.preset ?? "monitor" : admission.selection.preset;
+    if (preset !== result.selection.preset || admission.selection.target !== "x86_64-unknown-linux-musl" || admission.selection.artifactClass !== "server" || admission.buildId !== result.selection.buildId || admission.buildId !== release.buildId || admission.certificateSha256 !== result.release.certificateSha256 || admission.selection.compositionId !== result.selection.compositionId) fail("evidence selection differs");
     for (const key of ["archiveSha256", "manifestSha256", "envelopeSha256"]) if (admission[key] !== release[key] || admission[key] !== result.release[key]) fail("release admission differs");
 }
 function bindFacts(facts: Json, result: MonitorNativeRuntimeEvidence) {
@@ -46,8 +54,10 @@ function bindLogins(logins: Json) {
 function bindMarkers(publication: Json, activation: Json, result: MonitorNativeRuntimeEvidence) {
     only(publication, ["journal", "state", "version"]); only(publication.journal, ["archiveSha256", "artifactClass", "buildId", "compositionId", "envelopeSha256", "keyId", "manifestSha256", "phase", "target", "trustedKeySha256", "version", "workRootNonce"]);
     const journal = publication.journal; if (publication.version !== 1 || publication.state !== "payload-published" || journal.version !== 1 || journal.phase !== "payload-publishing" || journal.buildId !== result.selection.buildId || journal.compositionId !== result.selection.compositionId || journal.target !== result.selection.target || journal.artifactClass !== "server" || journal.keyId !== result.release.keyId || journal.archiveSha256 !== result.release.archiveSha256 || journal.manifestSha256 !== result.release.manifestSha256 || journal.envelopeSha256 !== result.release.envelopeSha256 || !validNonce(journal.workRootNonce) || !valid(journal.trustedKeySha256)) fail("publication marker differs");
-    only(activation, ["adminConfigSha256", "buildId", "monitorConfigSha256", "schemaFingerprint", "dataContractId", "state", "unitSha256", "version"]); only(activation.schemaFingerprint, ["admin", "monitor"]); only(activation.dataContractId, ["admin", "monitor"]); only(activation.unitSha256, ["rz-admin.service", "rz-monitor.service", "rz.target"]);
-    if (activation.version !== 2 || activation.state !== "ready" || activation.buildId !== result.selection.buildId || ![activation.adminConfigSha256, activation.monitorConfigSha256, activation.schemaFingerprint.admin, activation.schemaFingerprint.monitor, activation.dataContractId.admin, activation.dataContractId.monitor, ...Object.values(activation.unitSha256)].every(valid)) fail("activation marker differs");
+    only(activation, ["adminConfigSha256", "buildId", "monitorConfigSha256", "schemaFingerprint", "dataContractId", "state", "unitSha256", "version"]);
+    const owners = result.selection.preset === "monitor-notify" ? ["admin", "admin-notifications", "monitor", "monitor-notifications"] : ["admin", "monitor"];
+    only(activation.schemaFingerprint, owners); only(activation.dataContractId, owners); only(activation.unitSha256, ["rz-admin.service", "rz-monitor.service", "rz.target"]);
+    if (activation.version !== 2 || activation.state !== "ready" || activation.buildId !== result.selection.buildId || ![activation.adminConfigSha256, activation.monitorConfigSha256, ...Object.values(activation.schemaFingerprint), ...Object.values(activation.dataContractId), ...Object.values(activation.unitSha256)].every(valid)) fail("activation marker differs");
 }
 async function stableBytes(path: string) { const first = new Uint8Array(await Bun.file(path).arrayBuffer()); const second = new Uint8Array(await Bun.file(path).arrayBuffer()); if (sha256(first) !== sha256(second)) fail("runtime evidence input changed while read"); return first; }
 async function stableText(path: string) { return new TextDecoder().decode(await stableBytes(path)); }
@@ -59,3 +69,10 @@ function only(value: Json, keys: string[]) { if (!value || typeof value !== "obj
 function valid(value: unknown) { try { return typeof value === "string" && validHash(value) === value; } catch { return false; } }
 function validNonce(value: unknown) { return typeof value === "string" && /^[a-f0-9]{32,128}$/.test(value); }
 function fail(message: string): never { throw new Error(message); }
+
+async function bindNotificationIngress(path: string | undefined, result: MonitorNativeRuntimeEvidence) {
+    if (!path) { if (result.selection.preset === "monitor-notify") fail("notification ingress evidence is required"); return; }
+    const value = (await stableText(path)).trim();
+    const expected = result.selection.preset === "monitor-notify" ? "unauthorized" : "absent";
+    if (value !== expected || result.checks.notificationIngress !== expected) fail("notification ingress evidence differs");
+}

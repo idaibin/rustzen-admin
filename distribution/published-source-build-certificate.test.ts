@@ -23,7 +23,7 @@ test("published certificate verifier accepts only issued canonical stable eviden
         const published = await publishSourceBuildCertificate({ issued });
         const verified = await verifyPublishedSourceBuildCertificate({ issued, certificatePath: published.path });
         expect(verified.buildId).toBe(release.buildId);
-        expect(verified.selection).toEqual({ target: "x86_64-unknown-linux-musl", artifactClass: "server", compositionId: release.manifest.compositionId });
+        expect(verified.selection).toEqual({ preset: "monitor", target: "x86_64-unknown-linux-musl", artifactClass: "server", compositionId: release.manifest.compositionId });
         expect(verified.binaryDigests).toEqual(release.manifest.binaryDigests.map(({ path, sha256 }) => ({ path, sha256 })));
         expect(verified.manifestSha256).toBe(release.manifestSha256);
         await expect(verifyPublishedSourceBuildCertificate({ issued: {} as typeof issued, certificatePath: published.path })).rejects.toThrow("capability");

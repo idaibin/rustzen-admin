@@ -93,16 +93,13 @@ fn validate(m: &Manifest) -> Result<(), String> {
 }
 
 fn server(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> {
-    if m.preset != "monitor"
-        || m.capabilities != ["access", "monitor"]
+    let notify = m.preset == "monitor-notify";
+    if !selected_server_selection(&m.preset, &m.capabilities, &m.config_owners, &m.composition_id)
         || m.services != ["admin", "monitor"]
-        || m.config_owners != ["access", "monitor"]
-        || m.composition_id
-            != hash(b"{\"artifactClass\":\"server\",\"capabilities\":[\"access\",\"monitor\"],\"capabilityContractVersion\":1}")
-        || m.schema_fingerprints.as_ref().is_none_or(|x| !owners(x))
-        || m.data_contract_ids.as_ref().is_none_or(|x| !owners(x))
+        || m.schema_fingerprints.as_ref().is_none_or(|x| !owners(x, notify))
+        || m.data_contract_ids.as_ref().is_none_or(|x| !owners(x, notify))
     {
-        return Err("server manifest differs from monitor selection".into());
+        return Err("server manifest differs from selected server selection".into());
     }
     if m.api_digest.as_deref() != Some(&file_hash(files, "contracts/api/api.json")?)
         || m.config_digest != file_hash(files, "contracts/config/config.json")?
@@ -129,6 +126,21 @@ fn server(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> 
         ],
         true,
     ))
+}
+
+fn selected_server_selection(
+    preset: &str,
+    capabilities: &[String],
+    owners: &[String],
+    composition: &str,
+) -> bool {
+    match preset {
+        "monitor" => capabilities == ["access", "monitor"] && owners == ["access", "monitor"]
+            && composition == hash(b"{\"artifactClass\":\"server\",\"capabilities\":[\"access\",\"monitor\"],\"capabilityContractVersion\":1}"),
+        "monitor-notify" => capabilities == ["access", "monitor", "notifications"] && owners == ["access", "monitor", "notifications"]
+            && composition == "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+        _ => false,
+    }
 }
 
 fn agent(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> {
@@ -218,8 +230,13 @@ fn exact_paths(files: &BTreeMap<&str, &Entry>, fixed: &[&str], web: bool) -> boo
 fn file_hash(files: &BTreeMap<&str, &Entry>, path: &str) -> Result<String, String> {
     Ok(files.get(path).ok_or("manifest required contract is missing")?.sha256.clone())
 }
-fn owners(values: &BTreeMap<String, String>) -> bool {
-    values.keys().map(String::as_str).collect::<Vec<_>>() == ["admin", "monitor"]
+fn owners(values: &BTreeMap<String, String>, notify: bool) -> bool {
+    values.keys().map(String::as_str).collect::<Vec<_>>()
+        == if notify {
+            vec!["admin", "admin-notifications", "monitor", "monitor-notifications"]
+        } else {
+            vec!["admin", "monitor"]
+        }
         && values.values().all(|x| hash_id(x))
 }
 fn digest(value: &DigestRecord, source: &str) -> Result<(), String> {
@@ -259,3 +276,6 @@ fn path(value: &str) -> bool {
         .contains(&value)
         && value.split('/').all(|x| !x.is_empty() && x != "." && x != "..")
 }
+#[cfg(test)]
+#[path = "install_manifest_tests.rs"]
+mod tests;

@@ -312,10 +312,10 @@ verify-monitor-agent-pairing:
 verify-monitor-server-activation:
     scripts/verify-monitor-server-activation-linux.sh
 
-verify-monitor-native-runtime-amd64 export_root release_result certificate public_key expected_source_identity output:
+verify-monitor-native-runtime-amd64 selection export_root release_result certificate public_key expected_source_identity output:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/published-source-build-certificate.test.ts distribution/monitor-native-runtime-evidence.test.ts distribution/monitor-native-runtime-revalidator.test.ts scripts/verify-monitor-native-runtime-linux-amd64.test.ts
-    scripts/verify-monitor-native-runtime-linux-amd64.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --output "{{output}}"
+    scripts/verify-monitor-native-runtime-linux-amd64.sh --selection "{{selection}}" --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --output "{{output}}"
 
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor

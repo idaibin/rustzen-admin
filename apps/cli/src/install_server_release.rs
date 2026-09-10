@@ -9,6 +9,7 @@ use std::{collections::BTreeMap, fs, path::Path};
 const ROOT: &str = "/opt/rz";
 const UNITS: [&str; 3] = ["rz-admin.service", "rz-monitor.service", "rz.target"];
 pub(super) struct ServerRelease {
+    pub(super) preset: String,
     pub(super) build_id: String,
     pub(super) composition_id: String,
     pub(super) units: BTreeMap<String, Vec<u8>>,
@@ -32,8 +33,13 @@ impl ServerRelease {
         )?)?;
         if manifest.build_id != build_id
             || manifest.artifact_class != "server"
-            || manifest.preset != "monitor"
-            || manifest.capabilities != ["access", "monitor"]
+            || !(manifest.preset == "monitor" || manifest.preset == "monitor-notify")
+            || manifest.capabilities.as_slice()
+                != if manifest.preset == "monitor-notify" {
+                    ["access", "monitor", "notifications"].as_slice()
+                } else {
+                    ["access", "monitor"].as_slice()
+                }
             || manifest.services != ["admin", "monitor"]
         {
             return Err("installed release is not the production Monitor server selection".into());
@@ -64,6 +70,7 @@ impl ServerRelease {
             }
         }
         Ok(Self {
+            preset: manifest.preset,
             build_id: build_id.into(),
             composition_id: manifest.composition_id,
             units,
