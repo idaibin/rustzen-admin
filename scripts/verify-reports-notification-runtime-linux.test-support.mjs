@@ -24,6 +24,7 @@ const receipts = [
     "pure-notification-route.json", "pure-listeners.txt", "pure-web-binding.json", "pure-installation.json",
 ];
 const compositionId = "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b";
+const monitorNotifyCompositionId = "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d";
 const webDigest = "22a88f2af530ad9bb42b51b7b0b4432e187f87c365740e6162f563c43129f868";
 const selectedApiDigest = "95f9a00978f1e4302d249ba06aad92e6ef72d0640f51e3642c65ec5bf124ffb3";
 
@@ -196,13 +197,21 @@ export function fakeGateFixture(outer, options = {}) {
     const evidence = join(root, "evidence");
     const states = join(root, "states");
     const calls = join(root, "docker.calls");
-    const selectedWeb = join(root, "selected-web", compositionId);
+    const selectedWebRoot = join(root, "selected-web");
+    const selectedWeb = join(selectedWebRoot, compositionId);
     mkdirSync(join(evidence, "runs/previous"), { recursive: true });
     mkdirSync(states);
     mkdirSync(selectedWeb, { recursive: true });
     writeFileSync(join(selectedWeb, "binding.json"), JSON.stringify({
         bindingVersion: 1,
         compositionId,
+        selectedApiDigest,
+        webDigest,
+    }));
+    mkdirSync(join(selectedWebRoot, monitorNotifyCompositionId), { recursive: true });
+    writeFileSync(join(selectedWebRoot, monitorNotifyCompositionId, "binding.json"), JSON.stringify({
+        bindingVersion: 1,
+        compositionId: monitorNotifyCompositionId,
         selectedApiDigest,
         webDigest,
     }));
@@ -223,7 +232,7 @@ export function fakeGateFixture(outer, options = {}) {
         RUSTZEN_REPORTS_NOTIFY_VERIFIER_HELPER: verifier,
         RUSTZEN_REPORTS_NOTIFY_FILE: file,
         RUSTZEN_REPORTS_NOTIFY_EVIDENCE_ROOT: evidence,
-        RUSTZEN_REPORTS_NOTIFY_SELECTED_WEB_ROOT: join(root, "selected-web"),
+        RUSTZEN_REPORTS_NOTIFY_SELECTED_WEB_ROOT: selectedWebRoot,
         RUSTZEN_REPORTS_NOTIFY_BUILD_TIMEOUT: options.buildTimeout ?? "5",
         RUSTZEN_REPORTS_NOTIFY_RUNTIME_TIMEOUT: options.runtimeTimeout ?? "5",
         RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT: "1",

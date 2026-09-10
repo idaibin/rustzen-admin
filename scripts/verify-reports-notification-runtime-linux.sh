@@ -44,19 +44,19 @@ validate_seconds "$cleanup_timeout" RUSTZEN_REPORTS_NOTIFY_CLEANUP_TIMEOUT 30
 validate_seconds "$kill_grace" RUSTZEN_REPORTS_NOTIFY_KILL_GRACE 5
 
 read_pure_web_binding() {
-  local selected_root binding composition_dir binding_values
-  local -a bindings
+  local selected_root policy expected binding binding_values
   selected_root=${RUSTZEN_REPORTS_NOTIFY_SELECTED_WEB_ROOT:-"$root/apps/admin/selected-web"}
   test -d "$selected_root" && test ! -L "$selected_root" || { echo 'selected Web root is unsafe' >&2; exit 1; }
-  bindings=()
-  while IFS= read -r binding; do bindings+=("$binding"); done < <(find "$selected_root" -mindepth 2 -maxdepth 2 -type f -name binding.json -print)
-  [ "${#bindings[@]}" -eq 1 ] || { echo 'selected Web binding must be unique' >&2; exit 1; }
-  binding=${bindings[0]}; test ! -L "$binding" || { echo 'selected Web binding is a symlink' >&2; exit 1; }
-  composition_dir=$(basename "$(dirname "$binding")")
-  [ "${#composition_dir}" -eq 64 ] && case "$composition_dir" in *[!0-9a-f]*) false ;; *) true ;; esac || { echo 'selected Web binding directory is invalid' >&2; exit 1; }
+  policy="$root/apps/admin/build_support/selected_web.rs"
+  test -f "$policy" && test ! -L "$policy" || { echo 'selected Web policy is unsafe' >&2; exit 1; }
+  expected=$(sed -n '/preset: "monitor",/,/}/{s/^[[:space:]]*composition_id: "\([0-9a-f]\{64\}\)",/\1/p;}' "$policy")
+  printf '%s\n' "$expected" | grep -qx '[0-9a-f]\{64\}' || { echo 'monitor selected Web composition is invalid' >&2; exit 1; }
+  test -d "$selected_root/$expected" && test ! -L "$selected_root/$expected" || { echo 'monitor selected Web directory is unsafe' >&2; exit 1; }
+  binding="$selected_root/$expected/binding.json"
+  test -f "$binding" && test ! -L "$binding" || { echo 'monitor selected Web binding is unsafe' >&2; exit 1; }
   binding_values=$(jq -er 'select(type=="object" and (keys|sort)==["bindingVersion","compositionId","selectedApiDigest","webDigest"] and .bindingVersion==1 and ([.compositionId,.selectedApiDigest,.webDigest]|all(type=="string" and test("^[0-9a-f]{64}$"))))|[.compositionId,.webDigest]|@tsv' "$binding") || exit 1
   read -r pure_composition_id pure_web_digest <<<"$binding_values"
-  [ "$pure_composition_id" = "$composition_dir" ] || { echo 'selected Web binding composition mismatch' >&2; exit 1; }
+  [ "$pure_composition_id" = "$expected" ] || { echo 'monitor selected Web binding composition mismatch' >&2; exit 1; }
 }
 
 run_bounded() {
