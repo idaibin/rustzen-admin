@@ -36,7 +36,7 @@ test("four-service verifier binds Monitor's selected database before every contr
     expect(startService).not.toMatch(/monitor\).*\b(?:init-db|bind-database|validate-database)\b/);
 });
 
-const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs";
+const latencyContractCommand = "pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs";
 
 function justRecipe(name, nextName) {
     return justfile.slice(justfile.indexOf(`${name}:`), justfile.indexOf(`\n${nextName}:`));

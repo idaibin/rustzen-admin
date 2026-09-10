@@ -83,7 +83,7 @@ check:
     cargo test --workspace -- --test-threads=1
 
 verify-services:
-    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs
+    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs
     cargo test -p rustzen-admin changed_manifest_swaps_after_commit_and_invalid_change_rolls_back
     cargo test -p rustzen-admin gateway_fails_closed_when_the_authority_database_is_closed
     cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
@@ -91,7 +91,7 @@ verify-services:
     RUSTZEN_VERIFY_BUILD_PROFILE=release scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz target/release/rz-monitor-agent
 
 verify-modules-mvp:
-    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs
+    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-services.test.mjs
     cargo build --workspace
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     RUSTZEN_VERIFY_BUILD_PROFILE=debug scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent

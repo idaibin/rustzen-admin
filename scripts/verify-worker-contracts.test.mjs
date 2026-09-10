@@ -4,6 +4,9 @@ const serviceVerifier = await Bun.file(new URL("./verify-services.sh", import.me
 const workerVerifier = await Bun.file(
     new URL("./verify-worker-contracts.mjs", import.meta.url),
 ).text();
+const insightsVerifier = await Bun.file(
+    new URL("./verify-insights-scenarios.mjs", import.meta.url),
+).text();
 
 test("the disposable service verifier explicitly matches the schedule fixture timezone", () => {
     expect(serviceVerifier).toContain("export RUSTZEN_TIMEZONE=UTC");
@@ -13,9 +16,11 @@ test("the disposable service verifier explicitly matches the schedule fixture ti
 });
 
 test("the worker contract rejects unsafe pathname fields from Insights details", () => {
-    expect(workerVerifier).toContain('for (const field of ["pagePath", "apiPath", "referrer"])');
-    expect(workerVerifier).toContain("/[?#]/.test(event[field])");
-    expect(workerVerifier).toContain("Insights details exposed an unsafe ${field}");
+    expect(workerVerifier).toContain('import { verifyInsightsScenarios } from "./verify-insights-scenarios.mjs"');
+    expect(workerVerifier).toContain("await verifyInsightsScenarios({ directRequest, expectStatus, responseData, insightsBase });");
+    expect(insightsVerifier).toContain('for (const field of ["pagePath", "apiPath", "referrer"])');
+    expect(insightsVerifier).toContain("/[?#]/.test(event[field])");
+    expect(insightsVerifier).toContain("Insights details exposed an unsafe ${field}");
 });
 
 test("worker latency evidence records profile enforcement separately from the fixed budget", () => {
