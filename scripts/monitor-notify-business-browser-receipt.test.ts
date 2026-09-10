@@ -22,3 +22,9 @@ test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for C
     expect(wrapper).toContain('kill -KILL "$chrome_pid"');
     expect(wrapper).toContain("for _ in $(seq 1 100)");
 });
+
+test("P8f-B locates the selected notification shell in either supported locale", () => {
+    expect(driver).toContain('localStorage.setItem("rustzen-admin-locale","en-US"); location.reload()');
+    expect(driver).toContain("button[aria-label='Open message center'],button[aria-label='打开消息中心']");
+    expect(driver).toContain("message center control is ambiguous");
+});
