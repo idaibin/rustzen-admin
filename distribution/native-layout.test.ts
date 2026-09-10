@@ -22,6 +22,7 @@ const notifyServer = {
     target: "x86_64-unknown-linux-musl",
 };
 const agent = { preset: "node-agent", target: "x86_64-unknown-linux-musl" };
+const analytics = { preset: "analytics", target: "x86_64-unknown-linux-musl" };
 
 const directiveValues = (unit: string, name: string): string[] =>
     unit
@@ -165,6 +166,49 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
         "ExecCondition",
     ])
         expect(selectedUnitBytes).not.toContain(forbidden);
+});
+
+test("native layout exactly scopes Analytics Admin and Insights members", () => {
+    const layout = generatedNativeLayout(analytics);
+    expect(layout.units.map((entry) => entry.path)).toEqual([
+        "systemd/rz-admin.service",
+        "systemd/rz-insights.service",
+        "systemd/rz.target",
+    ]);
+    expect(layout.configs).toMatchObject([
+        { path: "config/rz-admin.env", consumer: "rz-admin", owner: "access" },
+        { path: "config/rz-insights.env", consumer: "rz-insights", owner: "insights" },
+    ]);
+    const bytes = nativeUnitBytes(analytics);
+    const admin = bytes["systemd/rz-admin.service"];
+    const insights = bytes["systemd/rz-insights.service"];
+    requireExactDirective(admin, "User", "rz-admin");
+    requireExactDirective(admin, "Group", "rz-admin");
+    requireExactDirective(insights, "User", "rz-insights");
+    requireExactDirective(insights, "Group", "rz-insights");
+    expect(directiveValues(admin, "EnvironmentFile")).toEqual([
+        "/opt/rz/config/rz-admin.env",
+        "/opt/rz/config/rz-release.env",
+    ]);
+    expect(directiveValues(insights, "EnvironmentFile")).toEqual([
+        "/opt/rz/config/rz-insights.env",
+        "/opt/rz/config/rz-release.env",
+    ]);
+    requireExactDirective(admin, "ExecStart", "/opt/rz/current/bin/rz-admin serve");
+    requireExactDirective(insights, "ExecStart", "/opt/rz/current/bin/rz-insights serve");
+    requireExactDirective(
+        bytes["systemd/rz.target"],
+        "Wants",
+        "rz-admin.service rz-insights.service",
+    );
+    for (const forbidden of [
+        "rz-monitor",
+        "rz-reports",
+        "rz-monitor-agent",
+        "rz-recovery",
+        "ExecCondition",
+    ])
+        expect(Object.values(bytes).join("\n")).not.toContain(forbidden);
 });
 
 test("checked-in Agent unit is byte-identical to the native layout authority", async () => {

@@ -287,6 +287,7 @@ verify-distribution-native-layout:
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor.json
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor-notify.json
     pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/node-agent.json
+    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/analytics.json
 
 verify-distribution-container-export selection export_root expected_source_identity:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false

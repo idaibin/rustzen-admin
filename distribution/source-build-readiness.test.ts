@@ -71,11 +71,11 @@ describe("P8 source/build certification admission", () => {
         expect(supportsSelectedCargo(plan)).toBeFalse();
         expect(() => selectedCargoBuilds(plan)).toThrow();
         const audit = auditSourceBuildReadiness(fixture("analytics"));
-        expect(audit.availableProducers).toEqual(["web", "config"]);
+        expect(audit.availableProducers).toEqual(["web", "config", "native-layout"]);
         expect(audit.missingProducers).toContain("cargo");
         const insights = distributionCatalog.capabilities.find(({ id }) => id === "insights");
         expect(insights?.packageTargets[0]?.reason).toContain(
-            "Insights service Cargo, selected Admin source/schema, selected Web and the Insights config producer are implemented",
+            "Insights service Cargo, selected Admin source/schema, selected Web/config and native-layout producers are implemented",
         );
     });
 

@@ -19,7 +19,7 @@ export type NativeLayout = {
     version: 1;
     artifactClass: "server" | "node-agent";
     compositionId: string;
-    preset: "monitor" | "monitor-notify" | "node-agent";
+    preset: "analytics" | "monitor" | "monitor-notify" | "node-agent";
     configOwners: string[];
     units: NativeUnit[];
     configs: NativeConfig[];
@@ -27,7 +27,7 @@ export type NativeLayout = {
 
 /** systemd layouts have been materialized only for these exact closures. */
 export const supportsNativeLayout = (plan: SourceBuildPlan): boolean =>
-    isExactSupportedPlan(plan, ["monitor", "monitor-notify", "node-agent"]);
+    isExactSupportedPlan(plan, ["analytics", "monitor", "monitor-notify", "node-agent"]);
 
 const unit = (path: string, text: string): NativeUnit => ({
     path,
@@ -116,6 +116,29 @@ export function nativeUnitBytes(
         };
     if (
         supportsNativeLayout(plan) &&
+        plan.preset === "analytics" &&
+        plan.artifactClass === "server"
+    )
+        return {
+            "systemd/rz-admin.service": service(
+                "Rustzen Admin",
+                "rz-admin",
+                "rz-admin.env",
+                "rz-admin serve",
+                true,
+            ),
+            "systemd/rz-insights.service": service(
+                "Rustzen Insights",
+                "rz-insights",
+                "rz-insights.env",
+                "rz-insights serve",
+                true,
+            ),
+            "systemd/rz.target":
+                "[Unit]\nDescription=Rustzen Analytics Services\nWants=rz-admin.service rz-insights.service\nAfter=network.target\n\n[Install]\nWantedBy=multi-user.target\n",
+        };
+    if (
+        supportsNativeLayout(plan) &&
         plan.preset === "node-agent" &&
         plan.artifactClass === "node-agent"
     )
@@ -129,7 +152,7 @@ export function nativeUnitBytes(
                 true,
             ),
         };
-    throw new Error("native layout supports only monitor server compositions or node-agent");
+    throw new Error("native layout supports only monitor, analytics, or node-agent compositions");
 }
 
 export function generatedNativeLayout(
@@ -137,23 +160,29 @@ export function generatedNativeLayout(
     catalog: typeof distributionCatalog = distributionCatalog,
 ): NativeLayout {
     const plan = resolveSelection(selection, catalog);
-    const server =
+    const monitorServer =
         supportsNativeLayout(plan) &&
         (plan.preset === "monitor" || plan.preset === "monitor-notify") &&
+        plan.artifactClass === "server";
+    const analyticsServer =
+        supportsNativeLayout(plan) &&
+        plan.preset === "analytics" &&
         plan.artifactClass === "server";
     const agent =
         supportsNativeLayout(plan) &&
         plan.preset === "node-agent" &&
         plan.artifactClass === "node-agent";
-    if (!server && !agent)
+    if (!monitorServer && !analyticsServer && !agent)
         throw new Error(
-            "native layout supports only monitor server compositions or node-agent",
+            "native layout supports only monitor, analytics, or node-agent compositions",
         );
     const owners = plan.configOwners;
-    const expectedOwners = server
+    const expectedOwners = monitorServer
         ? plan.preset === "monitor-notify"
             ? ["access", "monitor", "notifications"]
             : ["access", "monitor"]
+        : analyticsServer
+          ? ["access", "insights"]
         : ["monitor-agent"];
     if (canonicalJson(owners) !== canonicalJson(expectedOwners))
         throw new Error(
@@ -169,7 +198,7 @@ export function generatedNativeLayout(
     const units = Object.entries(bytes)
         .map(([path, text]) => unit(path, text))
         .sort((left, right) => left.path.localeCompare(right.path));
-    if (server) {
+    if (monitorServer) {
         const preset = plan.preset === "monitor-notify" ? "monitor-notify" : "monitor";
         return {
               version: 1,
@@ -189,6 +218,16 @@ export function generatedNativeLayout(
               ],
         };
     }
+    if (analyticsServer)
+        return {
+            version: 1,
+            artifactClass: "server",
+            compositionId: plan.compositionId,
+            preset: "analytics",
+            configOwners: owners,
+            units,
+            configs: [config(selection, ["access"]), config(selection, ["insights"])],
+        };
     return {
         version: 1,
         artifactClass: "node-agent",
