@@ -40,6 +40,7 @@ export const exactPersistedSseAuthorization = (input: RequestInfo | URL, init: R
 export const sseFetchProbeSource = () => `(() => {
     const originalFetch = window.fetch;
     Object.defineProperty(window, "__rzP8fbSseBearer", { configurable: true, writable: true, value: [] });
+    Object.defineProperty(window, "__rzP8fbDocumentGeneration", { configurable: true, value: String(Date.now()) + ":" + String(Math.random()) });
     window.fetch = function(input, init) {
         const request = new Request(input, init);
         if (new URL(request.url, location.href).pathname === "/api/notifications/stream") {
