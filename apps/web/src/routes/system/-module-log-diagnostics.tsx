@@ -1,12 +1,11 @@
 import {
     DeleteOutlined,
     DownloadOutlined,
-    EyeOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
-import { ProTable, type ProColumns } from "@ant-design/pro-components";
+import { ProTable } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Input, Select, Space, Table, Tag, Typography } from "antd";
+import { Alert, Button, Input, Select, Space, Table, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -23,7 +22,8 @@ import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
 import { CleanupResult, FailureList } from "./-module-log-cleanup-result";
-import { formatBytes, formatDateTime, getCleanupCandidateColumns } from "./-module-log-table-utils";
+import { formatDateTime, getCleanupCandidateColumns } from "./-module-log-table-utils";
+import { getModuleLogColumns } from "./-module-log-columns";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -123,74 +123,7 @@ function ModuleLogDiagnosticsContent() {
     const previewError = previewMutation.error ? errorMessage(previewMutation.error) : null;
     const confirmError = confirmMutation.error ? errorMessage(confirmMutation.error) : null;
 
-    const columns = useMemo<ProColumns<ModuleLogFile>[]>(
-        () => [
-            {
-                title: t("模块", "Module"),
-                dataIndex: "module",
-                key: "module",
-                width: 112,
-                render: (_value, record) => <Typography.Text code>{record.module}</Typography.Text>,
-            },
-            {
-                title: t("文件 / 日期", "File / date"),
-                key: "file",
-                ellipsis: true,
-                render: (_value, record) => (
-                    <Space direction="vertical" size={0}>
-                        <Typography.Text ellipsis={{ tooltip: record.fileName }}>
-                            {record.fileName}
-                        </Typography.Text>
-                        <Typography.Text type="secondary">{record.date}</Typography.Text>
-                    </Space>
-                ),
-            },
-            {
-                title: t("大小", "Size"),
-                key: "size",
-                width: 110,
-                render: (_value, record) => formatBytes(record.sizeBytes),
-            },
-            {
-                title: t("状态", "Status"),
-                key: "status",
-                width: 150,
-                render: (_value, record) => (
-                    <Space size="small" wrap>
-                        <Tag color={record.readable ? "green" : "red"}>
-                            {record.readable ? t("可读", "Readable") : t("不可读", "Unreadable")}
-                        </Tag>
-                        {record.active ? <Tag color="orange">{t("当前文件", "Active")}</Tag> : null}
-                    </Space>
-                ),
-            },
-            {
-                title: t("修改时间", "Modified"),
-                key: "modifiedAt",
-                width: 180,
-                render: (_value, record) => formatDateTime(record.modifiedAt),
-            },
-            {
-                title: t("操作", "Actions"),
-                key: "actions",
-                width: 116,
-                fixed: "right",
-                render: (_value, record) => (
-                    <Button
-                        data-testid={`module-log-tail-${record.module}-${record.date}`}
-                        type="link"
-                        size="small"
-                        icon={<EyeOutlined />}
-                        disabled={!record.readable}
-                        onClick={() => openTail(record, setTailFile, setTailCursor, setTailOpen)}
-                    >
-                        {t("查看", "View")}
-                    </Button>
-                ),
-            },
-        ],
-        [],
-    );
+    const columns = useMemo(() => getModuleLogColumns((record) => openTail(record, setTailFile, setTailCursor, setTailOpen)), []);
 
     const openTailButton = (
         <ModuleLogTailDrawer
