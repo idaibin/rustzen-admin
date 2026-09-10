@@ -493,3 +493,31 @@ it; cache hits never skip the Admin gateway's authoritative authorization. The
 shared database pool default is one minimum and eight maximum connections; the
 eight-connection maximum is the measured default for the certified four-CPU,
 512MiB pure-Monitor runtime.
+
+The current P8g R8 closure is a local Colima Linux/amd64 exact-artifact load
+run for `monitor`, not a production deployment. It binds dirty source
+`git:a4a8beed33e842857a535cd051902dea3a4bf5c6 tree:c4fa33e1d205ae6e354f282346e25a4af08248ce0d3578fdd6fbed0b66f074bb state:dirty`, export
+`target/rz/p8g-r8-monitor-export-20260910T145456Z`, build
+`49630979fee226a3f1850d09a0296e752a1a4bce8fc67d4f8751e260a887e492` and
+composition `8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b`.
+Its signed archive/manifest/envelope/certificate SHA-256 values are
+`6ba42a9b005710500bb33f6160fcbd265f8ab0c1e93f694c28e8a4b73725b7ca` /
+`3e612c631a806abb6341b1856c496e0616b6e5f8a858ce9f953fde7f9fca9d65` /
+`8bab407380e6d784546fd65951ea76124723658fb03bc9992ca9d243e8a1c03f` /
+`3c0e8b2b8eb2180939cea36a93c1bb2a7c435ba8cd7c28750e6796d3a01cd314`.
+The native, browser and load receipts are
+`target/rz/p8g-r8-native-20260910T145456Z/monitor-native-runtime-evidence.json`
+(SHA-256 `e9610e21899c91945525f2b4a54b9ded8eb7f71e8714ba77ac115e4d9ce2c8db`),
+`target/rz/p8g-r8-browser-20260910T145456Z/manifest.json`
+(SHA-256 `1b2504dd188ca890dbcba110d7218443c10b46fb4c6c00f7a683bc24dc997213`) and
+`target/rz/p8g-r8-load-20260910T145456Z/monitor-load-evidence.json`
+(SHA-256 `34c26a895b9236085ccfbbadcc521c94c52d72f5a52a33bbc0cf0acfa7fe32aa`).
+The two lanes completed 12,389 and 12,661 requests with zero failures (p95/p99
+227/270ms and 220/271ms); recovery completed 2,138 requests with zero failures
+(p95/p99 224/268ms). Overall peaks were RSS 28,614,656 bytes, VmHWM 45,490,176
+bytes, cgroup memory 74,985,472 bytes and 42 processes. The controlled fault
+recorded stop, listener-gone (503/code 40001), listener-ready and registry-healthy
+in that order; pure-Monitor SSE was runtime 404 with empty signed API/Web/schema/service
+forbidden sets. Retained runtime cleanup completed. This records `load:true` for
+that local exact artifact; production deployment and `releaseReady` remain **Not
+verified**.

@@ -618,3 +618,30 @@ unchanged PID, or wrong executable fails. Recovery is 32 workers for 10 seconds
 with at least 512 samples and the same latency/zero-failure bounds. Pure Monitor
 has no SSE owner: the generic 1,000-SSE target is `notApplicable`, proven by
 signed API/Web/schema absence and a runtime SSE-route 404.
+
+R8 supplies the current pure-Monitor P8g local exact-artifact load evidence on
+Colima Linux/amd64: source
+`git:a4a8beed33e842857a535cd051902dea3a4bf5c6 tree:c4fa33e1d205ae6e354f282346e25a4af08248ce0d3578fdd6fbed0b66f074bb state:dirty`,
+export `target/rz/p8g-r8-monitor-export-20260910T145456Z`, build
+`49630979fee226a3f1850d09a0296e752a1a4bce8fc67d4f8751e260a887e492`,
+composition `8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b`,
+and signed archive/manifest/envelope/certificate
+`6ba42a9b005710500bb33f6160fcbd265f8ab0c1e93f694c28e8a4b73725b7ca` /
+`3e612c631a806abb6341b1856c496e0616b6e5f8a858ce9f953fde7f9fca9d65` /
+`8bab407380e6d784546fd65951ea76124723658fb03bc9992ca9d243e8a1c03f` /
+`3c0e8b2b8eb2180939cea36a93c1bb2a7c435ba8cd7c28750e6796d3a01cd314`.
+Its native/browser/load receipts are
+`target/rz/p8g-r8-native-20260910T145456Z/monitor-native-runtime-evidence.json`
+(`e9610e21899c91945525f2b4a54b9ded8eb7f71e8714ba77ac115e4d9ce2c8db`),
+`target/rz/p8g-r8-browser-20260910T145456Z/manifest.json`
+(`1b2504dd188ca890dbcba110d7218443c10b46fb4c6c00f7a683bc24dc997213`) and
+`target/rz/p8g-r8-load-20260910T145456Z/monitor-load-evidence.json`
+(`34c26a895b9236085ccfbbadcc521c94c52d72f5a52a33bbc0cf0acfa7fe32aa`).
+The measured lanes completed 12,389 and 12,661 requests with zero failures and
+p95/p99 227/270ms and 220/271ms; recovery completed 2,138 with zero failures
+and p95/p99 224/268ms. Overall peaks were RSS 28,614,656 bytes, VmHWM
+45,490,176 bytes, memory 74,985,472 bytes and 42 processes. The fault order was
+stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
+404 with signed empty forbidden API/Web/schema/service sets, and retained runtime
+cleanup completed. This is a local `load:true` closure only; production deployment
+and `releaseReady` remain **Not verified**.
