@@ -74,7 +74,7 @@ export async function createInventory(root: string, selectionInput = selection) 
         fileInventory: files.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
         moduleIds: [
             `apps/web/.selected-web/${compositionId}/index.tsx`,
-            "apps/web/src/api/installation/api.ts", "apps/web/src/api/monitor/api.ts", "apps/web/src/api/request.ts",
+            "apps/web/src/api/installation/api.ts", plan.preset === "monitor-notify" ? "apps/web/src/api/monitor/api.ts" : "apps/web/src/api/monitor/core-api.ts", "apps/web/src/api/request.ts",
             ...(plan.preset === "monitor-notify" ? ["apps/web/src/api/notifications/api.ts", "apps/web/src/notifications/message-center.tsx"] : []),
         ],
         binding,

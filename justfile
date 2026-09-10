@@ -368,7 +368,7 @@ verify-monitor-notify-bootstrap-browser export_root release_result certificate p
 verify-monitor-load-contract:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     apps/web/node_modules/typescript/bin/tsc --noEmit --strict false --target ESNext --module Preserve --moduleResolution bundler --allowImportingTsExtensions --skipLibCheck --typeRoots apps/web/node_modules/@types --types bun,node scripts/monitor-load-admission.ts scripts/monitor-load-contract.ts scripts/monitor-load-fault.ts scripts/monitor-load-receipt-schema.ts scripts/monitor-load-runtime.ts scripts/monitor-load-sampler.ts scripts/monitor-load-signed.ts scripts/selected-web-bootstrap-browser-receipt.ts scripts/verify-monitor-load-certification.ts scripts/verify-monitor-load-runtime-preflight.ts scripts/prepared-monitor-load-context.ts
-    pnpm dlx bun@1.3.14 test scripts/monitor-load-contract.test.mjs scripts/monitor-load-mutation.test.mjs scripts/monitor-load-retain.test.mjs
+    pnpm dlx bun@1.3.14 test scripts/monitor-load-contract.test.mjs scripts/monitor-load-mutation.test.mjs scripts/monitor-load-retain.test.mjs scripts/prepared-monitor-load-context.test.ts
 
 prepare-monitor-load-runtime export_root release_result certificate public_key expected_source_identity native_output browser_output context_output chromium="chromium":
     scripts/prepare-monitor-load-runtime.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --native-output "{{native_output}}" --browser-output "{{browser_output}}" --context-output "{{context_output}}" --chromium "{{chromium}}"

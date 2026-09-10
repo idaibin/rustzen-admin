@@ -13,6 +13,7 @@ while test "$#" -gt 0; do case "$1" in
   --chromium) chromium="$2"; shift 2 ;; *) usage ;;
 esac; done
 for value in "${export_root:-}" "${release_result:-}" "${certificate:-}" "${public_key:-}" "${source:-}" "${native_output:-}" "${browser_output:-}" "${context_output:-}"; do test -n "$value" || usage; done
+context_output="$(pnpm dlx bun@1.3.14 -e 'import { resolve } from "node:path"; console.log(resolve(process.argv[1]))' "$context_output")"
 test ! -e "$context_output" && test ! -L "$context_output" && test ! -e "$browser_output" && test ! -L "$browser_output" || { echo "context and browser outputs must be fresh" >&2; exit 2; }
 umask 077; work="$(mktemp -d "$root/target/rz/.p8g-prepare.XXXXXX")"; native_context="$work/native-context.json"; password="$context_output.password"; agent="$context_output.agent-token"; container=""; owner_token="$(pnpm dlx bun@1.3.14 -e 'console.log(crypto.randomUUID())')"
 test ! -e "$password" && test ! -e "$agent" || { echo "context credential path exists" >&2; exit 2; }
