@@ -32,10 +32,16 @@ cover every named catalog preset and must reject unknown or incomplete producer
 sets. The current admitted set is `monitor`, `monitor-notify` and `node-agent`.
 Target `full`, `analytics`, `reports`, `current-full-regression` and `custom`
 return a machine-readable blocked result; `--require-ready` exits nonzero.
-`monitor-notify` admission and static source/build/export closure prove only its
-fixed fixture, Cargo features, composition-qualified Web and retained export
-inventory/contracts. Real Linux container export, native runtime, installation,
-browser and load evidence remain Not verified.
+`monitor-notify` has exact Linux/amd64 build/export evidence at
+`target/rz/p8b-monitor-notify-export-20260910T065139Z`, bound to dirty source
+identity `git:3d6aeec719d5acc9b26b114ceedef5ac9c700444 tree:a1f5e7e55952fd22d36ca8228c93ee5109a1316cf0e76b72cb7fa5f456af1b9a state:dirty`
+and composition `0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d`.
+Its 50-file export passed host validation before and after the restricted run;
+`target/rz/p8b-monitor-notify-export-20260910T065139Z-contract-checks/manifest.json`
+records nine commands (eight retained selected checks plus one Agent config
+witness), network disabled, read-only filesystem and all capabilities dropped.
+Native installation/PID1, browser and load remain Not verified; this is neither
+certification, publication nor release evidence.
 Admission is not a certificate and cannot satisfy any native, browser, load,
 installation or release gate.
 
@@ -106,9 +112,11 @@ container with all capabilities dropped: Monitor has seven commands (six
 server API/config/protocol checks plus one Agent config witness), while
 monitor-notify has nine (eight selected server checks plus the same Agent
 witness). Their API, config and protocol outputs must match retained contracts;
-the Agent config witness must satisfy its selected structural policy. The host then validates the
-export again. The accepted local export is
-`target/rz/p8b-container-export-verified`.
+the Agent config witness must satisfy its selected structural policy. The host then validates the export again. The Monitor accepted local export is
+`target/rz/p8b-container-export-verified`; the monitor-notify export is
+`target/rz/p8b-monitor-notify-export-20260910T065139Z` with its separate
+contract-check manifest above. Neither export opens native installation/PID1,
+browser, load, certification, publication or release status.
 
 The P8b host export-validator test corpus builds a temporary canonical Monitor
 export and must reject every unknown/duplicate/missing CLI argument, changed
