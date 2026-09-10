@@ -231,10 +231,11 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 | SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls                                    | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate                                                             |
 | SR-UI-006 | `source-extracted`: existing Reports DataState, schedule outcome, run audit, and Retry composition | Verified only by a matching current schema-3 `verify-reports-ui-state-linux` manifest                                                                                                                                                                                       | Manager processing, partial decision rows, runtime failure, retry source preservation, and a combined schedule/run view-only role remain distinct on their rendered surfaces                                              | P1       | Linux Chromium state-closure gate with atomic manifest, four run-step receipts, controlled partial fixture, manager/mobile screenshots, and source before/after hashes |
 
-`SR-UI-006` is verified locally only when its named gate's current manifest
-matches this checkout. Native systemd, confined native-host seccomp, deployed
-scheduling, and the remaining visual matrices outside this bounded state-closure
-evidence remain **Not verified**.
+`SR-UI-006` is verified locally for the coordination commit and source basis
+recorded by its named gate's current manifest. Later documentation-only changes
+do not extend or alter that runtime evidence. Native systemd, confined
+native-host seccomp, deployed scheduling, and the remaining visual matrices
+outside this bounded state-closure evidence remain **Not verified**.
 
 ## Responsive and verification matrix
 
@@ -258,28 +259,38 @@ Native systemd/seccomp remain outside this visual acceptance.
 
 ## Current local browser evidence
 
-Both current manifests bind head
-`d3f5229e9aa2923def3052963a4d3bd763bef701`, source tree
-`5573f00aabb99172dc91dbd2d3b6d3a3a19fe4274ed7016a13be28a9ab190706`,
-`linux/amd64`, and Chromium `120.0.6099.224-1~deb11u1`.
+Both current manifests were executed at coordination commit
+`477ce326d9ccf16e5d0ea91532b77fb5b2cafede`, with dirty source state limited
+to unrelated `AGENTS.md`, source tree
+`64ddf36a328c7d008e995b15295d3282366172b997baa2b746614c60ee04f2f9`,
+`linux/amd64`, and Chromium `120.0.6099.224-1~deb11u1`. Subsequent
+documentation-only commits do not change those runtime inputs.
 
-`target/rz/schedule-form-browser/runs/20260910T165701Z-49652/manifest.json`
+`target/rz/schedule-form-browser/runs/20260910T172224Z-72061/manifest.json`
 is the schema-2 current Schedule manifest, SHA-256
-`96ecece268bb90e1d2bf90f17f5e884c214d129e7ffb1ca44467fdf8927c72eb`.
+`d23a3d0e90886abd2bbc3784b7a7b83eb9a0fc16c7db432bf0953bd2270d9d7b`.
 It retains seven journeys and receipts, with visually reviewed
 `schedule-form-desktop-dark-en.png` (1440x900, SHA-256
-`acd47d10be17acd9b4d698a2c38989fb3084223d909c51bc9d591cffcb97aba8`) and
+`3326db8a147aa84cddb651e4d5ace8c12cb567a0d7e7e07995a9f853c1fb4978`) and
 `schedule-form-mobile-light-zh.png` (390x844, SHA-256
 `0bc1e4a2024625138e1a67bee6374334365b06d4179e6d694e296b3ac1ae549f`).
 
-`target/rz/reports-ui-state/runs/20260910T170537Z-54826/manifest.json` is the
+`target/rz/reports-ui-state/runs/20260910T173039Z-77141/manifest.json` is the
 schema-3 current Reports manifest, SHA-256
-`ba401c32839c079634773a5205a2aaf2d24ea4c14c32c5143281847bec38a444`. It
-retains four browser receipts, the cancelled processing receipt, equal
-before/after source hashes, delivery gap total 15, and two direct-mutation 403
-receipts with SHA-256
-`c1067e1f99e114495eeb289c5e78fbefa4334fd239f42bfcb842f25ec88fc6cb`.
-Its four exact-viewport screenshots were visually reviewed.
+`f36022e522cdd3558d594b1f9afd382996630b48bc732392c9e66c556d82d930`. It
+retains four browser receipts; cancelled `processing` and `pauseStep` records;
+`retry.sourcePreserved: true`; `partialFixture.skippedRunLinked: false`; equal
+source before/after hashes; and delivery `gapTotal: 15`. Both direct-mutation
+403 receipts have SHA-256
+`c1067e1f99e114495eeb289c5e78fbefa4334fd239f42bfcb842f25ec88fc6cb` and
+canonical body `{"code":403,"message":"Permission denied","data":null}`.
+Its visually reviewed exact-viewport screenshots are processing 1440x900
+`9a1f00d320a21adf12881f80a817cae765e4b01378f2756fa39e0c0a94e9c2b2`, runtime
+failure 1440x900
+`1194872430edfe43813f0b7697e5cdab63aa54979af37b5caf9a4ef261fcfd26`, partial
+1440x900 `1fd831d1d35f71ed27d5e703583302382e10e19046d9a92e88561f31d90417a9`,
+and mobile 390x844
+`c071dd3e20a40376dc53379ebc056565eb0c99dfaab1ce2c388307a88514d17b`.
 
 The Schedule diagnostic-only failed runs
 `20260910T162013Z-21644` and `20260910T164537Z-41283` remain under
@@ -312,9 +323,11 @@ and exposes loading, forbidden and recoverable-error Retry states. No menu,
 page or notification payload is added.
 
 The Reports Linux Chromium state-gate extension is **Closed locally / Passed**
-only when `target/rz/reports-ui-state/current/manifest.json` matches the current
-checkout through its validator. That current manifest is authoritative for the
-source identity, platform, Chromium version, journeys, receipts, and screenshots.
+for the coordination commit and source basis recorded in
+`target/rz/reports-ui-state/current/manifest.json` and accepted by its
+validator. That manifest is authoritative for its source identity, platform,
+Chromium version, journeys, receipts, and screenshots; later documentation-only
+changes do not extend or alter that runtime evidence.
 Its disposable notifications-enabled Reports process seeds deterministic pending
 and quarantine count/byte totals, all five gap counters, and first/last/success
 timestamps. Owner at `1440x900` and a `reports:run:view` session at `390x844`
