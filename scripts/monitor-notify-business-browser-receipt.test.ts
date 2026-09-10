@@ -25,6 +25,9 @@ test("P8f-B diagnostics never echo evaluated expressions or wait unbounded for C
     expect(driver).not.toContain("Network.requestWillBeSentExtraInfo");
     expect(driver).toContain("streamDiagnostics(streamItems)");
     expect(driver).toContain("wallTime: value.params.wallTime");
+    expect(driver).toContain('"subjectRevision"');
+    expect(driver).toContain("detailDiagnostics");
+    expect(driver).toContain("readAtPresent");
     expect(driver).toContain("sseFetchProbeSource()")
     expect(driver).toContain('throw Error("browser document generation did not change")');
     expect(driver.indexOf('await wait(".shell-content"); await call("Page.addScriptToEvaluateOnNewDocument"')).toBeGreaterThan(driver.indexOf("document.querySelector('button[type=submit]').click()"));
