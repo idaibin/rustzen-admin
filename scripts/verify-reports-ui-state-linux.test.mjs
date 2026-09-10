@@ -172,7 +172,7 @@ test("manifest validator rejects retained-evidence and receipt tampering", async
             [
                 "bash",
                 "-c",
-                '. "$1"; verify_reports_ui_state_manifest "$2" head dirty sha linux/arm64 && verify_reports_ui_state_receipts "$3" "$2" && verify_reports_ui_state_delivery_receipts "$3" "$2" && verify_reports_ui_state_source_evidence "$3" "$2"',
+                '. "$1"; verify_reports_ui_state_manifest "$2" head dirty sha linux/arm64 && verify_reports_ui_state_receipts "$3" "$2" && verify_reports_ui_state_delivery_receipts "$3" "$2" && verify_reports_ui_state_forbidden_receipts "$3" "$2" && verify_reports_ui_state_source_evidence "$3" "$2"',
                 "reports-ui-state-validator",
                 evidence,
                 manifestPath,
@@ -221,8 +221,10 @@ test("manifest validator rejects retained-evidence and receipt tampering", async
         };
         await writeJson("reports-delivery-owner.json", { data: delivery });
         await writeJson("reports-delivery-viewer.json", { data: delivery });
+        await writeJson("viewer-schedule-mutation.json", { code: 403, message: "Permission denied", data: null });
+        await writeJson("viewer-retry.json", { code: 403, message: "Permission denied", data: null });
         const manifest = {
-            schemaVersion: 2,
+            schemaVersion: 3,
             status: "passed",
             gitHead: "head",
             sourceTreeState: "dirty",
@@ -247,13 +249,24 @@ test("manifest validator rejects retained-evidence and receipt tampering", async
             },
             retry: { childId: "child", sourcePreserved: true },
             partialFixture: { enqueuedRunId: "source", skippedRunLinked: false },
-            viewOnly: { scheduleMutationStatus: 403, retryStatus: 403 },
+            viewOnly: {
+                scheduleMutationReceipt: { status: 403, ...(await descriptor("viewer-schedule-mutation.json")) },
+                retryReceipt: { status: 403, ...(await descriptor("viewer-retry.json")) },
+            },
             deliveryHealth: { gapTotal: 15, ownerReceipt: await descriptor("reports-delivery-owner.json"), viewerReceipt: await descriptor("reports-delivery-viewer.json") },
             artifacts,
         };
         await writeManifest(manifest);
         const firstVerification = verify();
         expect(firstVerification.exitCode, new TextDecoder().decode(firstVerification.stderr)).toBe(0);
+
+        manifest.schemaVersion = 2;
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        manifest.schemaVersion = 4;
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        manifest.schemaVersion = 3;
 
         await writeJson("reports-delivery-owner.json", { data: { ...delivery, pendingCount: 99 } });
         expect(verify().exitCode).not.toBe(0);
@@ -269,6 +282,29 @@ test("manifest validator rejects retained-evidence and receipt tampering", async
         await writeManifest(manifest);
         expect(verify().exitCode).not.toBe(0);
         manifest.deliveryHealth.viewerReceipt = await descriptor("reports-delivery-viewer.json");
+
+        delete manifest.viewOnly.retryReceipt;
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        manifest.viewOnly.retryReceipt = { status: 403, ...(await descriptor("viewer-retry.json")) };
+
+        await Bun.write(`${directory}/viewer-retry.json`, `${await Bun.file(`${directory}/viewer-retry.json`).text()}\n`);
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        await writeJson("viewer-retry.json", { code: 403, message: "Permission denied", data: null });
+        manifest.viewOnly.retryReceipt = { status: 403, ...(await descriptor("viewer-retry.json")) };
+
+        await writeJson("viewer-retry.json", { code: 403, message: "Wrong", data: null });
+        manifest.viewOnly.retryReceipt = { status: 403, ...(await descriptor("viewer-retry.json")) };
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        await writeJson("viewer-retry.json", { code: 403, message: "Permission denied", data: null });
+        manifest.viewOnly.retryReceipt = { status: 403, ...(await descriptor("viewer-retry.json")) };
+
+        manifest.viewOnly.retryReceipt = { ...manifest.viewOnly.scheduleMutationReceipt };
+        await writeManifest(manifest);
+        expect(verify().exitCode).not.toBe(0);
+        manifest.viewOnly.retryReceipt = { status: 403, ...(await descriptor("viewer-retry.json")) };
 
         manifest.sourceEvidence.runId = "";
         await writeManifest(manifest);

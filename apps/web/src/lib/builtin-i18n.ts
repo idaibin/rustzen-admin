@@ -47,6 +47,7 @@ const moduleMenuNames: Record<string, [string, string]> = {
     "insights:overview": ["概览", "Overview"],
     "insights:details": ["明细", "Details"],
     "reports:templates": ["模板", "Templates"],
+    "reports:schedules": ["定时报表", "Scheduled reports"],
     "reports:runs": ["填报执行", "Runs"],
 };
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$root/scripts/schedule-form-evidence-lib.sh"
 docker_bin=${RUSTZEN_SCHEDULE_FORM_DOCKER:-docker};
 timeout=${RUSTZEN_SCHEDULE_FORM_TIMEOUT:-480};
 info_timeout=${RUSTZEN_SCHEDULE_FORM_DOCKER_INFO_TIMEOUT:-10}
@@ -227,17 +228,10 @@ for name in rz-admin rz-monitor rz-insights rz-reports
 do cp "$bin_dir/$name" "$staged/$name"
 done
 pnpm dlx bun@1.3.14 "$root/scripts/schedule-form-browser-steps.mjs" >"$candidate/browser-steps.json"
-run_bounded "$timeout" "$docker_bin" run --name "$container" --platform "$platform" --security-opt seccomp=unconfined --env RUSTZEN_VERIFY_HEAD="$head" --env RUSTZEN_VERIFY_SOURCE_TREE_STATE="$tree_state" --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$tree_sha" --env RUSTZEN_VERIFY_ARCHITECTURE="$architecture" --env RUSTZEN_VERIFY_PLATFORM="$platform" --env RUSTZEN_VERIFY_CHROMIUM_VERSION=120.0.6099.224-1~deb11u1 --env RUSTZEN_VERIFY_VERIFIER_IMAGE_ID="$verifier_image" --env RUSTZEN_VERIFY_VERIFIER_KEY="$verifier_key" --env RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256="$verifier_provenance_sha" --mount "type=bind,src=$staged,dst=/verify/bin,readonly" --mount "type=bind,src=$candidate,dst=/verify/evidence" --mount "type=bind,src=$root/scripts/verify-schedule-form-linux-inner.sh,dst=/verify/run.sh,readonly" --mount "type=bind,src=$root/scripts/admin-browser-fault-proxy.py,dst=/verify/fault-proxy.py,readonly" "$verifier_image" bash /verify/run.sh
-jq -e --arg head "$head" --arg state "$tree_state" --arg sha "$tree_sha" --arg platform "$platform" '
-  .schemaVersion == 1 and .status == "passed" and .gitHead == $head and
-  .sourceTreeState == $state and .sourceTreeSha256 == $sha and .platform == $platform and
-  .localValidation.proxyPostCount == 0 and .secretPolicy.proxyPostCount == 1 and
-  .secretPolicy.rowDelta == 0 and .viewOnly == {managementVisible:false,dueTime:"10:16 · UTC"} and
-  (.runs.daily | type == "string" and length > 0) and
-  (.artifacts | length) == 2 and
-  ([.artifacts[] | select(.file == "schedule-form-desktop-dark-en.png" and (.sha256 | test("^[0-9a-f]{64}$")) and .dimensions == "1440 x 900")] | length) == 1 and
-  ([.artifacts[] | select(.file == "schedule-form-mobile-light-zh.png" and (.sha256 | test("^[0-9a-f]{64}$")) and .dimensions == "390 x 844")] | length) == 1
-' "$candidate/manifest.json" >/dev/null
+run_bounded "$timeout" "$docker_bin" run --name "$container" --platform "$platform" --security-opt seccomp=unconfined --env RUSTZEN_VERIFY_HEAD="$head" --env RUSTZEN_VERIFY_SOURCE_TREE_STATE="$tree_state" --env RUSTZEN_VERIFY_SOURCE_TREE_SHA256="$tree_sha" --env RUSTZEN_VERIFY_ARCHITECTURE="$architecture" --env RUSTZEN_VERIFY_PLATFORM="$platform" --env RUSTZEN_VERIFY_CHROMIUM_VERSION=120.0.6099.224-1~deb11u1 --env RUSTZEN_VERIFY_VERIFIER_IMAGE_ID="$verifier_image" --env RUSTZEN_VERIFY_VERIFIER_KEY="$verifier_key" --env RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256="$verifier_provenance_sha" --mount "type=bind,src=$staged,dst=/verify/bin,readonly" --mount "type=bind,src=$candidate,dst=/verify/evidence" --mount "type=bind,src=$root/scripts/verify-schedule-form-linux-inner.sh,dst=/verify/run.sh,readonly" --mount "type=bind,src=$root/scripts/schedule-form-evidence-lib.sh,dst=/verify/schedule-form-evidence-lib.sh,readonly" --mount "type=bind,src=$root/scripts/admin-browser-fault-proxy.py,dst=/verify/fault-proxy.py,readonly" "$verifier_image" bash /verify/run.sh
+verify_schedule_form_manifest "$candidate/manifest.json" "$head" "$tree_state" "$tree_sha" "$platform" "$candidate/browser-steps.json"
+verify_schedule_form_receipts "$candidate" "$candidate/manifest.json" "$candidate/browser-steps.json"
+verify_schedule_form_artifacts "$candidate" "$candidate/manifest.json"
 read -r final_head final_state final_sha < <("$root/scripts/admin-browser-source-identity.sh");
 test "$final_head" = "$head" && test "$final_state" = "$tree_state" && test "$final_sha" = "$tree_sha"
 mv "$candidate" "$evidence_root/runs/$run_id" && ln -s "runs/$run_id" "$evidence_root/.current-$run_id" && atomic_replace_symlink "$evidence_root/.current-$run_id" "$current";

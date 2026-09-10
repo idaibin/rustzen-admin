@@ -36,6 +36,40 @@ pub(super) fn is_xpath(selector: &str) -> bool {
     selector.starts_with("//") || selector.starts_with("xpath=")
 }
 
+pub(super) fn xpath_exists_script(selector: &str) -> Result<String, serde_json::Error> {
+    let selector = selector.strip_prefix("xpath=").unwrap_or(selector);
+    let selector = serde_json::to_string(selector)?;
+    Ok(format!(
+        "(() => {{ try {{ return {{ found: Boolean(document.evaluate({selector}, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue) }}; }} catch (_) {{ return {{ invalid: true }}; }} }})()"
+    ))
+}
+
+pub(super) async fn xpath_exists(page: &Page, selector: &str) -> Result<bool, AppError> {
+    let script = xpath_exists_script(selector).map_err(AppError::internal)?;
+    let result = page.evaluate(script).await.map_err(AppError::internal)?;
+    xpath_lookup_result(result.value())
+}
+
+fn xpath_lookup_result(value: Option<&Value>) -> Result<bool, AppError> {
+    let value = value
+        .and_then(Value::as_object)
+        .ok_or_else(|| AppError::internal("browser XPath selector result is invalid"))?;
+    if value.get("invalid").and_then(Value::as_bool) == Some(true) {
+        return Err(AppError::InvalidInput("assertAbsent XPath selector is invalid".into()));
+    }
+    value
+        .get("found")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| AppError::internal("browser XPath selector result is invalid"))
+}
+
+pub(super) fn assert_absent(found: bool) -> Result<(), AppError> {
+    if found {
+        return Err(AppError::Conflict("assertAbsent found an element".into()));
+    }
+    Ok(())
+}
+
 pub(super) async fn locate_element(
     page: &Page,
     selector: &str,
@@ -80,7 +114,10 @@ pub(super) fn selector_exists_script(selector: &str) -> Result<String, AppError>
 mod tests {
     use serde_json::json;
 
-    use super::{assert_no_horizontal_overflow, fill_script, is_xpath, selector_exists_script};
+    use super::{
+        assert_absent, assert_no_horizontal_overflow, fill_script, is_xpath,
+        selector_exists_script, xpath_exists_script, xpath_lookup_result,
+    };
 
     #[test]
     fn xpath_selector_detection_supports_slash_and_prefix() {
@@ -91,6 +128,37 @@ mod tests {
         assert!(!is_xpath("#kw"));
         assert!(!is_xpath("button.submit"));
         assert!(!is_xpath("[data-testid='btn']"));
+    }
+
+    #[test]
+    fn xpath_absence_uses_first_ordered_lookup_with_json_encoded_input() {
+        let script = xpath_exists_script("xpath=//*[@data-name='a\"b']").unwrap();
+        assert!(script.starts_with(
+            "(() => { try { return { found: Boolean(document.evaluate(\"//*[@data-name='a\\\"b']\""
+        ));
+        assert!(script.contains("XPathResult.FIRST_ORDERED_NODE_TYPE"));
+        assert!(script.contains(").singleNodeValue)"));
+        assert!(script.ends_with("return { invalid: true }; } })()"));
+    }
+
+    #[test]
+    fn assert_absent_accepts_a_missing_selector_and_conflicts_when_found() {
+        assert!(assert_absent(false).is_ok());
+        assert!(matches!(assert_absent(true), Err(crate::common::error::AppError::Conflict(_))));
+    }
+
+    #[test]
+    fn xpath_lookup_distinguishes_found_missing_and_invalid_selectors() {
+        assert!(xpath_lookup_result(Some(&json!({"found": false}))).is_ok());
+        assert!(matches!(xpath_lookup_result(Some(&json!({"found": true}))), Ok(true)));
+        assert!(matches!(
+            xpath_lookup_result(Some(&json!({"invalid": true}))),
+            Err(crate::common::error::AppError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            xpath_lookup_result(Some(&json!({"found": "true"}))),
+            Err(crate::common::error::AppError::Internal)
+        ));
     }
 
     #[test]

@@ -170,6 +170,7 @@ viewer_retry_status=$(curl --silent --show-error --output /verify/evidence/viewe
     -H "authorization: Bearer $viewer_token" -X POST "$admin/api/reports/runs/$failure_run/retry")
 test "$viewer_schedule_status" = 403
 test "$viewer_retry_status" = 403
+for receipt in viewer-schedule-mutation.json viewer-retry.json; do jq -e '. == {code:403,message:"Permission denied",data:null}' "/verify/evidence/$receipt" >/dev/null; done
 wait_reports_ui_outbox_settled /opt/rz/data/reports/db/reports.db
 seed_reports_ui_delivery_status /opt/rz/data/reports/db/reports.db
 
@@ -228,6 +229,8 @@ cmp <(jq -Sc '.data' /verify/evidence/reports-delivery-owner.json) /verify/evide
 cmp <(jq -Sc '.data' /verify/evidence/reports-delivery-viewer.json) /verify/evidence/reports-delivery-db.json
 delivery_owner_receipt=$(evidence_file_descriptor reports-delivery-owner.json)
 delivery_viewer_receipt=$(evidence_file_descriptor reports-delivery-viewer.json)
+viewer_schedule_receipt=$(jq -nc --arg file viewer-schedule-mutation.json --arg sha "$(sha256sum /verify/evidence/viewer-schedule-mutation.json | awk '{print $1}')" '{status:403,file:$file,sha256:$sha}')
+viewer_retry_receipt=$(jq -nc --arg file viewer-retry.json --arg sha "$(sha256sum /verify/evidence/viewer-retry.json | awk '{print $1}')" '{status:403,file:$file,sha256:$sha}')
 processing_step_receipt=$(evidence_file_descriptor processing-run-steps.json)
 source_run_before=$(evidence_file_descriptor source-run.before.json)
 source_steps_before=$(evidence_file_descriptor source-steps.before.json)
@@ -254,8 +257,8 @@ jq -n \
     --arg active "$active_run" \
     --arg processing_status "$processing_status" \
     --arg failure_error "$failure_error" \
-    --argjson viewer_schedule "$viewer_schedule_status" \
-    --argjson viewer_retry "$viewer_retry_status" \
+    --argjson viewer_schedule_receipt "$viewer_schedule_receipt" \
+    --argjson viewer_retry_receipt "$viewer_retry_receipt" \
     --argjson processing_receipt "$processing_receipt" \
     --argjson failure_receipt "$failure_receipt" \
     --argjson partial_receipt "$partial_receipt" \
@@ -276,7 +279,7 @@ jq -n \
     --argjson partial_artifact "$partial_artifact" \
     --argjson viewer_artifact "$viewer_artifact" '
     {
-      schemaVersion:2,
+      schemaVersion:3,
       status:"passed",
       gitHead:$head,
       sourceTreeState:$state,
@@ -289,7 +292,7 @@ jq -n \
       sourceEvidence:{runId:$enqueued,status:"failed",error:$failure_error,failedStep:$failed_step,before:{run:$source_run_before,steps:$source_steps_before,artifacts:$source_artifacts_before},after:{run:$source_run_after,steps:$source_steps_after,artifacts:$source_artifacts_after}},
       retry:{childId:$child,sourcePreserved:true},
       partialFixture:{enqueuedRunId:$enqueued,skippedRunLinked:false},
-      viewOnly:{scheduleMutationStatus:$viewer_schedule,retryStatus:$viewer_retry},
+      viewOnly:{scheduleMutationReceipt:$viewer_schedule_receipt,retryReceipt:$viewer_retry_receipt},
       deliveryHealth:{gapTotal:15,ownerReceipt:$delivery_owner_receipt,viewerReceipt:$delivery_viewer_receipt},
       artifacts:[$processing_artifact,$failure_artifact,$partial_artifact,$viewer_artifact]
     }

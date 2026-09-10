@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. /verify/schedule-form-evidence-lib.sh
 for command in chromium curl jq file setpriv ss python3
 do command -v "$command" >/dev/null
 done
@@ -107,15 +108,15 @@ count_rows() { curl_json "${auth[@]}" "$admin/api/reports/schedules" | jq '.data
 }
 start_proxy /verify/evidence/local.receipt.json
 before=$(count_rows)
-run_case malformed-input "$proxy_system" "$(jq -c '.malformedInput' <<<"$steps")" >/dev/null
-run_case missing-time "$proxy_system" "$(jq -c '.missingTime' <<<"$steps")" >/dev/null
+malformed_run=$(run_case malformed-input "$proxy_system" "$(jq -c '.malformedInput' <<<"$steps")")
+missing_run=$(run_case missing-time "$proxy_system" "$(jq -c '.missingTime' <<<"$steps")")
 after=$(count_rows)
 stop_proxy
 local_posts=$(jq -er '.hitCount' /verify/evidence/local.receipt.json)
 [ "$before" = "$after" ] && [ "$local_posts" = 0 ]
 start_proxy /verify/evidence/secret.receipt.json
 secret_before=$(count_rows)
-run_case secret-rejected "$proxy_system" "$(jq -c '.secretRejected' <<<"$steps")" >/dev/null
+secret_run=$(run_case secret-rejected "$proxy_system" "$(jq -c '.secretRejected' <<<"$steps")")
 secret_after=$(count_rows)
 stop_proxy
 secret_posts=$(jq -er '.hitCount' /verify/evidence/secret.receipt.json)
@@ -142,4 +143,11 @@ mobile_sha=$(artifact "$viewer_run" schedule-form-mobile-light-zh schedule-form-
 desktop_dimensions=$(file /verify/evidence/schedule-form-desktop-dark-en.png | sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/')
 mobile_dimensions=$(file /verify/evidence/schedule-form-mobile-light-zh.png | sed -E 's/.*PNG image data, ([0-9]+ x [0-9]+).*/\1/')
 [ "$desktop_dimensions" = '1440 x 900' ] && [ "$mobile_dimensions" = '390 x 844' ]
-jq -nc --arg head "$RUSTZEN_VERIFY_HEAD" --arg state "$RUSTZEN_VERIFY_SOURCE_TREE_STATE" --arg sha "$RUSTZEN_VERIFY_SOURCE_TREE_SHA256" --arg platform "$RUSTZEN_VERIFY_PLATFORM" --argjson before "$before" --argjson after "$after" --argjson local "$local_posts" --argjson sb "$secret_before" --argjson sa "$secret_after" --argjson secret "$secret_posts" --arg daily "$daily_run" --arg weekly "$weekly_run" --arg viewer "$viewer_run" --arg desktop "$desktop_sha" --arg mobile "$mobile_sha" --arg dd "$desktop_dimensions" --arg md "$mobile_dimensions" '{schemaVersion:1,status:"passed",gitHead:$head,sourceTreeState:$state,sourceTreeSha256:$sha,platform:$platform,chromiumVersion:env.RUSTZEN_VERIFY_CHROMIUM_VERSION,runs:{daily:$daily,weekly:$weekly,viewer:$viewer},localValidation:{rowsBefore:$before,rowsAfter:$after,proxyPostCount:$local},secretPolicy:{rowsBefore:$sb,rowsAfter:$sa,rowDelta:($sa-$sb),proxyPostCount:$secret},schedule:{cadence:"weekly",weekday:0,dueTime:"10:16",timezone:"UTC"},viewOnly:{managementVisible:false,dueTime:"10:16 · UTC"},artifacts:[{file:"schedule-form-desktop-dark-en.png",sha256:$desktop,dimensions:$dd},{file:"schedule-form-mobile-light-zh.png",sha256:$mobile,dimensions:$md}]}' >/verify/evidence/manifest.json
+cancel_receipt=$(save_schedule_form_run_steps "$cancel_run" cancel)
+malformed_receipt=$(save_schedule_form_run_steps "$malformed_run" malformedInput)
+missing_time_receipt=$(save_schedule_form_run_steps "$missing_run" missingTime)
+secret_receipt=$(save_schedule_form_run_steps "$secret_run" secretRejected)
+daily_receipt=$(save_schedule_form_run_steps "$daily_run" daily)
+weekly_receipt=$(save_schedule_form_run_steps "$weekly_run" weekly)
+viewer_receipt=$(save_schedule_form_run_steps "$viewer_run" viewer)
+jq -nc --arg head "$RUSTZEN_VERIFY_HEAD" --arg state "$RUSTZEN_VERIFY_SOURCE_TREE_STATE" --arg sha "$RUSTZEN_VERIFY_SOURCE_TREE_SHA256" --arg platform "$RUSTZEN_VERIFY_PLATFORM" --argjson before "$before" --argjson after "$after" --argjson local "$local_posts" --argjson sb "$secret_before" --argjson sa "$secret_after" --argjson secret "$secret_posts" --arg cancel "$cancel_run" --arg malformed "$malformed_run" --arg missing "$missing_run" --arg secret_run "$secret_run" --arg daily "$daily_run" --arg weekly "$weekly_run" --arg viewer "$viewer_run" --argjson cancel_receipt "$cancel_receipt" --argjson malformed_receipt "$malformed_receipt" --argjson missing_receipt "$missing_time_receipt" --argjson secret_receipt "$secret_receipt" --argjson daily_receipt "$daily_receipt" --argjson weekly_receipt "$weekly_receipt" --argjson viewer_receipt "$viewer_receipt" --arg desktop "$desktop_sha" --arg mobile "$mobile_sha" --arg dd "$desktop_dimensions" --arg md "$mobile_dimensions" '{schemaVersion:2,status:"passed",gitHead:$head,sourceTreeState:$state,sourceTreeSha256:$sha,platform:$platform,chromiumVersion:env.RUSTZEN_VERIFY_CHROMIUM_VERSION,runs:{cancel:$cancel,malformedInput:$malformed,missingTime:$missing,secretRejected:$secret_run,daily:$daily,weekly:$weekly,viewer:$viewer},runSteps:{cancel:$cancel_receipt,malformedInput:$malformed_receipt,missingTime:$missing_receipt,secretRejected:$secret_receipt,daily:$daily_receipt,weekly:$weekly_receipt,viewer:$viewer_receipt},localValidation:{rowsBefore:$before,rowsAfter:$after,proxyPostCount:$local},secretPolicy:{rowsBefore:$sb,rowsAfter:$sa,rowDelta:($sa-$sb),proxyPostCount:$secret},schedule:{cadence:"weekly",weekday:0,dueTime:"10:16",timezone:"UTC"},viewOnly:{managementVisible:false,dueTime:"10:16 · UTC"},artifacts:[{file:"schedule-form-desktop-dark-en.png",sha256:$desktop,dimensions:$dd},{file:"schedule-form-mobile-light-zh.png",sha256:$mobile,dimensions:$md}]}' >/verify/evidence/manifest.json

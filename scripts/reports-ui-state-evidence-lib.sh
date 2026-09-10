@@ -35,7 +35,7 @@ verify_reports_ui_state_manifest() (
     jq -e \
         --arg head "$head" --arg state "$state" --arg sha "$sha" --arg platform "$platform" \
         --argjson expected_cases "$expected_cases" --argjson expected_artifacts "$expected_artifacts" '
-        .schemaVersion == 2
+        .schemaVersion == 3
         and .status == "passed"
         and .gitHead == $head and .sourceTreeState == $state and .sourceTreeSha256 == $sha and .platform == $platform
         and (.chromiumVersion | type == "string" and length > 0)
@@ -59,7 +59,12 @@ verify_reports_ui_state_manifest() (
         and (.processing.stepReceipt.file == "processing-run-steps.json" and (.processing.stepReceipt.sha256 | test("^[0-9a-f]{64}$")))
         and (.partialFixture | .enqueuedRunId | type == "string" and length > 0)
         and (.partialFixture.skippedRunLinked == false)
-        and (.viewOnly.scheduleMutationStatus == 403 and .viewOnly.retryStatus == 403)
+        and (.viewOnly | keys | sort) == ["retryReceipt","scheduleMutationReceipt"]
+        and (.viewOnly.scheduleMutationReceipt | keys | sort) == ["file","sha256","status"]
+        and (.viewOnly.retryReceipt | keys | sort) == ["file","sha256","status"]
+        and .viewOnly.scheduleMutationReceipt == {status:403,file:"viewer-schedule-mutation.json",sha256:.viewOnly.scheduleMutationReceipt.sha256}
+        and .viewOnly.retryReceipt == {status:403,file:"viewer-retry.json",sha256:.viewOnly.retryReceipt.sha256}
+        and ([.viewOnly.scheduleMutationReceipt,.viewOnly.retryReceipt][] | .sha256 | type == "string" and test("^[0-9a-f]{64}$"))
         and (.deliveryHealth.gapTotal == 15)
         and (.deliveryHealth.ownerReceipt.file == "reports-delivery-owner.json")
         and (.deliveryHealth.viewerReceipt.file == "reports-delivery-viewer.json")
@@ -133,6 +138,18 @@ verify_reports_ui_state_receipts() (
     processing_hash=$(jq -er '.processing.stepReceipt.sha256' "$manifest")
     test "$(shasum -a 256 "$directory/$processing_file" | awk '{print $1}')" = "$processing_hash"
     jq -e --arg run "$(jq -er '.processing.runId' "$manifest")" '(.data | any(.runId == $run and .action == "pause" and .status == "cancelled"))' "$directory/$processing_file" >/dev/null
+)
+
+verify_reports_ui_state_forbidden_receipts() (
+    set -e
+    local directory=$1 manifest=$2 receipt file_name expected_hash actual_hash
+    for receipt in scheduleMutationReceipt retryReceipt; do
+        file_name=$(jq -er --arg receipt "$receipt" '.viewOnly[$receipt].file' "$manifest")
+        expected_hash=$(jq -er --arg receipt "$receipt" '.viewOnly[$receipt].sha256' "$manifest")
+        actual_hash=$(shasum -a 256 "$directory/$file_name" | awk '{print $1}')
+        test "$actual_hash" = "$expected_hash" || return 1
+        jq -e '. == {code:403,message:"Permission denied",data:null}' "$directory/$file_name" >/dev/null || return 1
+    done
 )
 
 verify_reports_ui_state_source_evidence() (

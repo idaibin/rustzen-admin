@@ -18,3 +18,12 @@ test("module menu translations preserve user supplied titles in both languages",
         );
     }
 });
+
+test("reports schedule menu uses the selected locale", () => {
+    for (const locale of ["zh-CN", "en-US"] as const) {
+        setLocale(locale);
+        expect(localizeModuleMenuName("reports", "schedules", "定时报表")).toBe(
+            locale === "zh-CN" ? "定时报表" : "Scheduled reports",
+        );
+    }
+});

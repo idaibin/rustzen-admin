@@ -199,7 +199,9 @@ const toMenuItems = (items: AppRouteItem[]): MenuProps["items"] =>
     items.map((item) => ({
         key: item.path || item.name,
         icon: item.icon,
-        label: item.name,
+        label: item.permission === "reports:schedule:view" ? (
+            <span data-testid="navigation-reports-schedules" data-label={item.name}>{item.name}</span>
+        ) : item.name,
         children: item.children?.length ? toMenuItems(item.children) : undefined,
     }));
 

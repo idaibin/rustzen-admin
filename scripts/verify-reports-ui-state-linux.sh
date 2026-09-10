@@ -117,6 +117,7 @@ verify_reports_ui_state_manifest "$candidate/manifest.json" "$head" "$tree_state
 verify_reports_ui_state_artifacts "$candidate" "$candidate/manifest.json"
 verify_reports_ui_state_receipts "$candidate" "$candidate/manifest.json"
 verify_reports_ui_state_delivery_receipts "$candidate" "$candidate/manifest.json"
+verify_reports_ui_state_forbidden_receipts "$candidate" "$candidate/manifest.json"
 verify_reports_ui_state_source_evidence "$candidate" "$candidate/manifest.json"
 verify_staged_binaries
 read -r final_head final_state final_sha < <("$root/scripts/admin-browser-source-identity.sh")

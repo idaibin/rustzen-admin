@@ -26,6 +26,11 @@ const viewer = (steps) => [
     ...steps,
 ];
 
+const englishScheduleMenu = [
+    { action: "assertText", selector: "[data-testid='navigation-reports-schedules'][data-label='Scheduled reports']", text: "Scheduled reports" },
+    { action: "assertAbsent", selector: "[data-testid='navigation-reports-schedules'][data-label='定时报表']" },
+];
+
 const openCreate = [
     { action: "goto", url: "/reports/templates" },
     { action: "waitFor", selector: "[data-testid=schedule-create]" },
@@ -67,6 +72,7 @@ const steps = {
     ]),
     createDaily: manager([
         ...openCreate,
+        ...englishScheduleMenu,
         { action: "assertText", selector: "[data-testid=schedule-cadence]", text: "Daily" },
         { action: "fill", selector: "[data-testid=schedule-due-time]", value: "10:15" },
         { action: "fill", selector: "[data-testid=schedule-description]", value: "sr-ui-002 daily" },
@@ -79,6 +85,7 @@ const steps = {
     editWeekly: manager([
         { action: "goto", url: "/reports/templates" },
         { action: "waitFor", selector: "[data-testid=schedule-edit]" },
+        ...englishScheduleMenu,
         { action: "click", selector: "[data-testid=schedule-edit]" },
         { action: "waitFor", selector: "[data-testid=schedule-dialog]" },
         { action: "click", selector: "[data-testid=schedule-cadence]" },

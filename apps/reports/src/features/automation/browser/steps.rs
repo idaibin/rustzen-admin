@@ -12,7 +12,10 @@ use super::{
         types::{Flow, FlowStep},
     },
     ExecutionContext, artifacts,
-    dom::{assert_no_horizontal_overflow, fill_script, is_xpath, locate_element, wait_for},
+    dom::{
+        assert_absent, assert_no_horizontal_overflow, fill_script, is_xpath, locate_element,
+        wait_for, xpath_exists,
+    },
     layout::assert_page_element_layout,
     timeout,
 };
@@ -166,15 +169,12 @@ async fn execute_step(
             Ok(StepOutcome::Continue)
         }
         FlowStep::AssertAbsent { selector } => {
-            let elements = if is_xpath(selector) {
-                context.page.find_xpaths(selector.strip_prefix("xpath=").unwrap_or(selector)).await
+            let found = if is_xpath(selector) {
+                xpath_exists(context.page, selector).await?
             } else {
-                context.page.find_elements(selector).await
-            }
-            .map_err(AppError::internal)?;
-            if !elements.is_empty() {
-                return Err(AppError::Conflict("assertAbsent found an element".into()));
-            }
+                !context.page.find_elements(selector).await.map_err(AppError::internal)?.is_empty()
+            };
+            assert_absent(found)?;
             Ok(StepOutcome::Continue)
         }
         FlowStep::Screenshot { name } => {
