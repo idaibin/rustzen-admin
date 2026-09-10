@@ -37,38 +37,57 @@ mod tests {
     use super::MIGRATOR;
 
     #[tokio::test]
-    async fn existing_0001_database_clears_the_legacy_seed_before_enable() {
+    async fn fresh_schema_has_exact_ledger_objects_and_disabled_seed() {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect("sqlite::memory:")
             .await
             .expect("connect");
-        let mut connection = pool.acquire().await.expect("acquire");
-        MIGRATOR.run_direct(Some(1), &mut *connection, false).await.expect("apply published 0001");
-        drop(connection);
-
-        let legacy_hash: String = sqlx::query_scalar(
-            "SELECT project_key_hash FROM insights_projects WHERE id = 'default'",
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("legacy seed");
-        assert_eq!(legacy_hash, "6ab538c2b9772ed3ea67476cf10035de9a31718833b1ab27c2d28c269f9a5b95");
-
-        MIGRATOR.run(&pool).await.expect("upgrade 0001 to current");
-
-        let upgraded_hash: String = sqlx::query_scalar(
-            "SELECT project_key_hash FROM insights_projects WHERE id = 'default'",
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("upgraded project key hash");
-        assert!(upgraded_hash.is_empty());
+        MIGRATOR.run(&pool).await.expect("migrate fresh schema");
         let versions: Vec<i64> =
             sqlx::query_scalar("SELECT version FROM _sqlx_migrations ORDER BY version")
                 .fetch_all(&pool)
                 .await
                 .expect("migration history");
-        assert_eq!(versions, vec![1, 2]);
+        assert_eq!(versions, vec![1]);
+        let tables: Vec<String> = sqlx::query_scalar(
+            "SELECT name FROM sqlite_master
+             WHERE type = 'table' AND name LIKE 'insights_%'
+             ORDER BY name",
+        )
+        .fetch_all(&pool)
+        .await
+        .expect("schema tables");
+        assert_eq!(tables, ["insights_events", "insights_projects", "insights_settings"]);
+        let indexes: Vec<String> = sqlx::query_scalar(
+            "SELECT name FROM sqlite_master
+             WHERE type = 'index' AND name LIKE 'idx_insights_%'
+             ORDER BY name",
+        )
+        .fetch_all(&pool)
+        .await
+        .expect("schema indexes");
+        assert_eq!(
+            indexes,
+            [
+                "idx_insights_events_project_api_time",
+                "idx_insights_events_project_name_time",
+                "idx_insights_events_project_page_time",
+                "idx_insights_events_project_time",
+                "idx_insights_events_project_visitor_time",
+            ]
+        );
+        let seed: (String, i64, String, i64) = sqlx::query_as(
+            "SELECT project_key_hash, collection_enabled, allowed_origins,
+                    (SELECT max_batch_events FROM insights_settings WHERE singleton = 1)
+             FROM insights_projects WHERE id = 'default'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("fresh disabled seed");
+        assert_eq!(seed, (String::new(), 0, "[]".to_string(), 50));
+        let invalid =
+            sqlx::query("UPDATE insights_projects SET collection_enabled = 2").execute(&pool).await;
+        assert!(invalid.is_err(), "collection_enabled CHECK must reject invalid state");
     }
 }

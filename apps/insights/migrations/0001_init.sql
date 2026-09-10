@@ -2,6 +2,7 @@ CREATE TABLE insights_projects (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     project_key_hash TEXT NOT NULL UNIQUE,
+    collection_enabled INTEGER NOT NULL DEFAULT 0 CHECK (collection_enabled IN (0, 1)),
     allowed_origins TEXT NOT NULL DEFAULT '[]',
     archived_at TEXT,
     created_at TEXT NOT NULL,
@@ -45,7 +46,7 @@ CREATE TABLE insights_settings (
     event_retention_days INTEGER NOT NULL DEFAULT 30,
     default_query_days INTEGER NOT NULL DEFAULT 7,
     max_query_days INTEGER NOT NULL DEFAULT 90,
-    max_batch_events INTEGER NOT NULL DEFAULT 100,
+    max_batch_events INTEGER NOT NULL DEFAULT 50,
     business_timezone TEXT NOT NULL DEFAULT 'UTC',
     updated_at TEXT NOT NULL
 );
@@ -57,7 +58,7 @@ INSERT INTO insights_projects (
     id, name, project_key_hash, allowed_origins, created_at, updated_at
 )
 VALUES (
-    'default', '默认', '6ab538c2b9772ed3ea67476cf10035de9a31718833b1ab27c2d28c269f9a5b95', '[]',
+    'default', '默认', '', '[]',
     strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
     strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 );

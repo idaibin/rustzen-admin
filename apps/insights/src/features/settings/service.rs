@@ -11,11 +11,6 @@ use super::{
     types::{CollectionPolicy, CollectionPolicyUpdate, Settings},
 };
 
-/// Hash shipped by the original 0001 seed. It is not an operator-configured
-/// routing identifier and must never make a fresh installation appear ready.
-pub(crate) const LEGACY_SEEDED_PROJECT_KEY_HASH: &str =
-    "6ab538c2b9772ed3ea67476cf10035de9a31718833b1ab27c2d28c269f9a5b95";
-
 pub async fn get(pool: &SqlitePool) -> Result<Settings, AppError> {
     repo::get(pool).await.map_err(AppError::internal)
 }
@@ -76,8 +71,7 @@ pub async fn update_collection_policy(
 }
 
 fn project_configured(project_key_hash: &str) -> bool {
-    let project_key_hash = project_key_hash.trim();
-    !project_key_hash.is_empty() && project_key_hash != LEGACY_SEEDED_PROJECT_KEY_HASH
+    !project_key_hash.trim().is_empty()
 }
 
 pub(crate) fn hash_project_key(project_key: &str) -> Result<String, AppError> {

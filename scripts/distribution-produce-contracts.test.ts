@@ -12,7 +12,7 @@ import { resolveSelection } from "../distribution/resolver.ts";
 
 const repositoryRoot = resolve(import.meta.dir, "..");
 
-test("contract producer rejects an unsupported partial kind before writing output", async () => {
+test("Analytics schema producer writes only the exact schema artifact", async () => {
     const scratch = await mkdtemp(join(tmpdir(), "rz-contract-kind-"));
     try {
         const output = join(scratch, "contracts");
@@ -28,8 +28,39 @@ test("contract producer rejects an unsupported partial kind before writing outpu
             stdout: "pipe",
             stderr: "pipe",
         });
+        expect(new TextDecoder().decode(result.stderr)).toBe("");
+        expect(result.exitCode).toBe(0);
+        expect(await readdir(output)).toEqual(["schema"]);
+        expect(await readdir(join(output, "schema"))).toEqual(["schema.json"]);
+        const artifact = JSON.parse(
+            await readFile(join(output, "schema/schema.json"), "utf8"),
+        );
+        expect(Object.keys(artifact.owners)).toEqual(["admin", "insights"]);
+    } finally {
+        await rm(scratch, { recursive: true, force: true });
+    }
+});
+
+test("contract producer rejects an unsupported partial kind before writing output", async () => {
+    const scratch = await mkdtemp(join(tmpdir(), "rz-contract-kind-"));
+    try {
+        const output = join(scratch, "contracts");
+        const result = Bun.spawnSync([
+            process.execPath,
+            join(repositoryRoot, "scripts/distribution-produce-contracts.ts"),
+            "--selection", join(repositoryRoot, "distribution/fixtures/analytics.json"),
+            "--binary-root", join(scratch, "missing"),
+            "--kind", "protocol",
+        ], {
+            cwd: "/tmp",
+            env: { ...process.env, RUSTZEN_CONTRACT_OUTPUT_ROOT: output },
+            stdout: "pipe",
+            stderr: "pipe",
+        });
         expect(result.exitCode).not.toBe(0);
-        expect(new TextDecoder().decode(result.stderr)).toContain("[--kind <api|config>]");
+        expect(new TextDecoder().decode(result.stderr)).toContain(
+            "[--kind <api|config|schema>]",
+        );
         expect(existsSync(output)).toBeFalse();
     } finally {
         await rm(scratch, { recursive: true, force: true });
@@ -88,7 +119,7 @@ test(
             });
             expect(incomplete.exitCode).not.toBe(0);
             expect(new TextDecoder().decode(incomplete.stderr)).toContain(
-                "use --kind api or --kind config for this selection",
+                "use --kind api, schema, or config for this selection",
             );
             expect(existsSync(output)).toBeFalse();
 

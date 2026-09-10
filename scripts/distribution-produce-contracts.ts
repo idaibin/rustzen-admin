@@ -15,11 +15,11 @@ const kind = parsed.get("--kind");
 if (
     !selectionPath ||
     !binaryRootValue ||
-    (kind !== undefined && kind !== "api" && kind !== "config")
+    (kind !== undefined && kind !== "api" && kind !== "config" && kind !== "schema")
 ) {
     throw new Error(
         "usage: bun scripts/distribution-produce-contracts.ts " +
-            "--selection <selection.json> --binary-root <binary-root> [--kind <api|config>]",
+        "--selection <selection.json> --binary-root <binary-root> [--kind <api|config|schema>]",
     );
 }
 
@@ -32,13 +32,17 @@ const contractRoot = resolve(
 );
 if (kind === "api" && !supportsSelectedApiContract(plan))
     throw new Error("selected API production is unavailable for this selection");
+if (kind === "schema" && !supportsSelectedSchema(plan))
+    throw new Error("selected schema production is unavailable for this selection");
 if (
     kind === undefined &&
     plan.artifactClass === "server" &&
-    (!supportsSelectedApiContract(plan) || !supportsSelectedSchema(plan))
+    (plan.preset === "analytics" ||
+        !supportsSelectedApiContract(plan) ||
+        !supportsSelectedSchema(plan))
 )
     throw new Error(
-        "complete contract production is unavailable; use --kind api or --kind config for this selection",
+        "complete contract production is unavailable; use --kind api, schema, or config for this selection",
     );
 
 const run = (kind: "admin" | "insights" | "monitor" | "notifications") => {
@@ -91,6 +95,9 @@ if (kind === "config") {
 } else if (kind === "api") {
     const api = await produceSelectedContract(selection, join(contractRoot, "api"), run);
     console.log(canonicalJson({ api }));
+} else if (kind === "schema") {
+    const schema = await produceSchemaContract(selection, root, join(contractRoot, "schema"));
+    console.log(canonicalJson({ schema }));
 } else {
     const config = await produceSelectedConfig(selection, join(contractRoot, "config"), runConfig);
     if (plan.artifactClass === "node-agent") {

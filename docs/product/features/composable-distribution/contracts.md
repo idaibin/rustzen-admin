@@ -1066,11 +1066,12 @@ layout use their own selected artifacts.
 
 ### Selected schema artifact
 
-Monitor server schema evidence is canonical JSON under the exact `admin` and
-`monitor` owners. Each schema fingerprint hashes the corresponding final
-fresh-install SQL bytes. Its data-contract ID hashes a versioned descriptor of
-owner and schema fingerprint. Release-manifest callers provide only the verified
-schema artifact root; direct schema digests, fingerprints and data IDs are rejected.
+Selected server schema evidence is canonical JSON under the exact `admin` and
+`monitor` owners for Monitor, or exact `admin` and `insights` owners for
+Analytics. Each schema fingerprint hashes the corresponding final fresh-install
+SQL bytes. Its data-contract ID hashes a versioned descriptor of owner and
+schema fingerprint. Release-manifest callers provide only the verified schema
+artifact root; direct schema digests, fingerprints and data IDs are rejected.
 
 ### Selected configuration descriptors
 

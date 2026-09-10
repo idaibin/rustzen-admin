@@ -18,6 +18,38 @@ const notifySelection = {
     preset: "monitor-notify",
     target: "x86_64-unknown-linux-musl",
 };
+const analyticsSelection = {
+    preset: "analytics",
+    target: "x86_64-unknown-linux-musl",
+};
+
+test("analytics binds exactly the Admin and Insights fresh schemas", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-schema-analytics-"));
+    try {
+        const result = await produceSchemaContract(
+            analyticsSelection,
+            join(import.meta.dir, ".."),
+            join(root, "out"),
+        );
+        expect(result.contract.preset).toBe("analytics");
+        expect(Object.keys(result.contract.owners)).toEqual(["admin", "insights"]);
+        const mutations: Array<(value: Record<string, unknown>) => void> = [
+            (value) => delete (value.owners as Record<string, unknown>).insights,
+            (value) => ((value.owners as Record<string, unknown>).monitor = {}),
+            (value) => (
+                ((value.owners as Record<string, Record<string, unknown>>).admin.schemaSha256 =
+                    "0".repeat(64))
+            ),
+        ];
+        for (const mutate of mutations) {
+            const value = structuredClone(result.contract) as Record<string, unknown>;
+            mutate(value);
+            expect(() => parseSchemaContract(value, analyticsSelection)).toThrow();
+        }
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
 
 test("monitor-notify binds the optional Admin inbox fragment", async () => {
     const root = await mkdtemp(join(tmpdir(), "rz-schema-notify-"));
@@ -89,17 +121,23 @@ test("schema contract rejects structural and identity mutations", async () => {
             join(import.meta.dir, ".."),
             out,
         );
-        const mutations: Array<(v: any) => void> = [
+        const mutations: Array<(value: Record<string, unknown>) => void> = [
             (v) => (v.preset = "full"),
             (v) => (v.compositionId = "0".repeat(64)),
-            (v) => delete v.owners.admin,
-            (v) => (v.owners.extra = {}),
-            (v) => (v.owners.admin.schemaSha256 = "0".repeat(64)),
-            (v) => (v.owners.monitor.dataContractId = "0".repeat(64)),
-            (v) => (v.extra = true),
+            (value) => delete (value.owners as Record<string, unknown>).admin,
+            (value) => ((value.owners as Record<string, unknown>).extra = {}),
+            (value) => (
+                ((value.owners as Record<string, Record<string, unknown>>).admin.schemaSha256 =
+                    "0".repeat(64))
+            ),
+            (value) => (
+                ((value.owners as Record<string, Record<string, unknown>>).monitor.dataContractId =
+                    "0".repeat(64))
+            ),
+            (value) => (value.extra = true),
         ];
         for (const mutate of mutations) {
-            const value = structuredClone(contract);
+            const value = structuredClone(contract) as Record<string, unknown>;
             mutate(value);
             expect(() => parseSchemaContract(value, selection)).toThrow();
         }
@@ -170,6 +208,28 @@ test("schema producer refuses linked or changing migration sources", async () =>
         ).rejects.toThrow("changed");
     } finally {
         setArtifactAfterOpenHookForTest();
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+test("analytics schema producer refuses a linked Insights migration source", async () => {
+    const root = await mkdtemp(join(tmpdir(), "rz-schema-analytics-source-"));
+    const out = join(root, "out");
+    const adminDir = join(root, "apps/admin/migrations/sqlite-analytics");
+    const insightsDir = join(root, "apps/insights/migrations");
+    try {
+        await mkdir(adminDir, { recursive: true });
+        await mkdir(insightsDir, { recursive: true });
+        await writeFile(join(adminDir, "0001_init.sql"), "CREATE TABLE a(id);");
+        await writeFile(join(root, "external.sql"), "CREATE TABLE forged(id);");
+        await symlink(
+            join(root, "external.sql"),
+            join(insightsDir, "0001_init.sql"),
+        );
+        await expect(
+            produceSchemaContract(analyticsSelection, root, out),
+        ).rejects.toThrow("symlink");
+    } finally {
         await rm(root, { recursive: true, force: true });
     }
 });
