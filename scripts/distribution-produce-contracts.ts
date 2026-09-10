@@ -12,10 +12,14 @@ const parsed = parseArgs(args, ["--selection", "--binary-root", "--kind"]);
 const selectionPath = parsed.get("--selection");
 const binaryRootValue = parsed.get("--binary-root");
 const kind = parsed.get("--kind");
-if (!selectionPath || !binaryRootValue || (kind !== undefined && kind !== "config")) {
+if (
+    !selectionPath ||
+    !binaryRootValue ||
+    (kind !== undefined && kind !== "api" && kind !== "config")
+) {
     throw new Error(
         "usage: bun scripts/distribution-produce-contracts.ts " +
-            "--selection <selection.json> --binary-root <binary-root> [--kind config]",
+            "--selection <selection.json> --binary-root <binary-root> [--kind <api|config>]",
     );
 }
 
@@ -26,19 +30,24 @@ const contractRoot = resolve(
     process.env.RUSTZEN_CONTRACT_OUTPUT_ROOT ??
         join(root, "target/distributions", plan.compositionId, "contracts"),
 );
+if (kind === "api" && !supportsSelectedApiContract(plan))
+    throw new Error("selected API production is unavailable for this selection");
 if (
-    kind !== "config" &&
+    kind === undefined &&
     plan.artifactClass === "server" &&
     (!supportsSelectedApiContract(plan) || !supportsSelectedSchema(plan))
 )
     throw new Error(
-        "complete contract production is unavailable; use --kind config for this selection",
+        "complete contract production is unavailable; use --kind api or --kind config for this selection",
     );
 
-const run = (kind: "admin" | "monitor" | "notifications") => {
-    const binary = join(producerRoot, kind === "monitor" ? "rz-monitor" : "rz-admin");
+const run = (kind: "admin" | "insights" | "monitor" | "notifications") => {
+    const binary = join(
+        producerRoot,
+        kind === "monitor" ? "rz-monitor" : kind === "insights" ? "rz-insights" : "rz-admin",
+    );
     const args =
-        kind === "monitor"
+        kind === "monitor" || kind === "insights"
             ? [binary, "contract", "selected"]
             : [binary, "contract", "selected", kind];
     const result = Bun.spawnSync(args, {
@@ -76,13 +85,21 @@ const runConfig = (
     return JSON.parse(new TextDecoder().decode(result.stdout));
 };
 
-const config = await produceSelectedConfig(selection, join(contractRoot, "config"), runConfig);
-if (kind === "config" || plan.artifactClass === "node-agent") {
+if (kind === "config") {
+    const config = await produceSelectedConfig(selection, join(contractRoot, "config"), runConfig);
     console.log(canonicalJson({ config }));
-} else {
+} else if (kind === "api") {
     const api = await produceSelectedContract(selection, join(contractRoot, "api"), run);
-    const schema = await produceSchemaContract(selection, root, join(contractRoot, "schema"));
-    console.log(canonicalJson({ api, config, schema }));
+    console.log(canonicalJson({ api }));
+} else {
+    const config = await produceSelectedConfig(selection, join(contractRoot, "config"), runConfig);
+    if (plan.artifactClass === "node-agent") {
+        console.log(canonicalJson({ config }));
+    } else {
+        const api = await produceSelectedContract(selection, join(contractRoot, "api"), run);
+        const schema = await produceSchemaContract(selection, root, join(contractRoot, "schema"));
+        console.log(canonicalJson({ api, config, schema }));
+    }
 }
 
 function parseArgs(values: string[], allowed: string[]): Map<string, string> {

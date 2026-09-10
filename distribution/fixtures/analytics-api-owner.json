@@ -1,0 +1,65 @@
+{
+  "apiPrefix": "/api/insights",
+  "contractVersion": 1,
+  "menus": [
+    {
+      "code": "overview",
+      "icon": "chart-no-axes-combined",
+      "path": "/analytics/overview",
+      "permission": "insights:overview:view",
+      "sortOrder": 110,
+      "title": "概览"
+    },
+    {
+      "code": "details",
+      "icon": "chart-no-axes-combined",
+      "path": "/analytics/details",
+      "permission": "insights:event:view",
+      "sortOrder": 120,
+      "title": "明细"
+    }
+  ],
+  "module": "insights",
+  "name": "分析",
+  "routes": [
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/collection-policy",
+      "permission": "insights:manage"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/events",
+      "permission": "insights:event:view"
+    },
+    {
+      "access": "protected",
+      "method": "GET",
+      "path": "/overview",
+      "permission": "insights:overview:view"
+    },
+    {
+      "access": "public",
+      "method": "GET",
+      "path": "/tracker.js"
+    },
+    {
+      "access": "public",
+      "method": "OPTIONS",
+      "path": "/track"
+    },
+    {
+      "access": "public",
+      "method": "POST",
+      "path": "/track"
+    },
+    {
+      "access": "protected",
+      "method": "PUT",
+      "path": "/collection-policy",
+      "permission": "insights:manage"
+    }
+  ]
+}

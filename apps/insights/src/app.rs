@@ -1,12 +1,10 @@
 use std::{error::Error, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::get};
-use rustzen_ipc::{
-    DelegationVerifier, HealthResponse, ModuleDefinition, ModuleManifest, ModuleRouter,
-};
+use rustzen_ipc::{HealthResponse, ModuleManifest};
 use rustzen_storage::SqlitePool;
 
-use crate::{config, features, infra};
+use crate::{config, features, infra, module_routes::build_module_routes};
 
 type StartupResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -37,16 +35,8 @@ fn build_router_with_ingestion(
     ipc_token: &str,
     ingestion: Arc<features::tracking::IngestionState>,
 ) -> StartupResult<Router> {
-    let definition = ModuleDefinition::from_toml(include_str!("../module.toml"))?;
-    let module_id = definition.module.id.clone();
-    let api_prefix = definition.module.api_prefix.clone();
-    let verifier = DelegationVerifier::new(ipc_token)?;
-    let module = ModuleRouter::<AppState>::new(module_id, verifier);
-    let module = features::tracking::register(module)?;
-    let module = features::settings::register(module)?;
-    let module = features::overview::register(module)?;
-    let module = features::query::register(module)?;
-    let (module_routes, manifest) = module.build(&definition, env!("CARGO_PKG_VERSION"))?;
+    let (module_routes, manifest) = build_module_routes(ipc_token)?;
+    let api_prefix = manifest.api_prefix.clone();
     let state = AppState { pool, ingestion, manifest: Arc::new(manifest) };
 
     Ok(Router::new()

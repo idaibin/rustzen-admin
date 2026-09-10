@@ -21,7 +21,7 @@ test("contract producer rejects an unsupported partial kind before writing outpu
             join(repositoryRoot, "scripts/distribution-produce-contracts.ts"),
             "--selection", join(repositoryRoot, "distribution/fixtures/analytics.json"),
             "--binary-root", join(scratch, "missing"),
-            "--kind", "api",
+            "--kind", "schema",
         ], {
             cwd: "/tmp",
             env: { ...process.env, RUSTZEN_CONTRACT_OUTPUT_ROOT: output },
@@ -29,7 +29,7 @@ test("contract producer rejects an unsupported partial kind before writing outpu
             stderr: "pipe",
         });
         expect(result.exitCode).not.toBe(0);
-        expect(new TextDecoder().decode(result.stderr)).toContain("[--kind config]");
+        expect(new TextDecoder().decode(result.stderr)).toContain("[--kind <api|config>]");
         expect(existsSync(output)).toBeFalse();
     } finally {
         await rm(scratch, { recursive: true, force: true });
@@ -37,7 +37,7 @@ test("contract producer rejects an unsupported partial kind before writing outpu
 });
 
 test(
-    "Analytics service producer builds with only the selected Insights config owner",
+    "Analytics producers build and export only the real selected owners",
     async () => {
         const scratch = await mkdtemp(join(tmpdir(), "rz-analytics-service-producer-"));
         try {
@@ -88,7 +88,7 @@ test(
             });
             expect(incomplete.exitCode).not.toBe(0);
             expect(new TextDecoder().decode(incomplete.stderr)).toContain(
-                "use --kind config for this selection",
+                "use --kind api or --kind config for this selection",
             );
             expect(existsSync(output)).toBeFalse();
 
@@ -130,6 +130,38 @@ test(
             expect(artifact).toEqual(
                 completeSelectedConfigForTest(await Bun.file(selectionPath).json()),
             );
+
+            await rm(output, { recursive: true, force: true });
+            const apiProduced = Bun.spawnSync([...producerArgs, "--kind", "api"], {
+                cwd: "/tmp",
+                env: { ...process.env, RUSTZEN_CONTRACT_OUTPUT_ROOT: output },
+                stdout: "pipe",
+                stderr: "pipe",
+            });
+            expect(new TextDecoder().decode(apiProduced.stderr)).toBe("");
+            expect(apiProduced.exitCode).toBe(0);
+            expect(await readdir(output)).toEqual(["api"]);
+            expect(await readdir(join(output, "api"))).toEqual(["api.json"]);
+            const apiArtifact = JSON.parse(
+                await readFile(join(output, "api/api.json"), "utf8"),
+            );
+            expect(Object.keys(apiArtifact.owners)).toEqual(["admin", "insights"]);
+            for (const [binary, args, owner] of [
+                ["rz-admin", ["contract", "selected", "admin"], "admin"],
+                ["rz-insights", ["contract", "selected"], "insights"],
+            ] as const) {
+                const emitted = Bun.spawnSync([join(target, "debug", binary), ...args], {
+                    cwd: "/tmp",
+                    env: { PATH: process.env.PATH ?? "" },
+                    stdout: "pipe",
+                    stderr: "pipe",
+                });
+                expect(emitted.exitCode).toBe(0);
+                expect(new TextDecoder().decode(emitted.stderr)).toBe("");
+                expect(JSON.parse(new TextDecoder().decode(emitted.stdout))).toEqual(
+                    apiArtifact.owners[owner],
+                );
+            }
         } finally {
             await rm(scratch, { recursive: true, force: true });
         }

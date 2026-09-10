@@ -19,6 +19,10 @@ const notifySelection = {
     preset: "monitor-notify",
     target: "x86_64-unknown-linux-musl",
 };
+const analyticsSelection = {
+    preset: "analytics",
+    target: "x86_64-unknown-linux-musl",
+};
 const complete = () => completeSelectedApiContractForTest(selection);
 const runner = (kind: "admin" | "monitor" | "notifications") => {
     if (kind === "notifications") throw new Error("monitor does not select notifications");
@@ -66,7 +70,8 @@ test("monitor-notify adds the inbox owner and protected delivery diagnostics", (
     });
     expect(
         contract.owners.notifications?.routes.every(
-            (route) => route.access.kind === "authenticated",
+            (route) =>
+                typeof route.access === "object" && route.access.kind === "authenticated",
         ),
     ).toBeTrue();
     expect(
@@ -83,6 +88,39 @@ test("monitor-notify adds the inbox owner and protected delivery diagnostics", (
     const missing = structuredClone(contract);
     delete missing.owners.notifications;
     expect(() => parseSelectedApiContract(missing, notifySelection)).toThrow();
+});
+
+test("analytics requires the reviewed Admin and Insights registration owners", () => {
+    const contract = completeSelectedApiContractForTest(analyticsSelection);
+    expect(Object.keys(contract.owners)).toEqual(["admin", "insights"]);
+    const insights = contract.owners.insights;
+    expect(insights.routes).toHaveLength(7);
+    expect(insights.menus?.map((menu) => menu.path)).toEqual([
+        "/analytics/overview",
+        "/analytics/details",
+    ]);
+    const mutations: Array<(value: typeof contract) => void> = [
+        (value) => delete value.owners.insights,
+        (value) => (value.owners.extra = value.owners.admin),
+        (value) => (value.owners.insights.routes = []),
+        (value) => {
+            const route = value.owners.insights.routes.find(
+                (candidate) => candidate.path === "/overview",
+            );
+            if (!route) throw new Error("overview route is required");
+            route.permission = "insights:event:view";
+        },
+        (value) => {
+            const menu = value.owners.insights.menus?.[0];
+            if (!menu) throw new Error("overview menu is required");
+            menu.path = "/analytics/changed";
+        },
+    ];
+    for (const mutate of mutations) {
+        const value = structuredClone(contract);
+        mutate(value);
+        expect(() => parseSelectedApiContract(value, analyticsSelection)).toThrow();
+    }
 });
 
 test("monitor-notify produces a composition-bound API artifact", async () => {

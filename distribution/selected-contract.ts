@@ -15,7 +15,7 @@ export {
     parseSelectedApiContract,
 } from "./selected-contract-validator.ts";
 
-export type ContractRunner = (owner: "admin" | "monitor" | "notifications") => unknown;
+export type ContractRunner = (owner: "admin" | "insights" | "monitor" | "notifications") => unknown;
 
 export async function produceSelectedContract(
     selectionInput: unknown,
@@ -24,10 +24,10 @@ export async function produceSelectedContract(
 ) {
     await rejectSymlink(outputRoot);
     const expected = completeSelectedApiContractForTest(selectionInput);
-    const owners: Record<string, unknown> = {
-        admin: run("admin"),
-        monitor: run("monitor"),
-    };
+    const owners: Record<string, unknown> =
+        expected.preset === "analytics"
+            ? { admin: run("admin"), insights: run("insights") }
+            : { admin: run("admin"), monitor: run("monitor") };
     if (expected.preset === "monitor-notify") owners.notifications = run("notifications");
     const contract = parseSelectedApiContract(
         {

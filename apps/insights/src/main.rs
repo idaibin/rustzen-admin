@@ -4,6 +4,8 @@ mod config;
 mod features;
 mod infra;
 mod middleware;
+mod module_routes;
+mod selected_contract;
 
 use std::error::Error;
 
@@ -23,6 +25,11 @@ pub static RUSTZEN_RELEASE_MARKER: &str = concat!(
 );
 
 fn main() -> StartupResult<()> {
+    #[cfg(feature = "selected-distribution")]
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "selected"] {
+        println!("{}", selected_contract::selected_contract_json()?);
+        return Ok(());
+    }
     #[cfg(feature = "selected-distribution")]
     if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
         println!("{}", serde_json::to_string(&rustzen_config::insights_contract())?);

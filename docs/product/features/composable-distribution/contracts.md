@@ -1056,11 +1056,13 @@ extra files, and changing files are rejected before manifest production.
 
 ### Selected API artifact
 
-Monitor P4 selected API output is canonical JSON, not full OpenAPI. It combines
-only the selected Admin route contracts and Monitor module manifest emitted by
-real registrations. Its SHA-256 is calculated from emitted artifact bytes;
-callers cannot provide an API digest. API, schema and configuration remain
-separate artifacts; protocol and native layout use their own selected artifacts.
+Selected API output is canonical JSON, not full OpenAPI. Monitor combines only
+the selected Admin route contracts and Monitor module manifest; Analytics
+combines only the selected Admin route contracts and Insights module manifest.
+Every module manifest is emitted by its real registration. Its SHA-256 is
+calculated from emitted artifact bytes; callers cannot provide an API digest.
+API, schema and configuration remain separate artifacts; protocol and native
+layout use their own selected artifacts.
 
 ### Selected schema artifact
 

@@ -521,7 +521,7 @@ the Controller and Agent focused tests, and route-level conformance tests.
 They build both binaries, compare descriptor output, exercise gateway delegation
 plus the Agent token, and check the fixed fencing fixture corpus.
 
-| D51 | Run the Monitor selected API producer with empty environment and temporary cwd; mutate a route, owner, namespace or artifact byte | Contract-only binaries remain deterministic; the producer rejects omissions/additions and records only verified artifact bytes |
+| D51 | Run a selected API producer with empty environment and temporary cwd; mutate a route, owner, namespace or artifact byte | Contract-only binaries remain deterministic; the producer rejects omissions/additions and records only verified artifact bytes |
 | D52 | Produce selected schema evidence from both final initialization migrations; mutate owner, digest, canonical bytes, file identity or artifact inventory | Manifest accepts only stable canonical schema evidence for exactly Admin and Monitor and derives every schema/data ID from it |
 | D53 | Build all three selected Config feature sets and run each descriptor command under empty environment from a temporary directory | Exact owner/consumer/key surfaces are emitted deterministically and no value or secret literal is present |
 | D54 | Produce Server and Agent config artifacts; mutate composition, owner, field metadata, canonical bytes, inventory or file identity | Exact class-specific descriptors are required; Manifest derives `configDigest` from stable artifact bytes and rejects caller hashes |
