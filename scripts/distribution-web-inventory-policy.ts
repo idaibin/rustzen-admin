@@ -121,6 +121,10 @@ export function assertModuleIds(
             throw new Error(
                 `selected Web module inventory contains another composition source: ${rawId}`,
             );
+        if (!hasNotifications && notificationOnlyMonitorOwners.has(id))
+            throw new Error(
+                `pure selected Web module inventory contains a notification-only Monitor owner: ${rawId}`,
+            );
         if (
             allowedSourceFiles.has(id) ||
             allowedSourceDirectories.some((directory) => id.startsWith(directory))
@@ -143,6 +147,26 @@ export function assertModuleIds(
     }
     if (!generatedCount)
         throw new Error("selected Web module inventory has no generated route source");
+    for (const owner of requiredModuleOwners(hasNotifications)) {
+        if (!moduleIds.some((rawId) => rawId.split("?", 1)[0] === owner))
+            throw new Error(`selected Web module inventory is missing required owner: ${owner}`);
+    }
+}
+
+const notificationOnlyMonitorOwners = new Set([
+    "apps/web/src/api/monitor/api.ts",
+    "apps/web/src/api/monitor/notification-contract.ts",
+]);
+
+export function requiredModuleOwners(hasNotifications: boolean) {
+    return [
+        "apps/web/src/api/installation/api.ts",
+        hasNotifications
+            ? "apps/web/src/api/monitor/api.ts"
+            : "apps/web/src/api/monitor/core-api.ts",
+        "apps/web/src/api/request.ts",
+        ...(hasNotifications ? ["apps/web/src/api/notifications/api.ts"] : []),
+    ];
 }
 
 /** Shared selected-Monitor inventory policy for producer verification and exported snapshots. */

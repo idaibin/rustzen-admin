@@ -56,12 +56,55 @@ describe("selected Web inventory policy", () => {
     });
 
     test("admits notification modules only for notification selections", () => {
-        const ids = [
+        const pureIds = [
             "apps/web/.selected-web/selection-1/index.tsx",
+            "apps/web/src/api/installation/api.ts",
+            "apps/web/src/api/request.ts",
+            "apps/web/src/api/monitor/core-api.ts",
             "apps/web/src/api/notifications/api.ts",
         ];
-        expect(() => assertModuleIds(ids, "selection-1", false)).toThrow("unclassified");
-        expect(() => assertModuleIds(ids, "selection-1", true)).not.toThrow();
+        expect(() => assertModuleIds(pureIds, "selection-1", false)).toThrow("unclassified");
+        expect(() => assertModuleIds([
+            ...pureIds,
+            "apps/web/src/api/monitor/api.ts",
+        ], "selection-1", true)).not.toThrow();
+    });
+
+    test("requires the API owner selected by the pure or notify template", () => {
+        const base = (ids: string[]) => [
+            `apps/web/.selected-web/${compositionId}/index.tsx`,
+            "apps/web/src/api/installation/api.ts",
+            "apps/web/src/api/request.ts",
+            ...ids,
+        ];
+        expect(() => assertModuleIds(base(["apps/web/src/api/monitor/core-api.ts"]), compositionId, false)).not.toThrow();
+        expect(() => assertModuleIds(base([]), compositionId, false)).toThrow("missing required owner");
+        expect(() => assertModuleIds(base([
+            "apps/web/src/api/monitor/core-api.ts",
+            "apps/web/src/api/monitor/api.ts",
+            "apps/web/src/api/notifications/api.ts",
+        ]), compositionId, true)).not.toThrow();
+        expect(() => assertModuleIds(base([
+            "apps/web/src/api/monitor/core-api.ts",
+            "apps/web/src/api/notifications/api.ts",
+        ]), compositionId, true)).toThrow("missing required owner");
+    });
+
+    test("rejects notification-only Monitor owners from a complete pure selection", () => {
+        const pure = [
+            `apps/web/.selected-web/${compositionId}/index.tsx`,
+            "apps/web/src/api/installation/api.ts",
+            "apps/web/src/api/monitor/core-api.ts",
+            "apps/web/src/api/request.ts",
+        ];
+        for (const owner of [
+            "apps/web/src/api/monitor/api.ts",
+            "apps/web/src/api/monitor/notification-contract.ts",
+        ]) {
+            expect(() => assertModuleIds([...pure, owner], compositionId, false)).toThrow(
+                "notification-only Monitor owner",
+            );
+        }
     });
 
     test("keeps the package allowlist explicit", () => {

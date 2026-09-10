@@ -149,6 +149,16 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool
             generated += 1;
         } else if id.starts_with("apps/web/.selected-web/") {
             panic!("selected Web module inventory contains another composition source: {raw}");
+        } else if !notifications
+            && matches!(
+                id,
+                "apps/web/src/api/monitor/api.ts"
+                    | "apps/web/src/api/monitor/notification-contract.ts"
+            )
+        {
+            panic!(
+                "pure selected Web module inventory contains a notification-only Monitor owner: {raw}"
+            );
         } else if SOURCE_FILES.contains(&id)
             || SOURCE_DIRECTORIES.iter().any(|directory| id.starts_with(directory))
             || (notifications
@@ -165,7 +175,11 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool
     assert!(generated > 0, "selected Web module inventory has no generated route source");
     let mut required = vec![
         "apps/web/src/api/installation/api.ts",
-        "apps/web/src/api/monitor/api.ts",
+        if notifications {
+            "apps/web/src/api/monitor/api.ts"
+        } else {
+            "apps/web/src/api/monitor/core-api.ts"
+        },
         "apps/web/src/api/request.ts",
     ];
     if notifications {
@@ -201,4 +215,74 @@ fn package_name(path: &str) -> &str {
 fn allowed_package(package: &str) -> bool {
     PACKAGES.contains(&package)
         || package.strip_prefix("@rc-component/").is_some_and(|name| RC_COMPONENTS.contains(&name))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate;
+
+    const PREFIX: &str = "apps/web/.selected-web/test/";
+
+    #[test]
+    fn pure_monitor_accepts_the_core_api_template_owner() {
+        validate(
+            &[
+                "apps/web/.selected-web/test/routes/monitoring/overview.tsx",
+                "apps/web/src/api/installation/api.ts",
+                "apps/web/src/api/monitor/core-api.ts",
+                "apps/web/src/api/request.ts",
+            ],
+            PREFIX,
+            false,
+        );
+    }
+
+    #[test]
+    fn notify_monitor_requires_the_notification_api_template_owner() {
+        validate(
+            &[
+                "apps/web/.selected-web/test/routes/monitoring/overview.tsx",
+                "apps/web/src/api/installation/api.ts",
+                "apps/web/src/api/monitor/api.ts",
+                "apps/web/src/api/monitor/core-api.ts",
+                "apps/web/src/api/monitor/notification-contract.ts",
+                "apps/web/src/api/notifications/api.ts",
+                "apps/web/src/api/request.ts",
+            ],
+            PREFIX,
+            true,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "notification-only Monitor owner")]
+    fn pure_monitor_rejects_the_notification_api_wrapper() {
+        validate(
+            &[
+                "apps/web/.selected-web/test/routes/monitoring/overview.tsx",
+                "apps/web/src/api/installation/api.ts",
+                "apps/web/src/api/monitor/core-api.ts",
+                "apps/web/src/api/monitor/api.ts",
+                "apps/web/src/api/request.ts",
+            ],
+            PREFIX,
+            false,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "notification-only Monitor owner")]
+    fn pure_monitor_rejects_the_notification_contract() {
+        validate(
+            &[
+                "apps/web/.selected-web/test/routes/monitoring/overview.tsx",
+                "apps/web/src/api/installation/api.ts",
+                "apps/web/src/api/monitor/core-api.ts",
+                "apps/web/src/api/monitor/notification-contract.ts",
+                "apps/web/src/api/request.ts",
+            ],
+            PREFIX,
+            false,
+        );
+    }
 }
