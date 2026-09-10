@@ -57,7 +57,7 @@ const copyRoute = async (source: string) => {
     await mkdir(dirname(destination), { recursive: true });
     let content = await Bun.file(join(repositoryRoot, source)).text();
     if (relativeRoute === "monitoring/incidents.tsx" && !hasNotifications) {
-        content = content.replace('import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";\n', "").replace('    const deliveryCard = <NotificationDeliveryCard queryKey={["monitor", "notification-delivery"]} queryFn={monitorAPI.notificationDelivery} />;\n', "").replaceAll('                {deliveryCard}\n', "").replaceAll('            {deliveryCard}\n', "");
+        content = content.replace('import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";\n', "").replace(/    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["monitor", "notification-delivery"\]\}\n            queryFn=\{monitorAPI\.notificationDelivery\}\n        \/>\n    \);\n/, "").replaceAll('                {deliveryCard}\n', "").replaceAll('            {deliveryCard}\n', "");
     }
     if (relativeRoute === "__root.tsx" && !hasNotifications) {
         content = content
