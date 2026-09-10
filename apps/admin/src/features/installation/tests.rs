@@ -75,7 +75,13 @@ async fn installation_uses_authenticated_identity_and_selected_state() {
     assert_eq!(authenticated.headers()[header::CACHE_CONTROL], "no-store");
     let body: serde_json::Value =
         serde_json::from_slice(&to_bytes(authenticated.into_body(), 4096).await.unwrap()).unwrap();
+    #[cfg(not(feature = "notifications"))]
     assert_eq!(body["data"]["featureIds"], serde_json::json!(["access", "monitor"]));
+    #[cfg(feature = "notifications")]
+    assert_eq!(
+        body["data"]["featureIds"],
+        serde_json::json!(["access", "monitor", "notifications"])
+    );
     assert_eq!(body["data"]["webDigest"], web_digest());
     assert_eq!(body["data"]["capabilities"], serde_json::json!(["*", "monitor:node:view"]));
     assert_eq!(body["data"]["services"][0]["id"], "monitor");

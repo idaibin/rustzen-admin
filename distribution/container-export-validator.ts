@@ -1,6 +1,7 @@
 import { canonicalJson, sha256, validHash } from "./release-manifest-core.ts";
 import { readArtifactFileTree, type ArtifactFile } from "./release-manifest-artifacts.ts";
 import { resolveSelection } from "./resolver.ts";
+import { containerBuildCommands, reviewedContainerServerPlan } from "./container-export-plan.ts";
 import { verifyMonitorExportElf } from "./container-export-elf.ts";
 import { parseSelectedApiBytes } from "./selected-contract-validator.ts";
 import { parseSelectedConfigBytes } from "./selected-config.ts";
@@ -13,7 +14,7 @@ import { parseWebBinding, verifyWebBinding } from "./selected-web-binding.ts";
 
 type ExportFile = { path: string; mode: "0644" | "0755"; size: number; sha256: string };
 type OutputManifest = {
-    schemaVersion: 1; kind: "monitor-container-output"; preset: "monitor";
+    schemaVersion: 1; kind: "monitor-container-output"; preset: "monitor" | "monitor-notify";
     artifactClass: "server"; compositionId: string; target: "x86_64-unknown-linux-musl";
     files: ExportFile[];
 };
@@ -75,19 +76,16 @@ const contractPaths = [
     "release/contracts/schema/schema.json",
 ];
 const metadataPaths = ["release/container-provenance.json", "release/output-manifest.json"];
-const commands = [
-    ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-admin", "--no-default-features", "--features", "monitor-distribution"],
-    ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-monitor", "--no-default-features", "--features", "controller", "--bin", "rz-monitor"],
-    ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-monitor", "--no-default-features", "--features", "agent", "--bin", "rz-monitor-agent"],
-];
+
 
 /** Reads and validates one immutable Monitor container export without executing Linux binaries. */
 export async function verifyContainerExport(
     root: string, selectionInput: unknown, expectedSourceIdentity: string, expectedReleaseVersion: string,
 ): Promise<VerifiedContainerExportSnapshot> {
     const plan = resolveSelection(selectionInput);
-    if (plan.preset !== "monitor" || plan.artifactClass !== "server" || plan.target !== "x86_64-unknown-linux-musl")
-        throw new Error("container export validator supports only Monitor server selection");
+    reviewedContainerServerPlan(plan);
+    if (plan.target !== "x86_64-unknown-linux-musl")
+        throw new Error("container export validator target is invalid");
     if (typeof expectedSourceIdentity !== "string" || !expectedSourceIdentity || /[\r\n]/.test(expectedSourceIdentity))
         throw new Error("expected source identity must be nonempty single-line text");
     if (typeof expectedReleaseVersion !== "string" || !expectedReleaseVersion || expectedReleaseVersion.length > 64 || /[\r\n]/.test(expectedReleaseVersion))
@@ -112,7 +110,7 @@ export async function verifyContainerExport(
     if (provenance.targetTriple !== plan.target || provenance.buildPlatform !== "linux/amd64")
         throw new Error("container provenance target or build platform differs");
     verifyRustcHost(provenance.rustcVv);
-    exact(provenance.buildCommands, commands, "container provenance build commands");
+    exact(provenance.buildCommands, containerBuildCommands(plan), "container provenance build commands");
     if (provenance.outputManifestSha256 !== sha256(canonicalJson(manifest)))
         throw new Error("container provenance output manifest digest differs");
     exactPayload(payload);
@@ -155,7 +153,7 @@ function verifyContracts(files: Map<string, ArtifactFile>, selection: unknown) {
 function parseManifest(bytes: Uint8Array): OutputManifest {
     const value = json(bytes, "container output manifest");
     objectKeys(value, ["artifactClass", "compositionId", "files", "kind", "preset", "schemaVersion", "target"], "container output manifest");
-    if (value.schemaVersion !== 1 || value.kind !== "monitor-container-output" || value.preset !== "monitor" || value.artifactClass !== "server" || value.target !== "x86_64-unknown-linux-musl")
+    if (value.schemaVersion !== 1 || value.kind !== "monitor-container-output" || !(["monitor", "monitor-notify"] as string[]).includes(value.preset as string) || value.artifactClass !== "server" || value.target !== "x86_64-unknown-linux-musl")
         throw new Error("container output manifest identity is invalid");
     validHash(text(value.compositionId, "container output manifest compositionId"));
     const files = parseFiles(value.files);

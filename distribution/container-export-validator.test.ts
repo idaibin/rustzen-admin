@@ -268,3 +268,14 @@ test("host validator binds selected Web routes, public assets, and output text",
         await rm(root, { recursive: true, force: true });
     }
 });
+
+test("host validator accepts the exact monitor-notify server export", async () => {
+    const notify = { schemaVersion: 1, preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
+    const root = await createExport(notify);
+    try {
+        const snapshot = await verifyContainerExport(root, notify, sourceIdentity, releaseVersion);
+        expect(snapshot.manifest()).toMatchObject({ preset: "monitor-notify" });
+        expect(snapshot.paths()).toContain("release/web/api.ts");
+        expect(snapshot.paths()).not.toContain("release/server/bin/rz-reports");
+    } finally { await rm(root, { recursive: true, force: true }); }
+});

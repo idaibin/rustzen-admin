@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
+import { reviewedContainerServerPlan } from "./container-export-plan.ts";
 import { compareContainerExportPath } from "./container-export-path.ts";
 
 type FileEntry = { path: string; mode: "0644" | "0755"; size: number; sha256: string };
@@ -25,13 +26,9 @@ export type ContainerExportInput = {
  */
 export async function produceContainerExport(input: ContainerExportInput) {
     const plan = resolveSelection(input.selection);
-    if (
-        plan.preset !== "monitor" ||
-        plan.artifactClass !== "server" ||
-        plan.target !== "x86_64-unknown-linux-musl" ||
-        input.targetTriple !== plan.target
-    )
-        throw new Error("container export supports only the reviewed Monitor server target");
+    reviewedContainerServerPlan(plan);
+    if (input.targetTriple !== plan.target)
+        throw new Error("container export target differs from reviewed server selection");
     const runtime = input.runtime ?? { platform: process.platform, arch: process.arch };
     if (runtime.platform !== "linux" || runtime.arch !== "x64")
         throw new Error("container export must run in a linux/amd64 build stage");
@@ -62,6 +59,7 @@ export async function produceContainerExport(input: ContainerExportInput) {
         "witness/bin/rz-monitor-agent",
         "release/web/inventory.json",
         "release/web/binding.json",
+        "release/web/api.ts",
         "release/contracts/api/api.json",
         "release/contracts/config/config.json",
         "release/contracts/schema/schema.json",

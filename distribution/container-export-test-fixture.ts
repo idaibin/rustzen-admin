@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { produceContainerExport } from "./container-export.ts";
+import { containerBuildCommands, reviewedContainerServerPlan } from "./container-export-plan.ts";
+import { resolveSelection } from "./resolver.ts";
 import { completeSelectedApiContractForTest } from "./selected-contract-validator.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
 import { generatedNativeLayout } from "./native-layout.ts";
@@ -12,7 +14,7 @@ import { canonicalBindingBytes, createWebBinding, readWebFiles, stampIndex } fro
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
 export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
 export const releaseVersion = "0.5.0";
-export async function createExport() {
+export async function createExport(selectionInput = selection) {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));
     const binaries = ["release/server/bin/rz-admin", "release/server/bin/rz-monitor", "witness/bin/rz-monitor-agent"];
     const files = [...binaries, "release/web/inventory.json", "release/web/binding.json", "release/web/api.ts", "release/web/dist/index.html", "release/web/dist/rustzen.png", "release/contracts/api/api.json", "release/contracts/config/config.json", "release/contracts/schema/schema.json", "release/contracts/native/native-layout.json", "release/contracts/protocol/protocol.json"];
@@ -23,18 +25,20 @@ export async function createExport() {
         await writeFile(full, binary);
         if (binaries.includes(path)) await chmod(full, 0o755);
     }
-    await writeFile(join(root, "release/contracts/api/api.json"), canonicalJson(completeSelectedApiContractForTest(selection)));
-    await createInventory(root);
-    await writeFile(join(root, "release/contracts/config/config.json"), canonicalJson(completeSelectedConfigForTest(selection)));
-    await writeFile(join(root, "release/contracts/native/native-layout.json"), canonicalJson(generatedNativeLayout(selection)));
-    await writeFile(join(root, "release/contracts/protocol/protocol.json"), canonicalJson(completeSelectedProtocol(selection)));
-    await produceSchemaContract(selection, resolve(import.meta.dir, ".."), join(root, "release/contracts/schema"));
-    await produce(root);
+    await writeFile(join(root, "release/contracts/api/api.json"), canonicalJson(completeSelectedApiContractForTest(selectionInput)));
+    await createInventory(root, selectionInput);
+    await writeFile(join(root, "release/contracts/config/config.json"), canonicalJson(completeSelectedConfigForTest(selectionInput)));
+    await writeFile(join(root, "release/contracts/native/native-layout.json"), canonicalJson(generatedNativeLayout(selectionInput)));
+    await writeFile(join(root, "release/contracts/protocol/protocol.json"), canonicalJson(completeSelectedProtocol(selectionInput)));
+    await produceSchemaContract(selectionInput, resolve(import.meta.dir, ".."), join(root, "release/contracts/schema"));
+    await produce(root, selectionInput);
     return root;
 }
-export async function createInventory(root: string) {
-    const compositionId = completeSelectedApiContractForTest(selection).compositionId;
+export async function createInventory(root: string, selectionInput = selection) {
+    const plan = resolveSelection(selectionInput);
+    const compositionId = plan.compositionId;
     const routes = [
+        ...(plan.preset === "monitor-notify" ? ["-notifications-shell.tsx"] : []),
         "index.tsx", "__root.tsx", "403.tsx", "404.tsx", "login.tsx", "monitoring.tsx",
         "monitoring/incidents.tsx", "monitoring/nodes.tsx", "monitoring/overview.tsx",
         "monitoring/summaries.tsx", "profile.tsx", "system/role.tsx", "system/user.tsx",
@@ -45,7 +49,7 @@ export async function createInventory(root: string) {
     ].sort();
     await writeFile(
         join(root, "release/web/dist/index.html"),
-        "/api/auth/login /api/auth/me /api/monitor/ /api/system/users /api/system/roles /api/system/menus/options /monitoring/overview<meta name=\"rustzen-web-binding\" content=\"__RUSTZEN_WEB_DIGEST__\" />",
+        (plan.preset === "monitor-notify" ? "/api/notifications/stream /api/notifications/unread-count Message center " : "") + "/api/auth/login /api/auth/me /api/monitor/ /api/system/users /api/system/roles /api/system/menus/options /monitoring/overview<meta name=\"rustzen-web-binding\" content=\"__RUSTZEN_WEB_DIGEST__\" />",
     );
     await writeFile(join(root, "release/web/api.ts"), "export const selectedApi = '/api/monitor/';\n");
     const before = await readWebFiles(join(root, "release/web/dist"));
@@ -60,7 +64,7 @@ export async function createInventory(root: string) {
     const files = await readWebFiles(join(root, "release/web/dist"));
     await writeFile(join(root, "release/web/inventory.json"), canonicalJson({
         schemaVersion: 2,
-        preset: "monitor",
+        preset: plan.preset,
         compositionId,
         generatedRoot: `apps/web/.selected-web/${compositionId}`,
         outputDirectory: `target/distributions/${compositionId}/web/dist`,
@@ -68,21 +72,25 @@ export async function createInventory(root: string) {
         publicAssets: ["rustzen.png"],
         emittedFiles: files.map((file) => file.path),
         fileInventory: files.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
-        moduleIds: [`apps/web/.selected-web/${compositionId}/index.tsx`],
+        moduleIds: [
+            `apps/web/.selected-web/${compositionId}/index.tsx`,
+            "apps/web/src/api/installation/api.ts", "apps/web/src/api/monitor/api.ts", "apps/web/src/api/request.ts",
+            ...(plan.preset === "monitor-notify" ? ["apps/web/src/api/notifications/api.ts", "apps/web/src/notifications/message-center.tsx"] : []),
+        ],
         binding,
     }));
     await writeFile(join(root, "release/web/binding.json"), canonicalBindingBytes(binding));
 }
-export async function produce(root: string) {
-    await produceContainerExport({ selection, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: expectedCommands(), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: { platform: "linux", arch: "x64" } });
+export async function produce(root: string, selectionInput = selection) {
+    const plan = resolveSelection(selectionInput);
+    reviewedContainerServerPlan(plan);
+    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: containerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: { platform: "linux", arch: "x64" } });
 }
 export function recordedRustc() { return "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2\n"; }
-export function expectedCommands() {
-    return [
-        ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-admin", "--no-default-features", "--features", "monitor-distribution"],
-        ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-monitor", "--no-default-features", "--features", "controller", "--bin", "rz-monitor"],
-        ["env", "RUSTFLAGS=-C target-feature=+crt-static", "cargo", "build", "--release", "--target", "x86_64-unknown-linux-musl", "-p", "rustzen-monitor", "--no-default-features", "--features", "agent", "--bin", "rz-monitor-agent"],
-    ];
+export function expectedCommands(selectionInput = selection) {
+    const plan = resolveSelection(selectionInput);
+    reviewedContainerServerPlan(plan);
+    return containerBuildCommands(plan);
 }
 export function markerBinary(name: string, options: { interpreted?: boolean } = {}) {
     const bytes = new Uint8Array(256);

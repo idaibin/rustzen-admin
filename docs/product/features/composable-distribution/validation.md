@@ -32,9 +32,10 @@ cover every named catalog preset and must reject unknown or incomplete producer
 sets. The current admitted set is `monitor`, `monitor-notify` and `node-agent`.
 Target `full`, `analytics`, `reports`, `current-full-regression` and `custom`
 return a machine-readable blocked result; `--require-ready` exits nonzero.
-`monitor-notify` admission proves only source/build producer availability; its
-exact build, native runtime, installation, browser and load evidence remain
-Not verified.
+`monitor-notify` admission and static source/build/export closure prove only its
+fixed fixture, Cargo features, composition-qualified Web and retained export
+inventory/contracts. Real Linux container export, native runtime, installation,
+browser and load evidence remain Not verified.
 Admission is not a certificate and cannot satisfy any native, browser, load,
 installation or release gate.
 
@@ -89,7 +90,8 @@ only into one new child of `target/rz`; failure evidence may be appended there
 but the directory is never reused or recursively removed.
 
 The first P8b container closure is verified separately from certification. Its
-static boundary test must reject a non-Linux/amd64 build stage, an omitted Monitor
+static boundary test admits only the reviewed `monitor` and `monitor-notify`
+fixture/feature cases and must reject a non-Linux/amd64 build stage, an omitted Monitor
 source-identity requirement, a target other than x86_64 musl, a missing explicit
 binary root for protocol extraction, omission of any Web/API/schema/config/protocol/native
 output, a misplaced or extra server/witness binary, a missing output manifest or
@@ -99,10 +101,12 @@ unexpected payload paths, links, unsupported modes and non-Linux/amd64 provenanc
 Passing these tests establishes source and static producer closure only. The
 local P8b gate additionally rebuilds through Colima BuildKit for Linux/amd64,
 requires identical source identity before and after the build, validates the
-whole export on the host, and executes seven selected binary contract commands
-in a networkless read-only container with all capabilities dropped. Six API,
-config and protocol outputs must match the retained contracts; the Agent config
-witness must satisfy its selected structural policy. The host then validates the
+whole export on the host, and executes the selected binary contract commands in a networkless read-only
+container with all capabilities dropped: Monitor has seven commands (six
+server API/config/protocol checks plus one Agent config witness), while
+monitor-notify has nine (eight selected server checks plus the same Agent
+witness). Their API, config and protocol outputs must match retained contracts;
+the Agent config witness must satisfy its selected structural policy. The host then validates the
 export again. The accepted local export is
 `target/rz/p8b-container-export-verified`.
 
@@ -184,7 +188,7 @@ and commands in the design are not current working commands.
 | D07 | Owner calls every excluded namespace | 404 JSON/API failure, never 200 SPA or privileged fallback |
 | D08 | Inspect compiled Web entry + all lazy chunks/maps/assets | No excluded route/API/search/nav/product module in graph. The Monitor producer records Vite module IDs and emitted files, validates them against the resolver-derived route/public allowlist, then scans text as a secondary sentinel check. Its mutation suite rejects excluded, foreign-composition, relative or absolute-escape source modules; unknown dependency or virtual module IDs; dynamically composed namespaces; extra static assets; and symbolic links at every output/generated/API-source path ancestor, as well as every inventory identity/list field drift. The selected Vite output is composition-qualified and never reuses `apps/web/dist`. |
 | D08a | Compile Monitor Admin while full `apps/web/dist` is present | Build uses only `apps/admin/selected-web/<compositionId>`; missing or mismatched selected inventory fails before compilation and embedded assets contain no excluded API/capability sentinels |
-| D08b | Pass empty, unknown or custom Docker `DISTRIBUTION` | Docker fails before Web or binary build; omitted argument resolves only through the declared `full` default |
+| D08b | Pass empty, unknown, custom or unreviewed Docker `DISTRIBUTION` | Docker fails before Web or binary build; only literal `monitor` and `monitor-notify` fixture/feature mappings are accepted |
 | D08c | Monitor Docker output contains a binary in the wrong server/agent directory or an extra selected binary | Static Docker verifier rejects; server is exactly rz-admin/rz-monitor and Agent exactly rz-monitor-agent |
 | D08d | Protocol artifact has altered descriptor/digest/class/composition, extra file, link, or replacement during read | Controller/Agent output and reviewed golden must agree; canonical single-file reader rejects every mutation before manifest/build identity derivation. |
 | D09 | Run monitor for 10 minutes with request tracing | Only two server processes/ports; no probe/timer/config lookup for absent services |

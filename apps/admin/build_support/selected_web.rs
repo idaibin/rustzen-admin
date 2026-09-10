@@ -2,46 +2,48 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
-const COMPOSITION_ID: &str = "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b";
-pub const SELECTED_WEB_ROOT: &str =
-    "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b";
-const GENERATED_ROOT: &str =
-    "apps/web/.selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b";
-const OUTPUT_DIRECTORY: &str = "target/distributions/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/web/dist";
-const SELECTED_ROUTES: &[&str] = &[
-    "403.tsx",
-    "404.tsx",
-    "__root.tsx",
-    "index.tsx",
-    "login.tsx",
-    "monitoring.tsx",
-    "monitoring/-global-alert-settings.tsx",
-    "monitoring/-incident-drawer.tsx",
-    "monitoring/-node-alert-policy.tsx",
-    "monitoring/-node-details.tsx",
-    "monitoring/-node-onboarding.tsx",
-    "monitoring/-save-state.ts",
-    "monitoring/incidents.tsx",
-    "monitoring/nodes.tsx",
-    "monitoring/overview.tsx",
-    "monitoring/summaries.tsx",
-    "profile.tsx",
-    "system/-role-actions.tsx",
-    "system/-role-delete-state.ts",
-    "system/-role-dialog.tsx",
-    "system/-role-permission-picker.tsx",
-    "system/-user-actions.tsx",
-    "system/-user-dialog.tsx",
-    "system/role.tsx",
-    "system/user.tsx",
-];
+const MONITOR_ROUTES: &str = "403.tsx\n404.tsx\n__root.tsx\nindex.tsx\nlogin.tsx\nmonitoring.tsx\nmonitoring/-global-alert-settings.tsx\nmonitoring/-incident-drawer.tsx\nmonitoring/-node-alert-policy.tsx\nmonitoring/-node-details.tsx\nmonitoring/-node-onboarding.tsx\nmonitoring/-save-state.ts\nmonitoring/incidents.tsx\nmonitoring/nodes.tsx\nmonitoring/overview.tsx\nmonitoring/summaries.tsx\nprofile.tsx\nsystem/-role-actions.tsx\nsystem/-role-delete-state.ts\nsystem/-role-dialog.tsx\nsystem/-role-permission-picker.tsx\nsystem/-user-actions.tsx\nsystem/-user-dialog.tsx\nsystem/role.tsx\nsystem/user.tsx";
+const MONITOR_NOTIFY_ROUTES: &str = "-notifications-shell.tsx\n403.tsx\n404.tsx\n__root.tsx\nindex.tsx\nlogin.tsx\nmonitoring.tsx\nmonitoring/-global-alert-settings.tsx\nmonitoring/-incident-drawer.tsx\nmonitoring/-node-alert-policy.tsx\nmonitoring/-node-details.tsx\nmonitoring/-node-onboarding.tsx\nmonitoring/-save-state.ts\nmonitoring/incidents.tsx\nmonitoring/nodes.tsx\nmonitoring/overview.tsx\nmonitoring/summaries.tsx\nprofile.tsx\nsystem/-role-actions.tsx\nsystem/-role-delete-state.ts\nsystem/-role-dialog.tsx\nsystem/-role-permission-picker.tsx\nsystem/-user-actions.tsx\nsystem/-user-dialog.tsx\nsystem/role.tsx\nsystem/user.tsx";
+
+struct SelectedWeb {
+    preset: &'static str,
+    composition_id: &'static str,
+    root: &'static str,
+    generated_root: &'static str,
+    output_directory: &'static str,
+}
+
+pub fn selected_web_root() -> &'static str {
+    selected_web().root
+}
+
+fn selected_web() -> SelectedWeb {
+    if std::env::var_os("CARGO_FEATURE_NOTIFICATIONS").is_some() {
+        SelectedWeb {
+            preset: "monitor-notify",
+            composition_id: "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+            root: "selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+            generated_root: "apps/web/.selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+            output_directory: "target/distributions/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/web/dist",
+        }
+    } else {
+        SelectedWeb {
+            preset: "monitor",
+            composition_id: "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b",
+            root: "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b",
+            generated_root: "apps/web/.selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b",
+            output_directory: "target/distributions/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/web/dist",
+        }
+    }
+}
 
 pub fn validate_selected_web() {
-    let binding_path = format!("{SELECTED_WEB_ROOT}/binding.json");
-    let inventory_path = format!("{SELECTED_WEB_ROOT}/inventory.json");
-    let api_path = format!("{SELECTED_WEB_ROOT}/api.ts");
-    let dist_path = format!("{SELECTED_WEB_ROOT}/dist");
-    let index_path = format!("{SELECTED_WEB_ROOT}/dist/index.html");
+    let selected = selected_web();
+    let binding_path = format!("{}/binding.json", selected.root);
+    let inventory_path = format!("{}/inventory.json", selected.root);
+    let api_path = format!("{}/api.ts", selected.root);
+    let dist_path = format!("{}/dist", selected.root);
+    let index_path = format!("{}/dist/index.html", selected.root);
     let binding = read_json(&binding_path, "binding");
     let inventory = read_json(&inventory_path, "inventory");
     let binding_object = binding.as_object().expect("selected Web binding must be an object");
@@ -55,7 +57,7 @@ pub fn validate_selected_web() {
     assert_eq!(binding["bindingVersion"], 1, "selected Web binding version mismatch");
     assert_eq!(
         binding["compositionId"].as_str(),
-        Some(COMPOSITION_ID),
+        Some(selected.composition_id),
         "selected Web binding composition mismatch"
     );
     for field in ["compositionId", "selectedApiDigest", "webDigest"] {
@@ -64,7 +66,7 @@ pub fn validate_selected_web() {
             "selected Web binding {field} must be a lowercase SHA-256"
         );
     }
-    validate_inventory_contract(&inventory);
+    validate_inventory_contract(&inventory, &selected);
     assert_eq!(
         inventory["compositionId"], binding["compositionId"],
         "selected Web inventory composition differs from binding"
@@ -100,10 +102,10 @@ pub fn validate_selected_web() {
     );
     validate_dist(&inventory, Path::new(&dist_path), digest);
     println!("cargo:rustc-env=RUSTZEN_PACKAGED_WEB_DIGEST={digest}");
-    println!("cargo:rustc-env=RUSTZEN_PACKAGED_WEB_COMPOSITION_ID={COMPOSITION_ID}");
+    println!("cargo:rustc-env=RUSTZEN_PACKAGED_WEB_COMPOSITION_ID={}", selected.composition_id);
 }
 
-fn validate_inventory_contract(inventory: &Value) {
+fn validate_inventory_contract(inventory: &Value, selected: &SelectedWeb) {
     let object = inventory.as_object().expect("selected Web inventory must be an object");
     let mut keys = object.keys().map(String::as_str).collect::<Vec<_>>();
     keys.sort_unstable();
@@ -123,17 +125,25 @@ fn validate_inventory_contract(inventory: &Value) {
     expected.sort_unstable();
     assert_eq!(keys, expected, "selected Web inventory schema mismatch");
     assert_eq!(inventory["schemaVersion"], 2, "selected Web inventory version mismatch");
-    assert_eq!(inventory["preset"], "monitor", "selected Web inventory preset mismatch");
+    assert_eq!(inventory["preset"], selected.preset, "selected Web inventory preset mismatch");
     assert_eq!(
         inventory["compositionId"].as_str(),
-        Some(COMPOSITION_ID),
+        Some(selected.composition_id),
         "selected Web inventory composition mismatch"
     );
-    assert_eq!(inventory["generatedRoot"], GENERATED_ROOT, "selected Web generated root mismatch");
-    assert_eq!(inventory["outputDirectory"], OUTPUT_DIRECTORY, "selected Web output mismatch");
+    assert_eq!(
+        inventory["generatedRoot"], selected.generated_root,
+        "selected Web generated root mismatch"
+    );
+    assert_eq!(
+        inventory["outputDirectory"], selected.output_directory,
+        "selected Web output mismatch"
+    );
+    let expected_routes =
+        if selected.preset == "monitor" { MONITOR_ROUTES } else { MONITOR_NOTIFY_ROUTES };
     assert_eq!(
         string_array(&inventory["selectedRoutes"], "selected routes"),
-        SELECTED_ROUTES,
+        expected_routes.split('\n').collect::<Vec<_>>(),
         "selected Web inventory route set mismatch"
     );
     assert_eq!(
@@ -142,8 +152,8 @@ fn validate_inventory_contract(inventory: &Value) {
         "selected Web inventory public assets mismatch"
     );
     let modules = string_array(&inventory["moduleIds"], "module IDs");
-    let prefix = format!("apps/web/.selected-web/{COMPOSITION_ID}/");
-    crate::module_policy::validate(&modules, &prefix);
+    let prefix = format!("apps/web/.selected-web/{}/", selected.composition_id);
+    crate::module_policy::validate(&modules, &prefix, selected.preset == "monitor-notify");
 }
 
 fn string_array<'a>(value: &'a Value, label: &str) -> Vec<&'a str> {

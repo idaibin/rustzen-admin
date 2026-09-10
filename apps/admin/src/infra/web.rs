@@ -10,24 +10,41 @@ use rust_embed::RustEmbed;
 #[folder = "../web/dist"]
 struct FullWebAssets;
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
 #[derive(RustEmbed)]
 #[folder = "selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/dist"]
 struct MonitorWebAssets;
 
+#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+#[derive(RustEmbed)]
+#[folder = "selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/dist"]
+struct MonitorNotifyWebAssets;
+
 #[cfg(feature = "full")]
 type WebAssets = FullWebAssets;
-#[cfg(feature = "monitor-distribution")]
+#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
 type WebAssets = MonitorWebAssets;
+#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+type WebAssets = MonitorNotifyWebAssets;
 
-#[cfg(feature = "monitor-distribution")]
+#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
 const SELECTED_WEB_INVENTORY: &str = include_str!(
     "../../selected-web/8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b/inventory.json"
 );
+#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+const SELECTED_WEB_INVENTORY: &str = include_str!(
+    "../../selected-web/0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d/inventory.json"
+);
+#[cfg(all(feature = "monitor-distribution", not(feature = "notifications")))]
+const SELECTED_WEB_PRESET: &str = "monitor";
+#[cfg(all(feature = "monitor-distribution", feature = "notifications"))]
+const SELECTED_WEB_PRESET: &str = "monitor-notify";
 
 pub async fn serve(uri: Uri) -> Response {
     #[cfg(feature = "monitor-distribution")]
-    debug_assert!(SELECTED_WEB_INVENTORY.contains("\"preset\": \"monitor\""));
+    debug_assert!(
+        SELECTED_WEB_INVENTORY.contains(&format!("\"preset\": \"{SELECTED_WEB_PRESET}\""))
+    );
     if uri.path() == "/api"
         || uri.path().starts_with("/api/")
         || uri.path() == "/internal"
@@ -75,7 +92,7 @@ mod tests {
     };
 
     #[cfg(feature = "monitor-distribution")]
-    use super::SELECTED_WEB_INVENTORY;
+    use super::{SELECTED_WEB_INVENTORY, SELECTED_WEB_PRESET};
     use super::{WebAssets, serve};
 
     #[tokio::test]
@@ -107,7 +124,13 @@ mod tests {
     #[cfg(feature = "monitor-distribution")]
     #[test]
     fn monitor_embed_is_composition_qualified_and_excludes_full_capabilities() {
-        assert!(SELECTED_WEB_INVENTORY.contains("\"compositionId\": \"8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b\""));
+        assert!(SELECTED_WEB_INVENTORY.contains(&format!("\"preset\": \"{SELECTED_WEB_PRESET}\"")));
+        let composition = if SELECTED_WEB_PRESET == "monitor" {
+            "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b"
+        } else {
+            "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d"
+        };
+        assert!(SELECTED_WEB_INVENTORY.contains(composition));
         for asset in WebAssets::iter() {
             let bytes = WebAssets::get(asset.as_ref()).expect("embedded asset").data;
             let text = String::from_utf8_lossy(&bytes);

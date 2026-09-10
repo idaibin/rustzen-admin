@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 
 const validateDistribution = (value: string | undefined) => {
     const distribution = value ?? "full";
-    if (distribution !== "full" && distribution !== "monitor")
-        throw new Error("DISTRIBUTION must be full or monitor");
+    if (!["full", "monitor", "monitor-notify"].includes(distribution))
+        throw new Error("DISTRIBUTION must be full, monitor or monitor-notify");
     return distribution;
 };
 const installs = (branch: string) =>
@@ -15,7 +15,7 @@ const exact = (actual: string[], expected: string[], label: string) => {
 };
 function branches(dockerfile: string) {
     const monitor = dockerfile.match(
-        /if \[ "\$\{DISTRIBUTION\}" = "monitor" \]; then([\s\S]*?)elif \[ "\$\{TARGET_TRIPLE\}"/,
+        /if \[ "\$\{DISTRIBUTION\}" = "monitor" \] \|\| \[ "\$\{DISTRIBUTION\}" = "monitor-notify" \]; then([\s\S]*?)elif \[ "\$\{TARGET_TRIPLE\}"/,
     );
     const aarch64 = dockerfile.match(
         /elif \[ "\$\{TARGET_TRIPLE\}" = "aarch64-unknown-linux-gnu" \]; then([\s\S]*?)else/,
@@ -25,8 +25,8 @@ function branches(dockerfile: string) {
     return { monitor: monitor[1], aarch64: aarch64[1], full: full[1] };
 }
 function assertDockerfileGuard(dockerfile: string) {
-    if (!dockerfile.includes('case "${DISTRIBUTION}" in full|monitor)'))
-        throw new Error("Dockerfile must restrict DISTRIBUTION to full|monitor");
+    if (!dockerfile.includes('case "${DISTRIBUTION}" in full|monitor|monitor-notify)'))
+        throw new Error("Dockerfile must restrict DISTRIBUTION to full|monitor|monitor-notify");
     if (!dockerfile.includes("cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded"))
         throw new Error("Dockerfile must compare selected Web source and embedded file hashes");
     for (const required of [
@@ -43,6 +43,9 @@ function assertDockerfileGuard(dockerfile: string) {
         "--output-root /out/release/contracts/native",
         "--output-root /out",
         "RUSTZEN_CONTAINER_BUILD_COMMANDS=",
+        "monitor-notify) fixture=distribution/fixtures/monitor-notify.json",
+        "admin_features=monitor-distribution,notifications",
+        "monitor_features=notifications",
     ])
         if (!dockerfile.includes(required))
             throw new Error(`Dockerfile is missing P8b Monitor export boundary: ${required}`);
@@ -73,11 +76,12 @@ describe("Docker distribution input", () => {
     test("defaults only an omitted argument to full and accepts monitor", () => {
         expect(validateDistribution(undefined)).toBe("full");
         expect(validateDistribution("monitor")).toBe("monitor");
+        expect(validateDistribution("monitor-notify")).toBe("monitor-notify");
     });
     test("Dockerfile has exact monitor/server-agent and full output inventories", async () => {
         const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
         assertDockerfileGuard(dockerfile);
-        expect(dockerfile.indexOf("DISTRIBUTION must be full or monitor")).toBeLessThan(
+        expect(dockerfile.indexOf("DISTRIBUTION must be full, monitor or monitor-notify")).toBeLessThan(
             dockerfile.indexOf("COPY --from=bun-runtime"),
         );
     });
@@ -88,7 +92,7 @@ describe("Docker distribution input", () => {
             'cp "target/distributions/${composition}/web/inventory.json"',
         );
         const compiled = dockerfile.indexOf(
-            'cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features monitor-distribution',
+            'cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features "${admin_features}"',
         );
         expect(produced).toBeGreaterThan(0);
         expect(embedded).toBeGreaterThan(produced);
@@ -102,7 +106,10 @@ describe("Docker distribution input", () => {
     test("rejects output pollution, omission and non-propagating build failures", async () => {
         const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
         [
-            (s: string) => s.replace('case "${DISTRIBUTION}" in full|monitor)', ""),
+            (s: string) => s.replace('case "${DISTRIBUTION}" in full|monitor|monitor-notify)', ""),
+            (s: string) => s.replaceAll("monitor-notify) fixture=distribution/fixtures/monitor-notify.json", "monitor-notify) fixture=${DISTRIBUTION}"),
+            (s: string) => s.replaceAll("admin_features=monitor-distribution,notifications", "admin_features=${FEATURES}"),
+            (s: string) => s.replace('test "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl"', "true"),
             (s: string) =>
                 s.replace("cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded", ""),
             (s: string) =>
@@ -158,7 +165,7 @@ describe("Docker distribution input", () => {
     test("rejects empty, misspelled and custom compositions before build", () => {
         for (const value of ["", "monitr", "custom"])
             expect(() => validateDistribution(value)).toThrow(
-                "DISTRIBUTION must be full or monitor",
+                "DISTRIBUTION must be full, monitor or monitor-notify",
             );
     });
 });

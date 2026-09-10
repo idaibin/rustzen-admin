@@ -135,7 +135,7 @@ const RC_COMPONENTS: &[&str] = &[
     "virtual-list",
 ];
 
-pub fn validate(module_ids: &[&str], generated_prefix: &str) {
+pub fn validate(module_ids: &[&str], generated_prefix: &str, notifications: bool) {
     let mut generated = 0;
     for raw in module_ids {
         let id = raw.split_once('?').map_or(*raw, |(path, _)| path);
@@ -151,6 +151,9 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str) {
             panic!("selected Web module inventory contains another composition source: {raw}");
         } else if SOURCE_FILES.contains(&id)
             || SOURCE_DIRECTORIES.iter().any(|directory| id.starts_with(directory))
+            || (notifications
+                && (id.starts_with("apps/web/src/api/notifications/")
+                    || id.starts_with("apps/web/src/notifications/")))
         {
         } else if let Some(rest) = id.strip_prefix("apps/web/node_modules/") {
             let package = package_name(rest);
@@ -160,11 +163,15 @@ pub fn validate(module_ids: &[&str], generated_prefix: &str) {
         }
     }
     assert!(generated > 0, "selected Web module inventory has no generated route source");
-    for required in [
+    let mut required = vec![
         "apps/web/src/api/installation/api.ts",
         "apps/web/src/api/monitor/api.ts",
         "apps/web/src/api/request.ts",
-    ] {
+    ];
+    if notifications {
+        required.push("apps/web/src/api/notifications/api.ts");
+    }
+    for required in required {
         assert!(
             module_ids
                 .iter()

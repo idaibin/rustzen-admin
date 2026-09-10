@@ -305,9 +305,10 @@ certificate's `runtime`, `browser`, `load` and `releaseReady` remain literal
 
 ### P8b Monitor container export
 
-The Monitor Docker export accepts only `DISTRIBUTION=monitor`,
-`TARGET_TRIPLE=x86_64-unknown-linux-musl` and a nonempty `SOURCE_IDENTITY`
-build input. The caller must select Linux/amd64 and the producer verifies that
+The selected Docker export accepts only `DISTRIBUTION=monitor` or
+`DISTRIBUTION=monitor-notify`, each mapped to a fixed fixture and matching
+Admin/Monitor feature pair, with `TARGET_TRIPLE=x86_64-unknown-linux-musl` and
+a nonempty `SOURCE_IDENTITY` build input. The caller must select Linux/amd64 and the producer verifies that
 runtime platform inside the build stage. Before the terminal
 export it must have these payload members:
 
@@ -315,7 +316,7 @@ export it must have these payload members:
 | --- | --- | --- |
 | `release/server/bin` | `rz-admin`, `rz-monitor` |
 | `witness/bin` | `rz-monitor-agent` |
-| `release/web` | `inventory.json`, nonempty selected `dist/` |
+| `release/web` | `inventory.json`, `binding.json`, selected `api.ts`, nonempty selected `dist/` |
 | `release/contracts` | `api/api.json`, `schema/schema.json`, `config/config.json`, `protocol/protocol.json`, `native/native-layout.json` |
 
 No other payload root, server binary or witness binary is valid. The canonical
