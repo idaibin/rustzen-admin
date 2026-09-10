@@ -1,8 +1,8 @@
 use axum::{
     body::{Body, to_bytes},
-    http::{HeaderMap, StatusCode, header},
+    http::{HeaderMap, StatusCode},
 };
-use chrono::{Duration as ChronoDuration, Utc};
+use chrono::Utc;
 use rustzen_storage::SqlitePool;
 use serde_json::Value;
 
@@ -10,11 +10,12 @@ use crate::common::error::AppError;
 
 use super::{
     repo,
-    types::{NewEvent, TrackAccepted, TrackInput},
+    types::{TrackAccepted, TrackInput},
 };
 
 mod admission;
 mod storage;
+mod validation;
 
 #[cfg(test)]
 use admission::INGESTION_CONCURRENCY;
@@ -25,13 +26,10 @@ use storage::ensure_storage_capacity;
 pub use storage::spawn_retention;
 #[cfg(test)]
 use storage::{FREE_DISK_RESERVE_BYTES, STORAGE_BUDGET_BYTES, check_storage_capacity};
+use validation::{header_text, origin_allowed, request_origin, validate_event};
 
-const MAX_FUTURE_CLOCK_SKEW: ChronoDuration = ChronoDuration::minutes(5);
-const MAX_DURATION_MS: u64 = 24 * 60 * 60 * 1000;
 pub const MAX_BODY_BYTES: usize = 64 * 1024;
 const MAX_BATCH_EVENTS: usize = 50;
-const REGISTERED_EVENTS: &[&str] = &["page_view", "api_request", "custom_export"];
-const REGISTERED_PROPERTY_KEYS: &[&str] = &["feature", "format", "result", "status"];
 const PROJECT_KEY_HEADER: &str = "x-rustzen-project-key";
 
 pub(crate) use crate::features::settings::service::{hash_project_key, normalize_origin};
@@ -203,282 +201,5 @@ impl TrackingService {
     }
 }
 
-fn header_text(headers: &HeaderMap, name: &str) -> Result<Option<String>, AppError> {
-    headers
-        .get(name)
-        .map(|value| {
-            value
-                .to_str()
-                .map(str::trim)
-                .map(str::to_owned)
-                .map_err(|_| AppError::input_rejection(StatusCode::FORBIDDEN, "header is invalid"))
-        })
-        .transpose()
-}
-
-fn request_origin(headers: &HeaderMap) -> Result<String, AppError> {
-    let origin = header_text(headers, header::ORIGIN.as_str())?
-        .ok_or_else(|| AppError::input_rejection(StatusCode::FORBIDDEN, "origin is required"))?;
-    normalize_origin(&origin)
-        .map_err(|_| AppError::input_rejection(StatusCode::FORBIDDEN, "origin is invalid"))
-}
-
-fn origin_allowed(raw_origins: &str, origin: &str) -> Result<bool, AppError> {
-    let configured: Vec<String> = serde_json::from_str(raw_origins).map_err(AppError::internal)?;
-    configured.into_iter().try_fold(false, |matched, configured| {
-        if matched {
-            return Ok(true);
-        }
-        let normalized = normalize_origin(&configured)
-            .map_err(|_| AppError::internal("Insights origin policy is invalid"))?;
-        Ok(normalized == origin)
-    })
-}
-
-fn validate_event(
-    input: TrackInput,
-    received_at: &chrono::DateTime<Utc>,
-    retention_days: i64,
-) -> Result<NewEvent, AppError> {
-    let event_name = input
-        .event_name
-        .map(|value| value.trim().to_ascii_lowercase())
-        .filter(|value| !value.is_empty() && value.len() <= 100)
-        .ok_or_else(|| AppError::bad_request("eventName is required"))?;
-    if !REGISTERED_EVENTS.contains(&event_name.as_str()) {
-        return Err(AppError::input_rejection(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "eventName is not registered",
-        ));
-    }
-    let visitor_id = required(input.visitor_id, "visitorId", 200)?;
-    if input.user_id.is_some() {
-        return Err(AppError::input_rejection(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "userId collection is not enabled",
-        ));
-    }
-    validate_properties(&input.properties)?;
-    let page_path = clean_path(input.page_path, "pagePath")?;
-    let api_path = clean_path(input.api_path, "apiPath")?;
-    if event_name == "page_view" && page_path.is_none() {
-        return Err(AppError::bad_request("pagePath is required for page_view"));
-    }
-    if event_name == "api_request" && api_path.is_none() {
-        return Err(AppError::bad_request("apiPath is required for api_request"));
-    }
-    if event_name == "page_view" && api_path.is_some() {
-        return Err(AppError::bad_request("page_view must not contain apiPath"));
-    }
-    if event_name == "api_request" && page_path.is_some() {
-        return Err(AppError::bad_request("api_request must not contain pagePath"));
-    }
-    if input.status_code.is_some_and(|code| !(100..=599).contains(&code)) {
-        return Err(AppError::bad_request("statusCode must be between 100 and 599"));
-    }
-    if input.duration_ms.is_some_and(|duration| duration > MAX_DURATION_MS) {
-        return Err(AppError::bad_request("durationMs must not exceed 86400000"));
-    }
-    let occurred_at = input.occurred_at.unwrap_or(*received_at);
-    if occurred_at > *received_at + MAX_FUTURE_CLOCK_SKEW {
-        return Err(AppError::bad_request("occurredAt is too far in the future"));
-    }
-    if occurred_at < *received_at - ChronoDuration::days(retention_days) {
-        return Err(AppError::bad_request("occurredAt is outside the retention window"));
-    }
-    let properties = serde_json::to_string(&input.properties).map_err(AppError::internal)?;
-    if properties.len() > 16_384 {
-        return Err(AppError::bad_request("properties exceed 16 KiB"));
-    }
-    Ok(NewEvent {
-        project_id: String::new(),
-        event_name,
-        visitor_id,
-        user_id: None,
-        session_id: clean_optional(input.session_id, 200)?,
-        platform: clean_optional(input.platform, 50)?,
-        page_path,
-        referrer: clean_referrer(input.referrer)?,
-        api_path,
-        api_method: clean_optional(input.api_method, 20)?.map(|value| value.to_ascii_uppercase()),
-        status_code: input.status_code,
-        duration_ms: input.duration_ms.map(|value| value as i64),
-        is_error: i64::from(input.is_error),
-        properties,
-        occurred_at: occurred_at.to_rfc3339(),
-        received_at: received_at.to_rfc3339(),
-    })
-}
-
-fn validate_properties(properties: &Value) -> Result<(), AppError> {
-    let Some(properties) = properties.as_object() else {
-        return Err(AppError::bad_request("properties must be an object"));
-    };
-    for (key, value) in properties {
-        if !REGISTERED_PROPERTY_KEYS.contains(&key.as_str()) {
-            return Err(AppError::input_rejection(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "property key is not registered",
-            ));
-        }
-        match value {
-            Value::String(value) if value.len() <= 256 => {}
-            Value::Bool(_) | Value::Number(_) => {}
-            Value::String(_) => {
-                return Err(AppError::bad_request("property value is too long"));
-            }
-            _ => return Err(AppError::bad_request("property value must be scalar")),
-        }
-    }
-    Ok(())
-}
-
-fn clean_path(value: Option<String>, name: &str) -> Result<Option<String>, AppError> {
-    let value = clean_optional(value, 2000)?;
-    if value.as_deref().is_some_and(|value| {
-        !value.starts_with('/')
-            || value.contains(['?', '#', '\n', '\r'])
-            || value.bytes().any(|byte| byte.is_ascii_control())
-    }) {
-        return Err(AppError::input_rejection(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            format!("{name} must be a pathname without query or hash"),
-        ));
-    }
-    Ok(value)
-}
-
-fn clean_referrer(value: Option<String>) -> Result<Option<String>, AppError> {
-    clean_path(value, "referrer")
-}
-
-fn required(value: String, name: &str, max: usize) -> Result<String, AppError> {
-    clean_optional(Some(value), max)?
-        .ok_or_else(|| AppError::bad_request(format!("{name} is required")))
-}
-
-fn clean_optional(value: Option<String>, max: usize) -> Result<Option<String>, AppError> {
-    value
-        .map(|value| {
-            let value = value.trim().to_string();
-            if value.len() > max {
-                Err(AppError::bad_request("event field is too long"))
-            } else if value.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(value))
-            }
-        })
-        .transpose()
-        .map(Option::flatten)
-}
 #[cfg(test)]
-mod tests {
-    use axum::{http::StatusCode, response::IntoResponse};
-    use chrono::{TimeDelta, Utc};
-    use serde_json::json;
-
-    use super::{
-        FREE_DISK_RESERVE_BYTES, INGESTION_CONCURRENCY, IngestionState, STORAGE_BUDGET_BYTES,
-        check_storage_capacity, normalize_origin, validate_event,
-    };
-    use crate::features::tracking::types::TrackInput;
-
-    fn event() -> TrackInput {
-        TrackInput {
-            event_name: Some("api_request".to_string()),
-            visitor_id: "visitor".to_string(),
-            user_id: None,
-            session_id: None,
-            platform: None,
-            page_path: None,
-            referrer: None,
-            api_path: Some("/api/items".to_string()),
-            api_method: Some("GET".to_string()),
-            status_code: Some(200),
-            duration_ms: Some(40),
-            is_error: false,
-            properties: json!({}),
-            occurred_at: None,
-        }
-    }
-
-    #[test]
-    fn event_time_duration_and_status_code_are_bounded() {
-        let now = Utc::now();
-
-        let mut future = event();
-        future.occurred_at = Some(now + TimeDelta::minutes(6));
-        assert!(validate_event(future, &now, 30).is_err());
-
-        let mut expired = event();
-        expired.occurred_at = Some(now - TimeDelta::days(31));
-        assert!(validate_event(expired, &now, 30).is_err());
-
-        let mut duration = event();
-        duration.duration_ms = Some(86_400_001);
-        assert!(validate_event(duration, &now, 30).is_err());
-
-        let mut status = event();
-        status.status_code = Some(999);
-        assert!(validate_event(status, &now, 30).is_err());
-    }
-
-    #[test]
-    fn event_properties_and_paths_are_strictly_collection_safe() {
-        let now = Utc::now();
-
-        let mut properties = event();
-        properties.properties = json!({"text": "copied button label"});
-        assert!(validate_event(properties, &now, 30).is_err());
-
-        let mut path = event();
-        path.api_path = Some("/api/items?user=secret".to_string());
-        assert!(validate_event(path, &now, 30).is_err());
-    }
-
-    #[test]
-    fn normalizes_browser_origins_without_paths() {
-        assert_eq!(normalize_origin("https://app.example"), Ok("https://app.example".to_string()));
-        assert_eq!(normalize_origin("HTTPS://APP.EXAMPLE"), Ok("https://app.example".to_string()));
-        assert_eq!(
-            normalize_origin("http://app.example:80/"),
-            Ok("http://app.example".to_string())
-        );
-        assert_eq!(
-            normalize_origin("https://app.example:443/"),
-            Ok("https://app.example".to_string())
-        );
-        assert_eq!(
-            normalize_origin("https://app.example:8443"),
-            Ok("https://app.example:8443".to_string())
-        );
-    }
-
-    #[test]
-    fn ingestion_admission_is_bounded_and_process_local() {
-        let state = IngestionState::new();
-        let permits = (0..INGESTION_CONCURRENCY)
-            .map(|_| state.try_acquire().expect("admission permit"))
-            .collect::<Vec<_>>();
-        assert!(state.try_acquire().is_err());
-
-        drop(permits);
-        assert!(state.try_acquire().is_ok());
-        let restarted = IngestionState::new();
-        assert!(restarted.try_acquire().is_ok());
-    }
-
-    #[test]
-    fn storage_capacity_check_maps_budget_and_disk_limits_to_507() {
-        let budget_error = check_storage_capacity(STORAGE_BUDGET_BYTES, u64::MAX, 1)
-            .expect_err("budget rejection");
-        assert_eq!(budget_error.into_response().status(), StatusCode::INSUFFICIENT_STORAGE);
-
-        let disk_error = check_storage_capacity(0, FREE_DISK_RESERVE_BYTES, 1)
-            .expect_err("free disk reserve rejection");
-        assert_eq!(disk_error.into_response().status(), StatusCode::INSUFFICIENT_STORAGE);
-
-        assert!(check_storage_capacity(0, FREE_DISK_RESERVE_BYTES + 1, 1).is_ok());
-    }
-}
+mod tests;
