@@ -4,8 +4,9 @@
 Python is used because the pinned verifier image already provides it; this avoids
 adding a browser-driver dependency to the selected Monitor artifact.
 """
-import argparse, base64, hashlib, importlib.util, json, os, shutil, socket, stat, struct, subprocess, time, urllib.parse, urllib.request
+import argparse, hashlib, importlib.util, json, os, shutil, stat, subprocess, time, urllib.parse, urllib.request
 from pathlib import Path
+from selected_web_bootstrap_cdp import CDP
 
 fixture_spec = importlib.util.spec_from_file_location(
     "selected_web_bootstrap_browser_fixture",
@@ -71,9 +72,6 @@ def assert_entry_boundary(case, receipt):
     if case in {"bindingMismatch", "bindingNetworkFailure"} and entry_requests(receipt):
         raise RuntimeError(f"{case}: binding failure requested business entry")
 
-def port():
-    sock = socket.socket(); sock.bind(("127.0.0.1", 0)); value = sock.getsockname()[1]; sock.close(); return value
-
 def owner_password(path):
     flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
     try: descriptor = os.open(path, flags)
@@ -97,64 +95,6 @@ def admin_url(value):
         raise SystemExit("--admin-url must be http://127.0.0.1:<port>")
     return value
 
-def websocket(url):
-    parsed = urllib.parse.urlsplit(url)
-    sock = socket.create_connection((parsed.hostname, parsed.port), timeout=10)
-    key = base64.b64encode(os.urandom(16)).decode()
-    target = parsed.path + (f"?{parsed.query}" if parsed.query else "")
-    sock.sendall((f"GET {target} HTTP/1.1\r\nHost: {parsed.netloc}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n").encode())
-    response = b""
-    while b"\r\n\r\n" not in response: response += recv_exact(sock, 1)
-    if b" 101 " not in response.split(b"\r\n", 1)[0]: raise RuntimeError("Chromium CDP WebSocket upgrade failed")
-    return sock
-
-def recv_exact(sock, length):
-    data = b""
-    while len(data) < length:
-        chunk = sock.recv(length - len(data))
-        if not chunk: raise RuntimeError("Chromium CDP socket closed")
-        data += chunk
-    return data
-
-def send(sock, value):
-    payload = json.dumps(value, separators=(",", ":")).encode(); mask = os.urandom(4)
-    header = bytes([129, 128 | len(payload)]) if len(payload) < 126 else bytes([129, 254]) + struct.pack("!H", len(payload))
-    sock.sendall(header + mask + bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload)))
-
-def receive(sock):
-    first, second = recv_exact(sock, 2); length = second & 127
-    if length == 126: length = struct.unpack("!H", recv_exact(sock, 2))[0]
-    if length == 127: length = struct.unpack("!Q", recv_exact(sock, 8))[0]
-    data = recv_exact(sock, length)
-    return json.loads(data.decode())
-
-class CDP:
-    def __init__(self, chromium):
-        self.debug_port = port(); self.profile = Path("/tmp") / f"rz-selected-web-{os.getpid()}-{self.debug_port}"
-        self.process = subprocess.Popen([chromium, "--headless=new", "--no-sandbox", "--remote-allow-origins=*", f"--remote-debugging-port={self.debug_port}", f"--user-data-dir={self.profile}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        deadline = time.time() + 15
-        while time.time() < deadline:
-            try:
-                info = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.debug_port}/json/version", timeout=1)); break
-            except Exception: time.sleep(.1)
-        else: raise RuntimeError("Chromium did not expose CDP")
-        self.sock = websocket(info["webSocketDebuggerUrl"]); self.id = 0
-        self.call("Target.createTarget", {"url":"about:blank"})
-        tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.debug_port}/json/list"))
-        self.sock.close(); self.sock = websocket(next(tab["webSocketDebuggerUrl"] for tab in tabs if tab["type"] == "page")); self.id = 0
-        self.call("Page.enable"); self.call("Runtime.enable"); self.call("Network.enable")
-    def call(self, method, params=None):
-        self.id += 1; call_id = self.id; send(self.sock, {"id":call_id, "method":method, "params":params or {}})
-        while True:
-            value = receive(self.sock)
-            if value.get("id") == call_id:
-                if "error" in value: raise RuntimeError(value["error"])
-                return value.get("result", {})
-    def evaluate(self, expression):
-        result = self.call("Runtime.evaluate", {"expression":expression, "awaitPromise":True, "returnByValue":True})
-        return result["result"].get("value")
-    def close(self):
-        self.sock.close(); self.process.terminate(); self.process.wait(timeout=10); shutil.rmtree(self.profile, ignore_errors=True)
 
 def terminal_state(cdp, case):
     return cdp.evaluate("!!document.querySelector('#login_username') || !!document.querySelector('[role=alert]')") or (case == "sriIntegrityRemoved" and cdp.evaluate("!!globalThis.__rz_sri_tamper_executed"))

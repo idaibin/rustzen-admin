@@ -10,7 +10,7 @@ const roots = [
     "scripts/distribution-verify-published-source-build-certificate.ts",
     "scripts/admin-browser-source-identity.sh",
 ] as const;
-const pythonLocal = ["scripts/selected-web-bootstrap-browser-fixture.py"] as const;
+const pythonLocal = ["scripts/selected-web-bootstrap-browser-fixture.py", "scripts/selected_web_bootstrap_cdp.py"] as const;
 const importPattern = /(?:import\s*(?:[^"']*?from\s*)?|export\s*[^"']*?from\s*|import\s*\()["'](\.[^"']+)["']/g;
 
 export async function discoverVerifierSources(root: string, read = async (path: string) => Bun.file(path).bytes(), entryRoots: readonly string[] = [...roots, ...pythonLocal]) {

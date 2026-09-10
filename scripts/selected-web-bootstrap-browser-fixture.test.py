@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import base64
+import hashlib
 import http.server
 import importlib.util
 import threading
@@ -14,6 +16,7 @@ spec = importlib.util.spec_from_file_location("fixture", Path(__file__).with_nam
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 gate_spec = importlib.util.spec_from_file_location("gate", Path(__file__).with_name("verify-selected-web-bootstrap-browser.py"))
 gate = importlib.util.module_from_spec(gate_spec); gate_spec.loader.exec_module(gate)
+import selected_web_bootstrap_cdp as cdp
 
 class Admin(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_): pass
@@ -38,18 +41,108 @@ try:
     payload = b'{"method":"fragmented"}'
     frame = bytes([129, len(payload)]) + payload
     for byte in frame: left.send(bytes([byte]))
-    assert gate.receive(right) == {"method": "fragmented"}
+    assert cdp.receive(right) == {"method": "fragmented"}
 finally: left.close(); right.close()
 
-listener = socket.socket(); listener.bind(("127.0.0.1", 0)); listener.listen(1); request_line = []
-def accept_handshake():
-    connection, _ = listener.accept(); data = b""
-    while b"\r\n\r\n" not in data: data += connection.recv(1024)
-    request_line.append(data.split(b"\r\n", 1)[0]); connection.sendall(b"HTTP/1.1 101 Switching Protocols\r\n\r\n"); connection.close()
-threading.Thread(target=accept_handshake, daemon=True).start()
-client = gate.websocket(f"ws://127.0.0.1:{listener.getsockname()[1]}/devtools/page/target")
-client.close(); listener.close()
-assert request_line == [b"GET /devtools/page/target HTTP/1.1"]
+def frame(opcode, payload, final=True):
+    return bytes([(128 if final else 0) | opcode, len(payload)]) + payload
+
+left, right = socket.socketpair()
+try:
+    left.sendall(frame(1, b'{"method":', final=False) + frame(0, b'"fragmented"}'))
+    assert cdp.receive(right) == {"method": "fragmented"}
+finally: left.close(); right.close()
+
+left, right = socket.socketpair()
+try:
+    left.sendall(frame(9, b"ping") + frame(1, b'{"method":"control"}'))
+    assert cdp.receive(right) == {"method": "control"}
+    pong = left.recv(10); assert pong[:2] == bytes([138, 132])
+    assert bytes(value ^ pong[2 + index % 4] for index, value in enumerate(pong[6:])) == b"ping"
+finally: left.close(); right.close()
+
+left, right = socket.socketpair()
+try:
+    left.sendall(bytes([129, 127]) + (cdp.MAX_CDP_FRAME_BYTES + 1).to_bytes(8, "big"))
+    try: cdp.receive(right); raise AssertionError("oversized frame accepted")
+    except RuntimeError as error: assert "exceeds limit" in str(error)
+finally: left.close(); right.close()
+
+def handshake(mode):
+    listener = socket.socket(); listener.bind(("127.0.0.1", 0)); listener.listen(1); request_line = []
+    def accept_handshake():
+        connection, _ = listener.accept(); data = b""
+        while b"\r\n\r\n" not in data: data += connection.recv(1024)
+        request_line.append(data.split(b"\r\n", 1)[0])
+        key = next(line[19:] for line in data.decode().split("\r\n") if line.startswith("Sec-WebSocket-Key: "))
+        accept = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+        headers = "Upgrade: websocket\r\nConnection: keep-alive, Upgrade\r\n"
+        if mode in ("valid", "alternate"): headers += f"Sec-WebSocket-Accept: {accept}\r\n"
+        if mode == "wrong": headers += "Sec-WebSocket-Accept: wrong\r\n"
+        reason = "WebSocket Protocol Handshake" if mode == "alternate" else "Switching Protocols"
+        connection.sendall(f"HTTP/1.1 101 {reason}\r\n{headers}\r\n".encode()); connection.close()
+    thread = threading.Thread(target=accept_handshake, daemon=True); thread.start()
+    return listener, request_line
+
+for mode in ("valid", "alternate"):
+    listener, request_line = handshake(mode)
+    client = cdp.websocket(f"ws://127.0.0.1:{listener.getsockname()[1]}/devtools/page/target", listener.getsockname()[1])
+    client.close(); listener.close()
+    assert request_line == [b"GET /devtools/page/target HTTP/1.1"]
+for mode in ("missing", "wrong"):
+    listener, _ = handshake(mode)
+    try: cdp.websocket(f"ws://127.0.0.1:{listener.getsockname()[1]}/devtools/page/target", listener.getsockname()[1]); raise AssertionError(f"{mode} accept accepted")
+    except RuntimeError as error: assert "upgrade differs" in str(error)
+    finally: listener.close()
+for url, port in (("ws://localhost:1/devtools/page/target", 1), ("ws://127.0.0.1:1/devtools/page/target", 2)):
+    try: cdp.websocket(url, port); raise AssertionError("unpinned WebSocket accepted")
+    except RuntimeError as error: assert "pinned loopback" in str(error)
+with tempfile.TemporaryDirectory() as directory:
+    profile = Path(directory)
+    for value in ("not-a-port\n/devtools/browser/id\n", "1234\n/devtools/browser/id?query\n", "1234\n/devtools/browser/id\nextra\n"):
+        (profile / "DevToolsActivePort").write_text(value)
+        try: cdp.devtools_active_port(profile); raise AssertionError("invalid DevToolsActivePort accepted")
+        except RuntimeError as error: assert "invalid" in str(error)
+    class Alive: poll = lambda self: None
+    (profile / "DevToolsActivePort").write_text("1234\n")
+    def complete(_): (profile / "DevToolsActivePort").write_text("1234\n/devtools/browser/id\n")
+    assert cdp.wait_devtools_active_port(profile, Alive(), timeout=1, sleep=complete) == (1234, "/devtools/browser/id")
+    (profile / "DevToolsActivePort").write_text("bad\n")
+    try: cdp.wait_devtools_active_port(profile, Alive(), timeout=0, sleep=lambda _: None); raise AssertionError("persistent invalid port accepted")
+    except RuntimeError as error: assert "remained invalid" in str(error)
+    class Exited: poll = lambda self: 1
+    try: cdp.wait_devtools_active_port(profile, Exited(), timeout=0); raise AssertionError("early Chromium exit accepted")
+    except RuntimeError as error: assert "exited" in str(error)
+
+class FakeSocket:
+    def __init__(self, calls, broken=False): self.calls, self.broken = calls, broken
+    def close(self):
+        self.calls.append("socket.close")
+        if self.broken: raise OSError("closed")
+class FakeProcess:
+    def __init__(self, calls, hung=False): self.calls, self.hung = calls, hung; self.waits = 0
+    def poll(self): return None
+    def terminate(self): self.calls.append("terminate")
+    def kill(self): self.calls.append("kill")
+    def wait(self, timeout):
+        self.calls.append(f"wait:{timeout}"); self.waits += 1
+        if self.hung and self.waits == 1: raise cdp.subprocess.TimeoutExpired("chrome", timeout)
+with tempfile.TemporaryDirectory() as directory:
+    calls = []; client = object.__new__(cdp.CDP); client.profile = Path(directory) / "profile"; client.profile.mkdir(); client.sock = FakeSocket(calls, broken=True); client.process = FakeProcess(calls, hung=True)
+    client.close()
+    assert calls == ["socket.close", "terminate", "wait:10", "kill", "wait:10"] and not client.profile.exists()
+with tempfile.TemporaryDirectory() as directory:
+    calls = []; client = object.__new__(cdp.CDP); client.profile = Path(directory) / "profile"; client.profile.mkdir(); client.sock = FakeSocket(calls); client.process = FakeProcess(calls)
+    client.close(); assert calls == ["socket.close", "terminate", "wait:10"] and not client.profile.exists()
+with tempfile.TemporaryDirectory() as directory:
+    profile = Path(directory) / "profile"; profile.mkdir(); previous_mkdtemp, previous_popen = cdp.tempfile.mkdtemp, cdp.subprocess.Popen
+    try:
+        cdp.tempfile.mkdtemp = lambda **_: str(profile)
+        cdp.subprocess.Popen = lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("launch failed"))
+        try: cdp.CDP("chromium"); raise AssertionError("constructor failure accepted")
+        except ValueError as error: assert "launch failed" in str(error)
+        assert not profile.exists()
+    finally: cdp.tempfile.mkdtemp, cdp.subprocess.Popen = previous_mkdtemp, previous_popen
 
 class SensitivityTerminal:
     def evaluate(self, expression):

@@ -25,7 +25,7 @@ test("receipt identities require canonical product and verifier identities", () 
 
 test("admission provenance hashes every direct verifier source and import closure", async () => {
     const discovered = await discoverVerifierSources(process.cwd());
-    for (const path of ["scripts/verify-selected-web-bootstrap-browser.py", "scripts/selected-web-bootstrap-browser-fixture.py", "scripts/selected-web-bootstrap-browser-receipt.ts", "scripts/verify-selected-web-runtime-attestation.ts", "distribution/release-manifest-core.ts", "distribution/atomic-rename.ts"]) expect(discovered).toContain(path);
+    for (const path of ["scripts/verify-selected-web-bootstrap-browser.py", "scripts/selected-web-bootstrap-browser-fixture.py", "scripts/selected_web_bootstrap_cdp.py", "scripts/selected-web-bootstrap-browser-receipt.ts", "scripts/verify-selected-web-runtime-attestation.ts", "distribution/release-manifest-core.ts", "distribution/atomic-rename.ts"]) expect(discovered).toContain(path);
     const first = await verifierProvenance(process.cwd());
     expect(first).toHaveLength((await discoverVerifierSources(process.cwd())).length);
     expect(first.every(item => /^[a-f0-9]{64}$/.test(item.sha256))).toBe(true);
