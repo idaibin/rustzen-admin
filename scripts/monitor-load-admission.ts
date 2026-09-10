@@ -65,12 +65,20 @@ export async function revalidatedNativeEvidence(evidencePath: string, releaseRes
         admissionPath: `${root}/published-certificate.json`, factsPath: `${root}/facts.json`, loginEvidencePath: `${root}/login-evidence.json`,
         verifyPath: `${root}/verify.json`, dryRunPath: `${root}/dry-run.json`, applyPath: `${root}/apply.json`, statusPath: `${root}/install-status.json`, activatePath: `${root}/activate.json`,
         publicationMarkerPath: `${root}/publication-marker.json`, activationMarkerPath: `${root}/activation-marker.json`,
+        notificationIngressPath: (await Bun.file(`${root}/notification-ingress.check`).exists()) ? `${root}/notification-ingress.check` : undefined,
     });
     if (canonicalJson(parsed) !== canonicalJson(revalidated)) throw Error("P8e revalidated evidence differs");
     return revalidated;
 }
-export async function nativeEvidenceSummary(evidencePath: string, releaseResultPath: string) {
-    const root = dirname(resolve(evidencePath)), paths = [evidencePath, releaseResultPath, "published-certificate.json", "facts.json", "login-evidence.json", "verify.json", "dry-run.json", "apply.json", "install-status.json", "activate.json", "publication-marker.json", "activation-marker.json"].map(path => path.includes("/") ? resolve(path) : `${root}/${path}`);
+export async function nativeEvidenceSummary(evidencePath: string, releaseResultPath: string, preset: "monitor" | "monitor-notify") {
+    const root = dirname(resolve(evidencePath)), ingress = `${root}/notification-ingress.check`, names = ["published-certificate.json", "facts.json", "login-evidence.json", "verify.json", "dry-run.json", "apply.json", "install-status.json", "activate.json", "publication-marker.json", "activation-marker.json"], paths = [evidencePath, releaseResultPath, ...names.map(path => `${root}/${path}`)];
+    const hasIngress = await Bun.file(ingress).exists();
+    if (preset === "monitor-notify" && !hasIngress) throw Error("missing notification ingress sidecar");
+    if (hasIngress) {
+        const actual = new TextDecoder().decode((await stable(ingress)).bytes), expected = preset === "monitor-notify" ? "unauthorized\n" : "absent\n";
+        if (actual !== expected) throw Error("notification ingress sidecar differs");
+        if (preset === "monitor-notify") paths.push(ingress);
+    }
     return Object.fromEntries(await Promise.all(paths.map(async path => {
         const input = await stable(path);
         return [input.path, input.sha256];

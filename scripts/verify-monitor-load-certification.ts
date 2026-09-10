@@ -33,7 +33,7 @@ for (let i = 2; i < Bun.argv.length; i += 2) {
 if (a.size !== names.length) throw Error("missing P8g arguments");
 let get = (key: Name) => a.get(key)!, output = await freshOutput(get("--output")), exportRoot = await directory(get("--export-root")), native = await revalidatedNativeEvidence(get("--native-runtime-evidence"), get("--release-result")) as unknown as Record<string, unknown>, browser = await json(get("--browser-receipt")),
     admission = admitted(native, browser),
-    p8eSidecars = await nativeEvidenceSummary(get("--native-runtime-evidence"), get("--release-result")),
+    p8eSidecars = await nativeEvidenceSummary(get("--native-runtime-evidence"), get("--release-result"), (native.selection as any).preset),
     inputSpecs = [
         { path: get("--release-result"), limit: 2 * 1024 * 1024 },
         { path: get("--certificate"), limit: 2 * 1024 * 1024 },
@@ -120,7 +120,7 @@ for (let index = 0; index < inputs.length; index++) {
     if ((await stable(input.path, spec.limit)).sha256 !== input.sha256)
         throw Error("input changed while run");
 }
-if ((await credential(get("--password-file"))) !== password || (await credential(get("--agent-token-file"))) !== agent || JSON.stringify(await nativeEvidenceSummary(get("--native-runtime-evidence"), get("--release-result"))) !== JSON.stringify(p8eSidecars) || JSON.stringify(await revalidatedNativeEvidence(get("--native-runtime-evidence"), get("--release-result"))) !== JSON.stringify(native))
+if ((await credential(get("--password-file"))) !== password || (await credential(get("--agent-token-file"))) !== agent || JSON.stringify(await nativeEvidenceSummary(get("--native-runtime-evidence"), get("--release-result"), (native.selection as any).preset)) !== JSON.stringify(p8eSidecars) || JSON.stringify(await revalidatedNativeEvidence(get("--native-runtime-evidence"), get("--release-result"))) !== JSON.stringify(native))
     throw Error("credential changed while run");
 let ending = await signedSourceBuild({
     exportRoot, expectedSourceIdentity: get("--expected-source-identity"),

@@ -420,7 +420,7 @@ is separately recorded with its source-file hashes and is never substituted for 
 product identity. A cross-preset tuple fails before Chromium starts. Legacy
 pure-Monitor receipts remain readable as their historical three-key selection form.
 
-For P8f-B the Monitor HTML contains no eager business entry tag. Its dependency-free
+For P8f-A/bootstrap the Monitor HTML contains no eager business entry tag. Its dependency-free
 inline bootstrap reads the single stamped meta value, fetches the anonymous binding
 with omitted credentials and no-store caching, bounds and validates the exact JSON,
 then dynamically creates the content-addressed module entry with SHA-256 SRI. The

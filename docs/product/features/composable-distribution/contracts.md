@@ -314,6 +314,10 @@ identity. `browser` is true only after canonical bootstrap and business receipts
 `load` and `releaseReady` remain false. Historical pure-Monitor receipts without a
 selection preset remain parseable only as that legacy Monitor form.
 
+### P8f-B monitor-notify business receipt
+
+The canonical monitor-notify P8f-B receipt binds one signed server tuple, its P8e retained runtime evidence and sidecars, the P8f-A bootstrap receipt, browser driver provenance, before/after signed Admin runtime identity, Chromium requests/SSE/screenshots and real Agent-report-to-inbox journey. It sets `browser:true`, `load:false` and `releaseReady:false`.
+
 ### P8b selected-server container export
 
 The selected Docker export accepts only `DISTRIBUTION=monitor` or

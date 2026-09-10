@@ -17,19 +17,21 @@ export async function signedSourceBuild(input: {
     certificate: string;
     publicKey: string;
     adminSha256: string;
+    selectionPath?: string;
 }) {
     const release = await json(input.releaseResult), root = String(release.root);
     const envelope = await json(`${root}/signature-envelope.json`);
     const key = (envelope.payload as Record<string, unknown>)?.keyId;
     if (!root || typeof key !== "string") throw Error("release verifier input differs");
-    const result = Bun.spawnSync(["pnpm", "dlx", "bun@1.3.14", "scripts/distribution-verify-published-source-build-certificate.ts", "--selection", selectionPath, "--export-root", input.exportRoot, "--expected-source-identity", input.expectedSourceIdentity, "--release-root", root, "--public-key", input.publicKey, "--key-id", key, "--certificate", input.certificate], { cwd: import.meta.dir + "/..", stdout: "pipe", stderr: "pipe" });
+    const selected = input.selectionPath ?? selectionPath;
+    const result = Bun.spawnSync(["pnpm", "dlx", "bun@1.3.14", "scripts/distribution-verify-published-source-build-certificate.ts", "--selection", selected, "--export-root", input.exportRoot, "--expected-source-identity", input.expectedSourceIdentity, "--release-root", root, "--public-key", input.publicKey, "--key-id", key, "--certificate", input.certificate], { cwd: import.meta.dir + "/..", stdout: "pipe", stderr: "pipe" });
     if (result.exitCode) throw Error(new TextDecoder().decode(result.stderr));
     const verified = JSON.parse(new TextDecoder().decode(result.stdout)) as Record<string, any>;
     if (verified.binaryDigests?.find((x: { path?: unknown }) => x.path === "bin/rz-admin")?.sha256 !== input.adminSha256)
         throw Error("signed admin binary differs");
     const snapshot = await verifyContainerExport(
         resolve(import.meta.dir, "..", input.exportRoot),
-        await Bun.file(resolve(import.meta.dir, "..", selectionPath)).json(),
+        await Bun.file(resolve(import.meta.dir, "..", selected)).json(),
         input.expectedSourceIdentity,
         await readWorkspaceVersion(resolve(import.meta.dir, "..")),
     );

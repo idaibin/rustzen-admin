@@ -547,6 +547,10 @@ This closes bootstrap/static browser behavior for the old signed tuple only;
 authenticated Monitor, alert, inbox, SSE, persistence, load and deployment
 acceptance remain Not verified.
 
+### P8f-B monitor-notify business journey
+
+P8f-B must prove a signed retained notify runtime from Agent report through Monitor alert and Admin inbox, then an authenticated same-origin Bearer SSE browser journey with no URL secret, selected/absent routes, detail deep link, refresh persistence and read state. Its receipt is canonical and binds P8e/P8f-A sidecars; `browser:true` does not certify load or release readiness.
+
 ### P8g pure-Monitor exact-artifact load certification
 
 P8g accepts one fresh container only when its P8e native-runtime evidence and

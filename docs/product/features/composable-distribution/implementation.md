@@ -318,6 +318,8 @@ The retained owner-labelled container was removed after receipt publication.
 Authenticated product journeys, alert delivery, inbox/SSE behavior, load and
 deployment remain separate gates.
 
+P8f-B is a separate monitor-notify business journey: it retains a fresh P8e PID1 container, drives the installed signed Admin/Monitor path with the verified export witness Agent, and records browser/SSE/inbox evidence in one canonical receipt. It does not use the P7 temporary Admin/Monitor runtime or open P8g/load/deployment.
+
 P8f-A implements the selected-Web build binding: the Monitor producer stamps
 only its generated HTML after deriving the normalized file-table digest, writes
 the canonical descriptor and records final file hashes in inventory v2. The
@@ -326,7 +328,7 @@ validator rejects a changed descriptor, inventory, API source, stamped HTML or
 emitted asset before native staging/release derivation. HTTP bootstrap and
 browser behavior remain later closures.
 
-P8f-B implements the Monitor-distribution HTTP bootstrap boundary. Admin validates
+P8f-A/bootstrap implements the Monitor-distribution HTTP bootstrap boundary. Admin validates
 and embeds the P8f-A binding, rejects a packaged/runtime composition mismatch before
 listening, serves anonymous `GET /__web-binding` and authenticated
 `GET /api/installation` with no-store caching, and keeps both routes out of Full
@@ -336,7 +338,7 @@ before dynamically loading the content-addressed entry with SRI and applies one 
 cache-busting recovery attempt. The Admin build gate validates the exact 11-field
 inventory-v2 schema and canonical metadata, sorted route/asset/module/emitted/file
 tables, the actual file set and bytes, selected API digest and normalized Web digest.
-`scripts/verify-selected-web-bootstrap-browser.py` is the executable P8f-B
+`scripts/verify-selected-web-bootstrap-browser.py` is the executable P8f-A/bootstrap
 Chromium gate. It requires a fresh output path plus an explicit live selected-Admin
 `--admin-url`; it starts only loopback fault fixtures and headless Chromium, never a
 user-facing browser. Its fixture records every pre-entry request and
@@ -368,7 +370,7 @@ host and fresh Linux Vite graphs may contain different allowed module entries.
 Its mutation harness invokes the real Monitor `cargo check` for every metadata class
 and restores a clean positive build. Source and focused tests close generation, route,
 authentication, cache and failure-state behavior. A newly derived signed artifact and
-external Chromium runtime remain the P8f-B acceptance evidence rather than reusing a
+external Chromium runtime remain the P8f-A/bootstrap acceptance evidence rather than reusing a
 pre-change P8d/P8e tuple.
 
 The generic server-staging entry applies the same complete selected-Web policy
