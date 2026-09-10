@@ -17,7 +17,8 @@ test("prepare runs P8f in retained context and cleanup removes the exact context
     expect(prepare).toContain('label=io.rustzen.p8g-owner=$owner_token');
     expect(prepare).toContain('realpath "$export_root/release/server/bin/rz-admin"');
     expect(prepare).not.toContain('--admin-bin "$native_output/rz"');
-    expect(prepare).toContain('verify-selected-web-bootstrap-browser.py --admin-url "$admin_url"');
+    expect(prepare).toContain('verify-selected-web-bootstrap-browser.py --selection distribution/fixtures/monitor.json --admin-url "$admin_url"');
+    expect(prepare).not.toContain('--selection distribution/fixtures/monitor-notify.json');
     expect((await stat("scripts/verify-selected-web-bootstrap-browser.py")).mode & 0o111).not.toBe(0);
     expect(prepare).toContain('const [health,native]');
     expect(prepare).toContain('const s=native.selection');
@@ -37,4 +38,12 @@ test("prepare runs P8f in retained context and cleanup removes the exact context
 test("cleanup keeps a reused name out of docker rm while still removing secrets", () => {
     expect(cleanup).toContain('$actual" = "$container_id" -a "$actual_owner" = "$owner_token"');
     expect(cleanup).toContain('rm -f "$password" "$agent" "$context"');
+});
+
+test("prepare failure cleanup removes only its retained container, credentials and browser output", () => {
+    expect(prepare).toContain('if test "$status" -ne 0; then');
+    expect(prepare).toContain('label=io.rustzen.p8g-owner=$owner_token');
+    expect(prepare).toContain('test -z "$ids" || docker rm -f "$ids"');
+    expect(prepare).toContain('rm -f "$password" "$agent" "$context_output"');
+    expect(prepare).toContain('rm -rf "$browser_output"');
 });
