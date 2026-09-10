@@ -115,12 +115,13 @@ export function admitted(
         !["buildId", "compositionId", "html", "binding", "installation", "verified"].every(key => hash.test(String(digest[key]))) ||
         !hash.test(String((digest.adminBinary as Record<string, unknown>).before)) || !hash.test(String((digest.adminBinary as Record<string, unknown>).after)) ||
         !exactKeys(source, ["current", "expected"]) || !exactKeys(runtime, ["after", "before"]) ||
+        !object(selection) || !exactKeys(selection, ["artifactClass", "buildId", "compositionId", "preset", "target"]) || selection.preset !== "monitor" || selection.artifactClass !== "server" || selection.target !== "x86_64-unknown-linux-musl" ||
         !exactKeys(b, ["archiveSha256", "binaryDigests", "buildId", "certificateSha256", "envelopeSha256", "manifestSha256", "selection"]) ||
-        !object(b.selection) || !exactKeys(b.selection as Record<string, unknown>, ["artifactClass", "compositionId", "target"]) ||
+        !object(b.selection) || !exactKeys(b.selection as Record<string, unknown>, ["artifactClass", "compositionId", "preset", "target"]) || (b.selection as Record<string, unknown>).preset !== "monitor" || (b.selection as Record<string, unknown>).artifactClass !== selection.artifactClass || (b.selection as Record<string, unknown>).target !== selection.target ||
         !Array.isArray(b.binaryDigests) || !b.binaryDigests.length ||
         !same(selection.buildId, digest.buildId) ||
         !same(selection.compositionId, digest.compositionId) ||
-        !same(selection.buildId, b.buildId) || !same(selection.compositionId, (b.selection as Record<string, unknown>).compositionId) ||
+        !same(selection.buildId, b.buildId) || !same(selection.compositionId, (b.selection as Record<string, unknown>).compositionId) || !same(selection.preset, (b.selection as Record<string, unknown>).preset) ||
         source.expected !== source.current ||
         !same(runtime.before, runtime.after) ||
         ![

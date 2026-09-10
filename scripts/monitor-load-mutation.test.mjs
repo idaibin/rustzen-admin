@@ -20,18 +20,29 @@ import { parseMonitorLoadReceipt } from "./monitor-load-receipt-schema.ts";
 const hash = "a".repeat(64), composition = "8957924886140f55fd0560d89f0c2acdac67cd95d14c09ac78d6f9fa18109d3b", fixtureSourceIdentity = `git:${"b".repeat(40)} tree:${"c".repeat(64)} state:clean`, health = { status: "ok", selectedBinding: { buildId: hash, compositionId: composition } }, runtime = { containerId: "container", containerPort: 8080, dev: "1", hostPort: 3000, imageId: "image", ino: "2", pid: 3, sha256: hash }, native = {
     browser: false, checks: [], health: {}, installation: {}, kind: "monitor-native-runtime-evidence", load: false,
     markers: {}, platform: {}, release: { certificateSha256: hash, manifestSha256: hash, archiveSha256: hash, envelopeSha256: hash }, releaseReady: false,
-    runtime: true, schemaVersion: 1, selection: { buildId: hash, compositionId: composition }, services: [],
+    runtime: true, schemaVersion: 1, selection: { artifactClass: "server", buildId: hash, compositionId: composition, preset: "monitor", target: "x86_64-unknown-linux-musl" }, services: [],
 }, browser = {
     schemaVersion: 1, status: "passed", chromiumVersion: "Chromium", integritySensitivityPassed: true,
     adminHealth: { initial: health, final: health }, cases: ["success", "bindingMismatch", "bindingNetworkFailure", "sriEntryFailure"].map(name => ({ case: name, assertions: { bindingCredentialOmitted: true, bindingFirstActive: true, entryExecuted: name === "success", failureApiAbsent: true }, health: { before: health, after: health }, browser: { alert: name === "success" ? false : true, entryExecuted: name === "success", manualRetry: name === "success" ? null : {canonicalDocument:"/monitoring/nodes?q=web",postRetryAutomaticReloadCount:1}, reloadCount: name === "success" ? 0 : 1, stamp: hash, url: name === "success" ? "http://127.0.0.1/login" : "http://127.0.0.1/monitoring/nodes?q=web&__rz_web_reload=x#node-1", value: name === "success" ? {buildId:hash,compositionId:composition,webDigest:hash,login:true} : null }, requests: [{ authorization: false, cookie: false, method: "GET", path: "/__web-binding" }, ...(name === "success" || name === "sriEntryFailure" ? [{ authorization: false, cookie: true, method: "GET", path: "/assets/app.js" }] : []), ...(name === "success" ? [{authorization:false,cookie:true,method:"POST",path:"/api/auth/login"},{authorization:true,cookie:true,method:"GET",path:"/api/installation"}] : [])] })), sensitivity: { requests: [{authorization:false,cookie:false,method:"GET",path:"/__web-binding"}], marker: true, health: { before: health, after: health } }, verifier: { sources: [] },
     digests: { buildId: hash, compositionId: composition, html: hash, binding: hash, installation: hash, verified: hash, adminBinary: { before: hash, after: hash } },
-    release: { certificateSha256: hash, manifestSha256: hash, archiveSha256: hash, envelopeSha256: hash, buildId: hash, binaryDigests: [{ path: "bin/rz-admin", sha256: hash }], selection: { artifactClass: "server", compositionId: composition, target: "x86_64-unknown-linux-musl" } }, runtime: { before: runtime, after: runtime }, sourceIdentity: { expected: fixtureSourceIdentity, current: fixtureSourceIdentity },
+    release: { certificateSha256: hash, manifestSha256: hash, archiveSha256: hash, envelopeSha256: hash, buildId: hash, binaryDigests: [{ path: "bin/rz-admin", sha256: hash }], selection: { artifactClass: "server", compositionId: composition, preset: "monitor", target: "x86_64-unknown-linux-musl" } }, runtime: { before: runtime, after: runtime }, sourceIdentity: { expected: fixtureSourceIdentity, current: fixtureSourceIdentity },
 };
+const notifyComposition = "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d";
+function notifyTuple() {
+    const n = structuredClone(native), b = structuredClone(browser), selection = { artifactClass: "server", compositionId: notifyComposition, preset: "monitor-notify", target: "x86_64-unknown-linux-musl" };
+    n.selection = { ...n.selection, compositionId: notifyComposition, preset: "monitor-notify" }; b.release.selection = selection; b.digests.compositionId = notifyComposition;
+    for (const item of [b.adminHealth.initial, b.adminHealth.final, b.sensitivity.health.before, b.sensitivity.health.after, ...b.cases.flatMap(item => [item.health.before, item.health.after])]) item.selectedBinding.compositionId = notifyComposition;
+    b.cases[0].browser.value.compositionId = notifyComposition;
+    return { native: n, browser: b };
+}
 
 test("P8e/P8f admission rejects unknown fields and noncanonical files", async () => {
     expect(admitted(native, browser)).toMatchObject({ selection: native.selection });
     expect(() => admitted({ ...native, unknown: true }, browser)).toThrow("schema fields");
     expect(() => admitted(native, { ...browser, unknown: true })).toThrow();
+    const notify = notifyTuple(); expect(parseSelectedWebBootstrapBrowserReceipt(notify.browser)).toBe(notify.browser); expect(() => admitted(notify.native, notify.browser)).toThrow("tuple differs");
+    for (const selection of [{ ...native.selection, artifactClass: "node-agent" }, { ...native.selection, target: "aarch64-unknown-linux-gnu" }, { ...native.selection, buildId: "b".repeat(64) }, { ...native.selection, compositionId: "b".repeat(64) }, (({ artifactClass, ...value }) => value)(native.selection), (({ target, ...value }) => value)(native.selection)]) expect(() => admitted({ ...native, selection }, browser)).toThrow("tuple differs");
+    expect(() => admitted(native, { ...browser, release: { ...browser.release, selection: { ...browser.release.selection, extra: true } } })).toThrow();
     const root = await mkdtemp(join(tmpdir(), "rz-load-admission-")), file = join(root, "input.json");
     try {
         await writeFile(file, '{"b":2,"a":1}\n');
