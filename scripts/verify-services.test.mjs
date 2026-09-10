@@ -39,3 +39,26 @@ test("public verifier target runs the contract harness and current authority tes
     expect(target).toContain("gateway_fails_closed_when_the_authority_database_is_closed");
     expect(target).not.toContain("warm_gateway_streams_with_memory_auth_and_a_closed_database");
 });
+
+const pinnedBunWrapper = 'run_bun() {\n    pnpm dlx bun@1.3.14 "$@"\n}';
+
+function hasBareBun(value) {
+    return /\bbun\b/.test(value.replace(pinnedBunWrapper, ""));
+}
+
+test("service verifier pins every Bun execution through the wrapper", () => {
+    expect(script.match(new RegExp(pinnedBunWrapper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))).toHaveLength(1);
+    expect(hasBareBun(script)).toBeFalse();
+    expect(script).toContain('run_bun "$PROJECT_ROOT/scripts/verify-worker-contracts.mjs"');
+    expect(script.match(/run_bun -e/g)?.length).toBeGreaterThan(0);
+});
+
+test("service verifier rejects bare Bun in every supported shell position", () => {
+    for (const mutation of [
+        'MARKER=present bun -e "process.exit()"',
+        'value="$(bun -e "console.log(1)")"',
+        'bun -e "console.log(1)" | cat',
+    ]) {
+        expect(hasBareBun(`${script}\n${mutation}`)).toBeTrue();
+    }
+});

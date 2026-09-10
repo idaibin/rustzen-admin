@@ -63,6 +63,10 @@ export RUSTZEN_MONITOR_DATA_CONTRACT_ID=dddddddddddddddddddddddddddddddddddddddd
 export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$PROJECT_ROOT/target/rz/gateway-latency.json}"
 export RUST_LOG=warn
 
+run_bun() {
+    pnpm dlx bun@1.3.14 "$@"
+}
+
 dump_logs() {
     for log in "$ROOT"/logs/*.log; do
         [ -s "$log" ] || continue
@@ -187,7 +191,7 @@ assert_other_services_healthy() {
 
 parse_json() {
     expression="$1"
-    bun -e "const value = JSON.parse(await Bun.stdin.text()); console.log($expression)"
+    run_bun -e "const value = JSON.parse(await Bun.stdin.text()); console.log($expression)"
 }
 
 login() {
@@ -210,7 +214,7 @@ wait_for_module_state() {
             -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
             "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/modules" 2>/dev/null || true)"
         if BODY="$body" MODULE_ID="$module" EXPECT_AVAILABLE="$available" \
-            EXPECT_COMPATIBLE="$compatible" bun -e '
+            EXPECT_COMPATIBLE="$compatible" run_bun -e '
                 try {
                     const payload = JSON.parse(process.env.BODY);
                     const module = payload.data?.find((item) => item.id === process.env.MODULE_ID);
@@ -248,7 +252,7 @@ assert_gateway_unavailable() {
     wait_for_status 503 "$url" "$RUSTZEN_ADMIN_TOKEN"
     body="$(curl --silent --show-error \
         -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" "$url" 2>/dev/null || true)"
-    BODY="$body" MODULE_ID="$module" bun -e '
+    BODY="$body" MODULE_ID="$module" run_bun -e '
         const payload = JSON.parse(process.env.BODY);
         const expected = `${process.env.MODULE_ID} worker is temporarily unavailable.`;
         if (payload.code !== 40001 || payload.message !== expected || payload.data !== null) {
@@ -267,11 +271,11 @@ assert_module_gateways_healthy_except() {
 }
 
 verify_module_log_diagnostics() {
-    module_log_date="$(bun -e 'console.log(new Date().toISOString().slice(0, 10))')"
-    module_log_old_date="$(bun -e 'const date = new Date(); date.setUTCDate(date.getUTCDate() - 90); console.log(date.toISOString().slice(0, 10))')"
+    module_log_date="$(run_bun -e 'console.log(new Date().toISOString().slice(0, 10))')"
+    module_log_old_date="$(run_bun -e 'const date = new Date(); date.setUTCDate(date.getUTCDate() - 90); console.log(date.toISOString().slice(0, 10))')"
     module_log_dir="$ROOT/logs"
     mkdir -p "$module_log_dir"
-    MODULE_LOG_DIR="$module_log_dir" MODULE_LOG_DATE="$module_log_date" MODULE_LOG_OLD_DATE="$module_log_old_date" bun -e '
+    MODULE_LOG_DIR="$module_log_dir" MODULE_LOG_DATE="$module_log_date" MODULE_LOG_OLD_DATE="$module_log_old_date" run_bun -e '
         const dir = process.env.MODULE_LOG_DIR;
         const tailFixture = Array.from(
             { length: 24_000 },
@@ -284,7 +288,7 @@ verify_module_log_diagnostics() {
     module_log_list="$(curl --fail --silent --show-error \
         -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
         "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs?module=admin&date=$module_log_date")"
-    MODULE_LOG_LIST="$module_log_list" MODULE_LOG_DATE="$module_log_date" bun -e '
+    MODULE_LOG_LIST="$module_log_list" MODULE_LOG_DATE="$module_log_date" run_bun -e '
         const payload = JSON.parse(process.env.MODULE_LOG_LIST);
         if (!payload.data?.some((item) => item.module === "admin" && item.date === process.env.MODULE_LOG_DATE && item.readable)) {
             throw new Error(`module-log list did not return the readable admin fixture: ${JSON.stringify(payload)}`);
@@ -292,7 +296,7 @@ verify_module_log_diagnostics() {
     '
     wait_for_status 403 "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs?module=admin&date=$module_log_date" "$denied_token"
 
-    MODULE_LOG_BASE_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT" MODULE_LOG_DATE="$module_log_date" MODULE_LOG_TOKEN="$RUSTZEN_ADMIN_TOKEN" bun -e '
+    MODULE_LOG_BASE_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT" MODULE_LOG_DATE="$module_log_date" MODULE_LOG_TOKEN="$RUSTZEN_ADMIN_TOKEN" run_bun -e '
         const expectedLines = 24_000;
         const pages = [];
         let cursor;
@@ -341,7 +345,7 @@ verify_module_log_diagnostics() {
         -H 'content-type: application/json' \
         -d "{\"files\":[{\"module\":\"admin\",\"date\":\"$module_log_date\"}]}" \
         "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs/backup"
-    MODULE_LOG_HEADERS="$module_log_headers" MODULE_LOG_ARCHIVE="$module_log_archive" bun -e '
+    MODULE_LOG_HEADERS="$module_log_headers" MODULE_LOG_ARCHIVE="$module_log_archive" run_bun -e '
         const headers = await Bun.file(process.env.MODULE_LOG_HEADERS).text();
         const value = (name) => headers.match(new RegExp(`^${name}:\s*(.+)\r?$`, "im"))?.[1]?.trim();
         if (!/^attachment;\s*filename=rustzen-module-logs\.tar$/i.test(value("content-disposition") ?? "")) throw new Error("missing backup filename header");
@@ -357,7 +361,7 @@ verify_module_log_diagnostics() {
     cleanup_preview="$(curl --fail --silent --show-error \
         -X POST -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
         "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs/cleanup/preview")"
-    cleanup_token="$(CLEANUP_PREVIEW="$cleanup_preview" MODULE_LOG_OLD_DATE="$module_log_old_date" bun -e '
+    cleanup_token="$(CLEANUP_PREVIEW="$cleanup_preview" MODULE_LOG_OLD_DATE="$module_log_old_date" run_bun -e '
         const preview = JSON.parse(process.env.CLEANUP_PREVIEW).data;
         if (typeof preview?.token !== "string" || !preview.candidates?.some((item) => item.module === "monitor" && item.date === process.env.MODULE_LOG_OLD_DATE)) {
             throw new Error(`module-log cleanup preview fixture missing: ${JSON.stringify(preview)}`);
@@ -369,7 +373,7 @@ verify_module_log_diagnostics() {
         -X POST -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" -H 'content-type: application/json' \
         -d "{\"token\":\"$cleanup_token\"}" \
         "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/status/module-logs/cleanup/confirm")"
-    CLEANUP_RESULT="$cleanup_result" bun -e '
+    CLEANUP_RESULT="$cleanup_result" run_bun -e '
         const result = JSON.parse(process.env.CLEANUP_RESULT).data;
         if (!result.partial || !Array.isArray(result.failures) || result.failures.length === 0) {
             throw new Error(`module-log cleanup change must be partial: ${JSON.stringify(result)}`);
@@ -446,7 +450,7 @@ for service in admin monitor insights reports; do
 done
 
 cli_status="$($CLI --json status all)"
-CLI_STATUS="$cli_status" bun -e '
+CLI_STATUS="$cli_status" run_bun -e '
     const payload = JSON.parse(process.env.CLI_STATUS);
     const services = payload.data?.services;
     if (
@@ -503,7 +507,7 @@ if [ -z "${agent_nodes_after:-}" ] || [ "$agent_nodes_after" -le "$agent_nodes_b
 fi
 stop_service monitor_agent
 
-bun "$PROJECT_ROOT/scripts/verify-worker-contracts.mjs"
+run_bun "$PROJECT_ROOT/scripts/verify-worker-contracts.mjs"
 
 disable_status="$(http_status \
     -X PUT \
