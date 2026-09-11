@@ -1,0 +1,24 @@
+import { canonicalJson, sha256 } from "./release-manifest-core.ts";
+import type { VerifiedContainerExportSnapshot } from "./container-export-validator.ts";
+
+export const analyticsContainerCommands = [["rz-admin", "contract", "selected", "admin"], ["rz-insights", "contract", "selected"], ["rz-admin", "contract", "config", "selected", "access"], ["rz-insights", "contract", "config", "selected"], ["rz-admin", "contract", "protocol"], ["rz-insights", "contract", "protocol"]] as const;
+type Item = { command: string[]; stdoutSha256: string; artifactPath: string; artifactSha256: string };
+type Receipt = { schemaVersion: 1; kind: "analytics-container-contract-receipt"; context: { dockerContext: string; platform: "linux/amd64" }; commands: Item[]; sourceIdentity: { before: string; after: string }; manifestSha256: string; provenanceSha256: string; verifierImageDigest: string; restrictions: { network: "none"; readOnlyRootfs: true; tmpfs: "noexec,nosuid,nodev"; capDrop: "ALL"; noNewPrivileges: true; pids: 32; memory: "256m" }; runtime: false; certificate: false; signing: false; installer: false; browser: false; load: false };
+
+export function verifyAnalyticsContainerContractReceipt(snapshot: VerifiedContainerExportSnapshot, value: unknown, stdout: string[]): Receipt {
+    const receipt = value as Receipt, manifest = snapshot.manifest(), provenance = snapshot.recordedProvenance();
+    exactKeys(value, ["browser", "certificate", "commands", "context", "installer", "kind", "load", "manifestSha256", "provenanceSha256", "restrictions", "runtime", "schemaVersion", "signing", "sourceIdentity", "verifierImageDigest"], "analytics container receipt");
+    if (receipt.schemaVersion !== 1 || receipt.kind !== "analytics-container-contract-receipt" || receipt.context?.platform !== "linux/amd64" || canonicalJson(receipt.commands?.map(x => x.command)) !== canonicalJson(analyticsContainerCommands.map(x => [...x]))) throw Error("Analytics container receipt commands differ");
+    if (manifest.kind !== "analytics-container-output" || provenance.kind !== "analytics-container-provenance" || provenance.buildPlatform !== "linux/amd64") throw Error("Analytics container receipt rejects host synthetic export");
+    if (!Array.isArray(stdout) || stdout.length !== 6 || receipt.commands.length !== 6) throw Error("Analytics container receipt stdout differs");
+    const api = JSON.parse(text(snapshot, "release/contracts/api/api.json")), config = JSON.parse(text(snapshot, "release/contracts/config/config.json")), protocol = JSON.parse(text(snapshot, "release/contracts/protocol/protocol.json"));
+    const expected = [api.owners.admin, api.owners.insights, config.owners.access, config.owners.insights, protocolWire(protocol), protocolWire(protocol)];
+    for (let i = 0; i < 6; i++) { const output = stdout[i], item = receipt.commands[i], path = i < 2 ? "release/contracts/api/api.json" : i < 4 ? "release/contracts/config/config.json" : "release/contracts/protocol/protocol.json"; exactKeys(item, ["artifactPath", "artifactSha256", "command", "stdoutSha256"], "analytics container receipt command"); if (!output.endsWith("\n") || sha256(output) !== item.stdoutSha256 || item.artifactPath !== path || item.artifactSha256 !== sha256(snapshot.artifact(path).bytes) || (i < 4 ? output !== `${canonicalJson(expected[i])}\n` : output !== expected[i])) throw Error("Analytics container receipt contract output differs"); }
+    if (receipt.sourceIdentity?.before !== provenance.sourceIdentityInput || receipt.sourceIdentity.after !== receipt.sourceIdentity.before || receipt.manifestSha256 !== sha256(canonicalJson(manifest)) || receipt.provenanceSha256 !== sha256(canonicalJson(provenance))) throw Error("Analytics container receipt source identity differs");
+    const restrictions = { network: "none", readOnlyRootfs: true, tmpfs: "noexec,nosuid,nodev", capDrop: "ALL", noNewPrivileges: true, pids: 32, memory: "256m" };
+    if (!/^sha256:[a-f0-9]{64}$/.test(receipt.verifierImageDigest) || canonicalJson(receipt.restrictions) !== canonicalJson(restrictions) || [receipt.runtime, receipt.certificate, receipt.signing, receipt.installer, receipt.browser, receipt.load].some(x => x !== false)) throw Error("Analytics container receipt context differs");
+    return receipt;
+}
+function exactKeys(value: unknown, keys: string[], label: string) { if (!value || typeof value !== "object" || Array.isArray(value) || canonicalJson(Object.keys(value as object).sort()) !== canonicalJson(keys)) throw Error(`${label} fields are invalid`); }
+function text(snapshot: VerifiedContainerExportSnapshot, path: string) { return new TextDecoder("utf-8", { fatal: true }).decode(snapshot.artifact(path).bytes); }
+function protocolWire(protocol: any) { const descriptor = typeof protocol.descriptor === "string" ? protocol.descriptor : canonicalJson(protocol); return `${descriptor}\n${sha256(descriptor)}\n`; }
