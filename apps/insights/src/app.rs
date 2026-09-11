@@ -60,7 +60,7 @@ fn build_router_with_storage_capacity_checker(
 }
 
 async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse::ok(env!("CARGO_PKG_VERSION")))
+    Json(HealthResponse::ok_selected(env!("CARGO_PKG_VERSION")))
 }
 
 async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest> {
