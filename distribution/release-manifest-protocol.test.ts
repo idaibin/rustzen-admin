@@ -14,14 +14,14 @@ import {
     serverManifestFixture,
 } from "./release-manifest-fixtures.ts";
 
-test("Analytics manifest binds delegation protocol without Agent pairing", async () => {
+test("Analytics manifest binds the delegation protocol and rejects Agent pairing", async () => {
     const analytics = await serverManifestFixture(analyticsSelection);
     const agentFixture = await stagedPayloadFixture("agent");
     try {
         if (analytics.manifest.artifactClass !== "server")
             throw new Error("Analytics fixture is not a server manifest");
         const server = analytics.manifest;
-        expect(Object.hasOwn(server, "agentProtocolContractId")).toBeFalse();
+        expect(Object.hasOwn(server, "agentProtocolContractId")).toBeTrue();
         expect(server.protocolArtifactDigest).toMatch(/^[a-f0-9]{64}$/);
         expect(server.binaryDigests.map(({ path }) => path)).toEqual([
             "bin/rz-admin",
@@ -34,12 +34,13 @@ test("Analytics manifest binds delegation protocol without Agent pairing", async
         });
         if (agent.artifactClass !== "node-agent")
             throw new Error("Agent fixture is not a node-agent manifest");
+        expect(agent.agentProtocolContractId).not.toBe(server.agentProtocolContractId);
         expect(() => validateServerAgentPair(server, agent)).toThrow(
-            "no Agent protocol pairing",
+            "protocol IDs do not match",
         );
         expect(() =>
             parseReleaseManifest(
-                { ...server, agentProtocolContractId: h("8") },
+                { ...server, agentProtocolContractId: "not-a-hash" },
                 analyticsSelection,
             ),
         ).toThrow();

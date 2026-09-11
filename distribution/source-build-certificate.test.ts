@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
-import { h, monitorSelection, serverManifestFixture } from "./release-manifest-fixtures.ts";
+import { h, analyticsSelection, monitorSelection, serverManifestFixture } from "./release-manifest-fixtures.ts";
 import {
     parseSourceBuildCertificate,
     produceSourceBuildCertificate,
@@ -116,5 +116,21 @@ test("monitor-notify certificate binds its exact selected manifest", async () =>
         expect(value.selection.preset).toBe("monitor-notify");
         expect(value.runtime).toBeFalse(); expect(value.browser).toBeFalse(); expect(value.load).toBeFalse(); expect(value.releaseReady).toBeFalse();
         expect(() => parseSourceBuildCertificate(value, { preset: "monitor", target: monitorSelection.target })).toThrow("selection differs");
+    } finally { await rm(fixture.root, { recursive: true, force: true }); }
+});
+
+test("analytics certificate binds the exact Admin+Insights binary inventory", async () => {
+    const fixture = await serverManifestFixture(analyticsSelection);
+    try {
+        const input = { selection: analyticsSelection, manifest: fixture.manifest, sourceTreeSha256: h("a"), toolchain: "rustc 1.90", archiveSha256: h("b"), envelopeSha256: h("c") };
+        const value = produceSourceBuildCertificate(input);
+        expect(value.selection.preset).toBe("analytics");
+        expect(value.certifiedLayers.build.binaryDigests.map((x) => x.path)).toEqual(["bin/rz-admin", "bin/rz-insights"]);
+        expect(verifySourceBuildCertificate(value, input)).toEqual(value);
+        expect(() => parseSourceBuildCertificate(value, { preset: "monitor", target: monitorSelection.target })).toThrow("selection differs");
+        expect(() => parseSourceBuildCertificate(
+            { ...value, certifiedLayers: { ...value.certifiedLayers, build: { ...value.certifiedLayers.build, binaryDigests: [{ path: "bin/rz-monitor", sha256: h("d") }] } } },
+            analyticsSelection,
+        )).toThrow("binary inventory");
     } finally { await rm(fixture.root, { recursive: true, force: true }); }
 });

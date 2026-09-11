@@ -3,6 +3,7 @@ import { resolveSelection } from "./resolver.ts";
 import { parseReleaseManifest, type ReleaseManifest } from "./release-manifest.ts";
 import { auditSourceBuildReadiness } from "./source-build-readiness.ts";
 import { reviewedContainerServerPlan } from "./container-export-plan.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 
 export type SourceBuildCertificate = {
     schemaVersion: 1;
@@ -167,7 +168,7 @@ export function parseSourceBuildCertificate(
           })();
     if (
         canonicalJson(binaryDigests.map((x) => x.path)) !==
-        canonicalJson(["bin/rz-admin", "bin/rz-monitor"])
+        canonicalJson(selectedServerInventory(plan).binaries)
     )
         throw new Error("source-build certificate binary inventory is invalid");
     return {

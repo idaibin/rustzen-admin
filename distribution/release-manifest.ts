@@ -253,9 +253,9 @@ export function deriveReleaseManifestFromFiles(
         ...base,
         artifactClass: "server",
         apiDigest: apiDigest!,
-        ...(selectedServerInventory(plan).hasAgentWitness
-            ? { agentProtocolContractId: selectedProtocol.protocol.digest }
-            : {}),
+        // The signed envelope always carries the delegation protocol digest; both
+        // selected server binaries emit the same reviewed descriptor.
+        agentProtocolContractId: selectedProtocol.protocol.digest,
         schemaFingerprints: Object.fromEntries(
             Object.entries(schema!.contract.owners).map(([owner, value]) => [
                 owner,

@@ -55,7 +55,7 @@ export function parseReleaseManifest(
     onlyKeys(
         record,
         artifactClass === "server"
-            ? (selectedServerInventory(plan).hasAgentWitness ? serverKeys : serverKeys.filter((key) => key !== "agentProtocolContractId"))
+            ? serverKeys
             : artifactClass === "node-agent"
               ? baseKeys
               : [],
@@ -141,16 +141,9 @@ function parseBase(
         configOwners: sortedStrings(record.configOwners, "configOwners"),
         binaryDigests: binaryDigests(record.binaryDigests),
         files: fileEntries(record.files),
-        ...(record.agentProtocolContractId === undefined
-            ? {}
-            : {
-                  agentProtocolContractId: validHash(
-                      string(
-                          record.agentProtocolContractId,
-                          "agentProtocolContractId",
-                      ),
-                  ),
-              }),
+        agentProtocolContractId: validHash(
+            required(record.agentProtocolContractId, "agentProtocolContractId"),
+        ),
     };
     if (base.releaseClass !== "production" && base.releaseClass !== "test")
         throw new Error("releaseClass is invalid");
@@ -190,11 +183,6 @@ function validateClass(manifest: ReleaseManifest, plan: Plan) {
             canonicalJson(selectedServerInventory(plan).binaries)
     )
         throw new Error("server manifest has invalid selected inventory");
-    if (
-        selectedServerInventory(plan).hasAgentWitness !==
-        Object.hasOwn(manifest, "agentProtocolContractId")
-    )
-        throw new Error("server Monitor protocol pairing is invalid");
 }
 function validatePlan(manifest: ReleaseManifest, plan: Plan) {
     for (const key of [

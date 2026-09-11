@@ -81,16 +81,22 @@ test("captured synthetic Analytics bytes stage Admin and Insights without an Age
         ]);
         expect(result.manifest.files).toEqual(result.staging.files);
         expect(result.manifest.protocolArtifactDigest).toMatch(/^[a-f0-9]{64}$/);
-        expect(Object.hasOwn(result.manifest, "agentProtocolContractId")).toBeFalse();
+        expect(result.manifest.agentProtocolContractId).toMatch(/^[a-f0-9]{64}$/);
     } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
 });
 
-test("Monitor-only manifest entry rejects an Analytics snapshot", async () => {
+test("reviewed manifest entry stages an Analytics snapshot and still rejects an unsupported preset", async () => {
     const analytics = { schemaVersion: 1, preset: "analytics", target: "x86_64-unknown-linux-musl" };
     const root = await createExport(analytics);
     const trusted = await mkdtemp(join(tmpdir(), "rz-captured-analytics-monitor-gate-"));
     try {
         const snapshot = await verifyContainerExport(root, analytics, sourceIdentity, releaseVersion);
-        await expect(produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted })).rejects.toThrow("reviewed monitor");
+        const result = await produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted });
+        expect(result.manifest.preset).toBe("analytics");
+        await expect(produceMonitorNativeStagingManifest({
+            snapshot,
+            outputParent: join(trusted, "native-output"),
+            trustedRoot: trusted,
+        })).rejects.toThrow("already exists");
     } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
 });
