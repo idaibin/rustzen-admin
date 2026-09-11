@@ -88,7 +88,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "notifications" => rustzen_config::notifications_contract(),
             _ => return Err(std::io::Error::other("config owner is not selected").into()),
         };
-        println!("{}", serde_json::to_string(&contract)?);
+        // Canonicalize through serde_json::Value so selected-config stdout matches
+        // the sorted-key contract artifact bytes byte for byte.
+        println!("{}", serde_json::to_string(&serde_json::to_value(&contract)?)?);
         return Ok(());
     }
     // load env

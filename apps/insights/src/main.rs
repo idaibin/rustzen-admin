@@ -32,7 +32,9 @@ fn main() -> StartupResult<()> {
     }
     #[cfg(feature = "selected-distribution")]
     if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
-        println!("{}", serde_json::to_string(&rustzen_config::insights_contract())?);
+        // Canonicalize through serde_json::Value so selected-config stdout matches
+        // the sorted-key contract artifact bytes byte for byte.
+        println!("{}", serde_json::to_string(&serde_json::to_value(rustzen_config::insights_contract())?)?);
         return Ok(());
     }
     #[cfg(feature = "selected-distribution")]
