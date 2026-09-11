@@ -24,6 +24,7 @@ export type ContainerExportInput = {
     rustcVv: string;
     releaseVersion: string;
     runtime?: { platform: string; arch: string };
+    evidence?: "linux-amd64-buildkit";
 };
 
 /** Records selected-server bytes; only Analytics uses the host-synthetic identity. */
@@ -38,7 +39,9 @@ export async function produceContainerExport(input: ContainerExportInput) {
         platform: process.platform,
         arch: process.arch,
     };
-    if (plan.preset === "analytics") {
+    if (plan.preset === "analytics" && input.evidence !== undefined && input.evidence !== "linux-amd64-buildkit")
+        throw new Error("Analytics container evidence is invalid");
+    if (plan.preset === "analytics" && input.evidence !== "linux-amd64-buildkit") {
         if (
             !validRuntimeSegment(runtime.platform) ||
             !validRuntimeSegment(runtime.arch)
@@ -101,9 +104,12 @@ export async function produceContainerExport(input: ContainerExportInput) {
         throw new Error("container export is missing selected Web dist files");
 
     const analytics = plan.preset === "analytics";
+    const analyticsContainer = analytics && input.evidence === "linux-amd64-buildkit";
     const manifest = {
         schemaVersion: 1 as const,
-        kind: analytics
+        kind: analyticsContainer
+            ? ("analytics-container-output" as const)
+            : analytics
             ? ("selected-server-synthetic-output" as const)
             : ("monitor-container-output" as const),
         preset: plan.preset,
@@ -114,10 +120,14 @@ export async function produceContainerExport(input: ContainerExportInput) {
     };
     const provenance = {
         schemaVersion: 1 as const,
-        kind: analytics
+        kind: analyticsContainer
+            ? ("analytics-container-provenance" as const)
+            : analytics
             ? ("selected-server-synthetic-provenance" as const)
             : ("monitor-container-provenance" as const),
-        buildPlatform: analytics
+        buildPlatform: analyticsContainer
+            ? "linux/amd64"
+            : analytics
             ? `host/${runtime.platform}/${runtime.arch}`
             : "linux/amd64",
         targetTriple: input.targetTriple,

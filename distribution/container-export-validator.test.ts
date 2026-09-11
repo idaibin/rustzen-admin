@@ -18,6 +18,7 @@ import {
 import { produceContainerExport } from "./container-export.ts";
 import {
     VerifiedContainerExportSnapshot,
+    verifyAnalyticsContainerExport,
     verifyContainerExport,
 } from "./container-export-validator.ts";
 import { completeSelectedApiContractForTest } from "./selected-contract-validator.ts";
@@ -709,6 +710,41 @@ test("Analytics validator accepts only host-synthetic identity and exact server 
         expect(snapshot.paths()).not.toContain("witness/bin/rz-monitor-agent");
     } finally {
         await rm(root, { recursive: true, force: true });
+    }
+});
+
+test("Analytics BuildKit validator accepts linux/amd64 evidence and rejects host-synthetic bytes", async () => {
+    const analytics = {
+        schemaVersion: 1,
+        preset: "analytics",
+        target: "x86_64-unknown-linux-musl",
+    };
+    const container = await createExport(analytics, { evidence: "linux-amd64-buildkit" });
+    const synthetic = await createExport(analytics);
+    try {
+        const snapshot = await verifyAnalyticsContainerExport(
+            container,
+            analytics,
+            sourceIdentity,
+            releaseVersion,
+        );
+        expect(snapshot.manifest()).toMatchObject({
+            kind: "analytics-container-output",
+            preset: "analytics",
+        });
+        expect(snapshot.recordedProvenance()).toMatchObject({
+            kind: "analytics-container-provenance",
+            buildPlatform: "linux/amd64",
+        });
+        await expect(
+            verifyContainerExport(container, analytics, sourceIdentity, releaseVersion),
+        ).rejects.toThrow("Analytics synthetic export identity differs");
+        await expect(
+            verifyAnalyticsContainerExport(synthetic, analytics, sourceIdentity, releaseVersion),
+        ).rejects.toThrow("Analytics container export identity differs");
+    } finally {
+        await rm(container, { recursive: true, force: true });
+        await rm(synthetic, { recursive: true, force: true });
     }
 });
 

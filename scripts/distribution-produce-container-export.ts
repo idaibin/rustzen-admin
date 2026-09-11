@@ -13,8 +13,9 @@ if (!selectionPath || !outputRoot || args.size !== 2)
 const targetTriple = process.env.RUSTZEN_CONTAINER_TARGET_TRIPLE;
 const sourceIdentity = process.env.RUSTZEN_CONTAINER_SOURCE_IDENTITY;
 const commands = process.env.RUSTZEN_CONTAINER_BUILD_COMMANDS;
-if (!targetTriple || !sourceIdentity || !commands)
-    throw new Error("container export requires target, source identity and build command inputs");
+const evidence = process.env.RUSTZEN_CONTAINER_EVIDENCE;
+if (!targetTriple || !sourceIdentity || !commands || evidence !== "linux-amd64-buildkit")
+    throw new Error("container export requires linux-amd64-buildkit, target, source identity and build command inputs");
 const rustc = Bun.spawnSync(["rustc", "-Vv"], { stdout: "pipe", stderr: "pipe" });
 if (rustc.exitCode !== 0) throw new Error("rustc -Vv failed in container build stage");
 const produced = await produceContainerExport({
@@ -25,6 +26,7 @@ const produced = await produceContainerExport({
     buildCommands: JSON.parse(commands),
     rustcVv: new TextDecoder().decode(rustc.stdout),
     releaseVersion: await readWorkspaceVersion(root),
+    evidence,
 });
 console.log(canonicalJson({
     compositionId: produced.manifest.compositionId,

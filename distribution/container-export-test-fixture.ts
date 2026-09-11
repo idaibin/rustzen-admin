@@ -16,7 +16,7 @@ import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
 export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
 export const releaseVersion = "0.5.0";
-export async function createExport(selectionInput = selection) {
+export async function createExport(selectionInput = selection, options: { evidence?: "linux-amd64-buildkit" } = {}) {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));
     const plan = resolveSelection(selectionInput);
     const selected = selectedServerInventory(plan);
@@ -38,7 +38,7 @@ export async function createExport(selectionInput = selection) {
     await writeFile(join(root, "release/contracts/native/native-layout.json"), canonicalJson(generatedNativeLayout(selectionInput)));
     await writeFile(join(root, "release/contracts/protocol/protocol.json"), canonicalJson(completeSelectedProtocol(selectionInput)));
     await produceSchemaContract(selectionInput, resolve(import.meta.dir, ".."), join(root, "release/contracts/schema"));
-    await produce(root, selectionInput);
+    await produce(root, selectionInput, options);
     return root;
 }
 export async function createInventory(root: string, selectionInput = selection) {
@@ -80,10 +80,10 @@ export async function createInventory(root: string, selectionInput = selection) 
     }));
     await writeFile(join(root, "release/web/binding.json"), canonicalBindingBytes(binding));
 }
-export async function produce(root: string, selectionInput = selection) {
+export async function produce(root: string, selectionInput = selection, options: { evidence?: "linux-amd64-buildkit" } = {}) {
     const plan = resolveSelection(selectionInput);
     selectedServerSyntheticExportPlan(plan);
-    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: syntheticServerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: plan.preset === "analytics" ? { platform: "darwin", arch: "arm64" } : { platform: "linux", arch: "x64" } });
+    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: syntheticServerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: options.evidence ? { platform: "linux", arch: "x64" } : plan.preset === "analytics" ? { platform: "darwin", arch: "arm64" } : { platform: "linux", arch: "x64" }, evidence: options.evidence });
 }
 export function recordedRustc() { return "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2\n"; }
 export function expectedCommands(selectionInput = selection) {

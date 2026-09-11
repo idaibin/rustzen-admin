@@ -12,10 +12,9 @@ import { parseSchemaArtifactBytes } from "./schema-contract.ts";
 import { compareContainerExportPath } from "./container-export-path.ts";
 import { assertSelectedWebSnapshot, parseInventory } from "../scripts/distribution-web-inventory-policy.ts";
 import { parseWebBinding, verifyWebBinding } from "./selected-web-binding.ts";
-
 type ExportFile = { path: string; mode: "0644" | "0755"; size: number; sha256: string };
-type OutputManifest = { schemaVersion: 1; kind: "monitor-container-output" | "selected-server-synthetic-output"; preset: "analytics" | "monitor" | "monitor-notify"; artifactClass: "server"; compositionId: string; target: "x86_64-unknown-linux-musl"; files: ExportFile[] };
-type Provenance = { schemaVersion: 1; kind: "monitor-container-provenance" | "selected-server-synthetic-provenance"; buildPlatform: string; targetTriple: "x86_64-unknown-linux-musl"; releaseVersion: string; selection: unknown; selectionSha256: string; sourceIdentityInput: string; rustcVv: string; buildCommands: string[][]; outputManifestSha256: string };
+type OutputManifest = { schemaVersion: 1; kind: "analytics-container-output" | "monitor-container-output" | "selected-server-synthetic-output"; preset: "analytics" | "monitor" | "monitor-notify"; artifactClass: "server"; compositionId: string; target: "x86_64-unknown-linux-musl"; files: ExportFile[] };
+type Provenance = { schemaVersion: 1; kind: "analytics-container-provenance" | "monitor-container-provenance" | "selected-server-synthetic-provenance"; buildPlatform: string; targetTriple: "x86_64-unknown-linux-musl"; releaseVersion: string; selection: unknown; selectionSha256: string; sourceIdentityInput: string; rustcVv: string; buildCommands: string[][]; outputManifestSha256: string };
 const snapshotConstructionToken = Symbol("verified container export snapshot");
 let createVerifiedContainerSnapshot: (files: ArtifactFile[], manifest: OutputManifest, provenance: Provenance) => VerifiedContainerExportSnapshot;
 export class VerifiedContainerExportSnapshot {
@@ -59,13 +58,18 @@ export class VerifiedContainerExportSnapshot {
 }
 Object.freeze(VerifiedContainerExportSnapshot.prototype);
 Object.freeze(VerifiedContainerExportSnapshot);
-
 const witnessPath = "witness/bin/rz-monitor-agent";
 const contractPaths = ["release/contracts/api/api.json", "release/contracts/config/config.json", "release/contracts/native/native-layout.json", "release/contracts/protocol/protocol.json", "release/contracts/schema/schema.json"];
 const metadataPaths = ["release/container-provenance.json", "release/output-manifest.json"];
-
 /** Reads and validates one immutable selected-server export. */
 export async function verifyContainerExport(root: string, selectionInput: unknown, expectedSourceIdentity: string, expectedReleaseVersion: string): Promise<VerifiedContainerExportSnapshot> {
+    return verifySelectedContainerExport(root, selectionInput, expectedSourceIdentity, expectedReleaseVersion, "host-synthetic");
+}
+/** Validates Linux/amd64 BuildKit Analytics bytes; host synthetic metadata is rejected. */
+export async function verifyAnalyticsContainerExport(root: string, selectionInput: unknown, expectedSourceIdentity: string, expectedReleaseVersion: string): Promise<VerifiedContainerExportSnapshot> {
+    return verifySelectedContainerExport(root, selectionInput, expectedSourceIdentity, expectedReleaseVersion, "linux-amd64-buildkit");
+}
+async function verifySelectedContainerExport(root: string, selectionInput: unknown, expectedSourceIdentity: string, expectedReleaseVersion: string, evidence: "host-synthetic" | "linux-amd64-buildkit"): Promise<VerifiedContainerExportSnapshot> {
     const plan = resolveSelection(selectionInput);
     selectedServerSyntheticExportPlan(plan);
     if (plan.target !== "x86_64-unknown-linux-musl") throw new Error("container export validator target is invalid");
@@ -116,13 +120,19 @@ export async function verifyContainerExport(root: string, selectionInput: unknow
     if (provenance.sourceIdentityInput !== expectedSourceIdentity) throw new Error("container provenance source identity differs from expected input");
     if (provenance.targetTriple !== plan.target) throw new Error("container provenance target differs");
     if (plan.preset === "analytics") {
-        if (manifest.kind !== "selected-server-synthetic-output" || provenance.kind !== "selected-server-synthetic-provenance") throw new Error("Analytics synthetic export identity differs");
-        if (!validHostSyntheticPlatform(provenance.buildPlatform)) throw new Error("Analytics synthetic provenance build platform differs");
+        if (evidence === "linux-amd64-buildkit") {
+            if (manifest.kind !== "analytics-container-output" || provenance.kind !== "analytics-container-provenance" || provenance.buildPlatform !== "linux/amd64") throw new Error("Analytics container export identity differs");
+        } else {
+            if (manifest.kind !== "selected-server-synthetic-output" || provenance.kind !== "selected-server-synthetic-provenance") throw new Error("Analytics synthetic export identity differs");
+            if (!validHostSyntheticPlatform(provenance.buildPlatform)) throw new Error("Analytics synthetic provenance build platform differs");
+        }
     } else {
         if (manifest.kind !== "monitor-container-output" || provenance.kind !== "monitor-container-provenance") throw new Error("Monitor container export identity differs");
         if (provenance.buildPlatform !== "linux/amd64") throw new Error("Monitor container provenance build platform differs");
         verifyRustcHost(provenance.rustcVv);
     }
+    if (plan.preset === "analytics" && evidence === "linux-amd64-buildkit")
+        verifyRustcHost(provenance.rustcVv);
     if (plan.preset === "analytics" && !provenance.rustcVv.includes("rustc ")) {
         throw new Error("container provenance rustc differs");
     }
@@ -172,11 +182,10 @@ function verifyContracts(files: Map<string, ArtifactFile>, selection: unknown) {
     parseSelectedProtocolBytes(required(files, "release/contracts/protocol/protocol.json").bytes, selection);
     parseSchemaArtifactBytes(required(files, "release/contracts/schema/schema.json").bytes, selection);
 }
-
 function parseManifest(bytes: Uint8Array): OutputManifest {
     const value = json(bytes, "container output manifest");
     objectKeys(value, ["artifactClass", "compositionId", "files", "kind", "preset", "schemaVersion", "target"], "container output manifest");
-    if (value.schemaVersion !== 1 || !(["monitor-container-output", "selected-server-synthetic-output"] as string[]).includes(value.kind as string) || !(["analytics", "monitor", "monitor-notify"] as string[]).includes(value.preset as string) || value.artifactClass !== "server" || value.target !== "x86_64-unknown-linux-musl") throw new Error("container output manifest identity is invalid");
+    if (value.schemaVersion !== 1 || !(["analytics-container-output", "monitor-container-output", "selected-server-synthetic-output"] as string[]).includes(value.kind as string) || !(["analytics", "monitor", "monitor-notify"] as string[]).includes(value.preset as string) || value.artifactClass !== "server" || value.target !== "x86_64-unknown-linux-musl") throw new Error("container output manifest identity is invalid");
     validHash(text(value.compositionId, "container output manifest compositionId"));
     const files = parseFiles(value.files);
     const result = { ...value, files } as OutputManifest;
@@ -186,7 +195,7 @@ function parseManifest(bytes: Uint8Array): OutputManifest {
 function parseProvenance(bytes: Uint8Array): Provenance {
     const value = json(bytes, "container provenance");
     objectKeys(value, ["buildCommands", "buildPlatform", "kind", "outputManifestSha256", "releaseVersion", "rustcVv", "schemaVersion", "selection", "selectionSha256", "sourceIdentityInput", "targetTriple"], "container provenance");
-    if (value.schemaVersion !== 1 || !(["monitor-container-provenance", "selected-server-synthetic-provenance"] as string[]).includes(value.kind as string) || typeof value.buildPlatform !== "string" || !value.buildPlatform || value.targetTriple !== "x86_64-unknown-linux-musl" || typeof value.releaseVersion !== "string" || !value.releaseVersion || value.releaseVersion.length > 64 || /[\r\n]/.test(value.releaseVersion)) throw new Error("container provenance identity is invalid");
+    if (value.schemaVersion !== 1 || !(["analytics-container-provenance", "monitor-container-provenance", "selected-server-synthetic-provenance"] as string[]).includes(value.kind as string) || typeof value.buildPlatform !== "string" || !value.buildPlatform || value.targetTriple !== "x86_64-unknown-linux-musl" || typeof value.releaseVersion !== "string" || !value.releaseVersion || value.releaseVersion.length > 64 || /[\r\n]/.test(value.releaseVersion)) throw new Error("container provenance identity is invalid");
     validHash(text(value.selectionSha256, "container provenance selectionSha256"));
     validHash(text(value.outputManifestSha256, "container provenance outputManifestSha256"));
     const buildCommands = value.buildCommands;
@@ -285,10 +294,5 @@ function json(bytes: Uint8Array, label: string): Record<string, unknown> {
 function objectKeys(value: unknown, keys: string[], label: string) {
     if (!value || typeof value !== "object" || Array.isArray(value) || canonicalJson(Object.keys(value as object).sort()) !== canonicalJson(keys)) throw new Error(`${label} fields are invalid`);
 }
-function text(value: unknown, label: string): string {
-    if (typeof value !== "string" || !value) throw new Error(`${label} is invalid`);
-    return value;
-}
-function canonical(bytes: Uint8Array, value: unknown, label: string) {
-    if (new TextDecoder().decode(bytes) !== canonicalJson(value)) throw new Error(`${label} is not canonical`);
-}
+function text(value: unknown, label: string): string { if (typeof value !== "string" || !value) throw new Error(`${label} is invalid`); return value; }
+function canonical(bytes: Uint8Array, value: unknown, label: string) { if (new TextDecoder().decode(bytes) !== canonicalJson(value)) throw new Error(`${label} is not canonical`); }
