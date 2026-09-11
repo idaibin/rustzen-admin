@@ -16,7 +16,7 @@ import { parseSelectedApiBytes } from "./selected-contract-validator.ts";
 import { parseSelectedConfigBytes } from "./selected-config.ts";
 import { parseSelectedProtocolBytes } from "./selected-protocol.ts";
 import { resolveSelection } from "./resolver.ts";
-import { isReviewedContainerServerPlan } from "./container-export-plan.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 import { parseSchemaArtifactBytes } from "./schema-contract.ts";
 import { releaseWebDigest } from "./release-manifest-web-binding.ts";
 import type {
@@ -253,7 +253,9 @@ export function deriveReleaseManifestFromFiles(
         ...base,
         artifactClass: "server",
         apiDigest: apiDigest!,
-        agentProtocolContractId: selectedProtocol.protocol.digest,
+        ...(selectedServerInventory(plan).hasAgentWitness
+            ? { agentProtocolContractId: selectedProtocol.protocol.digest }
+            : {}),
         schemaFingerprints: Object.fromEntries(
             Object.entries(schema!.contract.owners).map(([owner, value]) => [
                 owner,
@@ -278,6 +280,6 @@ export {
 } from "./release-manifest-validator.ts";
 function expectedBinaries(plan: ReturnType<typeof resolveSelection>): string[] {
     if (plan.artifactClass === "node-agent") return ["bin/rz-monitor-agent"];
-    if (isReviewedContainerServerPlan(plan)) return ["bin/rz-admin", "bin/rz-monitor"];
+    if (plan.artifactClass === "server") return selectedServerInventory(plan).binaries;
     throw new Error("producer supports only reviewed server selections or node-agent");
 }

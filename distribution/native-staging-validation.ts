@@ -11,6 +11,7 @@ import {
     type VerifiedNativeSourceState,
 } from "./native-staging-source.ts";
 import { resolveSelection } from "./resolver.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 
 export function verifyPublishedSource(
     source: VerifiedNativeSource,
@@ -43,7 +44,7 @@ export function verifyPublishedSource(
     };
     const binaries =
         artifactClass === "server"
-            ? ["bin/rz-admin", "bin/rz-monitor"]
+            ? selectedServerInventory(plan).binaries
             : ["bin/rz-monitor-agent"];
     if (
         canonicalJson(paths.filter((path) => path.startsWith("bin/")).sort(compareStagingPath)) !==

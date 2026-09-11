@@ -1,5 +1,5 @@
 import { resolveSelection } from "./resolver.ts";
-import { isReviewedContainerServerPlan } from "./container-export-plan.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 import {
     canonicalJson,
     nonempty,
@@ -49,12 +49,13 @@ export function parseReleaseManifest(
     value: unknown,
     expectedSelection: unknown,
 ): ReleaseManifest {
+    const plan = resolveSelection(expectedSelection);
     const record = object(value, "manifest");
     const artifactClass = string(record.artifactClass, "artifactClass");
     onlyKeys(
         record,
         artifactClass === "server"
-            ? serverKeys
+            ? (selectedServerInventory(plan).hasAgentWitness ? serverKeys : serverKeys.filter((key) => key !== "agentProtocolContractId"))
             : artifactClass === "node-agent"
               ? baseKeys
               : [],
@@ -90,27 +91,20 @@ export function parseReleaseManifest(
                       ),
                   ),
               };
-    validateClass(manifest);
-    validatePlan(manifest, resolveSelection(expectedSelection));
+    validateClass(manifest, plan);
+    validatePlan(manifest, plan);
     return manifest;
 }
 export function validateServerAgentPair(
     server: ServerManifest,
     agent: AgentManifest,
 ): void {
+    if (!Object.hasOwn(server, "agentProtocolContractId"))
+        throw new Error("selected server has no Agent protocol pairing");
     if (server.agentProtocolContractId !== agent.agentProtocolContractId)
         throw new Error("server-Agent protocol IDs do not match");
 }
 
-function expectedBinaries(plan: Plan): string[] {
-    return plan.artifactClass === "node-agent"
-        ? ["bin/rz-monitor-agent"]
-        : isReviewedContainerServerPlan(plan)
-          ? ["bin/rz-admin", "bin/rz-monitor"]
-          : (() => {
-                throw new Error("producer supports only reviewed server selections or node-agent");
-            })();
-}
 function parseBase(
     record: Record<string, unknown>,
     artifactClass: string,
@@ -147,21 +141,22 @@ function parseBase(
         configOwners: sortedStrings(record.configOwners, "configOwners"),
         binaryDigests: binaryDigests(record.binaryDigests),
         files: fileEntries(record.files),
-        agentProtocolContractId:
-            record.agentProtocolContractId === undefined
-                ? undefined
-                : validHash(
+        ...(record.agentProtocolContractId === undefined
+            ? {}
+            : {
+                  agentProtocolContractId: validHash(
                       string(
                           record.agentProtocolContractId,
                           "agentProtocolContractId",
                       ),
                   ),
+              }),
     };
     if (base.releaseClass !== "production" && base.releaseClass !== "test")
         throw new Error("releaseClass is invalid");
     return base;
 }
-function validateClass(manifest: ReleaseManifest) {
+function validateClass(manifest: ReleaseManifest, plan: Plan) {
     const paths = manifest.files.map((file) => file.path);
     const binaries = manifest.binaryDigests.map((digest) => digest.path);
     if (
@@ -192,12 +187,12 @@ function validateClass(manifest: ReleaseManifest) {
         !manifest.capabilities.includes("access") ||
         manifest.services.includes("monitor-agent") ||
         canonicalJson(binaries) !==
-            canonicalJson(["bin/rz-admin", "bin/rz-monitor"])
+            canonicalJson(selectedServerInventory(plan).binaries)
     )
         throw new Error("server manifest has invalid selected inventory");
     if (
-        manifest.capabilities.includes("monitor") !==
-        Boolean(manifest.agentProtocolContractId)
+        selectedServerInventory(plan).hasAgentWitness !==
+        Object.hasOwn(manifest, "agentProtocolContractId")
     )
         throw new Error("server Monitor protocol pairing is invalid");
 }

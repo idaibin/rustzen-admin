@@ -15,6 +15,7 @@ import { parseInventory } from "../scripts/distribution-web-inventory-policy.ts"
 import type { BuildInputs } from "./release-manifest-types.ts";
 import { resolveSelection } from "./resolver.ts";
 import { readVerifiedWebSource } from "./native-staging-web-source.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 
 const sourceToken = Symbol("verified native source");
 const sourceStates = new WeakMap<VerifiedNativeSource, VerifiedNativeSourceState>();
@@ -71,8 +72,9 @@ export async function fromPathStagingInput(
     server: boolean,
 ): Promise<VerifiedNativeSource> {
     const binary = await readArtifactFileTree(input.binaryRoot);
+    const plan = resolveSelection(input.selection);
     const expected = server
-        ? ["bin/rz-admin", "bin/rz-monitor"]
+        ? selectedServerInventory(plan).binaries
         : ["bin/rz-monitor-agent"];
     if (canonicalJson(binary.map((file) => file.entry.path)) !== canonicalJson(expected))
         throw new Error("staging binary root inventory differs from selection");

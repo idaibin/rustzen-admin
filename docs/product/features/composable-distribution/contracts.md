@@ -274,8 +274,9 @@ only canonical `source-build-certificate/source-build-manifest.json` at mode
 no-replace rename and stable exact-directory reread.
 
 Contract extraction accepts an explicit release binary directory. It never invokes
-Cargo itself: the caller supplies `rz-admin` and `rz-monitor`. This extraction
-step does not prove that they share a build batch. The later certification
+Cargo itself: Monitor callers supply `rz-admin` and `rz-monitor`; Analytics
+callers supply `rz-admin` and `rz-insights` with no Agent witness. This
+extraction step does not prove that they share a build batch. The later certification
 orchestrator must capture one exact release inventory before and after extraction.
 Agent protocol extraction remains a separate witness operation and cannot make
 the Agent binary a member of the Monitor server archive.

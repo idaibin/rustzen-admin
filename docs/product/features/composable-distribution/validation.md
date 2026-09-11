@@ -139,7 +139,9 @@ output, a misplaced or extra server/witness binary, a missing output manifest or
 provenance record, and a build path that omits the exact command arrays. Its
 artifact test creates an exact temporary payload and rejects missing contracts,
 unexpected payload paths, links, unsupported modes and non-Linux/amd64 provenance.
-Passing these tests establishes source and static producer closure only. The
+Passing these Monitor-only Docker tests establishes source and static producer
+closure only; Analytics remains rejected by Docker and has no container or
+runtime evidence. The
 local P8b gate additionally rebuilds through Colima BuildKit for Linux/amd64,
 requires identical source identity before and after the build, validates the
 whole export on the host, and executes the selected binary contract commands in a networkless read-only

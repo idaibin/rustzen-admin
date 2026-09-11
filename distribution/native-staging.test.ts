@@ -7,7 +7,7 @@ import {
     publishNativeStagingBytes,
     setNativeStagingBeforePublishHookForTest,
 } from "./native-staging.ts";
-import { monitorSelection } from "./release-manifest-fixtures.ts";
+import { analyticsSelection, monitorSelection } from "./release-manifest-fixtures.ts";
 import { sha256 } from "./release-manifest-core.ts";
 import {
     fromPathStagingInput,
@@ -86,6 +86,56 @@ test("native staging rejects polluted and missing selected inputs", async () => 
                 toolchain: "test-toolchain",
                 selectedRoutes: [],
                 binaryRoot,
+                configRoot: fixture.configRoot,
+                nativeRoot: fixture.nativeRoot,
+                protocolRoot: fixture.protocolRoot,
+            }),
+        ).rejects.toThrow("inventory");
+    } finally {
+        await rm(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test("Analytics staging accepts only Admin and Insights binaries", async () => {
+    const { fixture, binaryRoot, selection } = await roots("server", analyticsSelection);
+    try {
+        const result = await produceNativeStaging({
+            selection,
+            outputParent: join(fixture.root, "staging"),
+            trustedRoot: fixture.root,
+            releaseVersion: "1.0.0",
+            sourceIdentity: "test-source",
+            toolchain: "test-toolchain",
+            selectedRoutes: [],
+            binaryRoot,
+            webRoot: fixture.webRoot,
+            apiRoot: fixture.apiRoot,
+            schemaRoot: fixture.schemaRoot,
+            configRoot: fixture.configRoot,
+            nativeRoot: fixture.nativeRoot,
+            protocolRoot: fixture.protocolRoot,
+        });
+        expect(
+            result.files
+                .map((file) => file.path)
+                .filter((path) => path.startsWith("bin/")),
+        ).toEqual(["bin/rz-admin", "bin/rz-insights"]);
+
+        await writeFile(join(binaryRoot, "bin", "rz-monitor"), "forbidden");
+        await chmod(join(binaryRoot, "bin", "rz-monitor"), 0o755);
+        await expect(
+            produceNativeStaging({
+                selection,
+                outputParent: join(fixture.root, "polluted"),
+                trustedRoot: fixture.root,
+                releaseVersion: "1.0.0",
+                sourceIdentity: "test-source",
+                toolchain: "test-toolchain",
+                selectedRoutes: [],
+                binaryRoot,
+                webRoot: fixture.webRoot,
+                apiRoot: fixture.apiRoot,
+                schemaRoot: fixture.schemaRoot,
                 configRoot: fixture.configRoot,
                 nativeRoot: fixture.nativeRoot,
                 protocolRoot: fixture.protocolRoot,

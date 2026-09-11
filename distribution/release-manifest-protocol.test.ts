@@ -1,16 +1,53 @@
 import { rm } from "node:fs/promises";
 import { expect, test } from "bun:test";
 import {
+    parseReleaseManifest,
     produceReleaseManifest,
     validateServerAgentPair,
 } from "./release-manifest.ts";
 import {
+    analyticsSelection,
     h,
     manifestInputs,
     monitorSelection,
     stagedPayloadFixture,
     serverManifestFixture,
 } from "./release-manifest-fixtures.ts";
+
+test("Analytics manifest binds delegation protocol without Agent pairing", async () => {
+    const analytics = await serverManifestFixture(analyticsSelection);
+    const agentFixture = await stagedPayloadFixture("agent");
+    try {
+        if (analytics.manifest.artifactClass !== "server")
+            throw new Error("Analytics fixture is not a server manifest");
+        const server = analytics.manifest;
+        expect(Object.hasOwn(server, "agentProtocolContractId")).toBeFalse();
+        expect(server.protocolArtifactDigest).toMatch(/^[a-f0-9]{64}$/);
+        expect(server.binaryDigests.map(({ path }) => path)).toEqual([
+            "bin/rz-admin",
+            "bin/rz-insights",
+        ]);
+        const agent = await produceReleaseManifest({
+            ...manifestInputs,
+            selection: { preset: "node-agent", target: monitorSelection.target },
+            staging: agentFixture.staging,
+        });
+        if (agent.artifactClass !== "node-agent")
+            throw new Error("Agent fixture is not a node-agent manifest");
+        expect(() => validateServerAgentPair(server, agent)).toThrow(
+            "no Agent protocol pairing",
+        );
+        expect(() =>
+            parseReleaseManifest(
+                { ...server, agentProtocolContractId: h("8") },
+                analyticsSelection,
+            ),
+        ).toThrow();
+    } finally {
+        await rm(analytics.root, { recursive: true, force: true });
+        await rm(agentFixture.root, { recursive: true, force: true });
+    }
+});
 
 test("server and Agent manifests bind the derived protocol pairing ID", async () => {
     const server = await serverManifestFixture();

@@ -19,6 +19,7 @@ import {
     stampIndex,
 } from "./selected-web-binding.ts";
 import { resolveSelection } from "./resolver.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 import {
     requiredModuleOwners,
     selectedWebRoutes,
@@ -26,6 +27,10 @@ import {
 
 export const monitorSelection = {
     preset: "monitor",
+    target: "x86_64-unknown-linux-musl",
+};
+export const analyticsSelection = {
+    preset: "analytics",
     target: "x86_64-unknown-linux-musl",
 };
 export const h = (letter: string) => letter.repeat(64);
@@ -70,8 +75,8 @@ export async function releaseFixture(
     await produceSelectedProtocol(
         selection,
         protocolRoot,
-        reviewedProtocolOutput(),
-        reviewedProtocolOutput(),
+        reviewedProtocolOutput(selection),
+        reviewedProtocolOutput(selection),
     );
     const serverSelection = kind === "server" ? selection : monitorSelection;
     await produceSchemaContract(
@@ -88,7 +93,9 @@ export async function releaseFixture(
     await mkdir(join(artifactRoot, "config"), { recursive: true });
     await writeFile(join(artifactRoot, "config", "rz.env"), "PORT=3000\n");
     if (kind === "server") {
-        for (const name of ["rz-admin", "rz-monitor"]) {
+        for (const name of selectedServerInventory(resolveSelection(selection)).binaries.map(
+            (path) => path.slice("bin/".length),
+        )) {
             await writeFile(join(artifactRoot, "bin", name), name);
             await chmod(join(artifactRoot, "bin", name), 0o755);
         }
@@ -123,11 +130,19 @@ export async function writeFixtureWebPolicyFiles(
         [
             "/api/auth/login",
             "/api/auth/me",
-            "/api/monitor/",
+            ...(resolveSelection(selection).preset === "analytics"
+                ? [
+                      "/api/insights/overview",
+                      "/api/insights/events",
+                      "/analytics/overview",
+                  ]
+                : ["/api/monitor/"]),
             "/api/system/users",
             "/api/system/roles",
             "/api/system/menus/options",
-            "/monitoring/overview",
+            ...(resolveSelection(selection).preset === "analytics"
+                ? []
+                : ["/monitoring/overview"]),
             ...(resolveSelection(selection).preset === "monitor-notify"
                 ? [
                       "/api/notifications/stream",
@@ -178,13 +193,19 @@ export async function writeFixtureWebBinding(webRoot: string, selection: unknown
 
 export async function serverManifestFixture(
     selection = monitorSelection,
-    binaries?: { admin: string; monitor: string },
+    binaries?: Partial<Record<"admin" | "insights" | "monitor", string>>,
 ) {
     const fixture = await releaseFixture("server", selection);
     const binaryRoot = join(fixture.root, "staging-binary");
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
-    for (const name of ["rz-admin", "rz-monitor"]) {
-        const source = name === "rz-admin" ? binaries?.admin : binaries?.monitor;
+    const names = selectedServerInventory(resolveSelection(selection)).binaries.map((path) =>
+        path.slice("bin/".length),
+    );
+    for (const name of names) {
+        const source =
+            binaries?.[
+                name.slice("rz-".length) as "admin" | "insights" | "monitor"
+            ];
         if (source) await copyFile(source, join(binaryRoot, "bin", name));
         else await writeFile(join(binaryRoot, "bin", name), name);
         await chmod(join(binaryRoot, "bin", name), 0o755);
@@ -220,8 +241,11 @@ export async function stagedPayloadFixture(
 ) {
     const fixture = await releaseFixture(kind, selection);
     const binaryRoot = join(fixture.root, "staging-binary");
-    const names =
-        kind === "server" ? ["rz-admin", "rz-monitor"] : ["rz-monitor-agent"];
+    const names = kind === "server"
+        ? selectedServerInventory(resolveSelection(selection)).binaries.map((path) =>
+              path.slice("bin/".length),
+          )
+        : ["rz-monitor-agent"];
     await mkdir(join(binaryRoot, "bin"), { recursive: true });
     for (const name of names) {
         if (binarySource && name === "rz-monitor-agent") {
