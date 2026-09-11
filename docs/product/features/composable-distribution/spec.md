@@ -279,3 +279,5 @@ archive, signing, installer, or live pairing completion.
 - [Implementation slices and acceptance tests](validation.md)
 - [Community evidence and applicability](sources.md)
 - [Review record](review.md)
+
+Analytics P8b step 3 adds only a static Linux/amd64 BuildKit closure: exact Admin+Insights bytes, selected Web and five retained contracts. It does not certify runtime, signing, installer, browser or load behavior.

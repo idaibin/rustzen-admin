@@ -1164,3 +1164,5 @@ Monitor SSE absence evidence. It must not contain credentials, request bodies,
 JWTs, raw node payloads, arbitrary logs, or an extensible status field. Its
 runtime evidence has `load:true` only in this separate receipt; the source-build
 certificate remains literal `load:false`.
+
+Analytics BuildKit evidence uses only `analytics-container-output` and `analytics-container-provenance` with `linux/amd64`; host-synthetic `selected-server-synthetic-*` metadata is a separate identity and is rejected by the container receipt verifier.

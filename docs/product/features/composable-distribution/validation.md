@@ -666,3 +666,5 @@ stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
 404 with signed empty forbidden API/Web/schema/service sets, and retained runtime
 cleanup completed. This is a local `load:true` closure only; production deployment
 and `releaseReady` remain **Not verified**.
+
+Analytics P8b step 3 is **Closed locally / Passed** on the real Colima BuildKit export at `target/rz/p8b-analytics-container-20260911T020403Z`: the exact Linux/amd64 container identity, six retained restricted commands and source/manifest/provenance equality all verify, the host validator accepted the export before and after the restricted pass with unchanged source identity, and a fresh process re-verified the persisted receipt (SHA-256 `c2ba3766b33aa301c00aa59109c18d98db34d780ffbd695c897f12a4602d36d4`). Runtime, signing, installer, browser and load remain **Not verified**.

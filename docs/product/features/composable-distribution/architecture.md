@@ -900,3 +900,5 @@ which alone creates the loopback-mapped systemd container with four CPUs,
 512MiB and 256 pids. It immediately runs P8f against that same container and
 writes a canonical context. Failed preparation removes the container and its
 0600 credentials; the context-driven cleanup command removes both after P8g.
+
+The Analytics P8b static path terminates at a Linux/amd64 container export and six retained binary contract outputs. It has no edge to the Monitor-only signing, certificate, publisher or installer path.
