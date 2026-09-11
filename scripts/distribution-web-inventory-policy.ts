@@ -83,6 +83,7 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
     const allowedSourceDirectories = [
         "apps/web/src/api/installation/",
         ...(!isAnalytics ? ["apps/web/src/api/monitor/"] : []),
+        ...(isAnalytics ? ["apps/web/src/api/insights/"] : []),
         ...(hasNotifications
             ? ["apps/web/src/api/notifications/", "apps/web/src/notifications/"]
             : []),

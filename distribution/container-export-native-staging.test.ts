@@ -3,7 +3,7 @@ import { lstat, rm } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { expect, test } from "bun:test";
-import { produceMonitorNativeStagingManifest } from "./container-export-native-staging.ts";
+import { produceMonitorNativeStagingManifest, produceSelectedServerSyntheticNativeStagingManifest } from "./container-export-native-staging.ts";
 import { verifyContainerExport } from "./container-export-validator.ts";
 import { createExport, releaseVersion, selection, sourceIdentity } from "./container-export-test-fixture.ts";
 
@@ -62,5 +62,35 @@ test("captured export bytes stage exact monitor-notify payload", async () => {
         expect(result.manifest.preset).toBe("monitor-notify");
         expect(result.manifest.binaryDigests.map((entry) => entry.path)).toEqual(["bin/rz-admin", "bin/rz-monitor"]);
         expect(result.staging.files.map((entry) => entry.path)).not.toContain("bin/rz-monitor-agent");
+    } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
+});
+
+test("captured synthetic Analytics bytes stage Admin and Insights without an Agent witness", async () => {
+    const analytics = { schemaVersion: 1, preset: "analytics", target: "x86_64-unknown-linux-musl" };
+    const root = await createExport(analytics);
+    const trusted = await mkdtemp(join(tmpdir(), "rz-captured-analytics-stage-"));
+    try {
+        const snapshot = await verifyContainerExport(root, analytics, sourceIdentity, releaseVersion);
+        await rm(root, { recursive: true, force: true });
+        const result = await produceSelectedServerSyntheticNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted });
+        expect(result.staging.files.map((file) => file.path)).toEqual([
+            "bin/rz-admin", "bin/rz-insights", "contracts/api/api.json", "contracts/config/config.json",
+            "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json",
+            "contracts/web/binding.json", "systemd/rz-admin.service", "systemd/rz-insights.service",
+            "systemd/rz.target", "web/index.html", "web/rustzen.png",
+        ]);
+        expect(result.manifest.files).toEqual(result.staging.files);
+        expect(result.manifest.protocolArtifactDigest).toMatch(/^[a-f0-9]{64}$/);
+        expect(Object.hasOwn(result.manifest, "agentProtocolContractId")).toBeFalse();
+    } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
+});
+
+test("Monitor-only manifest entry rejects an Analytics snapshot", async () => {
+    const analytics = { schemaVersion: 1, preset: "analytics", target: "x86_64-unknown-linux-musl" };
+    const root = await createExport(analytics);
+    const trusted = await mkdtemp(join(tmpdir(), "rz-captured-analytics-monitor-gate-"));
+    try {
+        const snapshot = await verifyContainerExport(root, analytics, sourceIdentity, releaseVersion);
+        await expect(produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted })).rejects.toThrow("reviewed monitor");
     } finally { await rm(root, { recursive: true, force: true }); await rm(trusted, { recursive: true, force: true }); }
 });

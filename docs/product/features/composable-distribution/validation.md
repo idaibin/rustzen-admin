@@ -5,6 +5,10 @@ below is claimed complete. Native staging tests cover exact inventory, stable
 reads, no replacement, publish locking, temporary cleanup and manifest snapshot
 binding.
 
+Analytics P8b step 2 validates synthetic host bytes, identity, modes, contracts,
+selected Web and captured staging only. It is not container, signing, installation
+or runtime evidence and does not change the Analytics P8 admission result.
+
 P8c adds focused unit and CLI integration tests for captured-snapshot signing:
 strict arguments; private/public PEM ownership, mode, link, size and stable-read
 rejection; strict single-SPKI public PEM and key-pair rejection; exact three-file
@@ -30,9 +34,10 @@ exact composition and build. Passing `full` never certifies a subset.
 Before a source/build certification command runs, the P8a admission audit must
 cover every named catalog preset and must reject unknown or incomplete producer
 sets. The current admitted set is `analytics`, `monitor`, `monitor-notify` and
-`node-agent`. Analytics admission is P8a source/build evidence only: its P8b
-container/staging, signing, runtime, browser and release evidence remain
-unimplemented, and Docker rejects Analytics.
+`node-agent`. Analytics additionally has locally verified host-synthetic P8b
+export, immutable snapshot and captured-staging seams. These are not container
+evidence: Docker, certificate, signing, installer, runtime, browser and release
+certification remain unimplemented, and Docker rejects Analytics.
 Target `full`, `reports`, `current-full-regression` and `custom`
 return a machine-readable blocked result; `--require-ready` exits nonzero.
 `monitor-notify` has exact Linux/amd64 build/export evidence at

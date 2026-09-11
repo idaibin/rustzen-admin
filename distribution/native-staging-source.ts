@@ -145,7 +145,9 @@ export function fromContainerSnapshot(
     const inventory = parseInventory(json(snapshot.artifact("release/web/inventory.json").bytes));
     const native = snapshot.artifact("release/contracts/native/native-layout.json").bytes;
     const layout = parseNativeLayoutBytes(native, selection);
-    const binaries = ["release/server/bin/rz-admin", "release/server/bin/rz-monitor"];
+    const binaries = selectedServerInventory(resolveSelection(selection)).binaries.map(
+        (path) => `release/server/${path}`,
+    );
     const contracts = [
         "api/api.json",
         "config/config.json",

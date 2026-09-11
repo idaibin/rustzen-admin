@@ -112,6 +112,16 @@ Docker Monitor producer output is physically separated before any archive work:
 contains exactly `rz-monitor-agent`. Full remains `/out/bin` with its five binaries.
 This is a build-output boundary only; manifest, archive, signing and installation remain P4 work.
 
+### Analytics host synthetic selected-server export
+
+The host synthetic export/snapshot/captured-native-staging seam accepts only the
+exact Analytics x86_64-musl selection. It contains `rz-admin` and `rz-insights`
+only, with no Agent witness. Its `selected-server-synthetic-*` metadata uses a
+validated `host/<platform>/<arch>` value. It is not Docker evidence and cannot
+enter certificate, signing, publisher, installer, or runtime inputs; those remain
+Monitor-only. Monitor and monitor-notify retain their existing
+`monitor-container-*` Linux/amd64 and pinned Rustc provenance requirements.
+
 No omitted field is inferred as an empty server contract. Cross-class packages
 and extra owner fields are rejected before install writes.
 

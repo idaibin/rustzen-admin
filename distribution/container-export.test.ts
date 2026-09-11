@@ -22,6 +22,8 @@ test("container export records one exact Monitor payload and provenance", async 
         });
         expect(result.manifest.files.map((file) => file.path)).toContain("release/web/dist/index.html");
         expect(result.manifest.files.map((file) => file.path)).toContain("witness/bin/rz-monitor-agent");
+        expect(result.manifest.kind).toBe("monitor-container-output");
+        expect(result.provenance).toMatchObject({ kind: "monitor-container-provenance", buildPlatform: "linux/amd64" });
         expect(result.provenance.outputManifestSha256).toMatch(/^[a-f0-9]{64}$/);
         expect(await Bun.file(join(root, "release/output-manifest.json")).json()).toEqual(result.manifest);
         expect(await Bun.file(join(root, "release/container-provenance.json")).json()).toEqual(result.provenance);
@@ -48,15 +50,13 @@ test("container export rejects omitted payload members and wrong build environme
             rustcVv: "rustc 1.95.0\n", releaseVersion: "0.5.0",
             runtime: { platform: "linux", arch: "x64" },
         })).rejects.toThrow("protocol");
+        const valid = await populate();
         await expect(produceContainerExport({
-            selection,
-            outputRoot: root,
-            targetTriple: "x86_64-unknown-linux-musl",
-            sourceIdentity: "source",
-            buildCommands: [["cargo", "build"]],
-            rustcVv: "rustc 1.95.0\n", releaseVersion: "0.5.0",
+            selection, outputRoot: valid, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity: "source",
+            buildCommands: [["cargo", "build"]], rustcVv: "rustc 1.95.0\n", releaseVersion: "0.5.0",
             runtime: { platform: "darwin", arch: "arm64" },
         })).rejects.toThrow("linux/amd64");
+        await rm(valid, { recursive: true, force: true });
     } finally {
         await rm(root, { recursive: true, force: true });
     }

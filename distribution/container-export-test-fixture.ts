@@ -3,7 +3,8 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { canonicalJson } from "./release-manifest-core.ts";
 import { produceContainerExport } from "./container-export.ts";
-import { containerBuildCommands, reviewedContainerServerPlan } from "./container-export-plan.ts";
+import { syntheticServerBuildCommands, selectedServerSyntheticExportPlan } from "./selected-server-synthetic-export-plan.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
 import { resolveSelection } from "./resolver.ts";
 import { completeSelectedApiContractForTest } from "./selected-contract-validator.ts";
 import { completeSelectedConfigForTest } from "./selected-config.ts";
@@ -11,17 +12,23 @@ import { generatedNativeLayout } from "./native-layout.ts";
 import { completeSelectedProtocol } from "./selected-protocol.ts";
 import { produceSchemaContract } from "./schema-contract.ts";
 import { canonicalBindingBytes, createWebBinding, readWebFiles, stampIndex } from "./selected-web-binding.ts";
+import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.ts";
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
 export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
 export const releaseVersion = "0.5.0";
 export async function createExport(selectionInput = selection) {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));
-    const binaries = ["release/server/bin/rz-admin", "release/server/bin/rz-monitor", "witness/bin/rz-monitor-agent"];
+    const plan = resolveSelection(selectionInput);
+    const selected = selectedServerInventory(plan);
+    const binaries = [
+        ...selected.binaries.map((path) => `release/server/${path}`),
+        ...(selected.hasAgentWitness ? ["witness/bin/rz-monitor-agent"] : []),
+    ];
     const files = [...binaries, "release/web/inventory.json", "release/web/binding.json", "release/web/api.ts", "release/web/dist/index.html", "release/web/dist/rustzen.png", "release/contracts/api/api.json", "release/contracts/config/config.json", "release/contracts/schema/schema.json", "release/contracts/native/native-layout.json", "release/contracts/protocol/protocol.json"];
     for (const path of files) {
         const full = join(root, path);
         await mkdir(join(full, ".."), { recursive: true });
-        const binary = path.endsWith("rz-admin") ? markerBinary("rz-admin") : path.endsWith("rz-monitor") && !path.endsWith("rz-monitor-agent") ? markerBinary("rz-monitor") : path.endsWith("rz-monitor-agent") ? markerBinary("rz-monitor-agent") : path;
+        const binary = path.endsWith("rz-admin") ? markerBinary("rz-admin") : path.endsWith("rz-insights") ? markerBinary("rz-insights") : path.endsWith("rz-monitor") && !path.endsWith("rz-monitor-agent") ? markerBinary("rz-monitor") : path.endsWith("rz-monitor-agent") ? markerBinary("rz-monitor-agent") : path;
         await writeFile(full, binary);
         if (binaries.includes(path)) await chmod(full, 0o755);
     }
@@ -37,21 +44,13 @@ export async function createExport(selectionInput = selection) {
 export async function createInventory(root: string, selectionInput = selection) {
     const plan = resolveSelection(selectionInput);
     const compositionId = plan.compositionId;
-    const routes = [
-        ...(plan.preset === "monitor-notify" ? ["-notifications-shell.tsx"] : []),
-        "index.tsx", "__root.tsx", "403.tsx", "404.tsx", "login.tsx", "monitoring.tsx",
-        "monitoring/incidents.tsx", "monitoring/nodes.tsx", "monitoring/overview.tsx",
-        "monitoring/summaries.tsx", "profile.tsx", "system/role.tsx", "system/user.tsx",
-        "monitoring/-global-alert-settings.tsx", "monitoring/-incident-drawer.tsx",
-        "monitoring/-node-details.tsx", "monitoring/-node-alert-policy.tsx", "monitoring/-node-onboarding.tsx", "monitoring/-save-state.ts",
-        "system/-role-actions.tsx", "system/-role-delete-state.ts", "system/-role-dialog.tsx",
-        "system/-role-permission-picker.tsx", "system/-user-actions.tsx", "system/-user-dialog.tsx",
-    ].sort();
+    const routes = selectedWebRoutes(plan);
+    const analytics = plan.preset === "analytics";
     await writeFile(
         join(root, "release/web/dist/index.html"),
-        (plan.preset === "monitor-notify" ? "/api/notifications/stream /api/notifications/unread-count Message center " : "") + "/api/auth/login /api/auth/me /api/monitor/ /api/system/users /api/system/roles /api/system/menus/options /monitoring/overview<meta name=\"rustzen-web-binding\" content=\"__RUSTZEN_WEB_DIGEST__\" />",
+        (plan.preset === "monitor-notify" ? "/api/notifications/stream /api/notifications/unread-count Message center " : "") + "/api/auth/login /api/auth/me " + (analytics ? "/api/insights/overview /api/insights/events /analytics/overview" : "/api/monitor/ /monitoring/overview") + " /api/system/users /api/system/roles /api/system/menus/options<meta name=\"rustzen-web-binding\" content=\"__RUSTZEN_WEB_DIGEST__\" />",
     );
-    await writeFile(join(root, "release/web/api.ts"), "export const selectedApi = '/api/monitor/';\n");
+    await writeFile(join(root, "release/web/api.ts"), `export const selectedApi = '${analytics ? "/api/insights/" : "/api/monitor/"}';\n`);
     const before = await readWebFiles(join(root, "release/web/dist"));
     const binding = createWebBinding({
         compositionId,
@@ -74,7 +73,7 @@ export async function createInventory(root: string, selectionInput = selection) 
         fileInventory: files.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
         moduleIds: [
             `apps/web/.selected-web/${compositionId}/index.tsx`,
-            "apps/web/src/api/installation/api.ts", plan.preset === "monitor-notify" ? "apps/web/src/api/monitor/api.ts" : "apps/web/src/api/monitor/core-api.ts", "apps/web/src/api/request.ts",
+            "apps/web/src/api/installation/api.ts", analytics ? "apps/web/src/api/insights/contract.ts" : plan.preset === "monitor-notify" ? "apps/web/src/api/monitor/api.ts" : "apps/web/src/api/monitor/core-api.ts", "apps/web/src/api/request.ts",
             ...(plan.preset === "monitor-notify" ? ["apps/web/src/api/notifications/api.ts", "apps/web/src/notifications/message-center.tsx"] : []),
         ],
         binding,
@@ -83,14 +82,14 @@ export async function createInventory(root: string, selectionInput = selection) 
 }
 export async function produce(root: string, selectionInput = selection) {
     const plan = resolveSelection(selectionInput);
-    reviewedContainerServerPlan(plan);
-    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: containerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: { platform: "linux", arch: "x64" } });
+    selectedServerSyntheticExportPlan(plan);
+    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: syntheticServerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: plan.preset === "analytics" ? { platform: "darwin", arch: "arm64" } : { platform: "linux", arch: "x64" } });
 }
 export function recordedRustc() { return "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2\n"; }
 export function expectedCommands(selectionInput = selection) {
     const plan = resolveSelection(selectionInput);
-    reviewedContainerServerPlan(plan);
-    return containerBuildCommands(plan);
+    selectedServerSyntheticExportPlan(plan);
+    return syntheticServerBuildCommands(plan);
 }
 export function markerBinary(name: string, options: { interpreted?: boolean } = {}) {
     const bytes = new Uint8Array(256);
