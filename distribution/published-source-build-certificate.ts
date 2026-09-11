@@ -16,7 +16,7 @@ const maxBytes = 64 * 1024;
 
 export type PublishedSourceBuildCertificate = {
     certificateSha256: string;
-    selection: { preset: "monitor" | "monitor-notify"; target: string; artifactClass: "server" | "node-agent"; compositionId: string };
+    selection: { preset: "monitor" | "monitor-notify" | "analytics"; target: string; artifactClass: "server" | "node-agent"; compositionId: string };
     buildId: string;
     binaryDigests: Array<{ path: string; sha256: string }>;
     manifestSha256: string;
@@ -60,7 +60,7 @@ export async function verifyPublishedSourceBuildCertificate(input: {
         return {
             certificateSha256: sha256(bytes),
             selection: {
-                preset: certificate.selection.preset === "monitor" || certificate.selection.preset === "monitor-notify" ? certificate.selection.preset : (() => { throw new Error("published certificate preset is unsupported"); })(),
+                preset: certificate.selection.preset === "monitor" || certificate.selection.preset === "monitor-notify" || certificate.selection.preset === "analytics" ? certificate.selection.preset : (() => { throw new Error("published certificate preset is unsupported"); })(),
                 target: certificate.selection.target,
                 artifactClass: certificate.selection.artifactClass,
                 compositionId: certificate.selection.compositionId,

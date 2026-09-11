@@ -36,3 +36,22 @@ test("runtime evidence preserves legacy Monitor shape and binds new notification
     notify.checks.notificationIngress = "absent";
     expect(() => parseMonitorNativeRuntimeEvidence(notify)).toThrow("required check");
 });
+
+const analyticsEvidence: MonitorNativeRuntimeEvidence = {
+    ...evidence,
+    kind: "analytics-native-runtime-evidence",
+    selection: { ...evidence.selection, preset: "analytics" },
+    release: { ...evidence.release, binaryDigests: [{ path: "bin/rz-admin", sha256: hash }, { path: "bin/rz-insights", sha256: hash }] },
+    services: [
+        evidence.services[0],
+        { unit: "rz-insights.service", mainPid: 2, executable: { dev: "1", ino: "3", sha256: hash } },
+    ],
+    health: [evidence.health[0], { service: "insights", buildId: hash, compositionId: hash }],
+    checks: { ownerLogin: true, defaultPasswordsRejected: true, monitorAbsent: true, reportsAbsent: true, restart: true, adminThenInsights: true, insightsThenAdmin: true },
+};
+test("analytics runtime evidence binds its family and rejects cross-family shapes", () => {
+    expect(parseMonitorNativeRuntimeEvidence(analyticsEvidence)).toEqual(analyticsEvidence);
+    expect(() => parseMonitorNativeRuntimeEvidence({ ...analyticsEvidence, selection: { ...analyticsEvidence.selection, preset: "monitor" } })).toThrow("required check");
+    expect(() => parseMonitorNativeRuntimeEvidence({ ...evidence, selection: { ...evidence.selection, preset: "analytics" } })).toThrow("required check");
+    expect(() => parseMonitorNativeRuntimeEvidence({ ...analyticsEvidence, checks: { ...analyticsEvidence.checks, notificationIngress: "absent" } })).toThrow("unknown");
+});
