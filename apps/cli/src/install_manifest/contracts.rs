@@ -132,10 +132,12 @@ fn schema_identity(
     }
     contract_selection_identity(value, manifest)?;
     let owners = value.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
-    let expected = if manifest.preset == "monitor-notify" {
-        BTreeSet::from(["admin", "admin-notifications", "monitor", "monitor-notifications"])
-    } else {
-        BTreeSet::from(["admin", "monitor"])
+    let expected = match manifest.preset.as_str() {
+        "monitor-notify" => {
+            BTreeSet::from(["admin", "admin-notifications", "monitor", "monitor-notifications"])
+        }
+        "analytics" => BTreeSet::from(["admin", "insights"]),
+        _ => BTreeSet::from(["admin", "monitor"]),
     };
     if owners.keys().map(String::as_str).collect::<BTreeSet<_>>() != expected {
         return Err("schema owners invalid".into());

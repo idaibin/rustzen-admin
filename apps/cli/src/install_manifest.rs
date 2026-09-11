@@ -93,11 +93,15 @@ fn validate(m: &Manifest) -> Result<(), String> {
 }
 
 fn server(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> {
-    let notify = m.preset == "monitor-notify";
+    let services: Vec<&str> = if m.preset == "analytics" {
+        vec!["admin", "insights"]
+    } else {
+        vec!["admin", "monitor"]
+    };
     if !selected_server_selection(&m.preset, &m.capabilities, &m.config_owners, &m.composition_id)
-        || m.services != ["admin", "monitor"]
-        || m.schema_fingerprints.as_ref().is_none_or(|x| !owners(x, notify))
-        || m.data_contract_ids.as_ref().is_none_or(|x| !owners(x, notify))
+        || m.services != services[..]
+        || m.schema_fingerprints.as_ref().is_none_or(|x| !owners(x, &m.preset))
+        || m.data_contract_ids.as_ref().is_none_or(|x| !owners(x, &m.preset))
     {
         return Err("server manifest differs from selected server selection".into());
     }
@@ -109,23 +113,30 @@ fn server(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> 
         return Err("server manifest contract digest differs from payload".into());
     }
     digest(m.web_digest.as_ref().ok_or("server web digest missing")?, "selected-web-files")?;
-    Ok(exact_paths(
-        files,
+    let binaries: Vec<&str> = if m.preset == "analytics" {
+        vec!["bin/rz-admin", "bin/rz-insights"]
+    } else {
+        vec!["bin/rz-admin", "bin/rz-monitor"]
+    };
+    let units: Vec<&str> = if m.preset == "analytics" {
+        vec!["systemd/rz-admin.service", "systemd/rz-insights.service", "systemd/rz.target"]
+    } else {
+        vec!["systemd/rz-admin.service", "systemd/rz-monitor.service", "systemd/rz.target"]
+    };
+    let fixed: Vec<&str> = [
+        binaries.as_slice(),
         &[
-            "bin/rz-admin",
-            "bin/rz-monitor",
             "contracts/api/api.json",
             "contracts/config/config.json",
             "contracts/native/native-layout.json",
             "contracts/protocol/protocol.json",
             "contracts/schema/schema.json",
             "contracts/web/binding.json",
-            "systemd/rz-admin.service",
-            "systemd/rz-monitor.service",
-            "systemd/rz.target",
         ],
-        true,
-    ))
+        units.as_slice(),
+    ]
+    .concat();
+    Ok(exact_paths(files, &fixed, true))
 }
 
 fn selected_server_selection(
@@ -139,6 +150,8 @@ fn selected_server_selection(
             && composition == hash(b"{\"artifactClass\":\"server\",\"capabilities\":[\"access\",\"monitor\"],\"capabilityContractVersion\":1}"),
         "monitor-notify" => capabilities == ["access", "monitor", "notifications"] && owners == ["access", "monitor", "notifications"]
             && composition == "0aac2acc2b282ed9f4c0e7b5ffff7866b78801b7cea1c77b273446128e86c36d",
+        "analytics" => capabilities == ["access", "insights"] && owners == ["access", "insights"]
+            && composition == hash(b"{\"artifactClass\":\"server\",\"capabilities\":[\"access\",\"insights\"],\"capabilityContractVersion\":1}"),
         _ => false,
     }
 }
@@ -230,12 +243,12 @@ fn exact_paths(files: &BTreeMap<&str, &Entry>, fixed: &[&str], web: bool) -> boo
 fn file_hash(files: &BTreeMap<&str, &Entry>, path: &str) -> Result<String, String> {
     Ok(files.get(path).ok_or("manifest required contract is missing")?.sha256.clone())
 }
-fn owners(values: &BTreeMap<String, String>, notify: bool) -> bool {
+fn owners(values: &BTreeMap<String, String>, preset: &str) -> bool {
     values.keys().map(String::as_str).collect::<Vec<_>>()
-        == if notify {
-            vec!["admin", "admin-notifications", "monitor", "monitor-notifications"]
-        } else {
-            vec!["admin", "monitor"]
+        == match preset {
+            "monitor-notify" => vec!["admin", "admin-notifications", "monitor", "monitor-notifications"],
+            "analytics" => vec!["admin", "insights"],
+            _ => vec!["admin", "monitor"],
         }
         && values.values().all(|x| hash_id(x))
 }
