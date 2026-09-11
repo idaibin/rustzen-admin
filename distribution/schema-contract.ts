@@ -1,6 +1,6 @@
 import { lstat, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
-import { readSingleArtifactFile } from "./release-manifest-artifacts.ts";
+import { readArtifactFiles, readSingleArtifactFile } from "./release-manifest-artifacts.ts";
 import { canonicalJson, sha256 } from "./release-manifest-core.ts";
 import { resolveSelection } from "./resolver.ts";
 import {
@@ -17,7 +17,7 @@ type Owner =
 const sources: Record<"analytics" | "monitor", Partial<Record<Owner, string>>> = {
     analytics: {
         admin: "apps/admin/migrations/sqlite-analytics/0001_init.sql",
-        insights: "apps/insights/migrations/0001_init.sql",
+        insights: "apps/insights/migrations",
     },
     monitor: {
         admin: "apps/admin/migrations/sqlite-monitor/0001_init.sql",
@@ -107,9 +107,7 @@ async function schemaOwners(selectionInput: unknown, repositoryRoot: string) {
         const relative = presetSources[owner];
         if (!relative) throw new Error(`selected schema source is unavailable: ${owner}`);
         const source = resolve(repositoryRoot, relative);
-        const schemaSha256 = (
-            await readSingleArtifactFile(dirname(source), basename(source))
-        ).entry.sha256;
+        const schemaSha256 = await schemaSourceDigest(source);
         owners[owner] = {
             schemaSha256,
             dataContractId: sha256(
@@ -118,6 +116,22 @@ async function schemaOwners(selectionInput: unknown, repositoryRoot: string) {
         };
     }
     return owners;
+}
+
+/** Single-file sources keep their file digest; directory sources bind the exact ordered migration set. */
+async function schemaSourceDigest(source: string): Promise<string> {
+    const stat = await lstat(source);
+    if (stat.isSymbolicLink())
+        throw new Error("selected schema source is a symlink");
+    if (stat.isFile()) {
+        return (await readSingleArtifactFile(dirname(source), basename(source))).entry.sha256;
+    }
+    if (!stat.isDirectory())
+        throw new Error("selected schema source is unavailable");
+    const files = await readArtifactFiles(source);
+    if (!files.length || files.some((file) => !/^[0-9]{4}_[a-z0-9_]+\.sql$/.test(file.path)))
+        throw new Error("selected schema source inventory is invalid");
+    return sha256(canonicalJson(files.map((file) => ({ name: file.path, sha256: file.sha256 }))));
 }
 
 export function parseSchemaContract(
