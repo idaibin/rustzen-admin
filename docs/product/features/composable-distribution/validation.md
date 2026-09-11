@@ -667,6 +667,21 @@ stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
 cleanup completed. This is a local `load:true` closure only; production deployment
 and `releaseReady` remain **Not verified**.
 
+The exact `analytics` P8e native runtime evidence is
+`target/rz/p8e-analytics-runtime-20260911/analytics-native-runtime-evidence.json` (SHA-256
+`0d6d8c3df93bb7c1d36bc1c6316df4f8a7d0e7f839fb427bbc9b9d8e157682b1`). Because the Insights service gained its offline database command surface and
+installation-identity binding, this gate runs a fresh chain: the export at
+`target/rz/p8e-analytics-container-20260911T052505Z` binds dirty source
+`git:1060952abae2f16d0bb0639308d6ba0f53e30252 tree:562c2a6040562febdd648a0fde6c71b9e12885ec2b74b860f5d79d8ec59bdb0d state:dirty`, the signed release
+and certificate bind build `8f1a2e993977edcad7390f445eb201ab53e37b29dbfb288ef46f50c386eabc79` under key `p8e-analytics-20260911`, and the private key was
+deleted after publication. Inside one disposable `linux/amd64` systemd PID1 container the gate
+rereads the published certificate, runs `rz verify`, dry-run, fresh `apply`, `install-status` and
+`activate-analytics-server`, then proves enabled/active `rz.target` with `rz-admin.service` and
+`rz-insights.service`, identity-bound fresh Admin and Insights databases, owner login plus
+default-password rejection, Monitor and Reports absence, restart plus both service start orders,
+and MainPID executable inode/digest equality. A separate host process revalidated the persisted
+evidence. `browser` and `load` remain **Not verified**.
+
 The exact `analytics` P8c/P8d evidence manifest is
 `target/rz/p8cd-analytics-evidence-manifest-20260911.json`. It binds the retained
 P8b export identity `git:6c12c7227e5ec2519c6fee506a9d0407c7494448 tree:df92f84c8b22c6a73224c71082001921750800e64888f5e61455831c00362900 state:dirty`, composition `62d09d09b3b0e94f88329179bf9a8c1fa84a984ba87df341911dab0e7fcf0a40` and build `e10b0fd6f289f5035b4d4147d0b47f77be6eeadfa1d419ede6eb05570aa2f333` to archive `0eae6e53a591c740a66051f6d32a8f836ddecfae73b417774d66fec0b68a3297`, manifest `a87435008418c4cce05ec15ec7807673b4c2984aede41dd7178ac88d81bb9fad`, envelope `3a045610c2328657e94724651fcb9cd0daeab3f3d98cbcae8e57ccabb7dbd183` and certificate `221f07f0fc5517f32dff3b56dfbb22189fc9a08c06d106a6a2f026e053e24583`. The host and linux/amd64 verifier JSON SHA-256 values are both `b718e05cba0b16f67997ff7f4e0aee17750e56a204196c48c1ebf75633221d79` and their bytes match exactly; the linux/amd64 run executed the current `rz` from the full export branch inside the digest-pinned `debian:bookworm-slim` image with network disabled, a read-only rootfs and no-new-privileges. The private key was deleted; only public key SHA-256 `9596184838e7a636ff8816a70c4a198428d8fd5840f5d9c5bd79a164373d74e0` remains. This records one old-export tuple, not a rebuild of current source; all literal `runtime`, `browser`, `load` and `releaseReady` flags remain false, and it proves neither native/PID1, browser nor load behavior.
