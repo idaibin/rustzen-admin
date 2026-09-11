@@ -16,45 +16,59 @@ use std::{
 
 pub(super) struct SourceConfig {
     pub(super) admin: Vec<u8>,
-    pub(super) monitor: Vec<u8>,
+    pub(super) secondary: Vec<u8>,
     pub(super) admin_port: u16,
-    pub(super) monitor_port: u16,
+    pub(super) secondary_port: u16,
     pub(super) owner_password: Vec<u8>,
 }
 impl SourceConfig {
-    pub(super) fn read(path: &Path, notify: bool) -> Result<Self, String> {
-        let values = parse_source(&read_source(path)?, notify)?;
+    pub(super) fn read(
+        path: &Path,
+        selection: &crate::install_server_selection::ServerSelection,
+    ) -> Result<Self, String> {
+        let values = parse_source(&read_source(path)?, selection)?;
+        let notify = selection.notify;
         let admin_root =
             runtime_root(&values, "RUSTZEN_ADMIN_RUNTIME_ROOT", "/var/lib/rustzen-admin")?;
-        let monitor_root =
-            runtime_root(&values, "RUSTZEN_MONITOR_RUNTIME_ROOT", "/var/lib/rustzen-monitor")?;
+        let secondary_root = runtime_root(
+            &values,
+            &format!("RUSTZEN_{}_RUNTIME_ROOT", secondary_service(selection)),
+            &selection.secondary_runtime_root(),
+        )?;
         let admin_db = PathBuf::from(
             values
                 .get("RUSTZEN_ADMIN_SQLITE_PATH")
                 .ok_or("Monitor server config source is incomplete")?,
         );
-        let monitor_db = PathBuf::from(
+        let secondary_db = PathBuf::from(
             values
-                .get("RUSTZEN_MONITOR_SQLITE_PATH")
+                .get(selection.secondary_sqlite_key())
                 .ok_or("Monitor server config source is incomplete")?,
         );
-        if admin_db != admin_root.join("admin.db") || monitor_db != monitor_root.join("monitor.db")
+        if admin_db != admin_root.join("admin.db")
+            || secondary_db != secondary_root.join(selection.secondary_database())
         {
             return Err("selected database path is outside its service runtime root".into());
         }
         let mut admin_values = values.clone();
         admin_values.insert("RUSTZEN_RUNTIME_ROOT".into(), admin_root.display().to_string());
-        let mut monitor_values = values.clone();
-        monitor_values.insert("RUSTZEN_RUNTIME_ROOT".into(), monitor_root.display().to_string());
-        let mut admin = render(&admin_values, ADMIN_KEYS)?;
-        let mut monitor = render(&monitor_values, MONITOR_KEYS)?;
+        let mut secondary_values = values.clone();
+        secondary_values
+            .insert("RUSTZEN_RUNTIME_ROOT".into(), secondary_root.display().to_string());
+        let secondary_keys: &[&str] = match selection.secondary {
+            "monitor" => MONITOR_KEYS,
+            "insights" => INSIGHTS_KEYS,
+            _ => return Err("selected server preset is invalid".into()),
+        };
+        let mut admin = render(&admin_values, admin_keys(selection))?;
+        let mut secondary = render(&secondary_values, secondary_keys)?;
         if notify {
             admin.extend(render(&admin_values, ADMIN_NOTIFY_KEYS)?);
-            monitor.extend(render(&monitor_values, MONITOR_NOTIFY_KEYS)?);
+            secondary.extend(render(&secondary_values, MONITOR_NOTIFY_KEYS)?);
         }
         let admin_port = port(&values, "RUSTZEN_ADMIN_PORT", 9801)?;
-        let monitor_port = port(&values, "RUSTZEN_MONITOR_PORT", 9802)?;
-        if admin_port == 0 || monitor_port == 0 || admin_port == monitor_port {
+        let secondary_port = port(&values, selection.secondary_port_key(), selection.secondary_port_default())?;
+        if admin_port == 0 || secondary_port == 0 || admin_port == secondary_port {
             return Err("Monitor server config ports are invalid".into());
         }
         let owner_password = values
@@ -69,11 +83,23 @@ impl SourceConfig {
         {
             return Err("Monitor server owner credential is invalid".into());
         }
-        Ok(Self { admin, monitor, admin_port, monitor_port, owner_password })
+        Ok(Self { admin, secondary, admin_port, secondary_port, owner_password })
     }
 }
 
-const ADMIN_KEYS: &[&str] = &[
+fn secondary_service(selection: &crate::install_server_selection::ServerSelection) -> String {
+    selection.secondary.to_ascii_uppercase()
+}
+
+fn admin_keys(selection: &crate::install_server_selection::ServerSelection) -> &'static [&'static str] {
+    match selection.secondary {
+        "monitor" => ADMIN_MONITOR_KEYS,
+        "insights" => ADMIN_INSIGHTS_KEYS,
+        _ => unreachable!("validated secondary service"),
+    }
+}
+
+const ADMIN_MONITOR_KEYS: &[&str] = &[
     "RUSTZEN_ADMIN_HOST",
     "RUSTZEN_ADMIN_PORT",
     "RUSTZEN_ADMIN_SQLITE_PATH",
@@ -87,6 +113,23 @@ const ADMIN_KEYS: &[&str] = &[
     "RUSTZEN_JWT_EXPIRATION",
     "RUSTZEN_JWT_SECRET",
     "RUSTZEN_MONITOR_PORT",
+    "RUSTZEN_RUNTIME_ROOT",
+    "RUSTZEN_TIMEZONE",
+];
+const ADMIN_INSIGHTS_KEYS: &[&str] = &[
+    "RUSTZEN_ADMIN_HOST",
+    "RUSTZEN_ADMIN_PORT",
+    "RUSTZEN_ADMIN_SQLITE_PATH",
+    "RUSTZEN_DB_CONN_TIMEOUT",
+    "RUSTZEN_DB_IDLE_TIMEOUT",
+    "RUSTZEN_DB_MAX_CONN",
+    "RUSTZEN_DB_MIN_CONN",
+    "RUSTZEN_ENV",
+    "RUSTZEN_INTERNAL_HOST",
+    "RUSTZEN_INSIGHTS_PORT",
+    "RUSTZEN_IPC_TOKEN",
+    "RUSTZEN_JWT_EXPIRATION",
+    "RUSTZEN_JWT_SECRET",
     "RUSTZEN_RUNTIME_ROOT",
     "RUSTZEN_TIMEZONE",
 ];
@@ -106,20 +149,42 @@ const MONITOR_KEYS: &[&str] = &[
     "RUSTZEN_RUNTIME_ROOT",
     "RUSTZEN_TIMEZONE",
 ];
+const INSIGHTS_KEYS: &[&str] = &[
+    "RUSTZEN_DB_CONN_TIMEOUT",
+    "RUSTZEN_DB_IDLE_TIMEOUT",
+    "RUSTZEN_DB_MAX_CONN",
+    "RUSTZEN_DB_MIN_CONN",
+    "RUSTZEN_ENV",
+    "RUSTZEN_INSIGHTS_PORT",
+    "RUSTZEN_INSIGHTS_SQLITE_PATH",
+    "RUSTZEN_INTERNAL_HOST",
+    "RUSTZEN_IPC_TOKEN",
+    "RUSTZEN_RUNTIME_ROOT",
+    "RUSTZEN_TIMEZONE",
+];
 
-fn parse_source(bytes: &[u8], notify: bool) -> Result<BTreeMap<String, String>, String> {
+fn parse_source(
+    bytes: &[u8],
+    selection: &crate::install_server_selection::ServerSelection,
+) -> Result<BTreeMap<String, String>, String> {
     let text = std::str::from_utf8(bytes).map_err(|_| "Monitor server config source is invalid")?;
-    let allowed = ADMIN_KEYS
+    let notify = selection.notify;
+    let allowed = admin_keys(selection)
         .iter()
-        .chain(MONITOR_KEYS)
+        .chain(match selection.secondary {
+            "monitor" => MONITOR_KEYS,
+            "insights" => INSIGHTS_KEYS,
+            _ => return Err("selected server preset is invalid".into()),
+        })
         .chain(ADMIN_NOTIFY_KEYS)
         .chain(MONITOR_NOTIFY_KEYS)
         .copied()
         .filter(|key| *key != "RUSTZEN_RUNTIME_ROOT")
+        .map(str::to_owned)
         .chain([
-            "RUSTZEN_BOOTSTRAP_OWNER_PASSWORD",
-            "RUSTZEN_ADMIN_RUNTIME_ROOT",
-            "RUSTZEN_MONITOR_RUNTIME_ROOT",
+            "RUSTZEN_BOOTSTRAP_OWNER_PASSWORD".to_owned(),
+            "RUSTZEN_ADMIN_RUNTIME_ROOT".to_owned(),
+            format!("RUSTZEN_{}_RUNTIME_ROOT", secondary_service(selection)),
         ])
         .collect::<BTreeSet<_>>();
     let mut result: BTreeMap<String, String> = BTreeMap::new();
@@ -139,6 +204,11 @@ fn parse_source(bytes: &[u8], notify: bool) -> Result<BTreeMap<String, String>, 
     if !notify && result.keys().any(|key| key.starts_with("RUSTZEN_NOTIFICATION_")) {
         return Err("Monitor server config source contains notification keys".into());
     }
+    if selection.secondary == "insights"
+        && result.keys().any(|key| key.starts_with("RUSTZEN_MONITOR"))
+    {
+        return Err("Monitor server config source contains Monitor keys".into());
+    }
     let required = if notify {
         vec![
             "RUSTZEN_NOTIFICATION_EVENT_KEY",
@@ -149,17 +219,25 @@ fn parse_source(bytes: &[u8], notify: bool) -> Result<BTreeMap<String, String>, 
     } else {
         vec![]
     };
-    for key in required.into_iter().chain([
+    let mut keys: Vec<&str> = vec![
         "RUSTZEN_ENV",
         "RUSTZEN_JWT_SECRET",
         "RUSTZEN_IPC_TOKEN",
-        "RUSTZEN_MONITOR_AGENT_TOKEN",
         "RUSTZEN_ADMIN_SQLITE_PATH",
-        "RUSTZEN_MONITOR_SQLITE_PATH",
         "RUSTZEN_BOOTSTRAP_OWNER_PASSWORD",
         "RUSTZEN_ADMIN_RUNTIME_ROOT",
-        "RUSTZEN_MONITOR_RUNTIME_ROOT",
-    ]) {
+    ];
+    match selection.secondary {
+        "monitor" => keys.extend(["RUSTZEN_MONITOR_AGENT_TOKEN", "RUSTZEN_MONITOR_SQLITE_PATH"]),
+        "insights" => keys.push("RUSTZEN_INSIGHTS_SQLITE_PATH"),
+        _ => return Err("selected server preset is invalid".into()),
+    }
+    let runtime_key =
+        format!("RUSTZEN_{}_RUNTIME_ROOT", secondary_service(selection));
+    if result.get(&runtime_key).is_none_or(String::is_empty) {
+        return Err("Monitor server config source is incomplete".into());
+    }
+    for key in required.into_iter().chain(keys) {
         if result.get(key).is_none_or(String::is_empty) {
             return Err("Monitor server config source is incomplete".into());
         }
@@ -197,6 +275,7 @@ fn render(values: &BTreeMap<String, String>, keys: &[&str]) -> Result<Vec<u8>, S
                 | "RUSTZEN_MONITOR_AGENT_TOKEN"
                 | "RUSTZEN_ADMIN_SQLITE_PATH"
                 | "RUSTZEN_MONITOR_SQLITE_PATH"
+                | "RUSTZEN_INSIGHTS_SQLITE_PATH"
                 | "RUSTZEN_ENV"
                 | "RUSTZEN_NOTIFICATION_EVENT_KEY"
                 | "RUSTZEN_NOTIFICATION_EVENT_KEY_ID"

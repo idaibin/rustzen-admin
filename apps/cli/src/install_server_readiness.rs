@@ -26,7 +26,7 @@ pub(super) fn wait(
         }
         thread::sleep(Duration::from_secs(1));
     }
-    Err("selected Monitor server readiness failed".into())
+    Err("selected server readiness failed".into())
 }
 fn health(port: u16, build_id: &str, composition_id: &str) -> bool {
     std::net::TcpStream::connect_timeout(

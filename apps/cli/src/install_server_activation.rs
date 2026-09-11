@@ -21,35 +21,39 @@ use std::{
 
 const ROOT: &str = "/opt/rz";
 const ADMIN_CONFIG: &str = "rz-admin.env";
-const MONITOR_CONFIG: &str = "rz-monitor.env";
-const UNITS: [&str; 3] = ["rz-admin.service", "rz-monitor.service", "rz.target"];
 
 pub(super) struct ActivationInput {
     pub(super) config: PathBuf,
+    /// Secondary service family the invoking subcommand names.
+    pub(super) secondary: &'static str,
 }
 
 #[derive(Serialize)]
 pub(super) struct Activated {
-    config: [&'static str; 2],
+    config: [String; 2],
     unit: &'static str,
 }
 
 pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
     require_root()?;
     let release = ServerRelease::load()?;
-    let source = SourceConfig::read(&input.config, release.preset == "monitor-notify")?;
-    validate_selected_config(&source)?;
+    if release.selection.secondary != input.secondary {
+        return Err("installed release preset differs from the activation command".into());
+    }
+    let source = SourceConfig::read(&input.config, &release.selection)?;
+    validate_selected_config(&source, &release)?;
+    let secondary_config = release.selection.secondary_config();
 
     let root = PrivateParent::open(Path::new(ROOT))?;
     let unit_parent = PrivateParent::open(Path::new("/etc/systemd/system"))?;
-    reject_unselected_state()?;
+    reject_unselected_state(&release.selection)?;
     make_payload_executable(&release)?;
-    let (admin, monitor) = install_server_identity::ensure_pair()?;
+    let (admin, secondary) = install_server_identity::ensure_pair(&release.selection)?;
     let state = ServerActivationState::acquire(
         &release.preset,
         &release.build_id,
         &source.admin,
-        &source.monitor,
+        &source.secondary,
         &release.units,
         &release.schema_fingerprints,
         &release.data_contract_ids,
@@ -57,19 +61,19 @@ pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
     let tuple_sha256 = state.tuple_sha256();
 
     if state.already_complete()? {
-        require_complete(&root, &unit_parent, &source, &release, &admin, &monitor)?;
+        require_complete(&root, &unit_parent, &source, &release, &admin, &secondary)?;
         install_server_identity::verify_owner(&source)?;
         systemctl(&["is-enabled", "--quiet", "rz.target"])?;
         require_ready(&source, &release)?;
         DatabaseJournal::remove(&tuple_sha256)?;
-        return Ok(result());
+        return Ok(result(&release));
     }
 
-    install_server_database::publish(&source, &release, &tuple_sha256, &admin, &monitor)?;
-    install_server_database::verify(&source, &release, &admin, &monitor)?;
+    install_server_database::publish(&source, &release, &tuple_sha256, &admin, &secondary)?;
+    install_server_database::verify(&source, &release, &admin, &secondary)?;
     install_server_identity::verify_owner(&source)?;
     publish_config(&root, ADMIN_CONFIG, &source.admin, admin.gid)?;
-    publish_config(&root, MONITOR_CONFIG, &source.monitor, monitor.gid)?;
+    publish_config(&root, &secondary_config, &source.secondary, secondary.gid)?;
     publish(
         &root.open_child_directory("config")?,
         "rz-release.env",
@@ -77,7 +81,7 @@ pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
         0,
         0o644,
     )?;
-    for name in UNITS {
+    for name in release.selection.units {
         publish(
             &unit_parent,
             name,
@@ -104,12 +108,15 @@ pub(super) fn activate(input: &ActivationInput) -> Result<Activated, String> {
         return Err(error);
     }
     DatabaseJournal::remove(&tuple_sha256)?;
-    Ok(result())
+    Ok(result(&release))
 }
 
-fn result() -> Activated {
+fn result(release: &ServerRelease) -> Activated {
     Activated {
-        config: ["/opt/rz/config/rz-admin.env", "/opt/rz/config/rz-monitor.env"],
+        config: [
+            "/opt/rz/config/rz-admin.env".to_owned(),
+            format!("/opt/rz/config/{}", release.selection.secondary_config()),
+        ],
         unit: "rz.target",
     }
 }
@@ -160,7 +167,7 @@ fn require_complete(
     source: &SourceConfig,
     release: &ServerRelease,
     admin: &ServiceIdentity,
-    monitor: &ServiceIdentity,
+    secondary: &ServiceIdentity,
 ) -> Result<(), String> {
     let config = root.open_child_directory("config")?;
     let config_meta = config.metadata()?;
@@ -170,12 +177,17 @@ fn require_complete(
     let binding = release_binding(release);
     for (name, bytes, gid, mode) in [
         (ADMIN_CONFIG, source.admin.as_slice(), admin.gid, 0o640),
-        (MONITOR_CONFIG, source.monitor.as_slice(), monitor.gid, 0o640),
+        (
+            release.selection.secondary_config().as_str(),
+            source.secondary.as_slice(),
+            secondary.gid,
+            0o640,
+        ),
         ("rz-release.env", binding.as_slice(), 0, 0o644),
     ] {
         require_file(&config, name, bytes, gid, mode)?;
     }
-    for name in UNITS {
+    for name in release.selection.units {
         require_file(
             units,
             name,
@@ -184,7 +196,7 @@ fn require_complete(
             0o644,
         )?;
     }
-    install_server_database::verify(source, release, admin, monitor)
+    install_server_database::verify(source, release, admin, secondary)
 }
 
 fn require_file(
@@ -211,19 +223,23 @@ fn require_file(
 
 fn release_binding(release: &ServerRelease) -> Vec<u8> {
     format!(
-        "RUSTZEN_BUILD_ID={}\nRUSTZEN_COMPOSITION_ID={}\nRUSTZEN_ADMIN_SCHEMA_FINGERPRINT={}\nRUSTZEN_ADMIN_DATA_CONTRACT_ID={}\nRUSTZEN_MONITOR_SCHEMA_FINGERPRINT={}\nRUSTZEN_MONITOR_DATA_CONTRACT_ID={}\n",
+        "RUSTZEN_BUILD_ID={}\nRUSTZEN_COMPOSITION_ID={}\nRUSTZEN_ADMIN_SCHEMA_FINGERPRINT={}\nRUSTZEN_ADMIN_DATA_CONTRACT_ID={}\nRUSTZEN_{}_SCHEMA_FINGERPRINT={}\nRUSTZEN_{}_DATA_CONTRACT_ID={}\n",
         release.build_id,
         release.composition_id,
         release.schema_fingerprints["admin"],
         release.data_contract_ids["admin"],
-        release.schema_fingerprints["monitor"],
-        release.data_contract_ids["monitor"],
+        release.selection.secondary.to_ascii_uppercase(),
+        release.schema_fingerprints[release.selection.secondary],
+        release.selection.secondary.to_ascii_uppercase(),
+        release.data_contract_ids[release.selection.secondary],
     )
     .into_bytes()
 }
 
-fn reject_unselected_state() -> Result<(), String> {
-    for service in ["rz-insights", "rz-reports"] {
+fn reject_unselected_state(
+    selection: &crate::install_server_selection::ServerSelection,
+) -> Result<(), String> {
+    for service in selection.excluded_services() {
         for path in [
             format!("/etc/systemd/system/{service}.service"),
             format!("/usr/lib/systemd/system/{service}.service"),
@@ -275,10 +291,13 @@ fn require_unit_not_found(unit: &str) -> Result<(), String> {
 
 fn require_ready(source: &SourceConfig, release: &ServerRelease) -> Result<(), String> {
     install_server_readiness::verify_service_process("rz-admin.service", "rz-admin")?;
-    install_server_readiness::verify_service_process("rz-monitor.service", "rz-monitor")?;
+    install_server_readiness::verify_service_process(
+        release.selection.units[1],
+        release.selection.secondary_binary(),
+    )?;
     install_server_readiness::wait(
         source.admin_port,
-        source.monitor_port,
+        source.secondary_port,
         &release.build_id,
         &release.composition_id,
     )

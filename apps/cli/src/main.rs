@@ -28,6 +28,7 @@ mod install_server_layout;
 mod install_server_notification_config;
 mod install_server_readiness;
 mod install_server_release;
+mod install_server_selection;
 mod install_service_parent;
 mod install_terminal;
 mod operations;
@@ -198,6 +199,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             let result =
                 install_server_activation::activate(&install_server_activation::ActivationInput {
                     config,
+                    secondary: "monitor",
                 })
                 .map_err(|message| CliError {
                     command: "activate-monitor-server".into(),
@@ -205,6 +207,19 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                     message,
                 })?;
             emit(cli.json, "activate-monitor-server", json!(result));
+        }
+        Command::ActivateAnalyticsServer { config } => {
+            let result =
+                install_server_activation::activate(&install_server_activation::ActivationInput {
+                    config,
+                    secondary: "insights",
+                })
+                .map_err(|message| CliError {
+                    command: "activate-analytics-server".into(),
+                    code: "analytics_server_activation_failed",
+                    message,
+                })?;
+            emit(cli.json, "activate-analytics-server", json!(result));
         }
     }
     Ok(())

@@ -16,10 +16,17 @@ enum IdentityPlan {
     Create { name: &'static str, create_group: bool },
 }
 
-pub(super) fn ensure_pair() -> Result<(ServiceIdentity, ServiceIdentity), String> {
+pub(super) fn ensure_pair(
+    selection: &crate::install_server_selection::ServerSelection,
+) -> Result<(ServiceIdentity, ServiceIdentity), String> {
+    let secondary_name = match selection.secondary {
+        "monitor" => "rz-monitor",
+        "insights" => "rz-insights",
+        _ => return Err("selected server preset is invalid".into()),
+    };
     let admin = plan("rz-admin")?;
-    let monitor = plan("rz-monitor")?;
-    apply(admin).and_then(|admin| apply(monitor).map(|monitor| (admin, monitor)))
+    let secondary = plan(secondary_name)?;
+    apply(admin).and_then(|admin| apply(secondary).map(|secondary| (admin, secondary)))
 }
 
 fn plan(name: &'static str) -> Result<IdentityPlan, String> {

@@ -65,4 +65,10 @@ pub(super) enum Command {
         #[arg(long)]
         config: PathBuf,
     },
+    /// Activate the signed Analytics server selection at the fixed /opt/rz root.
+    ActivateAnalyticsServer {
+        /// Root-only source file containing the Analytics server environment values.
+        #[arg(long)]
+        config: PathBuf,
+    },
 }

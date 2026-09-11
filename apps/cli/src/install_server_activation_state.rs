@@ -23,8 +23,9 @@ impl ServerActivationState {
         let lock = parent.lock_exclusive(".monitor-server-activation.lock")?;
         let unit_hashes =
             units.iter().map(|(name, bytes)| (name, hash(bytes))).collect::<BTreeMap<_, _>>();
+        let selection = crate::install_server_selection::for_preset(preset)?;
         if unit_hashes.keys().map(|name| (*name).as_str()).collect::<Vec<_>>()
-            != ["rz-admin.service", "rz-monitor.service", "rz.target"]
+            != selection.units
         {
             return Err("selected unit inventory is invalid".into());
         }
@@ -108,6 +109,7 @@ fn owners_for_preset(preset: &str) -> Result<Vec<&'static str>, String> {
         "monitor-notify" => {
             Ok(vec!["admin", "admin-notifications", "monitor", "monitor-notifications"])
         }
+        "analytics" => Ok(vec!["admin", "insights"]),
         _ => Err("selected server preset is invalid".into()),
     }
 }

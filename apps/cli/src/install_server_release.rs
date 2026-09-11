@@ -3,12 +3,13 @@ use crate::{
     install_admission::validate_root_owned_path,
     install_crypto::{hash, read_regular},
     install_manifest::parse_manifest,
+    install_server_selection::{self, ServerSelection},
 };
 use std::{collections::BTreeMap, fs, path::Path};
 
 const ROOT: &str = "/opt/rz";
-const UNITS: [&str; 3] = ["rz-admin.service", "rz-monitor.service", "rz.target"];
 pub(super) struct ServerRelease {
+    pub(super) selection: ServerSelection,
     pub(super) preset: String,
     pub(super) build_id: String,
     pub(super) composition_id: String,
@@ -31,21 +32,23 @@ impl ServerRelease {
             &root.join("releases").join(build_id).join("release-manifest.json"),
             4 * 1024 * 1024,
         )?)?;
+        let selection = install_server_selection::for_preset(&manifest.preset)?;
         if manifest.build_id != build_id
             || manifest.artifact_class != "server"
-            || !(manifest.preset == "monitor" || manifest.preset == "monitor-notify")
             || manifest.capabilities.as_slice()
                 != if manifest.preset == "monitor-notify" {
                     ["access", "monitor", "notifications"].as_slice()
+                } else if manifest.preset == "analytics" {
+                    ["access", "insights"].as_slice()
                 } else {
                     ["access", "monitor"].as_slice()
                 }
-            || manifest.services != ["admin", "monitor"]
+            || manifest.services != selection.services
         {
-            return Err("installed release is not the production Monitor server selection".into());
+            return Err("installed release is not a production selected server release".into());
         }
         let mut units = BTreeMap::new();
-        for name in UNITS {
+        for name in selection.units {
             let bytes = read_regular(&root.join(current).join("systemd").join(name), 64 * 1024)?;
             let expected = manifest
                 .files
@@ -57,7 +60,7 @@ impl ServerRelease {
             }
             units.insert(name.into(), bytes);
         }
-        for binary in ["rz-admin", "rz-monitor"] {
+        for binary in selection.binaries {
             let bytes =
                 read_regular(&root.join(current).join("bin").join(binary), 256 * 1024 * 1024)?;
             if manifest
@@ -70,6 +73,7 @@ impl ServerRelease {
             }
         }
         Ok(Self {
+            selection,
             preset: manifest.preset,
             build_id: build_id.into(),
             composition_id: manifest.composition_id,

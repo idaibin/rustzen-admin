@@ -23,8 +23,14 @@ pub(super) fn systemctl(args: &[&str]) -> Result<(), String> {
     }
 }
 
-pub(super) fn validate_selected_config(source: &SourceConfig) -> Result<(), String> {
-    for (binary, config) in [("rz-admin", &source.admin), ("rz-monitor", &source.monitor)] {
+pub(super) fn validate_selected_config(
+    source: &SourceConfig,
+    release: &crate::install_server_release::ServerRelease,
+) -> Result<(), String> {
+    for (binary, config) in [
+        ("rz-admin", &source.admin),
+        (release.selection.secondary_binary(), &source.secondary),
+    ] {
         let mut command = Command::new(Path::new("/opt/rz/current/bin").join(binary));
         command.arg("validate-config").stdout(Stdio::null());
         for line in std::str::from_utf8(config).map_err(|_| "selected config is invalid")?.lines() {
