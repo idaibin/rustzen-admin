@@ -667,6 +667,23 @@ stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
 cleanup completed. This is a local `load:true` closure only; production deployment
 and `releaseReady` remain **Not verified**.
 
+The exact `analytics` P8g load evidence is
+`target/rz/p8g-analytics-load-20260914T100047Z/receipt.json` (SHA-256
+`65109f1cec248def7857d7375050f8c5e4431e2f6d6109dfa917753221682a0d`). One fresh retained PID1 deployment of the same signed build served the
+published admin endpoint while a host-side client ran two rounds of overview/events read
+lanes (32 workers, 60s, minimum 3,200; observed 7,108-9,855 offered at p95 248-337ms and
+p99 288-366ms), the write lane at the product's documented per-origin admission ceiling
+(30 requests / 300 events per 60s; fifteen 20-event batches inside each window plus one rolling past it, 69-73ms), five-second
+drains and thirty-second quiet phases with stable service owners and under one megabyte of
+quiet RSS drift, a real `rz-insights` stop that failed reads with 503 and recovered through a
+same-binary restart in 2.7 seconds followed by a 1,039-request recovery lane, unchanged cgroup
+OOM/kill counters (enforced at runtime across the first and last snapshots), and end-of-run
+re-hashes of every input plus the P8e/P8f references; the password and project-key inputs are
+run-time temporaries deleted with the work directory, so only their in-run hashes are
+recoverable from the receipt. The
+receipt records `load:true` with `releaseReady:false`. Production deployment remains
+**Not verified**.
+
 The exact `analytics` P8f browser evidence is
 `target/rz/p8f-analytics-business-browser-20260914T023318Z/receipt.json` (SHA-256
 `00e75e6163fe7ed39824b4a594e9e990b8ffbbee4e77e9b367d6ab7fecf1de29`). One fresh retained PID1 deployment of the same signed build
