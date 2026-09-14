@@ -301,6 +301,10 @@ verify-analytics-native-runtime-linux:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/monitor-native-runtime-evidence.test.ts distribution/monitor-native-runtime-revalidator.test.ts scripts/verify-analytics-native-runtime-linux-amd64.test.ts
 
+verify-analytics-business-browser-linux export_root release_result certificate public_key expected_source_identity runtime_evidence native_output output:
+    pnpm dlx bun@1.3.14 test scripts/analytics-business-browser-receipt.test.ts scripts/verify-analytics-business-browser-workflow-linux.test.mjs
+    scripts/verify-analytics-business-browser-workflow-linux.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --runtime-evidence "{{runtime_evidence}}" --native-output "{{native_output}}" --output "{{output}}"
+
 verify-distribution-native-staging:
     apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
     pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-web-binding.test.ts distribution/native-staging-atomic.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts
