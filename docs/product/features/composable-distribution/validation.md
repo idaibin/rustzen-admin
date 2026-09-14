@@ -672,6 +672,24 @@ pure-Monitor load receipts recorded the equivalent boundary under the previous `
 key and are not re-parsed by the current validator (`schemaVersion` stays 1; the field rename
 tracks the generalized per-preset shape).
 
+The exact `node-agent` PID1/service-restart evidence is
+`target/rz/agent-pid1-20260914T234321Z/manifest.json` (SHA-256 `388f1d49197164cecdc14e985a5f487144e676a393db6926433d3b7883210813`). One disposable `linux/amd64`
+systemd PID1 container applied the installer-test-signed agent release with the
+current-source musl CLI, created the service account, prepared access, pinned the controller
+profile, and activated `rz-monitor-agent.service`; the Type=notify unit reached active only
+after its first confirmed report delivery through `https://monitor.internal` (a locally
+generated CA trusted in the system store fronted by socat), MainPID executable identity
+matched the payload binary, `systemctl restart` produced a changed PID over the same binary
+sha with post-restart sequence delivery, stop/start returned to active, and a second
+`activate-monitor-agent` re-run was idempotent. The receipt records its limits
+(installer-test keys, single host, socat TLS front, no production TLS or remote host) and
+binds the CLI/admin/monitor/agent digests plus both fixture tuples. This run also surfaced
+and fixed a latent product defect: `agent_manifest` read `marker["buildId"]` and
+`marker["artifactClass"]` from the publication marker whose identity tuple actually nests
+inside its journal, so `prepare-monitor-agent-access` failed after every fresh apply since
+the marker-format change; the fix reads the journal tuple and ships with a shape regression
+test. Physical Linux/Windows agent hosts and production TLS remain **Not verified**.
+
 The exact `monitor-notify` P8g load evidence is
 `target/rz/p8g-notify-load-20260914T144026Z/monitor-load-evidence.json` (SHA-256 `5bf25e6b869a0974b9e0f411d7573e5f878523902b88186ad5d7f7dd61b6747b`). One fresh
 retained PID1 deployment of the signed old-export build
