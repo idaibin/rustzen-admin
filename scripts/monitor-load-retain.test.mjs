@@ -17,8 +17,9 @@ test("prepare runs P8f in retained context and cleanup removes the exact context
     expect(prepare).toContain('label=io.rustzen.p8g-owner=$owner_token');
     expect(prepare).toContain('realpath "$export_root/release/server/bin/rz-admin"');
     expect(prepare).not.toContain('--admin-bin "$native_output/rz"');
-    expect(prepare).toContain('verify-selected-web-bootstrap-browser.py --selection distribution/fixtures/monitor.json --admin-url "$admin_url"');
-    expect(prepare).not.toContain('--selection distribution/fixtures/monitor-notify.json');
+    expect(prepare).toContain('verify-selected-web-bootstrap-browser.py --selection "$selection" --admin-url "$admin_url"');
+    expect(prepare).toContain('chromium=chromium; selection=distribution/fixtures/monitor.json');
+    expect(prepare).toContain('--selection) selection="$2"');
     expect((await stat("scripts/verify-selected-web-bootstrap-browser.py")).mode & 0o111).not.toBe(0);
     expect(prepare).toContain('const [health,native]');
     expect(prepare).toContain('const s=native.selection');

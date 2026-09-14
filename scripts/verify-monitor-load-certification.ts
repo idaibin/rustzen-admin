@@ -1,7 +1,7 @@
 import { corpus, fault, lane, recovery, request, resources, seed, type Clock } from "./monitor-load-contract.ts";
 import { admitted, credential, directory, freshOutput, json, nativeEvidenceSummary, publish, revalidatedNativeEvidence, stable } from "./monitor-load-admission.ts";
 import { parseMonitorLoadReceipt } from "./monitor-load-receipt-schema.ts";
-import { pureMonitorAbsence, signedSourceBuild } from "./monitor-load-signed.ts";
+import { notifyCompositionPresence, pureMonitorAbsence, signedSourceBuild } from "./monitor-load-signed.ts";
 import { compareQuiet, faultPhase, includeEvidenceThrough, maxima, phase, quiet as quietBaseline, stablePhase } from "./monitor-load-sampler.ts";
 import { classify, controlledBoundary, milestones, orderedClock, stableOutage } from "./monitor-load-fault.ts";
 import { certifiedOwner, docker as run, listener, listenerGone, restartedOwner, service, usage } from "./monitor-load-runtime.ts";
@@ -46,9 +46,12 @@ let get = (key: Name) => a.get(key)!, output = await freshOutput(get("--output")
     ], inputs = await Promise.all(inputSpecs.map(({ path, limit }) => stable(path, limit)));
 if (admission.source.productSourceIdentity !== get("--expected-source-identity"))
     throw Error("source identity differs");
+let preset = String(admission.selection.preset),
+    selectionPath = preset === "monitor-notify" ? "distribution/fixtures/monitor-notify.json" : "distribution/fixtures/monitor.json";
 let { verified, snapshot } = await signedSourceBuild({
     exportRoot, expectedSourceIdentity: get("--expected-source-identity"),
     releaseResult: get("--release-result"), certificate: get("--certificate"), publicKey: get("--public-key"), adminSha256: inputs[3]!.sha256,
+    selectionPath,
 });
 if (
     verified.certificateSha256 !== admission.release.certificateSha256 ||
@@ -59,7 +62,7 @@ if (
     verified.selection?.compositionId !== admission.selection.compositionId ||
     verified.binaryDigests?.find((x: { path?: unknown }) => x.path === "bin/rz-admin")?.sha256 !== inputs[3]!.sha256 || JSON.stringify(verified.binaryDigests) !== JSON.stringify((native.release as Record<string, unknown>).binaryDigests)
 ) throw Error("signed selected API/Web/schema tuple differs");
-let absence = pureMonitorAbsence(snapshot);
+let compositionBoundary = preset === "monitor-notify" ? { signedPresence: notifyCompositionPresence(snapshot) } : { signedAbsence: pureMonitorAbsence(snapshot) };
 let base = get("--admin-url");
 if (!/^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/.test(base))
     throw Error("unsafe load input");
@@ -113,8 +116,20 @@ let sse = await fetch(base + "/api/notifications/stream", {
     headers: { authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(2000),
 });
-if (sse.status !== 404) throw Error("pure Monitor SSE route exists");
-await sse.arrayBuffer();
+let sseBoundary: Record<string, unknown>;
+if (preset === "monitor-notify") {
+    if (sse.status !== 200 || !String(sse.headers.get("content-type") ?? "").toLowerCase().includes("text/event-stream"))
+        throw Error("monitor-notify SSE stream differs");
+    const reader = sse.body!.getReader();
+    const first = await reader.read();
+    if (!first.value?.length) throw Error("monitor-notify SSE stream is empty");
+    await reader.cancel();
+    sseBoundary = { runtimeStatus: 200, contentType: String(sse.headers.get("content-type")), ...compositionBoundary };
+} else {
+    if (sse.status !== 404) throw Error("pure Monitor SSE route exists");
+    await sse.arrayBuffer();
+    sseBoundary = { runtimeStatus: 404, ...compositionBoundary };
+}
 for (let index = 0; index < inputs.length; index++) {
     let input = inputs[index]!, spec = inputSpecs[index]!;
     if ((await stable(input.path, spec.limit)).sha256 !== input.sha256)
@@ -125,8 +140,9 @@ if ((await credential(get("--password-file"))) !== password || (await credential
 let ending = await signedSourceBuild({
     exportRoot, expectedSourceIdentity: get("--expected-source-identity"),
     releaseResult: get("--release-result"), certificate: get("--certificate"), publicKey: get("--public-key"), adminSha256: inputs[3]!.sha256,
-}), endingAbsence = pureMonitorAbsence(ending.snapshot);
-if (JSON.stringify(ending.verified) !== JSON.stringify(verified) || JSON.stringify(endingAbsence) !== JSON.stringify(absence))
+    selectionPath,
+}), endingBoundary = preset === "monitor-notify" ? { signedPresence: notifyCompositionPresence(ending.snapshot) } : { signedAbsence: pureMonitorAbsence(ending.snapshot) };
+if (JSON.stringify(ending.verified) !== JSON.stringify(verified) || JSON.stringify(endingBoundary) !== JSON.stringify(compositionBoundary))
     throw Error("signed export changed while run");
 let receipt = {
     schemaVersion: 1,
@@ -147,7 +163,7 @@ let receipt = {
     boundary: events.boundary,
     resources: phases[0]!.snapshots[0],
     initialServices: before,
-    pureMonitorSse: { runtimeStatus: 404, signedAbsence: absence },
+    sseBoundary,
     quietBaselines,
     overallMaxima: maxima(sampledReadings),
     boundaryInFlight: events.boundaryInFlight,
@@ -275,13 +291,19 @@ async function outage(
         sha256: next.monitor.sha256,
         at: nextFaultAt(),
     });
-    let healthy = await request(
-        fetch,
-        base + "/api/monitor/nodes",
-        token,
-        ids,
-        clock,
-    );
+    // The freshly restarted controller may need a moment before the first
+    // bounded probe answers inside its timeout; retry briefly before failing.
+    let healthy = { ok: false };
+    for (let attempt = 0; attempt < 12 && !healthy.ok; attempt += 1) {
+        healthy = await request(
+            fetch,
+            base + "/api/monitor/nodes",
+            token,
+            ids,
+            clock,
+        );
+        if (!healthy.ok) await Bun.sleep(500);
+    }
     if (!healthy.ok) throw Error("registry unhealthy");
     out.push({ step: "registryHealthy", at: nextFaultAt() });
     return { milestones: out, boundary, boundaryInFlight: controlled.rows };

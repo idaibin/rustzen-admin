@@ -667,6 +667,26 @@ stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
 cleanup completed. This is a local `load:true` closure only; production deployment
 and `releaseReady` remain **Not verified**.
 
+Receipts are strictly parsed at publication time by the same-process validator; historical
+pure-Monitor load receipts recorded the equivalent boundary under the previous `pureMonitorSse`
+key and are not re-parsed by the current validator (`schemaVersion` stays 1; the field rename
+tracks the generalized per-preset shape).
+
+The exact `monitor-notify` P8g load evidence is
+`target/rz/p8g-notify-load-20260914T144026Z/monitor-load-evidence.json` (SHA-256 `5bf25e6b869a0974b9e0f411d7573e5f878523902b88186ad5d7f7dd61b6747b`). One fresh
+retained PID1 deployment of the signed old-export build
+`d2c4e0f452c7400927059bc499822ef1218a9c47547ca88eb25706bbfa1426bd` re-ran the P8e native gate
+and bootstrap browser admission, then certified load: two 60-second 32-worker gateway lanes
+offered 12,398 and 11,781 requests at p95 234-253ms and p99 279-298ms with zero failures,
+five-second drains and thirty-second quiet phases drifted under one megabyte at stable pids,
+the controlled freeze/kill fault boundary failed reads with 503/40001 and recovered through a
+same-binary rz-monitor restart followed by a 2,021-request recovery lane, cgroup OOM/kill
+counters never moved, and end-of-run re-hashes reproduced every input plus the signed
+composition check. The receipt records the live Bearer `text/event-stream` SSE boundary and a
+notifications-present signed composition (`apiOwners:3`, `schemaOwners:4`,
+`notificationWebRoutes:1`) where the pure-Monitor receipt records SSE 404 and signed absence.
+`load:true`; `releaseReady` remains false and production deployment stays **Not verified**.
+
 The exact `analytics` P8g load evidence is
 `target/rz/p8g-analytics-load-20260914T100047Z/receipt.json` (SHA-256
 `65109f1cec248def7857d7375050f8c5e4431e2f6d6109dfa917753221682a0d`). One fresh retained PID1 deployment of the same signed build served the

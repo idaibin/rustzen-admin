@@ -24,8 +24,14 @@ export async function signedSourceBuild(input: {
     const key = (envelope.payload as Record<string, unknown>)?.keyId;
     if (!root || typeof key !== "string") throw Error("release verifier input differs");
     const selected = input.selectionPath ?? selectionPath;
-    const result = Bun.spawnSync(["pnpm", "dlx", "bun@1.3.14", "scripts/distribution-verify-published-source-build-certificate.ts", "--selection", selected, "--export-root", input.exportRoot, "--expected-source-identity", input.expectedSourceIdentity, "--release-root", root, "--public-key", input.publicKey, "--key-id", key, "--certificate", input.certificate], { cwd: import.meta.dir + "/..", stdout: "pipe", stderr: "pipe" });
-    if (result.exitCode) throw Error(new TextDecoder().decode(result.stderr));
+    const preset = resolveSelection(await Bun.file(resolve(import.meta.dir, "..", selected)).json()).preset;
+    const evidence = preset === "analytics" ? ["--evidence", "linux-amd64-buildkit"] : [];
+    let result: ReturnType<typeof Bun.spawnSync> | undefined;
+    for (let attempt = 0; attempt < 3 && result?.exitCode !== 0; attempt += 1) {
+        result = Bun.spawnSync(["pnpm", "dlx", "bun@1.3.14", "scripts/distribution-verify-published-source-build-certificate.ts", "--selection", selected, "--export-root", input.exportRoot, "--expected-source-identity", input.expectedSourceIdentity, "--release-root", root, "--public-key", input.publicKey, "--key-id", key, "--certificate", input.certificate, ...evidence], { cwd: import.meta.dir + "/..", stdout: "pipe", stderr: "pipe" });
+        if (attempt < 2 && result.exitCode) await Bun.sleep(1000);
+    }
+    if (result!.exitCode) throw Error(`signed certificate verifier failed (${result.exitCode}) for selection ${selected}: ${new TextDecoder().decode(result!.stderr)}`);
     const verified = JSON.parse(new TextDecoder().decode(result.stdout)) as Record<string, any>;
     if (verified.binaryDigests?.find((x: { path?: unknown }) => x.path === "bin/rz-admin")?.sha256 !== input.adminSha256)
         throw Error("signed admin binary differs");
@@ -36,6 +42,30 @@ export async function signedSourceBuild(input: {
         await readWorkspaceVersion(resolve(import.meta.dir, "..")),
     );
     return { verified, snapshot };
+}
+
+/** Derives the monitor-notify composition-presence claim from a verified export snapshot. */
+export function notifyCompositionPresence(snapshot: VerifiedContainerExportSnapshot) {
+    const selectionInput = snapshot.selection();
+    const selection = resolveSelection(selectionInput);
+    if (selection.preset !== "monitor-notify" || selection.artifactClass !== "server")
+        throw Error("monitor-notify presence requires the monitor-notify server selection");
+    const api = parseSelectedApiBytes(snapshot.artifact("release/contracts/api/api.json").bytes, selectionInput);
+    const schema = parseSchemaArtifactBytes(snapshot.artifact("release/contracts/schema/schema.json").bytes, selectionInput).contract;
+    const web = parseInventory(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(snapshot.artifact("release/web/inventory.json").bytes)));
+    const apiOwners = Object.keys(api.owners);
+    const schemaOwners = Object.keys(schema.owners);
+    // The API contract exposes one shared "notifications" owner; the schema and
+    // the selected Web graph carry the two per-module notification ledgers/shell.
+    if (!apiOwners.includes("notifications"))
+        throw Error("monitor-notify export lacks the notifications API owner");
+    for (const owner of ["admin-notifications", "monitor-notifications"])
+        if (!schemaOwners.includes(owner))
+            throw Error(`monitor-notify export lacks the notification schema owner: ${owner}`);
+    const notificationRoutes = web.selectedRoutes.filter((route: string) => route.includes("notifications"));
+    if (!notificationRoutes.length)
+        throw Error("monitor-notify export lacks notification-owned Web routes");
+    return { apiOwners: apiOwners.length, schemaOwners: schemaOwners.length, notificationWebRoutes: notificationRoutes.length };
 }
 
 /**

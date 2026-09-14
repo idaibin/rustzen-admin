@@ -7,6 +7,8 @@ import { parseMonitorNativeRuntimeEvidence } from "../distribution/monitor-nativ
 import { parseSelectedWebBootstrapBrowserReceipt } from "./selected-web-bootstrap-browser-receipt.ts";
 
 export type Stable = { path: string; sha256: string; bytes: Uint8Array };
+const monitorPresets = ["monitor", "monitor-notify"];
+const identity = /^git:[0-9a-f]{40} tree:[0-9a-f]{64} state:(clean|dirty)$/;
 const encoder = new TextEncoder(),
     decoder = new TextDecoder(),
     hash = /^[a-f0-9]{64}$/;
@@ -114,10 +116,10 @@ export function admitted(
         !object(digest.adminBinary) || !exactKeys(digest.adminBinary as Record<string, unknown>, ["after", "before"]) ||
         !["buildId", "compositionId", "html", "binding", "installation", "verified"].every(key => hash.test(String(digest[key]))) ||
         !hash.test(String((digest.adminBinary as Record<string, unknown>).before)) || !hash.test(String((digest.adminBinary as Record<string, unknown>).after)) ||
-        !exactKeys(source, ["productSourceIdentity", "verifierSourceIdentity"]) || source.productSourceIdentity !== source.verifierSourceIdentity || !exactKeys(runtime, ["after", "before"]) ||
-        !object(selection) || !exactKeys(selection, ["artifactClass", "buildId", "compositionId", "preset", "target"]) || selection.preset !== "monitor" || selection.artifactClass !== "server" || selection.target !== "x86_64-unknown-linux-musl" ||
+        !exactKeys(source, ["productSourceIdentity", "verifierSourceIdentity"]) || !identity.test(String(source.productSourceIdentity)) || !identity.test(String(source.verifierSourceIdentity)) || !exactKeys(runtime, ["after", "before"]) ||
+        !object(selection) || !exactKeys(selection, ["artifactClass", "buildId", "compositionId", "preset", "target"]) || !monitorPresets.includes(String(selection.preset)) || selection.artifactClass !== "server" || selection.target !== "x86_64-unknown-linux-musl" ||
         !exactKeys(b, ["archiveSha256", "binaryDigests", "buildId", "certificateSha256", "envelopeSha256", "manifestSha256", "selection"]) ||
-        !object(b.selection) || !exactKeys(b.selection as Record<string, unknown>, ["artifactClass", "compositionId", "preset", "target"]) || (b.selection as Record<string, unknown>).preset !== "monitor" || (b.selection as Record<string, unknown>).artifactClass !== selection.artifactClass || (b.selection as Record<string, unknown>).target !== selection.target ||
+        !object(b.selection) || !exactKeys(b.selection as Record<string, unknown>, ["artifactClass", "compositionId", "preset", "target"]) || !monitorPresets.includes(String((b.selection as Record<string, unknown>).preset)) || (b.selection as Record<string, unknown>).preset !== selection.preset || (b.selection as Record<string, unknown>).artifactClass !== selection.artifactClass || (b.selection as Record<string, unknown>).target !== selection.target ||
         !Array.isArray(b.binaryDigests) || !b.binaryDigests.length ||
         !same(selection.buildId, digest.buildId) ||
         !same(selection.compositionId, digest.compositionId) ||
@@ -173,8 +175,8 @@ export async function publish(
 }
 export function parseMonitorLoadEvidence(value: unknown) {
     if (!object(value)) throw Error("monitor load receipt is invalid");
-    const keys = ["boundary", "boundaryInFlight", "browserRuntime", "corpus", "fault", "faultDurationMs", "initialServices", "inputs", "kind", "lanes", "load", "overallMaxima", "p8eSidecars", "phases", "pureMonitorSse", "quietBaselines", "recovery", "release", "resources", "schemaVersion", "selection", "source"];
-    if (!exactKeys(value, keys) || value.schemaVersion !== 1 || value.kind !== "monitor-load-evidence" || value.load !== true || typeof value.faultDurationMs !== "number" || !Number.isFinite(value.faultDurationMs) || value.faultDurationMs < 0 || !object(value.inputs) || !object(value.p8eSidecars) || !object(value.release) || !object(value.browserRuntime) || !object(value.initialServices) || !Array.isArray(value.lanes) || value.lanes.length !== 2 || !Array.isArray(value.phases) || value.phases.length !== 8 || !Array.isArray(value.boundary) || !Array.isArray(value.boundaryInFlight) || !Array.isArray(value.fault) || !Array.isArray(value.quietBaselines) || value.quietBaselines.length !== 2 || !object(value.overallMaxima) || !object(value.resources) || !object(value.pureMonitorSse)) throw Error("monitor load receipt schema differs");
+    const keys = ["boundary", "boundaryInFlight", "browserRuntime", "corpus", "fault", "faultDurationMs", "initialServices", "inputs", "kind", "lanes", "load", "overallMaxima", "p8eSidecars", "phases", "quietBaselines", "recovery", "release", "resources", "schemaVersion", "selection", "source", "sseBoundary"];
+    if (!exactKeys(value, keys) || value.schemaVersion !== 1 || value.kind !== "monitor-load-evidence" || value.load !== true || typeof value.faultDurationMs !== "number" || !Number.isFinite(value.faultDurationMs) || value.faultDurationMs < 0 || !object(value.inputs) || !object(value.p8eSidecars) || !object(value.release) || !object(value.browserRuntime) || !object(value.initialServices) || !Array.isArray(value.lanes) || value.lanes.length !== 2 || !Array.isArray(value.phases) || value.phases.length !== 8 || !Array.isArray(value.boundary) || !Array.isArray(value.boundaryInFlight) || !Array.isArray(value.fault) || !Array.isArray(value.quietBaselines) || value.quietBaselines.length !== 2 || !object(value.overallMaxima) || !object(value.resources) || !object(value.sseBoundary)) throw Error("monitor load receipt schema differs");
     for (const digest of Object.values(value.inputs)) if (!hash.test(String(digest))) throw Error("monitor load receipt input digest differs");
     for (const digest of Object.values(value.p8eSidecars)) if (!hash.test(String(digest))) throw Error("monitor load receipt P8e digest differs");
     for (const lane of value.lanes) if (!object(lane) || !Array.isArray(lane.snapshots) || !object(lane.maxima) || !Number.isSafeInteger(lane.durationMs) || Number(lane.durationMs) < 60000 || lane.warmupCount !== 128 || !Number.isInteger(lane.offered) || Number(lane.offered) < 3200 || lane.completed !== lane.offered || lane.failures !== 0 || !Number.isSafeInteger(lane.p95Ms) || Number(lane.p95Ms) > 500 || !Number.isSafeInteger(lane.p99Ms) || Number(lane.p99Ms) > 1000) throw Error("monitor load receipt lane differs");
