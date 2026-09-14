@@ -179,10 +179,12 @@ pub(super) fn agent_manifest(root: &Path) -> Result<(Manifest, Vec<u8>), String>
     let marker = read_regular(&root.join("state/publication-marker.json"), 16 * 1024)?;
     let marker: serde_json::Value =
         serde_json::from_slice(&marker).map_err(|_| "Agent publication marker is invalid")?;
+    // The publication marker nests the identity tuple inside its journal; the
+    // top level carries only version and phase state.
     if marker["version"] != 1
-        || marker["buildId"] != build
-        || marker["artifactClass"] != "node-agent"
         || marker["state"] != "payload-published"
+        || marker["journal"]["buildId"] != build
+        || marker["journal"]["artifactClass"] != "node-agent"
     {
         return Err("Agent publication marker differs from current release".into());
     }
@@ -404,6 +406,22 @@ fn preflight_profile(root: &Path, bytes: &[u8], gid: u32) -> Result<(), String> 
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
+    #[test]
+    fn agent_marker_identity_lives_in_the_journal_tuple() {
+        let build = "e".repeat(64);
+        let marker = json!({
+            "version": 1,
+            "state": "payload-published",
+            "journal": {"buildId": build, "artifactClass": "node-agent"},
+        });
+        assert_eq!(marker["journal"]["buildId"], json!(build));
+        assert_eq!(marker["journal"]["artifactClass"], json!("node-agent"));
+        assert!(marker.get("buildId").is_none());
+        assert!(marker.get("artifactClass").is_none());
+    }
+
     #[test]
     fn endpoint_rejects_credentials_queries_and_fragments() {
         assert_eq!(
