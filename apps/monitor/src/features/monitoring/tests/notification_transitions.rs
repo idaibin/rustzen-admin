@@ -3,7 +3,10 @@ use super::support::*;
 #[tokio::test]
 async fn policy_and_background_transitions_enqueue_from_real_entrypoints() {
     let pool = migrated_test_pool().await;
-    let start = Utc.with_ymd_and_hms(2026, 9, 7, 4, 0, 0).unwrap();
+    // Anchor to the real clock minus one hour: apply_settings reconciles with
+    // Utc::now(), so absolute fixture dates would expire the seven-day outbox
+    // window once real time moves a week past them.
+    let start = Utc::now() - ChronoDuration::hours(1);
     let boot = Uuid::new_v4();
     for sequence in 1..=3 {
         let at = start + ChronoDuration::seconds(sequence as i64);
