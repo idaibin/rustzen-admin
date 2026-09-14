@@ -410,12 +410,13 @@ mod tests {
 
     #[test]
     fn agent_marker_identity_lives_in_the_journal_tuple() {
+        use crate::install_continuation::marker_shape_test_support::published_marker_bytes;
+
         let build = "e".repeat(64);
-        let marker = json!({
-            "version": 1,
-            "state": "payload-published",
-            "journal": {"buildId": build, "artifactClass": "node-agent"},
-        });
+        let bytes = published_marker_bytes(&build, "node-agent");
+        let marker: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(marker["version"], json!(1));
+        assert_eq!(marker["state"], json!("payload-published"));
         assert_eq!(marker["journal"]["buildId"], json!(build));
         assert_eq!(marker["journal"]["artifactClass"], json!("node-agent"));
         assert!(marker.get("buildId").is_none());

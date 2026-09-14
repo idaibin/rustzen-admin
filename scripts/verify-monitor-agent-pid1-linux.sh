@@ -36,7 +36,6 @@ docker run --name "rz-agent-pid1-cli-$$" --platform linux/amd64 -v "$root:/work"
   bash -euo pipefail -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends musl-tools >/dev/null && rustup target add $target_triple >/dev/null && CARGO_TARGET_DIR=/cli-target cargo build --release --target $target_triple -p rustzen-cli" || cli_build_status=$?
 docker rm -f "rz-agent-pid1-cli-$$" >/dev/null 2>&1 || true
 [ "$cli_build_status" -eq 0 ] || { echo "cli build failed" >&2; exit "$cli_build_status"; }
-cp "$root/cli-target-staging/rz" "$bin_dir/rz" 2>/dev/null || true
 docker run --rm --platform linux/amd64 -v rustzen-agent-pid1-target:/cli-target:ro -v "$bin_dir:/out" debian:bookworm-slim cp "/cli-target/$target_triple/release/rz" /out/rz
 test -x "$bin_dir/rz"
 

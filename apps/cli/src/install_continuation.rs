@@ -33,6 +33,36 @@ struct PublicationMarker {
     version: u8,
 }
 
+#[cfg(test)]
+pub(super) mod marker_shape_test_support {
+    use super::{ContinuationJournal, PublicationMarker};
+
+    /// Serializes the exact bytes `apply` writes for one published marker so
+    /// readers can pin the journal-nested identity shape end to end.
+    pub(crate) fn published_marker_bytes(build_id: &str, artifact_class: &str) -> Vec<u8> {
+        let journal = ContinuationJournal {
+            archive_sha256: "a".repeat(64),
+            artifact_class: artifact_class.into(),
+            build_id: build_id.into(),
+            composition_id: "b".repeat(64),
+            envelope_sha256: "c".repeat(64),
+            key_id: "installer-test".into(),
+            manifest_sha256: "d".repeat(64),
+            phase: "payload-publishing".into(),
+            target: "x86_64-unknown-linux-musl".into(),
+            trusted_key_sha256: "e".repeat(64),
+            version: 1,
+            work_root_nonce: "0".repeat(32),
+        };
+        serde_json::to_vec(&PublicationMarker {
+            journal,
+            state: "payload-published".into(),
+            version: 1,
+        })
+        .expect("marker serialization")
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct WorkRootMarker {
