@@ -13,7 +13,7 @@ if (args.length % 2 !== 0 || required.some((flag) => args.filter((arg) => arg ==
     throw new Error(`usage: ${required.join(" ")} [--evidence <host-synthetic|linux-amd64-buildkit>]`);
 if (args.some((arg, index) => index % 2 === 0 ? !required.includes(arg) && arg !== "--evidence" : !arg || arg.startsWith("--")))
     throw new Error("published source-build certificate arguments are invalid");
-const evidence = args[args.indexOf("--evidence") + 1] ?? "host-synthetic";
+const evidence = args.includes("--evidence") ? args[args.indexOf("--evidence") + 1] : "host-synthetic";
 if (evidence !== "host-synthetic" && evidence !== "linux-amd64-buildkit")
     throw new Error("published certificate evidence must be host-synthetic or linux-amd64-buildkit");
 const value = (flag: string) => args[args.indexOf(flag) + 1]!;
