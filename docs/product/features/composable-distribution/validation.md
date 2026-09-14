@@ -667,6 +667,27 @@ stop, 503/code-40001 listener-gone, listener-ready, registry-healthy. SSE was
 cleanup completed. This is a local `load:true` closure only; production deployment
 and `releaseReady` remain **Not verified**.
 
+The exact `analytics` P8f browser evidence is
+`target/rz/p8f-analytics-business-browser-20260914T023318Z/receipt.json` (SHA-256
+`00e75e6163fe7ed39824b4a594e9e990b8ffbbee4e77e9b367d6ab7fecf1de29`). One fresh retained PID1 deployment of the same signed build
+`8f1a2e993977edcad7390f445eb201ab53e37b29dbfb288ef46f50c386eabc79` (retain native evidence
+`target/rz/p8f-analytics-native-retain-20260914T023318Z/analytics-native-runtime-evidence.json`)
+served the published admin endpoint on a loopback port; a headless Chrome 153 CDP session at
+1440x900 (plus one 390x844 zh-CN mobile case) executed seventeen journeys: deployment identity
+bindings, unauthenticated route redirect and API denial without internal-detail or credential
+leakage, wrong-password and shipped-default-password rejection, owner login, Analytics-only
+menu navigation, overview empty/loading/populated states with real ingestion of one
+collection-policy update and 24 tracker events, details filter auto-query with page-one reset
+and page-two pagination, a real `rz-insights` stop outage rendering the reload error state with
+restart retry recovery, a full service-restart recovery, Monitor/Reports API 404s and absent
+module surfaces, and logout session revocation with re-login. The receipt records 315 network
+requests, zero console errors and seven hash-verified screenshots, carries no credential or
+token material (the session token appears only as a SHA-256 prefix), and its `runtime` reference
+points to the unchanged P8e evidence `0d6d8c3df93bb7c1d36bc1c6316df4f8a7d0e7f839fb427bbc9b9d8e157682b1`
+rather than re-inferring it; `browser:true` while `load` and `releaseReady` remain false. A
+separate process re-verified the persisted receipt, its screenshot hashes and the runtime
+reference. Load and production deployment remain **Not verified**.
+
 The exact `analytics` P8e native runtime evidence is
 `target/rz/p8e-analytics-runtime-20260911/analytics-native-runtime-evidence.json` (SHA-256
 `0d6d8c3df93bb7c1d36bc1c6316df4f8a7d0e7f839fb427bbc9b9d8e157682b1`). Because the Insights service gained its offline database command surface and
