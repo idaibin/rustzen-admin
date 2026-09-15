@@ -14,33 +14,20 @@ const exact = (actual: string[], expected: string[], label: string) => {
         throw new Error(`${label} output is not exact`);
 };
 function branches(dockerfile: string) {
-    // Split on the export RUN's own branch separators instead of fragile
-    // cross-line regexes: each segment is one build branch body.
-    const cargoRun = dockerfile.slice(dockerfile.indexOf("RUN --mount=type=cache,target=/root/.cargo/registry"));
-    const analyticsAt = cargoRun.indexOf('elif [ "${RZ_DISTRIBUTION}" = "analytics" ]; then');
-    const tripleAt = cargoRun.indexOf('elif [ "${TARGET_TRIPLE}"');
-    const elseAt = cargoRun.indexOf("else \\\n");
-    const fiAt = cargoRun.indexOf("\n    fi", elseAt);
-    const monitorHead = 'if [ "${RZ_DISTRIBUTION}" = "monitor" ] || [ "${RZ_DISTRIBUTION}" = "monitor-notify" ]; then';
-    const monitor = cargoRun.includes(monitorHead) && analyticsAt > 0 && cargoRun.indexOf(monitorHead) < analyticsAt
-        ? [null, cargoRun.slice(cargoRun.indexOf(monitorHead) + monitorHead.length, analyticsAt)]
-        : null;
-    const analytics = analyticsAt > 0 && tripleAt > analyticsAt
-        ? [null, cargoRun.slice(analyticsAt, tripleAt)]
-        : null;
-    const aarch64 = tripleAt > 0 && elseAt > tripleAt
-        ? [null, cargoRun.slice(tripleAt, elseAt)]
-        : null;
-    const full = elseAt > 0 && fiAt > elseAt
-        ? [null, cargoRun.slice(elseAt, fiAt)]
-        : null;
-    if (!monitor || !analytics || !aarch64 || !full)
-        throw new Error("Dockerfile build branches are incomplete");
-    return { monitor: monitor[1]!, analytics: analytics[1]!, aarch64: aarch64[1]!, full: full[1]! };
+    const monitor = dockerfile.match(
+        /RUN --mount=type=cache,target=\/root\/\.cargo\/registry[\s\S]*?if \[ "\$\{DISTRIBUTION\}" = "monitor" \] \|\| \[ "\$\{DISTRIBUTION\}" = "monitor-notify" \]; then([\s\S]*?)elif \[ "\$\{DISTRIBUTION\}" = "analytics" \]/,
+    );
+    const aarch64 = dockerfile.match(
+        /elif \[ "\$\{TARGET_TRIPLE\}" = "aarch64-unknown-linux-gnu" \]; then([\s\S]*?)else/,
+    );
+    const analytics = dockerfile.match(/RUN --mount=type=cache,target=\/root\/\.cargo\/registry[\s\S]*?elif \[ "\$\{DISTRIBUTION\}" = "analytics" \]; then([\s\S]*?)elif \[ "\$\{TARGET_TRIPLE\}"/);
+    const full = dockerfile.match(/else \\\n        RUSTFLAGS=([\s\S]*?)\n    fi/);
+    if (!monitor || !analytics || !aarch64 || !full) throw new Error("Dockerfile build branches are incomplete");
+    return { monitor: monitor[1], analytics: analytics[1], aarch64: aarch64[1], full: full[1] };
 }
 function assertDockerfileGuard(dockerfile: string) {
-    if (!dockerfile.includes('case "${RZ_DISTRIBUTION}" in full|monitor|monitor-notify|analytics)'))
-        throw new Error("Dockerfile must restrict RZ_DISTRIBUTION to exact supported distributions");
+    if (!dockerfile.includes('case "${DISTRIBUTION}" in full|monitor|monitor-notify|analytics)'))
+        throw new Error("Dockerfile must restrict DISTRIBUTION to exact supported distributions");
     if (!dockerfile.includes("cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded"))
         throw new Error("Dockerfile must compare selected Web source and embedded file hashes");
     for (const required of [
@@ -135,8 +122,8 @@ describe("Docker distribution input", () => {
     test("rejects output pollution, omission and non-propagating build failures", async () => {
         const dockerfile = await Bun.file(resolve(import.meta.dir, "../Dockerfile")).text();
         [
-            (s: string) => s.replace('case "${RZ_DISTRIBUTION}" in full|monitor|monitor-notify|analytics)', ""),
-            (s: string) => s.replaceAll("monitor-notify) fixture=distribution/fixtures/monitor-notify.json", "monitor-notify) fixture=${RZ_DISTRIBUTION}"),
+            (s: string) => s.replace('case "${DISTRIBUTION}" in full|monitor|monitor-notify|analytics)', ""),
+            (s: string) => s.replaceAll("monitor-notify) fixture=distribution/fixtures/monitor-notify.json", "monitor-notify) fixture=${DISTRIBUTION}"),
             (s: string) => s.replaceAll("admin_features=monitor-distribution,notifications", "admin_features=${FEATURES}"),
             (s: string) => s.replace('test "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl"', "true"),
             (s: string) =>
