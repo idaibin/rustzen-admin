@@ -63,12 +63,11 @@ printf '%s\n' "$source_identity" > "$output/source-identity-before.txt"
 docker_context="$(docker context show)"
 
 echo "== Building Analytics linux/amd64 container export" >&2
-# The equals form is required: with docker 29.2.1 / buildx v0.34.1 / BuildKit
-# v0.27.1 (colima docker driver) a space-form --build-arg named DISTRIBUTION is
-# dropped when exactly three are passed.
+# The renamed arg is required: this Docker/BuildKit client drops any build arg
+# named exactly DISTRIBUTION (space and equals forms, both drivers).
 docker buildx build --platform linux/amd64 \
   "--build-arg=TARGET_TRIPLE=x86_64-unknown-linux-musl" \
-  "--build-arg=DISTRIBUTION=analytics" \
+  "--build-arg=RZ_DISTRIBUTION=analytics" \
   "--build-arg=SOURCE_IDENTITY=$source_identity" \
   --target export --output "type=local,dest=$output/export" \
   "$repository" 2>&1 | tee "$output/build.log"
