@@ -24,7 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
-        println!("{}", serde_json::to_string(&rustzen_config::monitor_agent_contract())?);
+        // Canonicalize through serde_json::Value so selected-config stdout matches
+        // the sorted-key contract artifact bytes byte for byte.
+        println!("{}", serde_json::to_string(&serde_json::to_value(rustzen_config::monitor_agent_contract())?)?);
         return Ok(());
     }
     rustzen_config::load_dotenv_if_present()?;
