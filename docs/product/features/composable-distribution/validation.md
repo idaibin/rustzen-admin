@@ -672,6 +672,24 @@ pure-Monitor load receipts recorded the equivalent boundary under the previous `
 key and are not re-parsed by the current validator (`schemaVersion` stays 1; the field rename
 tracks the generalized per-preset shape).
 
+The fixed clean-basis monitor final acceptance ran one chain in a detached clean
+worktree of `bf36ea1` (identity
+`git:bf36ea123ec94a2ad8ca60d0689a82c377e4bb1e tree:2109a2fc170ca5c3b79452bc02471dc4c31fc9efba1a608b13e2c54ade709fdf state:clean`):
+BuildKit export (50 files, output manifest SHA-256
+`db6221683de9c49b7bd9d56e078ab92860667c44962630b324c2d2ded5e6b853`), signed release
+`9432d290f82ecb1f9daf67cb736cbc2dd94b436123f6d49788d9413700e360e7` (archive
+`117c292a594f0daaccdeb8d250da252521f95fc10d25a8af2e0a156af62c1eba`) under key
+`monitor-final-clean-basis`, source-build certificate, the P8e native PID1 gate receipt
+(`456842409707f340eb3a6092ca44c80d73cac13af0a61c72609111f757f187`), bootstrap browser
+receipt (`02c33577e5d8c0fb9968ed100fed4b7b29def57e031471485f985707b106b9ab`) and the P8g
+load receipt (`13cea4708abf25cc231d8511d2d52c7304f0f44f9da238653433cf26fe7a7eac`): two
+60-second lanes offered 12,634 and 12,773 reads at p95 212-218ms and p99 243-253ms with
+zero failures, the controlled fault boundary failed reads with 503/40001 and recovered through
+a same-binary restart into a 2,118-request recovery lane, SSE answered 404 with the signed
+pure-Monitor absence inventory, quiet drift stayed under one megabyte, cgroup OOM/kill
+counters never moved, and end-of-run re-hashes reproduced every input. The private key was
+deleted after publication. Production deployment and `releaseReady` remain **Not verified**.
+
 The exact `node-agent` PID1/service-restart evidence is
 `target/rz/agent-pid1-20260914T234321Z/manifest.json` (SHA-256 `388f1d49197164cecdc14e985a5f487144e676a393db6926433d3b7883210813`). One disposable `linux/amd64`
 systemd PID1 container applied the installer-test-signed agent release with the
