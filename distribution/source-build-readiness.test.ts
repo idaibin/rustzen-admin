@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { distributionCatalog, resolveSelection } from "./resolver.ts";
 import {
     selectedCargoBuilds,
+    selectedServiceCargoBuilds,
     supportsSelectedCargo,
+    supportsSelectedServiceCargo,
 } from "./selected-cargo-producer.ts";
 import {
     assertCompleteReadinessInventory,
@@ -88,6 +90,18 @@ describe("P8 source/build certification admission", () => {
         expect(insights?.packageTargets[0]?.reason).toContain(
             "Analytics Admin/Insights selected Cargo, schema, Web/API/config/protocol and native-layout producers are implemented",
         );
+    });
+
+    test("tracks the Reports service build without admitting the incomplete server family", () => {
+        const plan = resolveSelection(fixture("reports"));
+        expect(supportsSelectedServiceCargo(plan)).toBeTrue();
+        expect(selectedServiceCargoBuilds(plan)).toEqual([[
+            "cargo", "build", "-p", "rustzen-reports", "--no-default-features",
+            "--features", "selected-distribution", "--bin", "rz-reports",
+        ]]);
+        expect(supportsSelectedCargo(plan)).toBeFalse();
+        expect(() => selectedCargoBuilds(plan)).toThrow();
+        expect(auditSourceBuildReadiness(fixture("reports")).missingProducers).toContain("cargo");
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {

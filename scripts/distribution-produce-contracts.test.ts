@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { expect, test } from "bun:test";
 import {
     selectedCargoBuilds,
+    selectedServiceCargoBuilds,
 } from "../distribution/selected-cargo-producer.ts";
 import { completeSelectedConfigForTest } from "../distribution/selected-config.ts";
 import { resolveSelection } from "../distribution/resolver.ts";
@@ -189,6 +190,56 @@ test(
                     apiArtifact.owners[owner],
                 );
             }
+        } finally {
+            await rm(scratch, { recursive: true, force: true });
+        }
+    },
+    300_000,
+);
+
+test(
+    "Reports service producer builds with only the selected Reports config owner",
+    async () => {
+        const scratch = await mkdtemp(join(tmpdir(), "rz-reports-service-producer-"));
+        try {
+            const target = join(scratch, "target");
+            const selectionPath = join(
+                repositoryRoot,
+                "distribution/fixtures/reports.json",
+            );
+            const plan = resolveSelection(await Bun.file(selectionPath).json());
+            for (const command of selectedServiceCargoBuilds(plan)) {
+                const build = Bun.spawnSync(command, {
+                    cwd: repositoryRoot,
+                    env: { ...process.env, CARGO_TARGET_DIR: target },
+                    stdout: "pipe",
+                    stderr: "pipe",
+                });
+                expect(new TextDecoder().decode(build.stderr)).not.toContain("error:");
+                expect(build.exitCode).toBe(0);
+            }
+            const tree = Bun.spawnSync([
+                "cargo", "tree", "-p", "rustzen-reports", "--no-default-features",
+                "--features", "selected-distribution", "-e", "features",
+                "-i", "rustzen-config", "--prefix", "none",
+            ], { cwd: repositoryRoot, stdout: "pipe", stderr: "pipe" });
+            expect(tree.exitCode).toBe(0);
+            const configFeatures = new TextDecoder().decode(tree.stdout)
+                .split("\n")
+                .filter((line) => line.startsWith('rustzen-config feature "'));
+            expect(configFeatures).toEqual(['rustzen-config feature "reports"']);
+
+            const emitted = Bun.spawnSync(
+                [join(target, "debug/rz-reports"), "contract", "config", "selected"],
+                { cwd: "/tmp", env: { PATH: process.env.PATH ?? "" }, stdout: "pipe", stderr: "pipe" },
+            );
+            expect(emitted.exitCode).toBe(0);
+            expect(new TextDecoder().decode(emitted.stderr)).toBe("");
+            const contract = JSON.parse(new TextDecoder().decode(emitted.stdout));
+            expect(contract.owner).toBe("reports");
+            expect(contract.consumer).toBe("rz-reports");
+            const keys = contract.fields.map((field: { key: string }) => field.key);
+            expect(keys.some((key: string) => key.includes("NOTIFICATION"))).toBeFalse();
         } finally {
             await rm(scratch, { recursive: true, force: true });
         }

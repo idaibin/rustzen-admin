@@ -7,6 +7,26 @@ import {
 export const supportsSelectedCargo = (plan: SourceBuildPlan): boolean =>
     isExactSupportedPlan(plan, ["analytics", "monitor", "monitor-notify", "node-agent"]);
 
+/** Service-only steps may land before the complete multi-binary producer is admitted. */
+export const supportsSelectedServiceCargo = (plan: SourceBuildPlan): boolean =>
+    isExactSupportedPlan(plan, ["reports"]);
+
+export function selectedServiceCargoBuilds(plan: SourceBuildPlan): string[][] {
+    if (!supportsSelectedServiceCargo(plan))
+        throw new Error("selected service Cargo producer does not support this exact closure");
+    return [[
+        "cargo",
+        "build",
+        "-p",
+        "rustzen-reports",
+        "--no-default-features",
+        "--features",
+        "selected-distribution",
+        "--bin",
+        "rz-reports",
+    ]];
+}
+
 export function selectedCargoBuilds(plan: SourceBuildPlan): string[][] {
     if (!supportsSelectedCargo(plan))
         throw new Error("selected Cargo producer supports only reviewed analytics, monitor or agent closures");
