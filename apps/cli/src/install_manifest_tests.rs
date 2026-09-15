@@ -85,3 +85,23 @@ fn selected_server_contract_accepts_only_exact_preset_tuple() {
     ));
     assert!(!selected_server_selection("monitor-notify", &notify, &notify, &monitor_id));
 }
+
+#[test]
+fn analytics_server_accepts_only_its_exact_inventory() {
+    let analytics = vec!["access".into(), "insights".into()];
+    let composition = crate::install_crypto::hash(
+        b"{\"artifactClass\":\"server\",\"capabilities\":[\"access\",\"insights\"],\"capabilityContractVersion\":1}",
+    );
+    // Exact closure and composition accepted.
+    assert!(selected_server_selection("analytics", &analytics, &analytics, &composition));
+    // Polluted closure rejected.
+    let polluted = vec!["access".into(), "insights".into(), "monitor".into()];
+    assert!(!selected_server_selection("analytics", &polluted, &analytics, &composition));
+    // Monitor owners rejected.
+    let monitor_owners = vec!["access".into(), "monitor".into()];
+    assert!(!selected_server_selection("analytics", &analytics, &monitor_owners, &composition));
+    // Wrong composition rejected.
+    assert!(!selected_server_selection("analytics", &analytics, &analytics, "b".repeat(64).as_str()));
+    // The analytics tuple is not accepted under another preset name.
+    assert!(!selected_server_selection("monitor", &analytics, &analytics, &composition));
+}
