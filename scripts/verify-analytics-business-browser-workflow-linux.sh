@@ -33,29 +33,44 @@ runtime_evidence="$(realpath "$runtime_evidence")"
 runtime_evidence_sha="$(shasum -a 256 "$runtime_evidence" | cut -d " " -f1)"
 pnpm dlx bun@1.3.14 -e 'import { canonicalJson } from "./distribution/release-manifest-core.ts"; const [out, adminUrl, name, id, image, release, certificate, exportRoot, passwordFile, native, identity, head, facts, runtimeEvidence, runtimeSha]=process.argv.slice(1); await Bun.write(out, canonicalJson({ adminUrl, containerName: name, containerId: id, containerImage: image, releaseResult: release, certificate, exportRoot, passwordFile, nativeEvidence: native, harnessSourceIdentity: identity, head, containerFacts: facts, runtimeEvidence, runtimeEvidenceSha256: runtimeSha }));' "$context" "http://127.0.0.1:$port" "$container" "$container_id" "$container_image" "$(realpath "$release_result")" "$(realpath "$certificate")" "$(realpath "$export_root")" "$password" "$native_evidence" "$harness_identity" "$head" "$facts" "$runtime_evidence" "$runtime_evidence_sha"
 (
+  # A failed lifecycle command still publishes a *-failed marker so the driver's
+  # bounded wait fails fast instead of timing out against a marker that promises
+  # an event which never happened.
   while :; do
     if test -e "$signals/stop-insights-requested"; then
       rm -f "$signals/stop-insights-requested"
       echo "watcher: stopping rz-insights $(date -u +%H:%M:%S)" >&2
-      docker exec "$container" systemctl stop rz-insights.service || echo "watcher: stop command failed" >&2
-      touch "$signals/insights-stopped"
+      if docker exec "$container" systemctl stop rz-insights.service; then
+        touch "$signals/insights-stopped"
+      else
+        echo "watcher: stop command failed" >&2
+        touch "$signals/insights-stopped-failed"
+      fi
     fi
     if test -e "$signals/restart-requested"; then
       rm -f "$signals/restart-requested"
       echo "watcher: restarting both services $(date -u +%H:%M:%S)" >&2
-      docker exec "$container" systemctl restart rz-insights.service rz-admin.service || echo "watcher: restart command failed" >&2
-      for _ in $(seq 1 90); do docker exec "$container" sh -c 'curl --fail --silent http://127.0.0.1:19801/health >/dev/null && curl --fail --silent http://127.0.0.1:19802/health >/dev/null' && break; sleep 1; done
-      touch "$signals/restart-done"
-      echo "watcher: restart complete $(date -u +%H:%M:%S)" >&2
+      if docker exec "$container" systemctl restart rz-insights.service rz-admin.service; then
+        for _ in $(seq 1 90); do docker exec "$container" sh -c 'curl --fail --silent http://127.0.0.1:19801/health >/dev/null && curl --fail --silent http://127.0.0.1:19802/health >/dev/null' && break; sleep 1; done
+        touch "$signals/restart-done"
+      else
+        echo "watcher: restart command failed" >&2
+        touch "$signals/restart-done-failed"
+      fi
     fi
     if test -e "$signals/restart-2-requested"; then
       rm -f "$signals/restart-2-requested"
       echo "watcher: second restart $(date -u +%H:%M:%S)" >&2
-      docker exec "$container" systemctl restart rz-insights.service rz-admin.service || echo "watcher: second restart command failed" >&2
-      for _ in $(seq 1 90); do docker exec "$container" sh -c 'curl --fail --silent http://127.0.0.1:19801/health >/dev/null && curl --fail --silent http://127.0.0.1:19802/health >/dev/null' && break; sleep 1; done
-      touch "$signals/restart-2-done"
-      echo "watcher: second restart complete $(date -u +%H:%M:%S)" >&2
-      break
+      if docker exec "$container" systemctl restart rz-insights.service rz-admin.service; then
+        for _ in $(seq 1 90); do docker exec "$container" sh -c 'curl --fail --silent http://127.0.0.1:19801/health >/dev/null && curl --fail --silent http://127.0.0.1:19802/health >/dev/null' && break; sleep 1; done
+        touch "$signals/restart-2-done"
+        echo "watcher: second restart complete $(date -u +%H:%M:%S)" >&2
+        break
+      else
+        echo "watcher: second restart command failed" >&2
+        touch "$signals/restart-2-done-failed"
+        break
+      fi
     fi
     sleep 1
   done

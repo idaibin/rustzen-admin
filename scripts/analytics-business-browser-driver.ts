@@ -59,6 +59,15 @@ await call("Page.enable");
 await call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const awaitSignal = async (done: string, failed: string, label: string, budgetMs: number) => {
+    const deadline = Date.now() + budgetMs;
+    while (Date.now() < deadline) {
+        if (await Bun.file(`${signals}/${done}`).exists()) return;
+        if (await Bun.file(`${signals}/${failed}`).exists()) throw Error(`${label} failed: watcher published ${failed}`);
+        await sleep(250);
+    }
+    throw Error(`${label} signal was not answered: ${done}`);
+};
 const wait = async (expression: string, label: string, timeoutMs = 20000) => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -108,12 +117,14 @@ await navigate("/login");
 await wait(`!!document.querySelector('#login_username')`, "initial login form");
 await setPreferences("dark", "en-US", 1440, 900);
 await journey("deployment-identity", "published endpoint health binds the signed release", "admin and insights /health selectedBinding equal the signed build and composition", async () => {
+    const healthMark = markRequests();
     const admin = await pageFetch("/health");
+    const healthHttp = httpSince(healthMark, (url) => new URL(url).pathname === "/health");
     const binding = admin.body?.selectedBinding;
     if (admin.status !== 200 || binding?.buildId !== buildId || binding?.compositionId !== facts.compositionId) throw Error(`admin health binding differs: ${JSON.stringify({ status: admin.status, binding, expectedBuild: buildId, expectedComposition: facts.compositionId })}`);
     if (facts.insightsHealth?.selectedBinding?.buildId !== buildId || facts.insightsHealth?.selectedBinding?.compositionId !== facts.compositionId) throw Error("insights health binding differs");
     if (facts.units.join(",") !== "rz-admin.service,rz-insights.service,rz.target" || facts.currentTarget !== `releases/${buildId}/payload`) throw Error("container facts differ");
-    return { actual: `admin+insights selectedBinding buildId=${buildId.slice(0, 12)}… compositionId=${facts.compositionId.slice(0, 12)}…; payload units active at ${facts.currentTarget}`, url: "/health", http: [{ method: "GET", path: "/health", status: 200 }] };
+    return { actual: `admin+insights selectedBinding buildId=${buildId.slice(0, 12)}… compositionId=${facts.compositionId.slice(0, 12)}…; payload units active at ${facts.currentTarget}`, url: "/health", http: healthHttp };
 });
 
 await journey("unauthenticated-redirect", "protected Analytics route redirects anonymous users", "navigating /analytics/overview without a session lands on /login with no successful insights API read", async () => {
@@ -127,6 +138,7 @@ await journey("unauthenticated-redirect", "protected Analytics route redirects a
 });
 
 await journey("unauthenticated-api-denied", "anonymous API probes are rejected without leaks", "overview and navigation APIs answer 401 with code/message envelopes only", async () => {
+    const probeMark = markRequests();
     const overview = await pageFetch("/api/insights/overview");
     const navigation = await pageFetch("/api/system/modules/navigation");
     for (const probe of [overview, navigation]) {
@@ -136,7 +148,7 @@ await journey("unauthenticated-api-denied", "anonymous API probes are rejected w
             if (serialized.includes(forbidden)) throw Error(`401 body leaks ${forbidden}`);
         if (/eyj[a-za-z0-9_-]{20,}/.test(serialized) || /"authorization"/.test(serialized)) throw Error("401 body carries credential material");
     }
-    return { actual: "both probes returned 401 envelopes without internal detail", url: "/login", http: [{ method: "GET", path: "/api/insights/overview", status: 401 }, { method: "GET", path: "/api/system/modules/navigation", status: 401 }] };
+    return { actual: "both probes returned 401 envelopes without internal detail", url: "/login", http: httpSince(probeMark, (url, method) => method === "GET" && ["/api/insights/overview", "/api/system/modules/navigation"].includes(new URL(url).pathname)) };
 });
 
 await journey("wrong-credentials-rejected", "wrong owner password is rejected in the UI", "form submit keeps the login page and the API answers 401 without secrets", async () => {
@@ -154,13 +166,14 @@ await journey("wrong-credentials-rejected", "wrong owner password is rejected in
 });
 
 await journey("default-passwords-rejected", "default passwords never authenticate", "owner/admin/viewer with the shipped default password all answer 401", async () => {
+    const defaultMark = markRequests();
     const statuses: number[] = [];
     for (const account of ["owner", "admin", "viewer"]) {
         const probe = await pageFetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: account, password: "rustzen@123" }) });
         statuses.push(probe.status);
     }
     if (statuses.some((status) => status !== 401)) throw Error(`default password accepted: ${JSON.stringify(statuses)}`);
-    return { actual: "all three default-password probes returned 401", url: "/login", http: statuses.map((status) => ({ method: "POST", path: "/api/auth/login", status })) };
+    return { actual: "all three default-password probes returned 401", url: "/login", http: httpSince(defaultMark, (url, method) => method === "POST" && new URL(url).pathname === "/api/auth/login") };
 });
 
 await journey("owner-login", "owner signs in with the P8e credential", "shell content renders and the session APIs answer 200", async () => {
@@ -223,11 +236,12 @@ await journey("overview-loading", "loading state under emulated latency", "2.5s 
 
 const projectKey = crypto.randomUUID();
 await journey("collection-policy-and-seed", "owner enables collection and seeds real tracker events", "policy update answers 200/configured and 24 track posts answer 2xx", async () => {
+    const seedMark = markRequests();
     const update = await pageFetch("/api/insights/collection-policy", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ collectionEnabled: true, projectKey, allowedOrigins: [base] }) });
     if (update.status !== 200 || update.body?.data?.collectionEnabled !== true || update.body?.data?.projectConfigured !== true) throw Error(`policy update differs: ${JSON.stringify(update)}`);
     const seeded = await evaluate(`(async () => { const visitorId = crypto.randomUUID(); const sessionId = crypto.randomUUID(); const now = Date.now(); const events = []; for (let index = 1; index <= 22; index += 1) events.push({ eventName: 'page_view', visitorId, sessionId, platform: 'web', pagePath: '/seed/page-' + String(index).padStart(2, '0'), occurredAt: new Date(now - index * 1000).toISOString() }); for (let index = 1; index <= 2; index += 1) events.push({ eventName: 'api_request', visitorId, sessionId, platform: 'web', apiPath: '/api/seed/call-' + index, apiMethod: 'GET', statusCode: 200, durationMs: 12 + index, occurredAt: new Date(now - index * 500).toISOString() }); const results = []; for (const body of events) results.push(await (await fetch('/api/insights/track', { method: 'POST', headers: { 'content-type': 'application/json', 'x-rustzen-project-key': ${JSON.stringify(projectKey)} }, body: JSON.stringify(body) })).status); return results; })()`);
     if (!Array.isArray(seeded) || seeded.length !== 24 || seeded.some((status: number) => status < 200 || status >= 300)) throw Error(`track seeding differs: ${JSON.stringify(seeded)}`);
-    return { actual: `policy enabled (projectKey sha256 ${sha256(projectKey).slice(0, 16)}…); 24 tracker events accepted`, url: "/analytics/overview", http: [{ method: "PUT", path: "/api/insights/collection-policy", status: 200 }, { method: "POST", path: "/api/insights/track", status: 200 }] };
+    return { actual: `policy enabled (projectKey sha256 ${sha256(projectKey).slice(0, 16)}…); 24 tracker events accepted`, url: "/analytics/overview", http: [...httpSince(seedMark, (url, method) => method === "PUT" && new URL(url).pathname === "/api/insights/collection-policy"), ...httpSince(seedMark, (url, method) => method === "POST" && new URL(url).pathname === "/api/insights/track").slice(-7)] };
 });
 
 await journey("overview-populated", "seeded activity surfaces in the overview", "page views >= 22 and the daily table renders after real ingestion", async () => {
@@ -267,16 +281,12 @@ await journey("error-state-retry", "a real Insights outage renders the error sta
     await navigate("/analytics/overview");
     await wait(`document.body.innerText.includes('Daily activity')`, "overview before failure");
     await writeFile(`${signals}/stop-insights-requested`, String(Date.now()));
-    const stopped = Date.now() + 30000;
-    while (Date.now() < stopped) { if (await Bun.file(`${signals}/insights-stopped`).exists()) break; await sleep(250); }
-    if (!await Bun.file(`${signals}/insights-stopped`).exists()) throw Error("insights stop signal was not answered");
+    await awaitSignal("insights-stopped", "insights-stopped-failed", "insights stop", 30000);
     await call("Page.reload");
     await wait(`document.body.innerText.includes('Unable to read analytics data')`, "error state", 30000);
     const screenshot = await shot("error-state", 1440, 900);
     await writeFile(`${signals}/restart-requested`, String(Date.now()));
-    const back = Date.now() + 120000;
-    while (Date.now() < back) { if (await Bun.file(`${signals}/restart-done`).exists()) break; await sleep(500); }
-    if (!await Bun.file(`${signals}/restart-done`).exists()) throw Error("restart signal was not answered");
+    await awaitSignal("restart-done", "restart-done-failed", "insights restart", 120000);
     await evaluate(`[...document.querySelectorAll('button')].find((button) => button.innerText.includes('Reload') || button.innerText.includes('重新加载'))?.click()`);
     await wait(`[...document.querySelectorAll('.ant-statistic-content-value')].some((node) => Number(node.innerText.replace(/[^0-9]/g, '')) >= 22)`, "recovered metrics", 30000);
     return { actual: "stopped rz-insights rendered the reload error state; after restart the retry restored the seeded metrics", url: await location(), http: httpSince(mark, (url) => new URL(url).pathname === "/api/insights/overview"), screenshot };
@@ -285,16 +295,7 @@ await journey("error-state-retry", "a real Insights outage renders the error sta
 await journey("service-restart-recovery", "page survives a service restart", "after insights+admin restart the deployment recovers and the reloaded page shows data", async () => {
     const mark = markRequests();
     await writeFile(`${signals}/restart-2-requested`, String(Date.now()));
-    const deadline = Date.now() + 120000;
-    let restarted = false;
-    while (Date.now() < deadline) {
-        if (await Bun.file(`${signals}/restart-2-done`).exists()) {
-            restarted = true;
-            break;
-        }
-        await sleep(500);
-    }
-    if (!restarted) throw Error("restart signal was not answered");
+    await awaitSignal("restart-2-done", "restart-2-done-failed", "second restart", 120000);
     await wait(`fetch('/health', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`, "health after restart", 60000);
     await navigate("/analytics/overview");
     await wait(`[...document.querySelectorAll('.ant-statistic-content-value')].some((node) => Number(node.innerText.replace(/[^0-9]/g, '')) >= 22)`, "post-restart metrics");
@@ -304,6 +305,7 @@ await journey("service-restart-recovery", "page survives a service restart", "af
 });
 
 await journey("monitor-reports-absent", "Monitor and Reports are unreachable in this composition", "their APIs answer 404 and their routes render no module surface", async () => {
+    const absentMark = markRequests();
     const monitor = await pageFetch("/api/monitor/nodes");
     const reports = await pageFetch("/api/reports/templates");
     if (monitor.status !== 404 || reports.status !== 404) throw Error(`unselected module API differs: ${monitor.status}/${reports.status}`);
@@ -316,7 +318,7 @@ await journey("monitor-reports-absent", "Monitor and Reports are unreachable in 
     await sleep(2000);
     const reportsText = String(await evaluate(`document.body.innerText`));
     if (/模板列表|template list|运行记录|run history|报表/i.test(reportsText)) throw Error(`reports surface rendered: ${reportsText.slice(0, 120)}`);
-    return { actual: `monitor/reports APIs 404; routes render no module surface (monitor page head: ${JSON.stringify(monitorText.slice(0, 60))})`, url: `${monitorRoute} -> ${await location()}`, http: [{ method: "GET", path: "/api/monitor/nodes", status: 404 }, { method: "GET", path: "/api/reports/templates", status: 404 }] };
+    return { actual: `monitor/reports APIs 404; routes render no module surface (monitor page head: ${JSON.stringify(monitorText.slice(0, 60))})`, url: `${monitorRoute} -> ${await location()}`, http: httpSince(absentMark, (url) => ["/api/monitor/nodes", "/api/reports/templates"].includes(new URL(url).pathname)) };
 });
 
 await journey("logout-session-invalidation", "logout revokes the session server-side", "old bearer token answers 401 after logout and re-login succeeds", async () => {
