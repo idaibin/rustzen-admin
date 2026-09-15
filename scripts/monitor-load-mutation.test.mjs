@@ -8,7 +8,7 @@ import { completeSelectedApiContractForTest } from "../distribution/selected-con
 import { createExport, releaseVersion, selection, sourceIdentity } from "../distribution/container-export-test-fixture.ts";
 import { verifyContainerExport } from "../distribution/container-export-validator.ts";
 import { admitted, directory, freshOutput, json, parseMonitorLoadEvidence, publish, stable } from "./monitor-load-admission.ts";
-import { pureMonitorAbsence } from "./monitor-load-signed.ts";
+import { notifyCompositionPresence, pureMonitorAbsence } from "./monitor-load-signed.ts";
 import { boundedProcess, certifiedOwner, parseListenerOwner, parseServiceOwner, restartedOwner, service, usage } from "./monitor-load-runtime.ts";
 import { image, inspected, process as attestedProcess } from "./verify-selected-web-runtime-attestation.ts";
 import { milestones, stableOutage } from "./monitor-load-fault.ts";
@@ -230,4 +230,37 @@ test("phase receipt parses, publishes canonically, and rejects phase binding mut
     expect(()=>parseMonitorLoadReceipt({...receipt,boundary:receipt.boundary.map((x,i)=>i===2?{...x,at:190200}:x)})).toThrow();
     expect(()=>parseMonitorLoadReceipt({...receipt,boundaryInFlight:receipt.boundaryInFlight.map((x,i)=>i===2?{...x,at:190900,end:190900}:x)})).toThrow();
     expect(()=>parseMonitorLoadReceipt({...receipt,phases:receipt.phases.map((p,i)=>i===3?{...p,snapshots:p.snapshots.map(x=>({...x,at:x.at-95000}))}:p)})).toThrow();
+});
+
+test("notify composition presence accepts the monitor-notify export and rejects missing owners", async () => {
+    const notifySelection = { ...selection, preset: "monitor-notify" };
+    const root = await createExport(notifySelection);
+    try {
+        const snapshot = await verifyContainerExport(root, notifySelection, sourceIdentity, releaseVersion);
+        const presence = notifyCompositionPresence(snapshot);
+        expect(presence.apiOwners).toBe(3);
+        expect(presence.schemaOwners).toBe(4);
+        expect(presence.notificationWebRoutes).toBeGreaterThanOrEqual(1);
+        // Dropping the notifications API owner fails closed (caught by the underlying
+        // contract baseline parser before the presence guard itself).
+        const api = JSON.parse(new TextDecoder().decode(snapshot.artifact("release/contracts/api/api.json").bytes));
+        delete api.owners.notifications;
+        const apiFake = { selection: () => snapshot.selection(), artifact(path) { return path === "release/contracts/api/api.json" ? { bytes: new TextEncoder().encode(canonicalJson(api)) } : snapshot.artifact(path); } };
+        expect(() => notifyCompositionPresence(apiFake)).toThrow();
+        // Dropping a notification schema ledger fails closed (caught by the schema
+        // contract exact-keys check before the presence guard itself).
+        const schema = JSON.parse(new TextDecoder().decode(snapshot.artifact("release/contracts/schema/schema.json").bytes));
+        delete schema.owners["monitor-notifications"];
+        const schemaFake = { selection: () => snapshot.selection(), artifact(path) { return path === "release/contracts/schema/schema.json" ? { bytes: new TextEncoder().encode(canonicalJson(schema)) } : snapshot.artifact(path); } };
+        expect(() => notifyCompositionPresence(schemaFake)).toThrow();
+        // Removing the notification-owned Web route must fail closed.
+        const inventory = await Bun.file(join(root, "release/web/inventory.json")).json();
+        inventory.selectedRoutes = inventory.selectedRoutes.filter((route) => !route.includes("notifications"));
+        const webFake = { selection: () => snapshot.selection(), artifact(path) { return path === "release/web/inventory.json" ? { bytes: new TextEncoder().encode(JSON.stringify(inventory)) } : snapshot.artifact(path); } };
+        expect(() => notifyCompositionPresence(webFake)).toThrow();
+        // A pure monitor selection is out of scope for presence: its snapshot
+        // resolves to the monitor preset and the guard rejects before any read.
+        const pure = { selection: () => ({ ...snapshot.selection(), preset: "monitor" }), artifact: (path) => snapshot.artifact(path) };
+        expect(() => notifyCompositionPresence(pure)).toThrow("monitor-notify presence requires");
+    } finally { await rm(root, { recursive: true, force: true }); }
 });
