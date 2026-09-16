@@ -83,7 +83,7 @@
                     "package": "rustzen-reports",
                     "binary": "rz-reports",
                     "status": "blocked",
-                    "reason": "Formal selected Cargo artifact and selected Web graph are not implemented."
+                    "reason": "The formal multi-binary selected Cargo producer and the selected Web graph are not implemented; only the rz-reports service-only closure builds with selected-distribution."
                 }
             ],
             "webRoots": [
