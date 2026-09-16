@@ -70,6 +70,7 @@ export async function listFiles(
 export function assertModuleIds(moduleIds: string[], compositionId: string, preset: string) {
     const hasNotifications = preset === "monitor-notify";
     const isAnalytics = preset === "analytics";
+    const isReports = preset === "reports";
     if (new Set(moduleIds).size !== moduleIds.length)
         throw new Error("selected Web module IDs repeat");
     const generatedPrefix = `apps/web/.selected-web/${compositionId}/`;
@@ -82,8 +83,9 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
     ]);
     const allowedSourceDirectories = [
         "apps/web/src/api/installation/",
-        ...(!isAnalytics ? ["apps/web/src/api/monitor/"] : []),
+        ...(!isAnalytics && !isReports ? ["apps/web/src/api/monitor/"] : []),
         ...(isAnalytics ? ["apps/web/src/api/insights/"] : []),
+        ...(isReports ? ["apps/web/src/api/reports/"] : []),
         ...(hasNotifications
             ? ["apps/web/src/api/notifications/", "apps/web/src/notifications/"]
             : []),
@@ -124,9 +126,9 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
             throw new Error(
                 `selected Web module inventory contains another composition source: ${rawId}`,
             );
-        if (!hasNotifications && notificationOnlyMonitorOwners.has(id))
+        if (!hasNotifications && notificationOnlyModuleOwners.has(id))
             throw new Error(
-                `pure selected Web module inventory contains a notification-only Monitor owner: ${rawId}`,
+                `pure selected Web module inventory contains a notification-only module owner: ${rawId}`,
             );
         if (
             allowedSourceFiles.has(id) ||
@@ -156,9 +158,11 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
     }
 }
 
-const notificationOnlyMonitorOwners = new Set([
+const notificationOnlyModuleOwners = new Set([
     "apps/web/src/api/monitor/api.ts",
     "apps/web/src/api/monitor/notification-contract.ts",
+    "apps/web/src/api/reports/api.ts",
+    "apps/web/src/api/reports/notification-contract.ts",
 ]);
 
 export function requiredModuleOwners(preset: string) {
@@ -167,7 +171,9 @@ export function requiredModuleOwners(preset: string) {
         "apps/web/src/api/installation/api.ts",
         ...(preset === "analytics"
             ? []
-            : [
+            : preset === "reports"
+              ? ["apps/web/src/api/reports/core-api.ts"]
+              : [
                   hasNotifications
                       ? "apps/web/src/api/monitor/api.ts"
                       : "apps/web/src/api/monitor/core-api.ts",
@@ -187,20 +193,22 @@ export function assertSelectedWebSnapshot(
     const routes = selectedWebRoutes(selection);
     const hasNotifications = selection.preset === "monitor-notify";
     const isAnalytics = selection.preset === "analytics";
+    const isReports = selection.preset === "reports";
     const forbidden = [
-        ...(!isAnalytics
-            ? ["/api/insights", "/analytics/"]
-            : [
+        ...(isAnalytics
+            ? [
                   "/api/monitor",
                   "/monitoring/",
                   "/api/insights/collection-policy",
                   "/api/insights/track",
                   "/api/insights/tracker.js",
-              ]),
-        "/api/reports",
+              ]
+            : isReports
+              ? ["/api/monitor", "/monitoring/", "/api/insights", "/analytics/"]
+              : ["/api/insights", "/analytics/"]),
+        ...(isReports ? [] : ["/api/reports", "/reports/"]),
         "/api/manage",
         "/api/system/status",
-        "/reports/",
         "/manage/deploy",
         "/manage/task",
         "/manage/log",
@@ -215,7 +223,9 @@ export function assertSelectedWebSnapshot(
         "/api/auth/me",
         ...(isAnalytics
             ? ["/api/insights/overview", "/api/insights/events", "/analytics/overview"]
-            : ["/api/monitor/", "/monitoring/overview"]),
+            : isReports
+              ? ["/api/reports/systems", "/api/reports/runs", "/reports/templates", "/reports/runs"]
+              : ["/api/monitor/", "/monitoring/overview"]),
         "/api/system/users",
         "/api/system/roles",
         "/api/system/menus/options",
@@ -261,7 +271,8 @@ export function assertSelectedWebSnapshot(
 }
 
 export function selectedWebRoutes(selection: { webRoots: string[] }) {
-    const monitor = selection.webRoots.some((route) => route.includes("/monitoring"));
+    const reports = selection.webRoots.some((route) => route.includes("/reports"));
+    const monitor = !reports && selection.webRoots.some((route) => route.includes("/monitoring"));
     return [
         "index.tsx",
         ...selection.webRoots.map((route) => route.replace("apps/web/src/routes/", "")),
@@ -274,7 +285,28 @@ export function selectedWebRoutes(selection: { webRoots: string[] }) {
                   "monitoring/-node-onboarding.tsx",
                   "monitoring/-save-state.ts",
               ]
-            : ["analytics/-event-target.ts"]),
+            : reports
+              ? [
+                    "reports/-runs/live-frame.tsx",
+                    "reports/-runs/retry-run-button.tsx",
+                    "reports/-runs/retry-run-state.ts",
+                    "reports/-runs/run-details.tsx",
+                    "reports/-runs/run-dialog.tsx",
+                    "reports/-runs/status.ts",
+                    "reports/-schedule-permissions.ts",
+                    "reports/-schedule-toggle.ts",
+                    "reports/-templates/delete-flow-dialog.tsx",
+                    "reports/-templates/flow-dialog.tsx",
+                    "reports/-templates/schedule-columns.tsx",
+                    "reports/-templates/schedule-dialog.tsx",
+                    "reports/-templates/schedule-panel.tsx",
+                    "reports/-templates/schedule-save-state.ts",
+                    "reports/-templates/schedule-toggle.tsx",
+                    "reports/-templates/schedule-utils.tsx",
+                    "reports/-templates/target-dialog.tsx",
+                    "reports/-templates/templates-content.tsx",
+                ]
+              : ["analytics/-event-target.ts"]),
         "system/-role-actions.tsx",
         "system/-role-delete-state.ts",
         "system/-role-dialog.tsx",

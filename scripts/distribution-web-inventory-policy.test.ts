@@ -122,9 +122,19 @@ describe("selected Web inventory policy", () => {
                 "monitor-notify",
             ),
         ).toThrow("missing required owner");
+        expect(() =>
+            assertModuleIds(
+                base(["apps/web/src/api/reports/core-api.ts"]),
+                compositionId,
+                "reports",
+            ),
+        ).not.toThrow();
+        expect(() => assertModuleIds(base([]), compositionId, "reports")).toThrow(
+            "missing required owner",
+        );
     });
 
-    test("rejects notification-only Monitor owners from a complete pure selection", () => {
+    test("rejects notification-only module owners from a complete pure selection", () => {
         const pure = [
             `apps/web/.selected-web/${compositionId}/index.tsx`,
             "apps/web/src/api/installation/api.ts",
@@ -136,9 +146,18 @@ describe("selected Web inventory policy", () => {
             "apps/web/src/api/monitor/notification-contract.ts",
         ]) {
             expect(() => assertModuleIds([...pure, owner], compositionId, "monitor")).toThrow(
-                "notification-only Monitor owner",
+                "notification-only module owner",
             );
         }
+        const reportsPure = [
+            `apps/web/.selected-web/${compositionId}/index.tsx`,
+            "apps/web/src/api/installation/api.ts",
+            "apps/web/src/api/reports/core-api.ts",
+            "apps/web/src/api/request.ts",
+        ];
+        expect(() =>
+            assertModuleIds([...reportsPure, "apps/web/src/api/reports/api.ts"], compositionId, "reports"),
+        ).toThrow("notification-only module owner");
     });
 
     test("keeps the package allowlist explicit", () => {
@@ -164,5 +183,17 @@ describe("selected Web inventory policy", () => {
             `const writeApi = () => {};\n${exact.replace("{\n", "{\n\twriteApi,\n")}`,
         ])
             expect(() => assertSelectedApiText(mutation, "analytics")).toThrow();
+    });
+
+    test("keeps the Reports adapter on its own capability namespace", () => {
+        const exact = 'import { reportsCoreAPI as reportsAPI } from "@/api/reports/core-api";';
+        expect(() => assertSelectedApiText(exact, "reports")).not.toThrow();
+        for (const mutation of [
+            exact.replace("reports/core-api", "monitor/core-api"),
+            'const leaked = "/api/insights/overview";',
+            'const notify = "/api/notifications/stream";',
+            'const manage = "/api/manage/tasks";',
+        ])
+            expect(() => assertSelectedApiText(`${exact}\n${mutation}`, "reports")).toThrow();
     });
 });

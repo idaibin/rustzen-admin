@@ -8,7 +8,9 @@ export function assertSelectedApiText(apiSource: string, preset = "monitor") {
     const excluded =
         preset === "analytics"
             ? /(?:monitor|notifications|reports|manage|system\/status)/
-            : /(?:insights|reports|manage|system\/status)/;
+            : preset === "reports"
+              ? /(?:monitor|insights|notifications|manage|system\/status)/
+              : /(?:insights|reports|manage|system\/status)/;
     if (excluded.test(apiSource))
         throw new Error("selected Web API adapter names an excluded capability");
     if (preset === "analytics") assertAnalyticsReadContract(apiSource);

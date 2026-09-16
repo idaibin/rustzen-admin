@@ -3,16 +3,19 @@ export function assertNotificationDeliveryClosure({
     retainedText,
     generatedText,
     outputText,
+    apiNamespace = "monitor",
+    endpoint = "/api/monitor/notification-delivery",
 }: {
     hasNotifications: boolean;
     retainedText: string;
     generatedText: string;
     outputText: string;
+    apiNamespace?: string;
+    endpoint?: string;
 }) {
-    const endpoint = "/api/monitor/notification-delivery";
     const cardTestId = "notification-delivery-card";
     const retainedNotify =
-        retainedText.includes("monitorAPI") &&
+        retainedText.includes(`${apiNamespace}API`) &&
         retainedText.includes("notification marker");
     const generatedCard = generatedText.includes("NotificationDeliveryCard");
     const distEndpoint = outputText.includes(endpoint);
@@ -20,7 +23,7 @@ export function assertNotificationDeliveryClosure({
     const complete =
         retainedNotify && generatedCard && distEndpoint && distCard;
     const absent =
-        retainedText.includes("monitorCoreAPI") &&
+        retainedText.includes(`${apiNamespace}CoreAPI`) &&
         !retainedText.includes("notification marker") &&
         !generatedCard &&
         !distEndpoint &&

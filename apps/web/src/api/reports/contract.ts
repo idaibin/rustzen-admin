@@ -1,32 +1,4 @@
-import type { ModuleApiRoute } from "@/api/module-contract";
+import { reportsCoreAPIContract } from "./core-contract";
+import { reportsNotificationAPIContract } from "./notification-contract";
 
-export const reportsAPIContract = {
-    systems: { method: "GET", path: "/api/reports/systems" },
-    notificationDelivery: { method: "GET", path: "/api/reports/notification-delivery" },
-    createSystem: { method: "POST", path: "/api/reports/systems" },
-    updateSystem: { method: "PUT", path: "/api/reports/systems/{id}" },
-    deleteSystem: { method: "DELETE", path: "/api/reports/systems/{id}" },
-    flows: { method: "GET", path: "/api/reports/flows" },
-    createFlow: { method: "POST", path: "/api/reports/flows" },
-    updateFlow: { method: "PUT", path: "/api/reports/flows/{id}" },
-    deleteFlow: { method: "DELETE", path: "/api/reports/flows/{id}" },
-    flowOptions: { method: "GET", path: "/api/reports/flow-options" },
-    schedules: { method: "GET", path: "/api/reports/schedules" },
-    createSchedule: { method: "POST", path: "/api/reports/schedules" },
-    schedule: { method: "GET", path: "/api/reports/schedules/{id}" },
-    updateSchedule: { method: "PUT", path: "/api/reports/schedules/{id}" },
-    deleteSchedule: { method: "DELETE", path: "/api/reports/schedules/{id}" },
-    runs: { method: "GET", path: "/api/reports/runs" },
-    run: { method: "GET", path: "/api/reports/runs/{id}" },
-    createRun: { method: "POST", path: "/api/reports/runs" },
-    cancelRun: { method: "POST", path: "/api/reports/runs/{id}/cancel" },
-    retryRun: { method: "POST", path: "/api/reports/runs/{id}/retry" },
-    runSteps: { method: "GET", path: "/api/reports/runs/{id}/steps" },
-    runArtifacts: { method: "GET", path: "/api/reports/runs/{id}/artifacts" },
-    artifact: {
-        method: "GET",
-        path: "/api/reports/runs/{run_id}/artifacts/{artifact_id}",
-    },
-    liveFrame: { method: "GET", path: "/api/reports/runs/{id}/live-frame" },
-    settings: { method: "GET", path: "/api/reports/settings" },
-} as const satisfies Record<string, ModuleApiRoute>;
+export const reportsAPIContract = { ...reportsCoreAPIContract, ...reportsNotificationAPIContract };

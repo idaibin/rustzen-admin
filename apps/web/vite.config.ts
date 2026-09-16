@@ -16,7 +16,7 @@ const selectedRoot = process.env.RUSTZEN_WEB_SELECTED_ROOT;
 const selectedOutput = process.env.RUSTZEN_WEB_OUTPUT_DIR;
 const selectedViteInventory = process.env.RUSTZEN_WEB_VITE_INVENTORY;
 const isSelectedBuild =
-    ["monitor", "monitor-notify", "analytics"].includes(selectedPreset ?? "") &&
+    ["monitor", "monitor-notify", "analytics", "reports"].includes(selectedPreset ?? "") &&
     Boolean(selectedRoot) &&
     Boolean(selectedOutput);
 

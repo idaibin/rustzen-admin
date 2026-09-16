@@ -9,6 +9,7 @@ import {
     supportsSelectedCargo,
     supportsSelectedServiceCargo,
 } from "./selected-cargo-producer.ts";
+import { supportsSelectedWeb } from "./selected-web-producer.ts";
 import {
     assertCompleteReadinessInventory,
     auditSourceBuildReadiness,
@@ -92,16 +93,21 @@ describe("P8 source/build certification admission", () => {
         );
     });
 
-    test("tracks the Reports service build without admitting the incomplete server family", () => {
+    test("tracks the Reports service and Web builds without admitting the incomplete server family", () => {
         const plan = resolveSelection(fixture("reports"));
         expect(supportsSelectedServiceCargo(plan)).toBeTrue();
         expect(selectedServiceCargoBuilds(plan)).toEqual([[
             "cargo", "build", "-p", "rustzen-reports", "--no-default-features",
             "--features", "selected-distribution", "--bin", "rz-reports",
         ]]);
+        expect(supportsSelectedWeb(plan)).toBeTrue();
         expect(supportsSelectedCargo(plan)).toBeFalse();
         expect(() => selectedCargoBuilds(plan)).toThrow();
-        expect(auditSourceBuildReadiness(fixture("reports")).missingProducers).toContain("cargo");
+        const audit = auditSourceBuildReadiness(fixture("reports"));
+        expect(audit.availableProducers).toContain("web");
+        expect(audit.missingProducers).toContain("cargo");
+        expect(audit.missingProducers).not.toContain("web");
+        expect(audit.admissionReady).toBeFalse();
     });
 
     test("does not infer custom readiness from an identical capability closure", () => {

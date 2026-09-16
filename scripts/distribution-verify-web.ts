@@ -25,7 +25,7 @@ if (flag !== "--selection" || !selectionPath)
     throw new Error("usage: bun scripts/distribution-verify-web.ts --selection <selection.json>");
 
 const selection = resolveSelection(await Bun.file(resolve(repositoryRoot, selectionPath)).json());
-if (!["monitor", "monitor-notify", "analytics"].includes(selection.preset))
+if (!["monitor", "monitor-notify", "analytics", "reports"].includes(selection.preset))
     throw new Error("selected Web verifier does not support this composition");
 
 const distributionRoot = join(repositoryRoot, "target/distributions", selection.compositionId);
@@ -38,9 +38,11 @@ const selectedApiSource = join(
     "apps/web/src/distribution",
     selection.preset === "analytics"
         ? "analytics-api.ts"
-        : selection.preset === "monitor-notify"
-          ? "monitor-notify-api.ts"
-          : "monitor-api.ts",
+        : selection.preset === "reports"
+          ? "reports-api.ts"
+          : selection.preset === "monitor-notify"
+            ? "monitor-notify-api.ts"
+            : "monitor-api.ts",
 );
 const retainedApiSource = join(outputRoot, "api.ts");
 const bindingPath = join(outputRoot, "binding.json");
@@ -100,7 +102,17 @@ const outputText = (
 ).join("\n");
 assertSelectedWebSnapshot(inventory, selection, files, outputText);
 const retainedText = new TextDecoder().decode(retainedApiBytes);
-if (selection.preset !== "analytics") {
+if (selection.preset === "reports") {
+    const generatedText = await Bun.file(generatedDirectory + "/routes/reports/runs.tsx").text();
+    assertNotificationDeliveryClosure({
+        hasNotifications: false,
+        retainedText,
+        generatedText,
+        outputText,
+        apiNamespace: "reports",
+        endpoint: "/api/reports/notification-delivery",
+    });
+} else if (selection.preset !== "analytics") {
     const generatedText = await Bun.file(
         generatedDirectory + "/routes/monitoring/incidents.tsx",
     ).text();
