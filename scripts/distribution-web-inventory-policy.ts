@@ -207,6 +207,7 @@ export function assertSelectedWebSnapshot(
               ? ["/api/monitor", "/monitoring/", "/api/insights", "/analytics/"]
               : ["/api/insights", "/analytics/"]),
         ...(isReports ? [] : ["/api/reports", "/reports/"]),
+        ...(isReports ? ["/api/reports/notification-delivery"] : []),
         "/api/manage",
         "/api/system/status",
         "/manage/deploy",
