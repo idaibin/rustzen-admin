@@ -15,7 +15,7 @@ feature specs record only route-local composition, states, and evidence.
 | Admin | [Maintenance task console](./features/admin-maintenance-tasks.md) | [Product spec](../product/features/admin-maintenance-tasks/spec.md) | Current route contract; local Linux runtime evidence pending |
 | Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Current route contract; representative light/dark checks |
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
-| Admin / notifications | [Message center](./features/message-center.md) | [Composable distribution P5-P7](../product/features/composable-distribution/spec.md) | P5-P7 closed locally through source, runtime and Chromium gates; global sustained load, native systemd and production deployment Not verified |
+| Admin / notifications | [Message center](./features/message-center.md) | [Composable distribution P5-P7](../product/features/composable-distribution/spec.md) | P5-P7 closed locally through source, runtime and Chromium gates; global sustained load, native systemd, production reverse-proxy and production deployment Not verified |
 | Admin | [Role definition management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge evidence retained |
 | Admin | [User role assignment readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge evidence retained |
 | Admin / Reports | [Linux runtime browser validation](./runtime-browser-validation.md) | [Scheduled automation](../product/features/scheduled-report-automation/spec.md) | Reproducible Colima gate; evidence is valid only after a passing current run |
@@ -47,7 +47,8 @@ refresh and destructive confirmations are distinct actions and remain available.
 | /analytics/overview | Activity metrics; no collection-policy status card | CON-05 |
 | /analytics/details | Type and page/API path; other reports clear/disable path; bottom pagination | CON-01–02, CON-05 |
 
-No new filters are implied for routes without search. Requirements and observed
+No new filters are implied for routes without search. The complete current
+route inventory is mapped in [page-audit](./page-audit.md). Requirements and observed
 runtime coverage are separate: see [local verification](../guides/local-verification.md)
 for checks and remaining gaps. This index does not declare complete visual acceptance.
 

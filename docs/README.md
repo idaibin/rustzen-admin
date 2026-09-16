@@ -23,7 +23,13 @@ in source code, and runtime structure remains grounded in
 | --- | --- | --- |
 | [product.md](./product/product.md) | Current product fact | Defines product positioning, direction, module purposes, scope, non-goals, and decision status. |
 | [product/index.md](./product/index.md) | Current product index | Lists independently consumable feature specifications and readiness. |
-| [composable-distribution](./product/features/composable-distribution/spec.md) | Reviewed future design | Full and physically pruned distributions, optional inbox/SSE, and contracts; implementation underway — Monitor server P1-P4, notifications P5-P7, and P8 certification for the monitor, monitor-notify and analytics selections are closed locally; full and reports selections are not certified. |
+| [composable-distribution](./product/features/composable-distribution/spec.md) | Reviewed design, implementation underway | Full and physically pruned distributions, optional inbox/SSE, and contracts; Monitor server P1-P4 and notifications P5-P7 are closed locally, monitor and analytics selections completed local P8 certification, monitor-notify closed its browser journey and load gate on separate retained builds, and node-agent passed its local PID1 gate under installer-test keys; the full, reports and custom selections are uncertified and production deployment remains Not verified. |
+| [composable-distribution architecture](./product/features/composable-distribution/architecture.md) | Design package | Distribution topology, per-selection architecture, and evaluated alternatives. |
+| [composable-distribution contracts](./product/features/composable-distribution/contracts.md) | Design package | Normative distribution, event and inbox contracts with incremental implementation status. |
+| [composable-distribution implementation](./product/features/composable-distribution/implementation.md) | Design package | Execution plan with slice progress and the P8 admission matrix. |
+| [composable-distribution review](./product/features/composable-distribution/review.md) | Design package | Completed historical design-review record, kept separate from execution evidence. |
+| [composable-distribution sources](./product/features/composable-distribution/sources.md) | Design package | Community evidence and applied decisions retrieved 2026-09-03. |
+| [composable-distribution validation](./product/features/composable-distribution/validation.md) | Design package | Planned implementation gates and acceptance with explicit evidence status. |
 | [monitoring](./product/features/monitoring/spec.md) | Current product specification | Defines central Agent reports, node resources, alerts, incidents, retention, and daily summaries. |
 | [analytics-collection-safety](./product/features/analytics-collection-safety/spec.md) | Current product specification | Defines explicit opt-in, key/origin validation, bounded event collection, and privacy-safe defaults. |
 | [scheduled-report-automation](./product/features/scheduled-report-automation/spec.md) | Current product specification | Defines daily/weekly Reports scheduling with missed-occurrence skip semantics. |
@@ -43,6 +49,7 @@ in source code, and runtime structure remains grounded in
 | [user-role-assignment-readiness UI](./ui/features/user-role-assignment-readiness.md) | Current UI specification | Defines role-list loading and assignment readiness states in user dialogs. |
 | [message-center UI](./ui/features/message-center.md) | Current UI specification | Defines the durable inbox shell, SSE lifecycle, state matrix, and safe subject navigation. |
 | [runtime-browser-validation](./ui/runtime-browser-validation.md) | Current UI gate description | Defines the disposable Linux Colima Chromium full-distribution gate and its evidence validity rule. |
+| [page-audit](./ui/page-audit.md) | Current UI route inventory | Maps the current leaf frontend routes, their shared composition owners, and the tested-state boundary. |
 | [ai-coding-rules.md](./guides/ai-coding-rules.md) | Current rule | Defines source-of-truth order, module ownership, and task verification expectations for AI-assisted changes. |
 | [architecture.md](./architecture.md) | Current fact | Defines repository boundaries, runtime topology, data flow, and command source. |
 | [project-map.md](./project-map.md) | Current fact | Maps important directories without implementation detail. |

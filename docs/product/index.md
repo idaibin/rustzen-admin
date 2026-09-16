@@ -15,11 +15,15 @@ status-panel removal, and Dashboard scope. Route acceptance is mapped in the
 ## Shared implementation contract
 
 The [composable-distribution design](features/composable-distribution/spec.md)
-records the authorized future full/pruned deployment direction and optional
-notifications. It is a reviewed design, not a delivered feature; its
-[review record](features/composable-distribution/review.md) tracks the requested
-ten completed ChatGPT rounds and final local corrections separately from
-unexecuted runtime acceptance.
+records the authorized full/pruned deployment direction and optional
+notifications. It is a reviewed design now partially delivered: Monitor server
+P1-P4, notifications P5-P7 and the local P8 certification chains for the
+monitor and analytics selections are implemented and verified, while the
+remaining selections stay uncertified and production deployment stays
+Not verified. Its [review record](features/composable-distribution/review.md)
+keeps the requested ten completed ChatGPT rounds and final local corrections
+separate from the per-selection runtime acceptance tracked in the
+[implementation plan](features/composable-distribution/implementation.md).
 
 ### Actors and capabilities
 
@@ -75,6 +79,7 @@ and no local permission state is rendered.
 | Collection safety | Insights tracking, settings, and Insights SQLite | Web Analytics overview/details; public tracker is not an Admin page | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/insights/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Scheduled Reports | Reports schedules, flows, runs, and Reports SQLite | Web Reports templates/runs | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/reports/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Module logs | Each service emits its own daily file; Admin authorizes and audits access | Web System Status | Admin `ContractRouter -> OpenAPI -> Orval` plus the fixed runtime log allowlist |
+| Message center | Admin notifications SQLite; Monitor and Reports relay from their own outboxes | Web notifications shell (bell, inbox Drawer, SSE) | Admin `ContractRouter -> OpenAPI -> Orval` plus the loopback producer ingress contract |
 
 No module reads another module's database. The shared runtime logger owns file
 format and retention mechanics; each service remains responsible for its own
@@ -88,7 +93,7 @@ log content and lifecycle.
 | Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Local worker collection/query contract verified; production host-tracker acceptance pending |
 | Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Local runtime/browser state-closure verified; deployed scheduling and native-host acceptance pending |
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
-| Admin / notifications | Message center and realtime invalidation | [composable-distribution P5-P7](./features/composable-distribution/spec.md) | [Message Center UI](../ui/features/message-center.md) | P5-P7 closed locally; global sustained load, native systemd and production deployment pending |
+| Admin / notifications | Message center and realtime invalidation | [composable-distribution P5-P7](./features/composable-distribution/spec.md) | [Message Center UI](../ui/features/message-center.md) | P5-P7 closed locally; global sustained load, native systemd, production reverse-proxy and production deployment pending |
 | Admin | Maintenance task console | [admin-maintenance-tasks](./features/admin-maintenance-tasks/spec.md) | [Admin maintenance task console UI](../ui/features/admin-maintenance-tasks.md) | Current source contract; local Linux runtime evidence pending |
 | Admin | Metric-card route alignment | [metric-card-visual-consistency](./features/metric-card-visual-consistency/spec.md) | [metric-card-visual-consistency UI](../ui/features/metric-card-visual-consistency.md) | Current route contract; representative light/dark checks |
 | Admin | Role definition management | [role-definition-management](./features/role-definition-management/spec.md) | [role-definition-management UI](../ui/features/role-definition-management.md) | Ready |

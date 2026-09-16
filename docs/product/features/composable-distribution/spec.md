@@ -1,6 +1,8 @@
 # Composable distributions and notifications
 
-Status: implementation underway; the Monitor server P1-P4 closure is implemented and verified.
+Status: implementation underway; the Monitor server P1-P4 and notification
+P5-P7 closures are implemented and verified, and local P8 certification is
+complete for the monitor and analytics selections.
 Selected native staging emits only the resolver-selected payload into
 `target/distributions/.native-staging/<buildId>/<target>/<artifactClass>/payload`; it excludes
 secret environment values, installer state, archive envelopes and non-selected services.
@@ -60,12 +62,13 @@ multi-tenancy, operating-system abstraction, cluster scheduler, or general
 workflow engine is implied by "full". Target full means the enumerated existing
 capabilities plus the notification slice defined here.
 
-Notifications are an authorized target capability, not an already released one:
-the preceding user request explicitly asked to integrate SSE with the message
-center and alerts, and the current request continues that design. The target
-full distribution includes this slice after its own gates pass. Physical
-distribution pruning can be implemented and accepted before notifications;
-the existing full behavior baseline must remain independently testable.
+Notifications are an authorized capability — the preceding user request
+explicitly asked to integrate SSE with the message center and alerts — and its
+P5-P7 gates have since passed local source, runtime and browser acceptance,
+while production deployment stays Not verified. The full distribution includes
+this slice and the pure monitor preset physically omits it. Physical
+distribution pruning was accepted before notifications; the existing full
+behavior baseline must remain independently testable.
 
 P5 is split into bounded delivery slices. P5a owns the composition-selected
 Admin fresh-schema fragment and authenticated personal-inbox read state: list,
