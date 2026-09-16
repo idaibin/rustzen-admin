@@ -17,12 +17,12 @@ test("Profile composes one page heading and one nested account-card heading", ()
 test("System Status owns the h1 while module diagnostics stays an h2 section", () => {
     expect(count(statusSource, "<PageHeader")).toBe(1);
     expect(statusSource).toContain("<ModuleLogDiagnostics />");
-    expect(moduleLogsSource).toContain("<PageCard\n            headingLevel={2}");
+    expect(moduleLogsSource).toContain("<PageCard\n                headingLevel={2}");
 });
 
 test("module log explanation is content below the diagnostics heading", () => {
     const cardStart = moduleLogsSource.indexOf("<PageCard");
-    const cardContent = moduleLogsSource.indexOf(">\n            <Typography.Text", cardStart);
+    const cardContent = moduleLogsSource.indexOf(">\n                <Typography.Text", cardStart);
     const explanation = moduleLogsSource.indexOf("查看四个本地服务的受限日志尾部", cardStart);
 
     expect(moduleLogsSource.slice(cardStart, cardContent)).not.toContain("description=");
