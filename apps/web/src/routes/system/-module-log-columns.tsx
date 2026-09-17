@@ -3,6 +3,7 @@ import type { ProColumns } from "@ant-design/pro-components";
 import { Button, Space, Tag, Typography } from "antd";
 
 import type { ModuleLogFile } from "@/api/system/status/module-logs";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { t } from "@/lib/i18n";
 
 import { formatBytes, formatDateTime } from "./-module-log-table-utils";
@@ -59,7 +60,7 @@ export function getModuleLogColumns(
         {
             title: t("操作", "Actions"),
             key: "actions",
-            width: 116,
+            width: actionColumnWidth(1),
             fixed: "right",
             render: (_value, record) => (
                 <Button

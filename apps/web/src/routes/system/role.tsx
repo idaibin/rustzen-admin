@@ -9,6 +9,7 @@ import { systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { getEnableOptions } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
@@ -148,8 +149,7 @@ function RolePage() {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 160,
-            align: "right",
+            width: actionColumnWidth(2),
             render: (_: unknown, row: Role.Item) => (
                 <RoleActions record={row} onSuccess={refresh} />
             ),

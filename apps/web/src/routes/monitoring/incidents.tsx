@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ExclamationCircleOutlined, EyeOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -10,6 +10,7 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
@@ -201,12 +202,15 @@ function MonitoringIncidentsPage() {
         {
             title: t("详情", "Details"),
             key: "actions",
-            width: 64,
+            width: actionColumnWidth(1),
             fixed: "right",
             render: (_, row) => (
-                <Button type="link" onClick={() => setSelected(row)}>
-                    {t("查看", "View")}
-                </Button>
+                <Button
+                    type="text"
+                    icon={<EyeOutlined />}
+                    aria-label={t("查看事件", "View incident")}
+                    onClick={() => setSelected(row)}
+                />
             ),
         },
     ];

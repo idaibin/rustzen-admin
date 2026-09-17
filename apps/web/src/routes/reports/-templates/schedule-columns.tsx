@@ -1,8 +1,10 @@
+import { DeleteOutlined } from "@ant-design/icons";
 import { type ProColumns } from "@ant-design/pro-components";
 import { Button, Space, Tag } from "antd";
 
 import { appMessage, reportsAPI } from "@/api";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
@@ -125,7 +127,7 @@ export function createScheduleColumns({
         columns.push({
             title: <span data-testid="schedule-actions-column">{t("操作", "Actions")}</span>,
             key: "actions",
-            width: 230,
+            width: actionColumnWidth(3),
             fixed: "right",
             render: (_value: unknown, row: Reports.Schedule) => (
                 <Space size="small">
@@ -133,9 +135,13 @@ export function createScheduleColumns({
                     <ScheduleToggle schedule={row} onSaved={onSaved} />
                     <ConfirmDialog
                         trigger={
-                            <Button data-testid="schedule-delete" type="link" danger>
-                                {t("删除", "Delete")}
-                            </Button>
+                            <Button
+                                data-testid="schedule-delete"
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                aria-label={t("删除计划", "Delete schedule")}
+                            />
                         }
                         title={t("删除计划？", "Delete schedule?")}
                         description={t(

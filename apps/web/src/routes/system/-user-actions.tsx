@@ -140,7 +140,7 @@ export function UserActions({
     }
 
     return (
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center gap-2">
             <AuthWrap code="system:user:update">
                 <UserDialog mode="edit" initialValues={record} onSuccess={onSuccess}>
                     <Button

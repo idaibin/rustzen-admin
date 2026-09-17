@@ -36,7 +36,7 @@ test("module log columns retain metadata, status, and view-action contracts", ()
         ["大小", undefined, "size", 110, undefined, undefined],
         ["状态", undefined, "status", 150, undefined, undefined],
         ["修改时间", undefined, "modifiedAt", 180, undefined, undefined],
-        ["操作", undefined, "actions", 116, "right", undefined],
+        ["操作", undefined, "actions", 64, "right", undefined],
     ]);
     const module: any = render(columns[0], readable);
     expect([module.props.code, module.props.children]).toEqual([true, "admin"]);

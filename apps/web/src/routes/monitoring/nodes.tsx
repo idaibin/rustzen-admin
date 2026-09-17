@@ -1,6 +1,7 @@
 import {
     CheckCircleOutlined,
     DisconnectOutlined,
+    EyeOutlined,
     PlusOutlined,
     ReloadOutlined,
     SettingOutlined,
@@ -15,6 +16,7 @@ import { monitorAPI } from "@/api";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -111,17 +113,17 @@ function MonitoringNodesPage() {
         {
             title: t("详情", "Details"),
             key: "actions",
-            width: 88,
+            width: actionColumnWidth(1),
             fixed: "right",
             render: (_, row) => (
                 <Button
                     data-testid="monitor-node-view"
                     data-node-id={row.nodeId}
-                    type="link"
+                    type="text"
+                    icon={<EyeOutlined />}
+                    aria-label={t("查看节点", "View node")}
                     onClick={() => setSelected(row)}
-                >
-                    {t("查看", "View")}
-                </Button>
+                />
             ),
         },
     ];

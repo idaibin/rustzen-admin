@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
@@ -80,10 +81,10 @@ export function TemplatesContent({
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 180,
+            width: actionColumnWidth(3),
             render: (_: unknown, row) => (
                 <AuthWrap code="reports:flow:manage">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex items-center gap-1">
                         <FlowDialog systems={systems} flow={row} onSaved={onRefresh} />
                         <Button
                             type="text"

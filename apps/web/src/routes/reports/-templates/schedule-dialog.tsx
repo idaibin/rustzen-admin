@@ -1,3 +1,4 @@
+import { EditOutlined } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Select, Switch } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -118,11 +119,13 @@ export function ScheduleDialog({
         <>
             <Button
                 data-testid={schedule ? "schedule-edit" : "schedule-create"}
-                type={schedule ? "link" : "primary"}
+                type={schedule ? "text" : "primary"}
+                icon={schedule ? <EditOutlined /> : undefined}
+                aria-label={schedule ? t("编辑计划", "Edit schedule") : undefined}
                 onClick={openDialog}
                 disabled={!flowOptions.some((flow) => flow.enabled)}
             >
-                {schedule ? t("编辑", "Edit") : t("新建计划", "New schedule")}
+                {schedule ? null : t("新建计划", "New schedule")}
             </Button>
             <Modal
                 data-testid="schedule-dialog"

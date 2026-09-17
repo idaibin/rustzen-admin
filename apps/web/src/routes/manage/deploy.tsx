@@ -8,6 +8,7 @@ import { manageAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
@@ -119,7 +120,7 @@ function DeployPage() {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 150,
+            width: actionColumnWidth(3),
             render: (_: unknown, row: Deploy.Item) => (
                 <DeployActions record={row} onSuccess={refresh} />
             ),
@@ -285,7 +286,7 @@ function DeployPage() {
 
 function DeployActions({ record, onSuccess }: { record: Deploy.Item; onSuccess: () => void }) {
     return (
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center gap-2">
             <AuthWrap code="manage:deploy:run">
                 <DeployVersionDialog record={record} onSuccess={onSuccess} />
             </AuthWrap>

@@ -8,6 +8,7 @@ import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { getCoreNavigationItems } from "@/components/layout/routes";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { getEnableOptions } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -150,7 +151,7 @@ function MenuPage() {
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 128,
+                width: actionColumnWidth(1),
                 fixed: "right",
                 render: (_: unknown, row: DisplayMenuItem) => (
                     <MenuActions record={row} onSuccess={refresh} />

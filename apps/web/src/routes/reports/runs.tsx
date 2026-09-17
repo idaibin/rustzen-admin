@@ -11,6 +11,7 @@ import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
@@ -150,9 +151,9 @@ function RunsPage() {
                 title: t("操作", "Actions"),
                 key: "actions",
                 fixed: "right",
-                width: 150,
+                width: actionColumnWidth(3),
                 render: (_: unknown, row) => (
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center gap-1">
                         <Button
                             type="text"
                             icon={<EyeOutlined />}

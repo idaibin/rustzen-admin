@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { manageAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { localizeBuiltInTaskDescription, localizeBuiltInTaskName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
@@ -103,9 +104,8 @@ function TaskPage() {
             {
                 title: t("操作", "Actions"),
                 key: "actions",
-                width: 72,
+                width: actionColumnWidth(2),
                 fixed: "right",
-                align: "center",
                 render: (_: unknown, row: Task.Item) => (
                     <TaskActions record={row} onTaskUpdated={refetch} isFetching={isFetching} />
                 ),

@@ -9,6 +9,7 @@ import { systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { getEnableOptions } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -137,8 +138,7 @@ function UserPage() {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: 96,
-            align: "right",
+            width: actionColumnWidth(2),
             render: (_: unknown, row: User.Item) => (
                 <UserActions record={row} currentUserId={currentUserId} onSuccess={refresh} />
             ),
