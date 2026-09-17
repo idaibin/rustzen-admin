@@ -83,7 +83,7 @@ function TailContent({
 }) {
     const cursor = data.nextCursor;
     return (
-        <div className="space-y-4">
+        <div className="flex h-full flex-col gap-4">
             <Space wrap>
                 <Tag>{data.module}</Tag>
                 <Tag>{data.date}</Tag>
@@ -107,11 +107,12 @@ function TailContent({
             {data.content ? (
                 <Card
                     data-testid="module-log-tail-content"
+                    className="flex min-h-0 flex-1 flex-col"
                     size="small"
                     title={t("受限日志尾部", "Bounded log tail")}
-                    styles={{ body: { padding: 12 } }}
+                    styles={{ body: { display: "flex", minHeight: 0, flex: 1, padding: 12 } }}
                 >
-                    <pre className="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
+                    <pre className="m-0 min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
                         {data.content}
                     </pre>
                 </Card>

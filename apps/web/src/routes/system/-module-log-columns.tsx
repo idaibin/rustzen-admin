@@ -24,11 +24,13 @@ export function getModuleLogColumns(
             key: "file",
             ellipsis: true,
             render: (_value, record) => (
-                <Space direction="vertical" size={0}>
-                    <Typography.Text ellipsis={{ tooltip: record.fileName }}>
+                <Space size="small" className="min-w-0">
+                    <Typography.Text ellipsis={{ tooltip: record.fileName }} className="min-w-0">
                         {record.fileName}
                     </Typography.Text>
-                    <Typography.Text type="secondary">{record.date}</Typography.Text>
+                    <Typography.Text type="secondary" className="shrink-0">
+                        {record.date}
+                    </Typography.Text>
                 </Space>
             ),
         },
@@ -65,14 +67,12 @@ export function getModuleLogColumns(
             render: (_value, record) => (
                 <Button
                     data-testid={`module-log-tail-${record.module}-${record.date}`}
-                    type="link"
-                    size="small"
+                    type="text"
                     icon={<EyeOutlined />}
+                    aria-label={t("查看日志", "View log")}
                     disabled={!record.readable}
                     onClick={() => onOpen(record)}
-                >
-                    {t("查看", "View")}
-                </Button>
+                />
             ),
         },
     ];

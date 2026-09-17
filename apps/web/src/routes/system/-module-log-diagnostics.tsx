@@ -128,9 +128,8 @@ export function ModuleLogDiagnostics() {
     );
 
     return (
-        <div data-testid="module-log-panel">
+        <div data-testid="module-log-panel" className="flex h-full min-h-0 flex-col">
             <PageCard
-                className="shrink-0"
                 title={t("模块日志诊断", "Module log diagnostics")}
                 actions={
                     <ModuleLogActions

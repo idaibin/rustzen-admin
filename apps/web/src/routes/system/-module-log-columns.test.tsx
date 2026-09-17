@@ -41,7 +41,7 @@ test("module log columns retain metadata, status, and view-action contracts", ()
     const module: any = render(columns[0], readable);
     expect([module.props.code, module.props.children]).toEqual([true, "admin"]);
     const file: any = render(columns[1], readable);
-    expect([file.props.direction, file.props.size]).toEqual(["vertical", 0]);
+    expect([file.props.direction, file.props.size]).toEqual([undefined, "small"]);
     expect(file.props.children[0].props.ellipsis).toEqual({ tooltip: readable.fileName });
     expect(file.props.children[0].props.children).toBe(readable.fileName);
     expect([file.props.children[1].props.type, file.props.children[1].props.children]).toEqual([
@@ -72,15 +72,13 @@ test("module log columns retain metadata, status, and view-action contracts", ()
         expect([
             action.props["data-testid"],
             action.props.type,
-            action.props.size,
+            action.props["aria-label"],
             action.props.disabled,
-            action.props.children,
         ]).toEqual([
             `module-log-tail-${record.module}-${record.date}`,
-            "link",
-            "small",
+            "text",
+            "查看日志",
             disabled,
-            "查看",
         ]);
         expect(action.props.icon.type).toBe(EyeOutlined);
     }

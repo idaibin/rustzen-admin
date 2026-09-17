@@ -66,7 +66,7 @@ export function ModuleLogFileList({
                     )}
                 />
             ) : (
-                <DataTableShell ariaLabel={t("模块日志文件", "Module log files table")}>
+                <DataTableShell fill ariaLabel={t("模块日志文件", "Module log files table")}>
                     <ProTable<ModuleLogFile>
                         rowKey={(record) => `${record.module}:${record.date}`}
                         columns={columns}
@@ -75,6 +75,7 @@ export function ModuleLogFileList({
                         search={false}
                         options={false}
                         pagination={false}
+                        scroll={{ y: "100%" }}
                         rowSelection={{
                             selectedRowKeys: selectedKeys,
                             renderCell: (_checked, record, _index, originNode) => (
