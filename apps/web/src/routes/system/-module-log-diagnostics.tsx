@@ -16,7 +16,6 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { t } from "@/lib/i18n";
-import { useAuthStore } from "@/store/useAuthStore";
 
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { getModuleLogColumns } from "./-module-log-columns";
@@ -28,17 +27,6 @@ const ALL_MODULES = "all" as const;
 const EMPTY_FILES: ModuleLogFile[] = [];
 
 export function ModuleLogDiagnostics() {
-    const canView = useAuthStore((state) => state.checkPermissions("system:module:log:view"));
-
-    // The System Status route is owner-only. Keep this boundary silent for every other user.
-    if (!canView) {
-        return null;
-    }
-
-    return <ModuleLogDiagnosticsContent />;
-}
-
-function ModuleLogDiagnosticsContent() {
     const [moduleFilter, setModuleFilter] = useState<ModuleLogModule | typeof ALL_MODULES>(
         ALL_MODULES,
     );
@@ -142,7 +130,6 @@ function ModuleLogDiagnosticsContent() {
     return (
         <div data-testid="module-log-panel">
             <PageCard
-                headingLevel={2}
                 className="shrink-0"
                 title={t("模块日志诊断", "Module log diagnostics")}
                 actions={

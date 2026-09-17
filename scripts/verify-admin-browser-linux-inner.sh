@@ -461,7 +461,7 @@ mv /verify/evidence/success-cases.json.next /verify/evidence/success-cases.json
 # Module-log diagnostics uses the real owner UI and only the two isolated fixtures above.
 module_log_desktop_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"dark",locale:"zh-CN"},{action:"setViewport",width:1440,height:900}] + $login')
 module_log_desktop_steps=$(jq -nc --argjson login "$module_log_desktop_login" --arg today "$module_log_today" --arg expired "$module_log_expired" '$login + [
-  {action:"goto",url:"/system/status"},
+  {action:"goto",url:"/system/module-log"},
   {action:"waitFor",selector:"[data-testid=module-log-panel]"},
   {action:"assertText",selector:"[data-testid=module-log-panel]",text:"模块日志诊断"},
   {action:"waitFor",selector:"[data-testid=module-log-tail-admin-\($today)]"},
@@ -499,7 +499,7 @@ fi
 
 module_log_mobile_login=$(jq -nc --argjson login "$login_steps" '[{action:"setUiPreferences",theme:"light",locale:"en-US"},{action:"setViewport",width:390,height:844}] + $login')
 module_log_mobile_steps=$(jq -nc --argjson login "$module_log_mobile_login" --arg today "$module_log_today" '$login + [
-  {action:"goto",url:"/system/status"},
+  {action:"goto",url:"/system/module-log"},
   {action:"waitFor",selector:"[data-testid=module-log-panel]"},
   {action:"assertText",selector:"[data-testid=module-log-panel]",text:"Module log diagnostics"},
   {action:"waitFor",selector:"[data-testid=module-log-tail-admin-\($today)]"},

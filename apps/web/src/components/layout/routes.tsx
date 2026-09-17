@@ -29,6 +29,7 @@ export type AppRoutePath =
     | "/system/menu"
     | "/system/module"
     | "/system/status"
+    | "/system/module-log"
     | "/manage/log"
     | "/manage/task"
     | "/manage/deploy";
@@ -153,6 +154,12 @@ const manageRoutes = (): AppRouteItem => ({
             permission: "system:status:view",
         },
         {
+            path: "/system/module-log",
+            name: t("模块日志", "Module logs"),
+            icon: <FileTextOutlined />,
+            permission: "system:module:log:view",
+        },
+        {
             path: "/manage/task",
             name: t("定时任务", "Scheduled tasks"),
             icon: <ClockCircleOutlined />,
@@ -185,6 +192,7 @@ const appRoutePaths = new Set<string>([
     "/system/menu",
     "/system/module",
     "/system/status",
+    "/system/module-log",
     "/manage/log",
     "/manage/task",
     "/manage/deploy",

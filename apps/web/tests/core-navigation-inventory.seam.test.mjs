@@ -16,6 +16,7 @@ describe("core navigation inventory seam", () => {
                 "/manage/log",
                 "/system/module",
                 "/system/status",
+                "/system/module-log",
                 "/manage/task",
                 "/manage/deploy",
             ]),

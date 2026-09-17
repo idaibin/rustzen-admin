@@ -14,8 +14,6 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageHeader } from "@/components/page/page-header";
 import { t, useLocale } from "@/lib/i18n";
 
-import { ModuleLogDiagnostics } from "./-module-log-diagnostics";
-
 export const Route = createFileRoute("/system/status")({
     component: SystemStatusPage,
 });
@@ -52,7 +50,6 @@ function SystemStatusPage() {
                 <>
                     <StorageCard storage={data.storage} />
                     <ResourceCard resource={data.resource} />
-                    <ModuleLogDiagnostics />
                 </>
             ) : isError ? (
                 <DataState

@@ -8,6 +8,7 @@ const routePaths = [
     "../src/routes/system/menu.tsx",
     "../src/routes/system/role.tsx",
     "../src/routes/system/status.tsx",
+    "../src/routes/system/module-log.tsx",
     "../src/routes/system/user.tsx",
 ];
 const routes = await Promise.all(

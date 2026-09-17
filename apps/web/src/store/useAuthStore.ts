@@ -100,6 +100,7 @@ export const getRouteCapabilityCodes = (pathname: string): string[] => {
         "/reports": "reports:flow:view",
         "/reports/templates": ["reports:flow:view", "reports:schedule:view"],
         "/reports/runs": "reports:run:view",
+        "/system/module-log": "system:module:log:view",
     };
     const explicitCode = explicitRouteCapability[pathname];
     if (Array.isArray(explicitCode)) {
