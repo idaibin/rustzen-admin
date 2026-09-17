@@ -24,9 +24,7 @@ impl ServerActivationState {
         let unit_hashes =
             units.iter().map(|(name, bytes)| (name, hash(bytes))).collect::<BTreeMap<_, _>>();
         let selection = crate::install_server_selection::for_preset(preset)?;
-        if unit_hashes.keys().map(|name| (*name).as_str()).collect::<Vec<_>>()
-            != selection.units
-        {
+        if unit_hashes.keys().map(|name| (*name).as_str()).collect::<Vec<_>>() != selection.units {
             return Err("selected unit inventory is invalid".into());
         }
         let owners = owners_for_preset(preset)?;

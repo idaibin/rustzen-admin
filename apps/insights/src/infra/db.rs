@@ -138,7 +138,10 @@ async fn verify_schema_shape(pool: &SqlitePool) -> Result<(), String> {
     let expected_pool = SqlitePool::connect("sqlite::memory:")
         .await
         .map_err(|_| "Insights selected schema fixture is unavailable")?;
-    MIGRATOR.run(&expected_pool).await.map_err(|_| "Insights selected schema fixture is invalid")?;
+    MIGRATOR
+        .run(&expected_pool)
+        .await
+        .map_err(|_| "Insights selected schema fixture is invalid")?;
     if schema_inventory(pool).await? != schema_inventory(&expected_pool).await? {
         return Err("Insights observed schema differs from selected schema".into());
     }

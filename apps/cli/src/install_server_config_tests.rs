@@ -20,9 +20,8 @@ fn monitor_rejects_notification_keys() {
 }
 #[test]
 fn notify_requires_and_shares_notification_key_pair() {
-    let values =
-        parse_source(format!("{BASE}{NOTIFY}").as_bytes(), &monitor_notify_selection())
-            .expect("notify values");
+    let values = parse_source(format!("{BASE}{NOTIFY}").as_bytes(), &monitor_notify_selection())
+        .expect("notify values");
     let mut admin = values.clone();
     admin.insert("RUSTZEN_RUNTIME_ROOT".into(), "/var/lib/rustzen-admin".into());
     let mut monitor = values.clone();
@@ -51,22 +50,29 @@ fn notify_requires_and_shares_notification_key_pair() {
 
 #[test]
 fn analytics_accepts_only_insights_pair_keys() {
-    let values = parse_source(ANALYTICS_BASE.as_bytes(), &analytics_selection())
-        .expect("analytics values");
-    assert_eq!(values.get("RUSTZEN_INSIGHTS_SQLITE_PATH").unwrap(), "/var/lib/rustzen-insights/insights.db");
+    let values =
+        parse_source(ANALYTICS_BASE.as_bytes(), &analytics_selection()).expect("analytics values");
+    assert_eq!(
+        values.get("RUSTZEN_INSIGHTS_SQLITE_PATH").unwrap(),
+        "/var/lib/rustzen-insights/insights.db"
+    );
     let mut admin = values.clone();
     admin.insert("RUSTZEN_RUNTIME_ROOT".into(), "/var/lib/rustzen-admin".into());
     let mut insights = values.clone();
     insights.insert("RUSTZEN_RUNTIME_ROOT".into(), "/var/lib/rustzen-insights".into());
     let admin = String::from_utf8(render(&admin, ADMIN_INSIGHTS_KEYS).unwrap()).unwrap();
     let insights = String::from_utf8(render(&insights, INSIGHTS_KEYS).unwrap()).unwrap();
-    assert!(admin.contains("RUSTZEN_INSIGHTS_PORT=9802\n") || !admin.contains("RUSTZEN_INSIGHTS_PORT"));
+    assert!(
+        admin.contains("RUSTZEN_INSIGHTS_PORT=9802\n") || !admin.contains("RUSTZEN_INSIGHTS_PORT")
+    );
     assert!(!admin.contains("RUSTZEN_MONITOR_PORT"));
     assert!(!insights.contains("RUSTZEN_MONITOR"));
     assert!(parse_source(BASE.as_bytes(), &analytics_selection()).is_err());
-    assert!(parse_source(
-        format!("{ANALYTICS_BASE}RUSTZEN_MONITOR_AGENT_TOKEN=x\n").as_bytes(),
-        &analytics_selection()
-    )
-    .is_err());
+    assert!(
+        parse_source(
+            format!("{ANALYTICS_BASE}RUSTZEN_MONITOR_AGENT_TOKEN=x\n").as_bytes(),
+            &analytics_selection()
+        )
+        .is_err()
+    );
 }

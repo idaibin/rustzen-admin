@@ -93,11 +93,8 @@ fn validate(m: &Manifest) -> Result<(), String> {
 }
 
 fn server(m: &Manifest, files: &BTreeMap<&str, &Entry>) -> Result<bool, String> {
-    let services: Vec<&str> = if m.preset == "analytics" {
-        vec!["admin", "insights"]
-    } else {
-        vec!["admin", "monitor"]
-    };
+    let services: Vec<&str> =
+        if m.preset == "analytics" { vec!["admin", "insights"] } else { vec!["admin", "monitor"] };
     if !selected_server_selection(&m.preset, &m.capabilities, &m.config_owners, &m.composition_id)
         || m.services != services[..]
         || m.schema_fingerprints.as_ref().is_none_or(|x| !owners(x, &m.preset))
@@ -246,7 +243,9 @@ fn file_hash(files: &BTreeMap<&str, &Entry>, path: &str) -> Result<String, Strin
 fn owners(values: &BTreeMap<String, String>, preset: &str) -> bool {
     values.keys().map(String::as_str).collect::<Vec<_>>()
         == match preset {
-            "monitor-notify" => vec!["admin", "admin-notifications", "monitor", "monitor-notifications"],
+            "monitor-notify" => {
+                vec!["admin", "admin-notifications", "monitor", "monitor-notifications"]
+            }
             "analytics" => vec!["admin", "insights"],
             _ => vec!["admin", "monitor"],
         }

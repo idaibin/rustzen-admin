@@ -34,7 +34,10 @@ fn main() -> StartupResult<()> {
     if std::env::args().skip(1).collect::<Vec<_>>() == ["contract", "config", "selected"] {
         // Canonicalize through serde_json::Value so selected-config stdout matches
         // the sorted-key contract artifact bytes byte for byte.
-        println!("{}", serde_json::to_string(&serde_json::to_value(rustzen_config::insights_contract())?)?);
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::to_value(rustzen_config::insights_contract())?)?
+        );
         return Ok(());
     }
     #[cfg(feature = "selected-distribution")]
@@ -83,7 +86,12 @@ fn main() -> StartupResult<()> {
         let _logging = init_logging().map_err(|error| std::io::Error::other(error.to_string()))?;
         match command {
             Command::Serve => app::run().await,
-            Command::ValidateConfig | Command::InitDb | Command::BindDatabase | Command::ValidateDatabase => unreachable!("database mode exits before runtime startup"),
+            Command::ValidateConfig
+            | Command::InitDb
+            | Command::BindDatabase
+            | Command::ValidateDatabase => {
+                unreachable!("database mode exits before runtime startup")
+            }
         }
     })
 }

@@ -67,7 +67,8 @@ impl SourceConfig {
             secondary.extend(render(&secondary_values, MONITOR_NOTIFY_KEYS)?);
         }
         let admin_port = port(&values, "RUSTZEN_ADMIN_PORT", 9801)?;
-        let secondary_port = port(&values, selection.secondary_port_key(), selection.secondary_port_default())?;
+        let secondary_port =
+            port(&values, selection.secondary_port_key(), selection.secondary_port_default())?;
         if admin_port == 0 || secondary_port == 0 || admin_port == secondary_port {
             return Err("Monitor server config ports are invalid".into());
         }
@@ -91,7 +92,9 @@ fn secondary_service(selection: &crate::install_server_selection::ServerSelectio
     selection.secondary.to_ascii_uppercase()
 }
 
-fn admin_keys(selection: &crate::install_server_selection::ServerSelection) -> &'static [&'static str] {
+fn admin_keys(
+    selection: &crate::install_server_selection::ServerSelection,
+) -> &'static [&'static str] {
     match selection.secondary {
         "monitor" => ADMIN_MONITOR_KEYS,
         "insights" => ADMIN_INSIGHTS_KEYS,
@@ -232,8 +235,7 @@ fn parse_source(
         "insights" => keys.push("RUSTZEN_INSIGHTS_SQLITE_PATH"),
         _ => return Err("selected server preset is invalid".into()),
     }
-    let runtime_key =
-        format!("RUSTZEN_{}_RUNTIME_ROOT", secondary_service(selection));
+    let runtime_key = format!("RUSTZEN_{}_RUNTIME_ROOT", secondary_service(selection));
     if result.get(&runtime_key).is_none_or(String::is_empty) {
         return Err("Monitor server config source is incomplete".into());
     }

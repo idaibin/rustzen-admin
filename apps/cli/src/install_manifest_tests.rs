@@ -101,7 +101,12 @@ fn analytics_server_accepts_only_its_exact_inventory() {
     let monitor_owners = vec!["access".into(), "monitor".into()];
     assert!(!selected_server_selection("analytics", &analytics, &monitor_owners, &composition));
     // Wrong composition rejected.
-    assert!(!selected_server_selection("analytics", &analytics, &analytics, "b".repeat(64).as_str()));
+    assert!(!selected_server_selection(
+        "analytics",
+        &analytics,
+        &analytics,
+        "b".repeat(64).as_str()
+    ));
     // The analytics tuple is not accepted under another preset name.
     assert!(!selected_server_selection("monitor", &analytics, &analytics, &composition));
 }

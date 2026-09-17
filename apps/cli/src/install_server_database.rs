@@ -40,14 +40,21 @@ pub(super) fn publish(
             admin_parent.absent("admin.db")?;
             secondary_parent.absent(&secondary_db)?;
             admin_parent.remove_regular_owned(&admin_stage, admin.uid, admin.gid)?;
-            secondary_parent.remove_regular_owned(&secondary_stage, secondary.uid, secondary.gid)?;
+            secondary_parent.remove_regular_owned(
+                &secondary_stage,
+                secondary.uid,
+                secondary.gid,
+            )?;
             let admin_path = Path::new("/var/lib/rustzen-admin").join(&admin_stage);
             let secondary_path =
                 Path::new(&release.selection.secondary_runtime_root()).join(&secondary_stage);
             if let Err(error) = initialize(source, release, &admin_path, &secondary_path) {
                 let _ = admin_parent.remove_regular_owned(&admin_stage, admin.uid, admin.gid);
-                let _ = secondary_parent
-                    .remove_regular_owned(&secondary_stage, secondary.uid, secondary.gid);
+                let _ = secondary_parent.remove_regular_owned(
+                    &secondary_stage,
+                    secondary.uid,
+                    secondary.gid,
+                );
                 return Err(error);
             }
             let admin_bytes = admin_parent.read_regular_owned(
@@ -102,8 +109,11 @@ pub(super) fn verify(
         secondary.gid,
     )?;
     admin_parent.require_regular_owned("admin.db", admin.uid, admin.gid)?;
-    secondary_parent
-        .require_regular_owned(&release.selection.secondary_database(), secondary.uid, secondary.gid)?;
+    secondary_parent.require_regular_owned(
+        &release.selection.secondary_database(),
+        secondary.uid,
+        secondary.gid,
+    )?;
     run_database_command(source, release, "admin", "validate-database", None)?;
     run_database_command(source, release, release.selection.secondary, "validate-database", None)?;
     Ok(())
