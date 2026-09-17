@@ -3,32 +3,73 @@
 This matrix is the executable acceptance basis for Monitoring. Tests use an in-memory SQLite pool
 unless restart durability requires a temporary file database.
 
-## 已落地的行为测试
+## Landed behavior tests
 
-当前 `cargo test -p rustzen-monitor` 的测试通过真实函数、HTTP
-handler 和 SQLite 持久层验证以下边界：
+The current `cargo test -p rustzen-monitor` suite verifies the following boundaries through
+real functions, HTTP handlers, and the SQLite persistence layer:
 
-- `protocol::tests::validates_each_wire_field_at_its_declared_boundary` 覆盖身份、主机名、版本、CPU、字节数、序列号和挂载点的包含边界及越界值； malformed RFC3339 和空磁盘列表分别验证。
-- `agent::tests::agent_collection_maps_fixed_values_and_skips_invalid_devices` 验证固定 CPU、内存、多挂载点映射，并确认空路径、零容量、非法可用容量、伪文件系统、容器临时挂载、loop 设备和重复本地 bind mount 不会污染上报；真实 `/`、`/data` 与 `/var/lib/docker` 挂载仍保留，同源网络挂载不会被误合并。
-- `agent::tests::agent_send_report_observes_request_timeout` 及 `agent_response_statuses_and_failures_are_distinct` 覆盖超时、401、503、accepted、duplicate、stale 和坏响应；`next_sequence` 验证失败/过期不推进序列。独立 Agent 测试入口为 `just verify-monitor-agent`，Controller 的默认测试命令不包含 Agent 测试。
-- `agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes` 直接调用生产 `run_agent_loop`，通过可注入 collector/sender/readiness seam 验证 accepted、duplicate 后只发送一次 readiness，401、503、timeout、stale 和 missed tick 不发送 readiness，同时保持既有序列与调度行为。
-- `app::tests::agent_report_route_returns_accepted_duplicate_and_stale_envelopes` 验证 Controller 上报 envelope，既有 route 测试验证 token-before-body、401 和 422。
-- `historical_duplicate_stale_and_retired_reports_bypass_clock_skew` 与 `historical_fenced_reports_return_200_statuses_but_new_sequence_is_422` 验证 fencing 先于时钟偏差：历史 duplicate/stale/retired 报告仍返回 200 且无副作用，新的 sequence 才返回 422。
-- `older_collected_at_is_stale_even_with_an_increasing_sequence`、`report_clock_skew_has_an_inclusive_five_minute_boundary` 验证 collection time 严格递增、五分钟允许偏差和远未来/过去拒绝；服务端 liveness 仍使用 receive time；`concurrent_replay_has_one_accept_and_one_duplicate` 验证 SQLite fencing 竞态不会产生重复样本或 500。
-- `threshold_boundary_applies_to_cpu_memory_and_each_disk`、`disabled_offline_alert_does_not_create_incident`、`invalid_alert_settings_are_rejected_without_partial_update`、`metric_buckets_align_by_epoch_and_retain_independent_mount_series`、`file_cleanup_reports_reclaim_maintenance_and_is_idempotent`、`cleanup_retries_maintenance_after_committed_deletion_failure` 和 retention 测试覆盖阈值包含边界、禁用、非法设置、5 分钟桶、挂载点独立序列、文件库 freelist 维护、maintenance 失败结果与重试及保留/清理。
-- `sqlite_foreign_key_and_active_incident_uniqueness_are_enforced`、唯一初始化基线和文件重开测试覆盖 FK、active incident 唯一约束、仅创建最终表结构和重启持久化。
+- `protocol::tests::validates_each_wire_field_at_its_declared_boundary` covers inclusive
+  boundaries and out-of-range values for identity, hostname, version, CPU, byte counts,
+  sequence numbers, and mount points; malformed RFC3339 and an empty disk list are verified
+  separately.
+- `agent::tests::agent_collection_maps_fixed_values_and_skips_invalid_devices` verifies fixed
+  CPU, memory, and multi-mount mapping, and confirms that empty paths, zero capacity, invalid
+  available capacity, pseudo filesystems, ephemeral container mounts, loop devices, and
+  duplicate local bind mounts do not pollute reports; real `/`, `/data`, and `/var/lib/docker`
+  mounts are retained, and same-source network mounts are not merged incorrectly.
+- `agent::tests::agent_send_report_observes_request_timeout` and
+  `agent_response_statuses_and_failures_are_distinct` cover timeout, 401, 503, accepted,
+  duplicate, stale, and bad responses; `next_sequence` verifies that failed or expired
+  submissions do not advance the sequence. The standalone Agent test entry is
+  `just verify-monitor-agent`; the Controller's default test command does not include Agent
+  tests.
+- `agent_loop_keeps_sequence_and_skips_missed_ticks_for_all_send_outcomes` invokes the
+  production `run_agent_loop` directly and verifies through the injectable
+  collector/sender/readiness seam that readiness is sent exactly once only after `accepted`
+  or `duplicate`, that 401, 503, timeout, stale, and missed ticks send no readiness, and that
+  the existing sequence and scheduling behavior is preserved.
+- `app::tests::agent_report_route_returns_accepted_duplicate_and_stale_envelopes` verifies
+  the Controller report envelopes; the existing route tests verify token-before-body, 401,
+  and 422.
+- `historical_duplicate_stale_and_retired_reports_bypass_clock_skew` and
+  `historical_fenced_reports_return_200_statuses_but_new_sequence_is_422` verify that fencing
+  precedes clock skew: historical duplicate/stale/retired reports still return 200 without
+  side effects, and only a new sequence returns 422.
+- `older_collected_at_is_stale_even_with_an_increasing_sequence` and
+  `report_clock_skew_has_an_inclusive_five_minute_boundary` verify strictly increasing
+  collection time, the five-minute inclusive skew allowance, and far-future/past rejection;
+  server-side liveness still uses receive time; `concurrent_replay_has_one_accept_and_one_duplicate`
+  verifies the SQLite fencing race cannot produce duplicate samples or a 500.
+- `threshold_boundary_applies_to_cpu_memory_and_each_disk`,
+  `disabled_offline_alert_does_not_create_incident`,
+  `invalid_alert_settings_are_rejected_without_partial_update`,
+  `metric_buckets_align_by_epoch_and_retain_independent_mount_series`,
+  `file_cleanup_reports_reclaim_maintenance_and_is_idempotent`,
+  `cleanup_retries_maintenance_after_committed_deletion_failure`, and the retention tests
+  cover inclusive threshold boundaries, disabled settings, invalid settings, five-minute
+  buckets, independent per-mount series, file-database freelist maintenance, maintenance
+  failure results and retries, and retention/cleanup.
+- `sqlite_foreign_key_and_active_incident_uniqueness_are_enforced`, the unique
+  initialization baseline, and the file-reopen tests cover foreign keys, the active-incident
+  uniqueness constraint, creating only the final schema, and restart persistence.
 
-当前验收基线：Controller 47 项与 Agent 12 项测试通过；`just check` 和 Admin OpenAPI/client
-契约检查通过。`just verify-modules-mvp` 的底层服务验证脚本通过全新的四个服务数据库验证
-24 种启动顺序、原生 macOS Agent 经 Admin 网关上报、服务隔离与数据库恢复。
-新增 `scripts/verify-monitoring-scenarios.mjs` 验证真实 owner/viewer 权限、四个导航入口、
-全局与节点策略、重复/过期隔离、CPU/磁盘告警三次触发与
-三次恢复、事件分页/详情、非法输入和 30 天查询边界。该脚本被统一 worker 验证入口调用。
+The current acceptance baseline: Controller 47 and Agent 12 tests pass; `just check` and the
+Admin OpenAPI/client contract checks pass. The underlying service verification of
+`just verify-modules-mvp` validates 24 startup orders, a native macOS Agent report through
+the Admin gateway, service isolation, and database recovery against fresh four-service
+databases. The added `scripts/verify-monitoring-scenarios.mjs` verifies real owner/viewer
+permissions, the four navigation entries, global and node policies, duplicate/stale
+isolation, three-sample CPU/disk alert triggering and three-sample recovery, incident
+paging/details, invalid input, and the 30-day query boundary. That script is invoked by the
+unified worker verification entry.
 
-浏览器已覆盖四个页面、节点多挂载点详情、自定义策略保存与重置、事件详情、设置保存及
-日报空状态。完整分页/筛选组合、日报非 30 秒采样覆盖率、Linux/Windows 真实采集、部署
-环境定时任务及完整视觉/异常状态矩阵仍需单独验收。Overview/Nodes 当前没有分页契约，
-分页验收适用于 Incidents/Summaries；上述证据不能替代生产部署验证。
+The browser pass has covered the four pages, node multi-mount details, custom policy save
+and reset, incident details, settings save, and the daily-summary empty state. Complete
+paging/filter combinations, non-30-second daily-summary sampling coverage, real
+Linux/Windows collection, deployed timers, and the complete visual/error state matrix still
+require separate acceptance. Overview/Nodes currently have no paging contract; paging
+acceptance applies to Incidents/Summaries; the evidence above does not replace production
+deployment verification.
 
 ## P0 report and persistence
 

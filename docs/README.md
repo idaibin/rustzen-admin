@@ -75,6 +75,8 @@ in source code, and runtime structure remains grounded in
 | [history/feats/login-page-design.md](./history/feats/login-page-design.md) | Historical design | Preserves the completed login-page design input and asset link. |
 | [history/feats/sqlite-first-roadmap.md](./history/feats/sqlite-first-roadmap.md) | Historical feature task record | Breaks the sqlite-first design into executable and verifiable tasks. |
 | [history/plans/independent-service-refactor.md](./history/plans/independent-service-refactor.md) | Completed execution baseline | Defines the implemented four-application service split, runtime contract, permission flow, release boundary, and validation gates. |
+| [history/plans/modules-mvp.md](./history/plans/modules-mvp.md) | Historical plan | Preserves the completed monitoring, analytics, and automation MVP service-scope record. |
+| [history/plans/sqlite-first-design.md](./history/plans/sqlite-first-design.md) | Historical design | Preserves the original sqlite-first design decision record in its authored language. |
 | [history/plans/update-docs.md](./history/plans/update-docs.md) | Historical task list | Records the completed documentation-governance task request. |
 | [history/fixes/documentation-audit-report-2026-05-20.md](./history/fixes/documentation-audit-report-2026-05-20.md) | Historical audit | Preserves the pre-consolidation documentation audit snapshot. |
 

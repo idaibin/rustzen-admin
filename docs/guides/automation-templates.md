@@ -1,40 +1,40 @@
-# Rustzen Reports 浏览器自动化任务指南与模板
+# Rustzen Reports browser automation task guide and templates
 
-本指南描述当前 `apps/reports` 自动化实现。浏览器自动化由 Reports 执行；外部调用通过 Admin Gateway 的受保护 API 进入。
+This guide describes the current `apps/reports` automation implementation. Browser automation is executed by Reports; external calls enter through the Admin Gateway's protected API.
 
-## 执行与存证边界
+## Execution and evidence boundary
 
-每个运行使用独立 Chromium profile，步骤结果写入运行步骤记录。运行期间可刷新一张 PNG live frame；显式截图和失败快照也以 PNG artifact 留存。当前实现没有 WebM、MP4、帧序列录制、视频合成或视频回放 artifact。
+Each run uses an isolated Chromium profile, and step results are written to the run's step records. During a run one PNG live frame can be refreshed; explicit screenshots and failure snapshots are also retained as PNG artifacts. The current implementation has no WebM, MP4, frame-sequence recording, video composition, or video playback artifact.
 
-模板的 selector、URL 与输入均应来自受控的目标系统和当前页面契约。运行输入可用于已支持的 `{{input.name}}` 替换；不要提交密码、令牌或其他凭据形态的字段。
+Template selectors, URLs, and inputs must come from the controlled target system and the current page contract. Run inputs can be used for the supported `{{input.name}}` substitution; do not submit fields in the form of passwords, tokens, or other credentials.
 
-## FlowStep 契约
+## FlowStep contract
 
-以下 17 个 `action` 是 `apps/reports/src/features/automation/types.rs` 中 `FlowStep` 的完整当前集合。未知动作或字段会被拒绝。
+The following 17 `action`s are the complete current set of `FlowStep` in `apps/reports/src/features/automation/types.rs`. Unknown actions or fields are rejected.
 
-| `action` | 字段 | 作用 |
+| `action` | Fields | Purpose |
 | --- | --- | --- |
-| `goto` | `url` | 跳转到相对或绝对 URL；解析后的目标必须与目标系统 `baseUrl` 同源。 |
-| `fill` | `selector`, `value` | 填写元素值。 |
-| `click` | `selector` | 点击元素。 |
-| `waitFor` | `selector` | 只等待 DOM 中出现匹配元素；不保证可见、文本匹配或页面就绪。 |
-| `assertText` | `selector`, `text` | 断言元素文本。 |
-| `assertValue` | `selector`, `value` | 断言元素原生值。 |
-| `assertAbsent` | `selector` | 断言 selector 未命中。 |
-| `screenshot` | `name`（可选） | 保存全页 PNG screenshot artifact。 |
-| `screenshotViewport` | `name`（可选） | 保存当前视口 PNG screenshot artifact。 |
-| `setViewport` | `width`, `height` | 设置浏览器视口，仅允许 `1440x900` 或 `390x844`。 |
-| `setUiPreferences` | `theme`, `locale` | 设置主题和语言偏好；`theme` 仅为 `light` 或 `dark`，`locale` 仅为 `zh-CN` 或 `en-US`。 |
-| `assertNoHorizontalOverflow` | 无 | 断言文档不产生水平溢出。 |
-| `assertElementLayout` | CSS `selector`，可选 `elementCount`、`visibleCount`、`maxHeight`、`withinViewportRight`、`withinViewport` | 验证元素数量、可见性、高度和视口边界；至少必须提供一个条件。 |
-| `assertFocus` | `selector` | 断言 selector 匹配元素获得焦点。 |
-| `guardExists` | `selector`，可选 `onMissing` | 元素不存在时按 `continue`、`skipNext`、`stop`、`fail` 或 `error` 处理；`error` 是接受的失败策略别名。 |
-| `pressKey` | `key` | 发送键盘按键。 |
-| `pause` | `durationMs` | 暂停 `0` 至 `30000`（含）毫秒；保存的值按同一时长执行，`0` 表示不额外等待。 |
+| `goto` | `url` | Navigate to a relative or absolute URL; the resolved target must be same-origin with the target system's `baseUrl`. |
+| `fill` | `selector`, `value` | Fill an element value. |
+| `click` | `selector` | Click an element. |
+| `waitFor` | `selector` | Only wait for a matching element to appear in the DOM; visibility, text matching, or page readiness are not guaranteed. |
+| `assertText` | `selector`, `text` | Assert the element text. |
+| `assertValue` | `selector`, `value` | Assert the element's native value. |
+| `assertAbsent` | `selector` | Assert the selector has no match. |
+| `screenshot` | `name` (optional) | Save a full-page PNG screenshot artifact. |
+| `screenshotViewport` | `name` (optional) | Save the current viewport as a PNG screenshot artifact. |
+| `setViewport` | `width`, `height` | Set the browser viewport; only `1440x900` or `390x844` are allowed. |
+| `setUiPreferences` | `theme`, `locale` | Set theme and language preferences; `theme` is only `light` or `dark`, and `locale` is only `zh-CN` or `en-US`. |
+| `assertNoHorizontalOverflow` | none | Assert the document produces no horizontal overflow. |
+| `assertElementLayout` | CSS `selector`, optional `elementCount`, `visibleCount`, `maxHeight`, `withinViewportRight`, `withinViewport` | Verify element count, visibility, height, and viewport bounds; at least one condition must be provided. |
+| `assertFocus` | `selector` | Assert the element matched by the selector receives focus. |
+| `guardExists` | `selector`, optional `onMissing` | When the element does not exist, handle it as `continue`, `skipNext`, `stop`, `fail`, or `error`; `error` is an accepted alias of the failure strategy. |
+| `pressKey` | `key` | Send a keyboard key. |
+| `pause` | `durationMs` | Pause for 0 to 30000 (inclusive) milliseconds; the stored value executes for the same duration, and `0` means no additional wait. |
 
-## 模板示例
+## Template example
 
-### 搜索结果截图
+### Search result screenshot
 
 ```json
 [
@@ -47,33 +47,33 @@
 ]
 ```
 
-目标系统的 `baseUrl` 例如 `https://www.baidu.com`；运行输入例如：
+The target system's `baseUrl` is, for example, `https://www.baidu.com`; a run input is, for example:
 
 ```json
 { "keyword": "Rustzen" }
 ```
 
-## Admin Gateway API 示例
+## Admin Gateway API example
 
-Admin Gateway 默认监听 `http://127.0.0.1:9801`。以下示例要求具备相应 Reports capability 的用户 Bearer token。
+The Admin Gateway listens on `http://127.0.0.1:9801` by default. The following examples require the Bearer token of a user with the corresponding Reports capability.
 
 ```bash
 export RUSTZEN_ADMIN_TOKEN='<admin bearer token>'
 base=http://127.0.0.1:9801
 
-# 注册目标系统
+# Register a target system
 curl -fsS -X POST "$base/api/reports/systems" \
   -H "Authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"百度搜索","baseUrl":"https://www.baidu.com","enabled":true}'
+  -d '{"name":"Baidu search","baseUrl":"https://www.baidu.com","enabled":true}'
 
-# 创建 Flow
+# Create a flow
 curl -fsS -X POST "$base/api/reports/flows" \
   -H "Authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"systemId":"<SYSTEM_ID>","name":"关键词检索","steps":[{"action":"goto","url":"/"},{"action":"waitFor","selector":"#kw"},{"action":"screenshot","name":"result"}]}'
+  -d '{"systemId":"<SYSTEM_ID>","name":"Keyword search","steps":[{"action":"goto","url":"/"},{"action":"waitFor","selector":"#kw"},{"action":"screenshot","name":"result"}]}'
 
-# 创建运行并读取运行与 artifacts
+# Create a run and read the run and its artifacts
 curl -fsS -X POST "$base/api/reports/runs" \
   -H "Authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
