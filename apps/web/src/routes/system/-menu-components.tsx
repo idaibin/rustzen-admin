@@ -145,7 +145,7 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                                 id="menu-status"
                                 value={status}
                                 onChange={setStatus}
-                                style={{ width: "100%" }}
+                                className="w-full"
                                 options={getEnableOptions().map((item) => ({
                                     value: String(item.value),
                                     label: item.label,
@@ -159,7 +159,7 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                                 value={icon || undefined}
                                 onChange={setIcon}
                                 allowClear
-                                style={{ width: "100%" }}
+                                className="w-full"
                                 options={getModuleIconOptions().map((item) => ({
                                     value: item.value,
                                     label: item.label,

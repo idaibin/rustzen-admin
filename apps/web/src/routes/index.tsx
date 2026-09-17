@@ -10,6 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Card, Progress, Typography, theme } from "antd";
+import { cn } from "cn";
 import type { ReactNode } from "react";
 
 import { dashboardAPI, systemAPI } from "@/api";
@@ -166,7 +167,7 @@ function ModuleHealthCards() {
                 updatedAt={dataUpdatedAt}
                 onRetry={() => void refetch()}
             >
-                <div className="module-health-grid grid gap-3 md:grid-cols-3 xl:grid-cols-1">
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
                     {(["monitor", "insights", "reports"] as const).map((module) => {
                         const health = data?.find((item) => item.module === module);
                         const available = health?.available ?? false;
@@ -188,7 +189,7 @@ function ModuleHealthCards() {
                             <div
                                 key={module}
                                 aria-label={`${moduleMeta.label}：${available ? t("运行中", "Online") : t("不可用", "Unavailable")}`}
-                                className="module-health-item flex min-h-20 min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-3"
+                                className="flex min-h-20 min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3"
                                 style={{
                                     borderColor: token.colorBorderSecondary,
                                 }}
@@ -208,12 +209,12 @@ function ModuleHealthCards() {
                                     </Typography.Text>
                                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <span
-                                            className="size-1.5 rounded-full"
-                                            style={{
-                                                background: available
-                                                    ? token.colorSuccess
-                                                    : token.colorError,
-                                            }}
+                                            className={cn(
+                                                "size-1.5 rounded-full",
+                                                available
+                                                    ? "bg-status-success"
+                                                    : "bg-status-danger",
+                                            )}
                                         />
                                         {available
                                             ? t("运行中", "Online")

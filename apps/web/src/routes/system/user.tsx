@@ -149,7 +149,7 @@ function UserPage() {
         <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Input
                 aria-label={t("用户名", "Username")}
-                style={{ width: 200, maxWidth: "100%" }}
+                className="w-[200px] max-w-full"
                 allowClear
                 value={username}
                 placeholder={t("用户名", "Username")}
@@ -158,7 +158,7 @@ function UserPage() {
                 onCompositionEnd={() => setIsComposing(false)}
             />
             <Select
-                style={{ width: 132, maxWidth: "100%" }}
+                className="w-[132px] max-w-full"
                 aria-label={t("账号状态", "Account status")}
                 value={status}
                 onChange={(value) => {

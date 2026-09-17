@@ -177,7 +177,7 @@ function MenuPage() {
                 placeholder={t("菜单名称", "Menu name")}
                 value={nameFilter}
                 allowClear
-                style={{ width: 168, maxWidth: "100%" }}
+                className="w-[168px] max-w-full"
                 onChange={(event) => setNameFilter(event.target.value)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
@@ -187,7 +187,7 @@ function MenuPage() {
                 placeholder={t("权限编码", "Permission code")}
                 value={codeFilter}
                 allowClear
-                style={{ width: 180, maxWidth: "100%" }}
+                className="w-[180px] max-w-full"
                 onChange={(event) => setCodeFilter(event.target.value)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
@@ -195,7 +195,7 @@ function MenuPage() {
             <Select
                 aria-label={t("状态", "Status")}
                 value={statusFilter}
-                style={{ width: 132, maxWidth: "100%" }}
+                className="w-[132px] max-w-full"
                 onChange={setStatusFilter}
                 options={[
                     { value: "all", label: t("全部", "All") },

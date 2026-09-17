@@ -80,7 +80,7 @@ export const BaseLayout = ({
                         onClick={({ key }) =>
                             void router.navigate({ to: key as "/analytics/overview" })
                         }
-                        style={{ width: "100%", borderInlineEnd: 0, background: "transparent" }}
+                        className="w-full !border-e-0"
                     />
                 </nav>
             </aside>
@@ -112,11 +112,7 @@ export const BaseLayout = ({
                                     : void router.navigate({ to: "/profile" }),
                         }}
                     >
-                        <Button
-                            type="text"
-                            aria-label={t("账号菜单", "Account menu")}
-                            className="shell-account"
-                        >
+                        <Button type="text" aria-label={t("账号菜单", "Account menu")}>
                             <Avatar
                                 size="small"
                                 src={userInfo?.avatarUrl ?? undefined}

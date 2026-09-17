@@ -152,7 +152,7 @@ function DailySummariesPage() {
                             ),
                         }}
                     />
-                    <div className="data-table-pagination">
+                    <div className="flex shrink-0 items-center justify-between gap-4 pt-3">
                         <Typography.Text type="secondary">
                             {t(`共 ${data.total} 条`, `${data.total} total`)}
                         </Typography.Text>

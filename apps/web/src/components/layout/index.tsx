@@ -99,7 +99,7 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
             onOpenChange={setOpenKeys}
             onClick={({ key }) => handleNavigationSelect(String(key))}
             items={menuItems}
-            style={{ width: "100%", borderInlineEnd: 0, background: "transparent" }}
+            className="w-full !border-e-0"
         />
     );
     const accountName = userInfo?.isSystem
@@ -140,11 +140,7 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
                         onLogout={handleLogout}
                         onNavigate={handleNavigationSelect}
                     >
-                        <Button
-                            type="text"
-                            aria-label={t("账号菜单", "Account menu")}
-                            className="shell-account"
-                        >
+                        <Button type="text" aria-label={t("账号菜单", "Account menu")}>
                             <Avatar
                                 size="small"
                                 src={userInfo?.avatarUrl ?? undefined}

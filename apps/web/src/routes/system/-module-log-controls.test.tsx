@@ -126,7 +126,7 @@ test("module log toolbar preserves module options and filter changes", () => {
     const picker = nodes(tree).find((node) => node.type === DatePicker)!;
     expect(picker.props["aria-label"]).toBe("日志日期");
     expect(picker.props.value.format("YYYY-MM-DD")).toBe("2026-09-11");
-    expect(picker.props.style).toEqual({ width: 160, maxWidth: "100%" });
+    expect(picker.props.className).toBe("w-40 max-w-full");
     picker.props.onChange(dayjs("2026-09-12"));
     expect(date).toBe("2026-09-12");
     picker.props.onChange(null);

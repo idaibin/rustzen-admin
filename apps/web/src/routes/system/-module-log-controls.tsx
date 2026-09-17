@@ -80,7 +80,7 @@ export function ModuleLogToolbar({
                 value={dateFilter ? dayjs(dateFilter) : null}
                 onChange={(value) => onDateChange(value ? value.format("YYYY-MM-DD") : "")}
                 getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
-                style={{ width: 160, maxWidth: "100%" }}
+                className="w-40 max-w-full"
             />
             <Button icon={<ReloadOutlined />} loading={isFetching} onClick={onRefresh}>
                 {t("刷新", "Refresh")}

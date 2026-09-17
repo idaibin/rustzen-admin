@@ -104,7 +104,7 @@ function LogPage() {
                 placeholder={t("搜索用户或 IP", "Search by user or IP")}
                 value={searchInput}
                 allowClear
-                style={{ width: 220, maxWidth: "100%" }}
+                className="w-[220px] max-w-full"
                 onChange={(event) => setSearchInput(event.target.value)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}

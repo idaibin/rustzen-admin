@@ -160,7 +160,7 @@ function RolePage() {
         <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
             <Input
                 allowClear
-                style={{ width: 168, maxWidth: "100%" }}
+                className="w-[168px] max-w-full"
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 aria-label={t("角色名称", "Role name")}
@@ -170,7 +170,7 @@ function RolePage() {
             />
             <Input
                 allowClear
-                style={{ width: 168, maxWidth: "100%" }}
+                className="w-[168px] max-w-full"
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 aria-label={t("角色编码", "Role code")}
@@ -179,7 +179,7 @@ function RolePage() {
                 onChange={(event) => setRoleCode(event.target.value)}
             />
             <Select
-                style={{ width: 132, maxWidth: "100%" }}
+                className="w-[132px] max-w-full"
                 aria-label={t("角色状态", "Role status")}
                 value={status}
                 onChange={setStatus}

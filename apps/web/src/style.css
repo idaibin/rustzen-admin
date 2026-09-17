@@ -62,10 +62,6 @@
         line-height: 26px;
     }
 
-    .page-panel.ant-card {
-        box-shadow: none;
-    }
-
     .data-table-shell .ant-table-thead > tr > th {
         font-weight: 600;
     }
@@ -128,14 +124,6 @@
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
     }
-}
-
-@utility no-scrollbar {
-    &::-webkit-scrollbar {
-        display: none;
-    }
-    -ms-overflow-style: none;
-    scrollbar-width: none;
 }
 
 #root {
@@ -207,14 +195,6 @@
     min-height: 0;
     overflow-y: auto;
     padding: var(--page-inset);
-}
-.data-table-pagination {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding-top: 12px;
 }
 @media (max-width: 767px) {
     .app-shell {
