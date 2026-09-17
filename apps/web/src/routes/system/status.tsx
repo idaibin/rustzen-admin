@@ -74,7 +74,13 @@ function SystemStatusPage() {
 }
 
 function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
-    const maxDirectoryBytes = Math.max(...storage.directories.map((item) => item.sizeBytes), 1);
+    const directories = [...storage.directories].sort((a, b) => b.sizeBytes - a.sizeBytes);
+    const databaseFiles = [
+        { label: t("主库", "Main database"), value: storage.database.mainBytes },
+        { label: "WAL", value: storage.database.walBytes },
+        { label: "SHM", value: storage.database.shmBytes },
+    ].sort((a, b) => b.value - a.value);
+    const maxDirectoryBytes = Math.max(...directories.map((item) => item.sizeBytes), 1);
 
     return (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,5fr)]">
@@ -100,13 +106,22 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                         </Typography.Text>
                         <Progress className="mt-5" percent={100} showInfo={false} />
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
-                            <span>
-                                {t("主库", "Main database")}{" "}
-                                {formatBytes(storage.database.mainBytes)}
-                            </span>
-                            <span className="text-right">
-                                WAL {formatBytes(storage.database.walBytes)}
-                            </span>
+                            {[
+                                {
+                                    label: t("主库", "Main database"),
+                                    value: storage.database.mainBytes,
+                                },
+                                { label: "WAL", value: storage.database.walBytes },
+                            ]
+                                .sort((a, b) => b.value - a.value)
+                                .map((item, index) => (
+                                    <span
+                                        key={item.label}
+                                        className={index ? "text-right" : undefined}
+                                    >
+                                        {item.label} {formatBytes(item.value)}
+                                    </span>
+                                ))}
                         </div>
                     </div>
 
@@ -121,14 +136,11 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                                 </Typography.Paragraph>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                                {t(
-                                    `${storage.directories.length} 项`,
-                                    `${storage.directories.length} items`,
-                                )}
+                                {t(`${directories.length} 项`, `${directories.length} items`)}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-2">
-                            {storage.directories.map((item) => (
+                            {directories.map((item) => (
                                 <div key={item.key}>
                                     <div className="mb-3 flex items-center justify-between gap-4">
                                         <div className="flex min-w-0 items-center gap-2">
@@ -166,21 +178,14 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                 }
             >
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
-                    <StorageBreakdownItem
-                        label={t("主库", "Main database")}
-                        value={storage.database.mainBytes}
-                        total={storage.database.totalBytes}
-                    />
-                    <StorageBreakdownItem
-                        label="WAL"
-                        value={storage.database.walBytes}
-                        total={storage.database.totalBytes}
-                    />
-                    <StorageBreakdownItem
-                        label="SHM"
-                        value={storage.database.shmBytes}
-                        total={storage.database.totalBytes}
-                    />
+                    {databaseFiles.map((file) => (
+                        <StorageBreakdownItem
+                            key={file.label}
+                            label={file.label}
+                            value={file.value}
+                            total={storage.database.totalBytes}
+                        />
+                    ))}
                 </div>
             </ProCard>
         </div>
