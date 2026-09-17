@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Card, Form, InputNumber, Switch, Typography } from "antd";
+import { Alert, Button, Card, Form, InputNumber, Space, Switch, Typography } from "antd";
 import { useEffect, useState } from "react";
 
 import { appMessage, monitorAPI } from "@/api";
@@ -14,7 +14,7 @@ import {
     type FailedNetworkAction,
 } from "./-save-state";
 
-export function GlobalAlertSettings() {
+export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
     const [form] = Form.useForm<Monitor.UpdateAlertSettings>();
     const [failedSave, setFailedSave] =
         useState<FailedNetworkAction<Monitor.UpdateAlertSettings>>();
@@ -56,53 +56,53 @@ export function GlobalAlertSettings() {
             </div>
         );
     return (
-        <div className="space-y-5">
-            <Typography.Paragraph type="secondary">
-                {t(
-                    "统一设置 CPU、内存、磁盘和离线告警。修改后立即影响使用全局策略的节点；节点自定义策略优先。",
-                    "Configure CPU, memory, disk and offline alerts together. Changes apply to inheriting nodes; custom policies take priority.",
-                )}
-            </Typography.Paragraph>
-            {canManage && failedSave ? (
-                <Alert
-                    data-testid="monitor-global-save-error"
-                    type="error"
-                    showIcon
-                    title={t("告警设置未保存", "Alert settings were not saved")}
-                    description={t(
-                        "无法连接监控服务。当前修改仍保留，可重试保存。",
-                        "The monitoring service could not be reached. Your changes are still here; retry saving.",
+        <Form
+            form={form}
+            initialValues={{
+                cpu: data.cpu,
+                memory: data.memory,
+                disk: data.disk,
+                offline: data.offline,
+            }}
+            layout="vertical"
+            className="flex h-full flex-col gap-5"
+            onFinish={(values) => {
+                if (canManage && !mutation.isPending) mutation.mutate(values);
+            }}
+            disabled={!canManage || mutation.isPending}
+        >
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+                <Typography.Paragraph type="secondary">
+                    {t(
+                        "统一设置 CPU、内存、磁盘和离线告警。修改后立即影响使用全局策略的节点；节点自定义策略优先。",
+                        "Configure CPU, memory, disk and offline alerts together. Changes apply to inheriting nodes; custom policies take priority.",
                     )}
-                    action={
-                        <Button
-                            data-testid="monitor-global-save-retry"
-                            onClick={() =>
-                                retryFailedNetworkAction(canManage, failedSave, {
-                                    save: (values) => mutation.mutate(values),
-                                    reset: () => undefined,
-                                })
-                            }
-                        >
-                            {t("重试", "Retry")}
-                        </Button>
-                    }
-                />
-            ) : null}
-            <Form
-                form={form}
-                initialValues={{
-                    cpu: data.cpu,
-                    memory: data.memory,
-                    disk: data.disk,
-                    offline: data.offline,
-                }}
-                layout="vertical"
-                className="flex flex-col gap-5"
-                onFinish={(values) => {
-                    if (canManage && !mutation.isPending) mutation.mutate(values);
-                }}
-                disabled={!canManage || mutation.isPending}
-            >
+                </Typography.Paragraph>
+                {canManage && failedSave ? (
+                    <Alert
+                        data-testid="monitor-global-save-error"
+                        type="error"
+                        showIcon
+                        title={t("告警设置未保存", "Alert settings were not saved")}
+                        description={t(
+                            "无法连接监控服务。当前修改仍保留，可重试保存。",
+                            "The monitoring service could not be reached. Your changes are still here; retry saving.",
+                        )}
+                        action={
+                            <Button
+                                data-testid="monitor-global-save-retry"
+                                onClick={() =>
+                                    retryFailedNetworkAction(canManage, failedSave, {
+                                        save: (values) => mutation.mutate(values),
+                                        reset: () => undefined,
+                                    })
+                                }
+                            >
+                                {t("重试", "Retry")}
+                            </Button>
+                        }
+                    />
+                ) : null}
                 <Card size="small" title={t("告警策略", "Alert policy")}>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Threshold name="cpu" label="CPU" />
@@ -157,10 +157,15 @@ export function GlobalAlertSettings() {
                         </Form.Item>
                     </div>
                 </Card>
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <Typography.Text type="secondary" className="text-xs">
-                        {t("最近更新", "Last updated")}: {formatDateTime(data.updatedAt)}
-                    </Typography.Text>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+                <Typography.Text type="secondary" className="text-xs">
+                    {t("最近更新", "Last updated")}: {formatDateTime(data.updatedAt)}
+                </Typography.Text>
+                <Space>
+                    <Button disabled={mutation.isPending} onClick={onClose}>
+                        {t("关闭", "Close")}
+                    </Button>
                     {canManage ? (
                         <Button
                             data-testid="monitor-global-save"
@@ -171,9 +176,9 @@ export function GlobalAlertSettings() {
                             {t("保存", "Save")}
                         </Button>
                     ) : null}
-                </div>
-            </Form>
-        </div>
+                </Space>
+            </div>
+        </Form>
     );
 }
 

@@ -234,7 +234,9 @@ function MonitoringNodesPage() {
                 destroyOnHidden
             >
                 {panel === "add" && canManage ? <NodeOnboarding /> : null}
-                {panel === "settings" && canViewSettings ? <GlobalAlertSettings /> : null}
+                {panel === "settings" && canViewSettings ? (
+                    <GlobalAlertSettings onClose={() => setPanel(undefined)} />
+                ) : null}
             </Drawer>
             <NodeDetails node={selected} onClose={() => setSelected(undefined)} />
         </PageCard>
