@@ -105,7 +105,6 @@ function LoginPage() {
 
                             <Form
                                 layout="vertical"
-                                autoComplete="off"
                                 onFinish={onLogin}
                                 className="grid gap-6 2xl:gap-7"
                                 requiredMark={false}
