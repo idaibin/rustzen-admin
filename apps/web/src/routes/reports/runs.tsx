@@ -2,7 +2,7 @@ import { EyeOutlined, StopOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Tag } from "antd";
+import { Button, Space, Tag } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
@@ -179,22 +179,23 @@ function RunsPage() {
         [cancel, flows, locale, runStatusMeta],
     );
     const actions = (
-        <AuthWrap code="reports:run:manage">
-            <RunDialog flows={flows} />
-        </AuthWrap>
+        <Space>
+            {deliveryCard}
+            <AuthWrap code="reports:run:manage">
+                <RunDialog flows={flows} />
+            </AuthWrap>
+        </Space>
     );
 
     if (!data?.data.length && isPending)
         return (
             <PageCard title={title} description={description} actions={actions}>
-                {deliveryCard}
                 <DataState kind="loading" title={t("正在加载填报执行", "Loading report runs")} />
             </PageCard>
         );
     if (!data?.data.length && error)
         return (
             <PageCard title={title} description={description} actions={actions}>
-                {deliveryCard}
                 <DataState
                     kind="error"
                     title={t("填报执行加载失败", "Failed to load report runs")}
@@ -213,7 +214,6 @@ function RunsPage() {
     if (total === 0)
         return (
             <PageCard title={title} description={description} actions={actions}>
-                {deliveryCard}
                 <DataState
                     kind="empty"
                     title={t("暂无填报执行", "No report runs")}
@@ -224,7 +224,6 @@ function RunsPage() {
 
     return (
         <PageCard title={title} description={description} actions={actions}>
-            {deliveryCard}
             {error ? (
                 <DataState
                     kind="error"

@@ -91,13 +91,13 @@ function MonitoringIncidentsPage() {
         return (
             <PageCard
                 toolbar={searchControls}
+                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
                     "View active and recently resolved resource and offline alerts.",
                 )}
             >
-                {deliveryCard}
                 <DataState
                     kind="permission"
                     title={t(
@@ -120,13 +120,13 @@ function MonitoringIncidentsPage() {
         return (
             <PageCard
                 toolbar={searchControls}
+                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
                     "View active and recently resolved resource and offline alerts.",
                 )}
             >
-                {deliveryCard}
                 <DataState
                     kind={isPending ? "loading" : "error"}
                     title={
@@ -213,13 +213,13 @@ function MonitoringIncidentsPage() {
     return (
         <PageCard
             toolbar={searchControls}
+            actions={deliveryCard}
             title={t("告警事件", "Alert incidents")}
             description={t(
                 "查看活动和最近解决的资源与离线告警。",
                 "View active and recently resolved resource and offline alerts.",
             )}
         >
-            {deliveryCard}
             {hasMonitorBackgroundRefreshFailure(data, error) ? (
                 <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
             ) : null}

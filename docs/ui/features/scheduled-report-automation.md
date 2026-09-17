@@ -41,12 +41,12 @@ pair it with `data-label="Scheduled reports"` and reject the Chinese label via
 the same CSS selector.
 
 Only the notifications-capable `full` selection composes the shared
-notification-delivery card on Runs. The `reports` preset (`[access, reports]`)
-does not select notifications and has no card. In `full`, the card presents
-pending/quarantine counts and charged bytes, the five-counter irreversible-gap
-total, nullable formatted timestamps, and explicit loading, permission, error,
-healthy, and gap states. Fixed copy uses the existing Chinese/English
-localization owner.
+notification-delivery indicator on Runs. The `reports` preset (`[access, reports]`)
+does not select notifications and has no indicator. In `full`, the trigger and
+its click-through present pending/quarantine counts and charged bytes, the
+five-counter irreversible-gap total, nullable formatted timestamps, and explicit
+loading, permission, error, healthy, and gap states. Fixed copy uses the
+existing Chinese/English localization owner.
 
 Screenshot artifacts remain bounded backend evidence: failed oversize capture
 is shown through the existing run failure evidence and does not create a fake
@@ -317,10 +317,10 @@ Verified by the Linux Chromium gate: the real Reports service and Web route, nev
 
 ## Notification delivery health
 
-In `full`, the existing Runs page places the same compact delivery card above its table.
-It uses the Reports run-view permission, shows only aggregate delivery state,
-and exposes loading, forbidden and recoverable-error Retry states. No menu,
-page or notification payload is added.
+In `full`, the existing Runs page header carries the same compact delivery
+status trigger. It uses the Reports run-view permission, shows only aggregate
+delivery state, and exposes loading, forbidden and recoverable-error Retry
+states. No menu, page or notification payload is added.
 
 The Reports Linux Chromium state-gate extension is **Closed locally / Passed**
 for the coordination commit and source basis recorded in

@@ -44,14 +44,14 @@ The route remains `/monitoring/incidents`.
 | Nodes / Global Settings drawer | One configuration Card with CPU, memory, disk and offline controls; one Save and last-update footer | Four controls share one Form; outlined numeric inputs remain visible on the panel. Management permission controls editing and Save. |
 | Daily Summaries | PageCard, DataTableShell, ProTable, separate bottom Pagination and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. It refreshes in the background every 30 seconds. At the 390px narrow layout, Date, Node, and Coverage remain visible; Samples and the resource, offline, and incident detail columns are hidden until the `sm` breakpoint so rows do not collapse into vertical text or crop at the right edge. |
 
-The reusable notification-delivery card appears above Incidents only in the
-`full` and `monitor-notify` selections. It displays pending and quarantine
-counts with their charged bytes, the sum of all five irreversible gap counters,
-and formatted nullable delivery timestamps. Pure `monitor` has no card,
-notification endpoint, or card test identifier in its generated or emitted Web
-artifact.
+The reusable notification-delivery indicator appears in the Incidents page
+header only in the `full` and `monitor-notify` selections. It is a compact
+status trigger; clicking reveals pending and quarantine counts with their
+charged bytes, the sum of all five irreversible gap counters, and formatted
+nullable delivery timestamps. Pure `monitor` has no indicator, notification
+endpoint, or card test identifier in its generated or emitted Web artifact.
 
-At 390px the delivery card remains above the readable Incident table. The
+At 390px the delivery indicator remains in the readable Incident page header. The
 filters wrap without overlap, the table and bottom pagination stay within the
 content viewport, and the table retains its own bounded scroll behavior if a
 future localized value needs more room. The visible Event header and first row
@@ -157,11 +157,12 @@ shell block, token field, token value, or direct Agent command.
 
 ## Notification delivery health
 
-In `full` and `monitor-notify`, the Incidents page places a compact delivery
-card above its table. It shows pending and quarantine counts, the irreversible total
-(omitted+expired+unconfirmed+quarantined+evicted), first/last gap and last
-success. Zero gaps is healthy; a nonzero total is explicit. Loading, 403 and
-500 are distinct and each recoverable state has Retry. No payload is rendered.
+In `full` and `monitor-notify`, the Incidents page header carries a compact
+delivery status trigger. Clicking it shows pending and quarantine counts, the
+irreversible total (omitted+expired+unconfirmed+quarantined+evicted), first/last
+gap and last success. Zero gaps is healthy; a nonzero total is explicit.
+Loading, 403 and 500 are distinct and each recoverable state has Retry. No
+payload is rendered.
 
 The Monitor Linux Chromium delivery-card extension has a local, checkout-bound
 closure: it passes only when

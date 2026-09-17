@@ -94,6 +94,8 @@ const copyRoute = async (source: string) => {
                 /    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["monitor", "notification-delivery"\]\}\n            queryFn=\{monitorAPI\.notificationDelivery\}\n        \/>\n    \);\n/,
                 "",
             )
+            .replaceAll("                actions={deliveryCard}\n", "")
+            .replaceAll("            actions={deliveryCard}\n", "")
             .replaceAll("                {deliveryCard}\n", "")
             .replaceAll("            {deliveryCard}\n", "");
     }
@@ -107,6 +109,7 @@ const copyRoute = async (source: string) => {
                 /    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["reports", "notification-delivery"\]\}\n            queryFn=\{reportsAPI\.notificationDelivery\}\n        \/>\n    \);\n/,
                 "",
             )
+            .replaceAll("        {deliveryCard}\n", "")
             .replaceAll("                {deliveryCard}\n", "")
             .replaceAll("            {deliveryCard}\n", "");
     }
