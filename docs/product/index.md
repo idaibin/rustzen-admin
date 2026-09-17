@@ -78,7 +78,7 @@ and no local permission state is rendered.
 | Incident diagnostics | Monitor incidents and Monitor SQLite | Web Monitoring routes | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/monitor/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Collection safety | Insights tracking, settings, and Insights SQLite | Web Analytics overview/details; public tracker is not an Admin page | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/insights/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Scheduled Reports | Reports schedules, flows, runs, and Reports SQLite | Web Reports templates/runs | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/reports/contract.ts -> scripts/verify-worker-contracts.mjs` |
-| Module logs | Each service emits its own daily file; Admin authorizes and audits access | Web System Status | Admin `ContractRouter -> OpenAPI -> Orval` plus the fixed runtime log allowlist |
+| Module logs | Each service emits its own daily file; Admin authorizes and audits access | Web Module log diagnostics page | Admin `ContractRouter -> OpenAPI -> Orval` plus the fixed runtime log allowlist |
 | Message center | Admin notifications SQLite; Monitor and Reports relay from their own outboxes | Web notifications shell (bell, inbox Drawer, SSE) | Admin `ContractRouter -> OpenAPI -> Orval` plus the loopback producer ingress contract |
 
 No module reads another module's database. The shared runtime logger owns file

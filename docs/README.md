@@ -41,7 +41,7 @@ in source code, and runtime structure remains grounded in
 | [ui/index.md](./ui/index.md) | Current UI feature index | Lists independently consumable UI contracts and their product basis. |
 | [analytics-collection-safety UI](./ui/features/analytics-collection-safety.md) | Current UI specification | Defines Analytics overview/detail states and collection-status presentation boundary. |
 | [scheduled-report-automation UI](./ui/features/scheduled-report-automation.md) | Current UI specification | Defines Reports schedule panel/form, run linkage, states, and responsive behavior. |
-| [module-log-diagnostics UI](./ui/features/module-log-diagnostics.md) | Current UI specification | Defines System Status process-log diagnostics, backup, cleanup, and partial-result states. |
+| [module-log-diagnostics UI](./ui/features/module-log-diagnostics.md) | Current UI specification | Defines the owner-only module-log page, backup, cleanup, and partial-result states. |
 | [role-definition-management UI](./ui/features/role-definition-management.md) | Current UI specification | Defines role permission-loading states, interaction, responsive behavior, and acceptance. |
 | [monitoring UI](./ui/features/monitoring.md) | Current UI specification | Defines the four Monitoring route compositions, states, and responsive rules. |
 | [admin-maintenance-tasks UI](./ui/features/admin-maintenance-tasks.md) | Current UI specification | Defines the maintenance task console composition and states. |

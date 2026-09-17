@@ -30,7 +30,8 @@ standard light and dark themes.
 | 16 | `/system/role` | Filtered list | Upper-right automatic name/code/status filters; permission summaries and dialogs preserved. |
 | 17 | `/system/menu` | Flat inventory | Upper-right automatic name/code/status filters, readable permission codes, flat rows and table-body scrolling. |
 | 18 | `/system/module` | Status list | Uses consistent module health, start/stop confirmation, and `DataState` feedback. |
-| 19 | `/system/status` | Resource overview | Preserves Storage, Resource, then Module Log Diagnostics in source order. |
+| 19 | `/system/status` | Resource overview | Storage and local-resource telemetry only. |
+| 22 | `/system/module-log` | Diagnostics | Owner-only module log list, tail, backup, and cleanup. |
 | 20 | `/manage/log` | Filtered list | Uses consistent filters, status labels, common log descriptions, and `DataState` feedback. |
 | 21 | `/manage/task` | List and detail | Task/run-log states and confirmation retained; compact 72px operation column. |
 | 22 | `/manage/deploy` | List and workflow | Uses consistent upload, deployment, expiry, cleanup, and `DataState` feedback. |

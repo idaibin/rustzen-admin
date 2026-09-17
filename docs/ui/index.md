@@ -40,7 +40,8 @@ refresh and destructive confirmations are distinct actions and remain available.
 | /system/role | Role name, role code and status; role-dialog controls remain separate | CON-01–02 |
 | /system/menu | Menu name, permission code and status; read-only/core and editable/module rows retained | CON-01; only table body scrolls vertically |
 | /manage/log | Action type and user/IP; export uses applied filters | CON-01–02 |
-| /system/status | Module and date in the diagnostics heading; refresh/backup/cleanup retained; limits below heading | CON-01; short log list has no inner vertical scroll |
+| /system/status | Storage and local-resource telemetry only | CON-01 |
+| /system/module-log | Module and date in the diagnostics heading; refresh/backup/cleanup retained; limits below heading | CON-01; short log list has no inner vertical scroll |
 | /monitoring/incidents | State and type; filling body with bottom pagination | CON-01–02 |
 | /monitoring/nodes | Add node onboarding and Global settings drawers; four global controls and one Save | CON-04 |
 | /monitoring/summaries | No search control; existing report pagination | CON-03 |

@@ -67,7 +67,7 @@ regenerated from the clean commit that contains the tested implementation.
 
 This is evidence for the disposable native-architecture Linux four-service topology, embedded
 Web assets, fresh-install authentication, the two named routes, and the Reports
-browser/artifact path. Its success set also covers System Status module-log
+browser/artifact path. Its success set also covers the module-log diagnostics page
 diagnostics: it appends one current-day Admin marker, adds one expired Monitor
 fixture while retaining the service-created current-day logs, drives the owner
 Tail, backup-summary, cleanup-preview, confirmation, and result states, and

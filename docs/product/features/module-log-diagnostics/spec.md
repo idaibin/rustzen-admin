@@ -16,16 +16,15 @@ runtime rolling logger; local timezone does not change eligibility.
 
 ## Users and scenarios
 
-- An owner opens System Status, selects one allowed module and date, and reads a
-  bounded tail of the corresponding process log.
+- An owner opens the Module log diagnostics page, selects one allowed module and
+  date, and reads a bounded tail of the corresponding process log.
 - An owner requests a backup and receives a bounded Blob archive through the
   existing download transport, containing the selected files, a manifest, and
   a SHA-256 digest that can be checked outside the installation.
 - An owner previews cleanup for a fixed retention cutoff, reviews the exact
   candidates, and confirms with a short-lived token.
 - An admin, viewer, or custom-role user cannot enter the module-log diagnostics
-  surface under System Status and cannot read, export, preview, or delete
-  content through direct endpoints. All three module-log capabilities are
+  page or read, export, preview, or delete content through direct endpoints. All three module-log capabilities are
   owner-only in this slice; no local permission state is rendered for users who
   are stopped at the route/menu boundary.
 - If one file disappears or cannot be read during metadata or cleanup, the
@@ -101,9 +100,9 @@ Non-goals:
 
 ## Main and failure flows
 
-1. The owner enters the owner-only System Status diagnostics surface and the
-   fixed module/file list loads. Non-owners are stopped by the route/menu gate
-   and do not receive a local permission state.
+1. The owner enters the owner-only Module log diagnostics page and the fixed
+   module/file list loads. Non-owners are stopped by the route guard with the
+   existing 403 page and do not receive a local permission state.
 2. Selecting an allowed file loads a bounded reverse-cursor tail. The viewer
    labels the module/date, reports `truncated=true` when a byte/line/per-line
    limit is reached, and uses the cursor to request older content.
@@ -132,8 +131,8 @@ Non-goals:
   owner-only in this slice; admin, viewer, and custom roles cannot receive
   them through ordinary role assignment.
 - The backend is the authorization and path-safety boundary. UI visibility is
-  advisory. The route/menu boundary keeps non-owners out of the diagnostics
-  surface; direct endpoint calls are rejected with the same owner-only
+  advisory. The dedicated route and menu keep non-owners out of the diagnostics
+  page; direct endpoint calls are rejected with the same owner-only
   authorization result, and no diagnostics-local permission state is shown.
 - Only exact file names matching `<prefix>.YYYY-MM-DD` are eligible. Prefixes
   are the four fixed service IDs. `admin`, `monitor`, and `insights` resolve in
@@ -165,8 +164,10 @@ Non-goals:
 ## UI states and evidence
 
 The UI contract is [Module Log Diagnostics UI](../../../ui/features/module-log-diagnostics.md).
-It places a diagnostics section under the existing System Status surface and
-keeps operation logs on their existing page. Permission is enforced at the
+Module log diagnostics is an independent owner-only page at `/system/module-log`
+in the management navigation group beside System Status; System Status keeps
+only its storage and local-resource telemetry, and operation logs remain on
+their existing page. Permission is enforced at the
 route/menu/API boundary: non-owners do not enter this surface, so the panel does
 not render a local permission state.
 
@@ -195,7 +196,7 @@ database.
   this slice is runtime-complete.
 - Admin owns the control-plane route, fixed allowlist, preflight/Blob/manifest/hash
   implementation, confirmation token, and audit metadata.
-- `apps/web` owns the System Status diagnostics composition and Admin API client.
+- `apps/web` owns the Module log diagnostics page composition and Admin API client.
 - Existing `PageHeader`, `PageCard`, `DataState`, `DataTableShell`/route-local
   table, Ant Design `Drawer`/`Typography`, `ConfirmDialog`, and download
   transport are reused or wrapped locally. No shared file-viewer component is
@@ -241,10 +242,10 @@ database.
 
 | Layer | Evidence | Acceptance |
 | --- | --- | --- |
-| Source/static | Implemented: fixed allowlist, symlink/path checks, owner-only capability, archive/hash, token, audit, System Status composition, and Web metadata validation | No arbitrary filesystem or content-to-DB path. |
+| Source/static | Implemented: fixed allowlist, symlink/path checks, owner-only capability, archive/hash, token, audit, the dedicated diagnostics page composition, and Web metadata validation | No arbitrary filesystem or content-to-DB path. |
 | Automated | Implemented: file safety, preflight cap, Blob manifest/hash, preview-confirm, active-day, partial-result, tail caps/cursor, OpenAPI/client adapter, and service HTTP checks | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
 | HTTP | Disposable-service owner/non-owner requests through Admin | Owner-only route/API boundaries, direct denial, tail cursor/cap, archive headers, and cleanup token behavior are observable; no local permission state is needed for non-owners. |
-| Browser | Disposable Linux Chromium owner flow at `/system/status` | The verifier creates only an explicit current-UTC `admin` fixture and expired `monitor` fixture while retaining service-created current-day entries, then proves the owner panel, current file tail Drawer/markers/boundary copy, selected-backup filename/file-count/SHA summary, preview-only expired fixture, explicit confirm, result state, desktop 1440x900 zh-CN and narrow 390x844 en-US screenshots, and no horizontal overflow. Archive bytes and full SHA verification remain covered by the service/client gate rather than simulated in Chromium. |
+| Browser | Disposable Linux Chromium owner flow at `/system/module-log` | The verifier creates only an explicit current-UTC `admin` fixture and expired `monitor` fixture while retaining service-created current-day entries, then proves the owner panel, current file tail Drawer/markers/boundary copy, selected-backup filename/file-count/SHA summary, preview-only expired fixture, explicit confirm, result state, desktop 1440x900 zh-CN and narrow 390x844 en-US screenshots, and no horizontal overflow. Archive bytes and full SHA verification remain covered by the service/client gate rather than simulated in Chromium. |
 | Runtime/deployment | **Closed locally** by `just verify-module-log-runtime-linux` against current-provenance Linux binaries | The final `aarch64` Colima manifest at `target/rz/module-log-runtime/current/manifest.json` binds head `21ed7a8`, source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`, 25 receipts, five exact non-owner 403 envelopes, and an archive of 4 files and 9216 bytes with SHA-256 `de9330db80df01c6f4c30ce66921b61ae19295ac1653a51e4c939462dd1cf96a`. Reports process/directory/file identities agree at UID/GID `999:999`; `/opt/rz/logs` is `0711`, `/opt/rz/logs/reports` is `0750`; cleanup removed four old files with zero failures and preserved the current UTC-day files. The first jq-verifier failure remains under `failed-runs`, while `current` records the accepted final result. Independent review found no remaining P1/P2. Native systemd and production deployment remain `Not verified`. |
 
 ## Assumptions, open questions, rejected and deferred decisions
@@ -281,4 +282,4 @@ database.
 The fixed module scope, ownership, permission boundary, path safety, backup
 integrity, cleanup confirmation, failure semantics, non-goals, and acceptance
 are implemented in the Admin and Web source, including download metadata
-validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/status` UI, while archive-byte/hash proof remains service/client evidence. The dedicated Linux runtime gate is **Closed locally** at the published `current` manifest for source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`; its 25 receipts cover the four service-created prefixes, five exact 403 denials, Reports `999:999` ownership, archive SHA/bytes, and cleanup preservation. The retained first jq-verifier failure does not replace that final result. Native systemd and production deployment remain `Not verified` until exercised.
+validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/module-log` UI, while archive-byte/hash proof remains service/client evidence. The dedicated Linux runtime gate is **Closed locally** at the published `current` manifest for source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`; its 25 receipts cover the four service-created prefixes, five exact 403 denials, Reports `999:999` ownership, archive SHA/bytes, and cleanup preservation. The retained first jq-verifier failure does not replace that final result. Native systemd and production deployment remain `Not verified` until exercised.
