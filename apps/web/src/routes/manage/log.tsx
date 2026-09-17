@@ -90,7 +90,7 @@ function LogPage() {
     );
 
     const logToolbar = (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-3">
             <Select
                 aria-label={t("操作类型", "Action type")}
                 className="w-36"

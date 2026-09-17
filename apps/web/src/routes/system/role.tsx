@@ -157,7 +157,7 @@ function RolePage() {
     ];
 
     const searchControls = (
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
             <Input
                 allowClear
                 className="w-[168px] max-w-full"

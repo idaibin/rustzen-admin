@@ -63,7 +63,7 @@ export function ModuleLogToolbar({
     onRefresh,
 }: ModuleLogToolbarProps) {
     return (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-3">
             <Select
                 aria-label={t("模块筛选", "Module filter")}
                 className="w-36"

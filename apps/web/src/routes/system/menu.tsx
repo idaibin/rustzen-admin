@@ -171,7 +171,7 @@ function MenuPage() {
     );
 
     const filters = (
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
             <Input
                 aria-label={t("菜单名称", "Menu name")}
                 placeholder={t("菜单名称", "Menu name")}

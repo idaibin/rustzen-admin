@@ -49,7 +49,7 @@ function MonitoringIncidentsPage() {
         retry: false,
     });
     const searchControls = (
-        <Space wrap>
+        <Space>
             <Select
                 aria-label={t("告警状态", "Incident status")}
                 value={status}

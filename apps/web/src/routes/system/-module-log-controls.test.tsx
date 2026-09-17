@@ -108,7 +108,7 @@ test("module log toolbar preserves module options and filter changes", () => {
             module = value;
         },
     });
-    expect(tree.props.className).toBe("flex flex-wrap items-center gap-3");
+    expect(tree.props.className).toBe("flex flex-nowrap items-center gap-3");
     const select = nodes(tree).find((node) => node.type === Select)!;
     expect(select.props["aria-label"]).toBe("模块筛选");
     expect(select.props.className).toBe("w-36");
