@@ -166,10 +166,10 @@ function StorageCard({
                                         </span>
                                     }
                                 />
-                                <span className="font-mono text-xs text-muted-foreground">
+                                <span className="ms-auto min-w-28 text-right font-mono text-xs text-muted-foreground">
                                     {row.module}.db
                                 </span>
-                                <span className="ms-auto min-w-24 text-right font-semibold">
+                                <span className="min-w-24 text-right font-semibold">
                                     {row.database
                                         ? formatBytes(row.database.totalBytes)
                                         : t("不可用", "Unavailable")}
