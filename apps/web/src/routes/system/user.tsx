@@ -146,7 +146,7 @@ function UserPage() {
     ];
 
     const searchControls = (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-nowrap items-center gap-2">
             <Input
                 aria-label={t("用户名", "Username")}
                 className="w-[200px] max-w-full"
