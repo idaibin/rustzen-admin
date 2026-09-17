@@ -1,16 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-    Alert,
-    Button,
-    Drawer,
-    Empty,
-    Grid,
-    List,
-    Segmented,
-    Skeleton,
-    Space,
-    Typography,
-} from "antd";
+import { Alert, Button, Drawer, Empty, List, Segmented, Skeleton, Space, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { notificationAPI, notificationQueryKeys } from "@/api/notifications/api";
@@ -40,9 +29,6 @@ export const MessageDrawer = ({
     const [unreadOnly, setUnreadOnly] = useState(false);
     const [selectedId, setSelectedId] = useState<string>();
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
-    const screens = Grid.useBreakpoint();
-    // Header row plus shell padding: 16+64 desktop, 8+56 narrow.
-    const shellOffset = screens.md ? 80 : 64;
     const client = useQueryClient();
     const list = useInfiniteQuery({
         queryKey: notificationQueryKeys.list(generation, unreadOnly),
@@ -111,16 +97,7 @@ export const MessageDrawer = ({
     const initialError = Boolean(list.error && (!list.data || forbidden));
 
     return (
-        <Drawer
-            title={t("消息中心", "Message center")}
-            open={open}
-            onClose={onClose}
-            width={440}
-            styles={{
-                wrapper: { top: shellOffset, height: `calc(100% - ${shellOffset}px)` },
-                mask: { top: shellOffset, height: `calc(100% - ${shellOffset}px)` },
-            }}
-        >
+        <Drawer title={t("消息中心", "Message center")} open={open} onClose={onClose} width={440}>
             <Space direction="vertical" size="middle" className="w-full">
                 {status ? (
                     <Alert
