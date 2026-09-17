@@ -60,7 +60,9 @@ The selected desktop header places one icon-only bell action with an accessible
 name before the existing theme/account actions. The unread badge displays
 `1..99` and `99+`; zero hides it. Activating the bell opens an Ant Design Drawer
 that preserves keyboard focus, returns focus to the bell on close, and uses the
-shared 64 px desktop / 56 px narrow shell offsets. The Drawer contains the
+shared shell offsets — 80 px desktop / 64 px narrow (header row plus shell
+padding) for both the drawer wrapper and its mask, so the header stays fully
+visible while the drawer is open. The Drawer contains the
 durable list, unread filter, paging, detail and read actions. It does not render
 HTML from a producer and does not accept a producer-supplied URL.
 

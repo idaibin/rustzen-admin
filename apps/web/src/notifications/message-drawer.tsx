@@ -41,7 +41,8 @@ export const MessageDrawer = ({
     const [selectedId, setSelectedId] = useState<string>();
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
     const screens = Grid.useBreakpoint();
-    const shellOffset = screens.md ? 64 : 56;
+    // Header row plus shell padding: 16+64 desktop, 8+56 narrow.
+    const shellOffset = screens.md ? 80 : 64;
     const client = useQueryClient();
     const list = useInfiniteQuery({
         queryKey: notificationQueryKeys.list(generation, unreadOnly),
@@ -117,6 +118,7 @@ export const MessageDrawer = ({
             width={440}
             styles={{
                 wrapper: { top: shellOffset, height: `calc(100% - ${shellOffset}px)` },
+                mask: { top: shellOffset, height: `calc(100% - ${shellOffset}px)` },
             }}
         >
             <Space direction="vertical" size="middle" className="w-full">
