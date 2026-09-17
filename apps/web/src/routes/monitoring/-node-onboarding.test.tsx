@@ -32,12 +32,12 @@ test("onboarding exposes ordered signed-install prerequisites without an executa
         ["en-US", 1],
     ] as const) {
         setLocale(locale);
-        const html = renderToStaticMarkup(<NodeOnboarding />);
+        const html = renderToStaticMarkup(<NodeOnboarding onClose={() => {}} />);
         for (const copy of onboardingStepCopy) {
             expect(html).toContain(copy[selectedIndex]);
             expect(html).not.toContain(copy[1 - selectedIndex]);
         }
-        expect(html).toContain("disabled");
+        expect(html).not.toContain('type="submit"');
         expect(html).not.toContain("Copy");
         expect(html).not.toContain('type="password"');
         expect(html).not.toContain("http://");

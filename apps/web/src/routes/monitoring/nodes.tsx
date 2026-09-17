@@ -233,7 +233,9 @@ function MonitoringNodesPage() {
                 styles={{ wrapper: { maxWidth: "100vw" } }}
                 destroyOnHidden
             >
-                {panel === "add" && canManage ? <NodeOnboarding /> : null}
+                {panel === "add" && canManage ? (
+                    <NodeOnboarding onClose={() => setPanel(undefined)} />
+                ) : null}
                 {panel === "settings" && canViewSettings ? (
                     <GlobalAlertSettings onClose={() => setPanel(undefined)} />
                 ) : null}

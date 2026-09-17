@@ -29,37 +29,36 @@ export const onboardingStepCopy = [
     ],
 ] as const;
 
-export function NodeOnboarding() {
+export function NodeOnboarding({ onClose }: { onClose: () => void }) {
     useLocale();
     const onboardingSteps = onboardingStepCopy.map(([zh, en]) => t(zh, en));
     return (
-        <div className="space-y-5">
-            <Typography.Paragraph type="secondary">
-                {t(
-                    "控制台不能安全获取已签名离线文件，也不能在目标主机创建 root-only 密钥文件。请由发布操作员在目标主机完成以下步骤。",
-                    "The console cannot securely obtain offline signed files or create a root-only secret file on the target host. Have the release operator complete these steps on that host.",
-                )}
-            </Typography.Paragraph>
-            <Steps
-                orientation="vertical"
-                size="small"
-                items={onboardingSteps.map((content, index) => ({
-                    title: `${index + 1}`,
-                    content,
-                }))}
-            />
-            <Alert
-                showIcon
-                type="info"
-                title={t("执行入口尚不可用", "Execution is not available yet")}
-                description={t(
-                    "缺少已签名文件输入和本地 root-only 配置边界。页面不会显示 token，也不会生成或复制启动命令。",
-                    "Signed file inputs and a local root-only configuration boundary are unavailable. This page shows no token and generates no executable command.",
-                )}
-            />
-            <Button type="primary" disabled>
-                {t("等待离线安装材料接入", "Await offline installation inputs")}
-            </Button>
+        <div className="flex h-full flex-col gap-5">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+                <Typography.Paragraph type="secondary">
+                    {t(
+                        "控制台不能安全获取已签名离线文件，也不能在目标主机创建 root-only 密钥文件。请由发布操作员在目标主机完成以下步骤。",
+                        "The console cannot securely obtain offline signed files or create a root-only secret file on the target host. Have the release operator complete these steps on that host.",
+                    )}
+                </Typography.Paragraph>
+                <Steps
+                    orientation="vertical"
+                    size="small"
+                    items={onboardingSteps.map((content) => ({ content }))}
+                />
+                <Alert
+                    showIcon
+                    type="info"
+                    title={t("执行入口尚不可用", "Execution is not available yet")}
+                    description={t(
+                        "缺少已签名文件输入和本地 root-only 配置边界。页面不会显示 token，也不会生成或复制启动命令。",
+                        "Signed file inputs and a local root-only configuration boundary are unavailable. This page shows no token and generates no executable command.",
+                    )}
+                />
+            </div>
+            <div className="flex shrink-0 justify-end border-t border-border pt-4">
+                <Button onClick={onClose}>{t("关闭", "Close")}</Button>
+            </div>
         </div>
     );
 }
