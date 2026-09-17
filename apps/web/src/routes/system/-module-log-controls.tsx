@@ -1,5 +1,6 @@
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Input, Select, Space } from "antd";
+import { Button, DatePicker, Select, Space } from "antd";
+import dayjs from "dayjs";
 
 import { MODULE_LOG_MODULES, type ModuleLogModule } from "@/api/system/status/module-logs";
 import { t } from "@/lib/i18n";
@@ -73,11 +74,12 @@ export function ModuleLogToolbar({
                 ]}
                 onChange={onModuleChange}
             />
-            <Input
+            <DatePicker
                 aria-label={t("日志日期", "Log date")}
-                type="date"
-                value={dateFilter}
-                onChange={(event) => onDateChange(event.target.value)}
+                allowClear={false}
+                value={dateFilter ? dayjs(dateFilter) : null}
+                onChange={(value) => onDateChange(value ? value.format("YYYY-MM-DD") : "")}
+                getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
                 style={{ width: 160, maxWidth: "100%" }}
             />
             <Button icon={<ReloadOutlined />} loading={isFetching} onClick={onRefresh}>

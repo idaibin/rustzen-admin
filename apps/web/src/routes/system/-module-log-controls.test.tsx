@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Input, Select, Space } from "antd";
+import { Button, DatePicker, Select, Space } from "antd";
+import dayjs from "dayjs";
 import type { ReactElement, ReactNode } from "react";
 
 import { ModuleLogActions, ModuleLogToolbar } from "./-module-log-controls";
@@ -122,13 +123,14 @@ test("module log toolbar preserves module options and filter changes", () => {
     select.props.onChange("reports");
     expect(module).toBe("reports");
 
-    const input = nodes(tree).find((node) => node.type === Input)!;
-    expect(input.props["aria-label"]).toBe("日志日期");
-    expect(input.props.type).toBe("date");
-    expect(input.props.value).toBe("2026-09-11");
-    expect(input.props.style).toEqual({ width: 160, maxWidth: "100%" });
-    input.props.onChange({ target: { value: "2026-09-12" } });
+    const picker = nodes(tree).find((node) => node.type === DatePicker)!;
+    expect(picker.props["aria-label"]).toBe("日志日期");
+    expect(picker.props.value.format("YYYY-MM-DD")).toBe("2026-09-11");
+    expect(picker.props.style).toEqual({ width: 160, maxWidth: "100%" });
+    picker.props.onChange(dayjs("2026-09-12"));
     expect(date).toBe("2026-09-12");
+    picker.props.onChange(null);
+    expect(date).toBe("");
 });
 
 test("module log toolbar preserves refresh loading, icon, and callback", () => {
