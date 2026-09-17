@@ -106,7 +106,7 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                 color="default"
                 variant="filled"
                 icon={<SearchOutlined />}
-                className="w-9 justify-center sm:w-full sm:max-w-md sm:justify-start"
+                className="w-9 justify-center sm:w-full sm:max-w-xs sm:justify-start"
                 onClick={() => setOpen(true)}
                 aria-label={t("打开页面搜索", "Open page search")}
                 aria-keyshortcuts="Control+K Meta+K"
