@@ -22,6 +22,20 @@ async fn test_app() -> (axum::Router, AppState) {
 }
 
 #[tokio::test]
+async fn storage_endpoint_self_reports_the_reports_database() {
+    let (app, _state) = test_app().await;
+    let response = app
+        .oneshot(Request::builder().uri("/internal/v1/storage").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let report = body(response).await;
+    assert_eq!(report["module"], "reports");
+    assert!(report["collectedAt"].as_str().is_some());
+    assert!(report["totalBytes"].is_u64());
+}
+
+#[tokio::test]
 async fn manifest_exposes_templates_runs_and_live_view_only() {
     let (app, state) = test_app().await;
     let response = app

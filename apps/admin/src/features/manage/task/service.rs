@@ -108,9 +108,8 @@ impl TaskService {
                         }
                     };
 
-                if let Err(err) = service
-                    .start_scheduled_task(task.task_key, scheduled_for, next_run_at)
-                    .await
+                if let Err(err) =
+                    service.start_scheduled_task(task.task_key, scheduled_for, next_run_at).await
                 {
                     tracing::error!("Scheduled task {} failed: {}", task.task_key, err);
                 }

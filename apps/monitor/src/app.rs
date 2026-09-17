@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{Json, Router, extract::State, routing::get};
-use rustzen_ipc::{HealthResponse, ModuleManifest};
+use rustzen_ipc::{HealthResponse, ModuleManifest, ModuleStorageReport};
 use rustzen_storage::SqlitePool;
 
 use crate::{config, features, infra, module_routes::build_module_routes};
@@ -50,6 +50,7 @@ pub(crate) fn build_app(
     let app = Router::new()
         .route("/health", get(health))
         .route("/internal/v1/manifest", get(runtime_manifest))
+        .route("/internal/v1/storage", get(runtime_storage))
         .nest(&api_prefix, module_routes)
         .with_state(state);
     Ok((app, manifest))
@@ -61,6 +62,10 @@ async fn health() -> Json<HealthResponse> {
 
 async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest> {
     Json((*state.manifest).clone())
+}
+
+async fn runtime_storage() -> Json<ModuleStorageReport> {
+    Json(ModuleStorageReport::collect("monitor", &config::controller().database_path()))
 }
 
 #[cfg(test)]
@@ -86,6 +91,23 @@ mod tests {
     };
 
     use super::{AppState, build_app};
+
+    #[tokio::test]
+    async fn storage_endpoint_self_reports_the_monitor_database() {
+        let pool = migrated_test_pool().await;
+        let (app, _) = build_app(pool, "agent-secret".to_string()).expect("build app");
+        use tower::ServiceExt;
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/internal/v1/storage")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("storage");
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
 
     #[tokio::test]
     async fn runtime_manifest_is_derived_from_the_registered_routes() {

@@ -96,8 +96,13 @@ fn build_router(state: AppState, ipc_token: &str) -> Result<Router, rustzen_ipc:
                 async move { Json(manifest.as_ref().clone()) }
             }),
         )
+        .route("/internal/v1/storage", get(runtime_storage))
         .nest(&api_prefix, module_routes)
         .with_state(state))
+}
+
+async fn runtime_storage() -> Json<rustzen_ipc::ModuleStorageReport> {
+    Json(rustzen_ipc::ModuleStorageReport::collect("reports", &config::CONFIG.database_path()))
 }
 
 async fn health() -> Json<HealthResponse> {

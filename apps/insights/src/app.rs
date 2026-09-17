@@ -1,7 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use axum::{Json, Router, extract::State, routing::get};
-use rustzen_ipc::{HealthResponse, ModuleManifest};
+use rustzen_ipc::{HealthResponse, ModuleManifest, ModuleStorageReport};
 use rustzen_storage::SqlitePool;
 
 use crate::{config, features, infra, module_routes::build_module_routes};
@@ -42,6 +42,7 @@ fn build_router_with_ingestion(
     Ok(Router::new()
         .route("/health", get(health))
         .route("/internal/v1/manifest", get(runtime_manifest))
+        .route("/internal/v1/storage", get(runtime_storage))
         .nest(&api_prefix, module_routes)
         .with_state(state))
 }
@@ -65,6 +66,10 @@ async fn health() -> Json<HealthResponse> {
 
 async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest> {
     Json((*state.manifest).clone())
+}
+
+async fn runtime_storage() -> Json<ModuleStorageReport> {
+    Json(ModuleStorageReport::collect("insights", &config::CONFIG.database_path()))
 }
 
 #[cfg(test)]

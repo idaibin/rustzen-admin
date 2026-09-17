@@ -111,6 +111,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         InstallationState::load(module_state.clone()).map_err(std::io::Error::other)?;
 
     let (documented_routes, documented_contracts) = documented_protected_routes();
+    let documented_routes = documented_routes.layer(Extension(module_state.registry.clone()));
     #[cfg(feature = "notifications")]
     let documented_routes = documented_routes.layer(Extension(notification_realtime.clone()));
     let (public_auth_router, _) = public_auth_routes().into_parts();

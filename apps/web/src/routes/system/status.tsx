@@ -7,7 +7,7 @@ import {
 import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card, Progress, Statistic, Tag, Typography } from "antd";
+import { Badge, Button, Card, Progress, Statistic, Tag, Typography } from "antd";
 
 import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
@@ -47,7 +47,11 @@ function SystemStatusPage() {
             />
 
             {data ? (
-                <StatusGrid storage={data.storage} resource={data.resource} />
+                <StatusGrid
+                    storage={data.storage}
+                    modules={data.modules ?? []}
+                    resource={data.resource}
+                />
             ) : isError ? (
                 <DataState
                     kind="error"
@@ -69,27 +73,37 @@ function SystemStatusPage() {
 
 function StatusGrid({
     storage,
+    modules,
     resource,
 }: {
     storage: SystemStatus.StorageStatus;
+    modules: SystemStatus.ModuleDatabaseStatus[];
     resource: SystemStatus.LocalResourceStatus;
 }) {
     return (
         <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(300px,5fr)]">
-            <StorageCard storage={storage} />
+            <StorageCard storage={storage} modules={modules} />
             <ResourceCard resource={resource} />
         </div>
     );
 }
 
-function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
+function StorageCard({
+    storage,
+    modules,
+}: {
+    storage: SystemStatus.StorageStatus;
+    modules: SystemStatus.ModuleDatabaseStatus[];
+}) {
     const directories = [...storage.directories].sort((a, b) => b.sizeBytes - a.sizeBytes);
+    const moduleRows = [...(modules ?? [])].sort(
+        (a, b) => (b.database?.totalBytes ?? -1) - (a.database?.totalBytes ?? -1),
+    );
     const databaseFiles = [
         { label: t("主库", "Main database"), value: storage.database.mainBytes },
         { label: "WAL", value: storage.database.walBytes },
         { label: "SHM", value: storage.database.shmBytes },
     ].sort((a, b) => b.value - a.value);
-    const maxDirectoryBytes = Math.max(...directories.map((item) => item.sizeBytes), 1);
 
     return (
         <ProCard
@@ -125,41 +139,68 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                 </div>
 
                 <Card size="small" className="flex min-h-0 flex-1 flex-col">
-                    <div className="mb-5 flex items-start justify-between gap-4">
+                    <div className="mb-4 flex items-start justify-between gap-4">
                         <div>
                             <Typography.Text strong>
-                                {t("目录分布", "Directory distribution")}
+                                {t("模块数据库", "Module databases")}
                             </Typography.Text>
                             <Typography.Paragraph type="secondary">
-                                {t("按当前目录占用空间对比", "Compare current directory usage")}
+                                {t(
+                                    "监控 / 埋点 / 自动化 · 各自独立 SQLite，模块自报",
+                                    "Monitor / Insights / Reports · separate SQLite, self-reported",
+                                )}
                             </Typography.Paragraph>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                            {t(`${directories.length} 项`, `${directories.length} items`)}
-                        </div>
                     </div>
-                    <div className="grid grid-cols-1 content-around gap-x-10 gap-y-8 md:grid-cols-2">
-                        {directories.map((item) => (
-                            <div key={item.key}>
-                                <div className="mb-3 flex items-center justify-between gap-4">
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        <span className="truncate font-semibold">{item.label}</span>
-                                        {item.errorMessage ? (
-                                            <Tag color="red">{item.errorMessage}</Tag>
-                                        ) : null}
-                                    </div>
-                                    <div className="shrink-0 font-semibold">
-                                        {formatBytes(item.sizeBytes)}
-                                    </div>
-                                </div>
-                                <Progress
-                                    percent={Math.round((item.sizeBytes / maxDirectoryBytes) * 100)}
-                                    showInfo={false}
+                    <div className="flex flex-1 flex-col justify-around">
+                        {moduleRows.map((row) => (
+                            <div
+                                key={row.module}
+                                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2"
+                            >
+                                <Badge
+                                    status={row.available ? "success" : "default"}
+                                    text={
+                                        <span className="font-semibold">
+                                            {moduleName(row.module)}
+                                        </span>
+                                    }
                                 />
+                                <span className="font-mono text-xs text-muted-foreground">
+                                    {row.module}.db
+                                </span>
+                                <span className="ms-auto min-w-24 text-right font-semibold">
+                                    {row.database
+                                        ? formatBytes(row.database.totalBytes)
+                                        : t("不可用", "Unavailable")}
+                                </span>
+                                <span className="min-w-32 text-right text-xs text-muted-foreground">
+                                    {row.database
+                                        ? `WAL ${formatBytes(row.database.walBytes)}`
+                                        : `${t("上次", "Last")} ${formatDateTime(row.collectedAt)}`}
+                                </span>
                             </div>
                         ))}
                     </div>
                 </Card>
+
+                <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                        <Typography.Text strong className="text-xs">
+                            {t("目录占用", "Directory usage")}
+                        </Typography.Text>
+                        {"　"}
+                        {directories
+                            .map(
+                                (item) =>
+                                    `${item.label} ${formatBytes(item.sizeBytes)}${
+                                        item.errorMessage ? `（${item.errorMessage}）` : ""
+                                    }`,
+                            )
+                            .join(" · ")}
+                    </span>
+                    <span>{t("host 级汇总", "host-level summary")}</span>
+                </div>
             </div>
         </ProCard>
     );
@@ -219,6 +260,19 @@ function ResourceCard({ resource }: { resource: SystemStatus.LocalResourceStatus
             </div>
         </ProCard>
     );
+}
+
+function moduleName(module: string) {
+    switch (module) {
+        case "monitor":
+            return t("监控", "Monitor");
+        case "insights":
+            return t("埋点", "Insights");
+        case "reports":
+            return t("自动化", "Reports");
+        default:
+            return module;
+    }
 }
 
 function getTagStatus(percent: number) {
@@ -296,7 +350,10 @@ function formatBytes(bytes: number) {
     return `${Number(value.toFixed(precision))} ${units[unitIndex]}`;
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string | null | undefined) {
+    if (!value) {
+        return "-";
+    }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         return "-";

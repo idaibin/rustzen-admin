@@ -36,8 +36,8 @@ use crate::{
             },
             status::types::{
                 CpuResourceStatus, DirectoryStorageItem, DiskResourceStatus, LocalResourceStatus,
-                MemoryResourceStatus, SqliteStorageStatus, SystemStatusOverview,
-                SystemStorageStatus,
+                MemoryResourceStatus, ModuleDatabaseStatus, SqliteStorageStatus,
+                SystemStatusOverview, SystemStorageStatus,
             },
             user::types::{
                 CreateUserRequest, UpdateUserPasswordPayload, UpdateUserPayload,
@@ -102,6 +102,7 @@ pub fn document() -> Result<OpenApi, crate::infra::contract::ContractError> {
         .schema_from::<UpdateRolePayload>()
         .schema_from::<SystemStatusOverview>()
         .schema_from::<SystemStorageStatus>()
+        .schema_from::<ModuleDatabaseStatus>()
         .schema_from::<SqliteStorageStatus>()
         .schema_from::<DirectoryStorageItem>()
         .schema_from::<LocalResourceStatus>()

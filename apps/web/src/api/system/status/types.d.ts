@@ -2,7 +2,15 @@ declare namespace SystemStatus {
     interface Overview {
         collectedAt: string;
         storage: StorageStatus;
+        modules: ModuleDatabaseStatus[];
         resource: LocalResourceStatus;
+    }
+
+    interface ModuleDatabaseStatus {
+        module: string;
+        available: boolean;
+        collectedAt?: string | null;
+        database?: SqliteStorageStatus | null;
     }
 
     interface StorageStatus {

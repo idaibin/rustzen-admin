@@ -56,6 +56,7 @@ pub struct ModuleRuntime {
     pub condition: ModuleCondition,
     pub manifest: Option<Arc<ModuleManifest>>,
     pub manifest_hash: Option<[u8; 32]>,
+    pub storage: Option<rustzen_ipc::ModuleStorageReport>,
     pub last_seen_at: Option<DateTime<Utc>>,
     pub error: Option<String>,
 }
@@ -68,6 +69,7 @@ impl ModuleRuntime {
             condition: ModuleCondition::Unavailable,
             manifest: None,
             manifest_hash: None,
+            storage: None,
             last_seen_at: None,
             error: Some("service has not published a valid Manifest".to_string()),
         }

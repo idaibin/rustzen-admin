@@ -20,6 +20,20 @@ use super::{build_router, build_router_with_storage_capacity_checker};
 const SECRET: &str = "insights-test-secret";
 
 #[tokio::test]
+async fn storage_endpoint_self_reports_the_insights_database() {
+    let app = build_router(test_pool().await, SECRET).expect("router");
+    let response = app
+        .oneshot(Request::builder().uri("/internal/v1/storage").body(Body::empty()).unwrap())
+        .await
+        .expect("storage");
+    assert_eq!(response.status(), StatusCode::OK);
+    let report = response_json(response).await;
+    assert_eq!(report["module"], "insights");
+    assert!(report["collectedAt"].as_str().is_some());
+    assert!(report["totalBytes"].is_u64());
+}
+
+#[tokio::test]
 async fn manifest_exposes_only_single_project_analytics_routes() {
     let app = build_router(test_pool().await, SECRET).expect("router");
     let response = app

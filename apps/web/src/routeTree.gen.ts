@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SystemUserRouteImport } from './routes/system/user'
 import { Route as SystemStatusRouteImport } from './routes/system/status'
 import { Route as SystemRoleRouteImport } from './routes/system/role'
+import { Route as SystemModuleLogRouteImport } from './routes/system/module-log'
 import { Route as SystemModuleRouteImport } from './routes/system/module'
 import { Route as SystemMenuRouteImport } from './routes/system/menu'
 import { Route as ReportsTemplatesRouteImport } from './routes/reports/templates'
@@ -87,6 +88,11 @@ const SystemStatusRoute = SystemStatusRouteImport.update({
 const SystemRoleRoute = SystemRoleRouteImport.update({
   id: '/system/role',
   path: '/system/role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemModuleLogRoute = SystemModuleLogRouteImport.update({
+  id: '/system/module-log',
+  path: '/system/module-log',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SystemModuleRoute = SystemModuleRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -329,6 +341,7 @@ export interface RootRouteChildren {
   ManageTaskRoute: typeof ManageTaskRoute
   SystemMenuRoute: typeof SystemMenuRoute
   SystemModuleRoute: typeof SystemModuleRoute
+  SystemModuleLogRoute: typeof SystemModuleLogRoute
   SystemRoleRoute: typeof SystemRoleRoute
   SystemStatusRoute: typeof SystemStatusRoute
   SystemUserRoute: typeof SystemUserRoute
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/system/role'
       fullPath: '/system/role'
       preLoaderRoute: typeof SystemRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system/module-log': {
+      id: '/system/module-log'
+      path: '/system/module-log'
+      fullPath: '/system/module-log'
+      preLoaderRoute: typeof SystemModuleLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/system/module': {
@@ -566,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManageTaskRoute: ManageTaskRoute,
   SystemMenuRoute: SystemMenuRoute,
   SystemModuleRoute: SystemModuleRoute,
+  SystemModuleLogRoute: SystemModuleLogRoute,
   SystemRoleRoute: SystemRoleRoute,
   SystemStatusRoute: SystemStatusRoute,
   SystemUserRoute: SystemUserRoute,

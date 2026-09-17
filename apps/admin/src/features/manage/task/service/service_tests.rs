@@ -1,11 +1,15 @@
 use std::{sync::Arc, time::Duration};
 
+use axum::{
+    Extension,
+    body::{Body, to_bytes},
+    http::{Request, StatusCode},
+};
 use chrono::Utc;
+use rustzen_auth::auth::CurrentUser;
 use sqlx::sqlite::SqlitePoolOptions;
 use tokio::sync::{Mutex, Notify, RwLock};
-use axum::{Extension, body::{Body, to_bytes}, http::{Request, StatusCode}};
 use tower::ServiceExt;
-use rustzen_auth::auth::CurrentUser;
 
 use crate::common::error::ServiceError;
 
@@ -114,9 +118,7 @@ async fn manual_overlap_is_rejected_and_scheduled_overlap_is_skipped() {
     let first = service.run_task("test-task").await.expect("first run");
     started.notified().await;
     assert_eq!(first.status, TaskRunStatus::Running);
-    assert!(
-        matches!(service.run_task("test-task").await, Err(ServiceError::TaskAlreadyRunning))
-    );
+    assert!(matches!(service.run_task("test-task").await, Err(ServiceError::TaskAlreadyRunning)));
     let skipped = service
         .start_scheduled_task("test-task", Utc::now(), Some(Utc::now()))
         .await
@@ -130,11 +132,16 @@ async fn manual_overlap_is_rejected_and_scheduled_overlap_is_skipped() {
 async fn scheduled_run_records_the_original_due_time() {
     let pool = pool().await;
     sqlx::query("INSERT INTO system_tasks (task_key,name,schedule_type,schedule_json) VALUES ('test-task','Test task','cron','0 0 0 * * * *')").execute(&pool).await.expect("task");
-    let started = Arc::new(Notify::new()); let release = Arc::new(Notify::new());
-    let service = service_with_task(pool, Arc::new(BlockingExecutor { started: started.clone(), release: release.clone() }));
+    let started = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let service = service_with_task(
+        pool,
+        Arc::new(BlockingExecutor { started: started.clone(), release: release.clone() }),
+    );
     let due = Utc::now() - chrono::Duration::minutes(5);
     let next = Utc::now() + chrono::Duration::minutes(5);
-    let run = service.start_scheduled_task("test-task", due, Some(next)).await.expect("scheduled run");
+    let run =
+        service.start_scheduled_task("test-task", due, Some(next)).await.expect("scheduled run");
     assert_eq!(run.scheduled_for, Some(due));
     assert_eq!(service.list_tasks().await.expect("tasks")[0].next_run_at, Some(next));
     release.notify_waiters();
@@ -144,11 +151,24 @@ async fn scheduled_run_records_the_original_due_time() {
 async fn router_returns_conflict_for_a_second_manual_run_while_first_is_running() {
     let pool = pool().await;
     sqlx::query("INSERT INTO system_tasks (task_key,name,schedule_type,schedule_json) VALUES ('test-task','Test task','cron','0 0 0 * * * *')").execute(&pool).await.expect("task");
-    let started = Arc::new(Notify::new()); let release = Arc::new(Notify::new());
-    let service = Arc::new(service_with_task(pool.clone(), Arc::new(BlockingExecutor { started: started.clone(), release: release.clone() })));
+    let started = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let service = Arc::new(service_with_task(
+        pool.clone(),
+        Arc::new(BlockingExecutor { started: started.clone(), release: release.clone() }),
+    ));
     let (router, _) = super::super::task_routes().into_parts();
     let router = router.layer(Extension(service)).with_state(pool.clone());
-    let request = || { let mut request = Request::post("/test-task/run").body(Body::empty()).expect("request"); request.extensions_mut().insert(CurrentUser::new(1, "owner", vec!["manage:task:run".into()], false)); request };
+    let request = || {
+        let mut request = Request::post("/test-task/run").body(Body::empty()).expect("request");
+        request.extensions_mut().insert(CurrentUser::new(
+            1,
+            "owner",
+            vec!["manage:task:run".into()],
+            false,
+        ));
+        request
+    };
     let first = router.clone().oneshot(request()).await.expect("first response");
     assert_eq!(first.status(), StatusCode::OK);
     started.notified().await;
@@ -156,10 +176,24 @@ async fn router_returns_conflict_for_a_second_manual_run_while_first_is_running(
     assert_eq!(second.status(), StatusCode::CONFLICT);
     let body = to_bytes(second.into_body(), usize::MAX).await.expect("body");
     assert!(std::str::from_utf8(&body).expect("json").contains("10203"));
-    let running: String = sqlx::query_scalar("SELECT status FROM system_task_runs ORDER BY id LIMIT 1").fetch_one(&pool).await.expect("running");
+    let running: String =
+        sqlx::query_scalar("SELECT status FROM system_task_runs ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .expect("running");
     assert_eq!(running, "running");
     release.notify_waiters();
-    for _ in 0..50 { let status: String = sqlx::query_scalar("SELECT status FROM system_task_runs ORDER BY id LIMIT 1").fetch_one(&pool).await.expect("status"); if status == "success" { return; } tokio::time::sleep(Duration::from_millis(10)).await; }
+    for _ in 0..50 {
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM system_task_runs ORDER BY id LIMIT 1")
+                .fetch_one(&pool)
+                .await
+                .expect("status");
+        if status == "success" {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     panic!("first run did not finish");
 }
 

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use crate::common::error::ServiceError;
 
 use super::super::types::{TaskItem, TaskRow, TaskRunStatus, TaskSchedule, TaskTriggerType};
-use super::{map_db_error, TaskRepository};
+use super::{TaskRepository, map_db_error};
 
 pub struct SyncTaskInput<'a> {
     pub task_key: &'a str,
@@ -47,12 +47,14 @@ impl TaskRepository {
         task_key: &str,
         next_run_at: Option<DateTime<Utc>>,
     ) -> Result<(), ServiceError> {
-        sqlx::query("UPDATE system_tasks SET next_run_at=?,updated_at=CURRENT_TIMESTAMP WHERE task_key=?")
-            .bind(next_run_at)
-            .bind(task_key)
-            .execute(&self.pool)
-            .await
-            .map_err(map_db_error)?;
+        sqlx::query(
+            "UPDATE system_tasks SET next_run_at=?,updated_at=CURRENT_TIMESTAMP WHERE task_key=?",
+        )
+        .bind(next_run_at)
+        .bind(task_key)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db_error)?;
         Ok(())
     }
 }
@@ -66,7 +68,11 @@ fn row_to_task_item(row: TaskRow) -> Result<TaskItem, ServiceError> {
         schedule: TaskSchedule::Cron { expression: row.schedule_json },
         running: row.running != 0,
         last_run_id: row.last_run_id,
-        last_trigger_type: row.last_trigger_type.as_deref().map(trigger_type_from_str).transpose()?,
+        last_trigger_type: row
+            .last_trigger_type
+            .as_deref()
+            .map(trigger_type_from_str)
+            .transpose()?,
         last_status: row.last_status.as_deref().map(task_status_from_str).transpose()?,
         last_started_at: row.last_started_at,
         last_finished_at: row.last_finished_at,
@@ -78,17 +84,35 @@ fn row_to_task_item(row: TaskRow) -> Result<TaskItem, ServiceError> {
 }
 
 pub(super) fn trigger_type_to_str(value: &TaskTriggerType) -> &'static str {
-    match value { TaskTriggerType::Scheduled => "scheduled", TaskTriggerType::Manual => "manual" }
+    match value {
+        TaskTriggerType::Scheduled => "scheduled",
+        TaskTriggerType::Manual => "manual",
+    }
 }
 
 pub(super) fn task_status_to_str(value: TaskRunStatus) -> &'static str {
-    match value { TaskRunStatus::Running => "running", TaskRunStatus::Success => "success", TaskRunStatus::Failed => "failed", TaskRunStatus::Skipped => "skipped" }
+    match value {
+        TaskRunStatus::Running => "running",
+        TaskRunStatus::Success => "success",
+        TaskRunStatus::Failed => "failed",
+        TaskRunStatus::Skipped => "skipped",
+    }
 }
 
 pub(super) fn trigger_type_from_str(value: &str) -> Result<TaskTriggerType, ServiceError> {
-    match value { "scheduled" => Ok(TaskTriggerType::Scheduled), "manual" => Ok(TaskTriggerType::Manual), _ => Err(ServiceError::InvalidOperation(format!("Invalid task trigger type: {value}"))) }
+    match value {
+        "scheduled" => Ok(TaskTriggerType::Scheduled),
+        "manual" => Ok(TaskTriggerType::Manual),
+        _ => Err(ServiceError::InvalidOperation(format!("Invalid task trigger type: {value}"))),
+    }
 }
 
 pub(super) fn task_status_from_str(value: &str) -> Result<TaskRunStatus, ServiceError> {
-    match value { "running" => Ok(TaskRunStatus::Running), "success" => Ok(TaskRunStatus::Success), "failed" => Ok(TaskRunStatus::Failed), "skipped" => Ok(TaskRunStatus::Skipped), _ => Err(ServiceError::InvalidOperation(format!("Invalid task status: {value}"))) }
+    match value {
+        "running" => Ok(TaskRunStatus::Running),
+        "success" => Ok(TaskRunStatus::Success),
+        "failed" => Ok(TaskRunStatus::Failed),
+        "skipped" => Ok(TaskRunStatus::Skipped),
+        _ => Err(ServiceError::InvalidOperation(format!("Invalid task status: {value}"))),
+    }
 }

@@ -4,14 +4,14 @@ use chrono::Utc;
 #[cfg(feature = "full")]
 use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
-use rustzen_ipc::{DelegationSigner, ModuleManifest};
+use rustzen_ipc::{DelegationSigner, ModuleManifest, ModuleStorageReport};
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
 
 use crate::{common::error::ServiceError, infra::permission::PermissionService};
 
 #[cfg(feature = "full")]
-use super::types::{ModuleHealthResponse, ModuleStatusResponse};
+use super::types::{ModuleHealthResponse, ModuleRuntime, ModuleStatusResponse};
 use super::{
     registry::ModuleRegistry,
     repo::ModuleRepository,
@@ -165,10 +165,25 @@ impl ModuleService {
     async fn sync_module(state: &ModuleControlState, spec: ModuleSpec) {
         let manifest_url = format!("{}/internal/v1/manifest", spec.base_url);
         let health_url = format!("{}/health", spec.base_url);
-        let (manifest_response, health_response) = tokio::join!(
+        let storage_url = format!("{}/internal/v1/storage", spec.base_url);
+        let (manifest_response, health_response, storage_response) = tokio::join!(
             state.client.get(manifest_url).timeout(SYNC_REQUEST_TIMEOUT).send(),
             state.client.get(health_url).timeout(SYNC_REQUEST_TIMEOUT).send(),
+            state.client.get(storage_url).timeout(SYNC_REQUEST_TIMEOUT).send(),
         );
+        let storage_report = match storage_response {
+            Ok(response) if response.status().is_success() => response
+                .bytes()
+                .await
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<ModuleStorageReport>(&bytes).ok()),
+            _ => None,
+        };
+        let store_storage = |runtime: &mut ModuleRuntime| {
+            if let Some(report) = &storage_report {
+                runtime.storage = Some(report.clone());
+            }
+        };
         let health_ok = health_response.is_ok_and(|response| response.status().is_success());
         let manifest_bytes = match manifest_response {
             Ok(response) if response.status().is_success() => match response.bytes().await {
@@ -202,6 +217,9 @@ impl ModuleService {
             == Some(manifest_hash)
         {
             Self::update_health(state, spec.id, health_ok);
+            state.registry.update_module(spec.id, |runtime| {
+                store_storage(runtime);
+            });
             return;
         }
         let manifest = match serde_json::from_slice::<ModuleManifest>(&manifest_bytes) {
@@ -229,6 +247,7 @@ impl ModuleService {
                 if health_ok { ModuleCondition::Healthy } else { ModuleCondition::Unavailable };
             runtime.manifest = Some(Arc::new(manifest));
             runtime.manifest_hash = Some(manifest_hash);
+            store_storage(runtime);
             if health_ok {
                 runtime.last_seen_at = Some(Utc::now());
             }

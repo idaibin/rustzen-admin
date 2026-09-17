@@ -76,6 +76,39 @@ export interface ApiResponseI64 {
     total?: number | null;
 }
 
+export interface NotificationItem {
+    acceptedAt: string;
+    id: string;
+    occurredAt: string;
+    producer: string;
+    /** @nullable */
+    readAt?: string | null;
+    subjectId: string;
+    subjectKind: string;
+    subjectRevision: number;
+    summary: string;
+    title: string;
+    topic: string;
+}
+
+export interface InboxListResponse {
+    items: NotificationItem[];
+    /** @nullable */
+    nextCursor?: string | null;
+    /** @minimum 0 */
+    retentionDays: number;
+    revision: number;
+    snapshot: string;
+}
+
+export interface ApiResponseInboxListResponse {
+    code: number;
+    data: InboxListResponse;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
 export type ApiResponseJsonData = { [key: string]: unknown };
 
 export interface ApiResponseJson {
@@ -339,6 +372,42 @@ export interface ApiResponseModuleStatusResponseList {
     total?: number | null;
 }
 
+export interface ApiResponseNotificationItem {
+    code: number;
+    data: NotificationItem;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ReadAllResponse {
+    /** @minimum 0 */
+    changed: number;
+    revision: number;
+}
+
+export interface ApiResponseReadAllResponse {
+    code: number;
+    data: ReadAllResponse;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface ReadResponse {
+    id: string;
+    readAt: string;
+    revision: number;
+}
+
+export interface ApiResponseReadResponse {
+    code: number;
+    data: ReadResponse;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
 export type I64 = number;
 
 export interface OptionItemI64 {
@@ -428,6 +497,30 @@ export interface ApiResponseString {
     total?: number | null;
 }
 
+export interface SqliteStorageStatus {
+    /** @minimum 0 */
+    mainBytes: number;
+    /** @minimum 0 */
+    shmBytes: number;
+    /** @minimum 0 */
+    totalBytes: number;
+    /** @minimum 0 */
+    walBytes: number;
+}
+
+/**
+ * Per-module storage self-report aggregated from the module synchronizer.
+ * `database` is present only while the module is available; an unavailable
+ * module keeps only its last successful collection time.
+ */
+export interface ModuleDatabaseStatus {
+    available: boolean;
+    /** @nullable */
+    collectedAt?: string | null;
+    database?: null | SqliteStorageStatus;
+    module: string;
+}
+
 export interface CpuResourceStatus {
     /** @minimum 0 */
     cores: number;
@@ -460,17 +553,6 @@ export interface LocalResourceStatus {
     memory: MemoryResourceStatus;
 }
 
-export interface SqliteStorageStatus {
-    /** @minimum 0 */
-    mainBytes: number;
-    /** @minimum 0 */
-    shmBytes: number;
-    /** @minimum 0 */
-    totalBytes: number;
-    /** @minimum 0 */
-    walBytes: number;
-}
-
 export interface DirectoryStorageItem {
     /** @nullable */
     errorMessage?: string | null;
@@ -487,6 +569,7 @@ export interface SystemStorageStatus {
 
 export interface SystemStatusOverview {
     collectedAt: string;
+    modules: ModuleDatabaseStatus[];
     resource: LocalResourceStatus;
     storage: SystemStorageStatus;
 }
@@ -588,6 +671,19 @@ export interface ApiResponseUnit {
     code: number;
     /** @nullable */
     data: null;
+    message: string;
+    /** @nullable */
+    total?: number | null;
+}
+
+export interface UnreadCountResponse {
+    count: number;
+    revision: number;
+}
+
+export interface ApiResponseUnreadCountResponse {
+    code: number;
+    data: UnreadCountResponse;
     message: string;
     /** @nullable */
     total?: number | null;
@@ -728,6 +824,10 @@ export interface ModuleLogCleanupConfirmRequest {
     token: string;
 }
 
+export interface ReadAllRequest {
+    snapshot: string;
+}
+
 /**
  * Request payload for current-account profile updates.
  */
@@ -819,6 +919,16 @@ export type ExportManageLogsParams = {
 export type ListTaskRunsParams = {
     current?: number;
     pageSize?: number;
+};
+
+export type ListNotificationsParams = {
+    cursor?: string;
+    /**
+     * @minimum 1
+     * @maximum 100
+     */
+    limit?: number;
+    unreadOnly?: boolean;
 };
 
 export type ListMenusParams = {
@@ -1274,6 +1384,100 @@ export const listTaskRuns = async (
     return generatedApiRequest<ApiResponseTaskRunItemList>(getListTaskRunsUrl(taskKey, params), {
         ...options,
         method: "GET",
+    });
+};
+
+export const getListNotificationsUrl = (params?: ListNotificationsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? "null" : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+        ? `/api/notifications?${stringifiedParams}`
+        : `/api/notifications`;
+};
+
+export const listNotifications = async (
+    params?: ListNotificationsParams,
+    options?: RequestInit,
+): Promise<ApiResponseInboxListResponse> => {
+    return generatedApiRequest<ApiResponseInboxListResponse>(getListNotificationsUrl(params), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getReadAllNotificationsUrl = () => {
+    return `/api/notifications/read-all`;
+};
+
+export const readAllNotifications = async (
+    readAllRequest: ReadAllRequest,
+    options?: RequestInit,
+): Promise<ApiResponseReadAllResponse> => {
+    return generatedApiRequest<ApiResponseReadAllResponse>(getReadAllNotificationsUrl(), {
+        ...options,
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        body: JSON.stringify(readAllRequest),
+    });
+};
+
+export const getStreamNotificationsUrl = () => {
+    return `/api/notifications/stream`;
+};
+
+export const streamNotifications = async (options?: RequestInit): Promise<string | void> => {
+    return generatedApiRequest<string | void>(getStreamNotificationsUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getGetNotificationUnreadCountUrl = () => {
+    return `/api/notifications/unread-count`;
+};
+
+export const getNotificationUnreadCount = async (
+    options?: RequestInit,
+): Promise<ApiResponseUnreadCountResponse> => {
+    return generatedApiRequest<ApiResponseUnreadCountResponse>(getGetNotificationUnreadCountUrl(), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getGetNotificationUrl = (id: string) => {
+    return `/api/notifications/${id}`;
+};
+
+export const getNotification = async (
+    id: string,
+    options?: RequestInit,
+): Promise<ApiResponseNotificationItem> => {
+    return generatedApiRequest<ApiResponseNotificationItem>(getGetNotificationUrl(id), {
+        ...options,
+        method: "GET",
+    });
+};
+
+export const getReadNotificationUrl = (id: string) => {
+    return `/api/notifications/${id}/read`;
+};
+
+export const readNotification = async (
+    id: string,
+    options?: RequestInit,
+): Promise<ApiResponseReadResponse> => {
+    return generatedApiRequest<ApiResponseReadResponse>(getReadNotificationUrl(id), {
+        ...options,
+        method: "PUT",
     });
 };
 
@@ -1751,6 +1955,20 @@ export const updateUserPassword = async (
         method: "PUT",
         headers: { "Content-Type": "application/json", ...options?.headers },
         body: JSON.stringify(updateUserPasswordPayload),
+    });
+};
+
+export const getRevokeUserSessionsUrl = (id: number) => {
+    return `/api/system/users/${id}/sessions/revoke-all`;
+};
+
+export const revokeUserSessions = async (
+    id: number,
+    options?: RequestInit,
+): Promise<ApiResponseBool> => {
+    return generatedApiRequest<ApiResponseBool>(getRevokeUserSessionsUrl(id), {
+        ...options,
+        method: "POST",
     });
 };
 

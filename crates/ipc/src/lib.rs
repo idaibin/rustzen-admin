@@ -8,6 +8,7 @@ mod manifest;
 mod notification;
 mod response;
 mod router;
+mod storage;
 
 pub use delegation::{
     CONTRACT_VERSION, DelegatedAccess, DelegatedContext, DelegationError, DelegationSigner,
@@ -32,3 +33,4 @@ pub use notification::{
 };
 pub use response::{ApiResponse, Page, Pagination, PaginationError};
 pub use router::{ModuleRouter, Require};
+pub use storage::ModuleStorageReport;

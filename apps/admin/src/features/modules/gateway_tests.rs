@@ -122,6 +122,7 @@ async fn gateway_fails_closed_when_the_authority_database_is_closed() {
             condition: ModuleCondition::Healthy,
             manifest: Some(Arc::new(manifest)),
             manifest_hash: Some([1; 32]),
+            storage: None,
             last_seen_at: Some(chrono::Utc::now()),
             error: None,
         },

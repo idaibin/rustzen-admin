@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+chrono = { version = "0.4", features = ["serde"] }
 axum = "0.8"
 hex = "0.4"
 hmac = "0.12"
