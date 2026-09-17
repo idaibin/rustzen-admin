@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+
 import { Tag } from "antd";
 
 import { AuthWrap } from "@/components/auth";
+
 import {
     MenuActions,
     MenuStatusBadge,
@@ -31,7 +33,9 @@ const record = {
 test("menu action remains limited to editable module rows", () => {
     expect(MenuActions({ record: { ...record, readOnly: true }, onSuccess: () => {} })).toBeNull();
     expect(MenuActions({ record: { ...record, moduleId: null }, onSuccess: () => {} })).toBeNull();
-    expect(MenuActions({ record: { ...record, moduleMenuCode: null }, onSuccess: () => {} })).toBeNull();
+    expect(
+        MenuActions({ record: { ...record, moduleMenuCode: null }, onSuccess: () => {} }),
+    ).toBeNull();
 
     const action = MenuActions({ record, onSuccess: () => {} })!;
     expect(action.type).toBe(AuthWrap);

@@ -51,7 +51,8 @@ const systemAPI = {
                 method: "PUT",
                 params: data,
             }),
-        delete: (id: number) => apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
+        delete: (id: number) =>
+            apiRequest<void>({ url: `/api/system/users/${id}`, method: "DELETE" }),
         status: (id: number, status: number) =>
             apiRequest<boolean>({
                 url: `/api/system/users/${id}/status`,
@@ -86,7 +87,8 @@ const systemAPI = {
                 method: "PUT",
                 params: data,
             }),
-        delete: (id: number) => apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
+        delete: (id: number) =>
+            apiRequest<void>({ url: `/api/system/roles/${id}`, method: "DELETE" }),
         options: () => apiRequest<Role.OptionItem[]>({ url: "/api/system/roles/options" }),
     },
 };

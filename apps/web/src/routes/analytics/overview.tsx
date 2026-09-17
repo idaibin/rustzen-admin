@@ -68,12 +68,17 @@ function AnalyticsOverviewPage() {
                 />
                 <DataState
                     kind="permission"
-                    title={t("没有查看分析概览的权限", "You do not have permission to view analytics")}
+                    title={t(
+                        "没有查看分析概览的权限",
+                        "You do not have permission to view analytics",
+                    )}
                     description={t(
                         "无法读取分析数据，请检查 Insights 服务后重试。",
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
-                    action={<Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
                 />
             </div>
         );

@@ -115,7 +115,10 @@ function AnalyticsEventsPage() {
             >
                 <DataState
                     kind="permission"
-                    title={t("没有查看分析明细的权限", "You do not have permission to view activity")}
+                    title={t(
+                        "没有查看分析明细的权限",
+                        "You do not have permission to view activity",
+                    )}
                     description={t(
                         "无法读取分析明细，请检查 Insights 服务后重试。",
                         "Unable to read analytics data. Check the Insights service and try again.",
@@ -145,7 +148,9 @@ function AnalyticsEventsPage() {
                         "无法读取分析明细，请检查 Insights 服务后重试。",
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
-                    action={<Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
                 />
             </PageCard>
         );
@@ -216,7 +221,12 @@ function AnalyticsEventsPage() {
             )}
         >
             <DataTableShell fill ariaLabel={t("分析明细", "Analytics details table")}>
-                {error ? <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} /> : null}
+                {error ? (
+                    <BackgroundRefreshNotice
+                        updatedAt={dataUpdatedAt}
+                        onRetry={() => void refetch()}
+                    />
+                ) : null}
                 <ProTable<EventRow>
                     rowKey="id"
                     dataSource={eventRows}

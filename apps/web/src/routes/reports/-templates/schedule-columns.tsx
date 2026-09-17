@@ -102,7 +102,8 @@ export function createScheduleColumns({
                                     : undefined
                             }
                         >
-                            {occurrence.reason || formatDateTime(occurrence.decidedAt, row.timezone)}
+                            {occurrence.reason ||
+                                formatDateTime(occurrence.decidedAt, row.timezone)}
                         </div>
                         {occurrence.runId ? (
                             <Button

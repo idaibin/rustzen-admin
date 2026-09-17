@@ -4,6 +4,7 @@ import { Button, Space, Tag, Typography } from "antd";
 
 import type { ModuleLogFile } from "@/api/system/status/module-logs";
 import { t } from "@/lib/i18n";
+
 import { formatBytes, formatDateTime } from "./-module-log-table-utils";
 
 export function getModuleLogColumns(
@@ -15,9 +16,7 @@ export function getModuleLogColumns(
             dataIndex: "module",
             key: "module",
             width: 112,
-            render: (_value, record) => (
-                <Typography.Text code>{record.module}</Typography.Text>
-            ),
+            render: (_value, record) => <Typography.Text code>{record.module}</Typography.Text>,
         },
         {
             title: t("文件 / 日期", "File / date"),
@@ -28,9 +27,7 @@ export function getModuleLogColumns(
                     <Typography.Text ellipsis={{ tooltip: record.fileName }}>
                         {record.fileName}
                     </Typography.Text>
-                    <Typography.Text type="secondary">
-                        {record.date}
-                    </Typography.Text>
+                    <Typography.Text type="secondary">{record.date}</Typography.Text>
                 </Space>
             ),
         },
@@ -47,13 +44,9 @@ export function getModuleLogColumns(
             render: (_value, record) => (
                 <Space size="small" wrap>
                     <Tag color={record.readable ? "green" : "red"}>
-                        {record.readable
-                            ? t("可读", "Readable")
-                            : t("不可读", "Unreadable")}
+                        {record.readable ? t("可读", "Readable") : t("不可读", "Unreadable")}
                     </Tag>
-                    {record.active ? (
-                        <Tag color="orange">{t("当前文件", "Active")}</Tag>
-                    ) : null}
+                    {record.active ? <Tag color="orange">{t("当前文件", "Active")}</Tag> : null}
                 </Space>
             ),
         },

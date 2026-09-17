@@ -2,13 +2,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-    Avatar,
-    Button,
-    Input,
-    Select,
-    Tag,
-} from "antd";
+import { Avatar, Button, Input, Select, Tag } from "antd";
 import { useMemo, useState } from "react";
 
 import { systemAPI } from "@/api";

@@ -6,6 +6,7 @@ import type { ModuleLogFile } from "@/api/system/status/module-logs";
 import { DataState } from "@/components/feedback/data-state";
 import { DataTableShell } from "@/components/table/data-table-shell";
 import { t } from "@/lib/i18n";
+
 import type { getModuleLogColumns } from "./-module-log-columns";
 
 interface ModuleLogFileListProps {
@@ -35,7 +36,10 @@ export function ModuleLogFileList({
                 <Alert
                     type="warning"
                     showIcon
-                    message={t("日志列表刷新失败，仍显示上次结果", "Refresh failed; showing the last result")}
+                    message={t(
+                        "日志列表刷新失败，仍显示上次结果",
+                        "Refresh failed; showing the last result",
+                    )}
                     description={error}
                 />
             ) : null}
@@ -74,7 +78,9 @@ export function ModuleLogFileList({
                         rowSelection={{
                             selectedRowKeys: selectedKeys,
                             renderCell: (_checked, record, _index, originNode) => (
-                                <span data-testid={`module-log-select-${record.module}-${record.date}`}>
+                                <span
+                                    data-testid={`module-log-select-${record.module}-${record.date}`}
+                                >
                                     {originNode}
                                 </span>
                             ),

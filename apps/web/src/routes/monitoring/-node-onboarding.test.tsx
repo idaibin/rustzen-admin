@@ -1,7 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
+
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { setLocale } from "@/lib/i18n";
+
 import { NodeOnboarding, onboardingStepCopy } from "./-node-onboarding";
 
 afterEach(() => setLocale("zh-CN"));
@@ -25,7 +27,10 @@ test("onboarding exposes ordered signed-install prerequisites without an executa
     }
     expect(text).not.toContain("rz-monitor-agent\n");
 
-    for (const [locale, selectedIndex] of [["zh-CN", 0], ["en-US", 1]] as const) {
+    for (const [locale, selectedIndex] of [
+        ["zh-CN", 0],
+        ["en-US", 1],
+    ] as const) {
         setLocale(locale);
         const html = renderToStaticMarkup(<NodeOnboarding />);
         for (const copy of onboardingStepCopy) {
@@ -34,7 +39,7 @@ test("onboarding exposes ordered signed-install prerequisites without an executa
         }
         expect(html).toContain("disabled");
         expect(html).not.toContain("Copy");
-        expect(html).not.toContain("type=\"password\"");
+        expect(html).not.toContain('type="password"');
         expect(html).not.toContain("http://");
     }
 });

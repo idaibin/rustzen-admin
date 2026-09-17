@@ -104,7 +104,7 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                                             stroke="var(--chart-2)"
                                             dot={data.points.length === 1}
                                         />
-                                        </LineChart>
+                                    </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-const route = await Bun.file(
-    new URL("../src/routes/manage/deploy.tsx", import.meta.url),
-).text();
+const route = await Bun.file(new URL("../src/routes/manage/deploy.tsx", import.meta.url)).text();
 const dialogs = await Bun.file(
     new URL("../src/routes/manage/-deploy-dialogs.tsx", import.meta.url),
 ).text();

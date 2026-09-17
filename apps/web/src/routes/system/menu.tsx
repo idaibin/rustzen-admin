@@ -14,7 +14,12 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
-import { MenuActions, MenuStatusBadge, MenuTypeBadge, type DisplayMenuItem } from "./-menu-components";
+import {
+    MenuActions,
+    MenuStatusBadge,
+    MenuTypeBadge,
+    type DisplayMenuItem,
+} from "./-menu-components";
 
 export const Route = createFileRoute("/system/menu")({
     component: MenuPage,

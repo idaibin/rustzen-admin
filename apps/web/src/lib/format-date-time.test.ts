@@ -16,9 +16,13 @@ test("uses the application locale for stable English and Chinese output", () => 
         second: "2-digit",
     } as const;
     setLocale("en-US");
-    expect(formatDateTime(value, "Asia/Shanghai")).toBe(new Intl.DateTimeFormat("en-US", options).format(new Date(value)));
+    expect(formatDateTime(value, "Asia/Shanghai")).toBe(
+        new Intl.DateTimeFormat("en-US", options).format(new Date(value)),
+    );
     setLocale("zh-CN");
-    expect(formatDateTime(value, "Asia/Shanghai")).toBe(new Intl.DateTimeFormat("zh-CN", options).format(new Date(value)));
+    expect(formatDateTime(value, "Asia/Shanghai")).toBe(
+        new Intl.DateTimeFormat("zh-CN", options).format(new Date(value)),
+    );
 });
 
 test("uses UTC for the no-timezone verifier path when the process is UTC", () => {

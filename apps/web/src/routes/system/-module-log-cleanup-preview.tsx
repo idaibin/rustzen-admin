@@ -7,6 +7,7 @@ import type {
 } from "@/api/system/status/module-logs";
 import { DataState } from "@/components/feedback/data-state";
 import { t } from "@/lib/i18n";
+
 import { CleanupResult, FailureList } from "./-module-log-cleanup-result";
 import { formatDateTime, getCleanupCandidateColumns } from "./-module-log-table-utils";
 
@@ -43,7 +44,10 @@ export function ModuleLogCleanupPreview({
                     showIcon
                     message={
                         isExpired
-                            ? t("预览已过期，请重新生成。", "Preview expired; generate a new preview.")
+                            ? t(
+                                  "预览已过期，请重新生成。",
+                                  "Preview expired; generate a new preview.",
+                              )
                             : t(
                                   `预览有效至 ${formatDateTime(preview.expiresAt)}`,
                                   `Preview expires at ${formatDateTime(preview.expiresAt)}`,

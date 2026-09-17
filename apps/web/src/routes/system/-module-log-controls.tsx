@@ -1,14 +1,7 @@
-import {
-    DeleteOutlined,
-    DownloadOutlined,
-    ReloadOutlined,
-} from "@ant-design/icons";
+import { DeleteOutlined, DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Input, Select, Space } from "antd";
 
-import {
-    MODULE_LOG_MODULES,
-    type ModuleLogModule,
-} from "@/api/system/status/module-logs";
+import { MODULE_LOG_MODULES, type ModuleLogModule } from "@/api/system/status/module-logs";
 import { t } from "@/lib/i18n";
 
 const ALL_MODULES = "all" as const;

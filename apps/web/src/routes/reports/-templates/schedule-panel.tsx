@@ -10,8 +10,8 @@ import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
 import { REPORTS_SCHEDULE_MANAGE } from "../-schedule-permissions";
-import { ScheduleDialog } from "./schedule-dialog";
 import { createScheduleColumns } from "./schedule-columns";
+import { ScheduleDialog } from "./schedule-dialog";
 
 export function SchedulePanel() {
     const client = useQueryClient();
@@ -62,7 +62,9 @@ export function SchedulePanel() {
                 </span>
             }
             extra={
-                canManageSchedules ? <ScheduleDialog flowOptions={flowOptions} onSaved={refresh} /> : null
+                canManageSchedules ? (
+                    <ScheduleDialog flowOptions={flowOptions} onSaved={refresh} />
+                ) : null
             }
         >
             <div className="mb-3 text-sm text-muted-foreground">

@@ -67,7 +67,12 @@ function RunsPage() {
         refetchOnMount: "always",
     });
     const total = data?.total ?? 0;
-    const deliveryCard = <NotificationDeliveryCard queryKey={["reports", "notification-delivery"]} queryFn={reportsAPI.notificationDelivery} />;
+    const deliveryCard = (
+        <NotificationDeliveryCard
+            queryKey={["reports", "notification-delivery"]}
+            queryFn={reportsAPI.notificationDelivery}
+        />
+    );
 
     useEffect(() => {
         if (linkedRunError || linkedRunFetching) {

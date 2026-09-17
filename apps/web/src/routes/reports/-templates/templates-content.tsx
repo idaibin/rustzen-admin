@@ -59,7 +59,8 @@ export function TemplatesContent({
             dataIndex: "systemId",
             key: "system",
             width: 190,
-            render: (_: unknown, row) => systems.find((system) => system.id === row.systemId)?.name ?? row.systemId,
+            render: (_: unknown, row) =>
+                systems.find((system) => system.id === row.systemId)?.name ?? row.systemId,
         },
         {
             title: t("步骤", "Steps"),
@@ -99,7 +100,10 @@ export function TemplatesContent({
     const card = (children: ReactNode) => (
         <PageCard
             title={t("报表模板", "Report templates")}
-            description={t("定义每个填报流程使用的目标系统和已验证步骤。", "Define the target system and verified steps for each report workflow.")}
+            description={t(
+                "定义每个填报流程使用的目标系统和已验证步骤。",
+                "Define the target system and verified steps for each report workflow.",
+            )}
             actions={actions}
         >
             {children}
@@ -107,7 +111,9 @@ export function TemplatesContent({
     );
 
     if (!flows.length && isPending) {
-        return card(<DataState kind="loading" title={t("正在加载报表模板", "Loading report templates")} />);
+        return card(
+            <DataState kind="loading" title={t("正在加载报表模板", "Loading report templates")} />,
+        );
     }
 
     if (!flows.length && error) {
@@ -115,8 +121,15 @@ export function TemplatesContent({
             <DataState
                 kind="error"
                 title={t("报表模板加载失败", "Failed to load report templates")}
-                description={t("无法读取模板，请检查 Reports 服务后重试。", "Unable to read templates. Check the Reports service and try again.")}
-                action={<Button type="primary" onClick={refetch}>{t("重新加载", "Reload")}</Button>}
+                description={t(
+                    "无法读取模板，请检查 Reports 服务后重试。",
+                    "Unable to read templates. Check the Reports service and try again.",
+                )}
+                action={
+                    <Button type="primary" onClick={refetch}>
+                        {t("重新加载", "Reload")}
+                    </Button>
+                }
             />,
         );
     }
@@ -126,7 +139,10 @@ export function TemplatesContent({
             <DataState
                 kind="empty"
                 title={t("暂无报表模板", "No report templates")}
-                description={t("先添加目标系统，再创建包含已验证步骤的填报模板。", "Add a target system, then create a report template with verified steps.")}
+                description={t(
+                    "先添加目标系统，再创建包含已验证步骤的填报模板。",
+                    "Add a target system, then create a report template with verified steps.",
+                )}
             />,
         );
     }
@@ -138,7 +154,11 @@ export function TemplatesContent({
                     kind="error"
                     title={t("报表模板刷新失败", "Failed to refresh report templates")}
                     description={t("请稍后重试。", "Please try again later.")}
-                    action={<Button type="primary" onClick={refetch}>{t("重新加载", "Reload")}</Button>}
+                    action={
+                        <Button type="primary" onClick={refetch}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
                     compact
                 />
             ) : null}
@@ -154,7 +174,14 @@ export function TemplatesContent({
                     toolBarRender={false}
                     tableAlertOptionRender={false}
                     rowSelection={false}
-                    locale={{ emptyText: <DataState kind="empty" title={t("暂无报表模板", "No report templates")} /> }}
+                    locale={{
+                        emptyText: (
+                            <DataState
+                                kind="empty"
+                                title={t("暂无报表模板", "No report templates")}
+                            />
+                        ),
+                    }}
                 />
             </DataTableShell>
             <AuthWrap
@@ -163,7 +190,10 @@ export function TemplatesContent({
                     <DataState
                         kind="permission"
                         title={t("无计划查看权限", "Schedule view permission required")}
-                        description={t("当前角色不能查看定时报表计划。", "Your role cannot view scheduled reports.")}
+                        description={t(
+                            "当前角色不能查看定时报表计划。",
+                            "Your role cannot view scheduled reports.",
+                        )}
                         compact
                     />
                 }

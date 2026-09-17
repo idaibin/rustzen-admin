@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { Table } from "antd";
 import type { ReactElement, ReactNode } from "react";
 
@@ -6,6 +7,7 @@ import type {
     ModuleLogCleanupPreview as ModuleLogCleanupPreviewData,
     ModuleLogCleanupResult,
 } from "@/api/system/status/module-logs";
+
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { ModuleLogCleanupPreviewSection } from "./-module-log-diagnostics";
 import { formatDateTime } from "./-module-log-table-utils";
@@ -129,9 +131,11 @@ test("cleanup preview preserves candidate table and confirmation slot order", ()
 
     const wrapper = nodes(tree).find((node) => node.props.className === "space-y-3")!;
     const children = wrapper.props.children as ReactNode[];
-    const tableIndex = children.findIndex((child) => nodes(child).some((node) => node.type === Table));
-    const confirmIndex = children.findIndex(
-        (child) => nodes(child).some((node) => node.props["data-testid"] === "cleanup-confirm"),
+    const tableIndex = children.findIndex((child) =>
+        nodes(child).some((node) => node.type === Table),
+    );
+    const confirmIndex = children.findIndex((child) =>
+        nodes(child).some((node) => node.props["data-testid"] === "cleanup-confirm"),
     );
     expect(confirmIndex).toBeGreaterThan(tableIndex);
 });
@@ -149,20 +153,35 @@ test("cleanup preview keeps empty candidates free of confirmation and zero text"
 
 test("parent composition keeps processing independent of preview, result, and error", () => {
     const pendingPreviewSection = sectionDisplay({ isPending: true, preview });
-    const pendingPreview = [...nodes(pendingPreviewSection.section), ...nodes(pendingPreviewSection.display)];
+    const pendingPreview = [
+        ...nodes(pendingPreviewSection.section),
+        ...nodes(pendingPreviewSection.display),
+    ];
     expect(pendingPreview.some((node) => node.props.kind === "processing")).toBeTrue();
     expect(pendingPreview.some((node) => node.type === Table)).toBeTrue();
-    expect(pendingPreview.some((node) => node.props["data-testid"] === "cleanup-confirm")).toBeTrue();
+    expect(
+        pendingPreview.some((node) => node.props["data-testid"] === "cleanup-confirm"),
+    ).toBeTrue();
 
     const pendingResultSection = sectionDisplay({ isPending: true, result });
-    const pendingResult = [...nodes(pendingResultSection.section), ...nodes(pendingResultSection.display)];
+    const pendingResult = [
+        ...nodes(pendingResultSection.section),
+        ...nodes(pendingResultSection.display),
+    ];
     expect(pendingResult.some((node) => node.props.kind === "processing")).toBeTrue();
-    expect(pendingResult.some((node) => (node.type as { name?: string }).name === "CleanupResult")).toBeTrue();
+    expect(
+        pendingResult.some((node) => (node.type as { name?: string }).name === "CleanupResult"),
+    ).toBeTrue();
 
     const pendingErrorSection = sectionDisplay({ error: "failed", isPending: true, preview });
-    const pendingError = [...nodes(pendingErrorSection.section), ...nodes(pendingErrorSection.display)];
+    const pendingError = [
+        ...nodes(pendingErrorSection.section),
+        ...nodes(pendingErrorSection.display),
+    ];
     expect(pendingError.some((node) => node.props.kind === "processing")).toBeTrue();
     expect(pendingErrorSection.previewNode.props.error).toBe("failed");
     expect(pendingErrorSection.previewNode.props.confirmAction).toBeNull();
-    expect(pendingError.some((node) => node.props["data-testid"] === "cleanup-confirm")).toBeFalse();
+    expect(
+        pendingError.some((node) => node.props["data-testid"] === "cleanup-confirm"),
+    ).toBeFalse();
 });

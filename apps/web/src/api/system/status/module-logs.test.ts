@@ -221,7 +221,11 @@ test("module log backup rejects a metadata count that differs from unique select
     Object.defineProperty(globalThis, "document", {
         configurable: true,
         value: {
-            createElement: () => ({ click: () => downloads.push("downloaded"), download: "", href: "" }),
+            createElement: () => ({
+                click: () => downloads.push("downloaded"),
+                download: "",
+                href: "",
+            }),
             body: { appendChild: () => undefined, removeChild: () => undefined },
         },
     });
@@ -259,7 +263,11 @@ test("module log backup fails closed when archive metadata is absent, malformed,
     Object.defineProperty(globalThis, "document", {
         configurable: true,
         value: {
-            createElement: () => ({ click: () => downloads.push("downloaded"), download: "", href: "" }),
+            createElement: () => ({
+                click: () => downloads.push("downloaded"),
+                download: "",
+                href: "",
+            }),
             body: { appendChild: () => undefined, removeChild: () => undefined },
         },
     });
@@ -282,7 +290,10 @@ test("module log backup fails closed when archive metadata is absent, malformed,
         ];
         for (const headers of invalidHeaderSets) {
             globalThis.fetch = (async () =>
-                new Response(new Blob(["archive"]), { status: 200, headers })) as unknown as typeof fetch;
+                new Response(new Blob(["archive"]), {
+                    status: 200,
+                    headers,
+                })) as unknown as typeof fetch;
             await expect(
                 moduleLogAPI.backup([{ module: "admin", date: "2026-08-09" }]),
             ).rejects.toThrow("Module log backup");

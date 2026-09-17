@@ -23,7 +23,12 @@ function FlowsPage() {
         ...reportsQueryOptions.systems(),
         enabled: canViewFlows,
     });
-    const { data: flows = [], error, isPending, refetch } = useQuery({
+    const {
+        data: flows = [],
+        error,
+        isPending,
+        refetch,
+    } = useQuery({
         ...reportsQueryOptions.flows(),
         enabled: canViewFlows,
     });
@@ -50,9 +55,15 @@ function FlowsPage() {
         return (
             <PageCard
                 title={t("定时报表", "Scheduled reports")}
-                description={t("查看现有报表模板的执行计划和最近结果。", "Inspect schedules and recent outcomes for existing report templates.")}
+                description={t(
+                    "查看现有报表模板的执行计划和最近结果。",
+                    "Inspect schedules and recent outcomes for existing report templates.",
+                )}
             >
-                <DataState kind="permission" title={t("无报表查看权限", "Report view permission required")} />
+                <DataState
+                    kind="permission"
+                    title={t("无报表查看权限", "Report view permission required")}
+                />
             </PageCard>
         );
     }
@@ -61,11 +72,19 @@ function FlowsPage() {
         return (
             <PageCard
                 title={t("定时报表", "Scheduled reports")}
-                description={t("查看现有报表模板的执行计划和最近结果。", "Inspect schedules and recent outcomes for existing report templates.")}
+                description={t(
+                    "查看现有报表模板的执行计划和最近结果。",
+                    "Inspect schedules and recent outcomes for existing report templates.",
+                )}
             >
                 <AuthWrap
                     code="reports:schedule:view"
-                    fallback={<DataState kind="permission" title={t("无计划查看权限", "Schedule view permission required")} />}
+                    fallback={
+                        <DataState
+                            kind="permission"
+                            title={t("无计划查看权限", "Schedule view permission required")}
+                        />
+                    }
                 >
                     <SchedulePanel />
                 </AuthWrap>

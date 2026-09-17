@@ -1,12 +1,9 @@
 import { expect, test } from "bun:test";
+
+import { DeleteOutlined, DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Input, Select, Space } from "antd";
 import type { ReactElement, ReactNode } from "react";
 
-import {
-    DeleteOutlined,
-    DownloadOutlined,
-    ReloadOutlined,
-} from "@ant-design/icons";
 import { ModuleLogActions, ModuleLogToolbar } from "./-module-log-controls";
 
 type Node = ReactElement<Record<string, any>>;
@@ -48,7 +45,11 @@ function toolbar(props: Partial<Parameters<typeof ModuleLogToolbar>[0]> = {}) {
 
 test("module log actions preserve backup disabled, pending, and callback behavior", () => {
     let backedUp = false;
-    const actionTree = actions({ onBackup: () => { backedUp = true; } });
+    const actionTree = actions({
+        onBackup: () => {
+            backedUp = true;
+        },
+    });
     expect(actionTree.type).toBe(Space);
     expect(actionTree.props.wrap).toBeTrue();
     const enabled = nodes(actionTree).filter((node) => node.type === Button);
@@ -74,9 +75,11 @@ test("module log actions preserve backup disabled, pending, and callback behavio
 
 test("module log actions preserve preview loading, icon, and callback", () => {
     let previewed = false;
-    const idle = actionButtons({ onPreview: () => { previewed = true; } }).find(
-        (button) => button.props["data-testid"] === "module-log-cleanup-preview",
-    )!;
+    const idle = actionButtons({
+        onPreview: () => {
+            previewed = true;
+        },
+    }).find((button) => button.props["data-testid"] === "module-log-cleanup-preview")!;
     expect(idle.props.loading).toBeFalse();
     expect(idle.props.disabled).toBeUndefined();
     expect((idle.props.icon as Node).type).toBe(DeleteOutlined);
@@ -97,8 +100,12 @@ test("module log toolbar preserves module options and filter changes", () => {
     const tree = toolbar({
         dateFilter: "2026-09-11",
         moduleFilter: "monitor",
-        onDateChange: (value) => { date = value; },
-        onModuleChange: (value) => { module = value; },
+        onDateChange: (value) => {
+            date = value;
+        },
+        onModuleChange: (value) => {
+            module = value;
+        },
     });
     expect(tree.props.className).toBe("flex flex-wrap items-center gap-3");
     const select = nodes(tree).find((node) => node.type === Select)!;
@@ -126,10 +133,14 @@ test("module log toolbar preserves module options and filter changes", () => {
 
 test("module log toolbar preserves refresh loading, icon, and callback", () => {
     let refreshed = false;
-    const refresh = nodes(toolbar({
-        isFetching: true,
-        onRefresh: () => { refreshed = true; },
-    })).find((node) => node.type === Button)!;
+    const refresh = nodes(
+        toolbar({
+            isFetching: true,
+            onRefresh: () => {
+                refreshed = true;
+            },
+        }),
+    ).find((node) => node.type === Button)!;
     expect(refresh.props.loading).toBeTrue();
     expect((refresh.props.icon as Node).type).toBe(ReloadOutlined);
     expect(refresh.props.children).toBe("刷新");

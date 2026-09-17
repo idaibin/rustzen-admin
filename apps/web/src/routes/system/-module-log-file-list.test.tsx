@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
+
 import { ProTable } from "@ant-design/pro-components";
 import { Button } from "antd";
 import type { ReactElement, ReactNode } from "react";
 
-import { DataTableShell } from "@/components/table/data-table-shell";
 import type { ModuleLogFile } from "@/api/system/status/module-logs";
-import { ModuleLogFileList } from "./-module-log-file-list";
+import { DataTableShell } from "@/components/table/data-table-shell";
+
 import { getModuleLogColumns } from "./-module-log-columns";
+import { ModuleLogFileList } from "./-module-log-file-list";
 
 type Node = ReactElement<Record<string, any>>;
 
@@ -60,16 +62,23 @@ test("module log file list keeps stale rows and their refresh warning", () => {
 });
 
 test("module log file list keeps loading, error reload, and empty states distinct", () => {
-    const loading = nodes(render({ isPending: true })).find((node) => node.props.kind === "loading")!;
+    const loading = nodes(render({ isPending: true })).find(
+        (node) => node.props.kind === "loading",
+    )!;
     expect(loading.props.title).toBe("正在加载模块日志");
     const pendingError = nodes(render({ error: "failed", isPending: true }));
     expect(pendingError.some((node) => node.props.kind === "loading")).toBeTrue();
     expect(pendingError.some((node) => node.props.kind === "error")).toBeFalse();
 
     let reloaded = false;
-    const error = nodes(render({ error: "failed", onReload: () => { reloaded = true; } })).find(
-        (node) => node.props.kind === "error",
-    )!;
+    const error = nodes(
+        render({
+            error: "failed",
+            onReload: () => {
+                reloaded = true;
+            },
+        }),
+    ).find((node) => node.props.kind === "error")!;
     expect(error.props.title).toBe("模块日志加载失败");
     expect(error.props.description).toBe("failed");
     const reload = error.props.action as ReactElement<{

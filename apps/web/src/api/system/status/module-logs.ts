@@ -59,7 +59,9 @@ const downloadBlob = (blob: Blob, filename: string): void => {
 
 const archiveMetadata = (headers: Headers): Omit<ModuleLogBackup, "blob"> => {
     const contentDisposition = headers.get("content-disposition");
-    const filename = contentDisposition?.match(/^attachment;\s*filename=([A-Za-z0-9][A-Za-z0-9._-]*)$/i)?.[1];
+    const filename = contentDisposition?.match(
+        /^attachment;\s*filename=([A-Za-z0-9][A-Za-z0-9._-]*)$/i,
+    )?.[1];
     if (!filename) {
         throw new Error("Module log backup is missing a valid Content-Disposition filename.");
     }
@@ -71,7 +73,9 @@ const archiveMetadata = (headers: Headers): Omit<ModuleLogBackup, "blob"> => {
 
     const fileCountValue = headers.get("x-rustzen-archive-file-count");
     if (!fileCountValue || !/^[1-9][0-9]*$/.test(fileCountValue)) {
-        throw new Error("Module log backup is missing a valid X-RustZen-Archive-File-Count header.");
+        throw new Error(
+            "Module log backup is missing a valid X-RustZen-Archive-File-Count header.",
+        );
     }
     const fileCount = Number(fileCountValue);
     if (!Number.isSafeInteger(fileCount)) {
@@ -83,7 +87,9 @@ const archiveMetadata = (headers: Headers): Omit<ModuleLogBackup, "blob"> => {
 
 const sha256 = async (blob: Blob): Promise<string> => {
     const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+        "",
+    );
 };
 
 export const moduleLogAPI = {

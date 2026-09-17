@@ -15,13 +15,14 @@ import {
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
-import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
+import { t } from "@/lib/i18n";
+import { useAuthStore } from "@/store/useAuthStore";
+
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { getModuleLogColumns } from "./-module-log-columns";
 import { ModuleLogActions, ModuleLogToolbar } from "./-module-log-controls";
 import { ModuleLogFileList } from "./-module-log-file-list";
-import { t } from "@/lib/i18n";
-import { useAuthStore } from "@/store/useAuthStore";
+import { ModuleLogTailDrawer } from "./-module-log-tail-drawer";
 
 const ALL_MODULES = "all" as const;
 const EMPTY_FILES: ModuleLogFile[] = [];
@@ -119,7 +120,13 @@ function ModuleLogDiagnosticsContent() {
     const previewError = previewMutation.error ? errorMessage(previewMutation.error) : null;
     const confirmError = confirmMutation.error ? errorMessage(confirmMutation.error) : null;
 
-    const columns = useMemo(() => getModuleLogColumns((record) => openTail(record, setTailFile, setTailCursor, setTailOpen)), []);
+    const columns = useMemo(
+        () =>
+            getModuleLogColumns((record) =>
+                openTail(record, setTailFile, setTailCursor, setTailOpen),
+            ),
+        [],
+    );
 
     const openTailButton = (
         <ModuleLogTailDrawer
@@ -224,7 +231,10 @@ function ModuleLogDiagnosticsContent() {
                                 onConfirm={async () => {
                                     if (cleanupExpired) {
                                         throw new Error(
-                                            t("预览已过期，请重新生成。", "The preview expired; generate a new one."),
+                                            t(
+                                                "预览已过期，请重新生成。",
+                                                "The preview expired; generate a new one.",
+                                            ),
                                         );
                                     }
                                     await confirmMutation.mutateAsync(cleanupPreview.token);
@@ -293,7 +303,6 @@ export function ModuleLogCleanupPreviewSection({
         </>
     );
 }
-
 
 function openTail(
     record: ModuleLogFile,

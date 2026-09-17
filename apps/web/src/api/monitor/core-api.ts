@@ -1,6 +1,7 @@
 import { routePath } from "@/api/module-contract";
-import { monitorCoreAPIContract as contract } from "./core-contract";
 import { apiRequest } from "@/api/request";
+
+import { monitorCoreAPIContract as contract } from "./core-contract";
 
 export const monitorCoreAPI = {
     overview: () => apiRequest<Monitor.Overview>({ url: contract.overview.path, silent: true }),

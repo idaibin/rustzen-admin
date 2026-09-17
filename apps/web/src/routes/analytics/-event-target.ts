@@ -11,7 +11,12 @@ export interface EventTargetProjection {
 
 export function projectEventTarget(event: Insights.Event): EventTargetProjection {
     return {
-        kind: event.eventName === "page_view" ? "page" : event.eventName === "api_request" ? "api" : "other",
+        kind:
+            event.eventName === "page_view"
+                ? "page"
+                : event.eventName === "api_request"
+                  ? "api"
+                  : "other",
         eventName: event.eventName,
         pagePath: event.pagePath,
         referrer: event.referrer,

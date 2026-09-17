@@ -21,7 +21,9 @@ const retry = await Bun.file(
 ).text();
 
 test("view-only Reports controls stay behind schedule and run management permissions", () => {
-    expect(panel).toContain("createScheduleColumns({ flowOptions, canManageSchedules, onSaved: refresh })");
+    expect(panel).toContain(
+        "createScheduleColumns({ flowOptions, canManageSchedules, onSaved: refresh })",
+    );
     expect(columns).toContain("if (canManageSchedules)");
     expect(columns).toContain('data-testid="schedule-actions-column"');
     expect(columns).toContain("<ScheduleDialog");
@@ -31,6 +33,6 @@ test("view-only Reports controls stay behind schedule and run management permiss
     expect(toggle).toContain('data-testid="schedule-toggle"');
     expect(runDialog).toContain('data-testid="run-create"');
     expect(runs).toContain('code="reports:run:manage"');
-    expect(runs).toContain('data-testid={`run-cancel-${row.id}`}');
+    expect(runs).toContain("data-testid={`run-cancel-${row.id}`}");
     expect(retry).toContain('code="reports:run:manage"');
 });

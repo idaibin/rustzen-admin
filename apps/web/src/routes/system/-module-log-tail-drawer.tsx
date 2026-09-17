@@ -35,32 +35,100 @@ export function ModuleLogTailDrawer({ error, file, onClose, onLoadOlder, open, q
                     kind="error"
                     title={t("模块日志读取失败", "Failed to read module log")}
                     description={error}
-                    action={<Button type="primary" onClick={() => void query.refetch()}>{t("重新加载", "Reload")}</Button>}
+                    action={
+                        <Button type="primary" onClick={() => void query.refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
+                    }
                     compact
                 />
             ) : query.isPending ? (
-                <DataState kind="loading" title={t("正在读取日志尾部", "Loading log tail")} compact />
+                <DataState
+                    kind="loading"
+                    title={t("正在读取日志尾部", "Loading log tail")}
+                    compact
+                />
             ) : data ? (
                 <TailContent data={data} isFetching={query.isFetching} onLoadOlder={onLoadOlder} />
             ) : (
-                <DataState kind="empty" title={t("未找到日志内容", "No log content found")} compact />
+                <DataState
+                    kind="empty"
+                    title={t("未找到日志内容", "No log content found")}
+                    compact
+                />
             )}
         </Drawer>
     );
 }
 
 function DrawerTitle({ file }: { file: ModuleLogFile }) {
-    return <Space><FileSearchOutlined /><span>{file.module} / {file.date}</span></Space>;
+    return (
+        <Space>
+            <FileSearchOutlined />
+            <span>
+                {file.module} / {file.date}
+            </span>
+        </Space>
+    );
 }
 
-function TailContent({ data, isFetching, onLoadOlder }: { data: ModuleLogTail; isFetching: boolean; onLoadOlder: (cursor: string) => void }) {
+function TailContent({
+    data,
+    isFetching,
+    onLoadOlder,
+}: {
+    data: ModuleLogTail;
+    isFetching: boolean;
+    onLoadOlder: (cursor: string) => void;
+}) {
     const cursor = data.nextCursor;
-    return <div className="space-y-4">
-        <Space wrap><Tag>{data.module}</Tag><Tag>{data.date}</Tag><Typography.Text type="secondary">{t(`${data.lineCount} 行 / ${formatBytes(data.byteCount)}`, `${data.lineCount} lines / ${formatBytes(data.byteCount)}`)}</Typography.Text></Space>
-        {data.truncated ? <Alert type="warning" showIcon message={t("内容已按安全上限截断。可继续读取更早内容。", "Content was truncated at the safety limit. Load older content to continue.")} /> : null}
-        {data.content ? <Card data-testid="module-log-tail-content" size="small" title={t("受限日志尾部", "Bounded log tail")} styles={{ body: { padding: 12 } }}><pre className="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">{data.content}</pre></Card> : <DataState kind="empty" title={t("日志文件为空", "Log file is empty")} compact />}
-        {cursor ? <Button icon={<ClockCircleOutlined />} loading={isFetching} onClick={() => onLoadOlder(cursor)}>{t("读取更早内容", "Load older content")}</Button> : null}
-    </div>;
+    return (
+        <div className="space-y-4">
+            <Space wrap>
+                <Tag>{data.module}</Tag>
+                <Tag>{data.date}</Tag>
+                <Typography.Text type="secondary">
+                    {t(
+                        `${data.lineCount} 行 / ${formatBytes(data.byteCount)}`,
+                        `${data.lineCount} lines / ${formatBytes(data.byteCount)}`,
+                    )}
+                </Typography.Text>
+            </Space>
+            {data.truncated ? (
+                <Alert
+                    type="warning"
+                    showIcon
+                    message={t(
+                        "内容已按安全上限截断。可继续读取更早内容。",
+                        "Content was truncated at the safety limit. Load older content to continue.",
+                    )}
+                />
+            ) : null}
+            {data.content ? (
+                <Card
+                    data-testid="module-log-tail-content"
+                    size="small"
+                    title={t("受限日志尾部", "Bounded log tail")}
+                    styles={{ body: { padding: 12 } }}
+                >
+                    <pre className="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
+                        {data.content}
+                    </pre>
+                </Card>
+            ) : (
+                <DataState kind="empty" title={t("日志文件为空", "Log file is empty")} compact />
+            )}
+            {cursor ? (
+                <Button
+                    icon={<ClockCircleOutlined />}
+                    loading={isFetching}
+                    onClick={() => onLoadOlder(cursor)}
+                >
+                    {t("读取更早内容", "Load older content")}
+                </Button>
+            ) : null}
+        </div>
+    );
 }
 
 function formatBytes(bytes: number) {
@@ -68,6 +136,9 @@ function formatBytes(bytes: number) {
     const units = ["B", "KB", "MB", "GB", "TB"] as const;
     let value = bytes;
     let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) { value /= 1024; unitIndex += 1; }
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
     return `${Number(value.toFixed(unitIndex === 0 ? 0 : 1))} ${units[unitIndex]}`;
 }

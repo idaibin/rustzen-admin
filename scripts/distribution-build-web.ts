@@ -104,7 +104,7 @@ const copyRoute = async (source: string) => {
                 "",
             )
             .replace(
-                /    const deliveryCard = <NotificationDeliveryCard queryKey=\{\["reports", "notification-delivery"\]\} queryFn=\{reportsAPI\.notificationDelivery\} \/>;\n/,
+                /    const deliveryCard = \(\n        <NotificationDeliveryCard\n            queryKey=\{\["reports", "notification-delivery"\]\}\n            queryFn=\{reportsAPI\.notificationDelivery\}\n        \/>\n    \);\n/,
                 "",
             )
             .replaceAll("                {deliveryCard}\n", "")

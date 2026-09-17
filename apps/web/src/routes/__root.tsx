@@ -7,6 +7,7 @@ import { BaseLayout } from "@/components/layout";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
+
 import { NotificationShell } from "./-notifications-shell";
 
 const permissionFreePaths = new Set(["/profile", "/403", "/404"]);
