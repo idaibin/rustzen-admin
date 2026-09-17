@@ -169,12 +169,12 @@ function StorageCard({
                                 <span className="ms-auto w-[220px] text-right font-mono text-xs text-muted-foreground">
                                     {row.module}.db
                                 </span>
-                                <span className="min-w-24 text-right font-semibold">
+                                <span className="w-24 text-right font-semibold tabular-nums">
                                     {row.database
                                         ? formatBytes(row.database.totalBytes)
                                         : t("不可用", "Unavailable")}
                                 </span>
-                                <span className="min-w-32 text-right text-xs text-muted-foreground">
+                                <span className="w-32 text-right text-xs tabular-nums text-muted-foreground">
                                     {row.database
                                         ? `WAL ${formatBytes(row.database.walBytes)}`
                                         : `${t("上次", "Last")} ${formatDateTime(row.collectedAt)}`}
