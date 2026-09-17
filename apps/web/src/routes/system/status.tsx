@@ -47,10 +47,7 @@ function SystemStatusPage() {
             />
 
             {data ? (
-                <>
-                    <StorageCard storage={data.storage} />
-                    <ResourceCard resource={data.resource} />
-                </>
+                <StatusGrid storage={data.storage} resource={data.resource} />
             ) : isError ? (
                 <DataState
                     kind="error"
@@ -70,6 +67,21 @@ function SystemStatusPage() {
     );
 }
 
+function StatusGrid({
+    storage,
+    resource,
+}: {
+    storage: SystemStatus.StorageStatus;
+    resource: SystemStatus.LocalResourceStatus;
+}) {
+    return (
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(300px,5fr)]">
+            <StorageCard storage={storage} />
+            <ResourceCard resource={resource} />
+        </div>
+    );
+}
+
 function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
     const directories = [...storage.directories].sort((a, b) => b.sizeBytes - a.sizeBytes);
     const databaseFiles = [
@@ -80,15 +92,16 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
     const maxDirectoryBytes = Math.max(...directories.map((item) => item.sizeBytes), 1);
 
     return (
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,5fr)]">
-            <ProCard
-                title={t("存储", "Storage")}
-                subTitle={t(
-                    "SQLite 存储及运行目录分布。",
-                    "SQLite storage and runtime directory distribution.",
-                )}
-            >
-                <div className="space-y-6">
+        <ProCard
+            title={t("存储", "Storage")}
+            subTitle={t(
+                "SQLite 存储及运行目录分布。",
+                "SQLite storage and runtime directory distribution.",
+            )}
+            className="min-w-0"
+        >
+            <div className="flex h-full flex-col gap-6">
+                <div className="grid items-center gap-6 md:grid-cols-[minmax(9rem,auto)_minmax(0,1fr)]">
                     <div>
                         <div className="mb-3 text-sm text-muted-foreground">
                             <DatabaseOutlined className="mr-2" />
@@ -98,94 +111,57 @@ function StorageCard({ storage }: { storage: SystemStatus.StorageStatus }) {
                             value={formatBytes(storage.database.totalBytes)}
                             styles={{ content: { fontSize: 28 } }}
                         />
-                        <Typography.Text type="secondary" className="mt-4 block text-sm">
-                            {t("SQLite 数据库", "SQLite database")}
-                        </Typography.Text>
-                        <Progress className="mt-5" percent={100} showInfo={false} />
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-muted-foreground">
-                            {[
-                                {
-                                    label: t("主库", "Main database"),
-                                    value: storage.database.mainBytes,
-                                },
-                                { label: "WAL", value: storage.database.walBytes },
-                            ]
-                                .sort((a, b) => b.value - a.value)
-                                .map((item, index) => (
-                                    <span
-                                        key={item.label}
-                                        className={index ? "text-right" : undefined}
-                                    >
-                                        {item.label} {formatBytes(item.value)}
-                                    </span>
-                                ))}
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-3">
+                        {databaseFiles.map((file) => (
+                            <StorageBreakdownItem
+                                key={file.label}
+                                label={file.label}
+                                value={file.value}
+                                total={storage.database.totalBytes}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <Card size="small" className="flex min-h-0 flex-1 flex-col">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                        <div>
+                            <Typography.Text strong>
+                                {t("目录分布", "Directory distribution")}
+                            </Typography.Text>
+                            <Typography.Paragraph type="secondary">
+                                {t("按当前目录占用空间对比", "Compare current directory usage")}
+                            </Typography.Paragraph>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                            {t(`${directories.length} 项`, `${directories.length} items`)}
                         </div>
                     </div>
-
-                    <Card size="small">
-                        <div className="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                                <Typography.Text strong>
-                                    {t("目录分布", "Directory distribution")}
-                                </Typography.Text>
-                                <Typography.Paragraph type="secondary">
-                                    {t("按当前目录占用空间对比", "Compare current directory usage")}
-                                </Typography.Paragraph>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                                {t(`${directories.length} 项`, `${directories.length} items`)}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-2">
-                            {directories.map((item) => (
-                                <div key={item.key}>
-                                    <div className="mb-3 flex items-center justify-between gap-4">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <span className="truncate font-semibold">
-                                                {item.label}
-                                            </span>
-                                            {item.errorMessage ? (
-                                                <Tag color="red">{item.errorMessage}</Tag>
-                                            ) : null}
-                                        </div>
-                                        <div className="shrink-0 font-semibold">
-                                            {formatBytes(item.sizeBytes)}
-                                        </div>
+                    <div className="grid grid-cols-1 content-around gap-x-10 gap-y-8 md:grid-cols-2">
+                        {directories.map((item) => (
+                            <div key={item.key}>
+                                <div className="mb-3 flex items-center justify-between gap-4">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <span className="truncate font-semibold">{item.label}</span>
+                                        {item.errorMessage ? (
+                                            <Tag color="red">{item.errorMessage}</Tag>
+                                        ) : null}
                                     </div>
-                                    <Progress
-                                        percent={Math.round(
-                                            (item.sizeBytes / maxDirectoryBytes) * 100,
-                                        )}
-                                        showInfo={false}
-                                    />
+                                    <div className="shrink-0 font-semibold">
+                                        {formatBytes(item.sizeBytes)}
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    </Card>
-                </div>
-            </ProCard>
-
-            <ProCard
-                title={t("数据库文件", "Database files")}
-                className="min-w-0"
-                extra={
-                    <span className="text-xs text-muted-foreground">
-                        {t("主库 / WAL / SHM", "Main / WAL / SHM")}
-                    </span>
-                }
-            >
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
-                    {databaseFiles.map((file) => (
-                        <StorageBreakdownItem
-                            key={file.label}
-                            label={file.label}
-                            value={file.value}
-                            total={storage.database.totalBytes}
-                        />
-                    ))}
-                </div>
-            </ProCard>
-        </div>
+                                <Progress
+                                    percent={Math.round((item.sizeBytes / maxDirectoryBytes) * 100)}
+                                    showInfo={false}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            </div>
+        </ProCard>
     );
 }
 
@@ -216,8 +192,9 @@ function ResourceCard({ resource }: { resource: SystemStatus.LocalResourceStatus
         <ProCard
             title={t("本地资源", "Local resources")}
             subTitle={t("CPU、内存和磁盘使用情况。", "CPU, memory, and disk usage.")}
+            className="min-w-0"
         >
-            <div className="grid grid-cols-1 gap-7 lg:grid-cols-3">
+            <div className="grid h-full grid-cols-1 content-between gap-6">
                 <ResourceMetric
                     icon={<CloudServerOutlined />}
                     title="CPU"
