@@ -33,6 +33,7 @@ in source code, and runtime structure remains grounded in
 | [monitoring](./product/features/monitoring/spec.md) | Current product specification | Defines central Agent reports, node resources, alerts, incidents, retention, and daily summaries. |
 | [analytics-collection-safety](./product/features/analytics-collection-safety/spec.md) | Current product specification | Defines explicit opt-in, key/origin validation, bounded event collection, and privacy-safe defaults. |
 | [scheduled-report-automation](./product/features/scheduled-report-automation/spec.md) | Current product specification | Defines daily/weekly Reports scheduling with missed-occurrence skip semantics. |
+| [system-status-storage](./product/features/system-status-storage/spec.md) | Current product specification | Defines per-module SQLite self-reporting and the status-page module database panel. |
 | [module-log-diagnostics](./product/features/module-log-diagnostics/spec.md) | Current product specification | Defines fixed module log viewing, bounded Blob archive integrity, and preview-confirm cleanup. |
 | [admin-maintenance-tasks](./product/features/admin-maintenance-tasks/spec.md) | Current product specification | Defines the bounded Admin maintenance task console surface, states, and acceptance. |
 | [metric-card-visual-consistency](./product/features/metric-card-visual-consistency/spec.md) | Current product specification | Defines the shared metric-card hierarchy and route alignment rules for Dashboard, Monitoring, and Analytics. |
