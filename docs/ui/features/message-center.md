@@ -1,12 +1,9 @@
 # Message Center UI
 
-Status: P5a and P5b durable-inbox backend contracts, P7a Access session
-authority, and P7b backend SSE are implemented and verified locally through
-source tests, independent review, and a selected-composition Linux runtime
-gate. The P7 message-center and realtime contract below is frozen. P7c Web is
-implemented and locally verified at source, type-check, full-build,
-selected/pure-composition and disposable Linux Chromium layers. The published
-browser evidence is `target/rz/message-center-browser/current/manifest.json`.
+Status: durable inbox, Access session authority, backend SSE and the Web shell are
+implemented. Their recorded source, Linux runtime and Chromium evidence is supporting
+feature evidence; the current full-release candidate still requires integration
+acceptance.
 
 ## Product boundary
 
@@ -16,15 +13,10 @@ state; it never carries message bodies or replaces reconciliation. No fifth
 resident service, email, SMS, mobile push, webhook or generic workflow is part
 of this feature.
 
-When notifications are omitted from a composition, its Admin schema, API
-routes, Web roots, timers and service startup contain no message-center owner.
-Monitor incidents and Reports runs retain their existing pages, but omitted
-compositions show no delivery health or delivery card. Only a
-notifications-capable selection may show the compact authorized aggregate; it
-adds neither a menu nor payload display.
-P5a adds only the selected backend schema and authenticated read APIs. It does
-not add a hidden bell, empty placeholder, polling task or disconnected Web
-route before the Web slice is implemented.
+Notifications ship in the complete release. Runtime module state and current user
+authorization determine whether the bell, inbox data, delivery health and subject
+navigation are available. Hiding the surface does not remove its signed files or
+create another Web build.
 
 ## P5a API-owned states
 
@@ -48,15 +40,14 @@ route before the Web slice is implemented.
   out-of-range or cross-user query state returns the JSON 400 envelope without
   inbox data. Notification response items never expose the internal sequence.
 
-## P7 composition and shell ownership
+## Shell ownership
 
-The message-center Web root belongs to `notifications`. A selected build mounts
-its shell contribution beside the common layout; the common `BaseLayout` must
-not statically import the bell, inbox client, SSE parser or notification route.
-A composition without notifications therefore has no bell placeholder, hidden
-route, client chunk, API owner, connection task or configuration lookup.
+The message-center Web root belongs to `notifications`. The complete Web application
+mounts its shell contribution beside the common layout. Runtime module state and
+authorization control whether the surface is active; the common layout does not own
+notification persistence or authorization.
 
-The selected desktop header places one icon-only bell action with an accessible
+The desktop header places one icon-only bell action with an accessible
 name before the existing theme/account actions. The unread badge displays
 `1..99` and `99+`; zero hides it. Activating the bell opens a standard Ant
 Design Drawer at full viewport height with its default modal mask; it preserves
@@ -96,9 +87,9 @@ field. The Monitor route must resolve that exact incident through its authorized
 API and treat 403/404 as inaccessible without falling back to another incident.
 Unknown producer/topic/subject combinations have no navigation action.
 
-## P7 realtime contract (P7b backend and P7c Web implemented locally)
+## Realtime contract
 
-Notifications-selected Admin exposes `GET /api/notifications/stream` as one
+Admin exposes `GET /api/notifications/stream` as one
 direct authenticated fetch-SSE endpoint. The Bearer JWT and optional
 `Last-Event-ID` are headers; query credentials are forbidden. It emits an
 initial revision hint, advisory revision invalidations, 15-second heartbeats and
@@ -135,8 +126,7 @@ failure returns `503`. `429`/`503` carry the JSON error envelope and
 expiry, database failure, shutdown or client cancellation. Tests must cover
 initial revision, ignored `Last-Event-ID`, post-commit admission/read/retention
 invalidations, lag reconciliation, exact quota release, unpolled/drop cleanup
-and bounded connection age,
-all status/header cases, OpenAPI ownership and pure-composition absence.
+and bounded connection age, all status/header cases and OpenAPI ownership.
 
 ## Existing durable behavior
 
@@ -145,17 +135,12 @@ create a user-facing partial message. Existing inbox rows remain readable while
 new notification admission is paused. Duplicate producer retries remain
 idempotent, and the UI never infers delivery from an event that was rejected.
 
-P7c source tests exercise the streaming parser, transport policy, lifecycle
-seams, fixed subject mapping and UI state ownership. The full Web build and both
-`monitor-notify` and pure `monitor` selected builds pass; the pure artifact has
-no notification-owned source module, API path, schema object, ingress listener
-or message-center shell. The published disposable `linux/arm64` Chromium gate
+Source tests exercise the streaming parser, transport policy, lifecycle seams, fixed
+subject mapping and UI state ownership. The recorded disposable Linux Chromium gate
 passes eleven desktop/mobile journeys, direct and same-origin-proxy SSE
 preflights, one browser-origin stream per journey, event-driven durable
 count/list reconciliation, stream-401 login recovery, durable
 loading/empty/paging/read states, 403 clearing, in-app Monitor incident deep
-linking, exact screenshots and owned-container cleanup. Global-1,000 sustained
-load, native systemd, production reverse-proxy and production deployment remain
-pending for P8 or target-environment acceptance.
-Monitor and Reports producer delivery remains P6 and does not depend on a
-browser connection.
+linking, exact screenshots and owned-container cleanup. Global-1,000 sustained load,
+native systemd, production reverse-proxy and production deployment remain unverified.
+Monitor and Reports producer delivery does not depend on a browser connection.

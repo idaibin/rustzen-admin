@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-22
+
 ### Added
 
 - Added `docs/product/product.md` as the current product foundation and fact
   source for positioning, direction, module purposes, and product non-goals.
 - Added independently consumable product specifications for role definition
   management and user role-assignment readiness.
+- Added one signed full-server bundle containing Web, Admin, Monitor, Insights,
+  Reports, and the `rz` lifecycle CLI.
+- Added the canonical `rz-full.service` target and update/recovery units for the
+  four independent services.
+- Added release screenshots for all 19 authenticated business routes.
 
 ### Changed
 
@@ -39,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deserialization contract in `crates/ipc`.
 - Documented the current product boundary, shared-capability gate, verified
   reuse index, and live former-product comparison for future module work.
+- Standardized fresh deployment on `/opt/rz`, one generated installer, `rz start`,
+  `rz stop`, `rz restart`, and `rz status`.
 
 ### Fixed
 
@@ -58,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manual menus and module-owned capabilities.
 - Restored operation-log coverage for authenticated module enable and disable
   requests, and moved the module-health response DTO to the Modules owner.
+- Fixed the four-service verification fixture to write module logs into each
+  service's owned log directory.
 
 ### Removed
 

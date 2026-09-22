@@ -1,9 +1,0 @@
-version: 3
-status: historical-superseded
-role: legacy-task-pointer
-references:
-  - source: DESIGN.md
-    use: current-shared-visual-authority
-  - source: docs/product/product.md
-    use: current-product-foundation
-note: Historical theme.css visual-source declarations are not authority.

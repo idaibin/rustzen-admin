@@ -11,6 +11,5 @@ Reference files are optional context. They are not the primary source of truth.
 | [api-camelcase-audit.md](./api-camelcase-audit.md) | API appendix | Helps review Rust-to-frontend JSON casing. |
 | [workspace-root-impl.md](./workspace-root-impl.md) | Runtime appendix | Helps inspect runtime path derivation. |
 | [code-review-checklist.md](./code-review-checklist.md) | Review appendix | Helps run a focused review without rereading every guide. |
-| [legacy-module-comparison.md](./legacy-module-comparison.md) | Module-evolution evidence | Fixes live former-product revisions and capability-level migration decisions. |
 
 Use `reference/` only when the task needs deeper context than `architecture.md` and `guides/`.

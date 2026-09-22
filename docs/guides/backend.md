@@ -12,14 +12,9 @@ Rules for Rust backend work under `apps/admin/`, `apps/monitor/`,
 - Applications do not call another application's repo or database.
 - Shared request contracts and HMAC delegation live in `crates/ipc/`; shared
   auth policy lives in `crates/auth/`.
-- Admin has three mutually exclusive source compositions. The default `full`
-  feature retains the complete current Admin behavior. The reviewed selected
-  compositions are `monitor-distribution` and `analytics-distribution`; each
-  retains access, its one selected module gateway and its composition-qualified
-  Web artifact. They use `migrations/sqlite-monitor` and
-  `migrations/sqlite-analytics` respectively as final fresh-install schemas.
-  Validate them with `just verify-monitor-admin` and
-  `just verify-analytics-admin`.
+- Admin ships only the complete server composition. Runtime module enablement and
+  authorization may hide behavior, but the signed release always contains the same
+  Admin, Monitor, Insights, Reports and Web inventory.
 
 ## Feature layers
 

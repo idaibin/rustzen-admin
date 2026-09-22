@@ -8,8 +8,6 @@
 - Selection status: accepted existing product surface; repository-owned source.
 - Use: current route composition and the shared owners referenced from root
   `DESIGN.md`, plus the bilingual copy pattern.
-- Ignore: deleted legacy glass imagery and any visual alternative that is not
-  part of the current standard light/dark Admin system.
 - Product basis:
   `docs/product/features/role-definition-management/spec.md`.
 

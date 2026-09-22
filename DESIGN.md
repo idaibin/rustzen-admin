@@ -266,24 +266,27 @@ persistent shell surfaces to their shared fill, sizing, and inset semantics.
 
 - The sidebar brand uses a stable 28px logo; brand text is the source-owned 16px semibold label.
   Logo and text share one visual centerline.
-- Navigation icons use the installed Ant Design icon rendering and one coherent outline family.
-- Ant Design route items render the repository-provided icon for both parent and child
-  items. Do not strip child icons or replace the Ant Design Menu with a parallel list.
+- Navigation icons use `lucide-react` and one coherent outline style. Every sidebar
+  destination has a function-specific icon; parent groups and child routes do not reuse
+  one generic module icon.
+- Ant Design route items render the repository-provided Lucide icon for both parent and
+  child items. Do not strip child icons or replace the Ant Design Menu with a parallel list.
 - An expanded parent stays transparent. When a descendant is active, parent icon, label,
   and chevron use `primary`, but only the active child gets `selected-child` background.
 - `navigation-child-active` is the only shared filled child-navigation state.
 - Children use Ant Design Menu indentation and keep one stable label edge. They have no
   bullets, leading dots, tree rails, timelines, or icons outside the route-provided
-  Ant Design icon family.
+  Lucide icon family.
 - Chevron changes direction without shifting row geometry. Expanding one group must not
   change another primary row's height or padding.
 
 ### Iconography
 
-Use one outline family visually compatible with the repository-owned Ant Design Icons.
-Do not mix outline, filled, cartoon, 3D, or duotone families. The product owner is the
-repository frontend; library package rights govern reuse. When a required semantic icon
-is absent, use a reviewed icon from the same family rather than generating SVG source.
+Use one coherent outline treatment. Sidebar navigation uses Lucide; existing Ant Design
+control icons remain valid outside navigation. Do not mix outline, filled, cartoon, 3D,
+or duotone families within one surface. The product owner is the repository frontend;
+library package rights govern reuse. When a required semantic icon is absent, use a
+reviewed icon from the owning surface's family rather than generating SVG source.
 
 - Navigation and control icon sizing follows the owning Ant Design component. Larger
   factual summary icons are allowed only when the owning shared component defines them.

@@ -237,9 +237,9 @@ multi-host networking, production TLS, or the complete Monitoring visual matrix.
 ## Node onboarding
 
 Nodes exposes Add node to monitor:manage users. Production onboarding is an offline,
-signed installation flow: apply the signed node-agent archive with its manifest,
-envelope, trusted public key and key ID; create the fixed service identity; prepare
-access; pin the signed Controller tuple; provision a root-only four-key source file;
+signed installation flow: apply the signed node-agent package once using the official
+public key built into `rz`; create the fixed service identity; prepare access; pin the signed full
+Controller bundle plus HTTPS endpoint using the retained Agent trust key; provision a root-only four-key source file;
 then activate the selected unit. The console does not receive the archive paths or
 signature inputs, so it must show these actionable prerequisites and must not generate
 a direct `rz-monitor-agent` command. A token is never rendered, copied, logged, or

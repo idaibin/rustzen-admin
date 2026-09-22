@@ -26,6 +26,5 @@ This is a short orientation map for current capability ownership. Source code, `
 - Do not create `rbac`, `audit`, `runtime`, or other new top-level feature folders just to match capability names.
 - Keep current carriers in place until a real implementation need requires a new owner.
 - When backend contracts move, update matching frontend API modules and types in the same task.
-- Automation is not a separately shipped module, and Report Center has no
-  current capability owner. Use `docs/product/product.md` and
-  `docs/reference/legacy-module-comparison.md` before proposing either boundary.
+- Automation is not a separately shipped module. Product-boundary changes require
+  an approved feature specification grounded in the current repository.

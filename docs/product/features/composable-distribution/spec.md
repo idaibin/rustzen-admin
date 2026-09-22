@@ -1,52 +1,37 @@
-# Composable distributions and notifications
+# Full distribution and notifications
 
-Status: implementation underway; the Monitor server P1-P4 and notification
-P5-P7 closures are implemented and verified, and local P8 certification is
-complete for the monitor and analytics selections.
-Selected native staging emits only the resolver-selected payload into
-`target/distributions/.native-staging/<buildId>/<target>/<artifactClass>/payload`; it excludes
-secret environment values, installer state, archive envelopes and non-selected services.
-The P4 fresh-root installer is a non-resident Linux `rz` command. It accepts a
-selected release triplet plus an independently supplied trusted public key and
-key ID, verifies it before writing a destination, and publishes only a verified
-Monitor server or Agent payload. It does not start systemd units, initialize a
-database, upgrade an existing root, roll back, or restore data in this closure.
-If payload publication is interrupted, a root-owned fresh-root sibling journal with
-a random work-root nonce permits only a retry of the same revalidated archive,
-signature envelope and manifest tuple for that destination. Before payload writes,
-the installer creates and fsyncs a root-owned descriptor-relative work-root marker
-with that nonce. Retry deletes a work root only after its marker matches the journal.
-The final publication marker persists the complete tuple and nonce as a completion
-credential, so retries after either cleanup boundary converge only for that tuple.
-A different tuple, unsafe journal or replaced work root fails closed. Continuation
-does not make the payload runnable. A separate root-only
-`rz activate-monitor-server` phase binds fresh databases to the signed release,
-rejects excluded-service residue, installs the selected units, starts and enables
-`rz.target`, and records readiness only after process, health and owner checks.
-Decision date: 2026-09-03.
-
-The user has authorized architecture design for a complete distribution and
-physically pruned distributions, including monitoring alone, together with ten
-ChatGPT review rounds. This changes the future distribution objective. It does
-not claim that the current four-service implementation is already composable.
+Status: first-release contract and implementation are being closed to one complete
+signed distribution. Current-source local release acceptance is pending a new build,
+privilege-boundary hardening and target-like rerun. External publication and deployment
+remain separate environment-owner actions.
 
 ## Outcome
 
-A developer can choose a supported set of product capabilities and build one
-complete, signed product distribution with explicit host prerequisites. A full distribution includes all shipped
-capabilities. A monitoring distribution includes server monitoring and its
-essential access/security prerequisites. Unselected product capabilities do not
-exist in its executable dependency closure, Web assets, HTTP routes, capability
-catalog, schema, configuration, service units, or installed files.
+A developer builds one complete, signed product distribution with explicit host
+prerequisites. It contains Admin, Monitor, Insights, Reports, the Web application,
+notifications and the existing administration surfaces under one version and rollback
+boundary. All product modules are installed and enabled by default. The owner may
+disable an installed module without changing the signed installed inventory.
 
-The source template remains complete. Physical exclusion applies to the built
-and installed product, not deletion of reusable source from this repository.
+The operator journey is one path:
+
+1. build the complete signed bundle;
+2. copy the bundle and packaged installer to the server;
+3. run the installer with the bundle path;
+4. optionally edit ordinary runtime settings;
+5. run `rz start` and observe all four services healthy.
+
+The installer accepts no password or key arguments. The build supplies the public
+release verification key, and the signing private key never enters the bundle.
+Internal JWT, IPC, Agent and notification secrets are generated locally during a
+fresh installation. Monitor creates, migrates and validates its own fresh database
+when the controller starts; its internal database lifecycle is not an operator task.
 
 ## Scope and ownership
 
 | Capability | Owner | Included behavior |
 | --- | --- | --- |
-| Access foundation | Admin entry host | Login, account/session lifecycle, local roles and grants with essential access-settings UI, minimal security audit, selected-product navigation, Web hosting and gateway |
+| Access foundation | Admin entry host | Login, account/session lifecycle, local roles and grants with essential access-settings UI, minimal security audit, current module navigation, Web hosting and gateway |
 | Server monitoring | Monitor | Current Agent reports, nodes, resource samples, alert policies, incidents and daily summaries |
 | Product analytics | Insights | Current bounded collection, overview, details and retention |
 | Browser reporting | Reports | Current targets, flows, runs, artifacts, frames and bounded scheduling |
@@ -54,7 +39,7 @@ and installed product, not deletion of reusable source from this repository.
 | Administration console | Admin optional features | Module presentation controls, system diagnostics and general administration dashboard; essential account/role settings remain in access |
 | Release management UI | Admin optional feature | Existing signed-bundle management, restricted to the installed distribution identity |
 | Generic task administration | Admin optional feature | Existing Admin task administration; distinct from Reports schedules |
-| Operation-log console | Admin optional feature | Existing operation-log browsing and selected-service diagnostics |
+| Operation-log console | Admin optional feature | Existing operation-log browsing and module-service diagnostics |
 
 No new analytics families, Reports credentials, Report Center, email, SMS,
 mobile push, arbitrary webhook execution, plugin marketplace, WASM runtime,
@@ -62,28 +47,27 @@ multi-tenancy, operating-system abstraction, cluster scheduler, or general
 workflow engine is implied by "full". Target full means the enumerated existing
 capabilities plus the notification slice defined here.
 
-Notifications are an authorized capability — the preceding user request
-explicitly asked to integrate SSE with the message center and alerts — and its
-P5-P7 gates have since passed local source, runtime and browser acceptance,
-while production deployment stays Not verified. The full distribution includes
-this slice and the pure monitor preset physically omits it. Physical
-distribution pruning was accepted before notifications; the existing full
-behavior baseline must remain independently testable.
+Notifications are part of the complete distribution. Their focused source, runtime
+and browser evidence remains supporting input, but it does not certify the current
+dirty full-release candidate. External production deployment remains Not verified.
 
-P5 is split into bounded delivery slices. P5a owns the composition-selected
-Admin fresh-schema fragment and authenticated personal-inbox read state: list,
-unread count, detail, idempotent single read, and sequence-bounded read-all.
+The installed release configuration contains every production secret required by
+the enabled notification paths. Admin and Monitor consume one shared notification
+event key. Admin and Reports consume one separate shared Reports notification event
+key. The installer generates and writes these values atomically; operators do not
+fill secret placeholders or discover them through successive service failures.
+
+P5 is split into bounded delivery slices. P5a owns the Admin notification schema
+and authenticated personal-inbox read state: list, unread count, detail,
+idempotent single read, and sequence-bounded read-all.
 Every operation rechecks the enabled user, current database grants, and enabled
-producer module in one Admin database snapshot. The `monitor-notify` Admin
-binary applies and verifies both the base and notification migration ledgers;
-the formal contract producer builds that exact feature selection and exports
-base Admin and notification route owners separately from their registered Rust
-routes. P5a added no notification configuration fields. P5b adds a selected
-`notifications` configuration owner for the Admin-owned logical budgets,
-128 MiB filesystem reserve and sustained WAL-pressure threshold; pure
-`monitor` omits that descriptor and every field. P5b implements retention and
-admission behind an internal service. Producer ingress/relay and SSE remain
-P6/P7 work. The corresponding UI
+producer module in one Admin database snapshot. Admin applies and verifies the
+base and notification migration ledgers, while its formal contract exports base
+and notification route owners separately from their registered Rust routes. P5a
+added no notification configuration fields. P5b adds the `notifications`
+configuration owner for the Admin-owned logical budgets, 128 MiB filesystem
+reserve and sustained WAL-pressure threshold. P5b implements retention and
+admission behind an internal service. The corresponding UI
 states and deferred shell work are fixed in
 [Message Center UI](../../../ui/features/message-center.md).
 
@@ -91,8 +75,8 @@ P5b owns an internal Admin admission service only. It checks a durable
 trigger-maintained accounting singleton and commits receipt, message, recipient
 and user-revision changes in one immediate SQLite transaction. Expired history
 is excluded by the same injected-clock cutoff at every read entry before its
-bounded physical reclamation. The selected Admin process performs one bounded
-cleanup at startup and one per hour; admission may independently commit up to
+bounded physical reclamation. Admin performs one bounded cleanup at startup and
+one per hour; admission may independently commit up to
 eight bounded cleanup rounds before reopening its final write transaction.
 Existing receipts are rechecked at each transaction boundary before expiry,
 storage or budget admission checks. The final transaction resolves the exact
@@ -114,13 +98,8 @@ HTTP loopback origin/path is parsed rather than
 prefix-matched. A previous signing key is accepted only through an explicit
 cutoff no more than 120 seconds after ingress startup. Terminal results delete
 the pending payload, and bounded status/quarantine counters expose delivery gaps.
-This adds no fifth service. Pure `monitor` has no outbox schema, relay task,
-ingress/config owner or notification transport dependency. Reports producer
-delivery and trusted initiator persistence remain outside P6a.
-
-The full/default Monitor build selects notifications. The explicit pure
-`--no-default-features --features controller` build remains the negative
-composition and must continue to omit every notification-owned artifact.
+This adds no fifth service. Reports producer delivery and trusted initiator
+persistence remain outside P6a.
 
 P6b adds the Reports producer without broadening the notification product.
 The verified delegated user that creates a manual run, or creates a retry run,
@@ -131,72 +110,28 @@ event and one outbox row in the same Reports transaction. Repeated cancellation,
 recovery of an already-terminal run and a completion/cancellation race therefore
 allocate no second event. Admin treats the stored initiator as a candidate only
 and rechecks the current enabled user, current `reports:run:view` grant and
-enabled Reports module in the admission transaction. The full/default Reports
-build selects this adapter; the explicit no-default Reports build retains the
-nullable run provenance column but has no outbox ledger, relay/config/diagnostic
-route or notification task. Reports execution never waits synchronously for
-Admin delivery.
+enabled Reports module in the admission transaction. Reports execution never
+waits synchronously for Admin delivery.
 
-## Distribution presets
+## Release composition
 
-| Preset | Product capabilities | Server processes | Databases |
+| Release | Product capabilities | Server processes | Databases |
 | --- | --- | --- | --- |
 | `full` | All rows above | Entry host, Monitor, Insights, Reports | Admin, Monitor, Insights, Reports |
-| `monitor` | Access foundation + monitoring | Minimal entry host + Monitor | Minimal Admin schema + Monitor |
-| `monitor-notify` | `monitor` + message center | Minimal entry host + Monitor | Minimal Admin schema with inbox + Monitor with outbox |
-| `analytics` | Access foundation + analytics | Minimal entry host + Insights | Minimal Admin schema + Insights |
-| `reports` | Access foundation + browser reporting | Minimal entry host + Reports | Minimal Admin schema + Reports |
-| `custom` | Explicit validated selection | Entry host + selected services | Only selected owners and schema fragments |
 
-These are presets over one finite capability catalog, not separately maintained
-products. There is one source implementation per behavior and one release
-version per installed distribution. No fifth resident notification service is
-needed. The node Agent is a separate, non-Web deployment artifact.
+There is one source implementation per behavior and one release version per installed
+distribution. No fifth resident notification service is needed. The node Agent remains
+a separate non-Web deployment artifact.
 
-The monitoring preset's entry host is intentionally retained for authenticated
-access and operations. Its signed server payload becomes runnable only through
-`rz activate-monitor-server --config <root-only-file>`, fixed to `/opt/rz`.
-It owns only Admin and Monitor, their selected configurations, fresh schemas and
-`rz.target`; it cannot activate the full deployment, Reports, Insights, Agent,
-notification or message-center features. Its binary name does not authorize retaining the full Admin product:
-there must be no release-management API, task console, analytics/reporting
-route, browser automation dependency, general dashboard, or unused schema.
-Its installation default landing page is Monitoring; users without Monitor access
-land on an authorized access setting or their own profile. Access settings are restricted to the minimum
-needed to administer the installation securely. A one-process monitoring
-appliance is an evaluated alternative, not an additional initial topology.
-
-## Meaning of absence
-
-1. An omitted service has no binary/image, service unit, process, port, database,
-   background task, periodic health request, or required secret.
-2. An omitted local feature has no handler registration, capability declaration,
-   SQL tables/indexes/seeds, Web route, chunk, image, API client in the product
-   build graph, or feature-owned runtime dependency.
-3. Requests to omitted API namespaces return 404, including requests from the
-   owner. They never fall through to the SPA HTML fallback.
-4. Navigation, search, role selectors and command help contain only installed
-   features. No disabled placeholders or "not installed" advertising panels.
-5. An installed-but-unavailable service remains visible to authorized users and
-   returns a useful unavailable state. Absence, disabled state, lack of
-   permission and service outage are different conditions.
-6. Optional settings are rejected when their owner is absent. An environment
-   variable cannot load code omitted at build time.
-
-Essential infrastructure shared with a selected feature is allowed. For
-example, HTTP, TLS, SQLite and authorization remain necessary for monitoring.
-The absence test uses feature ownership and dependency reachability, not a
-ban on common library names.
+Installed inventory, runtime enablement, service availability and user authorization
+remain independent states. Disabling a module removes its navigation and gateway
+access. An enabled module whose service is unavailable remains visible to authorized
+users and returns a useful unavailable state. User permissions continue to apply only
+to enabled installed behavior.
 
 ## Notification journeys
 
-### Monitoring without a message center
-
-An operator reads active and resolved incidents in Monitoring. Detection and
-history work even though no inbox, unread badge, SSE endpoint, delivery worker,
-or notification outbox exists. Existing bounded polling remains valid.
-
-### Monitoring with a message center
+### Monitoring message center
 
 1. An accepted Agent report or offline scan changes an incident lifecycle.
 2. Monitor commits the incident and its notification event in the same database
@@ -224,63 +159,23 @@ running cancellation emits only when execution actually enters `cancelled`.
 
 ## Acceptance and release boundary
 
-The initial acceptance target is a fresh installation. The existing template's
-no-legacy-migration rule remains: do not add a historical upgrade framework or
-delete existing developer databases. Any install-time mismatch with an existing
-schema fails before writes.
-
-A different capability selection is a different distribution identity. Changing
-an existing installation from full to monitor is not a runtime toggle or an
-implicit destructive uninstall. Initial support is a fresh target directory;
-the old installation is preserved and cannot share live database files with
-the new one. The current AGENTS.md requires fresh baselines only: different
-builds use fresh installation data. Historical upgrade and rollback compatibility
-are excluded. Only restarting or recovering an interrupted installation of the
-same exact release tuple may reuse its own fresh publication state; this does
-not reuse or initialize a database. See [implementation](implementation.md)
-for the current execution plan and the correction to the reviewed alternative.
+Initial acceptance uses a fresh target directory and fresh databases. A release is
+accepted only when the package verifies without external key input, installation
+requires no secret input, `rz-full.service` starts all four services, each service reports
+the exact release version healthy, a host restart restores the same state, and a
+failed Admin API update restores the previous release and databases. See
+[implementation](implementation.md) for the current execution plan and
+[validation](validation.md) for the executable acceptance matrix.
 
 Quantitative reliability and load requirements are test targets, not measured
-claims. See [validation](validation.md). Ten actual, attributed ChatGPT responses
-were captured and reconciled. Final external verdict: design PASS WITH CHANGES;
-the last two local contract corrections are recorded in [review](review.md).
-The coordinator considers the design ready for slice-by-slice implementation.
-No compiled distribution or runtime acceptance is claimed.
-
-## Selected native layout contract
-
-The current Monitor native-layout contract is a canonical generated artifact.
-The server selection declares only `rz.target`, `rz-admin.service`, and
-`rz-monitor.service`, with `rz-admin.env` and `rz-monitor.env` scoped to their
-respective consumers. The node-agent selection declares only
-`rz-monitor-agent.service` and `rz-monitor-agent.env`. It is bound to the
-resolver composition, artifact class and configuration owners, and rejects
-foreign, duplicate, missing or stale members before package work. Its verified
-byte digest is part of the release manifest and build identity. This is not yet
-installer publication or a replacement for the existing full-layout files.
-The generated Monitor units retain service start limits and the Agent retains
-`network-online.target`; every service names its distinct non-root identity.
-Recovery/`ExecCondition` wiring is omitted until the fresh-root
-installer/recovery closure exists.
-
-## Selected protocol artifact
-
-The selected protocol producer runs the two real peer contract commands,
-requires identical canonical descriptor and digest output, and checks the pair
-against a reviewed version-controlled golden descriptor. Monitor uses Controller
-and Agent; Analytics uses Admin and Insights delegation. It writes one
-composition-qualified `contracts/protocol/protocol.json` for each supported
-selection. Release-manifest callers provide its root, not a protocol ID; the
-manifest and build identity derive the verified digest. This does not claim
-archive, signing, installer, or live pairing completion.
+claims. See [validation](validation.md). The first release is implemented as one
+complete signed distribution; its current source, artifact and target-like runtime
+evidence is recorded in the local verification guide. External production deployment
+remains unverified until an operator authorizes a real target host.
 
 ## Design package
 
 - [Implementation plan and current progress](implementation.md)
-- [Architecture and alternatives](architecture.md)
-- [Interfaces and persistence](contracts.md)
-- [Implementation slices and acceptance tests](validation.md)
-- [Community evidence and applicability](sources.md)
-- [Review record](review.md)
-
-Analytics P8b step 3 adds only a static Linux/amd64 BuildKit closure: exact Admin+Insights bytes, selected Web and five retained contracts. It does not certify runtime, signing, installer, browser or load behavior.
+- [Deployment architecture](../../../architecture.md#release-topology)
+- [Bundle, installation and update guide](../../../guides/deployment.md)
+- [Executable acceptance](validation.md)

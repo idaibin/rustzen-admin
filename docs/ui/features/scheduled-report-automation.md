@@ -14,9 +14,8 @@ change does not expand browser execution or rename existing child pages.
   surfaces in `apps/web/src/routes/reports/templates.tsx` and
   `apps/web/src/routes/reports/runs.tsx`, plus the repository-owned `DESIGN.md`
   adopted root `DESIGN.md` baseline.
-- Selection status: accepted existing product surface and Ant Design system.
-  Rights/use are repository-owned; former standalone report shells and visual
-  alternatives are ignored.
+- Selection status: accepted existing repository-owned product surface and Ant
+  Design system.
 - Target: schedule list/form integrated with existing Templates/Runs surfaces
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
@@ -164,8 +163,8 @@ a failed run and a skipped occurrence.
 The Runs list and Run audit detail show a bilingual Retry action only for
 `failed` and `cancelled` terminal runs and only behind `reports:run:manage`.
 While the request is pending, both the list and Run audit Retry controls for
-that source run are disabled. A successful retry selects the returned direct
-child and refreshes the list; a failure is visible through the existing message
+that source run are disabled. A successful retry immediately selects the returned direct
+child and reports success, then refreshes the list; a failure is visible through the existing message
 feedback without closing the source run. Repeating the action returns the same
 direct child even after it is terminal. To continue after a failed or cancelled
 child, the operator opens that child and retries it, extending the

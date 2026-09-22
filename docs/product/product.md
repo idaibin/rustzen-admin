@@ -9,15 +9,12 @@ authoritative for runtime and repository structure.
 
 ## Product boundary
 
-Future distribution direction (authorized 2026-09-03): the complete template
-must also support physically pruned product distributions, including server
-monitoring alone, with an optional durable message center and realtime delivery.
-The [composable-distribution design](features/composable-distribution/spec.md)
-defines the candidate boundaries and acceptance. The four-service descriptions
-below remain current implementation facts until that design is implemented;
-the new direction does not imply an OS, plugin platform or additional product
-families. Its ten external review rounds are complete; the linked record separates
-the final local corrections from unexecuted implementation/runtime acceptance.
+The supported first release is one complete signed distribution containing Admin,
+Monitor, Insights, Reports, the Web application and the durable message center.
+All three product modules are installed and enabled by default. The owner may disable
+an installed module at runtime, which removes its navigation and gateway access but
+does not change the signed installed inventory. The first-release acceptance boundary
+is the complete distribution.
 
 Rustzen Admin is primarily a lightweight, self-hosted operations and
 administration product for developer-operators and small technical teams. It is
@@ -36,6 +33,26 @@ version and one rollback boundary:
 
 The current product does not contain a fifth service, a dynamic plugin system,
 or independently versioned modules.
+
+The complete distribution uses one Ed25519 release signature and one deployment
+transaction. Its signed identity records separate `frontend` and `backend`
+digests so operators can distinguish the embedded Web build from the server
+executable set. These digests are audit identities, not independently deployable
+artifacts; frontend-only, backend-only, and mixed-version updates remain unsupported.
+
+The supported installation journey is deliberately short: build the complete
+bundle, copy it to a server, run its installer, and execute `rz start`. The
+installer does not ask for an administrator password, a signing key, a
+verification key, or database commands. It uses the release verification key
+packaged by the trusted build, generates service-to-service secrets locally,
+and prepares the fresh runtime layout. Each service owns creation and validation
+of its fresh SQLite database during startup. Operator configuration is limited
+to ordinary runtime overrides such as bind addresses, ports, paths and timezone.
+
+Admin API updates use the same packaged verification key and the existing
+owner-only deployment permission. A candidate is one complete release. It
+becomes current only after all four services pass health checks; otherwise the
+previous release and its database snapshots are restored.
 
 ## Target users, problems, and principles
 
@@ -180,9 +197,7 @@ Technical ownership and stable internal names are defined in
    component semantics, and design-approval records. A new or changed product
    surface still requires a scoped UI specification before frontend
    implementation; `docs/ui/features/*` may retain slice-local behavior and
-   acceptance evidence. Structured `docs/ui/` packages such as
-   `evaluation.yaml` and `artifact-manifest.yaml` are historical or task-local
-   evidence only and do not govern current approval.
+   acceptance evidence.
 7. Dashboard is a control-plane landing page: it shows account totals, module
    health, and a permission-gated summary of the Admin host's CPU, memory, and
    disk usage. Detailed storage and host-resource diagnostics remain owned by
@@ -200,11 +215,6 @@ Technical ownership and stable internal names are defined in
    integration or upgrade-compatibility contract and may be removed from the
    resettable baseline when schema cleanup is in scope.
 
-## Legacy-product decisions
-
-The evidence and path-level comparison are recorded in
-[`legacy-module-comparison.md`](../reference/legacy-module-comparison.md).
-
 ### Monitoring
 
 Monitoring is defined by
@@ -214,15 +224,11 @@ Controller-owned 30-day data, policy, incident, and report model. Agents report
 CPU, memory, and per-mount disk usage every 30 seconds; they do not receive
 configuration or execute configurable checks.
 
-The former `rustzen-inspect` remains only a behavior and failure-scenario
-reference. Do not copy its Admin, system, project, deployment, permission,
-runtime-layout, protocol, or database layers. Monitoring alert policies and
-reports are authorized only within the Monitoring central ownership and
-retention rules. Notification delivery configuration and reports beyond the
-30-day data window are not Monitoring capabilities; authorized operators can
-read aggregate delivery health for existing Monitoring incidents only in a
-notifications-capable selection. Omitted-notification selections render no
-delivery-health card or endpoint.
+Monitoring alert policies and reports are authorized only within the Monitoring
+central ownership and retention rules. Notification delivery configuration and
+reports beyond the 30-day data window are not Monitoring capabilities; authorized
+operators can read aggregate delivery health for existing Monitoring incidents
+only when notification delivery is available.
 
 The Monitor delivery-card Linux Chromium extension has a local, checkout-bound
 closure: it passes only when
@@ -230,36 +236,27 @@ closure: it passes only when
 checkout and has `status: "passed"`. That evidence validates 23 canonical
 route runs, 18 owner and 26 viewer delivery steps, four screenshots, real
 Monitor SQLite and authorized API receipts, permission behavior, and either
-zero retries or a recorded single retry receipt. Pure Monitor absence remains a
-selected-Web composition-gate result.
+zero retries or a recorded single retry receipt. Runtime module disablement remains
+covered by the complete Web application's module-state and authorization gates.
 
 ### Analytics
 
-Retain the current single-project, instance-wide Analytics behavior. The former
-`rustzen-analytics` is the reference for a possible multi-project evolution:
-project lifecycle, stable project keys, browser-origin and application-package
-allowlists, bounded ingestion, aggregation, and richer project queries.
+Retain the current single-project, instance-wide Analytics behavior.
 
 Multi-project behavior changes event identity, permissions, navigation, and
-data ownership. It requires one dedicated feature specification and migration
-plan before implementation. The old repository's duplicate Admin and deploy
-features must not return.
+data ownership. It requires one dedicated feature specification before
+implementation.
 
 ### Reports and Automation
 
 Retain the current target, flow, run, step, screenshot, artifact, cancellation,
-and live-frame loop. The former `rustzen-report` is the behavior reference for
-possible account credentials, datasets, upload processing, a richer expression
-and group DSL, suspend/resume semantics, scheduled runs, and detailed live job
-events.
+and live-frame loop.
 
-Each capability is a separate feature slice. The old authentication, users,
-system settings, deployment, and application shell are rejected because Admin
-already owns them. The browser runtime stays Reports-owned until another real
-module needs the same semantics; it must not become a generic workflow engine
-in advance.
+Each capability is a separate feature slice. The browser runtime stays
+Reports-owned until another real module needs the same semantics; it must not
+become a generic workflow engine in advance.
 
-The selected bounded Reports automation slice is
+The bounded Reports automation slice is
 [`scheduled-report-automation`](./features/scheduled-report-automation/spec.md):
 daily and weekly schedules around existing target-backed flows, installation
 timezone, missed-occurrence skip semantics, and one ordinary run per enqueued
@@ -276,9 +273,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 ## Non-goals
 
-- Whole-repository source copying from a former product.
-- Compatibility wrappers for former HTTP paths, database names, binaries, or
-  deployment layouts.
 - A universal business status enum, CRUD framework, form DSL, dashboard
   builder, repository layer, or workflow engine.
 - A generic dictionary administration surface without a current product
@@ -291,8 +285,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 - Confirmed: the current product has Admin, Monitoring, Analytics, and Reports
   in one release; Automation remains part of Reports.
-- Confirmed: former products are capability evidence, not whole-product
-  migration targets.
 - Confirmed: Dashboard includes account totals, module health, and the three
   key Admin-host resource percentages for operators who can view System
   Status; detailed resource and product telemetry stay on their owning pages.
@@ -309,8 +301,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
   notifications, or webhooks.
 - Assumption: the primary adopter is a developer-operator or small technical
   team managing one installation.
-- Assumption: the named former repositories remain the best product-behavior
-  references. Revalidate their live default branches before each slice.
 - Open: which retained journey currently causes the most user friction and
   should receive the next bounded feature specification.
 - Open: which deferred capability becomes the first implementation slice.
@@ -357,7 +347,7 @@ Before implementation begins, a module proposal must provide:
 
 ## Ready verdict
 
-Ready for legacy comparison and feature-specification slices.
+Ready for feature-specification slices.
 
 Not ready for direct implementation of multi-project Analytics, expanded
 Reports automation, Report Center, or a fifth module. Each remains deferred

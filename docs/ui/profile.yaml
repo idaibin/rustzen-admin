@@ -1,5 +1,0 @@
-version: 3
-status: historical-superseded
-role: legacy-task-pointer
-shared_visual_authority: DESIGN.md
-note: This sidecar preserves the existence of a superseded UI-standardization task only; it defines no tokens, component semantics, state matrix, viewport contract, or approval.
