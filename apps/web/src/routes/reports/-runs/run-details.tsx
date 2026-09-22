@@ -5,6 +5,8 @@ import { useMemo } from "react";
 
 import { reportsAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
+import { formatDuration } from "@/lib/format";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
@@ -68,7 +70,7 @@ export function RunDetails({
             title: t("耗时", "Duration"),
             key: "durationMs",
             width: 110,
-            render: (_: unknown, row) => `${row.durationMs ?? 0} ms`,
+            render: (_: unknown, row) => formatDuration(row.durationMs),
         },
         {
             title: t("消息", "Message"),
@@ -110,7 +112,7 @@ export function RunDetails({
             width={900}
             title={t("执行审计", "Run audit")}
         >
-            <span hidden data-testid="run-audit" data-run-id={currentRun?.id} />
+            <span hidden data-testid="run-audit" data-run-id={run?.id} />
             {runError ? (
                 <DataState
                     kind="error"
@@ -174,10 +176,7 @@ export function RunDetails({
                     dataSource={steps}
                     search={false}
                     options={false}
-                    pagination={false}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
+                    {...displayTableProps}
                     locale={{
                         emptyText:
                             steps.length === 0 ? (
@@ -202,15 +201,8 @@ export function RunDetails({
                     dataSource={artifacts}
                     search={false}
                     options={false}
-                    pagination={false}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText: (
-                            <DataState kind="empty" title={t("暂无产物", "No artifacts")} compact />
-                        ),
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(t("暂无产物", "No artifacts"), { compact: true })}
                 />
             </div>
         </Modal>

@@ -4,6 +4,7 @@ import { Button, Form, Input, Modal, Select } from "antd";
 import { useEffect, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { t } from "@/lib/i18n";
 
 const example: Reports.FlowStep[] = [
@@ -109,19 +110,13 @@ export function FlowDialog({
                             onChange={(event) => setJson(event.target.value)}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button type="default" onClick={() => setOpen(false)}>
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button
-                            type="primary"
-                            loading={mutation.isPending}
-                            disabled={!name || !systemId}
-                            onClick={save}
-                        >
-                            {t("校验并保存", "Validate and save")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => setOpen(false)}
+                        submitLabel={t("校验并保存", "Validate and save")}
+                        submitting={mutation.isPending}
+                        submitDisabled={!name || !systemId}
+                        onSubmit={save}
+                    />
                 </Form>
             </Modal>
         </>

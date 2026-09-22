@@ -3,13 +3,10 @@ import { expect, test } from "bun:test";
 import { Tag } from "antd";
 
 import { AuthWrap } from "@/components/auth";
+import { StatusTag } from "@/components/status-tag";
+import { getEnableStatusMeta, getMenuTypeMeta } from "@/constant/options";
 
-import {
-    MenuActions,
-    MenuStatusBadge,
-    MenuTypeBadge,
-    type DisplayMenuItem,
-} from "./-menu-components";
+import { MenuActions, type DisplayMenuItem } from "./-menu-components";
 
 const record = {
     id: 1,
@@ -43,12 +40,12 @@ test("menu action remains limited to editable module rows", () => {
 });
 
 test("menu badges preserve known and unknown labels and colors", () => {
-    const directory = MenuTypeBadge({ menuType: 1 });
-    const button = MenuTypeBadge({ menuType: 3 });
-    const unknownType = MenuTypeBadge({ menuType: 99 });
-    const enabled = MenuStatusBadge({ status: 1 });
-    const disabled = MenuStatusBadge({ status: 2 });
-    const unknownStatus = MenuStatusBadge({ status: 99 });
+    const directory = StatusTag({ status: 1, meta: getMenuTypeMeta() });
+    const button = StatusTag({ status: 3, meta: getMenuTypeMeta() });
+    const unknownType = StatusTag({ status: 99, meta: getMenuTypeMeta() });
+    const enabled = StatusTag({ status: 1, meta: getEnableStatusMeta() });
+    const disabled = StatusTag({ status: 2, meta: getEnableStatusMeta() });
+    const unknownStatus = StatusTag({ status: 99, meta: getEnableStatusMeta() });
 
     for (const badge of [directory, button, unknownType, enabled, disabled, unknownStatus]) {
         expect(badge.type).toBe(Tag);
@@ -56,7 +53,7 @@ test("menu badges preserve known and unknown labels and colors", () => {
     expect([directory.props.color, directory.props.children]).toEqual(["default", "目录"]);
     expect([button.props.color, button.props.children]).toEqual(["green", "按钮"]);
     expect([unknownType.props.color, unknownType.props.children]).toEqual(["default", "未知"]);
-    expect([enabled.props.color, enabled.props.children]).toEqual(["green", "启用"]);
+    expect([enabled.props.color, enabled.props.children]).toEqual(["success", "启用"]);
     expect([disabled.props.color, disabled.props.children]).toEqual(["default", "禁用"]);
     expect([unknownStatus.props.color, unknownStatus.props.children]).toEqual(["default", "未知"]);
 });

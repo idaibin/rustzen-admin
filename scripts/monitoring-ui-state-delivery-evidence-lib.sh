@@ -26,7 +26,7 @@ delivery_flow() {
       .data as $flow | ($flow | keys | sort == ["createdAt","id","name","steps","systemId","updatedAt"])
       and ($flow.id | type == "string" and length > 0)
       and ($flow.name == ("Monitoring delivery: monitor-delivery-" + $actor))
-      and ($flow.steps | type == "array" and length == (if $actor == "viewer" then 26 else 18 end))
+      and ($flow.steps | type == "array" and length == (if $actor == "viewer" then 28 else 20 end))
       and (($flow.steps[0] | keys | sort) == ["action","locale","theme"])
       and $flow.steps[0].action == "setUiPreferences"
       and (($flow.steps[1] | keys | sort) == ["action","height","width"])
@@ -41,46 +41,51 @@ delivery_flow() {
       and ($flow.steps[7] == {action:"waitFor",selector:".shell-content"})
       and ($flow.steps[8] == {action:"goto",url:"/monitoring/incidents"})
       and ($flow.steps[9] == {action:"waitFor",selector:"[data-testid=notification-delivery-card]"})
-      and (($flow.steps[10:16] | map(.action))
-           == ["assertText","assertText","assertText","assertText","assertText","assertText"])
-      and (($flow.steps[10:16] | map(.selector))
-           == ["[data-testid=notification-delivery-card]","[data-testid=notification-delivery-card]",
-               "[data-testid=notification-delivery-card]","[data-testid=notification-delivery-card]",
-               "[data-testid=notification-delivery-card]","[data-testid=notification-delivery-card]"])
+      and ($flow.steps[10].action == "assertText"
+           and $flow.steps[10].selector == "[data-testid=notification-delivery-card]")
+      and ($flow.steps[11] == {action:"click",selector:"[data-testid=notification-delivery-gap]"})
+      and ($flow.steps[12] == {action:"waitFor",selector:".ant-popover:not(.ant-popover-hidden)"})
+      and (($flow.steps[13:18] | map(.action))
+           == ["assertText","assertText","assertText","assertText","assertText"])
+      and (($flow.steps[13:18] | map(.selector))
+           == [".ant-popover:not(.ant-popover-hidden)",".ant-popover:not(.ant-popover-hidden)",
+               ".ant-popover:not(.ant-popover-hidden)",".ant-popover:not(.ant-popover-hidden)",
+               ".ant-popover:not(.ant-popover-hidden)"])
       and (if $actor == "viewer" then
-          ($flow.steps[16] == {action:"waitFor",selector:".ant-table-row"})
-          and ($flow.steps[17] == {action:"assertText",
+          ($flow.steps[18] == {action:"waitFor",selector:".ant-table-row"})
+          and ($flow.steps[19] == {action:"assertText",
                selector:$incident_selector,text:"Fixture incident"})
-          and ($flow.steps[18] == {action:"assertElementLayout",
+          and ($flow.steps[20] == {action:"assertElementLayout",
                selector:".ant-table-thead th:not(.ant-table-cell-scrollbar)",elementCount:null,
                visibleCount:3,maxHeight:null,withinViewportRight:false,withinViewport:false})
-          and ($flow.steps[19] == {action:"assertElementLayout",
+          and ($flow.steps[21] == {action:"assertElementLayout",
                selector:".ant-table-thead .monitoring-incident-detail-column",elementCount:null,
                visibleCount:0,maxHeight:null,withinViewportRight:false,withinViewport:false})
-          and ($flow.steps[20] == {action:"assertElementLayout",
+          and ($flow.steps[22] == {action:"assertElementLayout",
                selector:".ant-table-thead .monitoring-incident-primary-column",elementCount:null,
                visibleCount:1,maxHeight:64,withinViewportRight:true,withinViewport:false})
-          and ($flow.steps[21] == {action:"assertElementLayout",
+          and ($flow.steps[23] == {action:"assertElementLayout",
                selector:".ant-table-tbody > tr.ant-table-row",elementCount:20,visibleCount:20,maxHeight:72,
                withinViewportRight:true,withinViewport:false})
-          and ($flow.steps[22] == {action:"assertElementLayout",
+          and ($flow.steps[24] == {action:"assertElementLayout",
                selector:".ant-table-body > table",elementCount:null,visibleCount:1,maxHeight:null,
                withinViewportRight:true,withinViewport:false})
-          and ($flow.steps[23] == {action:"assertElementLayout",
-               selector:".data-table-pagination .ant-pagination",elementCount:null,visibleCount:1,
+          and ($flow.steps[25] == {action:"assertElementLayout",
+               selector:"[data-testid=incidents-pagination] .ant-pagination",elementCount:null,visibleCount:1,
                maxHeight:null,withinViewportRight:true,withinViewport:false})
-          and ($flow.steps[24] == {action:"assertNoHorizontalOverflow"})
-          and ($flow.steps[25] == {action:"screenshotViewport",name:"monitor-delivery-viewer"})
+          and ($flow.steps[26] == {action:"assertNoHorizontalOverflow"})
+          and ($flow.steps[27] == {action:"screenshotViewport",name:"monitor-delivery-viewer"})
         else
-          ($flow.steps[16] == {action:"assertNoHorizontalOverflow"})
-          and ($flow.steps[17] == {action:"screenshotViewport",name:"monitor-delivery-owner"})
+          ($flow.steps[18] == {action:"assertNoHorizontalOverflow"})
+          and ($flow.steps[19] == {action:"screenshotViewport",name:"monitor-delivery-owner"})
         end)
       and (if $actor == "owner" then
           $flow.steps[0].theme == "dark" and $flow.steps[0].locale == "en-US"
           and $flow.steps[1].width == 1440 and $flow.steps[1].height == 900
           and $flow.steps[4].value == "owner" and $flow.steps[5].value == "rustzen@123"
-          and ($flow.steps[10:16] | map(.text))
-              == ["15 irreversible notification delivery gaps","Pending 2 (1024 B)","Quarantine 3 (2048 B)",
+          and $flow.steps[10].text == "15 irreversible delivery gaps"
+          and ($flow.steps[13:18] | map(.text))
+              == ["Pending 2 (1024 B)","Quarantine 3 (2048 B)",
                   "First gap 09/10/2026, 01:02:03 AM","Last gap 09/10/2026, 02:03:04 AM",
                   "Last success 09/10/2026, 03:04:05 AM"]
         else
@@ -88,8 +93,9 @@ delivery_flow() {
           and $flow.steps[1].width == 390 and $flow.steps[1].height == 844
           and $flow.steps[4].value == "monitor_incident_viewer"
           and $flow.steps[5].value == "monitor-incident-viewer-password"
-          and ($flow.steps[10:16] | map(.text))
-              == ["通知投递存在 15 个不可恢复缺口","待投递 2（1024 B）","隔离 3（2048 B）",
+          and $flow.steps[10].text == "通知投递存在 15 个不可恢复缺口"
+          and ($flow.steps[13:18] | map(.text))
+              == ["待投递 2（1024 B）","隔离 3（2048 B）",
                   "首个缺口 2026/09/10 01:02:03","最后缺口 2026/09/10 02:03:04",
                   "最后成功 2026/09/10 03:04:05"]
         end)
@@ -140,8 +146,8 @@ verify_delivery_health() (
         run=$(jq -er --arg key "$key" '.deliveryHealth[$key | sub("Steps"; "Run")]' "$manifest") || return 1
         jq -e --arg run "$run" --arg viewer "$viewer_run" '
           .data | [.[].action] == ["setUiPreferences","setViewport","goto","waitFor","fill","fill",
-            "click","waitFor","goto","waitFor","assertText","assertText","assertText","assertText",
-            "assertText","assertText"]
+            "click","waitFor","goto","waitFor","assertText","click","waitFor","assertText",
+            "assertText","assertText","assertText","assertText"]
           + (if $run == $viewer then ["waitFor","assertText","assertElementLayout","assertElementLayout",
               "assertElementLayout","assertElementLayout","assertElementLayout","assertElementLayout"] else [] end)
           + ["assertNoHorizontalOverflow","screenshotViewport"]

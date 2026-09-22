@@ -4,6 +4,7 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 
 import { monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { formatBytes } from "@/lib/format";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
@@ -141,15 +142,4 @@ function Usage({ usage, label }: { usage: Monitor.Usage; label?: string }) {
             <Progress percent={usage.usagePercent} size="small" />
         </Card>
     );
-}
-
-function formatBytes(bytes: number) {
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let value = bytes;
-    let index = 0;
-    while (value >= 1024 && index < units.length - 1) {
-        value /= 1024;
-        index += 1;
-    }
-    return `${value.toFixed(1)} ${units[index]}`;
 }

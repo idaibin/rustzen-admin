@@ -8,19 +8,16 @@ import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { getCoreNavigationItems } from "@/components/layout/routes";
 import { PageCard } from "@/components/page/page-card";
+import { StatusTag } from "@/components/status-tag";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { getEnableOptions } from "@/constant/options";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
+import { getEnableOptions, getEnableStatusMeta, getMenuTypeMeta } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
-import {
-    MenuActions,
-    MenuStatusBadge,
-    MenuTypeBadge,
-    type DisplayMenuItem,
-} from "./-menu-components";
+import { MenuActions, type DisplayMenuItem } from "./-menu-components";
 
 export const Route = createFileRoute("/system/menu")({
     component: MenuPage,
@@ -122,7 +119,7 @@ function MenuPage() {
                 key: "menuType",
                 width: 110,
                 render: (_: unknown, row: DisplayMenuItem) => (
-                    <MenuTypeBadge menuType={row.menuType} />
+                    <StatusTag status={row.menuType} meta={getMenuTypeMeta()} />
                 ),
             },
             {
@@ -131,7 +128,7 @@ function MenuPage() {
                 key: "status",
                 width: 110,
                 render: (_: unknown, row: DisplayMenuItem) => (
-                    <MenuStatusBadge status={row.status} />
+                    <StatusTag status={row.status} meta={getEnableStatusMeta()} />
                 ),
             },
             {
@@ -275,17 +272,12 @@ function MenuPage() {
                     search={false}
                     loading={pageFetching}
                     options={false}
-                    pagination={false}
                     scroll={{ y: "100%" }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText:
-                            tableRows.length === 0 ? (
-                                <DataState kind="empty" title={t("暂无菜单", "No menus")} compact />
-                            ) : undefined,
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(t("暂无菜单", "No menus"), {
+                        compact: true,
+                        visible: tableRows.length === 0,
+                    })}
                 />
             </DataTableShell>
         </PageCard>

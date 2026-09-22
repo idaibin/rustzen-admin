@@ -9,7 +9,6 @@ publish = false
 [features]
 default = ["full"]
 full = ["rustzen-config/default"]
-selected-distribution = ["rustzen-config/insights"]
 
 [[bin]]
 name = "rz-insights"

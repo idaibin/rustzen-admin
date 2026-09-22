@@ -104,7 +104,7 @@ mod contract_tests {
     }
 
     #[derive(Serialize)]
-    struct LegacyOverrides<'a> {
+    struct IgnoredOverrides<'a> {
         app_host: &'a str,
         app_port: u16,
         worker_host: &'a str,
@@ -129,16 +129,16 @@ mod contract_tests {
     }
 
     #[test]
-    fn legacy_endpoint_and_database_names_are_not_compatibility_aliases() {
+    fn unknown_endpoint_and_database_names_are_ignored() {
         let config: AdminConfig = Figment::new()
-            .merge(Serialized::defaults(LegacyOverrides {
-                app_host: "legacy.example",
+            .merge(Serialized::defaults(IgnoredOverrides {
+                app_host: "ignored.example",
                 app_port: 19001,
-                worker_host: "legacy.internal",
-                sqlite_path: "/tmp/legacy.db",
+                worker_host: "ignored.internal",
+                sqlite_path: "/tmp/ignored.db",
             }))
             .extract()
-            .expect("ignored legacy values");
+            .expect("ignored values");
 
         assert_eq!(config.admin_host(), "0.0.0.0");
         assert_eq!(config.admin_port(), 9801);
@@ -164,6 +164,8 @@ mod contract_tests {
                 ("RUSTZEN_IPC_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_AGENT_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_NODE_ID", "replace-me"),
+                ("RUSTZEN_NOTIFICATION_EVENT_KEY", "replace-me"),
+                ("RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY", "replace-me"),
                 ("RUSTZEN_DEPLOY_SIGNATURE_REQUIRED", "true"),
                 ("RUSTZEN_DEPLOY_VERIFY_KEY", "replace-me"),
             ]

@@ -71,6 +71,17 @@ async fn session_token(
     codec.encode_claims(&claims).expect("token")
 }
 
+async fn activate_seed_owner(pool: &sqlx::SqlitePool) {
+    let changed = sqlx::query(
+        "UPDATE users SET status = 1 WHERE username = 'owner' AND status = 2 AND deleted_at IS NULL",
+    )
+    .execute(pool)
+    .await
+    .expect("activate seeded owner")
+    .rows_affected();
+    assert_eq!(changed, 1);
+}
+
 async fn assert_json_error(response: axum::response::Response, status: StatusCode, code: i32) {
     assert_eq!(response.status(), status);
     assert_eq!(response.headers().get("content-type").unwrap(), "application/json");

@@ -192,7 +192,7 @@ exit "$result"
 }
 mkdir -p "$evidence_root/runs"
 if [ -e "$current" ] && [ ! -L "$current" ]
-then echo "refusing to replace legacy schedule form evidence directory" >&2;
+then echo "refusing to replace unsupported schedule form evidence directory" >&2;
 exit 1
 fi
 if ! mkdir "$lock_dir" 2>/dev/null

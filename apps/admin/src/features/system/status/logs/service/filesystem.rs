@@ -19,7 +19,7 @@ pub(super) fn checked_module_log_root(
     let Some(root) = checked_log_root(log_dir)? else {
         return Ok(None);
     };
-    if module == "reports" { checked_log_root(&root.join("reports")) } else { Ok(Some(root)) }
+    checked_log_root(&root.join(module))
 }
 
 pub(super) fn open_module_log_directory(

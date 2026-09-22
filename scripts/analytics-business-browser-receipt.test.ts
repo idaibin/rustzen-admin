@@ -13,7 +13,7 @@ const receipt: any = {
         viewport: { width: 1440, height: 900 },
         surface: "headless-chromium-cdp",
         adminOrigin: "http://127.0.0.1:34567",
-        container: { name: "rz-p8e-native-runtime-1", id: hash, image: hash, units: ["rz-admin.service", "rz-insights.service", "rz.target"] },
+        container: { name: "rz-p8e-native-runtime-1", id: hash, image: hash, units: ["rz-admin.service", "rz-insights.service", "rz-full.service"] },
     },
     identity: {
         head: "0123456789abcdef0123456789abcdef01234567",

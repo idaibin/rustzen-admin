@@ -8,7 +8,7 @@ impl ModuleLogService {
     ) -> Result<Vec<ModuleLogFileResp>, ServiceError> {
         let module = query.module.map(|value| parse_module(&value)).transpose()?;
         let date = query.date.map(|value| parse_date(&value)).transpose()?;
-        let log_dir = CONFIG.log_dir();
+        let log_dir = CONFIG.runtime.log_dir();
         task::spawn_blocking(move || list_in(&log_dir, module, date)).await.map_err(join_error)?
     }
 
@@ -19,7 +19,7 @@ impl ModuleLogService {
     ) -> Result<ModuleLogTailResp, ServiceError> {
         let selector =
             parse_selector(&ModuleLogFileSelector { module: query.module, date: query.date })?;
-        let log_dir = CONFIG.log_dir();
+        let log_dir = CONFIG.runtime.log_dir();
         task::spawn_blocking(move || tail_in(&log_dir, selector, query.cursor.as_deref()))
             .await
             .map_err(join_error)?
@@ -31,7 +31,7 @@ impl ModuleLogService {
         request: ModuleLogBackupRequest,
     ) -> Result<BackupArchive, ServiceError> {
         let selection = backup_selection(&request);
-        let log_dir = CONFIG.log_dir();
+        let log_dir = CONFIG.runtime.log_dir();
         let archive_result =
             match task::spawn_blocking(move || build_archive(&log_dir, request)).await {
                 Ok(result) => result,
@@ -90,7 +90,7 @@ impl ModuleLogService {
     ) -> Result<ModuleLogCleanupPreviewResp, ServiceError> {
         let today = Utc::now().date_naive();
         let cutoff_date = today - Days::new(RETENTION_DAYS);
-        let log_dir = CONFIG.log_dir();
+        let log_dir = CONFIG.runtime.log_dir();
         let collection = match task::spawn_blocking(move || {
             collect_cleanup_candidates(&log_dir, today, cutoff_date)
         })
@@ -230,7 +230,7 @@ impl ModuleLogService {
                 "Module log cleanup intent could not be persisted; no files were removed".into(),
             )
         })?;
-        let log_dir = CONFIG.log_dir();
+        let log_dir = CONFIG.runtime.log_dir();
         let preview_id = preview.preview_id.clone();
         let selection = cleanup_selection(&preview);
         let today = Utc::now().date_naive();

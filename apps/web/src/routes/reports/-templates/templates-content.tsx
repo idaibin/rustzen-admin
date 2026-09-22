@@ -8,6 +8,7 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
@@ -171,18 +172,8 @@ export function TemplatesContent({
                     loading={isPending}
                     search={false}
                     options={false}
-                    pagination={false}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText: (
-                            <DataState
-                                kind="empty"
-                                title={t("暂无报表模板", "No report templates")}
-                            />
-                        ),
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(t("暂无报表模板", "No report templates"))}
                 />
             </DataTableShell>
             <AuthWrap

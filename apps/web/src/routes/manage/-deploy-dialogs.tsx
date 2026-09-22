@@ -10,6 +10,8 @@ import type { UploadFile } from "antd/es/upload/interface";
 import { useState } from "react";
 
 import { appMessage, manageAPI } from "@/api";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { t } from "@/lib/i18n";
 
 export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
@@ -131,20 +133,15 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
                             onChange={(event) => setNotes(event.target.value)}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            type="default"
-                            onClick={() => {
-                                setOpen(false);
-                                reset();
-                            }}
-                        >
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button type="primary" loading={submitting} onClick={submit}>
-                            {t("上传", "Upload")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => {
+                            setOpen(false);
+                            reset();
+                        }}
+                        submitLabel={t("上传", "Upload")}
+                        submitting={submitting}
+                        onSubmit={submit}
+                    />
                 </Form>
             </Modal>
         </>
@@ -158,8 +155,6 @@ export function DeployVersionDialog({
     record: Deploy.Item;
     onSuccess: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
     const disabled = record.isExpired;
     const description = t(
         "rz 符号链接只切换一次，随后监控、分析、报表和管理服务依次通过健康检查门禁重启。门禁失败时会恢复原链接，并还原已进入重启流程的服务数据库。",
@@ -167,46 +162,30 @@ export function DeployVersionDialog({
     );
 
     const submit = async () => {
-        setSubmitting(true);
-        try {
-            await manageAPI.deploy.deploy(record.id);
-            appMessage.success(t("部署任务已提交", "Deployment task submitted"));
-            onSuccess();
-            setOpen(false);
-        } finally {
-            setSubmitting(false);
-        }
+        await manageAPI.deploy.deploy(record.id);
+        appMessage.success(t("部署任务已提交", "Deployment task submitted"));
+        onSuccess();
     };
 
     return (
-        <>
-            <Button
-                type="text"
-                icon={<CloudUploadOutlined />}
-                disabled={disabled}
-                onClick={() => setOpen(true)}
-                aria-label={t("部署版本", "Deploy version")}
-            />
-            <Modal
-                open={open}
-                onCancel={() => setOpen(false)}
-                onOk={submit}
-                okText={t("部署", "Deploy")}
-                okButtonProps={{ loading: submitting }}
-                cancelText={t("取消", "Cancel")}
-                title={
-                    <span>
-                        {t(
-                            `部署 ${componentLabel(record.component)} ${record.version}？`,
-                            `Deploy ${componentLabel(record.component)} ${record.version}?`,
-                        )}
-                    </span>
-                }
-                centered
-            >
-                <p>{description}</p>
-            </Modal>
-        </>
+        <ConfirmDialog
+            disabled={disabled}
+            trigger={
+                <Button
+                    type="text"
+                    icon={<CloudUploadOutlined />}
+                    disabled={disabled}
+                    aria-label={t("部署版本", "Deploy version")}
+                />
+            }
+            title={t(
+                `部署 ${componentLabel(record.component)} ${record.version}？`,
+                `Deploy ${componentLabel(record.component)} ${record.version}?`,
+            )}
+            description={description}
+            confirmLabel={t("部署", "Deploy")}
+            onConfirm={submit}
+        />
     );
 }
 
@@ -270,20 +249,16 @@ export function ExpireVersionDialog({
                             onChange={(event) => setNotes(event.target.value)}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            type="default"
-                            onClick={() => {
-                                setOpen(false);
-                                setNotes("");
-                            }}
-                        >
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button type="primary" danger loading={submitting} onClick={submit}>
-                            {t("设为过期", "Expire")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => {
+                            setOpen(false);
+                            setNotes("");
+                        }}
+                        submitLabel={t("设为过期", "Expire")}
+                        submitting={submitting}
+                        danger
+                        onSubmit={submit}
+                    />
                 </Form>
             </Modal>
         </>
@@ -297,51 +272,35 @@ export function DeleteVersionDialog({
     record: Deploy.Item;
     onSuccess: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
     const disabled = record.isCurrent;
 
     const submit = async () => {
-        setSubmitting(true);
-        try {
-            await manageAPI.deploy.remove(record.id);
-            appMessage.success(t("版本已删除", "Version deleted"));
-            onSuccess();
-            setOpen(false);
-        } finally {
-            setSubmitting(false);
-        }
+        await manageAPI.deploy.remove(record.id);
+        appMessage.success(t("版本已删除", "Version deleted"));
+        onSuccess();
     };
 
     return (
-        <>
-            <Button
-                type="text"
-                icon={<DeleteOutlined />}
-                disabled={disabled}
-                danger
-                onClick={() => setOpen(true)}
-                aria-label={t("删除版本", "Delete version")}
-            />
-            <Modal
-                open={open}
-                onCancel={() => setOpen(false)}
-                onOk={submit}
-                okText={t("删除", "Delete")}
-                okType="primary"
-                okButtonProps={{ loading: submitting, danger: true }}
-                cancelText={t("取消", "Cancel")}
-                centered
-                title={t("删除版本", "Delete version")}
-            >
-                <p>
-                    {t(
-                        `确定删除 ${componentLabel(record.component)} ${record.version}？系统会尽可能清理已保存的文件。`,
-                        `Delete ${componentLabel(record.component)} ${record.version}? The system will clean up saved files where possible.`,
-                    )}
-                </p>
-            </Modal>
-        </>
+        <ConfirmDialog
+            disabled={disabled}
+            trigger={
+                <Button
+                    type="text"
+                    icon={<DeleteOutlined />}
+                    disabled={disabled}
+                    danger
+                    aria-label={t("删除版本", "Delete version")}
+                />
+            }
+            title={t("删除版本", "Delete version")}
+            description={t(
+                `确定删除 ${componentLabel(record.component)} ${record.version}？系统会尽可能清理已保存的文件。`,
+                `Delete ${componentLabel(record.component)} ${record.version}? The system will clean up saved files where possible.`,
+            )}
+            confirmLabel={t("删除", "Delete")}
+            destructive
+            onConfirm={submit}
+        />
     );
 }
 
@@ -352,46 +311,24 @@ export function CleanupDialog({
     component?: Deploy.Component;
     onSuccess?: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-
     const submit = async () => {
-        setSubmitting(true);
-        try {
-            const count = await manageAPI.deploy.cleanup(component);
-            appMessage.success(
-                t(`已清理 ${count} 个过期版本`, `Cleaned ${count} expired versions`),
-            );
-            onSuccess?.();
-            setOpen(false);
-        } finally {
-            setSubmitting(false);
-        }
+        const count = await manageAPI.deploy.cleanup(component);
+        appMessage.success(t(`已清理 ${count} 个过期版本`, `Cleaned ${count} expired versions`));
+        onSuccess?.();
     };
 
     return (
-        <>
-            <Button type="default" onClick={() => setOpen(true)}>
-                {t("清理过期版本", "Clean expired versions")}
-            </Button>
-            <Modal
-                open={open}
-                onCancel={() => setOpen(false)}
-                onOk={submit}
-                okText={t("清理过期版本", "Clean expired versions")}
-                okButtonProps={{ loading: submitting, danger: true }}
-                cancelText={t("取消", "Cancel")}
-                centered
-                title={t("清理过期版本？", "Clean expired versions?")}
-            >
-                <p>
-                    {t(
-                        "将从列表中移除非当前的过期版本，并尽可能清理已保存的文件。",
-                        "Remove non-current expired versions from the list and clean up saved files where possible.",
-                    )}
-                </p>
-            </Modal>
-        </>
+        <ConfirmDialog
+            trigger={<Button type="default">{t("清理过期版本", "Clean expired versions")}</Button>}
+            title={t("清理过期版本？", "Clean expired versions?")}
+            description={t(
+                "将从列表中移除非当前的过期版本，并尽可能清理已保存的文件。",
+                "Remove non-current expired versions from the list and clean up saved files where possible.",
+            )}
+            confirmLabel={t("清理过期版本", "Clean expired versions")}
+            destructive
+            onConfirm={submit}
+        />
     );
 }
 

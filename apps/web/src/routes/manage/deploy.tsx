@@ -10,6 +10,12 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    emptyTableLocale,
+    pagedTableProps,
+    tablePagination,
+} from "@/components/table/table-presets";
+import { formatBytes } from "@/lib/format";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
@@ -80,7 +86,22 @@ function DeployPage() {
             dataIndex: "fileSize",
             key: "fileSize",
             width: 110,
-            render: (_: unknown, row: Deploy.Item) => formatFileSize(row.fileSize),
+            render: (_: unknown, row: Deploy.Item) => formatBytes(row.fileSize),
+        },
+        {
+            title: t("签名范围", "Signed scopes"),
+            key: "signedScopes",
+            width: 230,
+            render: (_: unknown, row: Deploy.Item) => (
+                <div className="flex flex-col items-start gap-1">
+                    <Tag title={row.frontendHash} color="blue">
+                        {t("前端", "Frontend")} {shortDigest(row.frontendHash)}
+                    </Tag>
+                    <Tag title={row.backendHash} color="green">
+                        {t("后端", "Backend")} {shortDigest(row.backendHash)}
+                    </Tag>
+                </div>
+            ),
         },
         {
             title: t("状态", "Status"),
@@ -258,26 +279,16 @@ function DeployPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    pagination={{
+                    {...pagedTableProps}
+                    pagination={tablePagination({
                         current: currentPage,
                         pageSize: PAGE_SIZE,
                         total,
-                        showSizeChanger: false,
                         onChange: (page) => {
                             setCurrentPage(page);
                         },
-                    }}
-                    locale={{
-                        emptyText: (
-                            <DataState
-                                kind="empty"
-                                title={t("暂无部署版本", "No deployment versions")}
-                            />
-                        ),
-                    }}
+                    })}
+                    locale={emptyTableLocale(t("暂无部署版本", "No deployment versions"))}
                 />
             </DataTableShell>
         </PageCard>
@@ -313,9 +324,6 @@ function DeployStatusBadge({ record }: { record: Deploy.Item }) {
     return <Tag>{t("已上传", "Uploaded")}</Tag>;
 }
 
-function formatFileSize(value: number) {
-    if (value < 1024 * 1024) {
-        return `${(value / 1024).toFixed(1)} KB`;
-    }
-    return `${(value / 1024 / 1024).toFixed(1)} MB`;
+function shortDigest(value: string) {
+    return `${value.slice(0, 12)}…`;
 }

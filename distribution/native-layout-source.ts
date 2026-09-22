@@ -41,7 +41,7 @@ const service = (
     target: boolean,
     agent = false,
 ) =>
-    `[Unit]\nDescription=${description}\nWants=network-online.target\nAfter=network-online.target${target ? "\nPartOf=rz.target" : ""}\nStartLimitIntervalSec=60\nStartLimitBurst=5\n\n[Service]\nType=${agent ? "notify" : "simple"}\nUser=${identity}\nGroup=${identity}\nUMask=0027${agent ? "\nNotifyAccess=main\nTimeoutStartSec=infinity" : ""}\nEnvironmentFile=/opt/rz/config/${config}${target ? "\nEnvironmentFile=/opt/rz/config/rz-release.env" : ""}${agent ? "\nStateDirectory=rustzen-monitor-agent\nLogsDirectory=rustzen-monitor-agent\nEnvironment=RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent" : ""}\nExecStart=/opt/rz/current/bin/${command}\nWorkingDirectory=/opt/rz\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=${target ? "rz.target" : "multi-user.target"}\n`;
+    `[Unit]\nDescription=${description}\nWants=network-online.target\nAfter=network-online.target${target ? "\nPartOf=rz-full.service" : ""}\nStartLimitIntervalSec=60\nStartLimitBurst=5\n\n[Service]\nType=${agent ? "notify" : "simple"}\nUser=${identity}\nGroup=${identity}\nUMask=0027${agent ? "\nNotifyAccess=main\nTimeoutStartSec=infinity" : ""}\nEnvironmentFile=/opt/rz/config/${config}${target ? "\nEnvironmentFile=/opt/rz/config/rz-release.env" : ""}${agent ? "\nStateDirectory=rustzen-monitor-agent\nLogsDirectory=rustzen-monitor-agent\nEnvironment=RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent" : ""}\nExecStart=/opt/rz/current/bin/${command}\nWorkingDirectory=/opt/rz\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=${target ? "rz-full.service" : "multi-user.target"}\n`;
 
 type Descriptor = { consumer: string; fields: Array<{ key: string }> };
 const config = (selection: unknown, owners: string[]): NativeConfig => {
@@ -111,8 +111,8 @@ export function nativeUnitBytes(
                 "rz-monitor controller",
                 true,
             ),
-            "systemd/rz.target":
-                "[Unit]\nDescription=Rustzen Monitor Services\nWants=rz-admin.service rz-monitor.service\nAfter=network.target\n\n[Install]\nWantedBy=multi-user.target\n",
+            "systemd/rz-full.service":
+                "[Unit]\nDescription=Rustzen Monitor Services\nWants=rz-admin.service rz-monitor.service\nAfter=network.target\n\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         };
     if (
         supportsNativeLayout(plan) &&
@@ -134,8 +134,8 @@ export function nativeUnitBytes(
                 "rz-insights serve",
                 true,
             ),
-            "systemd/rz.target":
-                "[Unit]\nDescription=Rustzen Analytics Services\nWants=rz-admin.service rz-insights.service\nAfter=network.target\n\n[Install]\nWantedBy=multi-user.target\n",
+            "systemd/rz-full.service":
+                "[Unit]\nDescription=Rustzen Analytics Services\nWants=rz-admin.service rz-insights.service\nAfter=network.target\n\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         };
     if (
         supportsNativeLayout(plan) &&
@@ -193,7 +193,11 @@ export function generatedNativeLayout(
         .filter((path) => path.endsWith(".service"))
         .map((path) => path.slice("systemd/".length))
         .sort();
-    if (canonicalJson(serviceUnits) !== canonicalJson(plan.units))
+    const expectedServiceUnits = (agent
+        ? plan.units
+        : [...plan.units, "rz-full.service"]
+    ).sort();
+    if (canonicalJson(serviceUnits) !== canonicalJson(expectedServiceUnits))
         throw new Error("native layout units differ from resolved selection");
     const units = Object.entries(bytes)
         .map(([path, text]) => unit(path, text))

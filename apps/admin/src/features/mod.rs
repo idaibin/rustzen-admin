@@ -1,10 +1,6 @@
 pub mod account;
 pub mod auth;
-#[cfg(feature = "full")]
 pub mod dashboard;
-#[cfg(feature = "selected-distribution")]
-pub mod installation;
-#[cfg(feature = "full")]
 pub mod manage;
 pub mod modules;
 #[cfg(feature = "notifications")]

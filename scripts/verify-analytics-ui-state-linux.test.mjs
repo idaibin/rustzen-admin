@@ -19,12 +19,13 @@ const executableScripts = [
 describe("Analytics UI state-matrix Linux gate contract", () => {
     test("uses an independent bounded and source-bound evidence pipeline", () => {
         expect(outer).toContain("RUSTZEN_ANALYTICS_UI_STATE_TIMEOUT");
+        expect(outer).toContain("RUSTZEN_ANALYTICS_UI_STATE_TIMEOUT:-900");
         expect(outer).toContain("ensure-admin-browser-verifier-image.sh");
         expect(outer).toContain("admin-browser-source-identity.sh");
         expect(outer).toContain("sourceTreeSha256");
         expect(outer).toContain("failed-runs/$run_id");
         expect(outer).toContain("atomic_replace_symlink");
-        expect(outer).toContain("refusing to replace legacy Analytics UI evidence directory");
+        expect(outer).toContain("refusing to replace non-link Analytics UI evidence path");
         expect(outer).not.toContain("verify-admin-browser-linux-inner.sh");
     });
 
@@ -37,12 +38,17 @@ describe("Analytics UI state-matrix Linux gate contract", () => {
         expect(fixture).not.toContain('state["requests"] = []');
         expect(fixture).toContain('payload.get(f"{route}FailAfterFirstStatus")');
         expect(fixture).toContain('{"403", "500"}');
+        expect(fixture).toContain('RUSTZEN_ANALYTICS_FIXTURE_SLOW_SECONDS", "5"');
     });
 
     test("mode changes accumulate exact success-to-500 and success-to-403 background receipts", async () => {
         const port = 21000 + Math.floor(Math.random() * 1000);
         const fixtureProcess = Bun.spawn(["python3", "-B", fixturePath], {
-            env: { ...process.env, RUSTZEN_ANALYTICS_FIXTURE_PORT: `${port}` },
+            env: {
+                ...process.env,
+                RUSTZEN_ANALYTICS_FIXTURE_PORT: `${port}`,
+                RUSTZEN_ANALYTICS_FIXTURE_SLOW_SECONDS: "0.01",
+            },
             stdout: "ignore",
             stderr: "pipe",
         });
@@ -95,14 +101,18 @@ describe("Analytics UI state-matrix Linux gate contract", () => {
         expect(driver).toContain("detailsFilterResetsPage");
         expect(driver).toContain(".ant-pagination-item-2");
         expect(driver).toContain("/fixture-filter");
-        expect(driver).toContain("durationMs: 30_500");
+        const pauseDurations = [...driver.matchAll(/action: "pause", durationMs: ([0-9_]+)/g)].map(
+            ([, value]) => Number(value.replaceAll("_", "")),
+        );
+        expect(pauseDurations.length).toBeGreaterThan(0);
+        expect(pauseDurations.every((duration) => duration <= 30_000)).toBe(true);
         const backgroundStart = driver.indexOf("detailsBackgroundRefresh: desktop([");
         const backgroundEnd = driver.indexOf("\n    ]),", backgroundStart);
         const backgroundSteps = driver.slice(backgroundStart, backgroundEnd);
-        expect(backgroundSteps).toContain('{ action: "pause", durationMs: 30_500 }');
+        expect(backgroundSteps).toContain('{ action: "pause", durationMs: 30_000 }');
         expect(backgroundSteps).toContain('{ action: "waitFor", selector: "[role=alert]" }');
         expect(backgroundSteps).toContain('{ action: "pause", durationMs: 300 }');
-        expect(backgroundSteps.indexOf('durationMs: 30_500')).toBeLessThan(
+        expect(backgroundSteps.indexOf('durationMs: 30_000')).toBeLessThan(
             backgroundSteps.indexOf('selector: "[role=alert]"'),
         );
         expect(backgroundSteps.indexOf('selector: "[role=alert]"')).toBeLessThan(
@@ -126,6 +136,10 @@ describe("Analytics UI state-matrix Linux gate contract", () => {
         expect(inner).toContain("details-background-refresh");
         expect(inner).toContain("overview-background-403");
         expect(inner).toContain("details-background-403");
+        expect(inner).toContain("refresh_auth");
+        expect(inner.indexOf("refresh_auth\n  body=")).toBeGreaterThan(-1);
+        expect(inner.indexOf("refresh_auth\n  listing=")).toBeGreaterThan(-1);
+        expect(inner).toContain('test -s "$tmp"');
         expect(inner).toContain("details-filter-resets-page");
         expect(inner).toContain('.query.current[0] == "2"');
         expect(inner).toContain("eventsFailAfterFirstStatus");

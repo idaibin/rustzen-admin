@@ -13,6 +13,11 @@ import { NotificationDeliveryCard } from "@/components/feedback/notification-del
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    emptyTableLocale,
+    pagedTableProps,
+    tablePagination,
+} from "@/components/table/table-presets";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -250,21 +255,14 @@ function RunsPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    pagination={{
+                    {...pagedTableProps}
+                    pagination={tablePagination({
                         current,
                         pageSize,
                         total,
-                        showSizeChanger: false,
                         onChange: setCurrent,
-                    }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText: (
-                            <DataState kind="empty" title={t("暂无填报执行", "No report runs")} />
-                        ),
-                    }}
+                    })}
+                    locale={emptyTableLocale(t("暂无填报执行", "No report runs"))}
                 />
             </DataTableShell>
             <RunDetails

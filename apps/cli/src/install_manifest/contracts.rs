@@ -1,7 +1,6 @@
-use super::hash_id;
 use crate::install::Manifest;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub(crate) fn validate_payload_contracts(
     manifest: &Manifest,
@@ -9,7 +8,6 @@ pub(crate) fn validate_payload_contracts(
 ) -> Result<(), String> {
     let config = object(files, "contracts/config/config.json")?;
     contract_identity(&config, manifest)?;
-    super::web::validate(manifest, files)?;
     if sorted_keys(config.get("owners"))? != manifest.config_owners {
         return Err("config contract owners differ from manifest".into());
     }
@@ -45,43 +43,6 @@ pub(crate) fn validate_payload_contracts(
         != Some(manifest.agent_protocol_contract_id.as_str())
     {
         return Err("protocol contract ID differs from manifest".into());
-    }
-    if manifest.artifact_class == "server" {
-        let schema = object(files, "contracts/schema/schema.json")?;
-        schema_identity(&schema, manifest)?;
-        let owners =
-            schema.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
-        let schemas = owners
-            .iter()
-            .map(|(name, value)| {
-                Ok((
-                    name.clone(),
-                    value
-                        .get("schemaSha256")
-                        .and_then(Value::as_str)
-                        .ok_or("schema owner invalid")?
-                        .to_owned(),
-                ))
-            })
-            .collect::<Result<BTreeMap<_, _>, String>>()?;
-        let data = owners
-            .iter()
-            .map(|(name, value)| {
-                Ok((
-                    name.clone(),
-                    value
-                        .get("dataContractId")
-                        .and_then(Value::as_str)
-                        .ok_or("schema owner invalid")?
-                        .to_owned(),
-                ))
-            })
-            .collect::<Result<BTreeMap<_, _>, String>>()?;
-        if manifest.schema_fingerprints.as_ref() != Some(&schemas)
-            || manifest.data_contract_ids.as_ref() != Some(&data)
-        {
-            return Err("schema contracts differ from manifest".into());
-        }
     }
     Ok(())
 }
@@ -121,39 +82,6 @@ fn contract_selection_identity(
     }
 }
 
-fn schema_identity(
-    value: &serde_json::Map<String, Value>,
-    manifest: &Manifest,
-) -> Result<(), String> {
-    if value.keys().map(String::as_str).collect::<BTreeSet<_>>()
-        != BTreeSet::from(["compositionId", "owners", "preset"])
-    {
-        return Err("schema contract fields are invalid".into());
-    }
-    contract_selection_identity(value, manifest)?;
-    let owners = value.get("owners").and_then(Value::as_object).ok_or("schema owners invalid")?;
-    let expected = match manifest.preset.as_str() {
-        "monitor-notify" => {
-            BTreeSet::from(["admin", "admin-notifications", "monitor", "monitor-notifications"])
-        }
-        "analytics" => BTreeSet::from(["admin", "insights"]),
-        _ => BTreeSet::from(["admin", "monitor"]),
-    };
-    if owners.keys().map(String::as_str).collect::<BTreeSet<_>>() != expected {
-        return Err("schema owners invalid".into());
-    }
-    for owner in owners.values() {
-        let owner = owner.as_object().ok_or("schema owner invalid")?;
-        if owner.keys().map(String::as_str).collect::<BTreeSet<_>>()
-            != BTreeSet::from(["dataContractId", "schemaSha256"])
-            || !owner.get("dataContractId").and_then(Value::as_str).is_some_and(hash_id)
-            || !owner.get("schemaSha256").and_then(Value::as_str).is_some_and(hash_id)
-        {
-            return Err("schema owner invalid".into());
-        }
-    }
-    Ok(())
-}
 fn sorted_keys(value: Option<&Value>) -> Result<Vec<String>, String> {
     Ok(value.and_then(Value::as_object).ok_or("contract owners invalid")?.keys().cloned().collect())
 }
@@ -165,6 +93,3 @@ fn sorted_strings_value(value: Option<&Value>) -> Result<Vec<String>, String> {
         .map(|x| x.as_str().map(str::to_owned).ok_or("contract owners invalid".into()))
         .collect()
 }
-#[cfg(test)]
-#[path = "contracts_tests.rs"]
-mod tests;

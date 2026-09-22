@@ -34,9 +34,14 @@ def websocket_url(value, port):
     return parsed
 
 def endpoint(port, path):
-    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=1) as response:
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as response:
         if response.status != 200: raise RuntimeError("Chromium CDP endpoint status differs")
         return json.load(response)
+
+def page_socket_for_target(tabs, target_id):
+    matches = [tab for tab in tabs if tab.get("type") == "page" and tab.get("id") == target_id and isinstance(tab.get("webSocketDebuggerUrl"), str)]
+    if len(matches) != 1: raise RuntimeError("Chromium created page target is unavailable")
+    return matches[0]["webSocketDebuggerUrl"]
 
 def recv_exact(sock, length):
     if not isinstance(length, int) or length < 0 or length > MAX_CDP_FRAME_BYTES:
@@ -118,14 +123,14 @@ class CDP:
     def __init__(self, chromium):
         self.profile = Path(tempfile.mkdtemp(prefix="rz-selected-web-", dir="/tmp")); os.chmod(self.profile, 0o700); self.sock = self.process = None
         try:
-            self.process = subprocess.Popen([chromium, "--headless=new", "--no-sandbox", "--remote-allow-origins=*", "--remote-debugging-port=0", f"--user-data-dir={self.profile}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.process = subprocess.Popen([chromium, "--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--remote-allow-origins=*", "--remote-debugging-port=0", f"--user-data-dir={self.profile}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             port, browser_path = wait_devtools_active_port(self.profile, self.process)
             info = endpoint(port, "/json/version")
             if websocket_url(info["webSocketDebuggerUrl"], port).path != browser_path: raise RuntimeError("Chromium browser WebSocket differs from DevToolsActivePort")
             self.sock = websocket(info["webSocketDebuggerUrl"], port); self.id = 0
-            self.call("Target.createTarget", {"url":"about:blank"})
+            target_id = self.call("Target.createTarget", {"url":"about:blank"})["targetId"]
             tabs = endpoint(port, "/json/list")
-            page = next(tab["webSocketDebuggerUrl"] for tab in tabs if tab.get("type") == "page")
+            page = page_socket_for_target(tabs, target_id)
             self.sock.close(); self.sock = websocket(page, port); self.id = 0
             self.call("Page.enable"); self.call("Runtime.enable"); self.call("Network.enable")
         except Exception:

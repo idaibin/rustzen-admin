@@ -354,6 +354,10 @@ describe("Monitoring UI state Linux gate", () => {
         };
         await write([]);
         expect(verify().exitCode).toBe(0);
+        const zeroStep = structuredClone(record);
+        zeroStep.sourceStepsApi.data = [];
+        await write([zeroStep]);
+        expect(verify().exitCode).toBe(0);
         await write([record]);
         expect(verify().exitCode).toBe(0);
         const errors = structuredClone(record);
@@ -367,6 +371,20 @@ describe("Monitoring UI state Linux gate", () => {
         const nonStepZero = structuredClone(record);
         nonStepZero.sourceStepsApi.data[0].stepIndex = 1;
         await write([nonStepZero]);
+        expect(verify().exitCode).not.toBe(0);
+        const wrongAction = structuredClone(record);
+        wrongAction.sourceStepsApi.data[0].action = "goto";
+        await write([wrongAction]);
+        expect(verify().exitCode).not.toBe(0);
+        const failedPreference = structuredClone(record);
+        failedPreference.sourceStepsApi.data[0].status = "failed";
+        await write([failedPreference]);
+        expect(verify().exitCode).not.toBe(0);
+        const multipleSteps = structuredClone(record);
+        multipleSteps.sourceStepsApi.data.push({
+            runId: "source", stepIndex: 1, action: "setViewport", status: "succeeded",
+        });
+        await write([multipleSteps]);
         expect(verify().exitCode).not.toBe(0);
         const missingRunId = structuredClone(record);
         delete missingRunId.sourceStepsApi.data[0].runId;
@@ -408,7 +426,10 @@ describe("Monitoring UI state Linux gate", () => {
             { action: "click", runId, status: "succeeded" }, { action: "waitFor", runId, status: "succeeded" },
             { action: "goto", url: "/monitoring/incidents", runId, status: "succeeded" },
             { action: "waitFor", runId, status: "succeeded" },
-            ...text.map((value) => ({ action: "assertText", text: value, runId, status: "succeeded" })),
+            { action: "assertText", text: text[0], runId, status: "succeeded" },
+            { action: "click", runId, status: "succeeded" },
+            { action: "waitFor", runId, status: "succeeded" },
+            ...text.slice(1).map((value) => ({ action: "assertText", text: value, runId, status: "succeeded" })),
             ...(locale === "zh-CN" ? [
                 { action: "waitFor", runId, status: "succeeded" },
                 { action: "assertText", runId, status: "succeeded" },
@@ -418,7 +439,7 @@ describe("Monitoring UI state Linux gate", () => {
             { action: "screenshotViewport", name: screenshot, runId, status: "succeeded" },
         ].map((step, stepIndex) => ({ id: stepIndex + 1, runId, stepIndex, action: step.action, status: "succeeded", durationMs: null, message: null, createdAt: "2026-09-10T00:00:00Z" })) });
         await Bun.write(`${root}/${actions[0]}`, JSON.stringify(steps("owner", "en-US", "monitor-delivery-owner", [
-            "15 irreversible notification delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)",
+            "15 irreversible delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)",
             "First gap 09/10/2026, 01:02:03 AM", "Last gap 09/10/2026, 02:03:04 AM", "Last success 09/10/2026, 03:04:05 AM",
         ])));
         await Bun.write(`${root}/${actions[1]}`, JSON.stringify(steps("viewer", "zh-CN", "monitor-delivery-viewer", [
@@ -435,7 +456,10 @@ describe("Monitoring UI state Linux gate", () => {
                 { action: "click", selector: "button[type=submit]" }, { action: "waitFor", selector: ".shell-content" },
                 { action: "goto", url: "/monitoring/incidents" },
                 { action: "waitFor", selector: "[data-testid=notification-delivery-card]" },
-                ...text.map((value) => ({ action: "assertText", selector: "[data-testid=notification-delivery-card]", text: value })),
+                { action: "assertText", selector: "[data-testid=notification-delivery-card]", text: text[0] },
+                { action: "click", selector: "[data-testid=notification-delivery-gap]" },
+                { action: "waitFor", selector: ".ant-popover:not(.ant-popover-hidden)" },
+                ...text.slice(1).map((value) => ({ action: "assertText", selector: ".ant-popover:not(.ant-popover-hidden)", text: value })),
                 ...(actor === "viewer" ? [
                     { action: "waitFor", selector: ".ant-table-row" },
                     { action: "assertText", selector: ".ant-table-tbody > tr.ant-table-row .monitoring-incident-primary-column", text: "Fixture incident" },
@@ -444,12 +468,12 @@ describe("Monitoring UI state Linux gate", () => {
                     { action: "assertElementLayout", selector: ".ant-table-thead .monitoring-incident-primary-column", elementCount: null, visibleCount: 1, maxHeight: 64, withinViewportRight: true, withinViewport: false },
                     { action: "assertElementLayout", selector: ".ant-table-tbody > tr.ant-table-row", elementCount: 20, visibleCount: 20, maxHeight: 72, withinViewportRight: true, withinViewport: false },
                     { action: "assertElementLayout", selector: ".ant-table-body > table", elementCount: null, visibleCount: 1, maxHeight: null, withinViewportRight: true, withinViewport: false },
-                    { action: "assertElementLayout", selector: ".data-table-pagination .ant-pagination", elementCount: null, visibleCount: 1, maxHeight: null, withinViewportRight: true, withinViewport: false },
+                    { action: "assertElementLayout", selector: "[data-testid=incidents-pagination] .ant-pagination", elementCount: null, visibleCount: 1, maxHeight: null, withinViewportRight: true, withinViewport: false },
                 ] : []),
                 { action: "assertNoHorizontalOverflow" }, { action: "screenshotViewport", name: `monitor-delivery-${actor}` },
             ],
         } });
-        const ownerText = ["15 irreversible notification delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)", "First gap 09/10/2026, 01:02:03 AM", "Last gap 09/10/2026, 02:03:04 AM", "Last success 09/10/2026, 03:04:05 AM"];
+        const ownerText = ["15 irreversible delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)", "First gap 09/10/2026, 01:02:03 AM", "Last gap 09/10/2026, 02:03:04 AM", "Last success 09/10/2026, 03:04:05 AM"];
         const viewerText = ["通知投递存在 15 个不可恢复缺口", "待投递 2（1024 B）", "隔离 3（2048 B）", "首个缺口 2026/09/10 01:02:03", "最后缺口 2026/09/10 02:03:04", "最后成功 2026/09/10 03:04:05"];
         await Bun.write(`${root}/delivery-monitor-delivery-owner-flow.json`, JSON.stringify(flow("owner", "owner-flow", "dark", "en-US", 1440, 900, ownerText)));
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText)));
@@ -480,6 +504,14 @@ describe("Monitoring UI state Linux gate", () => {
         ]);
         await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
         expect(verify().exitCode).toBe(0);
+        const ownerActionSteps = JSON.parse(await Bun.file(`${root}/${actions[0]}`).text());
+        ownerActionSteps.data[11].action = "assertText";
+        await Bun.write(`${root}/${actions[0]}`, JSON.stringify(ownerActionSteps));
+        health.ownerSteps = descriptor(actions[0]);
+        await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
+        expect(verify().exitCode).not.toBe(0);
+        await Bun.write(`${root}/${actions[0]}`, JSON.stringify(steps("owner", "en-US", "monitor-delivery-owner", ownerText)));
+        health.ownerSteps = descriptor(actions[0]);
         const artifact = async (caseName, file, dimensions) => {
             await Bun.write(`${root}/${file}`, caseName);
             return { case: caseName, ...descriptor(file), dimensions };
@@ -540,7 +572,7 @@ describe("Monitoring UI state Linux gate", () => {
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText)));
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         const headerCapableSelector = flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText);
-        headerCapableSelector.data.steps[17].selector = ".monitoring-incident-primary-column";
+        headerCapableSelector.data.steps[19].selector = ".monitoring-incident-primary-column";
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(headerCapableSelector));
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
@@ -548,13 +580,13 @@ describe("Monitoring UI state Linux gate", () => {
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText)));
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         const missingDefault = flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText);
-        delete missingDefault.data.steps[18].elementCount;
+        delete missingDefault.data.steps[20].elementCount;
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(missingDefault));
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
         expect(verify().exitCode).not.toBe(0);
         const changedDefault = flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText);
-        changedDefault.data.steps[18].withinViewportRight = true;
+        changedDefault.data.steps[20].withinViewportRight = true;
         await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(changedDefault));
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
@@ -563,8 +595,8 @@ describe("Monitoring UI state Linux gate", () => {
         health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
         for (const [elementCount, visibleCount] of [[19, 20], [20, 1], [1, 1]]) {
             const changedRowCount = flow("viewer", "viewer-flow", "light", "zh-CN", 390, 844, viewerText);
-            changedRowCount.data.steps[21].elementCount = elementCount;
-            changedRowCount.data.steps[21].visibleCount = visibleCount;
+            changedRowCount.data.steps[23].elementCount = elementCount;
+            changedRowCount.data.steps[23].visibleCount = visibleCount;
             await Bun.write(`${root}/delivery-monitor-delivery-viewer-flow.json`, JSON.stringify(changedRowCount));
             health.viewerFlow = descriptor("delivery-monitor-delivery-viewer-flow.json");
             await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
@@ -591,7 +623,7 @@ describe("Monitoring UI state Linux gate", () => {
         await Bun.write(`${root}/delivery-monitor-delivery-owner-run.json`, JSON.stringify(runReceipt("owner", "owner-flow")));
         health.ownerRunReceipt = descriptor("delivery-monitor-delivery-owner-run.json");
         const ownerSteps = steps("owner", "en-US", "monitor-delivery-owner", [
-            "15 irreversible notification delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)",
+            "15 irreversible delivery gaps", "Pending 2 (1024 B)", "Quarantine 3 (2048 B)",
             "First gap 09/10/2026, 01:02:03 AM", "Last gap 09/10/2026, 02:03:04 AM", "Last success 09/10/2026, 03:04:05 AM",
         ]);
         ownerSteps.data.splice(11, 1);
@@ -683,6 +715,7 @@ describe("Monitoring UI state Linux gate", () => {
         expect(source.inner).toContain("status=$(monitor_wait_run \"$run\")");
         expect(source.retryLib).toContain("$before == $after and $run.status == \"failed\"");
         expect(source.retryLib).toContain('$run.error == "reports service operation failed"');
+        expect(source.retryLib).toContain("$steps | length == 0");
         expect(source.retryLib).toContain("$steps | length == 1 and .[0].stepIndex == 0");
         expect(source.retryLib).toContain("-X POST \"$admin/api/reports/runs/$source_run/retry\"");
         expect(source.retryLib).toContain("SELECT COUNT(*) FROM automation_runs WHERE retry_source_run_id=?");

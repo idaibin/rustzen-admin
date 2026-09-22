@@ -123,7 +123,7 @@ await journey("deployment-identity", "published endpoint health binds the signed
     const binding = admin.body?.selectedBinding;
     if (admin.status !== 200 || binding?.buildId !== buildId || binding?.compositionId !== facts.compositionId) throw Error(`admin health binding differs: ${JSON.stringify({ status: admin.status, binding, expectedBuild: buildId, expectedComposition: facts.compositionId })}`);
     if (facts.insightsHealth?.selectedBinding?.buildId !== buildId || facts.insightsHealth?.selectedBinding?.compositionId !== facts.compositionId) throw Error("insights health binding differs");
-    if (facts.units.join(",") !== "rz-admin.service,rz-insights.service,rz.target" || facts.currentTarget !== `releases/${buildId}/payload`) throw Error("container facts differ");
+    if (facts.units.join(",") !== "rz-admin.service,rz-insights.service,rz-full.service" || facts.currentTarget !== `releases/${buildId}/payload`) throw Error("container facts differ");
     return { actual: `admin+insights selectedBinding buildId=${buildId.slice(0, 12)}… compositionId=${facts.compositionId.slice(0, 12)}…; payload units active at ${facts.currentTarget}`, url: "/health", http: healthHttp };
 });
 

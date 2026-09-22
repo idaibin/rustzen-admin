@@ -4,9 +4,9 @@ import { Button, Space, Tag, Typography } from "antd";
 
 import type { ModuleLogFile } from "@/api/system/status/module-logs";
 import { actionColumnWidth } from "@/components/table/action-column";
+import { formatBytes } from "@/lib/format";
+import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
-
-import { formatBytes, formatDateTime } from "./-module-log-table-utils";
 
 export function getModuleLogColumns(
     onOpen: (file: ModuleLogFile) => void,

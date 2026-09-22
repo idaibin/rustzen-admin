@@ -9,8 +9,10 @@ import { systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { StatusTag } from "@/components/status-tag";
 import { actionColumnWidth } from "@/components/table/action-column";
-import { getEnableOptions } from "@/constant/options";
+import { emptyTableLocale, tablePagination } from "@/components/table/table-presets";
+import { getEnableOptions, getEnableStatusMeta } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
 import {
@@ -105,7 +107,9 @@ function RolePage() {
             title: t("状态", "Status"),
             key: "status",
             width: 120,
-            render: (_: unknown, row: Role.Item) => <RoleStatusBadge status={row.status} />,
+            render: (_: unknown, row: Role.Item) => (
+                <StatusTag status={row.status} meta={getEnableStatusMeta()} />
+            ),
         },
         {
             title: t("权限", "Permissions"),
@@ -269,32 +273,16 @@ function RolePage() {
                 loading={isPending || isFetching}
                 search={false}
                 options={false}
-                pagination={{
+                pagination={tablePagination({
                     current: currentPage,
                     pageSize: PAGE_SIZE,
                     total,
-                    showSizeChanger: false,
                     onChange: (page) => setCurrentPage(page),
-                }}
-                locale={{
-                    emptyText:
-                        rows.length === 0 ? (
-                            <DataState kind="empty" title={t("暂无角色", "No roles")} />
-                        ) : undefined,
-                }}
+                })}
+                locale={emptyTableLocale(t("暂无角色", "No roles"), {
+                    visible: rows.length === 0,
+                })}
             />
         </PageCard>
     );
-}
-
-function RoleStatusBadge({ status }: { status: number }) {
-    const statusMeta = {
-        1: { label: t("启用", "Enabled"), color: "blue" as const },
-        2: { label: t("禁用", "Disabled"), color: "default" as const },
-    };
-    const meta = statusMeta[status as keyof typeof statusMeta] ?? {
-        label: t("未知", "Unknown"),
-        color: "default" as const,
-    };
-    return <Tag color={meta.color}>{meta.label}</Tag>;
 }

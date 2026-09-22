@@ -14,8 +14,13 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.5.0"
+version = "0.5.1"
 license = "Apache-2.0"
+
+[profile.dev]
+# Keep useful backtraces without retaining full variable-level debug data for
+# every workspace dependency. The test profile inherits this setting.
+debug = "limited"
 
 [profile.release]
 opt-level = "z"

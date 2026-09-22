@@ -14,7 +14,7 @@ const evidence: MonitorNativeRuntimeEvidence = {
         { unit: "rz-monitor.service", mainPid: 2, executable: { dev: "1", ino: "3", sha256: hash } },
     ],
     health: [{ service: "admin", buildId: hash, compositionId: hash }, { service: "monitor", buildId: hash, compositionId: hash }],
-    checks: { ownerLogin: true, defaultPasswordsRejected: true, insightsAbsent: true, reportsAbsent: true, restart: true, adminThenMonitor: true, monitorThenAdmin: true },
+    checks: { ownerLogin: true, defaultPasswordsRejected: true, insightsAbsent: true, reportsAbsent: true, restart: true, adminThenMonitor: true, monitorThenAdmin: true, notificationIngress: "absent" },
     runtime: true, browser: false, load: false, releaseReady: false,
 };
 test("runtime evidence is closed and binds both health records", () => {
@@ -25,10 +25,10 @@ test("runtime evidence is closed and binds both health records", () => {
     expect(() => parseMonitorNativeRuntimeEvidence({ ...evidence, health: [{ ...evidence.health[0] }, { ...evidence.health[1], buildId: "b".repeat(64) }] })).toThrow("bindings");
 });
 
-test("runtime evidence preserves legacy Monitor shape and binds new notification ingress", () => {
+test("runtime evidence requires the Monitor notification-ingress result", () => {
     expect(new TextDecoder().decode(monitorNativeRuntimeEvidenceBytes(evidence))).toBe(canonicalJson(evidence));
-    const monitor = structuredClone(evidence); monitor.checks.notificationIngress = "absent";
-    expect(parseMonitorNativeRuntimeEvidence(monitor)).toEqual(monitor);
+    const monitor = structuredClone(evidence); delete monitor.checks.notificationIngress;
+    expect(() => parseMonitorNativeRuntimeEvidence(monitor)).toThrow("required check");
     const notify = structuredClone(evidence);
     notify.selection.preset = "monitor-notify";
     notify.checks.notificationIngress = "unauthorized";

@@ -11,7 +11,7 @@ cd "$repo_root"
 cp apps/web/src/api/request.ts "$tmp_dir/request.ts"
 cargo run --quiet -p rustzen-admin -- openapi > "$tmp_dir/input/admin-contract.json"
 
-if ! cmp -s openapi/baselines/contract-admin-native-all-refact-modules-mvp.json "$tmp_dir/input/admin-contract.json"; then
+if ! cmp -s openapi/baselines/contract-admin-current.json "$tmp_dir/input/admin-contract.json"; then
     echo "contract-verify: OpenAPI baseline drift" >&2
     exit 1
 fi

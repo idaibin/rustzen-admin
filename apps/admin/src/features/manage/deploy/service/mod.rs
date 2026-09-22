@@ -2,9 +2,9 @@ use std::{
     collections::BTreeMap,
     fs,
     future::Future,
-    io::Write,
+    io::{Read, Write},
+    os::unix::fs::{MetadataExt, OpenOptionsExt},
     path::{Path, PathBuf},
-    process::Stdio,
     sync::Arc,
     time::Duration,
 };
@@ -51,6 +51,16 @@ pub const DEPLOY_FILE_MAX_SIZE: usize = 256 * 1024 * 1024;
 const DEPLOY_BODY_LIMIT: usize = DEPLOY_FILE_MAX_SIZE + 1024 * 1024;
 const SYSTEMD_UNITS: &[&str] =
     &["rz-monitor.service", "rz-insights.service", "rz-reports.service", "rz-admin.service"];
+const UPDATE_REQUEST_DIR: &str = "update-requests";
+const UPDATE_REQUEST_FILE: &str = "pending.json";
+const UPDATE_REQUEST_PROCESSING_FILE: &str = ".pending.json.processing";
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct UpdateRequest {
+    release_id: i64,
+    deployed_by: String,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -137,6 +147,8 @@ impl DeployService {
                 file_path: bundle_path.to_string_lossy().to_string(),
                 file_size: i64::try_from(data.len()).unwrap_or(i64::MAX),
                 file_hash: sha256_hex(&data),
+                frontend_hash: bundle.frontend_sha256,
+                backend_hash: bundle.backend_sha256,
                 notes: Some("Registered from installed current release".to_string()),
             })
             .await
@@ -227,7 +239,7 @@ impl DeployService {
             CONFIG.deploy_signature_required,
             CONFIG.deploy_verify_key.as_deref(),
         )?;
-        let detected_arch = bundle.arch;
+        let detected_arch = bundle.arch.clone();
         if let Some(requested_arch) = arch
             && requested_arch != detected_arch
         {
@@ -252,6 +264,8 @@ impl DeployService {
                 file_path: file_path.to_string_lossy().to_string(),
                 file_size: i64::try_from(data.len()).unwrap_or(i64::MAX),
                 file_hash,
+                frontend_hash: bundle.frontend_sha256,
+                backend_hash: bundle.backend_sha256,
                 notes,
             })
             .await
@@ -278,47 +292,10 @@ impl DeployService {
         let version = self.repo.find_by_id(id).await?;
         ensure_version_is_deployable(&version)?;
         validate_stored_release(&version)?;
-        let executable = std::env::current_exe().map_err(|error| {
-            ServiceError::InvalidOperation(format!("Cannot locate rz-admin executable: {error}"))
-        })?;
         let runtime_root = fs::canonicalize(CONFIG.runtime_root_dir()).map_err(|error| {
             ServiceError::InvalidOperation(format!("Cannot resolve runtime root: {error}"))
         })?;
-        let environment_file = runtime_root.join("config/rz.env");
-        if !environment_file.is_file() {
-            return Err(ServiceError::InvalidOperation(format!(
-                "Update worker environment file is missing: {}",
-                environment_file.display()
-            )));
-        }
-        let status = Command::new("systemd-run")
-            .arg("--unit=rz-update")
-            .args(["--collect", "--no-block"])
-            .args([
-                "--property=Type=exec",
-                "--property=Restart=on-failure",
-                "--property=RestartSec=2s",
-                "--property=StartLimitIntervalSec=60s",
-                "--property=StartLimitBurst=3",
-            ])
-            .arg(format!("--property=EnvironmentFile={}", environment_file.display()))
-            .arg(format!("--working-directory={}", runtime_root.display()))
-            .arg(format!("--setenv=RUSTZEN_UPDATE_DEPLOYED_BY={deployed_by}"))
-            .arg(executable)
-            .args(["update", "worker", &id.to_string()])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .await
-            .map_err(|error| {
-                ServiceError::InvalidOperation(format!("Failed to start update worker: {error}"))
-            })?;
-        if !status.success() {
-            return Err(ServiceError::InvalidOperation(
-                "Failed to enqueue update worker; another update may be active".to_string(),
-            ));
-        }
+        write_update_request(&runtime_root, &UpdateRequest { release_id: id, deployed_by })?;
         Ok(true)
     }
 
@@ -356,13 +333,29 @@ impl DeployService {
     }
 
     pub async fn run_update_worker(id: i64) -> Result<(), Box<dyn std::error::Error>> {
+        Self::run_update_worker_for(id, None).await
+    }
+
+    pub async fn run_update_request_worker() -> Result<(), Box<dyn std::error::Error>> {
+        let runtime_root = fs::canonicalize(CONFIG.runtime_root_dir())?;
+        let claimed = claim_update_request(&runtime_root)?;
+        let request = read_update_request(&claimed);
+        fs::remove_file(&claimed)?;
+        let request = request?;
+        Self::run_update_worker_for(request.release_id, Some(request.deployed_by)).await
+    }
+
+    async fn run_update_worker_for(
+        id: i64,
+        deployed_by: Option<String>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         recover_interrupted_update().await?;
         let pool = crate::infra::db::create_default_pool().await?;
         crate::infra::db::run_migrations(&pool).await?;
         let service = Self::new(pool.clone());
         let version = service.find_by_id(id).await?;
         ensure_version_is_deployable(&version)?;
-        let bundle = validate_stored_release(&version)?;
+        let (data, bundle) = validate_stored_release(&version)?;
         drop(service);
         pool.close().await;
 
@@ -387,7 +380,6 @@ impl DeployService {
         verify_installed_bundle(&current_data, &current_bundle, &old_version, &old_release_dir)?;
 
         let new_release_dir = runtime_root.join("releases").join(&version.version);
-        let data = fs::read(&version.file_path)?;
         let installed_by_update = !new_release_dir.exists();
         if !installed_by_update {
             verify_installed_bundle(&data, &bundle, &version.version, &new_release_dir)?;
@@ -443,7 +435,7 @@ impl DeployService {
                     &DeployComponent::Release,
                     &version.arch,
                     version.id,
-                    std::env::var("RUSTZEN_UPDATE_DEPLOYED_BY").ok().as_deref(),
+                    deployed_by.as_deref(),
                 )
                 .await?;
             pool.close().await;
@@ -479,4 +471,77 @@ impl DeployService {
         )
         .await
     }
+}
+
+fn update_request_path(runtime_root: &Path) -> PathBuf {
+    runtime_root.join("data").join(UPDATE_REQUEST_DIR).join(UPDATE_REQUEST_FILE)
+}
+
+fn write_update_request(runtime_root: &Path, request: &UpdateRequest) -> Result<(), ServiceError> {
+    let directory = runtime_root.join("data").join(UPDATE_REQUEST_DIR);
+    let path = update_request_path(runtime_root);
+    if fs::symlink_metadata(&directory)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+        || fs::symlink_metadata(&path)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false)
+    {
+        return Err(ServiceError::InvalidOperation(
+            "Update request path must not be a symlink".into(),
+        ));
+    }
+    let temporary = directory.join(".pending.json.new");
+    fs::write(
+        &temporary,
+        serde_json::to_vec(request)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?,
+    )
+    .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+    fs::rename(temporary, path)
+        .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+    Ok(())
+}
+
+fn claim_update_request(runtime_root: &Path) -> Result<PathBuf, std::io::Error> {
+    let directory = runtime_root.join("data").join(UPDATE_REQUEST_DIR);
+    let pending = update_request_path(runtime_root);
+    let claimed = directory.join(UPDATE_REQUEST_PROCESSING_FILE);
+    if fs::symlink_metadata(&claimed).is_ok() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "an update request is already being processed",
+        ));
+    }
+    fs::rename(pending, &claimed)?;
+    Ok(claimed)
+}
+
+fn read_update_request(path: &Path) -> Result<UpdateRequest, Box<dyn std::error::Error>> {
+    let mut file = fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path)?;
+    let before = file.metadata()?;
+    if !before.is_file() || before.len() > 16 * 1024 || before.mode() & 0o077 != 0 {
+        return Err(std::io::Error::other("update request must be a regular file").into());
+    }
+    let mut bytes = Vec::with_capacity(before.len() as usize);
+    file.read_to_end(&mut bytes)?;
+    let after = file.metadata()?;
+    if bytes.len() as u64 != before.len()
+        || before.dev() != after.dev()
+        || before.ino() != after.ino()
+        || before.mode() != after.mode()
+        || before.len() != after.len()
+        || before.ctime() != after.ctime()
+        || before.ctime_nsec() != after.ctime_nsec()
+        || before.mtime() != after.mtime()
+        || before.mtime_nsec() != after.mtime_nsec()
+    {
+        return Err(std::io::Error::other("update request changed while read").into());
+    }
+    let request: UpdateRequest = serde_json::from_slice(&bytes)?;
+    if request.release_id <= 0 || request.deployed_by.is_empty() || request.deployed_by.len() > 256
+    {
+        return Err(std::io::Error::other("update request fields are invalid").into());
+    }
+    Ok(request)
 }

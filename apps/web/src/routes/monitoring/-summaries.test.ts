@@ -26,7 +26,7 @@ test("daily summaries retain the fixed page contract while refreshing in the bac
     expect(source).toContain("refetchInterval: 30_000");
     expect(source).toContain("<BackgroundRefreshNotice");
     expect(source).toContain("<Pagination");
-    expect(source).toContain("pagination={false}");
+    expect(source).toContain("{...displayTableProps}");
     expect(source).toContain('scroll={{ y: "100%" }}');
     expect(source).not.toContain("nodeId search");
 });

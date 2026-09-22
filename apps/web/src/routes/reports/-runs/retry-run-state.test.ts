@@ -10,6 +10,12 @@ const run = (id: string, status: Reports.Run["status"]): Reports.Run =>
     ({ id, status }) as Reports.Run;
 
 describe("report run retry behavior", () => {
+    test("audit identity follows the selected run without waiting for its refresh", async () => {
+        const details = await Bun.file(new URL("./run-details.tsx", import.meta.url)).text();
+        expect(details).toContain('data-testid="run-audit" data-run-id={run?.id}');
+        expect(details).not.toContain('data-testid="run-audit" data-run-id={currentRun?.id}');
+    });
+
     test("offers retry only for failed and cancelled terminal runs", () => {
         expect(isRetryableRunStatus("failed")).toBe(true);
         expect(isRetryableRunStatus("cancelled")).toBe(true);
@@ -23,12 +29,19 @@ describe("report run retry behavior", () => {
         expect(retryRunMutationKey("source-1")).not.toEqual(retryRunMutationKey("source-2"));
     });
 
-    test("refreshes the list before selecting and announcing the direct child", async () => {
+    test("selects the direct child before refreshing the list and announcing success", async () => {
         const events: string[] = [];
         const child = run("child-1", "queued");
+        let finishRefresh!: () => void;
         const handlers = createRetryRunHandlers({
-            invalidateRuns: async () => {
-                events.push("invalidated");
+            invalidateRuns: () => {
+                events.push("refresh-started");
+                return new Promise<void>((resolve) => {
+                    finishRefresh = () => {
+                        events.push("invalidated");
+                        resolve();
+                    };
+                });
             },
             selectRun: (selected) => events.push(`selected:${selected.id}`),
             showSuccess: () => events.push("success"),
@@ -36,9 +49,12 @@ describe("report run retry behavior", () => {
             fallbackError: "fallback",
         });
 
-        await handlers.onSuccess(child);
+        const completion = handlers.onSuccess(child);
+        expect(events).toEqual(["selected:child-1", "success", "refresh-started"]);
+        finishRefresh();
+        await completion;
 
-        expect(events).toEqual(["invalidated", "selected:child-1", "success"]);
+        expect(events).toEqual(["selected:child-1", "success", "refresh-started", "invalidated"]);
     });
 
     test("reports request failures without replacing the selected source", () => {

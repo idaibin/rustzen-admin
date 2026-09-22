@@ -7,14 +7,64 @@ use std::{
 
 use super::super::{
     DeployService, SYSTEMD_UNITS, UpdateJournal, backup_database_online, backup_database_paths,
-    cleanup_failed_release, create_dir_all_durable, load_installed_bundle, read_update_journal_at,
-    restore_database_paths, restore_release_state_with_paths, roll_services_with,
-    run_boot_recovery, swap_symlink, validate_upload_size, validate_version,
-    write_update_journal_at,
+    claim_update_request, cleanup_failed_release, create_dir_all_durable, load_installed_bundle,
+    read_update_journal_at, read_update_request, restore_database_paths,
+    restore_release_state_with_paths, roll_services_with, run_boot_recovery, swap_symlink,
+    update_request_path, validate_upload_size, validate_version, write_update_journal_at,
 };
 use crate::features::manage::deploy::types::{
     DeployComponent, DeploymentPayload, ExpireVersionRequest,
 };
+
+#[cfg(unix)]
+#[test]
+fn update_request_reader_rejects_links_and_insecure_files() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = std::env::temp_dir().join(format!("rz-update-request-{}", uuid::Uuid::new_v4()));
+    let directory = root.join("data/update-requests");
+    fs::create_dir_all(&directory).expect("request directory");
+    let request = update_request_path(&root);
+    let outside = root.join("outside.json");
+    fs::write(&outside, br#"{"releaseId":7,"deployedBy":"owner"}"#).expect("outside request");
+    std::os::unix::fs::symlink(&outside, &request).expect("request link");
+    assert!(read_update_request(&request).is_err());
+    fs::remove_file(&request).expect("remove link");
+
+    fs::write(&request, br#"{"releaseId":7,"deployedBy":"owner"}"#).expect("request");
+    let mut permissions = fs::metadata(&request).expect("request metadata").permissions();
+    permissions.set_mode(0o644);
+    fs::set_permissions(&request, permissions).expect("insecure mode");
+    assert!(read_update_request(&request).is_err());
+
+    let mut permissions = fs::metadata(&request).expect("request metadata").permissions();
+    permissions.set_mode(0o600);
+    fs::set_permissions(&request, permissions).expect("private mode");
+    let parsed = read_update_request(&request).expect("regular request");
+    assert_eq!(parsed.release_id, 7);
+    assert_eq!(parsed.deployed_by, "owner");
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn update_request_claim_moves_the_exact_pending_file_before_reading() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = std::env::temp_dir().join(format!("rz-update-claim-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    let pending = update_request_path(&root);
+    fs::write(&pending, br#"{"releaseId":8,"deployedBy":"owner"}"#).expect("pending request");
+    let mut permissions = fs::metadata(&pending).expect("pending metadata").permissions();
+    permissions.set_mode(0o600);
+    fs::set_permissions(&pending, permissions).expect("private mode");
+    let claimed = claim_update_request(&root).expect("claim pending request");
+    assert!(!pending.exists());
+    let parsed = read_update_request(&claimed).expect("read claimed request");
+    assert_eq!(parsed.release_id, 8);
+    fs::remove_file(claimed).expect("remove claimed request");
+    fs::remove_dir_all(root).expect("cleanup");
+}
 
 #[tokio::test]
 async fn boot_recovery_requeues_services_after_a_failed_first_attempt() {
@@ -116,10 +166,14 @@ async fn release_record_is_retained_when_file_removal_fails() {
             file_path: artifact.to_string_lossy().to_string(),
             file_size: 1,
             file_hash: "fixture".to_string(),
+            frontend_hash: "a".repeat(64),
+            backend_hash: "b".repeat(64),
             notes: None,
         })
         .await
         .expect("insert release");
+    assert_eq!(item.frontend_hash, "a".repeat(64));
+    assert_eq!(item.backend_hash, "b".repeat(64));
 
     assert!(service.delete(item.id).await.is_err());
     service.expire(item.id, ExpireVersionRequest { notes: None }).await.unwrap();
@@ -156,6 +210,8 @@ async fn release_file_is_removed_before_its_record_is_hidden() {
             file_path: artifact.to_string_lossy().to_string(),
             file_size: 7,
             file_hash: "fixture".to_string(),
+            frontend_hash: "a".repeat(64),
+            backend_hash: "b".repeat(64),
             notes: None,
         })
         .await
@@ -203,6 +259,7 @@ async fn fresh_install_bootstraps_exactly_one_current_release_row() {
     let info =
         crate::features::manage::deploy::bundle::validate_bundle(&data, version, false, None)
             .expect("bundle");
+    fs::create_dir_all(root.join("data/db/admin")).expect("Admin ownership source");
     crate::features::manage::deploy::bundle::install_bundle(&data, &info, version, 1, &root)
         .expect("installed release");
     fs::create_dir_all(root.join("data/releases")).expect("release store");

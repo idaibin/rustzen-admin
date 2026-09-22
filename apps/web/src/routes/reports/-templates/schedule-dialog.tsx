@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input, Modal, Select, Switch } from "antd";
 import { useEffect, useRef, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { t } from "@/lib/i18n";
 
 import {
@@ -257,18 +258,14 @@ export function ScheduleDialog({
                             onChange={setEnabled}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>
-                        <Button
-                            data-testid="schedule-save"
-                            type="primary"
-                            loading={mutation.isPending}
-                            disabled={mutation.isPending}
-                            onClick={save}
-                        >
-                            {t("校验并保存", "Validate and save")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={closeDialog}
+                        submitLabel={t("校验并保存", "Validate and save")}
+                        submitting={mutation.isPending}
+                        submitDisabled={mutation.isPending}
+                        submitTestId="schedule-save"
+                        onSubmit={save}
+                    />
                 </Form>
             </Modal>
         </>

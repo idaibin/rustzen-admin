@@ -1,5 +1,18 @@
 use super::invalid;
 use super::{BINARIES, SUPPORTED_ARCHES, SYSTEMD_FILES};
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ControllerIdentity {
+    schema_version: u8,
+    artifact_class: String,
+    version: String,
+    arch: String,
+    monitor_binary_sha256: String,
+    agent_protocol_contract_id: String,
+}
 use crate::common::error::ServiceError;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -7,7 +20,16 @@ use std::{
     path::{Component, Path},
 };
 
-pub(super) fn inspect_archive(content: &[u8], version: &str) -> Result<String, ServiceError> {
+pub(super) struct InspectedArchive {
+    pub arch: String,
+    pub frontend_sha256: String,
+    pub backend_sha256: String,
+}
+
+pub(super) fn inspect_archive(
+    content: &[u8],
+    version: &str,
+) -> Result<InspectedArchive, ServiceError> {
     let mut archive = tar::Archive::new(Cursor::new(content));
     let mut seen = BTreeSet::new();
     let mut files = BTreeMap::new();
@@ -58,10 +80,12 @@ pub(super) fn inspect_archive(content: &[u8], version: &str) -> Result<String, S
         .find(|arch| root == format!("rz-{version}-{arch}"))
         .ok_or_else(|| invalid("Release bundle root does not match version and architecture"))?;
     validate_file_set(&root, &files)?;
-    validate_binaries(&root, version, arch, &files)?;
+    let frontend_sha256 = validate_binaries(&root, version, arch, &files)?;
+    let backend_sha256 = backend_digest(&root, &files)?;
     validate_systemd(&root, &files)?;
+    validate_controller_identity(&root, version, arch, &files)?;
     validate_support_files(&root, &files)?;
-    Ok(arch.to_string())
+    Ok(InspectedArchive { arch: arch.to_string(), frontend_sha256, backend_sha256 })
 }
 
 pub(super) fn validate_path(path: &Path) -> Result<(), ServiceError> {
@@ -85,6 +109,7 @@ fn validate_file_set(
             format!("{root}/config/rz.env"),
             format!("{root}/config/rz-reports.env"),
             format!("{root}/setup-layout.sh"),
+            format!("{root}/identity/controller.json"),
         ])
         .collect::<BTreeSet<_>>();
     let actual = files.keys().cloned().collect::<BTreeSet<_>>();
@@ -99,7 +124,7 @@ fn validate_binaries(
     version: &str,
     arch: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
-) -> Result<(), ServiceError> {
+) -> Result<String, ServiceError> {
     for binary in BINARIES {
         let (mode, data) = file(files, &format!("{root}/bin/{binary}"))?;
         if mode & 0o111 == 0 {
@@ -117,28 +142,78 @@ fn validate_binaries(
             ));
         }
     }
-    Ok(())
+    frontend_digest(&file(files, &format!("{root}/bin/rz-admin"))?.1, version)
+}
+
+fn frontend_digest(data: &[u8], version: &str) -> Result<String, ServiceError> {
+    let prefix = format!(
+        "RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary=rz-admin\nversion={version}\nfrontend_sha256="
+    );
+    let prefix = prefix.as_bytes();
+    let mut matches = data.windows(prefix.len()).filter(|window| *window == prefix);
+    let start = matches
+        .next()
+        .and_then(|_| data.windows(prefix.len()).position(|window| window == prefix))
+        .ok_or_else(|| invalid("Admin release marker is missing"))?;
+    if matches.next().is_some() {
+        return Err(invalid("Admin release marker is duplicated"));
+    }
+    let offset = start + prefix.len();
+    let value = data
+        .get(offset..offset + 64)
+        .ok_or_else(|| invalid("Admin frontend digest marker is invalid"))?;
+    if data.get(offset + 64) != Some(&b'\n')
+        || !value.iter().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        return Err(invalid("Admin frontend digest marker is invalid"));
+    }
+    String::from_utf8(value.to_vec())
+        .map_err(|_| invalid("Admin frontend digest marker is invalid"))
+}
+
+fn backend_digest(
+    root: &str,
+    files: &BTreeMap<String, (u32, Vec<u8>)>,
+) -> Result<String, ServiceError> {
+    let mut inventory = String::new();
+    for binary in BINARIES {
+        let data = &file(files, &format!("{root}/bin/{binary}"))?.1;
+        inventory.push_str(&format!(
+            "binary={binary}\nsize={}\nsha256={:x}\n",
+            data.len(),
+            Sha256::digest(data)
+        ));
+    }
+    Ok(format!("{:x}", Sha256::digest(inventory.as_bytes())))
 }
 
 fn validate_systemd(
     root: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
 ) -> Result<(), ServiceError> {
-    let target = text_file(files, &format!("{root}/systemd/rz.target"))?;
+    let target = text_file(files, &format!("{root}/systemd/rz-full.service"))?;
     reject_requires(target)?;
     let wants = directive_values(target, "Wants");
-    if SYSTEMD_FILES[1..].iter().any(|unit| !wants.contains(*unit)) {
-        return Err(invalid("rz.target must Want recovery and all four services"));
+    if SYSTEMD_FILES[1..6].iter().any(|unit| !wants.contains(*unit))
+        || !has_directive(target, "Type", "oneshot")
+        || !has_directive(target, "ExecStart", "/bin/true")
+        || !has_directive(target, "RemainAfterExit", "yes")
+        || !directive_values(target, "After")
+            .split_whitespace()
+            .any(|value| value == "rz-recovery.service")
+        || !has_directive(target, "WantedBy", "multi-user.target")
+    {
+        return Err(invalid("rz-full.service must be the complete aggregate service"));
     }
 
     let recovery = text_file(files, &format!("{root}/systemd/rz-recovery.service"))?;
     reject_requires(recovery)?;
-    if !has_directive(recovery, "PartOf", "rz.target")
+    if !has_directive(recovery, "PartOf", "rz-full.service")
         || !has_directive(recovery, "Restart", "on-failure")
         || !has_directive(recovery, "ExecStart", "/opt/rz/current/bin/rz-admin update recover")
         || directive_values(recovery, "StartLimitIntervalSec").is_empty()
         || directive_values(recovery, "StartLimitBurst").is_empty()
-        || SYSTEMD_FILES[2..].iter().any(|unit| {
+        || SYSTEMD_FILES[2..6].iter().any(|unit| {
             !directive_values(recovery, "Before").split_whitespace().any(|value| value == *unit)
         })
     {
@@ -154,7 +229,7 @@ fn validate_systemd(
     for (unit, command) in specs {
         let text = text_file(files, &format!("{root}/systemd/{unit}"))?;
         reject_requires(text)?;
-        if !has_directive(text, "PartOf", "rz.target")
+        if !has_directive(text, "PartOf", "rz-full.service")
             || !has_directive(text, "Restart", "on-failure")
             || !has_directive(text, "ExecStart", command)
             || !directive_values(text, "After")
@@ -170,6 +245,47 @@ fn validate_systemd(
         {
             return Err(invalid("Release bundle contains an invalid service topology"));
         }
+    }
+    let update = text_file(files, &format!("{root}/systemd/rz-update.service"))?;
+    let update_path = text_file(files, &format!("{root}/systemd/rz-update.path"))?;
+    if !has_directive(update, "Type", "oneshot")
+        || !has_directive(update, "User", "root")
+        || !has_directive(update, "ExecStart", "/opt/rz/current/bin/rz-admin update request-worker")
+        || !has_directive(update_path, "PathChanged", "/opt/rz/data/update-requests/pending.json")
+        || !has_directive(update_path, "Unit", "rz-update.service")
+    {
+        return Err(invalid("Release bundle contains invalid update helper units"));
+    }
+    Ok(())
+}
+
+fn validate_controller_identity(
+    root: &str,
+    version: &str,
+    arch: &str,
+    files: &BTreeMap<String, (u32, Vec<u8>)>,
+) -> Result<(), ServiceError> {
+    let bytes = &file(files, &format!("{root}/identity/controller.json"))?.1;
+    let identity: ControllerIdentity =
+        serde_json::from_slice(bytes).map_err(|_| invalid("Controller identity is invalid"))?;
+    if identity.schema_version != 1
+        || identity.artifact_class != "full-controller"
+        || identity.version != version
+        || identity.arch != arch
+        || identity.monitor_binary_sha256.len() != 64
+        || !identity
+            .monitor_binary_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        || identity.agent_protocol_contract_id.len() != 64
+        || !identity
+            .agent_protocol_contract_id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        || identity.monitor_binary_sha256
+            != format!("{:x}", Sha256::digest(&file(files, &format!("{root}/bin/rz-monitor"))?.1))
+    {
+        return Err(invalid("Controller identity does not match the full release"));
     }
     Ok(())
 }

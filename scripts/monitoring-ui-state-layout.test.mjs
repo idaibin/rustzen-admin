@@ -2,6 +2,13 @@ import { expect, test } from "bun:test";
 
 const driver = new URL("./monitoring-ui-state-browser-steps.mjs", import.meta.url).pathname;
 
+test("incidents expose a stable pagination seam for the mobile delivery journey", async () => {
+    const incidents = await Bun.file(
+        new URL("../apps/web/src/routes/monitoring/incidents.tsx", import.meta.url),
+    ).text();
+    expect(incidents).toContain('data-testid="incidents-pagination"');
+});
+
 test("mobile summaries emit the readable three-column geometry contract", async () => {
     const result = Bun.spawnSync([process.execPath, driver], {
         stdout: "pipe",
@@ -36,7 +43,7 @@ test("mobile summaries emit the readable three-column geometry contract", async 
     });
     for (const selector of [
         ".ant-table-body > table",
-        ".data-table-pagination .ant-pagination",
+        "[data-testid=summaries-pagination] .ant-pagination",
     ]) {
         expect(layouts).toContainEqual({
             action: "assertElementLayout",
@@ -48,5 +55,6 @@ test("mobile summaries emit the readable three-column geometry contract", async 
     const summaries = await Bun.file(
         new URL("../apps/web/src/routes/monitoring/summaries.tsx", import.meta.url),
     ).text();
+    expect(summaries).toContain('data-testid="summaries-pagination"');
     expect(summaries.match(/monitoring-summary-detail-column/g)).toHaveLength(6);
 });

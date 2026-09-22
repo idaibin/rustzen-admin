@@ -283,6 +283,8 @@ CREATE TABLE deploy_versions (
     file_path TEXT NOT NULL,
     file_size INTEGER NOT NULL CHECK(file_size > 0),
     file_hash TEXT NOT NULL,
+    frontend_hash TEXT NOT NULL CHECK(length(frontend_hash) = 64),
+    backend_hash TEXT NOT NULL CHECK(length(backend_hash) = 64),
     is_current INTEGER NOT NULL DEFAULT 0 CHECK(is_current IN (0, 1)),
     is_deployed INTEGER NOT NULL DEFAULT 0 CHECK(is_deployed IN (0, 1)),
     is_expired INTEGER NOT NULL DEFAULT 0 CHECK(is_expired IN (0, 1)),
@@ -309,9 +311,7 @@ VALUES ('monitor', 1), ('insights', 1), ('reports', 1);
 
 INSERT INTO users (username, email, password_hash, real_name, status, is_system)
 VALUES
-    ('owner', 'owner@example.com', '$argon2id$v=19$m=19456,t=2,p=1$i2SSaoqEMMwYzJQPXhVHfg$k1Y5bZ/k5SxEoEroG+UFzCW8aKzK1o/DWKKDU34FiPI', '所有者', 1, 1),
-    ('admin', 'admin@example.com', '$argon2id$v=19$m=19456,t=2,p=1$i2SSaoqEMMwYzJQPXhVHfg$k1Y5bZ/k5SxEoEroG+UFzCW8aKzK1o/DWKKDU34FiPI', '管理员', 1, 1),
-    ('viewer', 'viewer@example.com', '$argon2id$v=19$m=19456,t=2,p=1$i2SSaoqEMMwYzJQPXhVHfg$k1Y5bZ/k5SxEoEroG+UFzCW8aKzK1o/DWKKDU34FiPI', '查看者', 1, 1);
+    ('owner', 'owner@example.com', '!bootstrap-required!', '所有者', 2, 1);
 
 INSERT INTO roles (name, code, description, status, is_system, sort_order)
 VALUES

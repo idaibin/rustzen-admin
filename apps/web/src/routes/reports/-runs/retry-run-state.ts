@@ -16,9 +16,9 @@ interface RetryRunEffects {
 
 export const createRetryRunHandlers = (effects: RetryRunEffects) => ({
     onSuccess: async (retriedRun: Reports.Run) => {
-        await effects.invalidateRuns();
         effects.selectRun(retriedRun);
         effects.showSuccess();
+        await effects.invalidateRuns();
     },
     onError: (error: unknown) => {
         effects.showError(error instanceof Error ? error.message : effects.fallbackError);

@@ -177,7 +177,7 @@ pub fn document() -> Result<OpenApi, crate::infra::contract::ContractError> {
     components
         .add_security_scheme("bearerAuth", SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)));
     Ok(OpenApiBuilder::new()
-        .info(Info::new("Rustzen Admin contract trial", env!("CARGO_PKG_VERSION")))
+        .info(Info::new("Rustzen Admin API", env!("CARGO_PKG_VERSION")))
         .paths(paths)
         .components(Some(components))
         .build())

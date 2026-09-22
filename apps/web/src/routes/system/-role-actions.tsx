@@ -1,8 +1,9 @@
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { Button, Popconfirm, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { t } from "@/lib/i18n";
 
 import { deriveRoleDeletionState } from "./-role-delete-state";
@@ -60,7 +61,8 @@ export function RoleActions({ record, onSuccess }: { record: Role.Item; onSucces
                         </span>
                     </Tooltip>
                 ) : (
-                    <Popconfirm
+                    <ConfirmDialog
+                        trigger={deleteButton}
                         title={t("删除角色", "Delete role")}
                         description={
                             <span>
@@ -70,12 +72,10 @@ export function RoleActions({ record, onSuccess }: { record: Role.Item; onSucces
                                 )}
                             </span>
                         }
-                        okText={t("删除", "Delete")}
-                        cancelText={t("取消", "Cancel")}
+                        confirmLabel={t("删除", "Delete")}
+                        destructive
                         onConfirm={() => onSuccessDelete(record.id, onSuccess)}
-                    >
-                        {deleteButton}
-                    </Popconfirm>
+                    />
                 )}
             </AuthWrap>
         </div>

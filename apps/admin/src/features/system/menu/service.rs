@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_manual_capability_rows_cannot_be_updated() {
+    async fn unsupported_manual_capability_rows_cannot_be_updated() {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect("sqlite::memory:")
@@ -183,12 +183,12 @@ mod tests {
         let menu_id: i64 = sqlx::query_scalar(
             "INSERT INTO menus
              (parent_id, name, code, menu_type, status, is_system, is_manual, sort_order)
-             VALUES (0, 'Legacy manual', 'legacy:manual', 2, 1, FALSE, TRUE, 1)
+             VALUES (0, 'Unsupported manual', 'unsupported:manual', 2, 1, FALSE, TRUE, 1)
              RETURNING id",
         )
         .fetch_one(&pool)
         .await
-        .expect("legacy manual capability row");
+        .expect("unsupported manual capability row");
 
         let result = MenuService::update_menu(
             &pool,
@@ -208,8 +208,8 @@ mod tests {
                 .bind(menu_id)
                 .fetch_one(&pool)
                 .await
-                .expect("unchanged legacy manual capability row");
-        assert_eq!(row, ("Legacy manual".to_string(), 1, 1, None));
+                .expect("unchanged unsupported manual capability row");
+        assert_eq!(row, ("Unsupported manual".to_string(), 1, 1, None));
     }
 
     #[tokio::test]

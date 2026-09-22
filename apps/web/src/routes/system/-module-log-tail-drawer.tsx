@@ -4,6 +4,7 @@ import { Alert, Button, Card, Drawer, Space, Tag, Typography } from "antd";
 
 import type { ModuleLogFile, ModuleLogTail } from "@/api/system/status/module-logs";
 import { DataState } from "@/components/feedback/data-state";
+import { formatBytes } from "@/lib/format";
 import { t } from "@/lib/i18n";
 
 interface Props {
@@ -130,16 +131,4 @@ function TailContent({
             ) : null}
         </div>
     );
-}
-
-function formatBytes(bytes: number) {
-    if (!bytes) return "0 B";
-    const units = ["B", "KB", "MB", "GB", "TB"] as const;
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-    }
-    return `${Number(value.toFixed(unitIndex === 0 ? 0 : 1))} ${units[unitIndex]}`;
 }

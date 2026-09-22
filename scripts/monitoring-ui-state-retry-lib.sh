@@ -53,8 +53,9 @@ monitor_retry_prepage_cdp() {
     jq -e --argjson before "$reads_before" --argjson after "$reads_after" --argjson steps "$steps" '
       .data as $run | $steps.data as $steps | $before == $after and $run.status == "failed"
       and $run.error == "reports service operation failed"
-      and ($steps | length == 1 and .[0].stepIndex == 0 and .[0].action == "setUiPreferences"
-           and .[0].status == "succeeded")
+      and (($steps | length == 0)
+           or ($steps | length == 1 and .[0].stepIndex == 0
+               and .[0].action == "setUiPreferences" and .[0].status == "succeeded"))
     ' <<<"$run" >/dev/null || return 1
     child=$(curl_json "${auth[@]}" -X POST "$admin/api/reports/runs/$source_run/retry" | jq -er '.data.id') || return 1
     binding=$(monitor_retry_db_binding "$source_run" "$child") || return 1

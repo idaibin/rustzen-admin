@@ -1,9 +1,10 @@
 import { EditOutlined, MoreOutlined } from "@ant-design/icons";
-import { Button, Dropdown, Modal, type MenuProps } from "antd";
+import { Button, Dropdown, type MenuProps } from "antd";
 import { useMemo, useState } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
+import { ConfirmModal } from "@/components/feedback/confirm-dialog";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -47,7 +48,6 @@ export function UserActions({
         state.checkPermissions("system:user:delete"),
     );
     const [pendingAction, setPendingAction] = useState<UserActionType | null>(null);
-    const [confirmingAction, setConfirmingAction] = useState(false);
     const actionItems = useMemo<NonNullable<MenuProps["items"]>>(
         () =>
             getUserActionItems(
@@ -118,20 +118,14 @@ export function UserActions({
     }, [pendingAction, record.id, record.status, record.username, locale]);
 
     const executeAction = async () => {
-        if (!actionConfig || confirmingAction) return;
+        if (!actionConfig) return;
 
-        setConfirmingAction(true);
-        try {
-            await actionConfig.onConfirm();
-            onSuccess();
-            setPendingAction(null);
-        } finally {
-            setConfirmingAction(false);
-        }
+        await actionConfig.onConfirm();
+        onSuccess();
+        setPendingAction(null);
     };
 
     const hideActionDialog = () => {
-        if (confirmingAction) return;
         setPendingAction(null);
     };
 
@@ -169,28 +163,15 @@ export function UserActions({
                     />
                 </Dropdown>
             ) : null}
-            <Modal
+            <ConfirmModal
                 open={pendingAction !== null}
                 onCancel={hideActionDialog}
-                footer={null}
                 title={actionConfig?.title}
-                destroyOnHidden
-            >
-                <p>{actionConfig?.description}</p>
-                <div className="mt-4 flex items-center justify-end gap-2">
-                    <Button type="default" onClick={hideActionDialog}>
-                        {t("取消", "Cancel")}
-                    </Button>
-                    <Button
-                        type="primary"
-                        danger={actionConfig?.destructive}
-                        loading={confirmingAction}
-                        onClick={() => void executeAction()}
-                    >
-                        {actionConfig?.actionLabel ?? t("确定", "Confirm")}
-                    </Button>
-                </div>
-            </Modal>
+                description={<p>{actionConfig?.description}</p>}
+                confirmLabel={actionConfig?.actionLabel ?? t("确定", "Confirm")}
+                destructive={actionConfig?.destructive}
+                onConfirm={executeAction}
+            />
         </div>
     );
 }

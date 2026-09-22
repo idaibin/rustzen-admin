@@ -9,11 +9,18 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    displayTableProps,
+    emptyTableLocale,
+    tablePagination,
+} from "@/components/table/table-presets";
 import { t } from "@/lib/i18n";
 
 import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from "./-save-state";
 
-export const Route = createFileRoute("/monitoring/summaries")({ component: DailySummariesPage });
+export const Route = createFileRoute("/monitoring/summaries")({
+    component: DailySummariesPage,
+});
 const PAGE_SIZE = 20;
 
 function DailySummariesPage() {
@@ -138,31 +145,25 @@ function DailySummariesPage() {
                         loading={isFetching}
                         search={false}
                         options={false}
-                        pagination={false}
                         scroll={{ y: "100%" }}
-                        toolBarRender={false}
-                        tableAlertOptionRender={false}
-                        rowSelection={false}
-                        locale={{
-                            emptyText: (
-                                <DataState
-                                    kind="empty"
-                                    title={t("暂无日报", "No daily summaries")}
-                                />
-                            ),
-                        }}
+                        {...displayTableProps}
+                        locale={emptyTableLocale(t("暂无日报", "No daily summaries"))}
                     />
-                    <div className="flex shrink-0 items-center justify-between gap-4 pt-3">
+                    <div
+                        className="flex shrink-0 items-center justify-between gap-4 pt-3"
+                        data-testid="summaries-pagination"
+                    >
                         <Typography.Text type="secondary">
                             {t(`共 ${data.total} 条`, `${data.total} total`)}
                         </Typography.Text>
                         <Pagination
-                            current={current}
-                            pageSize={PAGE_SIZE}
-                            total={data.total}
-                            showSizeChanger={false}
-                            showLessItems
-                            onChange={setCurrent}
+                            {...tablePagination({
+                                current,
+                                pageSize: PAGE_SIZE,
+                                total: data.total,
+                                showLessItems: true,
+                                onChange: setCurrent,
+                            })}
                         />
                     </div>
                 </DataTableShell>

@@ -2854,7 +2854,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rustzen-admin"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -2898,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-auth"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -2916,11 +2916,12 @@ dependencies = [
 
 [[package]]
 name = "rustzen-cli"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "base64",
  "clap",
  "ed25519-dalek",
+ "hex",
  "libc",
  "reqwest",
  "rustzen-config",
@@ -2928,12 +2929,13 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "tar",
  "tokio",
 ]
 
 [[package]]
 name = "rustzen-config"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "dotenvy",
  "figment",
@@ -2948,7 +2950,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-insights"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "axum",
  "chrono",
@@ -2970,7 +2972,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-ipc"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "axum",
  "chrono",
@@ -2988,7 +2990,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-monitor"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "axum",
  "chrono",
@@ -3013,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-reports"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "axum",
  "chromiumoxide",
@@ -3042,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-runtime"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "tokio",
@@ -3054,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "rustzen-storage"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "serde",
  "sqlx",

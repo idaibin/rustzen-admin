@@ -90,8 +90,42 @@ pub(super) fn extract_archive(
     Ok(())
 }
 
+#[cfg(unix)]
+pub(super) fn normalize_release_config_ownership(
+    release: &Path,
+    runtime_root: &Path,
+) -> Result<(), std::io::Error> {
+    use std::os::unix::fs::MetadataExt;
+
+    let owner = fs::symlink_metadata(runtime_root.join("data/db/admin"))?;
+    if !owner.file_type().is_dir() {
+        return Err(std::io::Error::other("Admin data owner source is not a directory"));
+    }
+    for path in [
+        release.join("config"),
+        release.join("config/rz.env"),
+        release.join("config/rz-reports.env"),
+    ] {
+        let metadata = fs::symlink_metadata(&path)?;
+        if metadata.uid() != owner.uid() || metadata.gid() != owner.gid() {
+            std::os::unix::fs::chown(&path, Some(owner.uid()), Some(owner.gid()))?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub(super) fn normalize_release_config_ownership(
+    _release: &Path,
+    _runtime_root: &Path,
+) -> Result<(), std::io::Error> {
+    Ok(())
+}
+
 pub(super) fn sync_release_tree(root: &Path) -> Result<(), std::io::Error> {
-    for directory in [root.join("bin"), root.join("systemd"), root.join("config")] {
+    for directory in
+        [root.join("bin"), root.join("systemd"), root.join("config"), root.join("identity")]
+    {
         sync_directory(&directory)?;
     }
     sync_directory(root)

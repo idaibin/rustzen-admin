@@ -4,12 +4,51 @@ use serde_json::json;
 use super::cli_output::Success;
 use super::*;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 #[test]
 fn command_surface_uses_fixed_module_enum() {
-    let cli = Cli::try_parse_from(["rz", "--json", "status", "reports"]).expect("valid CLI");
+    let cli = Cli::try_parse_from(["rz", "--json", "status"]).expect("valid CLI");
     assert!(cli.json);
-    assert!(matches!(cli.command, Command::Status { module: Module::Reports }));
+    assert!(matches!(cli.command, Command::Status));
+    assert!(matches!(Cli::try_parse_from(["rz", "start"]).unwrap().command, Command::Start));
     assert!(Cli::try_parse_from(["rz", "status", "unknown"]).is_err());
+}
+
+#[test]
+fn agent_install_uses_the_compiled_official_trust_root() {
+    let cli = Cli::try_parse_from([
+        "rz",
+        "install-agent",
+        "--archive",
+        "agent.tar",
+        "--manifest",
+        "manifest.json",
+        "--envelope",
+        "envelope.json",
+        "--destination",
+        "/opt/rz",
+    ])
+    .expect("Agent install requires only signed artifact paths");
+    assert!(matches!(cli.command, Command::InstallAgent { .. }));
+    assert!(
+        Cli::try_parse_from([
+            "rz",
+            "install-agent",
+            "--archive",
+            "agent.tar",
+            "--manifest",
+            "manifest.json",
+            "--envelope",
+            "envelope.json",
+            "--destination",
+            "/opt/rz",
+            "--trusted-public-key",
+            "attacker.pem",
+        ])
+        .is_err()
+    );
 }
 
 #[test]
@@ -62,4 +101,49 @@ fn endpoint_policy_rejects_non_loopback_reads() {
     assert!(is_loopback_host("localhost"));
     assert!(!is_loopback_host("example.com"));
     assert!(!is_loopback_host("10.0.0.2"));
+}
+
+#[cfg(unix)]
+#[test]
+fn status_checks_every_service_and_fails_when_one_is_inactive() {
+    let directory = std::env::temp_dir().join(format!(
+        "rz-cli-systemctl-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).expect("temporary directory");
+    let systemctl = directory.join("systemctl");
+    std::fs::write(
+        &systemctl,
+        "#!/bin/sh\nif [ \"$2\" = rz-monitor.service ]; then echo failed; exit 3; fi\necho active\n",
+    )
+    .expect("systemctl fixture");
+    let mut permissions = std::fs::metadata(&systemctl).expect("fixture metadata").permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&systemctl, permissions).expect("fixture permissions");
+
+    let states = read_service_states(&systemctl).expect("service states");
+    assert_eq!(states.len(), 4);
+    assert_eq!(
+        states,
+        vec![
+            ("rz-admin.service".into(), "active".into(), true),
+            ("rz-monitor.service".into(), "failed".into(), false),
+            ("rz-insights.service".into(), "active".into(), true),
+            ("rz-reports.service".into(), "active".into(), true),
+        ]
+    );
+    let error = service_status(&systemctl, true).unwrap_err();
+    assert_eq!(error.code, "service_unhealthy");
+    assert!(error.message.contains("rz-monitor.service=failed"));
+    let start_error =
+        wait_for_active_services(&systemctl, "start", 1, std::time::Duration::ZERO).unwrap_err();
+    assert_eq!(start_error.command, "start");
+    assert_eq!(start_error.code, "service_unhealthy");
+
+    std::fs::remove_file(systemctl).expect("remove fixture");
+    std::fs::remove_dir(directory).expect("remove temporary directory");
 }

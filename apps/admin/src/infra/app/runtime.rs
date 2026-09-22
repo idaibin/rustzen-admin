@@ -1,14 +1,8 @@
-#[cfg(feature = "selected-distribution")]
-use crate::features::installation::{
-    InstallationState, protected_routes as installation_routes, public_routes as web_binding_routes,
-};
 #[cfg(feature = "notifications")]
 use crate::features::notifications::{
     admission_types::AdmissionPolicy, ingress, maintenance, realtime::RealtimeHub,
 };
-#[cfg(feature = "full")]
 use crate::infra::db::run_migrations;
-#[cfg(feature = "full")]
 use crate::{
     features::manage::{deploy::service::DeployService, task::service::TaskService},
     middleware::log::log_middleware,
@@ -35,7 +29,6 @@ use axum::{Router, middleware, routing::get};
 use rustzen_auth::auth::auth_middleware;
 use rustzen_ipc::DelegationSigner;
 use std::net::SocketAddr;
-#[cfg(feature = "full")]
 use tower_http::services::ServeDir;
 
 use super::routes::{admin_cors, contract_permission_codes, documented_protected_routes, health};
@@ -43,11 +36,11 @@ use super::routes::{admin_cors, contract_permission_codes, documented_protected_
 #[tracing::instrument(name = "run_server")]
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Initializing database connection pool...");
-    #[cfg(feature = "selected-distribution")]
-    crate::infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = create_default_pool().await?;
-    #[cfg(feature = "full")]
     run_migrations(&pool).await?;
+    crate::infra::bootstrap_owner::consume_installer_owner_secret(&pool)
+        .await
+        .map_err(std::io::Error::other)?;
     test_connection(&pool).await?;
     #[cfg(feature = "notifications")]
     let notification_realtime = RealtimeHub::new(pool.clone());
@@ -87,13 +80,9 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         )
         .await?
     };
-    #[cfg(feature = "full")]
     let task_service = std::sync::Arc::new(TaskService::new(pool.clone())?);
-    #[cfg(feature = "full")]
     task_service.bootstrap().await?;
-    #[cfg(feature = "full")]
     let deploy_service = std::sync::Arc::new(DeployService::new(pool.clone()));
-    #[cfg(feature = "full")]
     deploy_service.bootstrap_installed_current().await?;
     let module_client = reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(1))
@@ -106,16 +95,11 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         DelegationSigner::new(CONFIG.ipc_token.as_bytes())?,
     )
     .await?;
-    #[cfg(feature = "selected-distribution")]
-    let installation_state =
-        InstallationState::load(module_state.clone()).map_err(std::io::Error::other)?;
-
     let (documented_routes, documented_contracts) = documented_protected_routes();
     let documented_routes = documented_routes.layer(Extension(module_state.registry.clone()));
     #[cfg(feature = "notifications")]
     let documented_routes = documented_routes.layer(Extension(notification_realtime.clone()));
     let (public_auth_router, _) = public_auth_routes().into_parts();
-    #[cfg(feature = "full")]
     let protected_api: Router = documented_routes
         .layer(Extension(task_service))
         .layer(Extension(deploy_service))
@@ -125,37 +109,10 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
             auth_middleware,
         ))
         .with_state(pool.clone());
-    #[cfg(feature = "selected-distribution")]
-    let protected_api: Router = documented_routes
-        .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
-            auth_middleware,
-        ))
-        .with_state(pool.clone());
-
     let public_api: Router = public_auth_router.with_state(pool.clone());
-    #[cfg(feature = "selected-distribution")]
-    let (web_binding, _) = web_binding_routes().into_parts();
-    #[cfg(feature = "selected-distribution")]
-    let (installation_router, installation_contracts) = installation_routes().into_parts();
-    #[cfg(feature = "selected-distribution")]
-    let installation_api: Router = installation_router
-        .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
-            auth_middleware,
-        ))
-        .with_state(installation_state);
     let (module_control_router, module_control_contracts) = control_routes().into_parts();
-    #[cfg(feature = "full")]
     let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(pool.clone(), log_middleware))
-        .route_layer(middleware::from_fn_with_state(
-            (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
-            auth_middleware,
-        ))
-        .with_state(module_state.clone());
-    #[cfg(feature = "selected-distribution")]
-    let module_control: Router = module_control_router
         .route_layer(middleware::from_fn_with_state(
             (jwt_codec(), ServerAuthContextLoader::new(pool.clone())),
             auth_middleware,
@@ -166,25 +123,14 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let permission_codes = contract_permission_codes(
         documented_contracts.iter().chain(module_control_contracts.iter()),
     );
-    #[cfg(feature = "selected-distribution")]
-    let permission_codes = {
-        let mut permission_codes = permission_codes;
-        permission_codes.extend(contract_permission_codes(installation_contracts.iter()));
-        permission_codes
-    };
     PermissionService::sync_permission_codes(&pool, &permission_codes).await?;
 
-    #[cfg(feature = "full")]
     let avatars_prefix = CONFIG.avatars_prefix();
-    #[cfg(feature = "full")]
     let uploads_prefix = CONFIG.files_prefix().to_string();
-    #[cfg(feature = "full")]
     let uploads_service =
         ServeDir::new(CONFIG.uploads_dir()).append_index_html_on_directories(true);
-    #[cfg(feature = "full")]
     let avatars_service =
         ServeDir::new(CONFIG.avatars_dir()).append_index_html_on_directories(true);
-    #[cfg(feature = "full")]
     tracing::info!("Serving frontend assets embedded in rz");
 
     let admin_routes = Router::new()
@@ -192,13 +138,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         .merge(public_api)
         .merge(protected_api)
         .merge(module_control);
-    #[cfg(feature = "selected-distribution")]
-    let admin_routes = admin_routes.merge(web_binding).merge(installation_api);
-    #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&avatars_prefix, avatars_service);
-    #[cfg(feature = "full")]
     let admin_routes = admin_routes.nest_service(&uploads_prefix, uploads_service);
-    #[cfg(any(feature = "full", feature = "selected-distribution"))]
     let admin_routes = admin_routes.fallback(crate::infra::web::serve);
     let admin_routes = admin_routes.layer(admin_cors());
     let app = Router::new()

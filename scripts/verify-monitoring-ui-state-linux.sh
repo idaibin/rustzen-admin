@@ -69,7 +69,7 @@ container="rz-monitoring-ui-state-$run_id"
 
 mkdir -p "$evidence_root/runs"
 if [ -e "$current" ] && [ ! -L "$current" ]; then
-    echo "refusing to replace legacy Monitoring UI evidence directory" >&2
+    echo "refusing to replace unsupported Monitoring UI evidence directory" >&2
     exit 1
 fi
 if ! mkdir "$lock_dir" 2>/dev/null; then

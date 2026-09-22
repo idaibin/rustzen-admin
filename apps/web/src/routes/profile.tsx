@@ -4,6 +4,7 @@ import { Button, Form, Input, Modal, Space, type FormProps } from "antd";
 import { useState } from "react";
 
 import { accountAPI, appMessage } from "@/api";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { PageCard } from "@/components/page/page-card";
 import { PageHeader } from "@/components/page/page-header";
 import { UserAvatar } from "@/components/user";
@@ -149,12 +150,12 @@ function EditProfileDialog({
                         <Input />
                     </Form.Item>
                     <Form.Item className="!mb-0">
-                        <div className="flex items-center justify-end gap-2">
-                            <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>
-                            <Button type="primary" htmlType="submit" loading={submitting}>
-                                {t("保存", "Save")}
-                            </Button>
-                        </div>
+                        <DialogFooter
+                            onCancel={closeDialog}
+                            submitLabel={t("保存", "Save")}
+                            submitting={submitting}
+                            submitHtmlType="submit"
+                        />
                     </Form.Item>
                 </Form>
             </Modal>
@@ -247,12 +248,12 @@ function ChangePasswordDialog() {
                         <Input.Password />
                     </Form.Item>
                     <Form.Item className="!mb-0">
-                        <div className="flex items-center justify-end gap-2">
-                            <Button onClick={closeDialog}>{t("取消", "Cancel")}</Button>
-                            <Button type="primary" htmlType="submit" loading={submitting}>
-                                {t("保存", "Save")}
-                            </Button>
-                        </div>
+                        <DialogFooter
+                            onCancel={closeDialog}
+                            submitLabel={t("保存", "Save")}
+                            submitting={submitting}
+                            submitHtmlType="submit"
+                        />
                     </Form.Item>
                 </Form>
             </Modal>

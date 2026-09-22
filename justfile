@@ -17,34 +17,6 @@ verify-monitor-agent:
     cargo clippy -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent -- -D warnings
     pnpm dlx bun@1.3.14 scripts/distribution-verify-agent.ts
 
-prepare-monitor-embed:
-    pnpm dlx bun@1.3.14 scripts/distribution-build-web.ts --selection distribution/fixtures/monitor.json
-    pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/monitor.json
-    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/monitor.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "target/distributions/$composition/web/binding.json" "target/distributions/$composition/web/api.ts" "apps/admin/selected-web/$composition/"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
-
-prepare-analytics-embed:
-    pnpm dlx bun@1.3.14 scripts/distribution-build-web.ts --selection distribution/fixtures/analytics.json
-    pnpm dlx bun@1.3.14 scripts/distribution-verify-web.ts --selection distribution/fixtures/analytics.json
-    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection distribution/fixtures/analytics.json | pnpm dlx bun@1.3.14 -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)'); rm -rf "apps/admin/selected-web/$composition"; mkdir -p "apps/admin/selected-web/$composition/dist"; cp "target/distributions/$composition/web/inventory.json" "target/distributions/$composition/web/binding.json" "target/distributions/$composition/web/api.ts" "apps/admin/selected-web/$composition/"; cp -R "target/distributions/$composition/web/dist/." "apps/admin/selected-web/$composition/dist"
-
-verify-analytics-admin:
-    just prepare-analytics-embed
-    cargo test -p rustzen-config --no-default-features --features admin-insights
-    cargo test -p rustzen-admin --no-default-features --features analytics-distribution -- --test-threads=1
-    cargo clippy -p rustzen-admin --no-default-features --features analytics-distribution -- -D warnings
-    cargo build -p rustzen-admin --no-default-features --features analytics-distribution
-    pnpm dlx bun@1.3.14 test scripts/distribution-admin-web-build-gate.test.ts
-
-verify-monitor-admin:
-    pnpm dlx bun@1.3.14 test scripts/distribution-verify-docker.test.ts
-    just prepare-monitor-embed
-    pnpm dlx bun@1.3.14 test scripts/distribution-admin-web-build-gate.test.ts
-    cargo test -p rustzen-config --no-default-features --features admin-monitor
-    cargo test -p rustzen-admin --no-default-features --features monitor-distribution -- --test-threads=1
-    cargo clippy -p rustzen-admin --no-default-features --features monitor-distribution -- -D warnings
-    cargo build -p rustzen-admin --no-default-features --features monitor-distribution
-    pnpm dlx bun@1.3.14 scripts/distribution-verify-admin.ts
-
 dev-insights:
     cargo run -p rustzen-insights -- serve
 
@@ -55,27 +27,6 @@ dev-web:
     cd apps/web && bun run dev
 
 # check
-# Composable selection only. These commands do not compile or certify a release.
-# Bun follows the existing apps/web runtime pin and is provisioned through pnpm.
-distribution-validate selection="distribution/fixtures/monitor.json":
-    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts validate --selection "{{selection}}"
-
-distribution-plan selection="distribution/fixtures/monitor.json":
-    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection "{{selection}}"
-
-distribution-release-gate selection="distribution/fixtures/monitor.json":
-    pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts release-gate --selection "{{selection}}"
-
-distribution-source-build-readiness selection="distribution/fixtures/monitor.json":
-    pnpm dlx bun@1.3.14 scripts/distribution-source-build-readiness.ts --selection "{{selection}}" --require-ready
-
-verify-distribution-selection:
-    pnpm dlx bun@1.3.14 test distribution scripts/distribution-resolve.test.ts
-
-# Builds a composition-qualified Monitor Web artifact and rejects excluded emitted routes/API/assets.
-verify-distribution-web:
-    pnpm dlx bun@1.3.14 test distribution/selected-web-binding.test.ts distribution/selected-web-bootstrap.test.ts scripts/distribution-web-inventory-policy.test.ts scripts/distribution-verify-web.test.ts scripts/selected-web-bootstrap-browser-cases.test.mjs scripts/verify-selected-web-browser-admission.test.mjs scripts/verify-selected-web-runtime-attestation.test.mjs scripts/verify-selected-web-bootstrap-browser.test.mjs
-
 verify-service-wiring:
     scripts/test-verify-services.sh
 
@@ -110,7 +61,7 @@ verify-modules-mvp:
     RUSTZEN_VERIFY_BUILD_PROFILE=debug scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent
 
 # Admin-native route contract. Rust registration is the authority; this artifact
-# is a derived input for client generation and compatibility checks. Module
+# is a derived input for client generation and baseline checks. Module
 # service routes remain outside this OpenAPI document until their shared IPC
 # contract carries operation and schema metadata.
 contract-generate:
@@ -125,8 +76,8 @@ contract-verify:
     cd apps/web && bun x tsc --noEmit
     cd apps/web && bun test src/api/request.contract.test.ts
 
-contract-compat:
-    cmp -s openapi/baselines/contract-admin-native-all-refact-modules-mvp.json openapi/admin-contract.json
+contract-baseline:
+    cmp -s openapi/baselines/contract-admin-current.json openapi/admin-contract.json
 
 contract-client:
     cd apps/web && bun run contract:generate && bun scripts/normalize-contract-client.mjs && bun run vp fmt "${CONTRACT_CLIENT_OUTPUT:-src/api/generated/admin-contract.ts}"
@@ -138,7 +89,7 @@ verify-cli:
     cargo test -p rustzen-cli
     cargo clippy -p rustzen-cli --all-targets -- -D warnings
     cargo build -p rustzen-cli
-    tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version; "{{justfile_directory()}}/target/debug/rz" --json status all
+    tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version
 
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
@@ -191,28 +142,10 @@ verify-monitor-agent-multi-node-ui-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-monitor-agent-multi-node-ui-linux.test.mjs
     scripts/verify-monitor-agent-multi-node-ui-linux.sh
 
-# Run the selected Monitor incident relay against Admin's dedicated loopback ingress.
-verify-monitor-notification-runtime-linux:
-    pnpm dlx bun@1.3.14 test scripts/verify-monitor-notification-runtime-linux.test.mjs
-    scripts/verify-monitor-notification-runtime-linux.sh
-
-verify-reports-notification-runtime-linux:
-    pnpm dlx bun@1.3.14 test scripts/verify-reports-notification-runtime-linux.test.mjs
-    scripts/verify-reports-notification-runtime-linux.sh
-
 # Run the full Admin access-session authority lifecycle in disposable Linux.
 verify-admin-session-authority-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-admin-session-authority-linux.test.mjs
     scripts/verify-admin-session-authority-linux.sh
-
-# Run notifications-selected Admin SSE, retention, quota, and authority lifecycle in Linux.
-verify-admin-notification-sse-linux:
-    pnpm dlx bun@1.3.14 test scripts/verify-admin-notification-sse-linux.test.mjs
-    scripts/verify-admin-notification-sse-linux.sh
-
-verify-message-center-browser-linux:
-    pnpm dlx bun@1.3.14 test scripts/verify-message-center-browser-linux.test.mjs
-    scripts/verify-message-center-browser-linux.sh
 
 verify-schedule-form-linux:
     pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
@@ -242,6 +175,7 @@ build:
 
 # Build one signed x86_64 Linux bundle containing all four services.
 build-release:
+    just build-config
     just _build-binaries x86_64 x86_64-unknown-linux-musl linux/amd64
     VERSION=$(awk -F '"' '/^version = / { print $2; exit }' Cargo.toml); BUNDLE=$(scripts/package-release-bundle.sh "$VERSION" x86_64 target/rz/build/x86_64/bin target/rz); bun scripts/deploy-sign.mjs sign-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64; bun scripts/deploy-sign.mjs verify-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64
 
@@ -258,152 +192,30 @@ build-config:
     mkdir -p target/rz/config target/rz/systemd
     cp .env.example target/rz/config/rz.env
     cp .env.reports.example target/rz/config/rz-reports.env
-    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/config/rz.env
-    cp deploy/rz.target deploy/rz-recovery.service deploy/rz-admin.service deploy/rz-monitor.service deploy/rz-insights.service deploy/rz-reports.service target/rz/systemd/
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/config/rz.env && sed "s/__RUSTZEN_DEPLOY_VERIFY_KEY__/$VERIFY_KEY/g" deploy/setup-layout.sh > target/rz/rz-install && chmod 0755 target/rz/rz-install
+    cp deploy/rz-full.service deploy/rz-recovery.service deploy/rz-admin.service deploy/rz-monitor.service deploy/rz-insights.service deploy/rz-reports.service deploy/rz-update.service deploy/rz-update.path target/rz/systemd/
     cp deploy/setup-layout.sh target/rz/setup-layout.sh
     chmod +x target/rz/setup-layout.sh
 
 _build-binaries ARCH TARGET_TRIPLE PLATFORM:
     rm -rf target/rz/build/{{ARCH}}
     mkdir -p target/rz/build/{{ARCH}}
-    docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --target export --output type=local,dest=target/rz/build/{{ARCH}} .
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key); docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --build-arg RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" --target export --output type=local,dest=target/rz/build/{{ARCH}} .
 
 # Update project version.
 bump-version VERSION:
-    @perl -0pi -e 's/(\[workspace\.package\]\nversion = ")[^"]+/\1{{VERSION}}/' Cargo.toml
-    @perl -pi -e 's/"version": ".*"/"version": "{{VERSION}}"/' apps/web/package.json
+    @VERSION='{{VERSION}}' perl -0pi -e 's/(\[workspace\.package\]\nversion = ")[^"]+/$1$ENV{VERSION}/' Cargo.toml
+    @VERSION='{{VERSION}}' perl -pi -e 's/^version = "[^"]+"$/version = "$ENV{VERSION}"/' crates/auth/Cargo.toml crates/config/Cargo.toml crates/ipc/Cargo.toml crates/runtime/Cargo.toml crates/storage/Cargo.toml
+    @VERSION='{{VERSION}}' perl -0pi -e 's/(\A\{\n\s*"name": "rustzen-admin-web",\n\s*"version": ")[^"]+/$1$ENV{VERSION}/' apps/web/package.json
 
 # Clean build outputs
 clean:
     rm -rf target apps/web/dist .rustzen-admin
 
-verify-distribution-manifest:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/resolver.test.ts distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/release-manifest-protocol.test.ts distribution/release-manifest-payload.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/notification-composition.test.ts distribution/selected-config.test.ts distribution/selected-protocol.test.ts distribution/native-layout.test.ts
-
-verify-distribution-native-layout:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/native-layout.test.ts
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/monitor-notify.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/node-agent.json
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-native-layout.ts --selection distribution/fixtures/analytics.json
-
-verify-distribution-container-export selection export_root expected_source_identity:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/container-export.test.ts distribution/container-export-validator.test.ts distribution/analytics-container-contract-receipt.test.ts distribution/container-export-native-staging.test.ts distribution/native-staging.test.ts distribution/native-staging-web-binding.test.ts distribution/native-staging-atomic.test.ts distribution/native-staging-security.test.ts distribution/release-manifest-artifacts-limits.test.ts scripts/distribution-verify-docker.test.ts scripts/distribution-verify-container-export.test.ts
-    pnpm dlx bun@1.3.14 scripts/distribution-verify-container-export.ts --selection "{{selection}}" --export-root "{{export_root}}" --expected-source-identity "{{expected_source_identity}}"
-
-verify-analytics-container-export-linux output:
-    scripts/verify-analytics-container-export-linux.sh --output "{{output}}"
-
-verify-analytics-native-runtime-linux:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/monitor-native-runtime-evidence.test.ts distribution/monitor-native-runtime-revalidator.test.ts scripts/verify-analytics-native-runtime-linux-amd64.test.ts
-
-verify-analytics-business-browser-linux export_root release_result certificate public_key expected_source_identity runtime_evidence native_output output:
-    pnpm dlx bun@1.3.14 test scripts/analytics-business-browser-receipt.test.ts scripts/verify-analytics-business-browser-workflow-linux.test.mjs
-    scripts/verify-analytics-business-browser-workflow-linux.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --runtime-evidence "{{runtime_evidence}}" --native-output "{{native_output}}" --output "{{output}}"
-
-verify-distribution-native-staging:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/native-staging.test.ts distribution/native-staging-web-binding.test.ts distribution/native-staging-atomic.test.ts distribution/native-staging-security.test.ts scripts/distribution-produce-native-staging.integration.test.ts
-
-verify-distribution-canonical-archive:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/canonical-archive.test.ts distribution/canonical-archive-boundaries.test.ts
-    scripts/verify-canonical-archive-linux.sh
-
-verify-distribution-selected-release:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/release-envelope.test.ts distribution/release-publisher.test.ts scripts/distribution-publish-selected-release.integration.test.ts
-    scripts/verify-selected-release-linux.sh
-
-verify-monitor-container-release:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/release-key-file.test.ts distribution/container-export-release.test.ts scripts/distribution-publish-selected-release.integration.test.ts
-    scripts/verify-monitor-container-release-linux.sh
-
-verify-source-build-certificate:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/source-identity.test.ts distribution/source-build-certificate.test.ts distribution/source-build-issuer.test.ts distribution/source-build-publisher.test.ts scripts/distribution-issue-source-build-certificate.integration.test.ts
-    scripts/verify-source-build-certificate-linux.sh
-
-verify-distribution-selected-installer:
-    scripts/verify-selected-installer-linux.sh
-
 verify-monitor-agent-pairing:
     scripts/verify-monitor-agent-pairing-linux.sh
-
-verify-monitor-server-activation:
-    scripts/verify-monitor-server-activation-linux.sh
-
-verify-monitor-native-runtime-amd64 selection export_root release_result certificate public_key expected_source_identity output:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/published-source-build-certificate.test.ts distribution/monitor-native-runtime-evidence.test.ts distribution/monitor-native-runtime-revalidator.test.ts scripts/verify-monitor-native-runtime-linux-amd64.test.ts
-    scripts/verify-monitor-native-runtime-linux-amd64.sh --selection "{{selection}}" --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --output "{{output}}"
 
 verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     bash -c 'cmp <(target/debug/rz-monitor contract protocol) <(target/debug/rz-monitor-agent contract protocol)'
-
-verify-monitor-selected-protocol:
-    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
-    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/selected-protocol.test.ts distribution/release-manifest-protocol.test.ts scripts/distribution-produce-protocol-cli.test.ts
-    just _produce-selected-protocol distribution/fixtures/monitor.json
-    just _produce-selected-protocol distribution/fixtures/node-agent.json
-
-_produce-selected-protocol SELECTION:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    selection="{{SELECTION}}"
-    composition=$(pnpm dlx bun@1.3.14 scripts/distribution-resolve.ts resolve --selection "$selection" | node -e 'let value=""; process.stdin.on("data", chunk => value += chunk); process.stdin.on("end", () => console.log(JSON.parse(value).compositionId))')
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-protocol.ts \
-        --selection "$selection" \
-        --binary-root target/debug \
-        --output-root "target/distributions/${composition}/contracts/protocol"
-
-verify-monitor-config-descriptors:
-    cargo test -p rustzen-config --no-default-features --features admin-monitor
-    cargo test -p rustzen-config --no-default-features --features monitor-controller
-    cargo test -p rustzen-config --no-default-features --features monitor-agent
-    cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
-    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
-    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
-    bash -c 'cd /tmp && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-admin" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor" contract config selected >/dev/null && env -i PATH="$$PATH" "{{justfile_directory()}}/target/debug/rz-monitor-agent" contract config selected >/dev/null'
-
-verify-monitor-selected-contract:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    pnpm dlx bun@1.3.14 test distribution/release-manifest.test.ts distribution/release-manifest-api.test.ts distribution/selected-contract.test.ts distribution/schema-contract.test.ts distribution/selected-config.test.ts
-    pnpm dlx bun@1.3.14 test scripts/distribution-produce-contracts.test.ts
-    cargo build -p rustzen-admin --no-default-features --features monitor-distribution --bin rz-admin
-    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor.json --binary-root target/debug
-    cargo build -p rustzen-admin --no-default-features --features monitor-distribution,notifications --bin rz-admin
-    cargo build -p rustzen-monitor --no-default-features --features notifications --bin rz-monitor
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/monitor-notify.json --binary-root target/debug
-    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
-    pnpm dlx bun@1.3.14 scripts/distribution-produce-contracts.ts --selection distribution/fixtures/node-agent.json --binary-root target/debug
-
-verify-monitor-notify-bootstrap-browser export_root release_result certificate public_key expected_source_identity native_output browser_output chromium="chromium":
-    scripts/verify-monitor-notify-bootstrap-browser-linux.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --native-output "{{native_output}}" --browser-output "{{browser_output}}" --chromium "{{chromium}}"
-
-verify-monitor-load-contract:
-    apps/web/node_modules/typescript/bin/tsc -p distribution/tsconfig.json --noEmit --pretty false
-    apps/web/node_modules/typescript/bin/tsc --noEmit --strict false --target ESNext --module Preserve --moduleResolution bundler --allowImportingTsExtensions --skipLibCheck --typeRoots apps/web/node_modules/@types --types bun,node scripts/monitor-load-admission.ts scripts/monitor-load-contract.ts scripts/monitor-load-fault.ts scripts/monitor-load-receipt-schema.ts scripts/monitor-load-runtime.ts scripts/monitor-load-sampler.ts scripts/monitor-load-signed.ts scripts/selected-web-bootstrap-browser-receipt.ts scripts/verify-monitor-load-certification.ts scripts/verify-monitor-load-runtime-preflight.ts scripts/prepared-monitor-load-context.ts
-    pnpm dlx bun@1.3.14 test scripts/monitor-load-contract.test.mjs scripts/monitor-load-mutation.test.mjs scripts/monitor-load-retain.test.mjs scripts/prepared-monitor-load-context.test.ts
-
-prepare-monitor-load-runtime export_root release_result certificate public_key expected_source_identity native_output browser_output context_output chromium="chromium":
-    scripts/prepare-monitor-load-runtime.sh --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --native-output "{{native_output}}" --browser-output "{{browser_output}}" --context-output "{{context_output}}" --chromium "{{chromium}}"
-
-preflight-monitor-load-runtime context:
-    pnpm dlx bun@1.3.14 scripts/verify-monitor-load-runtime-preflight.ts "{{context}}"
-
-cleanup-monitor-load-runtime context:
-    scripts/cleanup-monitor-load-runtime.sh "{{context}}"
-
-verify-monitor-load-certification native_runtime_evidence browser_receipt export_root release_result certificate public_key expected_source_identity admin_bin admin_url password_file agent_token_file runtime_container output:
-    pnpm dlx bun@1.3.14 scripts/verify-monitor-load-certification.ts --native-runtime-evidence "{{native_runtime_evidence}}" --browser-receipt "{{browser_receipt}}" --export-root "{{export_root}}" --release-result "{{release_result}}" --certificate "{{certificate}}" --public-key "{{public_key}}" --expected-source-identity "{{expected_source_identity}}" --admin-bin "{{admin_bin}}" --admin-url "{{admin_url}}" --password-file "{{password_file}}" --agent-token-file "{{agent_token_file}}" --runtime-container "{{runtime_container}}" --output "{{output}}"

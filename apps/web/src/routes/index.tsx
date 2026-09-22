@@ -18,6 +18,7 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
+import { formatBytes, formatPercent } from "@/lib/format";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -339,25 +340,4 @@ function DashboardQueryBoundary({
             {error ? <BackgroundRefreshNotice updatedAt={updatedAt} onRetry={onRetry} /> : null}
         </>
     );
-}
-
-function formatPercent(value: number) {
-    return `${Number(value.toFixed(1))}%`;
-}
-
-function formatBytes(bytes: number) {
-    if (!bytes) {
-        return "0 B";
-    }
-
-    const units = ["B", "KB", "MB", "GB", "TB"] as const;
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-    }
-
-    const precision = unitIndex === 0 ? 0 : 1;
-    return `${Number(value.toFixed(precision))} ${units[unitIndex]}`;
 }

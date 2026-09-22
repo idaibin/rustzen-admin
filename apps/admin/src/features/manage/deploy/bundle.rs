@@ -3,8 +3,8 @@ mod validation;
 
 pub use install::installed_release_arch;
 use install::{
-    collect_installed_files, extract_archive, installed_mode_matches, sync_directory,
-    sync_release_tree,
+    collect_installed_files, extract_archive, installed_mode_matches,
+    normalize_release_config_ownership, sync_directory, sync_release_tree,
 };
 
 use validation::inspect_archive;
@@ -24,22 +24,26 @@ use crate::common::error::ServiceError;
 
 pub const SIGNED_MARKER_BEGIN: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n";
 pub const SIGNED_MARKER_END: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n";
-const SIGNATURE_PAYLOAD_VERSION: &str = "rustzen-bundle-v1";
+const SIGNATURE_PAYLOAD_VERSION: &str = "rustzen-release-v2";
 const SUPPORTED_ARCHES: [&str; 2] = ["x86_64", "aarch64"];
 const BINARIES: [&str; 5] = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
-const SYSTEMD_FILES: [&str; 6] = [
-    "rz.target",
+const SYSTEMD_FILES: [&str; 8] = [
+    "rz-full.service",
     "rz-recovery.service",
     "rz-admin.service",
     "rz-monitor.service",
     "rz-insights.service",
     "rz-reports.service",
+    "rz-update.service",
+    "rz-update.path",
 ];
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BundleInfo {
     pub arch: String,
     pub content_len: usize,
+    pub frontend_sha256: String,
+    pub backend_sha256: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,6 +54,8 @@ struct BundleSignatureMarker {
     version: String,
     arch: String,
     content_sha256: String,
+    frontend_sha256: String,
+    backend_sha256: String,
     signature: String,
 }
 
@@ -60,12 +66,17 @@ pub fn validate_bundle(
     verify_key: Option<&str>,
 ) -> Result<BundleInfo, ServiceError> {
     let (content, marker) = split_signed_content(data)?;
-    let arch = inspect_archive(content, version)?;
+    let archive = inspect_archive(content, version)?;
     if signature_required {
         let marker = marker.ok_or_else(|| invalid("Signed release bundle is required"))?;
-        verify_signature(content, &marker, version, &arch, verify_key)?;
+        verify_signature(content, &marker, version, &archive, verify_key)?;
     }
-    Ok(BundleInfo { arch, content_len: content.len() })
+    Ok(BundleInfo {
+        arch: archive.arch,
+        content_len: content.len(),
+        frontend_sha256: archive.frontend_sha256,
+        backend_sha256: archive.backend_sha256,
+    })
 }
 
 pub fn install_bundle(
@@ -95,6 +106,7 @@ pub fn install_bundle(
     fs::create_dir(&staging)?;
 
     let result = extract_archive(content, version, &info.arch, &staging).and_then(|()| {
+        normalize_release_config_ownership(&staging, runtime_root)?;
         sync_release_tree(&staging)?;
         fs::rename(&staging, &destination)?;
         sync_directory(&releases)?;
@@ -195,8 +207,8 @@ fn verify_marker_metadata_without_signature(
     marker: &BundleSignatureMarker,
     content: &[u8],
 ) -> Result<(), ServiceError> {
-    if marker.schema_version != 1
-        || marker.component != "bundle"
+    if marker.schema_version != 2
+        || marker.component != "release"
         || marker.content_sha256 != sha256_hex(content)
     {
         return Err(invalid("Signed release bundle metadata does not match the artifact"));
@@ -208,15 +220,17 @@ fn verify_signature(
     content: &[u8],
     marker: &BundleSignatureMarker,
     version: &str,
-    arch: &str,
+    archive: &validation::InspectedArchive,
     verify_key: Option<&str>,
 ) -> Result<(), ServiceError> {
     let content_hash = sha256_hex(content);
-    if marker.schema_version != 1
-        || marker.component != "bundle"
+    if marker.schema_version != 2
+        || marker.component != "release"
         || marker.version != version
-        || marker.arch != arch
+        || marker.arch != archive.arch
         || marker.content_sha256 != content_hash
+        || marker.frontend_sha256 != archive.frontend_sha256
+        || marker.backend_sha256 != archive.backend_sha256
     {
         return Err(invalid("Signed release bundle metadata does not match the upload"));
     }
@@ -231,16 +245,28 @@ fn verify_signature(
             .map_err(|_| invalid("Release bundle signature is invalid"))?,
     )
     .map_err(|_| invalid("Release bundle signature is invalid"))?;
-    let payload = signature_payload(version, arch, &content_hash);
+    let payload = signature_payload(
+        version,
+        &archive.arch,
+        &content_hash,
+        &archive.frontend_sha256,
+        &archive.backend_sha256,
+    );
     VerifyingKey::from_bytes(&key_bytes)
         .map_err(|_| invalid("Release bundle verify key is invalid"))?
         .verify(payload.as_bytes(), &signature)
         .map_err(|_| invalid("Release bundle signature verification failed"))
 }
 
-fn signature_payload(version: &str, arch: &str, content_hash: &str) -> String {
+fn signature_payload(
+    version: &str,
+    arch: &str,
+    content_hash: &str,
+    frontend_hash: &str,
+    backend_hash: &str,
+) -> String {
     format!(
-        "{SIGNATURE_PAYLOAD_VERSION}\ncomponent=bundle\nversion={version}\narch={arch}\ncontent_sha256={content_hash}\n"
+        "{SIGNATURE_PAYLOAD_VERSION}\ncomponent=release\nversion={version}\narch={arch}\ncontent_sha256={content_hash}\nfrontend_sha256={frontend_hash}\nbackend_sha256={backend_hash}\n"
     )
 }
 
@@ -263,7 +289,9 @@ pub(crate) mod tests {
     use super::validation::validate_path;
 
     use ed25519_dalek::{Signer, SigningKey};
+    use sha2::{Digest, Sha256};
 
+    use super::validation::inspect_archive;
     use super::{
         BINARIES, BundleInfo, SIGNED_MARKER_BEGIN, SIGNED_MARKER_END, install_bundle, sha256_hex,
         signature_payload, validate_bundle, verify_installed_bundle,
@@ -272,6 +300,7 @@ pub(crate) mod tests {
     pub(crate) fn fixture(version: &str, arch: &str) -> Vec<u8> {
         let root = format!("rz-{version}-{arch}");
         let mut output = Vec::new();
+        let mut monitor_sha256 = String::new();
         {
             let mut builder = tar::Builder::new(&mut output);
             for binary in BINARIES {
@@ -281,22 +310,30 @@ pub(crate) mod tests {
                 elf[18..20].copy_from_slice(&machine.to_le_bytes());
                 write!(
                     elf,
-                    "RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary={binary}\nversion={version}\n"
+                    "RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary={binary}\nversion={version}\n{}",
+                    if binary == "rz-admin" {
+                        "frontend_sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+                    } else {
+                        ""
+                    }
                 )
                 .expect("marker");
+                if binary == "rz-monitor" {
+                    monitor_sha256 = format!("{:x}", Sha256::digest(&elf));
+                }
                 append(&mut builder, &format!("{root}/bin/{binary}"), 0o755, &elf);
             }
             append(
                 &mut builder,
-                &format!("{root}/systemd/rz.target"),
+                &format!("{root}/systemd/rz-full.service"),
                 0o644,
-                b"[Unit]\nWants=rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\n[Install]\nWantedBy=multi-user.target\n",
+                b"[Unit]\nWants=rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\nAfter=network.target rz-recovery.service\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n",
             );
             append(
                 &mut builder,
                 &format!("{root}/systemd/rz-recovery.service"),
                 0o644,
-                b"[Unit]\nPartOf=rz.target\nBefore=rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nType=oneshot\nExecStart=/opt/rz/current/bin/rz-admin update recover\nRestart=on-failure\n",
+                b"[Unit]\nPartOf=rz-full.service\nBefore=rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nType=oneshot\nExecStart=/opt/rz/current/bin/rz-admin update recover\nRestart=on-failure\n",
             );
             for (unit, command) in [
                 ("rz-admin.service", "/opt/rz/current/bin/rz-admin serve"),
@@ -309,11 +346,14 @@ pub(crate) mod tests {
                     &format!("{root}/systemd/{unit}"),
                     0o644,
                     format!(
-                        "[Unit]\nAfter=network.target rz-recovery.service\nPartOf=rz.target\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nExecCondition=/usr/bin/test ! -e /opt/rz/data/recovery-blocked\nExecStart={command}\nRestart=on-failure\n"
+                        "[Unit]\nAfter=network.target rz-recovery.service\nPartOf=rz-full.service\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nExecCondition=/usr/bin/test ! -e /opt/rz/data/recovery-blocked\nExecStart={command}\nRestart=on-failure\n"
                     )
                     .as_bytes(),
                 );
             }
+            append(&mut builder, &format!("{root}/systemd/rz-update.service"), 0o644, b"[Service]\nType=oneshot\nUser=root\nExecStart=/opt/rz/current/bin/rz-admin update request-worker\n");
+            append(&mut builder, &format!("{root}/systemd/rz-update.path"), 0o644, b"[Path]\nPathChanged=/opt/rz/data/update-requests/pending.json\nUnit=rz-update.service\n");
+            append(&mut builder, &format!("{root}/identity/controller.json"), 0o644, format!("{{\"schemaVersion\":1,\"artifactClass\":\"full-controller\",\"version\":\"{version}\",\"arch\":\"{arch}\",\"monitorBinarySha256\":\"{monitor_sha256}\",\"agentProtocolContractId\":\"{}\"}}\n", "b".repeat(64)).as_bytes());
             append(
                 &mut builder,
                 &format!("{root}/config/rz.env"),
@@ -348,6 +388,7 @@ pub(crate) mod tests {
         let info = validate_bundle(&data, version, false, None).expect("valid bundle");
         assert_eq!(info.arch, "x86_64");
         let root = std::env::temp_dir().join(format!("rz-bundle-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("data/db/admin")).expect("admin data owner source");
         let release = install_bundle(&data, &info, version, 9, &root).expect("install");
         for binary in BINARIES {
             assert!(release.join("bin").join(binary).is_file());
@@ -390,7 +431,12 @@ pub(crate) mod tests {
         assert!(
             install_bundle(
                 &data,
-                &BundleInfo { arch: info.arch, content_len: info.content_len },
+                &BundleInfo {
+                    arch: info.arch,
+                    content_len: info.content_len,
+                    frontend_sha256: info.frontend_sha256,
+                    backend_sha256: info.backend_sha256,
+                },
                 version,
                 4,
                 &root
@@ -407,14 +453,25 @@ pub(crate) mod tests {
         let content = fixture(version, arch);
         let signing_key = SigningKey::from_bytes(&[7_u8; 32]);
         let content_hash = sha256_hex(&content);
-        let signature =
-            signing_key.sign(signature_payload(version, arch, &content_hash).as_bytes());
+        let archive = inspect_archive(&content, version).expect("archive identity");
+        let signature = signing_key.sign(
+            signature_payload(
+                version,
+                arch,
+                &content_hash,
+                &archive.frontend_sha256,
+                &archive.backend_sha256,
+            )
+            .as_bytes(),
+        );
         let marker = serde_json::json!({
-            "schemaVersion": 1,
-            "component": "bundle",
+            "schemaVersion": 2,
+            "component": "release",
             "version": version,
             "arch": arch,
             "contentSha256": content_hash,
+            "frontendSha256": archive.frontend_sha256,
+            "backendSha256": archive.backend_sha256,
             "signature": hex::encode(signature.to_bytes()),
         });
         let mut signed = content;

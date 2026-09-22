@@ -15,8 +15,10 @@ pub(crate) struct AppState {
 }
 
 pub async fn run_controller() -> Result<(), Box<dyn std::error::Error>> {
-    infra::db::verify_selected_database().await.map_err(std::io::Error::other)?;
     let pool = infra::db::connect().await?;
+    infra::db::migrate(&pool).await?;
+    infra::db::verify(&pool).await?;
+    infra::db::verify_schema(&pool).await.map_err(std::io::Error::other)?;
     features::monitoring::spawn_background(pool.clone());
     #[cfg(feature = "notifications")]
     let notification_relay = {

@@ -134,6 +134,7 @@ async fn login_statuses_return_the_documented_json_errors() {
 async fn business_and_internal_errors_match_the_json_error_envelope() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
     run_migrations(&pool).await.expect("migrations");
+    activate_seed_owner(&pool).await;
     let (routes, _) = documented_protected_routes();
     PermissionService::sync_permissions(&pool).await.expect("permission cache");
     let codec = JwtCodec::new("contract-test", 60);

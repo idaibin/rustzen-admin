@@ -14,7 +14,7 @@ describe("user route composition", () => {
         expect(route).toContain('from "./-user-actions"');
         expect(route).toContain('from "./-user-dialog"');
         expect(route).toContain('code="system:user:create"');
-        expect(route).toContain("function UserStatusBadge");
+        expect(route).toContain("<StatusTag");
         expect(route).toContain("function getUserInitial");
     });
 

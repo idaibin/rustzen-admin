@@ -1,5 +1,5 @@
-import { generateKeyPairSync } from "node:crypto";
-import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
+import { createPrivateKey, createPublicKey, generateKeyPairSync } from "node:crypto";
+import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createCanonicalArchive } from "../distribution/canonical-archive.ts";
 import { releaseEnvelopePayload, signReleaseEnvelope } from "../distribution/release-envelope.ts";
@@ -42,10 +42,16 @@ const fixture =
                   ? { admin: serverAdminBinary, monitor: serverMonitorBinary }
                   : undefined,
           );
-const keys = generateKeyPairSync("ed25519");
+const privateKeyFile = process.env.RUSTZEN_INSTALLER_PRIVATE_KEY_FILE;
+const generatedKeys = privateKeyFile ? undefined : generateKeyPairSync("ed25519");
 try {
-    const privateKey = keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
-    const publicKey = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
+    const privateObject = privateKeyFile
+        ? createPrivateKey(await readFile(resolve(privateKeyFile), "utf8"))
+        : generatedKeys!.privateKey;
+    const privateKey = privateObject.export({ type: "pkcs8", format: "pem" }).toString();
+    const publicKey = createPublicKey(privateObject)
+        .export({ type: "spki", format: "pem" })
+        .toString();
     const publication = await publishSelectedRelease({
         selection,
         staging: fixture.staging,

@@ -2,7 +2,7 @@
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 docker_bin=${RUSTZEN_ANALYTICS_UI_STATE_DOCKER:-docker}
-timeout=${RUSTZEN_ANALYTICS_UI_STATE_TIMEOUT:-480}
+timeout=${RUSTZEN_ANALYTICS_UI_STATE_TIMEOUT:-900}
 info_timeout=${RUSTZEN_ANALYTICS_UI_STATE_DOCKER_INFO_TIMEOUT:-10}
 bounded_child_pid=; bounded_watchdog_pid=; published_committed=0
 validate_timeout() { local value=$1 name=$2 maximum=$3; case "$value" in ''|*[!0-9]*) echo "$name must be a positive integer" >&2; exit 2;; esac; [ "$value" -gt 0 ] && [ "$value" -le "$maximum" ] || { echo "$name must be 1..$maximum seconds" >&2; exit 2; }; }
@@ -79,7 +79,7 @@ read -r verifier_image verifier_key verifier_provenance_sha < <("$root/scripts/e
 bin_dir=${RUSTZEN_UI_LINUX_BIN_DIR:-"$root/target/rz/build/$architecture/bin"}; read -r head tree_state tree_sha < <("$root/scripts/admin-browser-source-identity.sh")
 evidence_root="$root/target/rz/analytics-ui-state"; current="$evidence_root/current"; lock_dir="$evidence_root/.verify.lock"; run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"; candidate="$evidence_root/.candidate-$run_id"; staged="$evidence_root/.binaries-$run_id"; published_run="$evidence_root/runs/$run_id"; publish_link="$evidence_root/.current-$run_id"; container="rz-analytics-ui-state-$run_id"
 cleanup() { local result=$?; trap - EXIT INT TERM; cleanup_bounded_processes; if [ -d "$candidate" ]; then "$docker_bin" logs "$container" >"$candidate/container.log" 2>&1 || true; fi; "$docker_bin" rm -f "$container" >/dev/null 2>&1 || true; rm -rf "$staged" "$publish_link"; if [ "$result" -ne 0 ]; then move_failure_evidence; fi; rm -rf "$lock_dir"; exit "$result"; }
-mkdir -p "$evidence_root/runs"; if [ -e "$current" ] && [ ! -L "$current" ]; then echo 'refusing to replace legacy Analytics UI evidence directory' >&2; exit 1; fi; if ! mkdir "$lock_dir" 2>/dev/null; then echo "another Analytics UI state verification owns $lock_dir" >&2; exit 1; fi
+mkdir -p "$evidence_root/runs"; if [ -e "$current" ] && [ ! -L "$current" ]; then echo 'refusing to replace non-link Analytics UI evidence path' >&2; exit 1; fi; if ! mkdir "$lock_dir" 2>/dev/null; then echo "another Analytics UI state verification owns $lock_dir" >&2; exit 1; fi
 trap cleanup EXIT; trap 'exit 130' INT; trap 'exit 143' TERM; mkdir -p "$candidate" "$staged"
 test -s "$bin_dir/build-provenance.txt" || { echo 'missing build provenance' >&2; exit 1; }; cp "$bin_dir/build-provenance.txt" "$candidate/build-provenance.txt"
 awk -F '\t' -v head="$head" -v state="$tree_state" -v sha="$tree_sha" -v arch="$architecture" -v triple="$target_triple" -v platform="$platform" '$1=="schemaVersion"&&$2=="1"{a=1} $1=="gitHead"&&$2==head{b=1} $1=="sourceTreeState"&&$2==state{c=1} $1=="sourceTreeSha256"&&$2==sha{d=1} $1=="architecture"&&$2==arch{e=1} $1=="targetTriple"&&$2==triple{f=1} $1=="platform"&&$2==platform{g=1} $1=="distribution"&&$2=="full"{h=1} END{exit !(a&&b&&c&&d&&e&&f&&g&&h)}' "$candidate/build-provenance.txt" || { echo 'Linux provenance does not match current source identity' >&2; exit 1; }

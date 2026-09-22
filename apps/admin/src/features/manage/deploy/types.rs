@@ -17,6 +17,8 @@ pub struct DeploymentItem {
     pub file_path: String,
     pub file_size: i64,
     pub file_hash: String,
+    pub frontend_hash: String,
+    pub backend_hash: String,
     pub is_current: bool,
     pub is_deployed: bool,
     pub is_expired: bool,
@@ -63,6 +65,8 @@ pub struct DeploymentPayload {
     pub file_path: String,
     pub file_size: i64,
     pub file_hash: String,
+    pub frontend_hash: String,
+    pub backend_hash: String,
     pub notes: Option<String>,
 }
 
@@ -75,6 +79,8 @@ pub struct DeploymentRow {
     pub file_path: String,
     pub file_size: i64,
     pub file_hash: String,
+    pub frontend_hash: String,
+    pub backend_hash: String,
     pub is_current: bool,
     pub is_deployed: bool,
     pub is_expired: bool,
