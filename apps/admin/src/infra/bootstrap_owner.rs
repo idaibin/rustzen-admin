@@ -71,8 +71,8 @@ mod tests {
     use super::{PasswordUtils, consume_owner_secret_at};
     use crate::infra::db::run_migrations;
 
-    fn test_password(label: &str) -> String {
-        format!("{label}-{}", std::process::id())
+    fn test_password() -> String {
+        uuid::Uuid::new_v4().to_string()
     }
 
     fn documented_local_password() -> String {
@@ -103,7 +103,7 @@ mod tests {
 
         let path =
             std::env::temp_dir().join(format!("rz-bootstrap-owner-{}.txt", uuid::Uuid::new_v4()));
-        let password = test_password("installer-owner-secret-0123456789");
+        let password = test_password();
         std::fs::write(&path, format!("{password}\n")).expect("credential input");
         consume_owner_secret_at(&pool, &path, None).await.expect("consume credential");
         assert!(!path.exists());

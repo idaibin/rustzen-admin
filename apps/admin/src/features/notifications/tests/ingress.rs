@@ -12,8 +12,8 @@ use tower::ServiceExt;
 pub(super) const CURRENT: &[u8] = b"0123456789abcdef0123456789abcdef";
 const PREVIOUS: &[u8] = b"previous-key-0123456789abcdef-1234";
 
-fn nonce(label: &str) -> String {
-    format!("{label}-{}", std::process::id())
+fn nonce() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 pub(super) fn body(event_id: &str, summary: &str) -> Vec<u8> {
@@ -64,8 +64,7 @@ async fn signed_ingress_recomputes_recipients_and_deduplicates() {
     let now = Utc.with_ymd_and_hms(2026, 9, 7, 0, 0, 0).unwrap();
     let payload = body("event-1", "opened");
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-1")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::Stored));
     assert_eq!(
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM notification_recipients")
@@ -77,8 +76,7 @@ async fn signed_ingress_recomputes_recipients_and_deduplicates() {
     assert!(!String::from_utf8_lossy(&payload).contains("recipient"));
     assert!(!String::from_utf8_lossy(&payload).contains("capability"));
 
-    let duplicate =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-2")).unwrap();
+    let duplicate = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(duplicate, &payload, now).await, Ok(IngestOutcome::Duplicate));
     let after_business_expiry = now + chrono::Duration::days(2);
     let duplicate = signer
@@ -86,7 +84,7 @@ async fn signed_ingress_recomputes_recipients_and_deduplicates() {
             &payload,
             after_business_expiry.timestamp(),
             after_business_expiry.timestamp() + 60,
-            nonce("nonce-expired-duplicate"),
+            nonce(),
         )
         .unwrap();
     assert_eq!(
@@ -99,7 +97,7 @@ async fn signed_ingress_recomputes_recipients_and_deduplicates() {
             &expired_new,
             after_business_expiry.timestamp(),
             after_business_expiry.timestamp() + 60,
-            nonce("nonce-expired-new"),
+            nonce(),
         )
         .unwrap();
     assert_eq!(
@@ -107,16 +105,14 @@ async fn signed_ingress_recomputes_recipients_and_deduplicates() {
         Err(IngestError::Expired)
     );
     let changed = body("event-1", "tampered");
-    let conflict =
-        signer.sign(&changed, now.timestamp(), now.timestamp() + 60, nonce("nonce-3")).unwrap();
+    let conflict = signer.sign(&changed, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(conflict, &changed, now).await, Err(IngestError::Conflict));
 
     revoke_all(&database.primary).await;
     sqlx::query("UPDATE users SET status=2 WHERE id=1").execute(&database.primary).await.unwrap();
     let payload = body("event-2", "no recipients");
     let previous = NotificationSigner::new("previous", "monitor", PREVIOUS).unwrap();
-    let signed =
-        previous.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-4")).unwrap();
+    let signed = previous.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::NoRecipients));
     database.close().await;
 }
@@ -137,20 +133,15 @@ async fn ingress_rejects_tamper_replay_expiry_and_oversize() {
     let now = Utc.with_ymd_and_hms(2026, 9, 7, 0, 0, 0).unwrap();
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
     let payload = body("event-auth", "opened");
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-auth")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed.clone(), b"{}", now).await, Err(IngestError::Unauthorized));
     assert_eq!(state.ingest(signed.clone(), &payload, now).await, Ok(IngestOutcome::Stored));
     assert_eq!(state.ingest(signed, &payload, now).await, Err(IngestError::Unauthorized));
 
-    let expired = signer
-        .sign(&payload, now.timestamp() - 60, now.timestamp(), nonce("nonce-expired"))
-        .unwrap();
+    let expired = signer.sign(&payload, now.timestamp() - 60, now.timestamp(), nonce()).unwrap();
     assert_eq!(state.ingest(expired, &payload, now).await, Err(IngestError::Expired));
     let oversized = vec![b'x'; 16 * 1024 + 1];
-    let signed = signer
-        .sign(&oversized, now.timestamp(), now.timestamp() + 60, nonce("nonce-large"))
-        .unwrap();
+    let signed = signer.sign(&oversized, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &oversized, now).await, Err(IngestError::BadRequest));
 
     let rotation = Utc::now();
@@ -178,9 +169,8 @@ async fn ingress_rejects_tamper_replay_expiry_and_oversize() {
     .unwrap();
     let previous = NotificationSigner::new("previous", "monitor", PREVIOUS).unwrap();
     let observed = rotation + chrono::Duration::seconds(1);
-    let signed = previous
-        .sign(&payload, observed.timestamp(), observed.timestamp() + 60, nonce("nonce-old-key"))
-        .unwrap();
+    let signed =
+        previous.sign(&payload, observed.timestamp(), observed.timestamp() + 60, nonce()).unwrap();
     assert_eq!(rotating.ingest(signed, &payload, observed).await, Err(IngestError::Unauthorized));
     database.close().await;
 }
@@ -223,14 +213,11 @@ async fn dedicated_http_route_enforces_protocol_headers_and_content_type() {
     let now = Utc::now();
     let payload = body_at("event-http", "opened", now);
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-http")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     let response = app.clone().oneshot(request(payload.clone(), &signed, false)).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
 
-    let signed = signer
-        .sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("nonce-http-valid"))
-        .unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     let response = app.oneshot(request(payload, &signed, true)).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::CREATED);
     assert_eq!(response.headers()["content-type"], "application/json");

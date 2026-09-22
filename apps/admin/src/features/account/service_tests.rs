@@ -5,16 +5,16 @@ use crate::{
     infra::{password::PasswordUtils, permission::PermissionService},
 };
 
-fn test_password(label: &str) -> String {
-    format!("{label}-{}", std::process::id())
+fn test_password() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 #[test]
 fn build_password_hash_requires_current_password_and_confirmation() {
-    let current = test_password("current-password");
-    let new = test_password("new-password");
-    let wrong = test_password("wrong-password");
-    let different = test_password("different-password");
+    let current = test_password();
+    let new = test_password();
+    let wrong = test_password();
+    let different = test_password();
     let current_hash = PasswordUtils::hash_password(&current).expect("hash");
 
     let new_hash = AccountService::build_password_hash(&current, &current_hash, &new, &new)
@@ -36,8 +36,8 @@ async fn password_change_rejects_a_user_deleted_between_read_and_write() {
         .await
         .expect("pool");
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
-    let current = test_password("current-password");
-    let new = test_password("new-password");
+    let current = test_password();
+    let new = test_password();
     let original_hash = PasswordUtils::hash_password(&current).expect("hash");
     let user_id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, email, password_hash, status, is_system)
@@ -96,11 +96,9 @@ async fn password_updates_compare_and_swap_the_verified_hash() {
         .await
         .expect("pool");
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
-    let original_hash =
-        PasswordUtils::hash_password(&test_password("current-password")).expect("hash");
-    let first_hash = PasswordUtils::hash_password(&test_password("first-password")).expect("hash");
-    let second_hash =
-        PasswordUtils::hash_password(&test_password("second-password")).expect("hash");
+    let original_hash = PasswordUtils::hash_password(&test_password()).expect("hash");
+    let first_hash = PasswordUtils::hash_password(&test_password()).expect("hash");
+    let second_hash = PasswordUtils::hash_password(&test_password()).expect("hash");
     let user_id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, email, password_hash, status, is_system)
          VALUES ('password-cas', 'password-cas@example.test', ?, 1, FALSE) RETURNING id",

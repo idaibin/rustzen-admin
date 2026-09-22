@@ -360,47 +360,28 @@ mod rate_tests {
     fn fixed_window_limits_are_sustained_across_seconds() {
         let guard = IngressGuard::default();
         for second in [10, 11] {
-            for index in 0..100 {
+            for _ in 0..100 {
                 assert!(
                     guard
-                        .accept(
-                            "monitor",
-                            &format!("{second}-{index}-{}", std::process::id()),
-                            second + 60,
-                            second,
-                        )
+                        .accept("monitor", &uuid::Uuid::new_v4().to_string(), second + 60, second,)
                         .is_ok()
                 );
             }
             assert_eq!(
-                guard.accept(
-                    "monitor",
-                    &format!("{second}-overflow-{}", std::process::id()),
-                    second + 60,
-                    second,
-                ),
+                guard.accept("monitor", &uuid::Uuid::new_v4().to_string(), second + 60, second,),
                 Err(IngestError::RateLimited)
             );
         }
 
         let aggregate = IngressGuard::default();
-        for index in 0..100 {
-            aggregate
-                .accept("monitor", &format!("a-{index}-{}", std::process::id()), 80, 20)
-                .unwrap();
+        for _ in 0..100 {
+            aggregate.accept("monitor", &uuid::Uuid::new_v4().to_string(), 80, 20).unwrap();
         }
-        for index in 0..50 {
-            aggregate
-                .accept("reports", &format!("b-{index}-{}", std::process::id()), 80, 20)
-                .unwrap();
+        for _ in 0..50 {
+            aggregate.accept("reports", &uuid::Uuid::new_v4().to_string(), 80, 20).unwrap();
         }
         assert_eq!(
-            aggregate.accept(
-                "reports",
-                &format!("aggregate-overflow-{}", std::process::id()),
-                80,
-                20,
-            ),
+            aggregate.accept("reports", &uuid::Uuid::new_v4().to_string(), 80, 20,),
             Err(IngestError::RateLimited)
         );
     }

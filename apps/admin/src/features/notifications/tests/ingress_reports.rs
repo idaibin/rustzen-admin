@@ -11,8 +11,8 @@ use rustzen_ipc::{
 const MONITOR_KEY: &[u8] = b"monitor-key-0123456789abcdef-123456";
 const REPORTS_KEY: &[u8] = b"reports-key-0123456789abcdef-123456";
 
-fn nonce(label: &str) -> String {
-    format!("{label}-{}", std::process::id())
+fn nonce() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 fn report(event_id: &str, initiator: i64) -> Vec<u8> {
@@ -74,13 +74,12 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
 
     let wrong = NotificationSigner::new("shared-id", "reports", MONITOR_KEY)
         .unwrap()
-        .sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("wrong-key"))
+        .sign(&payload, now.timestamp(), now.timestamp() + 60, nonce())
         .unwrap();
     assert_eq!(state.ingest(wrong, &payload, now).await, Err(IngestError::Unauthorized));
 
     let signer = NotificationSigner::new("shared-id", "reports", REPORTS_KEY).unwrap();
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("stored")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::Stored));
     assert_eq!(
         sqlx::query_scalar::<_, i64>("SELECT user_id FROM notification_recipients")
@@ -89,8 +88,7 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
             .unwrap(),
         2
     );
-    let duplicate =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("duplicate")).unwrap();
+    let duplicate = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(duplicate, &payload, now).await, Ok(IngestOutcome::Duplicate));
     assert_eq!(
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM notifications")
@@ -102,9 +100,7 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
 
     sqlx::query("UPDATE users SET status=2 WHERE id=2").execute(&database.primary).await.unwrap();
     let payload = report("report-2", 2);
-    let signed = signer
-        .sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("disabled-user"))
-        .unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::NoRecipients));
 
     sqlx::query("UPDATE users SET status=1,deleted_at=CURRENT_TIMESTAMP WHERE id=2")
@@ -112,9 +108,7 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
         .await
         .unwrap();
     let payload = report("report-3", 2);
-    let signed = signer
-        .sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("deleted-user"))
-        .unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::NoRecipients));
 
     sqlx::query("UPDATE users SET deleted_at=NULL WHERE id=2")
@@ -123,8 +117,7 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
         .unwrap();
     revoke_all(&database.primary).await;
     let payload = report("report-4", 2);
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("revoked")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::NoRecipients));
 
     grant(&database.primary, "reports:run:view").await;
@@ -133,8 +126,7 @@ async fn reports_key_and_current_authority_are_both_producer_scoped() {
         .await
         .unwrap();
     let payload = report("report-5", 2);
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("disabled")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Ok(IngestOutcome::NoRecipients));
     database.close().await;
 }
@@ -148,15 +140,13 @@ async fn reports_rejects_cross_topic_and_missing_initiator() {
     let mut event: NotificationEvent = serde_json::from_slice(&report("cross", 2)).unwrap();
     event.topic = "monitor.incident.opened".into();
     let payload = serde_json::to_vec(&event).unwrap();
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("cross")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Err(IngestError::Forbidden));
 
     event.topic = "reports.run.failed".into();
     event.audience.initiator_user_id = None;
     let payload = serde_json::to_vec(&event).unwrap();
-    let signed =
-        signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce("missing")).unwrap();
+    let signed = signer.sign(&payload, now.timestamp(), now.timestamp() + 60, nonce()).unwrap();
     assert_eq!(state.ingest(signed, &payload, now).await, Err(IngestError::Forbidden));
     database.close().await;
 }
