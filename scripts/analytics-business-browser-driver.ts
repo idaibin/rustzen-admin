@@ -29,7 +29,7 @@ const buildId: string = release.buildId;
 const version = await (await fetch(`http://127.0.0.1:${args.get("--cdp")}/json/version`)).json();
 const page = await (await fetch(`http://127.0.0.1:${args.get("--cdp")}/json/new?${encodeURIComponent(`${base}/login`)}`, { method: "PUT" })).json();
 let next = 0;
-const pending = new Map<number, (value: any) => void>();
+const pending = new Map<number, { method: string; resolve: (value: any) => void; reject: (error: Error) => void }>();
 const requests: any[] = [];
 const responses = new Map<string, any>();
 const consoleErrors: string[] = [];
@@ -39,8 +39,12 @@ socket.onmessage = (event) => {
     const value = JSON.parse(String(event.data));
     const responseId = value.id;
     if (typeof responseId === "number" && Number.isSafeInteger(responseId) && responseId > 0) {
-        const resolvePending = pending.get(responseId);
-        if (resolvePending) resolvePending(value);
+        const pendingCall = pending.get(responseId);
+        if (pendingCall) {
+            pending.delete(responseId);
+            if (value.error) pendingCall.reject(Error(`CDP ${pendingCall.method} failed`));
+            else pendingCall.resolve(value.result);
+        }
     }
     if (value.method === "Network.requestWillBeSent") requests.push({ requestId: value.params.requestId, method: value.params.request.method, url: value.params.request.url });
     if (value.method === "Network.responseReceived") responses.set(value.params.requestId, { status: value.params.response.status });
@@ -50,12 +54,26 @@ socket.onmessage = (event) => {
 };
 const call = (method: string, params: any = {}) => new Promise<any>((resolve, reject) => {
     const id = ++next;
-    pending.set(id, (value) => value.error ? reject(Error(`CDP ${method} failed`)) : resolve(value.result));
+    pending.set(id, { method, resolve, reject });
     socket.send(JSON.stringify({ id, method, params }));
 });
 const evaluate = async (expression: string): Promise<any> => {
     const result = await call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     if (result.exceptionDetails) throw Error(`CDP evaluate failed: ${JSON.stringify(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)}`);
+    return result.result.value;
+};
+const callPageFunction = async (functionDeclaration: string, args: unknown[]): Promise<any> => {
+    const globalObject = await call("Runtime.evaluate", { expression: "globalThis" });
+    const objectId = globalObject.result?.objectId;
+    if (!objectId) throw Error("CDP global object is unavailable");
+    const result = await call("Runtime.callFunctionOn", {
+        objectId,
+        functionDeclaration,
+        arguments: args.map((value) => ({ value })),
+        awaitPromise: true,
+        returnByValue: true,
+    });
+    if (result.exceptionDetails) throw Error(`CDP function failed: ${JSON.stringify(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)}`);
     return result.result.value;
 };
 await call("Network.enable");
@@ -86,9 +104,10 @@ const setPreferences = async (theme: "dark" | "light", locale: "en-US" | "zh-CN"
     await evaluate(`localStorage.setItem('rustzen-admin-theme', ${JSON.stringify(theme)}); localStorage.setItem('rustzen-admin-locale', ${JSON.stringify(locale)}); true`);
     await call("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width === 390 });
 };
-// Every interpolated value is encoded as a JavaScript string literal before this local CDP harness evaluates it.
-// codeql[js/bad-code-sanitization]
-const reactInput = (selector: string, value: string) => `(() => { const element = document.querySelector(${JSON.stringify(selector)}); const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); descriptor.set.call(element, ${JSON.stringify(value)}); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); })()`;
+const reactInput = (selector: string, value: string) => callPageFunction(
+    "function(selector, value) { const element = document.querySelector(selector); const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); descriptor.set.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); }",
+    [selector, value],
+);
 const markRequests = () => requests.length;
 const httpSince = (mark: number, filter: (url: string, method: string) => boolean) =>
     requests.slice(mark).filter((entry) => filter(entry.url, entry.method)).map((entry) => {
@@ -96,9 +115,10 @@ const httpSince = (mark: number, filter: (url: string, method: string) => boolea
         const parsed = new URL(entry.url);
         return { method: entry.method, path: parsed.pathname + parsed.search, status: response?.status ?? "failed" };
     });
-// Paths and request data are serialized into literals; they are never concatenated as executable source.
-// codeql[js/bad-code-sanitization]
-const pageFetch = (path: string, init: Record<string, unknown> = {}) => evaluate(`(async () => { const token = (() => { try { return JSON.parse(localStorage.getItem('auth-store') || '').state?.token } catch { return undefined } })(); const response = await fetch(${JSON.stringify(path)}, { ...${JSON.stringify(init)}, headers: { ...(token ? { authorization: 'Bearer ' + token } : {}), ...(${JSON.stringify(init.headers ?? {})}) } }); let body = null; try { body = await response.json() } catch {} return { status: response.status, body }; })()`);
+const pageFetch = (path: string, init: Record<string, unknown> = {}) => callPageFunction(
+    "async function(path, init) { const token = (() => { try { return JSON.parse(localStorage.getItem('auth-store') || '').state?.token } catch { return undefined } })(); const response = await fetch(path, { ...init, headers: { ...(token ? { authorization: 'Bearer ' + token } : {}), ...(init.headers || {}) } }); let body = null; try { body = await response.json() } catch {} return { status: response.status, body }; }",
+    [path, init],
+);
 const screenshots: any[] = [];
 const shot = async (name: string, width: number, height: number) => {
     const png = await call("Page.captureScreenshot", { format: "png" });
@@ -161,8 +181,8 @@ await journey("unauthenticated-api-denied", "anonymous API probes are rejected w
 
 await journey("wrong-credentials-rejected", "wrong owner password is rejected in the UI", "form submit keeps the login page and the API answers 401 without secrets", async () => {
     const mark = markRequests();
-    await evaluate(reactInput("#login_username", "owner"));
-    await evaluate(reactInput("#login_password", "wrong-password-000111"));
+    await reactInput("#login_username", "owner");
+    await reactInput("#login_password", "wrong-password-000111");
     await evaluate(`document.querySelector('button[type=submit]').click()`);
     await wait(`location.pathname === '/login' && !!document.querySelector('#login_username')`, "stays on login");
     const probe = await pageFetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "owner", password: "wrong-password-000111" }) });
@@ -186,8 +206,8 @@ await journey("default-passwords-rejected", "default passwords never authenticat
 
 await journey("owner-login", "owner signs in with the P8e credential", "shell content renders and the session APIs answer 200", async () => {
     const mark = markRequests();
-    await evaluate(reactInput("#login_username", "owner"));
-    await evaluate(reactInput("#login_password", password));
+    await reactInput("#login_username", "owner");
+    await reactInput("#login_password", password);
     await evaluate(`document.querySelector('button[type=submit]').click()`);
     await wait(`!!document.querySelector('.shell-content')`, "shell content");
     const failures = httpSince(mark, (url, method) => url.includes("/api/") && method !== "OPTIONS").filter((entry) => typeof entry.status === "number" && entry.status >= 400);
@@ -247,9 +267,10 @@ await journey("collection-policy-and-seed", "owner enables collection and seeds 
     const seedMark = markRequests();
     const update = await pageFetch("/api/insights/collection-policy", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ collectionEnabled: true, projectKey, allowedOrigins: [base] }) });
     if (update.status !== 200 || update.body?.data?.collectionEnabled !== true || update.body?.data?.projectConfigured !== true) throw Error(`policy update differs: ${JSON.stringify(update)}`);
-    // projectKey is a locally generated UUID and JSON.stringify encodes it as a JavaScript string literal.
-    // codeql[js/bad-code-sanitization]
-    const seeded = await evaluate(`(async () => { const visitorId = crypto.randomUUID(); const sessionId = crypto.randomUUID(); const now = Date.now(); const events = []; for (let index = 1; index <= 22; index += 1) events.push({ eventName: 'page_view', visitorId, sessionId, platform: 'web', pagePath: '/seed/page-' + String(index).padStart(2, '0'), occurredAt: new Date(now - index * 1000).toISOString() }); for (let index = 1; index <= 2; index += 1) events.push({ eventName: 'api_request', visitorId, sessionId, platform: 'web', apiPath: '/api/seed/call-' + index, apiMethod: 'GET', statusCode: 200, durationMs: 12 + index, occurredAt: new Date(now - index * 500).toISOString() }); const results = []; for (const body of events) results.push(await (await fetch('/api/insights/track', { method: 'POST', headers: { 'content-type': 'application/json', 'x-rustzen-project-key': ${JSON.stringify(projectKey)} }, body: JSON.stringify(body) })).status); return results; })()`);
+    const seeded = await callPageFunction(
+        "async function(projectKey) { const visitorId = crypto.randomUUID(); const sessionId = crypto.randomUUID(); const now = Date.now(); const events = []; for (let index = 1; index <= 22; index += 1) events.push({ eventName: 'page_view', visitorId, sessionId, platform: 'web', pagePath: '/seed/page-' + String(index).padStart(2, '0'), occurredAt: new Date(now - index * 1000).toISOString() }); for (let index = 1; index <= 2; index += 1) events.push({ eventName: 'api_request', visitorId, sessionId, platform: 'web', apiPath: '/api/seed/call-' + index, apiMethod: 'GET', statusCode: 200, durationMs: 12 + index, occurredAt: new Date(now - index * 500).toISOString() }); const results = []; for (const body of events) results.push(await (await fetch('/api/insights/track', { method: 'POST', headers: { 'content-type': 'application/json', 'x-rustzen-project-key': projectKey }, body: JSON.stringify(body) })).status); return results; }",
+        [projectKey],
+    );
     if (!Array.isArray(seeded) || seeded.length !== 24 || seeded.some((status: number) => status < 200 || status >= 300)) throw Error(`track seeding differs: ${JSON.stringify(seeded)}`);
     return { actual: `policy enabled (projectKey sha256 ${sha256(projectKey).slice(0, 16)}…); 24 tracker events accepted`, url: "/analytics/overview", http: [...httpSince(seedMark, (url, method) => method === "PUT" && new URL(url).pathname === "/api/insights/collection-policy"), ...httpSince(seedMark, (url, method) => method === "POST" && new URL(url).pathname === "/api/insights/track").slice(-7)] };
 });
@@ -275,7 +296,7 @@ await journey("details-filter-pagination", "details table with filter reset and 
     const pageTwoHttp = httpSince(pageTwoMark, (url) => new URL(url).pathname === "/api/insights/events");
     if (!pageTwoHttp.some((entry) => entry.path.includes("current=2"))) throw Error(`pagination request missing: ${JSON.stringify(pageTwoHttp)}`);
     const filterMark = markRequests();
-    await evaluate(reactInput("input[aria-label='Search page or API path']", "/seed/page-01"));
+    await reactInput("input[aria-label='Search page or API path']", "/seed/page-01");
     await sleep(900);
     const filterHttp = httpSince(filterMark, (url) => new URL(url).pathname === "/api/insights/events");
     if (!filterHttp.some((entry) => entry.path.includes("current=1") && /[?&]path=/.test(entry.path))) throw Error(`filtered page-one request missing: ${JSON.stringify(filterHttp)}`);
@@ -341,8 +362,8 @@ await journey("logout-session-invalidation", "logout revokes the session server-
         await wait(`location.pathname === '/login'`, "login after client-side signout");
     });
     await wait(`!!document.querySelector('#login_username')`, "login form after logout");
-    await evaluate(reactInput("#login_username", "owner"));
-    await evaluate(reactInput("#login_password", password));
+    await reactInput("#login_username", "owner");
+    await reactInput("#login_password", password);
     await evaluate(`document.querySelector('button[type=submit]').click()`);
     await wait(`!!document.querySelector('.shell-content')`, "re-login shell");
     return { actual: `logout revoked the session (token sha256 ${tokenDigest}… now 401) and the owner re-logged in`, url: await location(), http: httpSince(mark, (url) => ["/api/auth/logout", "/api/auth/me", "/api/auth/login"].includes(new URL(url).pathname)) };
