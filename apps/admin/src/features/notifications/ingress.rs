@@ -363,25 +363,44 @@ mod rate_tests {
             for index in 0..100 {
                 assert!(
                     guard
-                        .accept("monitor", &format!("{second}-{index}"), second + 60, second)
+                        .accept(
+                            "monitor",
+                            &format!("{second}-{index}-{}", std::process::id()),
+                            second + 60,
+                            second,
+                        )
                         .is_ok()
                 );
             }
             assert_eq!(
-                guard.accept("monitor", &format!("{second}-overflow"), second + 60, second),
+                guard.accept(
+                    "monitor",
+                    &format!("{second}-overflow-{}", std::process::id()),
+                    second + 60,
+                    second,
+                ),
                 Err(IngestError::RateLimited)
             );
         }
 
         let aggregate = IngressGuard::default();
         for index in 0..100 {
-            aggregate.accept("monitor", &format!("a-{index}"), 80, 20).unwrap();
+            aggregate
+                .accept("monitor", &format!("a-{index}-{}", std::process::id()), 80, 20)
+                .unwrap();
         }
         for index in 0..50 {
-            aggregate.accept("reports", &format!("b-{index}"), 80, 20).unwrap();
+            aggregate
+                .accept("reports", &format!("b-{index}-{}", std::process::id()), 80, 20)
+                .unwrap();
         }
         assert_eq!(
-            aggregate.accept("reports", "aggregate-overflow", 80, 20),
+            aggregate.accept(
+                "reports",
+                &format!("aggregate-overflow-{}", std::process::id()),
+                80,
+                20,
+            ),
             Err(IngestError::RateLimited)
         );
     }

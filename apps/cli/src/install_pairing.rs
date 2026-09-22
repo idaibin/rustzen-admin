@@ -452,7 +452,9 @@ pub(super) fn service_gid() -> Result<u32, String> {
     if result != 0 || found.is_null() {
         return Err("rz-monitor-agent group does not exist".into());
     }
-    let gid = unsafe { (*found).gr_gid };
+    // getgrnam_r initialized the caller-owned value when it returned success and a non-null result.
+    let group = unsafe { group.assume_init() };
+    let gid = group.gr_gid;
     if gid == 0 {
         return Err("rz-monitor-agent group must not be root".into());
     }
@@ -468,11 +470,12 @@ pub(super) fn service_gid() -> Result<u32, String> {
             &mut user,
         )
     };
-    if result != 0
-        || user.is_null()
-        || unsafe { (*user).pw_uid } == 0
-        || unsafe { (*user).pw_gid } != gid
-    {
+    if result != 0 || user.is_null() {
+        return Err("rz-monitor-agent user/group identity is invalid".into());
+    }
+    // getpwnam_r initialized the caller-owned value when it returned success and a non-null result.
+    let passwd = unsafe { passwd.assume_init() };
+    if passwd.pw_uid == 0 || passwd.pw_gid != gid {
         return Err("rz-monitor-agent user/group identity is invalid".into());
     }
     Ok(gid)

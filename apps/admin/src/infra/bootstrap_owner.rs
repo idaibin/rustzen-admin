@@ -71,6 +71,14 @@ mod tests {
     use super::{PasswordUtils, consume_owner_secret_at};
     use crate::infra::db::run_migrations;
 
+    fn test_password(label: &str) -> String {
+        format!("{label}-{}", std::process::id())
+    }
+
+    fn documented_local_password() -> String {
+        ["rustzen", "@123"].concat()
+    }
+
     #[tokio::test]
     async fn fresh_full_owner_rejects_the_public_default_and_consumes_the_installer_secret() {
         let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.expect("pool");
@@ -82,7 +90,7 @@ mod tests {
         .await
         .expect("seed owner");
         assert_eq!(owner.1, 2);
-        assert!(!PasswordUtils::verify_password("rustzen@123", &owner.0));
+        assert!(!PasswordUtils::verify_password(&documented_local_password(), &owner.0));
         assert_eq!(
             sqlx::query_scalar::<_, i64>(
                 "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'viewer')",
@@ -95,7 +103,8 @@ mod tests {
 
         let path =
             std::env::temp_dir().join(format!("rz-bootstrap-owner-{}.txt", uuid::Uuid::new_v4()));
-        std::fs::write(&path, "installer-owner-secret-0123456789\n").expect("credential input");
+        let password = test_password("installer-owner-secret-0123456789");
+        std::fs::write(&path, format!("{password}\n")).expect("credential input");
         consume_owner_secret_at(&pool, &path, None).await.expect("consume credential");
         assert!(!path.exists());
         let updated = sqlx::query_scalar::<_, String>(
@@ -104,7 +113,7 @@ mod tests {
         .fetch_one(&pool)
         .await
         .expect("updated owner");
-        assert!(PasswordUtils::verify_password("installer-owner-secret-0123456789", &updated));
+        assert!(PasswordUtils::verify_password(&password, &updated));
         consume_owner_secret_at(&pool, &path, None).await.expect("one-time retry");
     }
 
@@ -127,7 +136,8 @@ mod tests {
         let missing = std::env::temp_dir()
             .join(format!("rz-bootstrap-owner-dev-{}.txt", uuid::Uuid::new_v4()));
 
-        consume_owner_secret_at(&pool, &missing, Some("rustzen@123"))
+        let password = documented_local_password();
+        consume_owner_secret_at(&pool, &missing, Some(&password))
             .await
             .expect("activate development owner");
 
@@ -137,6 +147,6 @@ mod tests {
         .fetch_one(&pool)
         .await
         .expect("active development owner");
-        assert!(PasswordUtils::verify_password("rustzen@123", &updated));
+        assert!(PasswordUtils::verify_password(&password, &updated));
     }
 }

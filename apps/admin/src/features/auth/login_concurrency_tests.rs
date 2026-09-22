@@ -25,7 +25,8 @@ async fn concurrent_wal_writer_cannot_turn_login_into_a_busy_snapshot() {
         .await
         .expect("primary pool");
     crate::infra::db::run_migrations(&primary).await.expect("migrations");
-    let password = PasswordUtils::hash_password("ConcurrentPassw0rd!").expect("password");
+    let cleartext = format!("ConcurrentPassw0rd!-{}", std::process::id());
+    let password = PasswordUtils::hash_password(&cleartext).expect("password");
     sqlx::query(
         "INSERT INTO users (id,username,email,password_hash,status)
          VALUES (80,'concurrent-login','concurrent@example.test',?,1)",
@@ -43,7 +44,7 @@ async fn concurrent_wal_writer_cannot_turn_login_into_a_busy_snapshot() {
     let writer_task = tokio::spawn(write_during_logins(writer.clone(), barrier.clone()));
     barrier.wait().await;
     for _ in 0..4 {
-        AuthService::login(&primary, "concurrent-login", "ConcurrentPassw0rd!")
+        AuthService::login(&primary, "concurrent-login", &cleartext)
             .await
             .expect("login while writer remains active");
     }
