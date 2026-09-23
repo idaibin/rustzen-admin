@@ -1,8 +1,8 @@
 # Local verification status
 
-This document records only the current delivery boundary. Historical runs remain in
-Git and in their source-bound machine-local manifests; they do not certify a changed
-working tree.
+This document records only the current delivery boundary as checked on 2026-09-23.
+Historical runs remain in Git and in their source-bound machine-local manifests;
+they do not certify a changed working tree or a different release artifact.
 
 ## Current scope
 
@@ -26,28 +26,22 @@ The working tree is an integrated change set covering:
 - current product, architecture, deployment and UI documentation;
 - 1920x1080 full-runtime screenshots for all 19 authenticated business routes.
 
-The current source candidate is commit
-`eb9fd494c0e6e05824293887d227096846f08793`. Service wiring, Web formatting,
-lint, type checking, 152 Web tests, 12 Insights tracker tests, the production Web
-build, Rust formatting, workspace check and workspace clippy pass for that commit.
-The deployment request and recovery suites also pass, including concurrent request
-publication, durable transaction acceptance and failed-update propagation after a
-successful rollback.
-
-`just check` is the final source gate. Its Rust test stage is not fully executable in
-the current restricted macOS runner: 15 tests that bind loopback TCP sockets fail at
-`bind(2)` with `Operation not permitted`; the remaining exercised tests pass. Those
-environment failures are not accepted as a passing source gate and must be rerun in
-the release Linux environment. A passing source gate proves neither a signed artifact
-nor systemd behavior.
+The mainline PR starts at `0acc38d2a2736eb5ce7f063e125e010530786dd9`.
+`just check` passed on 2026-09-23 with service wiring, Web formatting, lint, type
+checking, tests and production build, plus Rust formatting, workspace check, clippy
+and workspace tests. The check ran before this status-only documentation update;
+the final PR commit requires a clean-tree readback. A passing source gate proves
+neither artifact provenance nor systemd behavior.
 
 ## Current local candidate
 
-There is no signed x86_64 candidate for the current source commit. The files currently
-named `target/rz/rz-0.5.1-x86_64.tar` and `target/rz/rz-install` predate
-`eb9fd494c0e6e05824293887d227096846f08793` and are invalidated for release use.
-Rebuild, signature verification, exact source binding and all downstream artifact gates
-must use one newly committed source identity.
+The machine-local `target/rz/rz-0.5.1-x86_64.tar` exists and passed
+`bun scripts/deploy-sign.mjs verify-bundle --file target/rz/rz-0.5.1-x86_64.tar
+--version 0.5.1 --arch x86_64` on 2026-09-23. Its SHA-256 is
+`01acde7fa359794d933bb5e6ae37400555651b99da5675b66bbee900ff6942ad`.
+The signature check does not establish that the bundled binaries were built from
+the final PR commit or that this local file is identical to the installed artifact.
+Those provenance and publication checks remain **Not verified**.
 
 ## Recorded browser evidence
 
@@ -69,18 +63,19 @@ service-lifecycle gates.
 
 | ID | Outcome | Current status | Completion evidence |
 | --- | --- | --- | --- |
-| RZA-006 | Accept the complete signed server release | **In progress.** Source fixes are committed at `eb9fd494c0e6e05824293887d227096846f08793`; all non-network source gates pass, while the restricted runner cannot execute TCP-binding tests. No signed artifact is current for this source identity. | Rerun the complete source gate in the release Linux environment; build and verify the signed bundle and installer from the same committed SHA; inspect signature, members and static ELF identity; complete dual-Agent and fresh PID1/systemd install; `rz start/status/restart/stop`; injected child failure; four exact-version health checks; service UID/GID and filesystem-boundary checks; restart recovery; update and rollback tests. |
-| RZA-007 | Accept an external production deployment | **Blocked / Not verified.** The last recorded production check reported `0.5.0` and an Nginx HTTP 413 before Admin received the upload. Current production state cannot be refreshed from the restricted runner. | Verify and raise the effective reverse-proxy request-body limit to at least 257 MiB, upload the new source-bound candidate, deploy from the verified current production version, verify all four service versions and health gates, execute the scheduled task and physical Agent journeys, and capture all 19 routes from production. |
+| RZA-006 | Accept the complete signed server release | **Partially verified.** `just check` passed and the local 0.5.1 bundle signature verifies. Final-commit-to-binary provenance and complete fresh PID1/systemd, upgrade and rollback acceptance are **Not verified** by these checks. | Verify the final committed source identity against the signed bundle and installer, then complete the target-like install, lifecycle, update and rollback gates on that exact artifact. |
+| RZA-007 | Accept an external production deployment | **Partially verified.** On 2026-09-23 the ECS Workbench check observed all four services and the public `/health` reporting 0.5.1, and `rz doctor` passed. Nginx was reloaded with a 50m request-body override for the Admin HTTPS host. This does not prove installed-file parity with the local bundle or the full production browser and Agent journeys. | Verify installed artifact identity, the required production journeys and the effective upload boundary for future packages. |
+| RZA-008 | Integrate the GitHub mainline | **In progress.** Local `main` was returned to GitHub's `fa18de2` and the 304 local-only commits were preserved on `release/0.5.1-mainline-pr`. | Review the final branch, open one PR against GitHub `main`, select its merge method, merge, then read back local and remote refs. |
 
 ## Known release blockers
 
-1. The complete source gate, signed x86_64 artifact and all Linux runtime evidence must
-   be regenerated from `eb9fd494c0e6e05824293887d227096846f08793` or a later reviewed
-   commit; the current runner cannot bind TCP or access its Colima Docker socket.
-2. Fresh PID1/systemd installation, lifecycle, failure and rollback evidence must be
-   regenerated from that exact candidate before it is release-ready.
-3. Production Nginx must accept the signed bundle plus multipart framing; the last
-   observed HTTP 413 prevented upload, deployment and production screenshots.
+1. The final PR commit, local signed bundle and installed production files do not yet
+   have one verified source-and-artifact identity chain.
+2. The complete fresh PID1/systemd installation, lifecycle, update and rollback
+   acceptance remains separate from the passing source and signature checks.
+3. The Admin HTTPS Nginx limit is 50m. It covers the observed 49,005,594-byte bundle
+   with limited multipart headroom, but not the full 256 MiB Admin upload contract.
+   A real upload at the boundary has not been repeated after the Nginx change.
 
 ## Evidence rules
 
