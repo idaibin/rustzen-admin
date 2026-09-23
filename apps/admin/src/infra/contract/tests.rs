@@ -250,7 +250,7 @@ async fn route_contract_registration_and_hot_request_benchmark() {
         }
     }
 
-    fn add_legacy(
+    fn add_direct(
         router: Router<()>,
         path: &str,
         method: Method,
@@ -300,10 +300,10 @@ async fn route_contract_registration_and_hot_request_benchmark() {
         result.expect("benchmark contract registration")
     }
 
-    let mut legacy_register = Vec::new();
+    let mut direct_register = Vec::new();
     let mut contract_register = Vec::new();
     for sample in 0..(WARMUP + SAMPLES) {
-        let measure_legacy = || {
+        let measure_direct = || {
             let started = Instant::now();
             for _ in 0..ITERATIONS {
                 let mut router = Router::<()>::new();
@@ -313,7 +313,7 @@ async fn route_contract_registration_and_hot_request_benchmark() {
                     } else {
                         AccessPolicy::Require(CAPABILITY)
                     };
-                    router = add_legacy(router, &format!("/bench/{index}"), method(index), access);
+                    router = add_direct(router, &format!("/bench/{index}"), method(index), access);
                 }
             }
             started.elapsed().as_nanos() as f64 / ITERATIONS as f64
@@ -342,19 +342,19 @@ async fn route_contract_registration_and_hot_request_benchmark() {
             }
             started.elapsed().as_nanos() as f64 / ITERATIONS as f64
         };
-        let (legacy, contract) = if sample % 2 == 0 {
-            (measure_legacy(), measure_contract())
+        let (direct, contract) = if sample % 2 == 0 {
+            (measure_direct(), measure_contract())
         } else {
             let contract = measure_contract();
-            let legacy = measure_legacy();
-            (legacy, contract)
+            let direct = measure_direct();
+            (direct, contract)
         };
         if sample >= WARMUP {
-            legacy_register.push(legacy);
+            direct_register.push(direct);
             contract_register.push(contract);
         }
     }
-    let legacy = Router::<()>::new()
+    let direct = Router::<()>::new()
         .route("/bench/public", get(ok))
         .route("/bench/auth", get(ok))
         .route_with_permission(
@@ -381,7 +381,7 @@ async fn route_contract_registration_and_hot_request_benchmark() {
         .unwrap()
         .into_parts()
         .0;
-    let mut legacy_hot = [Vec::new(), Vec::new(), Vec::new()];
+    let mut direct_hot = [Vec::new(), Vec::new(), Vec::new()];
     let mut contract_hot = [Vec::new(), Vec::new(), Vec::new()];
     fn request(path: &str, authenticated: bool) -> Request<Body> {
         let mut request = Request::get(path).body(Body::empty()).unwrap();
@@ -396,7 +396,7 @@ async fn route_contract_registration_and_hot_request_benchmark() {
         request
     }
     for sample in 0..(WARMUP + SAMPLES) {
-        let measure_legacy = async {
+        let measure_direct = async {
             let mut values = Vec::new();
             for (index, (path, authenticated)) in
                 [("/bench/public", false), ("/bench/auth", true), ("/bench/require", true)]
@@ -406,7 +406,7 @@ async fn route_contract_registration_and_hot_request_benchmark() {
                 let started = Instant::now();
                 for _ in 0..ITERATIONS {
                     assert_eq!(
-                        legacy
+                        direct
                             .clone()
                             .oneshot(request(path, authenticated))
                             .await
@@ -442,36 +442,36 @@ async fn route_contract_registration_and_hot_request_benchmark() {
             }
             values
         };
-        let (legacy_values, contract_values) = if sample % 2 == 0 {
-            (measure_legacy.await, measure_contract.await)
+        let (direct_values, contract_values) = if sample % 2 == 0 {
+            (measure_direct.await, measure_contract.await)
         } else {
             let contract_ns = measure_contract.await;
-            let legacy_ns = measure_legacy.await;
-            (legacy_ns, contract_ns)
+            let direct_ns = measure_direct.await;
+            (direct_ns, contract_ns)
         };
         if sample >= WARMUP {
-            for (index, value) in legacy_values {
-                legacy_hot[index].push(value);
+            for (index, value) in direct_values {
+                direct_hot[index].push(value);
             }
             for (index, value) in contract_values {
                 contract_hot[index].push(value);
             }
         }
     }
-    let (lr50, lr95) = summary(legacy_register);
+    let (dr50, dr95) = summary(direct_register);
     let (cr50, cr95) = summary(contract_register);
     let hot_names = ["public", "authenticated", "require"];
     println!(
-        "route-contract benchmark routes={} warmup={WARMUP} samples={SAMPLES} iterations={ITERATIONS} register_ns_op legacy_median={lr50:.1} legacy_p95={lr95:.1} contract_median={cr50:.1} contract_p95={cr95:.1} ratio={:.3}",
+        "route-contract benchmark routes={} warmup={WARMUP} samples={SAMPLES} iterations={ITERATIONS} register_ns_op direct_median={dr50:.1} direct_p95={dr95:.1} contract_median={cr50:.1} contract_p95={cr95:.1} ratio={:.3}",
         descriptors.len(),
-        cr50 / lr50
+        cr50 / dr50
     );
     for (index, name) in hot_names.into_iter().enumerate() {
-        let (legacy_median, legacy_p95) = summary(std::mem::take(&mut legacy_hot[index]));
+        let (direct_median, direct_p95) = summary(std::mem::take(&mut direct_hot[index]));
         let (contract_median, contract_p95) = summary(std::mem::take(&mut contract_hot[index]));
         println!(
-            "route-contract hot_access={name} legacy_median={legacy_median:.1} legacy_p95={legacy_p95:.1} contract_median={contract_median:.1} contract_p95={contract_p95:.1} ratio={:.3}",
-            contract_median / legacy_median
+            "route-contract hot_access={name} direct_median={direct_median:.1} direct_p95={direct_p95:.1} contract_median={contract_median:.1} contract_p95={contract_p95:.1} ratio={:.3}",
+            contract_median / direct_median
         );
     }
 }

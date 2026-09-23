@@ -101,6 +101,9 @@ grep -Fqx '        if (reconstructed.length !== expectedLines || reconstructed.s
 grep -Fqx '        if (!/^attachment;\s*filename=rustzen-module-logs\.tar$/i.test(value("content-disposition") ?? "")) throw new Error("missing backup filename header");' "$MODULE_LOG_HELPER"
 grep -Fqx '        if (value("x-rustzen-archive-file-count") !== "1") throw new Error("backup count header did not match one selected file");' "$MODULE_LOG_HELPER"
 grep -Fqx '    [ "$repeated_status" = 400 ] || { echo "verify-services: reused module-log cleanup token returned $repeated_status" >&2; exit 1; }' "$MODULE_LOG_HELPER"
+grep -Fq '`${dir}/admin/admin.${process.env.MODULE_LOG_DATE}`' "$MODULE_LOG_HELPER"
+grep -Fq '`${dir}/monitor/monitor.${process.env.MODULE_LOG_OLD_DATE}`' "$MODULE_LOG_HELPER"
+grep -Fq '"$module_log_dir/monitor/monitor.$module_log_old_date"' "$MODULE_LOG_HELPER"
 source_line="$(grep -nF '. "$MODULE_LOG_HELPER"' "$VERIFY" | cut -d: -f1)"
 call_line="$(grep -nF 'verify_module_log_diagnostics' "$VERIFY" | tail -n1 | cut -d: -f1)"
 [[ "$trap_line" -lt "$source_line" && "$source_line" -lt "$call_line" ]]

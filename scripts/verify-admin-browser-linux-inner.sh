@@ -174,9 +174,12 @@ done
 for pid in "${pids[@]}"; do kill -0 "$pid"; done
 
 admin=http://127.0.0.1:19801
-login=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","password":"rustzen@123"}' "$admin/api/auth/login")
-token=$(jq -er '.data.token | select(length > 20)' <<<"$login")
-auth=(-H "authorization: Bearer $token")
+refresh_api_auth() {
+  login=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","password":"rustzen@123"}' "$admin/api/auth/login")
+  token=$(jq -er '.data.token | select(length > 20)' <<<"$login")
+  auth=(-H "authorization: Bearer $token")
+}
+refresh_api_auth
 
 # These are the only module-log fixtures. Service stdout goes to verify-*.log,
 # which the fixed module-log allowlist never recognizes.
@@ -184,9 +187,9 @@ module_log_today=$(date -u +%F)
 module_log_expired=2020-01-01
 # The running services may already have current-UTC rolling files. The verifier
 # writes only these two explicit fixtures and keeps every current-day file intact.
-printf 'ADMIN_LOG_CURRENT_MARKER\n' >>"/opt/rz/logs/admin.$module_log_today"
-printf 'MONITOR_LOG_EXPIRED_MARKER\n' >"/opt/rz/logs/monitor.$module_log_expired"
-chown rustzen:rustzen "/opt/rz/logs/admin.$module_log_today" "/opt/rz/logs/monitor.$module_log_expired"
+printf 'ADMIN_LOG_CURRENT_MARKER\n' >>"/opt/rz/logs/admin/admin.$module_log_today"
+printf 'MONITOR_LOG_EXPIRED_MARKER\n' >"/opt/rz/logs/monitor/monitor.$module_log_expired"
+chown rustzen:rustzen "/opt/rz/logs/admin/admin.$module_log_today" "/opt/rz/logs/monitor/monitor.$module_log_expired"
 module_log_files=$(curl_json "${auth[@]}" "$admin/api/system/status/module-logs")
 printf '%s\n' "$module_log_files" | jq -c --arg today "$module_log_today" '[.data[] | select(.date == $today) | {module: .module, date: .date, fileName: .fileName, active: .active}] | sort_by(.module, .date)' >/verify/evidence/module-log-current-before-cleanup.json
 jq -e --arg today "$module_log_today" --arg expired "$module_log_expired" '
@@ -228,6 +231,10 @@ browser_success_seed_flow_id=$(jq -er '.data.id' <<<"$browser_success_seed_flow"
 run_browser_case() {
   case_name=$1 method=$2 mode=$3 route=$4 steps=$5
   echo "running browser fault case: $case_name"
+  # Every browser run signs in with a fresh isolated profile. Refresh the API
+  # controller session too, so the ten-session production cap cannot evict a
+  # long-lived verifier token midway through this intentionally long matrix.
+  refresh_api_auth
   receipt=/verify/evidence/"$case_name".receipt.json
   start_fault_proxy "$method" "$mode" "$route" "$receipt"
   steps=$(jq -c --arg name "$case_name" '. + [{action:"screenshot",name:$name}]' <<<"$steps")
@@ -268,6 +275,7 @@ run_browser_case() {
 run_target_browser_case() {
   case_name=$1 steps=$2
   echo "running browser target case: $case_name"
+  refresh_api_auth
   body=$(jq -nc --arg system "$browser_success_system_id" --arg name "$case_name" --argjson steps "$steps" '{systemId:$system,name:$name,steps:$steps}')
   flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$body" "$admin/api/reports/flows")
   case_flow_id=$(jq -er '.data.id' <<<"$flow")

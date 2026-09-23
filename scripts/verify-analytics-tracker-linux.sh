@@ -213,7 +213,7 @@ architecture=${RUSTZEN_UI_LINUX_ARCH:-}
 evidence_root="$root/target/rz/analytics-tracker"
 current="$evidence_root/current"
 if [ -e "$current" ] && [ ! -L "$current" ]; then
-  echo "refusing to replace legacy Analytics tracker evidence directory: $current; move it under runs/ first" >&2
+  echo "refusing to replace unsupported Analytics tracker evidence directory: $current; move it under runs/ first" >&2
   exit 1
 fi
 run_timeout=${RUSTZEN_ANALYTICS_TRACKER_TIMEOUT:-480}

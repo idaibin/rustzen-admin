@@ -4,7 +4,6 @@ use rustzen_ipc::{DelegationVerifier, ModuleDefinition, ModuleManifest, ModuleRo
 use crate::{app::AppState, features};
 
 const MODULE_TOML: &str = include_str!("../module.toml");
-pub(crate) const CONTRACT_IPC_TOKEN: &str = "insights-contract-only-token";
 
 pub(crate) fn build_module_routes(
     ipc_token: &str,

@@ -16,7 +16,7 @@ pub fn validate_profile(
 ) -> Result<(), String> {
     let metadata = std::fs::symlink_metadata(path).map_err(|_| "controller profile is missing")?;
     let profile = rustzen_config::read_controller_profile(path, metadata.gid())?;
-    if profile.version != 1
+    if profile.version != 2
         || !same_endpoint(&profile.endpoint, configured_endpoint)
         || rustzen_config::canonical_monitor_endpoint(&profile.endpoint).is_err()
         || profile.protocol_id != CONTRACT_PROTOCOL_SHA256
@@ -242,7 +242,7 @@ mod tests {
     use std::{fs, os::unix::fs::PermissionsExt};
 
     fn profile(endpoint: &str, protocol: &str) -> Vec<u8> {
-        format!(r#"{{"agentBuildId":"{}","agentManifestSha256":"{}","controllerBuildId":"{}","controllerCompositionId":"{}","endpoint":"{endpoint}","keyFingerprint":"{}","keyId":"release","manifestSha256":"{}","protocolId":"{protocol}","version":1}}"#, "d".repeat(64), "e".repeat(64), "a".repeat(64), "b".repeat(64), "f".repeat(64), "c".repeat(64)).into_bytes()
+        format!(r#"{{"agentBuildId":"{}","agentManifestSha256":"{}","controllerArch":"x86_64","controllerBackendSha256":"{}","controllerContentSha256":"{}","controllerFrontendSha256":"{}","controllerMonitorSha256":"{}","controllerVersion":"0.5.0","endpoint":"{endpoint}","keyFingerprint":"{}","protocolId":"{protocol}","version":2}}"#, "d".repeat(64), "e".repeat(64), "a".repeat(64), "b".repeat(64), "c".repeat(64), "f".repeat(64), "1".repeat(64)).into_bytes()
     }
     #[test]
     fn profile_requires_root_owned_canonical_matching_values() {

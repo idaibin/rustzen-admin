@@ -35,8 +35,27 @@ export async function verifyMonitoringScenarios({ adminBase, adminToken, agentTo
         assert.equal(payload.code, 0, `${method} ${path} envelope`);
         return payload.data;
     }
+    const roleOptions = await call("/api/system/roles/options?limit=500");
+    const viewerRole = roleOptions.find((role) => role.code === "viewer");
+    assert.ok(viewerRole, "fresh database exposes the built-in viewer role");
+    await call("/api/system/users", {
+        method: "POST",
+        body: {
+            username: "monitoring_scenario_viewer",
+            email: "monitoring-scenario-viewer@example.test",
+            password: "monitoring-scenario-viewer-password",
+            realName: "Monitoring scenario viewer",
+            status: 1,
+            roleIds: [viewerRole.value],
+        },
+    });
     const viewer = await call("/api/auth/login", {
-        token: null, method: "POST", body: { username: "viewer", password: "rustzen@123" },
+        token: null,
+        method: "POST",
+        body: {
+            username: "monitoring_scenario_viewer",
+            password: "monitoring-scenario-viewer-password",
+        },
     });
     const viewerToken = viewer.token;
     for (const token of [adminToken, viewerToken]) {

@@ -29,8 +29,8 @@ mod roles;
 mod tests;
 
 use capabilities::{
-    build_menu_seed_records, expand_legacy_module_wildcard_grants, menu_seed_record,
-    refresh_menu_parent_id, retire_stale_core_permissions, upsert_menu_seed_record,
+    build_menu_seed_records, menu_seed_record, refresh_menu_parent_id,
+    retire_stale_core_permissions, upsert_menu_seed_record,
 };
 use navigation::reconcile_navigation;
 use roles::{database_error, load_permission_cache_snapshot, sync_builtin_roles};
@@ -268,7 +268,6 @@ impl PermissionService {
         for record in &seed_records {
             refresh_menu_parent_id(&mut tx, &record.permission_code).await?;
         }
-        expand_legacy_module_wildcard_grants(&mut tx, &manifest.module, &seed_records).await?;
         sync_builtin_roles(&mut tx).await?;
         let cache = load_permission_cache_snapshot(&mut *tx).await?;
         tx.commit().await.map_err(database_error("committing module sync"))?;

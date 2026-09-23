@@ -17,6 +17,7 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -209,19 +210,13 @@ function MonitoringNodesPage() {
                         loading={isFetching}
                         search={false}
                         options={false}
-                        pagination={false}
-                        locale={{
-                            emptyText: (
-                                <DataState
-                                    kind="empty"
-                                    title={t("暂无监控节点", "No monitored nodes")}
-                                    description={t(
-                                        "节点 Agent 首次上报后会自动出现在列表中。",
-                                        "A node appears after its agent's first report.",
-                                    )}
-                                />
+                        {...displayTableProps}
+                        locale={emptyTableLocale(t("暂无监控节点", "No monitored nodes"), {
+                            description: t(
+                                "节点 Agent 首次上报后会自动出现在列表中。",
+                                "A node appears after its agent's first report.",
                             ),
-                        }}
+                        })}
                     />
                 </>
             )}

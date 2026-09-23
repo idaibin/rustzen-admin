@@ -8,10 +8,14 @@ import { useMemo, useState } from "react";
 import { monitorAPI } from "@/api";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
-import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    displayTableProps,
+    emptyTableLocale,
+    tablePagination,
+} from "@/components/table/table-presets";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
@@ -81,18 +85,11 @@ function MonitoringIncidentsPage() {
         </Space>
     );
 
-    const deliveryCard = (
-        <NotificationDeliveryCard
-            queryKey={["monitor", "notification-delivery"]}
-            queryFn={monitorAPI.notificationDelivery}
-        />
-    );
     const permissionDenied = isMonitorPermissionDenied(error);
     if (permissionDenied)
         return (
             <PageCard
                 toolbar={searchControls}
-                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
@@ -121,7 +118,6 @@ function MonitoringIncidentsPage() {
         return (
             <PageCard
                 toolbar={searchControls}
-                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
@@ -217,7 +213,6 @@ function MonitoringIncidentsPage() {
     return (
         <PageCard
             toolbar={searchControls}
-            actions={deliveryCard}
             title={t("告警事件", "Alert incidents")}
             description={t(
                 "查看活动和最近解决的资源与离线告警。",
@@ -235,31 +230,25 @@ function MonitoringIncidentsPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    pagination={false}
                     scroll={{ y: "100%" }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText: (
-                            <DataState
-                                kind="empty"
-                                title={t("暂无告警事件", "No alert incidents")}
-                            />
-                        ),
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(t("暂无告警事件", "No alert incidents"))}
                 />
-                <div className="flex shrink-0 items-center justify-between gap-4 pt-3">
+                <div
+                    className="flex shrink-0 items-center justify-between gap-4 pt-3"
+                    data-testid="incidents-pagination"
+                >
                     <Typography.Text type="secondary">
                         {t(`共 ${data.total} 条`, `${data.total} total`)}
                     </Typography.Text>
                     <Pagination
-                        current={current}
-                        pageSize={PAGE_SIZE}
-                        total={data.total}
-                        showSizeChanger={false}
-                        showLessItems
-                        onChange={setCurrent}
+                        {...tablePagination({
+                            current,
+                            pageSize: PAGE_SIZE,
+                            total: data.total,
+                            showLessItems: true,
+                            onChange: setCurrent,
+                        })}
                     />
                 </div>
             </DataTableShell>

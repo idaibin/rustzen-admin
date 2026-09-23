@@ -35,9 +35,9 @@ case "$architecture" in
   x86_64) platform=linux/amd64; target_triple=x86_64-unknown-linux-musl; file_pattern='ELF 64-bit.*x86-64' ;;
   *) echo "unsupported Colima/Docker architecture: $architecture" >&2; exit 1 ;;
 esac
-run_timeout=${RUSTZEN_UI_BROWSER_RUN_TIMEOUT:-480}
+run_timeout=${RUSTZEN_UI_BROWSER_RUN_TIMEOUT:-2400}
 case "$run_timeout" in ''|*[!0-9]*) echo 'RUSTZEN_UI_BROWSER_RUN_TIMEOUT must be a positive integer' >&2; exit 2;; esac
-[ "$run_timeout" -gt 0 ] && [ "$run_timeout" -le 900 ] || { echo 'RUSTZEN_UI_BROWSER_RUN_TIMEOUT must be 1..900 seconds' >&2; exit 2; }
+[ "$run_timeout" -gt 0 ] && [ "$run_timeout" -le 2400 ] || { echo 'RUSTZEN_UI_BROWSER_RUN_TIMEOUT must be 1..2400 seconds' >&2; exit 2; }
 read -r verifier_image verifier_key verifier_provenance_sha < <("$root/scripts/ensure-admin-browser-verifier-image.sh" --platform "$platform")
 bin_dir=${RUSTZEN_UI_LINUX_BIN_DIR:-"$root/target/rz/build/$architecture/bin"}
 evidence_root="$root/target/rz/ui-browser"

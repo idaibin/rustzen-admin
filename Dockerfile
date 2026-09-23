@@ -3,6 +3,7 @@ FROM oven/bun:1.3.14 AS bun-runtime
 FROM ${BASE_IMAGE} AS build
 
 ARG TARGET_TRIPLE=x86_64-unknown-linux-musl
+ARG RUSTZEN_DEPLOY_VERIFY_KEY
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_DIST_SERVER=https://rsproxy.cn \
@@ -11,7 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
     PATH=/root/.cargo/bin:${PATH} \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc \
+    RUSTZEN_DEPLOY_VERIFY_KEY=${RUSTZEN_DEPLOY_VERIFY_KEY}
 
 RUN sed -i "s|archive.ubuntu.com|mirrors.aliyun.com|g; s|ports.ubuntu.com|mirrors.aliyun.com|g" /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get update && \
@@ -32,94 +34,32 @@ RUN mkdir -p "${CARGO_HOME}" && printf '%s\n' \
 
 WORKDIR /app
 
-ARG DISTRIBUTION=full
-RUN case "${DISTRIBUTION}" in full|monitor|monitor-notify|analytics) ;; *) echo "DISTRIBUTION must be full, monitor, monitor-notify or analytics" >&2; exit 2 ;; esac
-ARG SOURCE_IDENTITY=
-RUN if [ "${DISTRIBUTION}" = "monitor" ] || [ "${DISTRIBUTION}" = "monitor-notify" ] || [ "${DISTRIBUTION}" = "analytics" ]; then \
-      test "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl" || { echo "Selected Monitor container export requires x86_64-unknown-linux-musl" >&2; exit 2; }; \
-      test -n "${SOURCE_IDENTITY}" || { echo "Selected container export requires SOURCE_IDENTITY" >&2; exit 2; }; \
-    fi
-
 COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 COPY apps/web/package.json apps/web/bun.lock apps/web/
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     cd apps/web && bun install --frozen-lockfile --ignore-scripts
 COPY apps/web apps/web
-COPY apps/admin apps/admin
-COPY distribution distribution
-COPY scripts/distribution-build-web.ts scripts/distribution-verify-web.ts scripts/distribution-selected-api-policy.ts scripts/distribution-resolve.ts scripts/distribution-web-inventory-policy.ts scripts/distribution-web-inventory-schema.ts scripts/distribution-web-allowed-packages.ts scripts/distribution-notification-delivery-closure.ts scripts/distribution-produce-contracts.ts scripts/distribution-produce-protocol.ts scripts/distribution-produce-native-layout.ts scripts/distribution-produce-container-export.ts scripts/
-RUN if [ "${DISTRIBUTION}" = "monitor" ] || [ "${DISTRIBUTION}" = "monitor-notify" ] || [ "${DISTRIBUTION}" = "analytics" ]; then \
-      case "${DISTRIBUTION}" in monitor) fixture=distribution/fixtures/monitor.json ;; monitor-notify) fixture=distribution/fixtures/monitor-notify.json ;; analytics) fixture=distribution/fixtures/analytics.json ;; *) exit 2 ;; esac; \
-      bun scripts/distribution-build-web.ts --selection "${fixture}" && \
-      bun scripts/distribution-verify-web.ts --selection "${fixture}" && \
-      composition="$(bun scripts/distribution-resolve.ts resolve --selection "${fixture}" | bun -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)')" && \
-      rm -rf "apps/admin/selected-web/${composition}" && \
-      mkdir -p "apps/admin/selected-web/${composition}/dist" && \
-      cp "target/distributions/${composition}/web/inventory.json" "target/distributions/${composition}/web/binding.json" "apps/admin/selected-web/${composition}/" && \
-      cp "target/distributions/${composition}/web/api.ts" "apps/admin/selected-web/${composition}/api.ts" && \
-      cp -R "target/distributions/${composition}/web/dist/." "apps/admin/selected-web/${composition}/dist" && \
-      (cd "target/distributions/${composition}/web/dist" && find . -type f -print0 | sort -z | xargs -0 sha256sum) >/tmp/rz-selected-web.source && \
-      (cd "apps/admin/selected-web/${composition}/dist" && find . -type f -print0 | sort -z | xargs -0 sha256sum) >/tmp/rz-selected-web.embedded && \
-      cmp -s /tmp/rz-selected-web.source /tmp/rz-selected-web.embedded; \
-    else cd apps/web && bun run vp build; fi
+RUN cd apps/web && bun run vp build
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
-COPY apps/cli apps/cli
-COPY apps/monitor apps/monitor
-COPY apps/insights apps/insights
-COPY apps/reports apps/reports
+COPY apps apps
 
-RUN if [ "${DISTRIBUTION}" = "monitor" ] || [ "${DISTRIBUTION}" = "monitor-notify" ]; then mkdir -p /out/release/server/bin /out/witness/bin /tmp/rz-monitor-producers; elif [ "${DISTRIBUTION}" = "analytics" ]; then mkdir -p /out/release/server/bin /tmp/rz-analytics-producers; else mkdir -p /out/bin; fi
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
     --mount=type=cache,target=/app/target \
-    if [ "${DISTRIBUTION}" = "monitor" ] || [ "${DISTRIBUTION}" = "monitor-notify" ]; then \
-        case "${DISTRIBUTION}" in \
-          monitor) fixture=distribution/fixtures/monitor.json; admin_features=monitor-distribution; monitor_features=controller; commands='[["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-admin","--no-default-features","--features","monitor-distribution"],["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-monitor","--no-default-features","--features","controller","--bin","rz-monitor"],["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-monitor","--no-default-features","--features","agent","--bin","rz-monitor-agent"]]' ;; \
-          monitor-notify) fixture=distribution/fixtures/monitor-notify.json; admin_features=monitor-distribution,notifications; monitor_features=notifications; commands='[["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-admin","--no-default-features","--features","monitor-distribution,notifications"],["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-monitor","--no-default-features","--features","notifications","--bin","rz-monitor"],["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-monitor","--no-default-features","--features","agent","--bin","rz-monitor-agent"]]' ;; *) exit 2 ;; esac; \
-        env RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features "${admin_features}" && \
-        env RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-monitor --no-default-features --features "${monitor_features}" --bin rz-monitor && \
-        env RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/release/server/bin/rz-admin" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/release/server/bin/rz-monitor" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor-agent" "/out/witness/bin/rz-monitor-agent" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/tmp/rz-monitor-producers/rz-admin" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/tmp/rz-monitor-producers/rz-monitor" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor-agent" "/tmp/rz-monitor-producers/rz-monitor-agent" && \
-        composition="$(bun scripts/distribution-resolve.ts resolve --selection "${fixture}" | bun -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)')" && \
-        mkdir -p /out/release/web && \
-        cp apps/admin/selected-web/"${composition}"/inventory.json /out/release/web/inventory.json && \
-        cp apps/admin/selected-web/"${composition}"/binding.json /out/release/web/binding.json && \
-        cp apps/admin/selected-web/"${composition}"/api.ts /out/release/web/api.ts && \
-        cp -R apps/admin/selected-web/"${composition}"/dist /out/release/web/dist && \
-        RUSTZEN_CONTRACT_OUTPUT_ROOT=/out/release/contracts bun scripts/distribution-produce-contracts.ts --selection "${fixture}" --binary-root /tmp/rz-monitor-producers && \
-        bun scripts/distribution-produce-protocol.ts --selection "${fixture}" --binary-root /tmp/rz-monitor-producers --output-root /out/release/contracts/protocol && \
-        bun scripts/distribution-produce-native-layout.ts --selection "${fixture}" --output-root /out/release/contracts/native && \
-        RUSTZEN_CONTAINER_EVIDENCE=linux-amd64-buildkit RUSTZEN_CONTAINER_TARGET_TRIPLE="${TARGET_TRIPLE}" RUSTZEN_CONTAINER_SOURCE_IDENTITY="${SOURCE_IDENTITY}" RUSTZEN_CONTAINER_BUILD_COMMANDS="${commands}" bun scripts/distribution-produce-container-export.ts --selection "${fixture}" --output-root /out; \
-    elif [ "${DISTRIBUTION}" = "analytics" ]; then \
-        fixture=distribution/fixtures/analytics.json; commands='[["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-admin","--no-default-features","--features","analytics-distribution","--bin","rz-admin"],["env","RUSTFLAGS=-C target-feature=+crt-static","cargo","build","--release","--target","x86_64-unknown-linux-musl","-p","rustzen-insights","--no-default-features","--features","selected-distribution","--bin","rz-insights"]]' && \
-        env RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-admin --no-default-features --features analytics-distribution --bin rz-admin && \
-        env RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-insights --no-default-features --features selected-distribution --bin rz-insights && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/release/server/bin/rz-admin" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/out/release/server/bin/rz-insights" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/tmp/rz-analytics-producers/rz-admin" && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/tmp/rz-analytics-producers/rz-insights" && \
-        composition="$(bun scripts/distribution-resolve.ts resolve --selection "${fixture}" | bun -e 'const data=await Bun.stdin.json(); console.log(data.compositionId)')" && \
-        mkdir -p /out/release/web && cp apps/admin/selected-web/"${composition}"/inventory.json apps/admin/selected-web/"${composition}"/binding.json /out/release/web/ && cp apps/admin/selected-web/"${composition}"/api.ts /out/release/web/api.ts && cp -R apps/admin/selected-web/"${composition}"/dist /out/release/web/dist && \
-        RUSTZEN_CONTRACT_OUTPUT_ROOT=/out/release/contracts bun scripts/distribution-produce-contracts.ts --selection "${fixture}" --binary-root /tmp/rz-analytics-producers --kind api && \
-        RUSTZEN_CONTRACT_OUTPUT_ROOT=/out/release/contracts bun scripts/distribution-produce-contracts.ts --selection "${fixture}" --binary-root /tmp/rz-analytics-producers --kind config && \
-        RUSTZEN_CONTRACT_OUTPUT_ROOT=/out/release/contracts bun scripts/distribution-produce-contracts.ts --selection "${fixture}" --binary-root /tmp/rz-analytics-producers --kind schema && \
-        bun scripts/distribution-produce-protocol.ts --selection "${fixture}" --binary-root /tmp/rz-analytics-producers --output-root /out/release/contracts/protocol && \
-        bun scripts/distribution-produce-native-layout.ts --selection "${fixture}" --output-root /out/release/contracts/native && \
-        RUSTZEN_CONTAINER_EVIDENCE=linux-amd64-buildkit RUSTZEN_CONTAINER_TARGET_TRIPLE="${TARGET_TRIPLE}" RUSTZEN_CONTAINER_SOURCE_IDENTITY="${SOURCE_IDENTITY}" RUSTZEN_CONTAINER_BUILD_COMMANDS="${commands}" bun scripts/distribution-produce-container-export.ts --selection "${fixture}" --output-root /out; \
-    elif [ "${TARGET_TRIPLE}" = "aarch64-unknown-linux-gnu" ]; then \
-        cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz" "/out/bin/rz" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/bin/rz-admin" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/bin/rz-monitor" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/out/bin/rz-insights" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-reports" "/out/bin/rz-reports"; \
+    mkdir -p /out/bin && \
+    if [ "${TARGET_TRIPLE}" = "aarch64-unknown-linux-gnu" ]; then \
+        cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
     else \
-        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports && \
-        install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz" "/out/bin/rz" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" "/out/bin/rz-admin" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" "/out/bin/rz-monitor" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" "/out/bin/rz-insights" && install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-reports" "/out/bin/rz-reports"; \
-    fi
+        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target "${TARGET_TRIPLE}" -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports; \
+    fi && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz" /out/bin/rz && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-admin" /out/bin/rz-admin && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-monitor" /out/bin/rz-monitor && \
+    if [ "${TARGET_TRIPLE}" = "x86_64-unknown-linux-musl" ]; then /app/target/${TARGET_TRIPLE}/release/rz-monitor contract protocol > /out/bin/controller-protocol.json; fi && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-insights" /out/bin/rz-insights && \
+    install -m 0755 "/app/target/${TARGET_TRIPLE}/release/rz-reports" /out/bin/rz-reports
 
 FROM scratch AS export
 COPY --from=build /out /

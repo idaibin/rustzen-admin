@@ -10,8 +10,14 @@ import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    emptyTableLocale,
+    pagedTableProps,
+    tablePagination,
+} from "@/components/table/table-presets";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { formatDuration } from "@/lib/format";
 import { t, useLocale } from "@/lib/i18n";
 import { useLocalStore } from "@/store/useLocalStore";
 
@@ -260,21 +266,16 @@ function LogPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    pagination={{
+                    {...pagedTableProps}
+                    pagination={tablePagination({
                         current: currentPage,
                         pageSize: PAGE_SIZE,
                         total,
-                        showSizeChanger: false,
                         onChange: (page) => {
                             setCurrentPage(page);
                         },
-                    }}
-                    locale={{
-                        emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
-                    }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
+                    })}
+                    locale={emptyTableLocale(t("暂无日志", "No logs"))}
                 />
             </DataTableShell>
         </PageCard>
@@ -293,11 +294,6 @@ const StatusBadge = ({ status }: { status: string }) => {
             {isSuccess ? t("成功", "Success") : t("失败", "Failed")}
         </Tag>
     );
-};
-
-const formatDuration = (durationMs?: number) => {
-    if (!durationMs) return "-";
-    return `${durationMs}ms`;
 };
 
 const operationDescription = (description?: string | null) => {

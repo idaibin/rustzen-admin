@@ -16,7 +16,7 @@ test("captured export bytes stage exact Monitor payload after export removal", a
         await expect(lstat(root)).rejects.toMatchObject({ code: "ENOENT" });
         const result = await produceMonitorNativeStagingManifest({ snapshot, outputParent: join(trusted, "native-output"), trustedRoot: trusted });
         expect(result.staging.files.map((file) => file.path)).toEqual([
-            "bin/rz-admin", "bin/rz-monitor", "contracts/api/api.json", "contracts/config/config.json", "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json", "contracts/web/binding.json", "systemd/rz-admin.service", "systemd/rz-monitor.service", "systemd/rz.target", "web/index.html", "web/rustzen.png",
+            "bin/rz-admin", "bin/rz-monitor", "contracts/api/api.json", "contracts/config/config.json", "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json", "contracts/web/binding.json", "systemd/rz-admin.service", "systemd/rz-monitor.service", "systemd/rz-full.service", "web/index.html", "web/rustzen.png",
         ]);
         expect(result.manifest.files).toEqual(result.staging.files);
         expect(result.manifest.releaseVersion).toBe(releaseVersion);
@@ -77,7 +77,7 @@ test("captured synthetic Analytics bytes stage Admin and Insights without an Age
             "bin/rz-admin", "bin/rz-insights", "contracts/api/api.json", "contracts/config/config.json",
             "contracts/native/native-layout.json", "contracts/protocol/protocol.json", "contracts/schema/schema.json",
             "contracts/web/binding.json", "systemd/rz-admin.service", "systemd/rz-insights.service",
-            "systemd/rz.target", "web/index.html", "web/rustzen.png",
+            "systemd/rz-full.service", "web/index.html", "web/rustzen.png",
         ]);
         expect(result.manifest.files).toEqual(result.staging.files);
         expect(result.manifest.protocolArtifactDigest).toMatch(/^[a-f0-9]{64}$/);

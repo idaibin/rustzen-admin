@@ -12,7 +12,6 @@ path = "src/main.rs"
 [features]
 default = ["notifications"]
 notifications = ["dep:hex", "dep:reqwest", "dep:sha2", "rustzen-config/reports-notifications"]
-selected-distribution = []
 
 [dependencies]
 axum = "0.8"

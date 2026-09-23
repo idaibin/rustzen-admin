@@ -2,16 +2,18 @@ import { PlusOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Avatar, Button, Input, Select, Tag } from "antd";
+import { Avatar, Button, Input, Select } from "antd";
 import { useMemo, useState } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { StatusTag } from "@/components/status-tag";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { getEnableOptions } from "@/constant/options";
+import { emptyTableLocale, tablePagination } from "@/components/table/table-presets";
+import { getEnableOptions, getUserStatusMeta } from "@/constant/options";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
 import { localizeBuiltInRoleName, localizeBuiltInUserName } from "@/lib/builtin-i18n";
@@ -108,7 +110,9 @@ function UserPage() {
             title: t("状态", "Status"),
             key: "status",
             width: 88,
-            render: (_: unknown, row: User.Item) => <UserStatusBadge status={row.status} />,
+            render: (_: unknown, row: User.Item) => (
+                <StatusTag status={row.status} meta={getUserStatusMeta()} />
+            ),
         },
         {
             title: t("角色", "Roles"),
@@ -270,38 +274,20 @@ function UserPage() {
                     search={false}
                     options={false}
                     scroll={{ x: 1280 }}
-                    pagination={{
+                    pagination={tablePagination({
                         current: currentPage,
                         pageSize: PAGE_SIZE,
                         total,
-                        showSizeChanger: false,
                         hideOnSinglePage: true,
                         onChange: (page) => setCurrentPage(page),
-                    }}
-                    locale={{
-                        emptyText:
-                            rows.length === 0 ? (
-                                <DataState kind="empty" title={t("暂无用户", "No users")} />
-                            ) : undefined,
-                    }}
+                    })}
+                    locale={emptyTableLocale(t("暂无用户", "No users"), {
+                        visible: rows.length === 0,
+                    })}
                 />
             </DataTableShell>
         </PageCard>
     );
-}
-
-function UserStatusBadge({ status }: { status: number }) {
-    const statusMeta = {
-        1: { label: t("启用", "Enabled"), color: "blue" as const },
-        2: { label: t("禁用", "Disabled"), color: "default" as const },
-        3: { label: t("待审核", "Pending"), color: "gold" as const },
-        4: { label: t("已锁定", "Locked"), color: "red" as const },
-    };
-    const meta = statusMeta[status as keyof typeof statusMeta] ?? {
-        label: t("未知", "Unknown"),
-        color: "default" as const,
-    };
-    return <Tag color={meta.color}>{meta.label}</Tag>;
 }
 
 function getUserInitial(record: User.Item) {

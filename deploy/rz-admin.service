@@ -1,19 +1,26 @@
 [Unit]
 Description=Rustzen Admin
 After=network.target rz-recovery.service
-PartOf=rz.target
+PartOf=rz-full.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
 Type=simple
-UMask=0077
+UMask=0027
+User=rz-admin
+Group=rz-admin
+SupplementaryGroups=rz-log-control
 EnvironmentFile=/opt/rz/config/rz.env
 ExecCondition=/usr/bin/test ! -e /opt/rz/data/recovery-blocked
 ExecStart=/opt/rz/current/bin/rz-admin serve
 WorkingDirectory=/opt/rz
 Restart=on-failure
 RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/rz/data/db/admin /opt/rz/data/releases /opt/rz/data/uploads /opt/rz/data/avatars /opt/rz/data/update-requests /opt/rz/logs/admin /opt/rz/logs/monitor /opt/rz/logs/insights /opt/rz/logs/reports
 
 [Install]
-WantedBy=rz.target
+WantedBy=rz-full.service

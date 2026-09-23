@@ -88,11 +88,7 @@ async fn fresh_schema_epochs_advance_once_and_immediately_invalidate_sessions() 
         "UPDATE menus SET status=2 WHERE id=7101",
         "UPDATE menus SET is_active=0 WHERE id=7102",
         "UPDATE menus SET deleted_at=CURRENT_TIMESTAMP WHERE id=7101",
-        if cfg!(feature = "analytics-distribution") {
-            "UPDATE modules SET enabled=NOT enabled WHERE id='insights'"
-        } else {
-            "UPDATE modules SET enabled=NOT enabled WHERE id='monitor'"
-        },
+        "UPDATE modules SET enabled=NOT enabled WHERE id='monitor'",
     ] {
         assert_policy_step(&pool, &mut expected, statement).await;
     }

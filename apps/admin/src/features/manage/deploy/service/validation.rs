@@ -69,7 +69,7 @@ pub(super) async fn save_release(
 
 pub(super) fn validate_stored_release(
     version: &DeploymentItem,
-) -> Result<BundleInfo, ServiceError> {
+) -> Result<(Vec<u8>, BundleInfo), ServiceError> {
     let data = fs::read(&version.file_path)
         .map_err(|error| ServiceError::InvalidOperation(format!("Cannot read release: {error}")))?;
     if sha256_hex(&data) != version.file_hash {
@@ -86,7 +86,14 @@ pub(super) fn validate_stored_release(
             "Stored release bundle architecture mismatch".to_string(),
         ));
     }
-    Ok(bundle)
+    if bundle.frontend_sha256 != version.frontend_hash
+        || bundle.backend_sha256 != version.backend_hash
+    {
+        return Err(ServiceError::InvalidOperation(
+            "Stored release frontend/backend identity mismatch".to_string(),
+        ));
+    }
+    Ok((data, bundle))
 }
 
 pub(super) fn ensure_version_is_deployable(version: &DeploymentItem) -> Result<(), ServiceError> {

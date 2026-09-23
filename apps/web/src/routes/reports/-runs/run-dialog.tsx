@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input, Modal, Select } from "antd";
 import { useEffect, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { t } from "@/lib/i18n";
 
 const defaultRunInput = JSON.stringify({ value: "" }, null, 2);
@@ -87,14 +88,12 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
                             onChange={(event) => setInputJson(event.target.value)}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button type="default" onClick={() => setOpen(false)}>
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button type="primary" loading={mutation.isPending} onClick={save}>
-                            {t("提交执行", "Submit run")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => setOpen(false)}
+                        submitLabel={t("提交执行", "Submit run")}
+                        submitting={mutation.isPending}
+                        onSubmit={save}
+                    />
                 </Form>
             </Modal>
         </>

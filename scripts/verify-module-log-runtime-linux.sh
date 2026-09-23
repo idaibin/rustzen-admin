@@ -104,7 +104,8 @@ verify_denial_receipts() {
 
 verify_identity_receipts() {
   local evidence=$1 manifest="$1/manifest.json" service pid uid gid status_file name status_pid status_uid status_gid
-  local key expected_path process_uid process_gid directory_uid directory_gid
+  local key expected_path process_uid process_gid directory_uid directory_gid status_groups log_control_gid
+  log_control_gid=$(awk -F '\t' '$1 == "/opt/rz/logs/admin" {print $3}' "$evidence/directory-identities.tsv")
   [ "$(cut -f1 "$evidence/process-identities.tsv" | LC_ALL=C sort | tr '\n' ' ')" = "admin insights monitor reports " ]
   while IFS=$'\t' read -r service pid uid gid status_file; do
     [ "$status_file" = "process-$service.status" ]
@@ -112,39 +113,47 @@ verify_identity_receipts() {
     status_pid=$(awk '/^Pid:/{print $2}' "$evidence/$status_file")
     status_uid=$(awk '/^Uid:/{print $2}' "$evidence/$status_file")
     status_gid=$(awk '/^Gid:/{print $2}' "$evidence/$status_file")
+    status_groups=$(awk '/^Groups:/{sub(/^Groups:[[:space:]]*/, ""); print}' "$evidence/$status_file")
     [ "$name" = "rz-$service" ]
     [ "$status_pid" = "$pid" ] && [ "$status_uid" = "$uid" ] && [ "$status_gid" = "$gid" ]
+    case " $status_groups " in
+      *" $log_control_gid "*) [ "$service" = admin ] ;;
+      *) [ "$service" != admin ] ;;
+    esac
     jq -e --arg service "$service" --argjson pid "$pid" --argjson uid "$uid" --argjson gid "$gid" --arg file "$status_file" \
       'any(.processes[]; .service == $service and .pid == $pid and .uid == $uid and .gid == $gid and .statusFile == $file)' "$manifest" >/dev/null
   done <"$evidence/process-identities.tsv"
 
-  [ "$(wc -l <"$evidence/directory-identities.tsv" | tr -d '[:space:]')" = 2 ]
+  [ "$(wc -l <"$evidence/directory-identities.tsv" | tr -d '[:space:]')" = 5 ]
   while IFS=$'\t' read -r path uid gid mode; do
     case "$path" in
-      /opt/rz/logs) key=root ;;
-      /opt/rz/logs/reports) key=reports ;;
+      /opt/rz/logs)
+        jq -e --arg path "$path" --argjson uid "$uid" --argjson gid "$gid" --arg mode "0$mode" \
+          '.directories.root == {path:$path,uid:$uid,gid:$gid,mode:$mode}' "$manifest" >/dev/null
+        continue
+        ;;
+      /opt/rz/logs/admin|/opt/rz/logs/monitor|/opt/rz/logs/insights|/opt/rz/logs/reports)
+        key=${path##*/}
+        ;;
       *) return 1 ;;
     esac
     jq -e --arg key "$key" --arg path "$path" --argjson uid "$uid" --argjson gid "$gid" --arg mode "0$mode" \
-      '.directories[$key] == {path:$path,uid:$uid,gid:$gid,mode:$mode}' "$manifest" >/dev/null
+      'any(.directories.modules[]; .module == $key and .path == $path and .uid == $uid and .gid == $gid and .mode == $mode)' "$manifest" >/dev/null
   done <"$evidence/directory-identities.tsv"
 
   [ "$(cut -f1 "$evidence/current-file-identities.tsv" | LC_ALL=C sort | tr '\n' ' ')" = "admin insights monitor reports " ]
   while IFS=$'\t' read -r service path inode uid gid mode; do
-    expected_path="/opt/rz/logs/$service.$(jq -r .utc.startDate "$manifest")"
-    [ "$service" != reports ] || expected_path="/opt/rz/logs/reports/reports.$(jq -r .utc.startDate "$manifest")"
-    [ "$path" = "$expected_path" ] && [ "$mode" = 600 ] && [ "$inode" -gt 0 ]
+    expected_path="/opt/rz/logs/$service/$service.$(jq -r .utc.startDate "$manifest")"
+    [ "$path" = "$expected_path" ] && [ "$mode" = 640 ] && [ "$inode" -gt 0 ]
     jq -e --arg service "$service" --arg path "$path" --argjson inode "$inode" --argjson uid "$uid" --argjson gid "$gid" --arg mode "$mode" \
       'any(.cleanup.currentBefore[]; .module == $service and .path == $path and .inode == $inode and .uid == $uid and .gid == $gid and .mode == $mode)' "$manifest" >/dev/null
     process_uid=$(awk -F '\t' -v service="$service" '$1 == service {print $3}' "$evidence/process-identities.tsv")
     process_gid=$(awk -F '\t' -v service="$service" '$1 == service {print $4}' "$evidence/process-identities.tsv")
-    if [ "$service" = reports ]; then
-      directory_uid=$(awk -F '\t' '$1 == "/opt/rz/logs/reports" {print $2}' "$evidence/directory-identities.tsv")
-      directory_gid=$(awk -F '\t' '$1 == "/opt/rz/logs/reports" {print $3}' "$evidence/directory-identities.tsv")
-      [ "$uid:$gid" = "$process_uid:$process_gid" ] && [ "$uid:$gid" = "$directory_uid:$directory_gid" ] && [ "$uid" -gt 0 ] && [ "$gid" -gt 0 ]
-    else
-      [ "$process_uid:$process_gid:$uid:$gid" = 0:0:0:0 ]
-    fi
+    directory_uid=$(awk -F '\t' -v path="/opt/rz/logs/$service" '$1 == path {print $2}' "$evidence/directory-identities.tsv")
+    directory_gid=$(awk -F '\t' -v path="/opt/rz/logs/$service" '$1 == path {print $3}' "$evidence/directory-identities.tsv")
+    [ "$uid" = "$process_uid" ] && [ "$uid" = "$directory_uid" ] && [ "$gid" = "$directory_gid" ] &&
+      [ "$gid" = "$(awk -F '\t' '$1 == "/opt/rz/logs/admin" {print $3}' "$evidence/directory-identities.tsv")" ] &&
+      [ "$uid" -gt 0 ] && [ "$gid" -gt 0 ]
   done <"$evidence/current-file-identities.tsv"
 }
 
@@ -240,7 +249,7 @@ timeout=${RUSTZEN_MODULE_LOG_RUN_TIMEOUT:-240}
 case "$timeout" in ''|*[!0-9]*) echo 'RUSTZEN_MODULE_LOG_RUN_TIMEOUT must be a positive integer' >&2; exit 2;; esac
 [ "$timeout" -gt 0 ] && [ "$timeout" -le 600 ] || { echo 'RUSTZEN_MODULE_LOG_RUN_TIMEOUT must be 1..600 seconds' >&2; exit 2; }
 for unit in rz-admin rz-monitor rz-insights rz-reports; do
-  grep -Fqx 'UMask=0077' "$root/deploy/$unit.service" || { echo "$unit.service must declare UMask=0077" >&2; exit 1; }
+  grep -Fqx 'UMask=0027' "$root/deploy/$unit.service" || { echo "$unit.service must declare UMask=0027" >&2; exit 1; }
 done
 
 read -r verifier_image verifier_key verifier_provenance_sha < <(RUSTZEN_UI_VERIFIER_DOCKER="$docker_bin" "$root/scripts/ensure-admin-browser-verifier-image.sh" --platform "$platform")
@@ -313,13 +322,13 @@ test -f "$candidate/manifest.json"
 jq -e --arg head "$head" --arg sourceSha "$initial_sha" --arg architecture "$architecture" '
   .schemaVersion == 1 and .gitHead == $head and .sourceTreeSha256 == $sourceSha and .architecture == $architecture and
   (.binaryHashes | keys | sort) == ["rz-admin","rz-insights","rz-monitor","rz-reports"] and
-  (.processes | length) == 4 and ([.processes[] | select(.service != "reports") | .uid == 0 and .gid == 0] | all) and
-  (.processes[] | select(.service == "reports") | .uid > 0 and .gid > 0) and
-  .directories.root.mode == "0711" and .directories.reports.mode == "0750" and
+  (.processes | length) == 4 and ([.processes[] | .uid > 0 and .gid > 0] | all) and
+  .directories.root.mode == "0711" and (.directories.modules | length) == 4 and
+  ([.directories.modules[] | .uid > 0 and .gid > 0 and .mode == "02770"] | all) and
   (.logFiles | length) == 4 and (.archive.fileCount == 4) and (.archive.manifest | length) == 4 and
   (.cleanup.result.removed | length) == 4 and (.cleanup.result.failures | length) == 0 and
   .utc.startDate == .utc.endDate and .cleanup.currentBefore == .cleanup.currentAfter and
-  .umask == "0077" and (.receipts | length) == 25 and ([.receipts[].file] | unique | length) == 25
+  .umask == "0027" and (.receipts | length) == 25 and ([.receipts[].file] | unique | length) == 25
 ' "$candidate/manifest.json" >/dev/null
 for module in admin monitor insights reports; do
   phrase=$(case "$module" in admin) echo 'Server started successfully';; monitor) echo 'Monitor Controller started';; insights) echo 'Insights service started';; reports) echo 'Reports service started';; esac)
@@ -361,7 +370,7 @@ done
 cmp "$candidate/current-before.json" "$candidate/current-after.json"
 jq -e '
   length == 4 and ([.[] | .module] | sort) == ["admin","insights","monitor","reports"] and
-  ([.[] | .inode > 0 and (.mode == "600") and (if .module == "reports" then .uid > 0 and .gid > 0 else .uid == 0 and .gid == 0 end)] | all)
+  ([.[] | .inode > 0 and (.mode == "640") and .uid > 0 and .gid > 0] | all)
 ' "$candidate/current-before.json" >/dev/null
 jq -e --arg date "$(jq -r .cleanup.oldDate "$candidate/manifest.json")" '
   .data.partial == false and (.data.removed | length) == 4 and (.data.failures | length) == 0 and

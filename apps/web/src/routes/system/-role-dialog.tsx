@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Button, Form, Input, Modal, Select, type FormProps } from "antd";
+import { Form, Input, Modal, Select, type FormProps } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { menuQueryOptions } from "@/api/system/menu/query-options";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions } from "@/constant/options";
 import { localizeBuiltInMenuName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
@@ -301,31 +302,25 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
                             rows={4}
                         />
                     </Form.Item>
-                    <div className="flex items-center justify-end gap-2">
-                        <Button
-                            onClick={() => {
-                                form.resetFields();
-                                setMenuIds([]);
-                                setOpen(false);
-                            }}
-                        >
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={submitting}
-                            disabled={submitDisabled}
-                        >
-                            {submitting
+                    <DialogFooter
+                        onCancel={() => {
+                            form.resetFields();
+                            setMenuIds([]);
+                            setOpen(false);
+                        }}
+                        submitLabel={
+                            submitting
                                 ? mode === "create"
                                     ? t("创建中", "Creating")
                                     : t("保存中", "Saving")
                                 : mode === "create"
                                   ? t("创建", "Create")
-                                  : t("保存", "Save")}
-                        </Button>
-                    </div>
+                                  : t("保存", "Save")
+                        }
+                        submitting={submitting}
+                        submitDisabled={submitDisabled}
+                        submitHtmlType="submit"
+                    />
                 </Form>
             </Modal>
         </>

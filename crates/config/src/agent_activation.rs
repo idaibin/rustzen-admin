@@ -23,13 +23,15 @@ pub struct AgentEnvironment {
 pub struct ControllerProfile {
     pub version: u8,
     pub endpoint: String,
-    pub controller_build_id: String,
-    pub controller_composition_id: String,
+    pub controller_version: String,
+    pub controller_arch: String,
+    pub controller_content_sha256: String,
+    pub controller_frontend_sha256: String,
+    pub controller_backend_sha256: String,
+    pub controller_monitor_sha256: String,
     pub agent_build_id: String,
     pub protocol_id: String,
-    pub key_id: String,
     pub key_fingerprint: String,
-    pub manifest_sha256: String,
     pub agent_manifest_sha256: String,
 }
 
@@ -100,16 +102,19 @@ pub fn read_controller_profile(
     }
     let profile: ControllerProfile =
         serde_json::from_value(value).map_err(|_| "controller profile fields are invalid")?;
-    if profile.version != 1
+    if profile.version != 2
         || canonical_monitor_endpoint(&profile.endpoint).is_err()
-        || !hash(&profile.controller_build_id)
-        || !hash(&profile.controller_composition_id)
+        || profile.controller_version.is_empty()
+        || profile.controller_version.len() > 64
+        || !matches!(profile.controller_arch.as_str(), "x86_64" | "aarch64")
+        || !hash(&profile.controller_content_sha256)
+        || !hash(&profile.controller_frontend_sha256)
+        || !hash(&profile.controller_backend_sha256)
+        || !hash(&profile.controller_monitor_sha256)
         || !hash(&profile.agent_build_id)
         || !hash(&profile.protocol_id)
         || !hash(&profile.key_fingerprint)
-        || !hash(&profile.manifest_sha256)
         || !hash(&profile.agent_manifest_sha256)
-        || !key_id(&profile.key_id)
     {
         return Err("controller profile fields are invalid".into());
     }
@@ -204,15 +209,6 @@ fn canonical_json(value: &serde_json::Value) -> Result<Vec<u8>, String> {
 fn hash(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
 }
-fn key_id(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 64
-        && value
-            .bytes()
-            .enumerate()
-            .all(|(i, b)| b.is_ascii_alphanumeric() || (i != 0 && matches!(b, b'.' | b'_' | b'-')))
-}
-
 #[cfg(test)]
 mod tests {
     use super::parse_agent_environment_bytes;

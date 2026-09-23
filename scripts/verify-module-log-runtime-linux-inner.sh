@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in curl jq setpriv sha256sum stat tar groupadd useradd; do
+for command in curl jq setpriv sha256sum stat tar groupadd useradd getent cut; do
   command -v "$command" >/dev/null
 done
 
@@ -11,15 +11,26 @@ for port in "${ports[@]}"; do
   ! ss -H -ltn "sport = :$port" | grep -q . || { echo "occupied port: $port" >&2; exit 1; }
 done
 
-groupadd --system rz-reports
-useradd --system --gid rz-reports --home-dir /opt/rz/data/reports --shell /usr/sbin/nologin rz-reports
+for module in admin monitor insights reports; do
+  groupadd --system "rz-$module"
+  useradd --system --gid "rz-$module" --home-dir "/opt/rz/data/$module" --shell /usr/sbin/nologin "rz-$module"
+done
+groupadd --system rz-log-control
+log_control_gid=$(getent group rz-log-control | cut -d: -f3)
 install -d -m 0755 -o root -g root /opt/rz
 install -d -m 0711 -o root -g root /opt/rz/data
-install -d -m 0750 -o root -g root /opt/rz/data/db
+install -d -m 0711 -o root -g root /opt/rz/data/db
+for module in admin monitor insights; do
+  install -d -m 0750 -o "rz-$module" -g "rz-$module" "/opt/rz/data/db/$module"
+done
+install -d -m 0750 -o rz-admin -g rz-admin \
+  /opt/rz/data/uploads /opt/rz/data/avatars /opt/rz/data/update-requests /opt/rz/data/releases
 install -d -m 0750 -o rz-reports -g rz-reports \
   /opt/rz/data/reports /opt/rz/data/reports/db /opt/rz/data/reports/.config /opt/rz/data/reports/.cache
 install -d -m 0711 -o root -g root /opt/rz/logs
-install -d -m 0750 -o rz-reports -g rz-reports /opt/rz/logs/reports
+for module in admin monitor insights reports; do
+  install -d -m 2770 -o "rz-$module" -g rz-log-control "/opt/rz/logs/$module"
+done
 for name in rz-admin rz-monitor rz-insights rz-reports; do
   install -m 0755 "/verify/bin/$name" "/opt/rz/$name"
 done
@@ -29,9 +40,9 @@ common_env=(
   RUSTZEN_ADMIN_HOST=127.0.0.1 RUSTZEN_ADMIN_PORT=19801
   RUSTZEN_INTERNAL_HOST=127.0.0.1 RUSTZEN_MONITOR_PORT=19802
   RUSTZEN_INSIGHTS_PORT=19803 RUSTZEN_REPORTS_PORT=19804
-  RUSTZEN_ADMIN_SQLITE_PATH=./data/db/admin.db
-  RUSTZEN_MONITOR_SQLITE_PATH=./data/db/monitor.db
-  RUSTZEN_INSIGHTS_SQLITE_PATH=./data/db/insights.db
+  RUSTZEN_ADMIN_SQLITE_PATH=./data/db/admin/admin.db
+  RUSTZEN_MONITOR_SQLITE_PATH=./data/db/monitor/monitor.db
+  RUSTZEN_INSIGHTS_SQLITE_PATH=./data/db/insights/insights.db
   RUSTZEN_REPORTS_SQLITE_PATH=./data/reports/db/reports.db
   RUSTZEN_JWT_SECRET=module-log-runtime-jwt-secret
   RUSTZEN_IPC_TOKEN=module-log-runtime-ipc-secret
@@ -65,27 +76,29 @@ umask 077
 [ "$(umask)" = 0077 ]
 env "${common_env[@]}" /opt/rz/rz-monitor init-db
 env "${common_env[@]}" /opt/rz/rz-monitor bind-database
+chown -R rz-monitor:rz-monitor /opt/rz/data/db/monitor
 
-start_root() {
+start_service() {
   name=$1
+  user="rz-$name"
   shift
-  env "${common_env[@]}" "$@" >"/tmp/verify-$name.log" 2>&1 &
+  home="/opt/rz/data/db/$name"
+  [ "$name" != reports ] || home=/opt/rz/data/reports
+  install -d -m 0750 -o "$user" -g "$user" "$home/.config" "$home/.cache"
+  group_args=(--clear-groups)
+  [ "$name" != admin ] || group_args=(--groups="$log_control_gid")
+  (umask 0027; exec setpriv --reuid="$user" --regid="$user" "${group_args[@]}" --no-new-privs -- \
+    env HOME="$home" XDG_CONFIG_HOME="$home/.config" \
+    XDG_CACHE_HOME="$home/.cache" "${common_env[@]}" \
+    "$@") >"/tmp/verify-$name.log" 2>&1 &
   pids+=("$!")
   printf '%s\n' "$!" >"/tmp/$name.pid"
 }
-start_reports() {
-  setpriv --reuid=rz-reports --regid=rz-reports --init-groups --no-new-privs -- \
-    env HOME=/opt/rz/data/reports XDG_CONFIG_HOME=/opt/rz/data/reports/.config \
-    XDG_CACHE_HOME=/opt/rz/data/reports/.cache "${common_env[@]}" \
-    /opt/rz/rz-reports serve >/tmp/verify-reports.log 2>&1 &
-  pids+=("$!")
-  printf '%s\n' "$!" >/tmp/reports.pid
-}
 
-start_root monitor /opt/rz/rz-monitor controller
-start_root insights /opt/rz/rz-insights serve
-start_reports
-start_root admin /opt/rz/rz-admin serve
+start_service monitor /opt/rz/rz-monitor controller
+start_service insights /opt/rz/rz-insights serve
+start_service reports /opt/rz/rz-reports serve
+start_service admin /opt/rz/rz-admin serve
 
 for port in "${ports[@]}"; do
   ready=0
@@ -100,8 +113,6 @@ for port in "${ports[@]}"; do
 done
 for pid in "${pids[@]}"; do kill -0 "$pid"; done
 
-reports_uid=$(id -u rz-reports)
-reports_gid=$(id -g rz-reports)
 process_receipt=/verify/evidence/process-identities.tsv
 : >"$process_receipt"
 for module in admin monitor insights reports; do
@@ -111,29 +122,27 @@ for module in admin monitor insights reports; do
   gid=$(awk '/^Gid:/{print $2}' "/verify/evidence/process-$module.status")
   printf '%s\t%s\t%s\t%s\t%s\n' "$module" "$pid" "$uid" "$gid" "process-$module.status" >>"$process_receipt"
 done
-[ "$(awk -F '\t' '$1 == "reports" {print $3}' "$process_receipt")" = "$reports_uid" ]
-[ "$(awk -F '\t' '$1 == "reports" {print $4}' "$process_receipt")" = "$reports_gid" ]
-[ "$(stat -c %U /opt/rz/logs/reports)" = rz-reports ]
-[ "$(stat -c %G /opt/rz/logs/reports)" = rz-reports ]
-[ "$(stat -c %u /opt/rz/logs/reports)" = "$reports_uid" ]
-[ "$(stat -c %g /opt/rz/logs/reports)" = "$reports_gid" ]
-[ "$(stat -c %a /opt/rz/logs/reports)" = 750 ]
+[ "$(stat -c %a /opt/rz/logs)" = 711 ]
+for module in admin monitor insights reports; do
+  module_uid=$(id -u "rz-$module")
+  module_gid=$(id -g "rz-$module")
+  [ "$(awk -F '\t' -v module="$module" '$1 == module {print $3}' "$process_receipt")" = "$module_uid" ]
+  [ "$(awk -F '\t' -v module="$module" '$1 == module {print $4}' "$process_receipt")" = "$module_gid" ]
+  [ "$(stat -c %U "/opt/rz/logs/$module")" = "rz-$module" ]
+  [ "$(stat -c %G "/opt/rz/logs/$module")" = rz-log-control ]
+  [ "$(stat -c %a "/opt/rz/logs/$module")" = 2770 ]
+done
 [ "$(stat -c %U /opt/rz/logs)" = root ]
 [ "$(stat -c %G /opt/rz/logs)" = root ]
 [ "$(stat -c %u /opt/rz/logs)" = 0 ]
 [ "$(stat -c %g /opt/rz/logs)" = 0 ]
-[ "$(stat -c %a /opt/rz/logs)" = 711 ]
-for module in admin monitor insights; do
-  [ "$(awk -F '\t' -v module="$module" '$1 == module {print $3}' "$process_receipt")" = 0 ]
-  [ "$(awk -F '\t' -v module="$module" '$1 == module {print $4}' "$process_receipt")" = 0 ]
-done
-stat -c $'%n\t%u\t%g\t%a' /opt/rz/logs /opt/rz/logs/reports \
+stat -c $'%n\t%u\t%g\t%a' /opt/rz/logs /opt/rz/logs/admin /opt/rz/logs/monitor /opt/rz/logs/insights /opt/rz/logs/reports \
   >/verify/evidence/directory-identities.tsv
 
 declare -A log_paths=(
-  [admin]="/opt/rz/logs/admin.$start_utc_date"
-  [monitor]="/opt/rz/logs/monitor.$start_utc_date"
-  [insights]="/opt/rz/logs/insights.$start_utc_date"
+  [admin]="/opt/rz/logs/admin/admin.$start_utc_date"
+  [monitor]="/opt/rz/logs/monitor/monitor.$start_utc_date"
+  [insights]="/opt/rz/logs/insights/insights.$start_utc_date"
   [reports]="/opt/rz/logs/reports/reports.$start_utc_date"
 )
 declare -A startup_text=(
@@ -153,14 +162,19 @@ for module in admin monitor insights reports; do
   done
   [ "$ready" = 1 ] || { echo "$module did not emit its current UTC-day startup log" >&2; exit 1; }
 done
-[ "$(stat -c %U "${log_paths[reports]}")" = rz-reports ]
-[ "$(stat -c %G "${log_paths[reports]}")" = rz-reports ]
-[ "$(stat -c %a "${log_paths[reports]}")" = 600 ]
-for module in admin monitor insights; do
-  [ "$(stat -c %u "${log_paths[$module]}")" = 0 ]
-  [ "$(stat -c %g "${log_paths[$module]}")" = 0 ]
-  [ "$(stat -c %a "${log_paths[$module]}")" = 600 ]
+for module in admin monitor insights reports; do
+  [ "$(stat -c %U "${log_paths[$module]}")" = "rz-$module" ]
+  [ "$(stat -c %G "${log_paths[$module]}")" = rz-log-control ]
+  [ "$(stat -c %a "${log_paths[$module]}")" = 640 ]
 done
+for module in admin monitor insights reports; do
+  setpriv --reuid=rz-admin --regid=rz-admin --groups="$log_control_gid" --no-new-privs -- \
+    test -r "${log_paths[$module]}"
+done
+! setpriv --reuid=rz-admin --regid=rz-admin --groups="$log_control_gid" --no-new-privs -- \
+  sh -c ': >> "$1"' sh "${log_paths[monitor]}"
+! setpriv --reuid=rz-monitor --regid=rz-monitor --clear-groups --no-new-privs -- \
+  test -r "${log_paths[insights]}"
 for module in admin monitor insights reports; do
   stat -c $'%n\t%i\t%u\t%g\t%a' "${log_paths[$module]}" |
     awk -v module="$module" 'BEGIN{OFS="\t"} {print module,$0}'
@@ -173,8 +187,22 @@ login() {
     -d "{\"username\":\"$1\",\"password\":\"rustzen@123\"}" "$api/api/auth/login"
 }
 owner_token=$(login owner | jq -er '.data.token | select(length > 20)')
-admin_token=$(login admin | jq -er '.data.token | select(length > 20)')
 owner_auth=(-H "authorization: Bearer $owner_token")
+options_menu_id=$(curl --fail --silent --show-error "${owner_auth[@]}" \
+  "$api/api/system/menus/options" | jq -er '.data[] | select(.code == "system:user:options") | .value')
+curl --fail --silent --show-error "${owner_auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --argjson menu "$options_menu_id" '{name:"Module log non-owner",code:"module_log_non_owner",status:1,menuIds:[$menu],description:"module log authorization gate"}')" \
+  "$api/api/system/roles" | jq -e '.code == 0' >/dev/null
+viewer_role_id=$(curl --fail --silent --show-error "${owner_auth[@]}" \
+  "$api/api/system/roles?current=1&pageSize=100&roleCode=module_log_non_owner" | \
+  jq -er '.data[] | select(.code == "module_log_non_owner") | .id')
+curl --fail --silent --show-error "${owner_auth[@]}" -H 'content-type: application/json' \
+  -d "$(jq -nc --argjson role "$viewer_role_id" '{username:"log_viewer",email:"module-log-viewer@example.test",password:"module-log-viewer-password",realName:"Module log viewer",status:1,roleIds:[$role]}')" \
+  "$api/api/system/users" | jq -e '.code == 0 and (.data | type == "number")' >/dev/null
+admin_token=$(curl --fail --silent --show-error --connect-timeout 3 --max-time 15 \
+  -H 'content-type: application/json' \
+  -d '{"username":"log_viewer","password":"module-log-viewer-password"}' \
+  "$api/api/auth/login" | jq -er '.data.token | select(length > 20)')
 admin_auth=(-H "authorization: Bearer $admin_token")
 
 curl --fail --silent --show-error "${owner_auth[@]}" \
@@ -246,10 +274,10 @@ done
 
 old_date=$(date -u -d "$start_utc_date - 90 days" +%Y-%m-%d)
 for module in admin monitor insights reports; do
-  if [ "$module" = reports ]; then old_path="/opt/rz/logs/reports/reports.$old_date"; else old_path="/opt/rz/logs/$module.$old_date"; fi
+  old_path="/opt/rz/logs/$module/$module.$old_date"
   cp "${log_paths[$module]}" "$old_path"
-  if [ "$module" = reports ]; then chown rz-reports:rz-reports "$old_path"; fi
-  chmod 0600 "$old_path"
+  chown "rz-$module:rz-log-control" "$old_path"
+  chmod 0640 "$old_path"
 done
 current_snapshot() {
   for module in admin monitor insights reports; do
@@ -279,8 +307,7 @@ jq -e --arg date "$old_date" '
   ([.data.removed[] | select(.date == $date) | .module] | sort)
     == ["admin","insights","monitor","reports"]
 ' /verify/evidence/cleanup-result.json >/dev/null
-for module in admin monitor insights; do [ ! -e "/opt/rz/logs/$module.$old_date" ]; done
-[ ! -e "/opt/rz/logs/reports/reports.$old_date" ]
+for module in admin monitor insights reports; do [ ! -e "/opt/rz/logs/$module/$module.$old_date" ]; done
 current_snapshot >/verify/evidence/current-after.json
 cmp /verify/evidence/current-before.json /verify/evidence/current-after.json
 end_utc_date=$(date -u +%Y-%m-%d)
@@ -301,7 +328,7 @@ jq -n \
   --arg imageId "$RUSTZEN_VERIFY_VERIFIER_IMAGE_ID" --arg verifierKey "$RUSTZEN_VERIFY_VERIFIER_KEY" \
   --arg verifierSha "$RUSTZEN_VERIFY_VERIFIER_PROVENANCE_SHA256" \
   --arg startDate "$start_utc_date" --arg endDate "$end_utc_date" --arg oldDate "$old_date" --arg archiveSha "$header_hash" \
-  --argjson binaryHashes "$RUSTZEN_VERIFY_BINARY_HASHES" --argjson processes "$processes" \
+  --argjson binaryHashes "$RUSTZEN_VERIFY_BINARY_HASHES" --argjson processes "$processes" --argjson logControlGid "$log_control_gid" \
   --argjson logFiles "$log_files" --argjson receipts "$receipts" \
   --argjson archiveBytes "$(wc -c </verify/evidence/rustzen-module-logs.tar)" \
   --slurpfile archiveManifest /verify/evidence/archive-manifest.json \
@@ -311,10 +338,10 @@ jq -n \
   --slurpfile currentAfter /verify/evidence/current-after.json \
   '{schemaVersion:1,gitHead:$head,sourceTreeState:$state,sourceTreeSha256:$sourceSha,architecture:$architecture,
     verifier:{imageId:$imageId,key:$verifierKey,provenanceSha256:$verifierSha},binaryHashes:$binaryHashes,
-    utc:{startDate:$startDate,endDate:$endDate},umask:"0077",processes:$processes,directories:{root:{path:"/opt/rz/logs",uid:0,gid:0,mode:"0711"},reports:{path:"/opt/rz/logs/reports",uid:($processes[]|select(.service=="reports")|.uid),gid:($processes[]|select(.service=="reports")|.gid),mode:"0750"}},
+    utc:{startDate:$startDate,endDate:$endDate},umask:"0027",processes:$processes,directories:{root:{path:"/opt/rz/logs",uid:0,gid:0,mode:"0711"},modules:[$processes[]|{module:.service,path:("/opt/rz/logs/"+.service),uid:.uid,gid:$logControlGid,mode:"02770"}]},
     logFiles:$logFiles,api:{ownerList:"list-owner.json",ownerTails:["tail-admin.json","tail-monitor.json","tail-insights.json","tail-reports.json"],nonOwnerDenials:"non-owner-denials.jsonl"},
     archive:{file:"rustzen-module-logs.tar",sha256:$archiveSha,bytes:$archiveBytes,fileCount:4,manifest:$archiveManifest[0]},
-    cleanup:{oldDate:$oldDate,oldFiles:[{module:"admin",path:("/opt/rz/logs/admin."+$oldDate)},{module:"monitor",path:("/opt/rz/logs/monitor."+$oldDate)},{module:"insights",path:("/opt/rz/logs/insights."+$oldDate)},{module:"reports",path:("/opt/rz/logs/reports/reports."+$oldDate)}],preview:$cleanupPreview[0].data,result:$cleanupResult[0].data,currentBefore:$currentBefore[0],currentAfter:$currentAfter[0]},receipts:$receipts}' \
+    cleanup:{oldDate:$oldDate,oldFiles:["admin","monitor","insights","reports"]|map({module:.,path:("/opt/rz/logs/"+.+"/"+.+"."+$oldDate)}),preview:$cleanupPreview[0].data,result:$cleanupResult[0].data,currentBefore:$currentBefore[0],currentAfter:$currentAfter[0]},receipts:$receipts}' \
   >/verify/evidence/manifest.json
 
 echo "four-service module-log runtime passed"

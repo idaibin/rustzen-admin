@@ -160,11 +160,13 @@ monitor_delivery_browser_case() {
           {action:"goto",url:"/monitoring/incidents"},
           {action:"waitFor",selector:"[data-testid=notification-delivery-card]"},
           {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$text},
-          {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$pending},
-          {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$quarantine},
-          {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$first},
-          {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$last},
-          {action:"assertText",selector:"[data-testid=notification-delivery-card]",text:$success}
+          {action:"click",selector:"[data-testid=notification-delivery-gap]"},
+          {action:"waitFor",selector:".ant-popover:not(.ant-popover-hidden)"},
+          {action:"assertText",selector:".ant-popover:not(.ant-popover-hidden)",text:$pending},
+          {action:"assertText",selector:".ant-popover:not(.ant-popover-hidden)",text:$quarantine},
+          {action:"assertText",selector:".ant-popover:not(.ant-popover-hidden)",text:$first},
+          {action:"assertText",selector:".ant-popover:not(.ant-popover-hidden)",text:$last},
+          {action:"assertText",selector:".ant-popover:not(.ant-popover-hidden)",text:$success}
         ] + (if $width == 390 then [
           {action:"waitFor",selector:".ant-table-row"},
           {action:"assertText",selector:$incident_selector,text:$incident},
@@ -175,7 +177,7 @@ monitor_delivery_browser_case() {
           {action:"assertElementLayout",selector:".ant-table-tbody > tr.ant-table-row",
            elementCount:20,visibleCount:20,maxHeight:72,withinViewportRight:true},
           {action:"assertElementLayout",selector:".ant-table-body > table",visibleCount:1,withinViewportRight:true},
-          {action:"assertElementLayout",selector:".data-table-pagination .ant-pagination",
+          {action:"assertElementLayout",selector:"[data-testid=incidents-pagination] .ant-pagination",
            visibleCount:1,withinViewportRight:true}
         ] else [] end) + [
           {action:"assertNoHorizontalOverflow"},{action:"screenshotViewport",name:$name}
@@ -249,7 +251,7 @@ monitor_delivery_capture() {
     monitor_delivery_prepare "$monitor_db" before-browser || return 1
     delivery_owner_run=$(monitor_delivery_browser_case \
         monitor-delivery-owner owner rustzen@123 dark en-US 1440 900 \
-        '15 irreversible notification delivery gaps') || return 1
+        '15 irreversible delivery gaps') || return 1
     delivery_viewer_run=$(monitor_delivery_browser_case \
         monitor-delivery-viewer monitor_incident_viewer monitor-incident-viewer-password light zh-CN 390 844 \
         '通知投递存在 15 个不可恢复缺口') || return 1

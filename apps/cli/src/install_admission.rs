@@ -41,10 +41,6 @@ impl std::fmt::Display for PublishError {
 impl std::error::Error for PublishError {}
 
 impl PrivateParent {
-    pub(super) fn directory_fd(&self) -> std::os::fd::RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub(super) fn open(path: &Path) -> Result<Self, String> {
         let file = open_directory_path(path)?;
         let metadata = file.metadata().map_err(io)?;
@@ -93,26 +89,6 @@ impl PrivateParent {
         } else {
             Err(std::io::Error::last_os_error().to_string())
         }
-    }
-
-    pub(super) fn create_child_directory(&self, value: &str, mode: u32) -> Result<(), String> {
-        let value = name(value)?;
-        if unsafe { libc::mkdirat(self.0.as_raw_fd(), value.as_ptr(), mode as libc::mode_t) } != 0
-            && std::io::Error::last_os_error().raw_os_error() != Some(libc::EEXIST)
-        {
-            return Err(std::io::Error::last_os_error().to_string());
-        }
-        let child = self.open_child_directory(
-            std::str::from_utf8(value.as_bytes()).map_err(|_| "invalid path")?,
-        )?;
-        let metadata = child.0.metadata().map_err(io)?;
-        if unsafe { libc::fchmod(child.0.as_raw_fd(), mode as libc::mode_t) } != 0 {
-            return Err(std::io::Error::last_os_error().to_string());
-        }
-        if !metadata.is_dir() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
-            return Err("destination parent must be root-owned and not group/world writable".into());
-        }
-        Ok(())
     }
 
     pub(super) fn create_temp(&self, value: &str) -> Result<(), String> {

@@ -76,7 +76,7 @@ const steps = {
         { action: "goto", url: "/analytics/details" },
         { action: "waitFor", selector: ".shell-content" },
         { action: "assertText", selector: ".shell-content", text: "fixture-visitor" },
-        { action: "pause", durationMs: 30_500 },
+        { action: "pause", durationMs: 30_000 },
         { action: "waitFor", selector: "[role=alert]" },
         { action: "pause", durationMs: 300 },
         { action: "assertText", selector: "[role=alert]", text: "Background refresh failed" },
@@ -85,7 +85,7 @@ const steps = {
     overviewBackground403: desktop([
         { action: "goto", url: "/analytics/overview" },
         { action: "waitFor", selector: "[aria-label*='Daily activity trend']" },
-        { action: "pause", durationMs: 30_500 },
+        { action: "pause", durationMs: 30_000 },
         { action: "waitFor", selector: "[role=alert]" },
         { action: "assertText", selector: ".shell-content", text: "You do not have permission to view analytics" },
         { action: "assertAbsent", selector: "[aria-label*='Daily activity trend']" },
@@ -93,7 +93,7 @@ const steps = {
     detailsBackground403: desktop([
         { action: "goto", url: "/analytics/details" },
         { action: "waitFor", selector: ".ant-table-row" },
-        { action: "pause", durationMs: 30_500 },
+        { action: "pause", durationMs: 30_000 },
         { action: "waitFor", selector: "[role=alert]" },
         { action: "assertText", selector: ".shell-content", text: "You do not have permission to view activity" },
         { action: "assertAbsent", selector: ".ant-table-row" },

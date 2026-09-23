@@ -79,6 +79,7 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
         "apps/web/src/api/request.ts",
         "apps/web/src/api/runtime.ts",
         "apps/web/src/components/language-switch.tsx",
+        "apps/web/src/components/status-tag.tsx",
         "apps/web/src/components/theme-provider.tsx",
     ]);
     const allowedSourceDirectories = [
@@ -96,6 +97,7 @@ export function assertModuleIds(moduleIds: string[], compositionId: string, pres
         "apps/web/src/components/table/",
         "apps/web/src/components/user/",
         "apps/web/src/constant/",
+        "apps/web/src/distribution/",
         "apps/web/src/hooks/",
         "apps/web/src/lib/",
     ];

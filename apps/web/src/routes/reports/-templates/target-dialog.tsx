@@ -4,6 +4,7 @@ import { Button, Form, Input, Modal } from "antd";
 import { useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { t } from "@/lib/i18n";
 
 export function TargetDialog({ onSaved }: { onSaved: () => Promise<unknown> }) {
@@ -57,19 +58,13 @@ export function TargetDialog({ onSaved }: { onSaved: () => Promise<unknown> }) {
                             onChange={(event) => setBaseUrl(event.target.value)}
                         />
                     </Form.Item>
-                    <div className="flex justify-end gap-2">
-                        <Button type="default" onClick={() => setOpen(false)}>
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button
-                            type="primary"
-                            loading={mutation.isPending}
-                            disabled={!name.trim() || !baseUrl.trim()}
-                            onClick={() => mutation.mutate()}
-                        >
-                            {t("添加目标系统", "Add target system")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => setOpen(false)}
+                        submitLabel={t("添加目标系统", "Add target system")}
+                        submitting={mutation.isPending}
+                        submitDisabled={!name.trim() || !baseUrl.trim()}
+                        onSubmit={() => mutation.mutate()}
+                    />
                 </Form>
             </Modal>
         </>

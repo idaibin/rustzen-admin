@@ -1,0 +1,12 @@
+[Unit]
+Description=Rustzen Full Server Services
+Wants=rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service
+After=network.target rz-recovery.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

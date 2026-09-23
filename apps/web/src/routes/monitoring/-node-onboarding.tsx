@@ -1,5 +1,6 @@
 import { Alert, Button, Steps, Typography } from "antd";
 
+import { PanelBody, PanelFooter } from "@/components/page/panel-layout";
 import { t, useLocale } from "@/lib/i18n";
 
 export const onboardingStepCopy = [
@@ -34,7 +35,7 @@ export function NodeOnboarding({ onClose }: { onClose: () => void }) {
     const onboardingSteps = onboardingStepCopy.map(([zh, en]) => t(zh, en));
     return (
         <div className="flex h-full flex-col gap-5">
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+            <PanelBody>
                 <Typography.Paragraph type="secondary">
                     {t(
                         "控制台不能安全获取已签名离线文件，也不能在目标主机创建 root-only 密钥文件。请由发布操作员在目标主机完成以下步骤。",
@@ -55,10 +56,10 @@ export function NodeOnboarding({ onClose }: { onClose: () => void }) {
                         "Signed file inputs and a local root-only configuration boundary are unavailable. This page shows no token and generates no executable command.",
                     )}
                 />
-            </div>
-            <div className="flex shrink-0 justify-end border-t border-border pt-4">
+            </PanelBody>
+            <PanelFooter className="justify-end">
                 <Button onClick={onClose}>{t("关闭", "Close")}</Button>
-            </div>
+            </PanelFooter>
         </div>
     );
 }

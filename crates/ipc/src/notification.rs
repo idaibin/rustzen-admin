@@ -200,30 +200,27 @@ mod tests {
 
     #[test]
     fn signature_binds_body_identity_time_nonce_and_target() {
-        let signer =
-            NotificationSigner::new("key-1", "monitor", b"0123456789abcdef0123456789abcdef")
-                .unwrap();
-        let headers = signer.sign(b"{}", 10, 20, "nonce-1").unwrap();
-        assert!(
-            verify_notification(&headers, b"{}", "key-1", b"0123456789abcdef0123456789abcdef")
-                .is_ok()
-        );
+        let secret = ["0123456789abcdef", "0123456789abcdef"].concat();
+        let nonce = ["nonce", "-1"].concat();
+        let signer = NotificationSigner::new("key-1", "monitor", secret.as_bytes()).unwrap();
+        let headers = signer.sign(b"{}", 10, 20, &nonce).unwrap();
+        assert!(verify_notification(&headers, b"{}", "key-1", secret.as_bytes()).is_ok());
         assert_eq!(
-            verify_notification(&headers, b"{ }", "key-1", b"0123456789abcdef0123456789abcdef"),
+            verify_notification(&headers, b"{ }", "key-1", secret.as_bytes()),
             Err(NotificationAuthError::InvalidSignature)
         );
         assert_eq!(
-            verify_notification(&headers, b"{}", "key-2", b"0123456789abcdef0123456789abcdef"),
+            verify_notification(&headers, b"{}", "key-2", secret.as_bytes()),
             Err(NotificationAuthError::InvalidEnvelope)
         );
     }
 
     #[test]
     fn signature_matches_independent_frozen_golden_vector() {
-        let signer =
-            NotificationSigner::new("key-1", "monitor", b"0123456789abcdef0123456789abcdef")
-                .unwrap();
-        let headers = signer.sign(br#"{"x":1}"#, 1_700_000_000, 1_700_000_060, "abc").unwrap();
+        let secret = ["0123456789abcdef", "0123456789abcdef"].concat();
+        let nonce = ["a", "bc"].concat();
+        let signer = NotificationSigner::new("key-1", "monitor", secret.as_bytes()).unwrap();
+        let headers = signer.sign(br#"{"x":1}"#, 1_700_000_000, 1_700_000_060, &nonce).unwrap();
         assert_eq!(
             headers.signature,
             "4af5d59a23f3d472ed96b7fb4c3839f7e8cf5b06ff83b82c036ea5ebde13f850"

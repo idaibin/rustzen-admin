@@ -22,6 +22,7 @@ fn multipart_body(boundary: &str, fields: &[(&str, Option<&str>, &str, &str)]) -
 async fn multipart_contract_routes_accept_generated_file_inputs() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
     run_migrations(&pool).await.expect("migrations");
+    activate_seed_owner(&pool).await;
     let (routes, _) = documented_protected_routes();
     let codec = JwtCodec::new("contract-test", 60);
     let app = Router::new()

@@ -1,25 +1,22 @@
 use crate::install_admission::{
-    PrivateParent, destination_name, hash_id, host_target, remove_tree, valid_key_id,
+    PrivateParent, destination_name, hash_id, host_target, remove_tree,
 };
 use crate::install_continuation as continuation;
 use crate::install_crypto::{canonical_json, hash, read_regular, verify_signature_bytes};
 use crate::install_fs::fsync_tree;
 use crate::install_manifest::parse_manifest;
+use base64::{Engine, engine::general_purpose::STANDARD};
+use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 const MAX_ARCHIVE: u64 = 512 * 1024 * 1024;
+pub(super) const OFFICIAL_KEY_ID: &str = "rustzen-release";
 #[derive(Debug, Clone)]
 pub struct Inputs {
     pub archive: PathBuf,
     pub manifest: PathBuf,
     pub envelope: PathBuf,
-    pub trusted_key: PathBuf,
-    pub key_id: String,
 }
 #[derive(Debug, Serialize)]
 pub struct Verified {
@@ -50,10 +47,6 @@ pub(super) struct Manifest {
     pub(super) binary_digests: Vec<BinaryDigest>,
     pub(super) agent_protocol_contract_id: String,
     pub(super) files: Vec<Entry>,
-    pub(super) api_digest: Option<String>,
-    pub(super) schema_fingerprints: Option<BTreeMap<String, String>>,
-    pub(super) data_contract_ids: Option<BTreeMap<String, String>>,
-    pub(super) web_digest: Option<DigestRecord>,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -111,21 +104,15 @@ pub(super) struct Payload {
     pub(super) manifest_sha256: String,
     pub(super) agent_protocol_contract_id: String,
 }
-pub fn verify(input: &Inputs) -> Result<Verified, String> {
-    Ok(load(input)?.verified)
-}
 pub(super) fn load(input: &Inputs) -> Result<Loaded, String> {
-    if !valid_key_id(&input.key_id) {
-        return Err("trusted key ID is invalid".into());
-    }
     let archive = read_regular(&input.archive, MAX_ARCHIVE)?;
     let manifest_bytes = read_regular(&input.manifest, 4 * 1024 * 1024)?;
     let envelope_bytes = read_regular(&input.envelope, 64 * 1024)?;
-    let trusted_key = read_regular(&input.trusted_key, 64 * 1024)?;
+    let trusted_key = embedded_trusted_key()?;
     let manifest = parse_manifest(&manifest_bytes)?;
     if manifest.manifest_version != 1
         || manifest.release_class != "production"
-        || !matches!(manifest.artifact_class.as_str(), "server" | "node-agent")
+        || manifest.artifact_class != "node-agent"
         || !hash_id(&manifest.build_id)
         || !hash_id(&manifest.composition_id)
         || !hash_id(&manifest.agent_protocol_contract_id)
@@ -143,8 +130,7 @@ pub(super) fn load(input: &Inputs) -> Result<Loaded, String> {
     if payload.domain != "rustzen-selected-release-v1"
         || payload.envelope_version != 1
         || payload.algorithm != "Ed25519"
-        || payload.key_id != input.key_id
-        || !valid_key_id(&payload.key_id)
+        || payload.key_id != OFFICIAL_KEY_ID
         || payload.release_class != "production"
     {
         return Err("envelope identity is invalid".into());
@@ -186,13 +172,32 @@ pub(super) fn load(input: &Inputs) -> Result<Loaded, String> {
         manifest_bytes,
         envelope_bytes,
         trusted_key,
-        key_id: input.key_id.clone(),
+        key_id: OFFICIAL_KEY_ID.into(),
         manifest,
         verified,
     })
 }
+
+fn embedded_trusted_key() -> Result<Vec<u8>, String> {
+    let encoded = option_env!("RUSTZEN_DEPLOY_VERIFY_KEY")
+        .ok_or("this rz binary was built without the official release verification key")?;
+    let bytes = hex::decode(encoded).map_err(|_| "embedded release verification key is invalid")?;
+    let bytes: [u8; 32] =
+        bytes.try_into().map_err(|_| "embedded release verification key is invalid")?;
+    VerifyingKey::from_bytes(&bytes).map_err(|_| "embedded release verification key is invalid")?;
+    let mut der = Vec::with_capacity(44);
+    der.extend_from_slice(&[
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    ]);
+    der.extend_from_slice(&bytes);
+    Ok(format!("-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----\n", STANDARD.encode(der))
+        .into_bytes())
+}
 pub fn apply(input: &Inputs, destination: &Path, dry_run: bool) -> Result<Verified, String> {
     let loaded = load(input)?;
+    if loaded.verified.artifact_class != "node-agent" {
+        return Err("only standalone Monitor Agent artifacts can be installed here".into());
+    }
     if !cfg!(target_os = "linux") {
         return Err("apply supports Linux only".into());
     }
@@ -272,12 +277,4 @@ pub fn apply(input: &Inputs, destination: &Path, dry_run: bool) -> Result<Verifi
     parent.sync()?;
     continuation::fault_after_journal_cleanup()?;
     Ok(loaded.verified)
-}
-
-pub fn status(destination: &Path) -> Result<serde_json::Value, String> {
-    let marker = destination.join("state/publication-marker.json");
-    let current = destination.join("current");
-    Ok(
-        serde_json::json!({"destination": destination, "present": destination.is_dir(), "markerPresent": marker.is_file(), "runnable": false, "current": fs::read_link(current).ok()}),
-    )
 }

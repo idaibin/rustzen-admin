@@ -4,6 +4,7 @@ use super::*;
 async fn role_management_rejects_deletion_of_assigned_custom_role() {
     let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
     run_migrations(&pool).await.expect("migrations");
+    activate_seed_owner(&pool).await;
     let menu_id: i64 = sqlx::query_scalar(
         "INSERT INTO menus (
              parent_id, name, code, menu_type, sort_order, status, is_system, is_manual,

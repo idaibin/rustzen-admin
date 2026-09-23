@@ -56,9 +56,9 @@ fn jwt_codec_rejects_wrong_issuer_and_audience() {
 }
 
 #[test]
-fn jwt_codec_rejects_legacy_claims_without_session_authority() {
+fn jwt_codec_rejects_claims_without_session_authority() {
     #[derive(serde::Serialize)]
-    struct LegacyClaims {
+    struct ClaimsWithoutSession {
         user_id: i64,
         username: &'static str,
         exp: usize,
@@ -67,10 +67,10 @@ fn jwt_codec_rejects_legacy_claims_without_session_authority() {
     let now = chrono::Utc::now().timestamp() as usize;
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),
-        &LegacyClaims { user_id: 7, username: "alice", exp: now + 60, iat: now },
+        &ClaimsWithoutSession { user_id: 7, username: "alice", exp: now + 60, iat: now },
         &jsonwebtoken::EncodingKey::from_secret(b"secret"),
     )
-    .expect("legacy token");
+    .expect("token without session authority");
     assert!(JwtCodec::new("secret", 3600).decode(&token).is_err());
 }
 

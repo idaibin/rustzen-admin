@@ -49,7 +49,7 @@ describe("Analytics tracker Linux gate contract", () => {
         expect(gate).toContain("run_bounded_capture");
         expect(gate).toContain("Docker architecture discovery failed or exceeded its timeout");
         expect(gate).toContain("RUSTZEN_ANALYTICS_TRACKER_DOCKER_INFO_TIMEOUT must be 1..60 seconds");
-        expect(gate).toContain("refusing to replace legacy Analytics tracker evidence directory");
+        expect(gate).toContain("refusing to replace unsupported Analytics tracker evidence directory");
         expect(gate).toContain("RUSTZEN_ANALYTICS_TRACKER_TEST_SETUP_FAILURE");
         expect(gate).toContain('trap cleanup EXIT');
         expect(gate).toContain('trap - EXIT INT TERM');

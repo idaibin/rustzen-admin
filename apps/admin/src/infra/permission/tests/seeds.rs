@@ -148,6 +148,10 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
         .await
         .expect("in-memory sqlite pool");
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
+    sqlx::query("UPDATE users SET status = 1 WHERE username = 'owner'")
+        .execute(&pool)
+        .await
+        .expect("activate seeded owner for permission sync");
 
     sqlx::query(
         "INSERT INTO menus (
@@ -160,7 +164,7 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
     )
     .execute(&pool)
     .await
-    .expect("legacy and manual permissions");
+    .expect("stale and manual permissions");
 
     let stale_menu_id: i64 =
         sqlx::query_scalar("SELECT id FROM menus WHERE code = 'manage:dict:options'")
@@ -169,32 +173,32 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
             .expect("stale menu id");
     let custom_role_id: i64 = sqlx::query_scalar(
         "INSERT INTO roles (name, code, status, is_system)
-         VALUES ('Legacy dictionary role', 'legacy_dictionary', 1, FALSE)
+         VALUES ('Stale dictionary role', 'stale_dictionary', 1, FALSE)
          RETURNING id",
     )
     .fetch_one(&pool)
     .await
-    .expect("legacy custom role");
+    .expect("stale custom role");
     let custom_user_id: i64 = sqlx::query_scalar(
         "INSERT INTO users (username, email, password_hash, status)
-         VALUES ('legacy-dictionary-user', 'legacy-dictionary@example.com', 'hash', 1)
+         VALUES ('stale-dictionary-user', 'stale-dictionary@example.com', 'hash', 1)
          RETURNING id",
     )
     .fetch_one(&pool)
     .await
-    .expect("legacy custom user");
+    .expect("stale custom user");
     sqlx::query("INSERT INTO role_menus (role_id, menu_id) VALUES (?, ?)")
         .bind(custom_role_id)
         .bind(stale_menu_id)
         .execute(&pool)
         .await
-        .expect("legacy dictionary grant");
+        .expect("stale dictionary grant");
     sqlx::query("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)")
         .bind(custom_user_id)
         .bind(custom_role_id)
         .execute(&pool)
         .await
-        .expect("legacy dictionary user role");
+        .expect("stale dictionary user role");
 
     let seeded_accounts = sqlx::query_as::<_, (String, String)>(
         "SELECT u.username, r.code
@@ -207,14 +211,7 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
     .fetch_all(&pool)
     .await
     .expect("seeded accounts");
-    assert_eq!(
-        seeded_accounts,
-        vec![
-            ("admin".to_string(), "admin".to_string()),
-            ("owner".to_string(), "owner".to_string()),
-            ("viewer".to_string(), "viewer".to_string()),
-        ]
-    );
+    assert_eq!(seeded_accounts, vec![("owner".to_string(), "owner".to_string())]);
 
     rustzen_auth::permission::register_permission_codes([
         "dashboard:view",
@@ -280,11 +277,10 @@ async fn sync_permissions_persists_builtin_roles_and_default_owner() {
     .bind(custom_user_id)
     .fetch_all(&pool)
     .await
-    .expect("legacy dictionary effective permissions");
+    .expect("stale dictionary effective permissions");
     assert!(stale_effective_permissions.is_empty());
-    let cached_user =
-        PermissionService::load_current_user(custom_user_id, "legacy-dictionary-user")
-            .expect("legacy user permission cache");
+    let cached_user = PermissionService::load_current_user(custom_user_id, "stale-dictionary-user")
+        .expect("stale user permission cache");
     assert!(!cached_user.has_capability("manage:dict:options"));
     PermissionService::clear_user_cache(custom_user_id);
 

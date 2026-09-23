@@ -7,10 +7,10 @@ import type {
     ModuleLogCleanupPreview as ModuleLogCleanupPreviewData,
     ModuleLogCleanupResult,
 } from "@/api/system/status/module-logs";
+import { formatDateTime } from "@/lib/format-date-time";
 
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
 import { ModuleLogCleanupPreviewSection } from "./-module-log-diagnostics";
-import { formatDateTime } from "./-module-log-table-utils";
 
 type Node = ReactElement<Record<string, any>>;
 

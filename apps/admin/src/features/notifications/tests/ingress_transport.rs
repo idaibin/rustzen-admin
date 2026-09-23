@@ -9,6 +9,10 @@ use rustzen_ipc::{
     EVENT_PRODUCER_HEADER, EVENT_SIGNATURE_HEADER, EVENT_VERSION_HEADER, NotificationSigner,
 };
 
+fn nonce() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
 #[tokio::test]
 async fn admin_commit_survives_lost_response_and_reconciles_after_business_expiry() {
     let database = TestDatabase::new().await;
@@ -48,8 +52,7 @@ async fn admin_commit_survives_lost_response_and_reconciles_after_business_expir
     let payload = body_at("event-response-lost", "opened", now);
     let signer = NotificationSigner::new("current", "monitor", CURRENT).unwrap();
     let transport_now = Utc::now().timestamp();
-    let signed =
-        signer.sign(&payload, transport_now, transport_now + 60, "nonce-http-lost").unwrap();
+    let signed = signer.sign(&payload, transport_now, transport_now + 60, nonce()).unwrap();
     let request_payload = payload.clone();
     let mut response = tokio::spawn(async move {
         reqwest::Client::new()
@@ -86,12 +89,7 @@ async fn admin_commit_survives_lost_response_and_reconciles_after_business_expir
     release_response.notify_one();
     let after_expiry = now + chrono::Duration::days(2);
     let signed = signer
-        .sign(
-            &payload,
-            after_expiry.timestamp(),
-            after_expiry.timestamp() + 60,
-            "nonce-http-reconcile",
-        )
+        .sign(&payload, after_expiry.timestamp(), after_expiry.timestamp() + 60, nonce())
         .unwrap();
     assert_eq!(state.ingest(signed, &payload, after_expiry).await, Ok(IngestOutcome::Duplicate));
     server.abort();

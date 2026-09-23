@@ -6,10 +6,11 @@ import type {
     ModuleLogCleanupResult,
 } from "@/api/system/status/module-logs";
 import { DataState } from "@/components/feedback/data-state";
+import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 
 import { CleanupResult, FailureList } from "./-module-log-cleanup-result";
-import { formatDateTime, getCleanupCandidateColumns } from "./-module-log-table-utils";
+import { getCleanupCandidateColumns } from "./-module-log-table-utils";
 
 interface ModuleLogCleanupPreviewProps {
     confirmAction: ReactNode;

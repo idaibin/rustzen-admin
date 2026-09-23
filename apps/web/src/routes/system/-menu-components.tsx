@@ -1,10 +1,11 @@
 import { EditOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Modal, Select, Tag } from "antd";
+import { Button, Form, Input, Modal, Select } from "antd";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions, getModuleIconOptions } from "@/constant/options";
 import { t } from "@/lib/i18n";
 
@@ -181,43 +182,14 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                             />
                         </Form.Item>
                     </div>
-                    <div className="mt-4 flex justify-end gap-2">
-                        <Button type="default" onClick={() => setOpen(false)}>
-                            {t("取消", "Cancel")}
-                        </Button>
-                        <Button type="primary" htmlType="submit" loading={submitting}>
-                            {t("保存", "Save")}
-                        </Button>
-                    </div>
+                    <DialogFooter
+                        onCancel={() => setOpen(false)}
+                        submitLabel={t("保存", "Save")}
+                        submitting={submitting}
+                        submitHtmlType="submit"
+                    />
                 </Form>
             </Modal>
         </>
     );
-}
-
-export function MenuTypeBadge({ menuType }: { menuType: number }) {
-    const menuTypeMeta = {
-        1: { label: t("目录", "Directory"), color: "default" as const },
-        2: { label: t("菜单", "Menu"), color: "blue" as const },
-        3: { label: t("按钮", "Button"), color: "green" as const },
-    };
-    const meta = menuTypeMeta[menuType as keyof typeof menuTypeMeta] ?? {
-        label: t("未知", "Unknown"),
-        color: "default" as const,
-    };
-
-    return <Tag color={meta.color}>{meta.label}</Tag>;
-}
-
-export function MenuStatusBadge({ status }: { status: number }) {
-    const statusMeta = {
-        1: { label: t("启用", "Enabled"), color: "green" as const },
-        2: { label: t("禁用", "Disabled"), color: "default" as const },
-    };
-    const meta = statusMeta[status as keyof typeof statusMeta] ?? {
-        label: t("未知", "Unknown"),
-        color: "default" as const,
-    };
-
-    return <Tag color={meta.color}>{meta.label}</Tag>;
 }

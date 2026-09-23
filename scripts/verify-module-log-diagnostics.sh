@@ -6,15 +6,15 @@ verify_module_log_diagnostics() {
     module_log_date="$(run_bun -e 'console.log(new Date().toISOString().slice(0, 10))')"
     module_log_old_date="$(run_bun -e 'const date = new Date(); date.setUTCDate(date.getUTCDate() - 90); console.log(date.toISOString().slice(0, 10))')"
     module_log_dir="$ROOT/logs"
-    mkdir -p "$module_log_dir"
+    mkdir -p "$module_log_dir/admin" "$module_log_dir/monitor"
     MODULE_LOG_DIR="$module_log_dir" MODULE_LOG_DATE="$module_log_date" MODULE_LOG_OLD_DATE="$module_log_old_date" run_bun -e '
         const dir = process.env.MODULE_LOG_DIR;
         const tailFixture = Array.from(
             { length: 24_000 },
             (_, index) => `fixture-${String(index).padStart(6, "0")}\n`,
         ).join("");
-        await Bun.write(`${dir}/admin.${process.env.MODULE_LOG_DATE}`, tailFixture);
-        await Bun.write(`${dir}/monitor.${process.env.MODULE_LOG_OLD_DATE}`, "cleanup-candidate\n");
+        await Bun.write(`${dir}/admin/admin.${process.env.MODULE_LOG_DATE}`, tailFixture);
+        await Bun.write(`${dir}/monitor/monitor.${process.env.MODULE_LOG_OLD_DATE}`, "cleanup-candidate\n");
     '
 
     module_log_list="$(curl --fail --silent --show-error \
@@ -100,7 +100,7 @@ verify_module_log_diagnostics() {
         }
         console.log(preview.token);
     ')"
-    printf '%s\n' changed >>"$module_log_dir/monitor.$module_log_old_date"
+    printf '%s\n' changed >>"$module_log_dir/monitor/monitor.$module_log_old_date"
     cleanup_result="$(curl --fail --silent --show-error \
         -X POST -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" -H 'content-type: application/json' \
         -d "{\"token\":\"$cleanup_token\"}" \

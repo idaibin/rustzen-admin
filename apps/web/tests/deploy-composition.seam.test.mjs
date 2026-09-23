@@ -15,7 +15,10 @@ describe("deployment route composition", () => {
         expect(route).toContain('code="manage:deploy:update"');
         expect(route).toContain('code="manage:deploy:delete"');
         expect(route).toContain("function DeployStatusBadge");
-        expect(route).toContain("function formatFileSize");
+        expect(route).toContain("formatBytes(row.fileSize)");
+        expect(route).toContain('key: "signedScopes"');
+        expect(route).toContain('t("前端", "Frontend")');
+        expect(route).toContain('t("后端", "Backend")');
     });
 
     test("delegates stateful deployment dialogs without moving route authorization", () => {

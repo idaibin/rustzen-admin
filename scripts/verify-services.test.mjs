@@ -10,31 +10,20 @@ const databaseIsolationHelper = await Bun.file(new URL("./verify-database-isolat
 const lifecycleHelper = await Bun.file(new URL("./verify-service-lifecycle.sh", import.meta.url)).text();
 const authModuleGatewayHelper = await Bun.file(new URL("./verify-service-auth-module-gateway.sh", import.meta.url)).text();
 
-test("four-service verifier binds Monitor's selected database before every controller start", () => {
-    const identityNames = [
-        "RUSTZEN_BUILD_ID",
-        "RUSTZEN_COMPOSITION_ID",
-        "RUSTZEN_MONITOR_SCHEMA_FINGERPRINT",
-        "RUSTZEN_MONITOR_DATA_CONTRACT_ID",
-    ];
+test("four-service verifier lets Monitor prepare its fresh database on controller start", () => {
+    const identityNames = ["RUSTZEN_BUILD_ID", "RUSTZEN_COMPOSITION_ID"];
     for (const name of identityNames) {
         const value = script.match(new RegExp(`^export ${name}=([a-f0-9]{64})$`, "m"))?.[1];
         expect(value).toMatch(/^[a-f0-9]{64}$/);
     }
 
-    const init = script.indexOf('"$MONITOR" init-db');
-    const bind = script.indexOf('"$MONITOR" bind-database');
-    const validate = script.indexOf('"$MONITOR" validate-database');
     const adminAlone = script.indexOf('PHASE="admin-alone"');
     const orders = script.indexOf("ORDERS");
-    expect(script.match(/"\$MONITOR" init-db/g)).toHaveLength(1);
-    expect(script.match(/"\$MONITOR" bind-database/g)).toHaveLength(1);
-    expect(script.match(/"\$MONITOR" validate-database/g)).toHaveLength(1);
-    expect(init).toBeGreaterThan(-1);
-    expect(bind).toBeGreaterThan(init);
-    expect(validate).toBeGreaterThan(bind);
-    expect(adminAlone).toBeGreaterThan(validate);
-    expect(orders).toBeGreaterThan(validate);
+    expect(script).not.toMatch(/"\$MONITOR" (?:init-db|bind-database|validate-database)/);
+    expect(script).not.toContain("RUSTZEN_MONITOR_SCHEMA_FINGERPRINT");
+    expect(script).not.toContain("RUSTZEN_MONITOR_DATA_CONTRACT_ID");
+    expect(adminAlone).toBeGreaterThan(-1);
+    expect(orders).toBeGreaterThan(-1);
     expect(lifecycleHelper).toContain('monitor) "$MONITOR" controller >"$log" 2>&1 & ;;');
     expect(lifecycleHelper).not.toMatch(/monitor\).*\b(?:init-db|bind-database|validate-database)\b/);
 

@@ -9,12 +9,18 @@ import {
 } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Modal, Space, Tag, Tooltip, Typography } from "antd";
+import { Button, Modal, Space, Tag, Tooltip, Typography } from "antd";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { appMessage, manageAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
+import {
+    pagedTableProps,
+    tablePagination,
+    emptyTableLocale,
+} from "@/components/table/table-presets";
 import { localizeBuiltInTaskDescription, localizeBuiltInTaskName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
@@ -109,30 +115,21 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
                 ) : null}
                 <ProTable<Task.RunItem>
                     rowKey="id"
-                    rowSelection={false}
+                    {...pagedTableProps}
                     search={false}
                     options={false}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
                     columns={columns}
                     dataSource={rows}
                     loading={isFetching}
-                    pagination={{
+                    pagination={tablePagination({
                         current: currentPage,
                         pageSize: RUN_PAGE_SIZE,
                         total: data?.total ?? 0,
-                        showSizeChanger: false,
                         onChange: setCurrentPage,
-                    }}
-                    locale={{
-                        emptyText:
-                            !rows.length && !isPending ? (
-                                <DataState
-                                    kind="empty"
-                                    title={t("暂无任务执行记录", "No task runs")}
-                                />
-                            ) : undefined,
-                    }}
+                    })}
+                    locale={emptyTableLocale(t("暂无任务执行记录", "No task runs"), {
+                        visible: !rows.length && !isPending,
+                    })}
                 />
             </Modal>
         </>
@@ -195,61 +192,39 @@ function RunTaskDialog({
     disabled: boolean;
 }) {
     const queryClient = useQueryClient();
-    const [open, setOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const submit = async () => {
-        setIsSubmitting(true);
-        try {
-            await manageAPI.task.run(record.taskKey);
-            await queryClient.invalidateQueries({ queryKey: taskQueryKeys.runs(record.taskKey) });
-            appMessage.success(t("任务执行已提交", "Task run submitted"));
-            setOpen(false);
-            onSuccess();
-        } finally {
-            setIsSubmitting(false);
-        }
+        await manageAPI.task.run(record.taskKey);
+        await queryClient.invalidateQueries({ queryKey: taskQueryKeys.runs(record.taskKey) });
+        appMessage.success(t("任务执行已提交", "Task run submitted"));
+        onSuccess();
     };
     const label = record.running ? t("执行中", "Running") : t("执行任务", "Run task");
     return (
-        <>
-            <Tooltip title={label}>
-                <Button
-                    data-testid={`maintenance-task-run-${record.taskKey}`}
-                    type="link"
-                    size="small"
-                    icon={<PlayCircleOutlined />}
-                    disabled={disabled}
-                    loading={isSubmitting}
-                    onClick={() => setOpen(true)}
-                    aria-label={label}
-                />
-            </Tooltip>
-            <Modal
-                data-testid={`maintenance-task-run-dialog-${record.taskKey}`}
-                open={open}
-                onCancel={() => setOpen(false)}
-                onOk={() => void submit()}
-                okText={t("执行", "Run")}
-                cancelText={t("取消", "Cancel")}
-                okButtonProps={{ loading: isSubmitting }}
-                title={
-                    <span>
-                        {t(
-                            `执行 ${localizeBuiltInTaskName(record.taskKey, record.name)}？`,
-                            `Run ${localizeBuiltInTaskName(record.taskKey, record.name)}?`,
-                        )}
-                    </span>
-                }
-                centered
-            >
-                <Form layout="vertical">
-                    <Form.Item>
-                        {localizeBuiltInTaskDescription(record.taskKey, record.description) ||
-                            t("立即提交此任务。", "Submit this task immediately.")}
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </>
+        <ConfirmDialog
+            modalTestId={`maintenance-task-run-dialog-${record.taskKey}`}
+            trigger={
+                <Tooltip title={label}>
+                    <Button
+                        data-testid={`maintenance-task-run-${record.taskKey}`}
+                        type="link"
+                        size="small"
+                        icon={<PlayCircleOutlined />}
+                        disabled={disabled}
+                        aria-label={label}
+                    />
+                </Tooltip>
+            }
+            title={t(
+                `执行 ${localizeBuiltInTaskName(record.taskKey, record.name)}？`,
+                `Run ${localizeBuiltInTaskName(record.taskKey, record.name)}?`,
+            )}
+            description={
+                localizeBuiltInTaskDescription(record.taskKey, record.description) ||
+                t("立即提交此任务。", "Submit this task immediately.")
+            }
+            confirmLabel={t("执行", "Run")}
+            onConfirm={submit}
+        />
     );
 }
 

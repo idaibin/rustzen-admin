@@ -12,6 +12,8 @@ import { Badge, Button, Card, Progress, Statistic, Tag, Typography } from "antd"
 import { systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { PageHeader } from "@/components/page/page-header";
+import { formatBytes } from "@/lib/format";
+import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
 export const Route = createFileRoute("/system/status")({
@@ -308,7 +310,7 @@ function ResourceMetric({
                 <div className="text-right text-muted-foreground">{detail}</div>
             </div>
             <Statistic
-                value={formatPercent(percent)}
+                value={percent}
                 suffix="%"
                 precision={1}
                 styles={{ content: { fontSize: 20 } }}
@@ -327,40 +329,4 @@ function ResourceMetric({
 
 function clampPercent(value: number) {
     return Math.max(0, Math.min(100, Number(value.toFixed(1))));
-}
-
-function formatPercent(value: number) {
-    return `${Number(value.toFixed(1))}`;
-}
-
-function formatBytes(bytes: number) {
-    if (!bytes) {
-        return "0 B";
-    }
-
-    const units = ["B", "KB", "MB", "GB", "TB"] as const;
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-    }
-
-    const precision = unitIndex === 0 ? 0 : 1;
-    return `${Number(value.toFixed(precision))} ${units[unitIndex]}`;
-}
-
-function formatDateTime(value: string | null | undefined) {
-    if (!value) {
-        return "-";
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return "-";
-    }
-    const pad = (part: number) => part.toString().padStart(2, "0");
-    return (
-        [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join("-") +
-        ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-    );
 }

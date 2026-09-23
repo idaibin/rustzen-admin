@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions } from "@/constant/options";
 import { localizeBuiltInRoleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
@@ -230,30 +231,24 @@ export const UserDialog = ({
                         />
                     </Form.Item>
                     <Form.Item className="!mb-0">
-                        <div className="flex items-center justify-end gap-2">
-                            <Button
-                                onClick={() => {
-                                    form.resetFields();
-                                    setOpen(false);
-                                }}
-                            >
-                                {t("取消", "Cancel")}
-                            </Button>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                loading={submitting}
-                                disabled={submitDisabled}
-                            >
-                                {submitting
+                        <DialogFooter
+                            onCancel={() => {
+                                form.resetFields();
+                                setOpen(false);
+                            }}
+                            submitLabel={
+                                submitting
                                     ? mode === "create"
                                         ? t("创建中", "Creating")
                                         : t("保存中", "Saving")
                                     : mode === "create"
                                       ? t("创建", "Create")
-                                      : t("保存", "Save")}
-                            </Button>
-                        </div>
+                                      : t("保存", "Save")
+                            }
+                            submitting={submitting}
+                            submitDisabled={submitDisabled}
+                            submitHtmlType="submit"
+                        />
                     </Form.Item>
                 </Form>
             </Modal>

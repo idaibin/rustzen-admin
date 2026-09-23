@@ -9,6 +9,7 @@ import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
 import { localizeBuiltInTaskDescription, localizeBuiltInTaskName } from "@/lib/builtin-i18n";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
@@ -190,19 +191,9 @@ function TaskContent({
                     loading={loading}
                     search={false}
                     options={false}
-                    pagination={false}
                     scroll={{ x: "max-content", y: "100%" }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
-                    locale={{
-                        emptyText: (
-                            <DataState
-                                kind="empty"
-                                title={t("暂无定时任务", "No scheduled tasks")}
-                            />
-                        ),
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(t("暂无定时任务", "No scheduled tasks"))}
                 />
             </DataTableShell>
         </TaskCard>

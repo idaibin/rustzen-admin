@@ -21,6 +21,19 @@ pub struct FileLoggingGuard {
     _file_guard: WorkerGuard,
 }
 
+/// Initializes stdout-only logging for short-lived maintenance commands.
+pub fn init_stdout_logging() -> Result<(), Box<dyn std::error::Error>> {
+    let filter = EnvFilter::try_new(log_env_filter())?;
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(false)
+        .with_target(false)
+        .compact()
+        .try_init()
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    Ok(())
+}
+
 /// Initializes the shared stdout and daily-file logging policy for a server process.
 pub fn init_file_logging(
     log_dir: impl AsRef<Path>,

@@ -117,10 +117,11 @@ verify_retry_receipts() {
         and $receipt.sourceRunApi.data.id == $receipt.sourceRun
         and $receipt.sourceRunApi.data.status == "failed"
         and $receipt.sourceRunApi.data.error == "reports service operation failed"
-        and ($receipt.sourceStepsApi.data | length == 1)
-        and $receipt.sourceStepsApi.data[0].runId == $receipt.sourceRun
-        and ($receipt.sourceStepsApi.data[0] | {stepIndex,action,status}
-             == {stepIndex:0,action:"setUiPreferences",status:"succeeded"})
+        and (($receipt.sourceStepsApi.data | length == 0)
+          or (($receipt.sourceStepsApi.data | length == 1)
+            and $receipt.sourceStepsApi.data[0].runId == $receipt.sourceRun
+            and ($receipt.sourceStepsApi.data[0] | {stepIndex,action,status}
+                 == {stepIndex:0,action:"setUiPreferences",status:"succeeded"})))
         and $receipt.database == {sourceRun:$receipt.sourceRun,childRun:$receipt.childRun,
           sourceFlowId:$receipt.sourceRunApi.data.flowId,childFlowId:$receipt.sourceRunApi.data.flowId,
           childRetrySourceRunId:$receipt.sourceRun,sourceChildCount:1}

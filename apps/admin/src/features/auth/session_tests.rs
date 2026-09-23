@@ -5,11 +5,16 @@ use super::SessionRepository;
 use crate::features::system::user::{repo::UserRepository, types::CreateUserCommand};
 use crate::{features::auth::service::AuthService, infra::password::PasswordUtils};
 
+fn session_password() -> &'static str {
+    static PASSWORD: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    PASSWORD.get_or_init(|| format!("SessionPassw0rd!-{}", std::process::id()))
+}
+
 async fn user_fixture() -> SqlitePool {
     let pool =
         SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.expect("pool");
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
-    let password = PasswordUtils::hash_password("SessionPassw0rd!").expect("password");
+    let password = PasswordUtils::hash_password(session_password()).expect("password");
     sqlx::query(
         "INSERT INTO users (id, username, email, password_hash, status)
          VALUES (40, 'session-user', 'session@example.com', ?, 1)",
@@ -50,9 +55,9 @@ async fn user_fixture() -> SqlitePool {
 async fn login_persists_two_sessions_and_logout_revokes_only_one_sid() {
     let pool = user_fixture().await;
     let first =
-        AuthService::login(&pool, "session-user", "SessionPassw0rd!").await.expect("first login");
+        AuthService::login(&pool, "session-user", session_password()).await.expect("first login");
     let second =
-        AuthService::login(&pool, "session-user", "SessionPassw0rd!").await.expect("second login");
+        AuthService::login(&pool, "session-user", session_password()).await.expect("second login");
     let first_claims = crate::infra::auth_runtime::jwt_codec().decode(&first.token).expect("first");
     let second_claims =
         crate::infra::auth_runtime::jwt_codec().decode(&second.token).expect("second");
@@ -71,7 +76,7 @@ async fn login_persists_two_sessions_and_logout_revokes_only_one_sid() {
 #[tokio::test]
 async fn password_status_and_revoke_all_invalidate_old_auth_epochs() {
     let pool = user_fixture().await;
-    let login = AuthService::login(&pool, "session-user", "SessionPassw0rd!").await.expect("login");
+    let login = AuthService::login(&pool, "session-user", session_password()).await.expect("login");
     let claims = crate::infra::auth_runtime::jwt_codec().decode(&login.token).expect("claims");
     let now = chrono::Utc::now().timestamp();
     sqlx::query("UPDATE users SET password_hash = 'changed' WHERE id = 40")
@@ -106,7 +111,7 @@ async fn password_status_and_revoke_all_invalidate_old_auth_epochs() {
 #[tokio::test]
 async fn current_grants_are_reloaded_for_an_existing_session() {
     let pool = user_fixture().await;
-    let login = AuthService::login(&pool, "session-user", "SessionPassw0rd!").await.expect("login");
+    let login = AuthService::login(&pool, "session-user", session_password()).await.expect("login");
     let claims = crate::infra::auth_runtime::jwt_codec().decode(&login.token).expect("claims");
     let now = chrono::Utc::now().timestamp();
     assert!(
@@ -247,7 +252,7 @@ async fn post_insert_failure_rolls_back_session_eviction_and_last_login() {
     .await
     .expect("failpoint");
 
-    assert!(AuthService::login(&pool, "session-user", "SessionPassw0rd!").await.is_err());
+    assert!(AuthService::login(&pool, "session-user", session_password()).await.is_err());
     assert_eq!(
         sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM access_sessions

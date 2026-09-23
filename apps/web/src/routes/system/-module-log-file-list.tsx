@@ -5,6 +5,7 @@ import type { Key } from "react";
 import type { ModuleLogFile } from "@/api/system/status/module-logs";
 import { DataState } from "@/components/feedback/data-state";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
 import { t } from "@/lib/i18n";
 
 import type { getModuleLogColumns } from "./-module-log-columns";
@@ -74,8 +75,8 @@ export function ModuleLogFileList({
                         loading={isFetching}
                         search={false}
                         options={false}
-                        pagination={false}
                         scroll={{ y: "100%" }}
+                        {...displayTableProps}
                         rowSelection={{
                             selectedRowKeys: selectedKeys,
                             renderCell: (_checked, record, _index, originNode) => (
@@ -88,11 +89,7 @@ export function ModuleLogFileList({
                             onChange: onSelectionChange,
                             getCheckboxProps: (record) => ({ disabled: !record.readable }),
                         }}
-                        locale={{
-                            emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
-                        }}
-                        toolBarRender={false}
-                        tableAlertOptionRender={false}
+                        locale={emptyTableLocale(t("暂无日志", "No logs"))}
                     />
                 </DataTableShell>
             )}

@@ -1,4 +1,3 @@
-#[cfg(feature = "full")]
 use super::types::LoginAuditCommand;
 use super::{
     service::AuthService,
@@ -24,7 +23,6 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> AppResult<LoginResp> {
     let LoginRequest { username, password } = request;
-    #[cfg(feature = "full")]
     let audit_command = LoginAuditCommand {
         ip_address: _addr.ip().to_string(),
         user_agent: _headers
@@ -34,11 +32,8 @@ pub async fn login(
             .to_string(),
     };
 
-    #[cfg(feature = "full")]
     let response =
         AuthService::login_with_audit(&pool, &username, &password, audit_command).await?;
-    #[cfg(feature = "selected-distribution")]
-    let response = AuthService::login(&pool, &username, &password).await?;
     Ok(ApiResponse::success(response))
 }
 

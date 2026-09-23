@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlparse
 UPSTREAM_HOST = os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_UPSTREAM", "127.0.0.1")
 UPSTREAM_PORT = int(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_UPSTREAM_PORT", "19801"))
 PORT = int(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_PORT", "19805"))
+SLOW_SECONDS = float(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_SLOW_SECONDS", "5"))
 state = {
     "overview": "success",
     "events": "success",
@@ -83,7 +84,7 @@ class Handler(BaseHTTPRequestHandler):
     def fixture_response(self, route, mode, query):
         state["requests"].append({"route": route, "mode": mode, "query": query})
         if mode == "slow":
-            time.sleep(1)
+            time.sleep(SLOW_SECONDS)
         if mode == "403":
             self.json(403, {"code": 40002, "message": "fixture forbidden", "data": None})
             return True

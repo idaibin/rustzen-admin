@@ -75,8 +75,11 @@ for retry in $(seq 1 50); do curl_json http://127.0.0.1:19805/__analytics_fixtur
 curl_json http://127.0.0.1:19805/__analytics_fixture/health >/dev/null
 
 admin=http://127.0.0.1:19801
-token=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","password":"rustzen@123"}' "$admin/api/auth/login" | jq -er '.data.token')
-auth=(-H "authorization: Bearer $token")
+refresh_auth() {
+  token=$(curl_json -H 'content-type: application/json' -d '{"username":"owner","password":"rustzen@123"}' "$admin/api/auth/login" | jq -er '.data.token')
+  auth=(-H "authorization: Bearer $token")
+}
+refresh_auth
 system=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d '{"name":"Analytics UI fixture","baseUrl":"http://127.0.0.1:19805/health","enabled":true}' "$admin/api/reports/systems" | jq -er '.data.id')
 steps=$(cat /verify/evidence/browser-steps.json)
 
@@ -91,6 +94,7 @@ diagnostics() {
 }
 run_case() {
   local name=$1 case_steps=$2 body flow run status receipt_tmp
+  refresh_auth
   body=$(jq -nc --arg system "$system" --arg name "Analytics UI state" --argjson steps "$case_steps" '{systemId:$system,name:$name,steps:$steps}')
   flow=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$body" "$admin/api/reports/flows" | jq -er '.data.id')
   run=$(curl_json "${auth[@]}" -H 'content-type: application/json' -d "$(jq -nc --arg flow "$flow" '{flowId:$flow,input:{}}')" "$admin/api/reports/runs" | jq -er '.data.id')
@@ -102,7 +106,17 @@ run_case() {
   mv -f "$receipt_tmp" "/verify/evidence/run-steps/$name.json"
   printf '%s\n' "$run"
 }
-artifact() { local run=$1 prefix=$2 output=$3 id; id=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$run/artifacts" | jq -er --arg prefix "$prefix" '.data[]|select(.fileName|startswith($prefix))|.id'); curl_json "${auth[@]}" "$admin/api/reports/runs/$run/artifacts/$id" >"/verify/evidence/$output"; sha256sum "/verify/evidence/$output" | awk '{print $1}'; }
+artifact() {
+  local run=$1 prefix=$2 output=$3 id listing tmp
+  refresh_auth
+  listing=$(curl_json "${auth[@]}" "$admin/api/reports/runs/$run/artifacts") || return
+  id=$(jq -er --arg prefix "$prefix" '.data[]|select(.fileName|startswith($prefix))|.id' <<<"$listing") || return
+  tmp="/verify/evidence/.${output}.tmp"
+  curl_json "${auth[@]}" "$admin/api/reports/runs/$run/artifacts/$id" >"$tmp" || { rm -f "$tmp"; return 1; }
+  test -s "$tmp" || { rm -f "$tmp"; return 1; }
+  mv -f "$tmp" "/verify/evidence/$output"
+  sha256sum "/verify/evidence/$output" | awk '{print $1}'
+}
 
 set_mode '{"overview":"slow","events":"success"}'
 overview_run=$(run_case overview-loading "$(jq -c '.overviewLoading' <<<"$steps")")

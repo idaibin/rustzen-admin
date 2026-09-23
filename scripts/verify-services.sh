@@ -71,8 +71,6 @@ export RUSTZEN_MONITOR_NODE_ID=verify-monitor-node
 export RUSTZEN_MONITOR_CONTROLLER_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT"
 export RUSTZEN_BUILD_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export RUSTZEN_COMPOSITION_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-export RUSTZEN_MONITOR_SCHEMA_FINGERPRINT=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-export RUSTZEN_MONITOR_DATA_CONTRACT_ID=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 export RUST_LOG=warn
 
 run_bun() {
@@ -120,10 +118,6 @@ if [ ! -f "$DATABASE_ISOLATION_HELPER" ] || [ -L "$DATABASE_ISOLATION_HELPER" ];
     exit 1
 fi
 . "$DATABASE_ISOLATION_HELPER"
-
-"$MONITOR" init-db
-"$MONITOR" bind-database
-"$MONITOR" validate-database
 
 PHASE="admin-alone"
 start_service admin
@@ -185,20 +179,19 @@ for service in admin monitor insights reports; do
     wait_for_health "$service"
 done
 
-cli_status="$($CLI --json status all)"
+cli_status="$($CLI --json doctor)"
 CLI_STATUS="$cli_status" run_bun -e '
     const payload = JSON.parse(process.env.CLI_STATUS);
-    const services = payload.data?.services;
+    const services = payload.data?.health?.services;
     if (
         payload.schema_version !== 1
         || payload.ok !== true
-        || payload.command !== "status"
-        || payload.data?.selection !== "all"
+        || payload.command !== "doctor"
         || !Array.isArray(services)
         || services.length !== 4
         || services.some((service) => service.reachable !== true || service.state !== "healthy")
     ) {
-        throw new Error(`invalid rz status response: ${JSON.stringify(payload)}`);
+        throw new Error(`invalid rz doctor response: ${JSON.stringify(payload)}`);
     }
 '
 
@@ -286,5 +279,5 @@ done
 
 verify_database_isolations
 
-echo "verify-services: Admin-alone login, module-log owner/denial/tail/archive/cleanup contracts, Agent persistence, 24 startup orders, rz status, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
+echo "verify-services: Admin-alone login, module-log owner/denial/tail/archive/cleanup contracts, Agent persistence, 24 startup orders, rz doctor, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
 echo "verify-services: latency evidence: $RUSTZEN_GATEWAY_LATENCY_OUTPUT"

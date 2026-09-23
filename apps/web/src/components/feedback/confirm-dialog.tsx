@@ -3,42 +3,38 @@ import { useState, type ReactNode } from "react";
 
 import { t } from "@/lib/i18n";
 
-interface ConfirmDialogProps {
-    trigger: ReactNode;
+interface ConfirmModalProps {
+    open: boolean;
     title: ReactNode;
     description: ReactNode;
     confirmLabel: ReactNode;
     destructive?: boolean;
     confirmTestId?: string;
+    modalTestId?: string;
     disabled?: boolean;
+    onCancel: () => void;
     onConfirm: () => Promise<void>;
 }
 
-export function ConfirmDialog({
-    trigger,
+export function ConfirmModal({
+    open,
     title,
     description,
     confirmLabel,
     destructive = false,
     confirmTestId,
+    modalTestId,
     disabled = false,
+    onCancel,
     onConfirm,
-}: ConfirmDialogProps) {
-    const [open, setOpen] = useState(false);
+}: ConfirmModalProps) {
     const [submitting, setSubmitting] = useState(false);
-
-    const showDialog = () => {
-        if (disabled || submitting) {
-            return;
-        }
-        setOpen(true);
-    };
 
     const hideDialog = () => {
         if (submitting) {
             return;
         }
-        setOpen(false);
+        onCancel();
     };
 
     const submit = async () => {
@@ -48,40 +44,74 @@ export function ConfirmDialog({
         setSubmitting(true);
         try {
             await onConfirm();
-            setOpen(false);
+            onCancel();
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
+        <Modal
+            data-testid={modalTestId}
+            open={open}
+            closable={!disabled}
+            confirmLoading={submitting}
+            onCancel={hideDialog}
+            title={title}
+            footer={[
+                <Button key="cancel" type="default" onClick={hideDialog}>
+                    {t("取消", "Cancel")}
+                </Button>,
+                <Button
+                    data-testid={confirmTestId}
+                    key="confirm"
+                    type="primary"
+                    danger={destructive}
+                    loading={submitting}
+                    disabled={disabled}
+                    onClick={submit}
+                >
+                    {confirmLabel}
+                </Button>,
+            ]}
+        >
+            <div>{description}</div>
+        </Modal>
+    );
+}
+
+interface ConfirmDialogProps {
+    trigger: ReactNode;
+    title: ReactNode;
+    description: ReactNode;
+    confirmLabel: ReactNode;
+    destructive?: boolean;
+    confirmTestId?: string;
+    modalTestId?: string;
+    disabled?: boolean;
+    onConfirm: () => Promise<void>;
+}
+
+export function ConfirmDialog({ trigger, disabled = false, ...modalProps }: ConfirmDialogProps) {
+    const [open, setOpen] = useState(false);
+
+    return (
         <>
-            <span onClick={showDialog}>{trigger}</span>
-            <Modal
-                open={open}
-                closable={!disabled}
-                confirmLoading={submitting}
-                onCancel={hideDialog}
-                title={title}
-                footer={[
-                    <Button key="cancel" type="default" onClick={hideDialog}>
-                        {t("取消", "Cancel")}
-                    </Button>,
-                    <Button
-                        data-testid={confirmTestId}
-                        key="confirm"
-                        type="primary"
-                        danger={destructive}
-                        loading={submitting}
-                        disabled={disabled}
-                        onClick={submit}
-                    >
-                        {confirmLabel}
-                    </Button>,
-                ]}
+            <span
+                onClick={() => {
+                    if (!disabled) {
+                        setOpen(true);
+                    }
+                }}
             >
-                <div>{description}</div>
-            </Modal>
+                {trigger}
+            </span>
+            <ConfirmModal
+                {...modalProps}
+                disabled={disabled}
+                open={open}
+                onCancel={() => setOpen(false)}
+            />
         </>
     );
 }

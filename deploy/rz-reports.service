@@ -1,13 +1,13 @@
 [Unit]
 Description=Rustzen Reports Worker
 After=network.target rz-recovery.service
-PartOf=rz.target
+PartOf=rz-full.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
 Type=simple
-UMask=0077
+UMask=0027
 User=rz-reports
 Group=rz-reports
 EnvironmentFile=/opt/rz/config/rz-reports.env
@@ -22,4 +22,4 @@ ProtectSystem=strict
 ReadWritePaths=/opt/rz/data/reports /opt/rz/logs/reports
 
 [Install]
-WantedBy=rz.target
+WantedBy=rz-full.service

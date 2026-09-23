@@ -11,8 +11,14 @@ import { BackgroundRefreshNotice } from "@/components/feedback/background-refres
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    displayTableProps,
+    emptyTableLocale,
+    tablePagination,
+} from "@/components/table/table-presets";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { formatDuration } from "@/lib/format";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 
@@ -198,8 +204,7 @@ function AnalyticsEventsPage() {
             title: t("耗时", "Duration"),
             key: "durationMs",
             width: 100,
-            render: (_: unknown, row: EventRow) =>
-                row.durationMs == null ? "-" : `${row.durationMs} ms`,
+            render: (_: unknown, row: EventRow) => formatDuration(row.durationMs),
         },
         {
             title: t("发生时间", "Occurred at"),
@@ -234,43 +239,38 @@ function AnalyticsEventsPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    pagination={false}
                     scroll={{ y: "100%" }}
-                    locale={{
-                        emptyText: !eventRows.length ? (
-                            <DataState
-                                kind="empty"
-                                title={
-                                    hasFilters
-                                        ? t("没有匹配的访问记录", "No matching activity")
-                                        : t("暂无访问记录", "No activity yet")
-                                }
-                                description={
-                                    hasFilters
-                                        ? t(
-                                              "请调整类型或路径筛选条件。",
-                                              "Adjust the type or path filters.",
-                                          )
-                                        : t(
-                                              "接收到页面访问、接口请求或其他操作上报后，记录会显示在这里。",
-                                              "Page visits, API requests, and other reports will appear here after they are received.",
-                                          )
-                                }
-                            />
-                        ) : undefined,
-                    }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(
+                        hasFilters
+                            ? t("没有匹配的访问记录", "No matching activity")
+                            : t("暂无访问记录", "No activity yet"),
+                        {
+                            visible: !eventRows.length,
+                            description: hasFilters
+                                ? t(
+                                      "请调整类型或路径筛选条件。",
+                                      "Adjust the type or path filters.",
+                                  )
+                                : t(
+                                      "接收到页面访问、接口请求或其他操作上报后，记录会显示在这里。",
+                                      "Page visits, API requests, and other reports will appear here after they are received.",
+                                  ),
+                        },
+                    )}
                 />
                 <div className="flex shrink-0 items-center justify-between gap-4 pt-3">
                     <Typography.Text type="secondary">
                         {t(`共 ${data?.total ?? 0} 条`, `${data?.total ?? 0} total`)}
                     </Typography.Text>
                     <Pagination
-                        current={current}
-                        pageSize={PAGE_SIZE}
-                        total={data?.total ?? 0}
-                        showSizeChanger={false}
-                        showLessItems
-                        onChange={setCurrent}
+                        {...tablePagination({
+                            current,
+                            pageSize: PAGE_SIZE,
+                            total: data?.total ?? 0,
+                            showLessItems: true,
+                            onChange: setCurrent,
+                        })}
                     />
                 </div>
             </DataTableShell>

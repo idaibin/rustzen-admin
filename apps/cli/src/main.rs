@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, env, process::ExitCode};
+use std::{collections::BTreeMap, env, path::Path, process::ExitCode};
 
 use clap::Parser;
 use serde_json::json;
@@ -10,26 +10,12 @@ mod install_activation;
 mod install_activation_state;
 mod install_admission;
 mod install_archive;
-mod install_cli;
 mod install_continuation;
 mod install_crypto;
 mod install_fs;
 mod install_manifest;
 mod install_pairing;
 mod install_selection;
-mod install_server_activation;
-mod install_server_activation_journal;
-mod install_server_activation_process;
-mod install_server_activation_state;
-mod install_server_config;
-mod install_server_database;
-mod install_server_identity;
-mod install_server_layout;
-mod install_server_notification_config;
-mod install_server_readiness;
-mod install_server_release;
-mod install_server_selection;
-mod install_service_parent;
 mod install_terminal;
 mod operations;
 use cli_contract::{Cli, Command};
@@ -131,39 +117,24 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             });
             emit(cli.json, "version", data);
         }
-        Command::Status { module } => {
-            let statuses = read_statuses(&context, module).await;
-            emit(cli.json, "status", json!({ "selection": module, "services": statuses }));
-        }
-        Command::Verify(args) => {
-            let verified = install::verify(&args.into()).map_err(|message| CliError {
-                command: "verify".into(),
-                code: "release_verification_failed",
-                message,
-            })?;
-            emit(cli.json, "verify", json!(verified));
-        }
-        Command::Apply { release, destination, dry_run } => {
+        Command::Start => service_control("start", cli.json)?,
+        Command::Stop => service_control("stop", cli.json)?,
+        Command::Restart => service_control("restart", cli.json)?,
+        Command::Status => service_control("status", cli.json)?,
+        Command::InstallAgent { release, destination, dry_run } => {
             let verified =
                 install::apply(&release.into(), &destination, dry_run).map_err(|message| {
-                    CliError { command: "apply".into(), code: "release_apply_failed", message }
+                    CliError {
+                        command: "install-agent".into(),
+                        code: "agent_install_failed",
+                        message,
+                    }
                 })?;
-            emit(cli.json, "apply", json!({"dry_run": dry_run, "release": verified}));
+            emit(cli.json, "install-agent", json!({"dry_run": dry_run, "release": verified}));
         }
-        Command::InstallStatus { destination } => {
-            let result = install::status(&destination).map_err(|message| CliError {
-                command: "install-status".into(),
-                code: "install_status_failed",
-                message,
-            })?;
-            emit(cli.json, "install-status", result);
-        }
-        Command::PinMonitorController { release, controller_endpoint } => {
+        Command::PinMonitorController { bundle, controller_endpoint } => {
             let result = install_pairing::pin(&install_pairing::PinInputs {
-                manifest: release.manifest,
-                envelope: release.envelope,
-                trusted_key: release.trusted_public_key,
-                key_id: release.key_id,
+                bundle,
                 endpoint: controller_endpoint,
             })
             .map_err(|message| CliError {
@@ -195,34 +166,149 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                     })?;
             emit(cli.json, "activate-monitor-agent", json!(result));
         }
-        Command::ActivateMonitorServer { config } => {
-            let result =
-                install_server_activation::activate(&install_server_activation::ActivationInput {
-                    config,
-                    secondary: "monitor",
-                })
-                .map_err(|message| CliError {
-                    command: "activate-monitor-server".into(),
-                    code: "monitor_server_activation_failed",
-                    message,
-                })?;
-            emit(cli.json, "activate-monitor-server", json!(result));
-        }
-        Command::ActivateAnalyticsServer { config } => {
-            let result =
-                install_server_activation::activate(&install_server_activation::ActivationInput {
-                    config,
-                    secondary: "insights",
-                })
-                .map_err(|message| CliError {
-                    command: "activate-analytics-server".into(),
-                    code: "analytics_server_activation_failed",
-                    message,
-                })?;
-            emit(cli.json, "activate-analytics-server", json!(result));
-        }
     }
     Ok(())
+}
+
+fn service_control(action: &str, json_output: bool) -> Result<(), CliError> {
+    let systemctl = Path::new("/usr/bin/systemctl");
+    if action == "status" {
+        return service_status(systemctl, json_output);
+    }
+    if action != "status" && unsafe { libc::geteuid() } != 0 {
+        return Err(CliError {
+            command: action.into(),
+            code: "root_required",
+            message: "rz service control must be run as root".into(),
+        });
+    }
+    let status = std::process::Command::new(systemctl)
+        .arg(action)
+        .arg("rz-full.service")
+        .stdout(if json_output {
+            std::process::Stdio::null()
+        } else {
+            std::process::Stdio::inherit()
+        })
+        .stderr(if json_output {
+            std::process::Stdio::null()
+        } else {
+            std::process::Stdio::inherit()
+        })
+        .status()
+        .map_err(|_| CliError {
+            command: action.into(),
+            code: "systemctl_unavailable",
+            message: "could not start systemctl".into(),
+        })?;
+    if !status.success() {
+        return Err(CliError {
+            command: action.into(),
+            code: "systemctl_failed",
+            message: format!("systemctl {action} rz-full.service failed"),
+        });
+    }
+    let services = if matches!(action, "start" | "restart") {
+        Some(wait_for_active_services(
+            systemctl,
+            action,
+            80,
+            std::time::Duration::from_millis(250),
+        )?)
+    } else {
+        None
+    };
+    emit(
+        json_output,
+        action,
+        json!({
+            "unit": "rz-full.service",
+            "action": action,
+            "services": services.map(service_state_json)
+        }),
+    );
+    Ok(())
+}
+
+const FULL_SERVICE_UNITS: [&str; 4] =
+    ["rz-admin.service", "rz-monitor.service", "rz-insights.service", "rz-reports.service"];
+
+fn service_status(systemctl: &Path, json_output: bool) -> Result<(), CliError> {
+    let services = read_service_states(systemctl)?;
+    require_all_services_active("status", &services)?;
+    emit(
+        json_output,
+        "status",
+        json!({
+            "unit": "rz-full.service",
+            "services": service_state_json(services)
+        }),
+    );
+    Ok(())
+}
+
+fn wait_for_active_services(
+    systemctl: &Path,
+    command: &str,
+    attempts: usize,
+    delay: std::time::Duration,
+) -> Result<Vec<(String, String, bool)>, CliError> {
+    let mut services = read_service_states(systemctl)?;
+    for _ in 1..attempts {
+        if services.iter().all(|(_, _, active)| *active) {
+            return Ok(services);
+        }
+        std::thread::sleep(delay);
+        services = read_service_states(systemctl)?;
+    }
+    require_all_services_active(command, &services)?;
+    Ok(services)
+}
+
+fn require_all_services_active(
+    command: &str,
+    services: &[(String, String, bool)],
+) -> Result<(), CliError> {
+    let inactive = services
+        .iter()
+        .filter(|(_, _, active)| !active)
+        .map(|(unit, state, _)| format!("{unit}={state}"))
+        .collect::<Vec<_>>();
+    if inactive.is_empty() {
+        Ok(())
+    } else {
+        Err(CliError {
+            command: command.into(),
+            code: "service_unhealthy",
+            message: format!("Rustzen services are not all active: {}", inactive.join(", ")),
+        })
+    }
+}
+
+fn service_state_json(services: Vec<(String, String, bool)>) -> Vec<serde_json::Value> {
+    services
+        .into_iter()
+        .map(|(unit, state, active)| json!({ "unit": unit, "state": state, "active": active }))
+        .collect()
+}
+
+fn read_service_states(systemctl: &Path) -> Result<Vec<(String, String, bool)>, CliError> {
+    FULL_SERVICE_UNITS
+        .into_iter()
+        .map(|unit| {
+            let output =
+                std::process::Command::new(systemctl).arg("is-active").arg(unit).output().map_err(
+                    |_| CliError {
+                        command: "status".into(),
+                        code: "systemctl_unavailable",
+                        message: "could not start systemctl".into(),
+                    },
+                )?;
+            let state = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let state = if state.is_empty() { "unknown".to_string() } else { state };
+            Ok((unit.to_string(), state, output.status.success()))
+        })
+        .collect()
 }
 
 #[cfg(test)]

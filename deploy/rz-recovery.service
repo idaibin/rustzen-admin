@@ -2,7 +2,7 @@
 Description=Rustzen Interrupted Update Recovery
 After=network.target
 Before=rz-admin.service rz-monitor.service rz-insights.service rz-reports.service
-PartOf=rz.target
+PartOf=rz-full.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
@@ -15,4 +15,4 @@ Restart=on-failure
 RestartSec=2
 
 [Install]
-WantedBy=rz.target
+WantedBy=rz-full.service

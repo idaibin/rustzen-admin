@@ -51,7 +51,7 @@ cleanup() {
 
 validate_seconds "$timeout" RUSTZEN_MONITOR_MULTI_NODE_UI_TIMEOUT 900
 validate_seconds "$cleanup_timeout" RUSTZEN_MONITOR_MULTI_NODE_UI_CLEANUP_TIMEOUT 60
-if [ -e "$current" ] && [ ! -L "$current" ]; then echo "refusing to replace legacy dual-Agent Nodes evidence directory: $current" >&2; exit 1; fi
+if [ -e "$current" ] && [ ! -L "$current" ]; then echo "refusing to replace unsupported dual-Agent Nodes evidence directory: $current" >&2; exit 1; fi
 if [ "${RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_PUBLISH_FAILURE:-}" = 1 ]; then
   evidence_root=${RUSTZEN_MONITOR_MULTI_NODE_UI_TEST_ROOT:?missing test root}; current="$evidence_root/current"; run_id=test; candidate="$evidence_root/.candidate"; mkdir -p "$evidence_root/runs/old" "$candidate"; printf old >"$evidence_root/runs/old/manifest.json"; ln -s runs/old "$current"; printf new >"$candidate/manifest.json"; publish_candidate; test "$(readlink "$current")" = runs/test && test "$(cat "$current/manifest.json")" = new; run_id=failed; candidate="$evidence_root/.missing"; ! publish_candidate; test "$(readlink "$current")" = runs/test; echo 'dual-Agent Nodes publication seam passed'; exit 0
 fi

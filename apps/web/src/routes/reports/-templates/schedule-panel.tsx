@@ -6,6 +6,7 @@ import { Alert, Button, Card } from "antd";
 import { reportsQueryKeys, reportsQueryOptions } from "@/api/reports/query-options";
 import { DataState } from "@/components/feedback/data-state";
 import { DataTableShell } from "@/components/table/data-table-shell";
+import { displayTableProps } from "@/components/table/table-presets";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -177,10 +178,7 @@ export function SchedulePanel() {
                         loading={isFetching}
                         search={false}
                         options={false}
-                        pagination={false}
-                        toolBarRender={false}
-                        tableAlertOptionRender={false}
-                        rowSelection={false}
+                        {...displayTableProps}
                     />
                 </DataTableShell>
             )}

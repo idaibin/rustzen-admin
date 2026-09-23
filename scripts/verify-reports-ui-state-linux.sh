@@ -57,7 +57,7 @@ container="rz-reports-ui-state-$run_id"
 
 mkdir -p "$evidence_root/runs"
 if [ -e "$current" ] && [ ! -L "$current" ]; then
-    echo "refusing to replace legacy Reports UI evidence directory" >&2
+    echo "refusing to replace unsupported Reports UI evidence directory" >&2
     exit 1
 fi
 if ! mkdir "$lock_dir" 2>/dev/null; then

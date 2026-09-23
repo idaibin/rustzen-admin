@@ -65,7 +65,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         return runtime.block_on(async {
             let pool = infra::db::connect().await?;
-            infra::db::bind_selected_identity(&pool).await.map_err(std::io::Error::other)?;
+            infra::db::migrate(&pool).await?;
+            infra::db::verify(&pool).await?;
+            infra::db::verify_schema(&pool).await.map_err(std::io::Error::other)?;
             sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&pool).await?;
             pool.close().await;
             Ok(())
@@ -85,7 +87,7 @@ fn run_controller_process() -> Result<(), Box<dyn std::error::Error>> {
     let config = config::controller();
     // SAFETY: this runs before Tokio creates worker threads.
     unsafe { rustzen_config::initialize_process_timezone(config.timezone()) };
-    let log_dir = config.log_dir();
+    let log_dir = config.runtime.log_dir().join("monitor");
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
     runtime.block_on(async move {
         let _logging = init_logging(log_dir)?;

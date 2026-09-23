@@ -9,7 +9,14 @@ use std::{
 fn temp_log_dir() -> PathBuf {
     let path = std::env::temp_dir().join(format!("rustzen-admin-module-logs-{}", Uuid::new_v4()));
     fs::create_dir(&path).unwrap();
+    for module in MODULE_IDS {
+        fs::create_dir(path.join(module)).unwrap();
+    }
     path
+}
+
+fn log_path(dir: &Path, module: &str, date: &str) -> PathBuf {
+    dir.join(module).join(format!("{module}.{date}"))
 }
 
 fn selector(module: &str, date: &str, _root: &Path) -> ParsedSelector {
@@ -63,9 +70,13 @@ fn cursor_is_opaque_and_bound_to_file_signature_and_selector() {
 #[test]
 fn list_marks_symlink_unreadable_without_following_target() {
     let dir = temp_log_dir();
-    fs::write(dir.join("admin.2026-01-01"), b"safe").unwrap();
+    fs::write(log_path(&dir, "admin", "2026-01-01"), b"safe").unwrap();
     #[cfg(unix)]
-    std::os::unix::fs::symlink("admin.2026-01-01", dir.join("monitor.2026-01-01")).unwrap();
+    std::os::unix::fs::symlink(
+        "../admin/admin.2026-01-01",
+        log_path(&dir, "monitor", "2026-01-01"),
+    )
+    .unwrap();
     let items = list_in(&dir, None, None).unwrap();
     assert!(items.iter().any(|item| item.module == "admin" && item.readable));
     #[cfg(unix)]
@@ -75,34 +86,53 @@ fn list_marks_symlink_unreadable_without_following_target() {
 
 #[cfg(unix)]
 #[test]
-fn reports_uses_only_the_fixed_service_account_log_directory() {
+fn every_module_uses_only_its_fixed_service_log_directory() {
     let dir = temp_log_dir();
-    let reports_dir = dir.join("reports");
-    fs::create_dir(&reports_dir).unwrap();
-    fs::write(dir.join("reports.2026-01-01"), b"root-decoy").unwrap();
-    fs::write(reports_dir.join("reports.2026-01-01"), b"nested-report-log\n").unwrap();
+    for module in MODULE_IDS {
+        let module_dir = dir.join(module);
+        fs::write(dir.join(format!("{module}.2026-01-01")), b"root-decoy").unwrap();
+        fs::write(
+            module_dir.join(format!("{module}.2026-01-01")),
+            format!("nested-{module}-log\n"),
+        )
+        .unwrap();
+    }
 
-    let items = list_in(&dir, Some("reports"), None).unwrap();
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0].file_name, "reports.2026-01-01");
-    let tail = tail_in(&dir, selector("reports", "2026-01-01", &dir), None).unwrap();
-    assert_eq!(tail.content, "nested-report-log");
+    let items = list_in(&dir, None, None).unwrap();
+    assert_eq!(items.len(), MODULE_IDS.len());
+    for module in MODULE_IDS {
+        assert!(items.iter().any(|item| item.module == module));
+        let tail = tail_in(&dir, selector(module, "2026-01-01", &dir), None).unwrap();
+        assert_eq!(tail.content, format!("nested-{module}-log"));
+    }
 
     let request = ModuleLogBackupRequest {
-        files: vec![ModuleLogFileSelector { module: "reports".into(), date: "2026-01-01".into() }],
+        files: MODULE_IDS
+            .iter()
+            .map(|module| ModuleLogFileSelector {
+                module: (*module).into(),
+                date: "2026-01-01".into(),
+            })
+            .collect(),
     };
     let archive = build_archive(&dir, request).unwrap();
     let mut tar_archive = tar::Archive::new(archive.bytes.as_slice());
-    let mut entries = tar_archive.entries().unwrap();
-    assert_eq!(entries.next().unwrap().unwrap().path().unwrap(), Path::new("reports.2026-01-01"));
-    assert_eq!(entries.next().unwrap().unwrap().path().unwrap(), Path::new("manifest.json"));
-    assert!(entries.next().is_none());
+    let entries = tar_archive
+        .entries()
+        .unwrap()
+        .map(|entry| entry.unwrap().path().unwrap().into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(entries.len(), MODULE_IDS.len() + 1);
+    for module in MODULE_IDS {
+        assert!(entries.contains(&Path::new(&format!("{module}.2026-01-01")).to_path_buf()));
+    }
+    assert!(entries.contains(&Path::new("manifest.json").to_path_buf()));
 
     let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
     let cutoff = today - Days::new(RETENTION_DAYS);
     let (candidates, failures) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
     assert!(failures.is_empty());
-    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates.len(), MODULE_IDS.len());
     let preview = CleanupPreviewState {
         preview_id: "reports-preview".into(),
         expires_at_instant: Instant::now() + CLEANUP_PREVIEW_TTL,
@@ -110,15 +140,18 @@ fn reports_uses_only_the_fixed_service_account_log_directory() {
         candidates,
     };
     let result = execute_cleanup(&dir, &preview, today).unwrap();
-    assert_eq!(result.removed.len(), 1);
-    assert!(!reports_dir.join("reports.2026-01-01").exists());
-    assert_eq!(fs::read(dir.join("reports.2026-01-01")).unwrap(), b"root-decoy");
+    assert_eq!(result.removed.len(), MODULE_IDS.len());
+    for module in MODULE_IDS {
+        assert!(!dir.join(module).join(format!("{module}.2026-01-01")).exists());
+        assert_eq!(fs::read(dir.join(format!("{module}.2026-01-01"))).unwrap(), b"root-decoy");
+    }
     fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
 fn missing_reports_directory_is_empty_and_non_directory_fails_closed() {
     let dir = temp_log_dir();
+    fs::remove_dir(dir.join("reports")).unwrap();
     assert!(list_in(&dir, Some("reports"), None).unwrap().is_empty());
     let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
     let cutoff = today - Days::new(RETENTION_DAYS);
@@ -147,7 +180,8 @@ fn missing_reports_directory_is_empty_and_non_directory_fails_closed() {
 fn reports_directory_symlink_fails_closed() {
     let dir = temp_log_dir();
     let outside = temp_log_dir();
-    fs::write(outside.join("reports.2026-01-01"), b"outside").unwrap();
+    fs::write(log_path(&outside, "reports", "2026-01-01"), b"outside").unwrap();
+    fs::remove_dir(dir.join("reports")).unwrap();
     std::os::unix::fs::symlink(&outside, dir.join("reports")).unwrap();
     assert!(list_in(&dir, Some("reports"), None).is_err());
     assert!(tail_in(&dir, selector("reports", "2026-01-01", &dir), None).is_err());
@@ -174,7 +208,7 @@ fn reports_directory_symlink_fails_closed() {
 #[test]
 fn tail_is_bounded_by_bytes_lines_and_individual_line_size() {
     let dir = temp_log_dir();
-    let mut file = fs::File::create(dir.join("admin.2026-01-01")).unwrap();
+    let mut file = fs::File::create(log_path(&dir, "admin", "2026-01-01")).unwrap();
     for index in 0..(MAX_TAIL_LINES + 20) {
         writeln!(file, "{index}:{}", "x".repeat(MAX_LINE_BYTES + 100)).unwrap();
     }
@@ -190,7 +224,7 @@ fn tail_is_bounded_by_bytes_lines_and_individual_line_size() {
 #[test]
 fn tail_paginates_10k_short_lines_without_gaps_or_duplicates() {
     let dir = temp_log_dir();
-    let mut file = fs::File::create(dir.join("admin.2026-01-01")).unwrap();
+    let mut file = fs::File::create(log_path(&dir, "admin", "2026-01-01")).unwrap();
     let expected = (0..10_000).map(|index| format!("line-{index:05}")).collect::<Vec<_>>();
     for line in &expected {
         writeln!(file, "{line}").unwrap();
@@ -218,7 +252,7 @@ fn tail_paginates_10k_short_lines_without_gaps_or_duplicates() {
 fn tail_paginates_a_single_unterminated_line_larger_than_the_read_window() {
     let dir = temp_log_dir();
     let expected = "x".repeat(MAX_TAIL_BYTES + MAX_LINE_BYTES + 123);
-    fs::write(dir.join("admin.2026-01-01"), &expected).unwrap();
+    fs::write(log_path(&dir, "admin", "2026-01-01"), &expected).unwrap();
 
     let mut cursor = None;
     let mut chunks = Vec::new();
@@ -243,7 +277,7 @@ fn tail_paginates_a_single_unterminated_line_larger_than_the_read_window() {
 #[test]
 fn backup_contains_manifest_hash_and_respects_archive_cap() {
     let dir = temp_log_dir();
-    fs::write(dir.join("admin.2026-01-01"), b"hello").unwrap();
+    fs::write(log_path(&dir, "admin", "2026-01-01"), b"hello").unwrap();
     let request = ModuleLogBackupRequest {
         files: vec![ModuleLogFileSelector { module: "admin".into(), date: "2026-01-01".into() }],
     };
@@ -260,9 +294,9 @@ fn cleanup_preview_excludes_today_and_confirmation_is_single_use() {
     let dir = temp_log_dir();
     let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
     let cutoff = today - Days::new(RETENTION_DAYS);
-    fs::write(dir.join("admin.2026-06-01"), b"old").unwrap();
-    fs::write(dir.join("admin.2026-08-10"), b"today").unwrap();
-    fs::write(dir.join("admin.2026-07-15"), b"inside").unwrap();
+    fs::write(log_path(&dir, "admin", "2026-06-01"), b"old").unwrap();
+    fs::write(log_path(&dir, "admin", "2026-08-10"), b"today").unwrap();
+    fs::write(log_path(&dir, "admin", "2026-07-15"), b"inside").unwrap();
     let (candidates, failures) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
     assert!(failures.is_empty());
     assert_eq!(candidates.len(), 1);
@@ -283,8 +317,8 @@ fn cleanup_preview_excludes_today_and_confirmation_is_single_use() {
     assert!(take_preview(&token).is_err());
     let result = execute_cleanup(&dir, &state, today).unwrap();
     assert_eq!(result.removed.len(), 1);
-    assert!(!dir.join("admin.2026-06-01").exists());
-    assert!(dir.join("admin.2026-08-10").exists());
+    assert!(!log_path(&dir, "admin", "2026-06-01").exists());
+    assert!(log_path(&dir, "admin", "2026-08-10").exists());
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -294,7 +328,7 @@ fn cleanup_refuses_changed_file_between_preview_and_confirm() {
     let dir = temp_log_dir();
     let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
     let cutoff = today - Days::new(RETENTION_DAYS);
-    let path = dir.join("admin.2026-06-01");
+    let path = log_path(&dir, "admin", "2026-06-01");
     fs::write(&path, b"old").unwrap();
     let (mut candidates, _) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
     OpenOptions::new().append(true).open(&path).unwrap().write_all(b"changed").unwrap();
@@ -318,10 +352,10 @@ fn cleanup_refuses_same_size_replacement_and_symlink_barriers() {
     let cutoff = today - Days::new(RETENTION_DAYS);
 
     let dir = temp_log_dir();
-    let path = dir.join("admin.2026-06-01");
+    let path = log_path(&dir, "admin", "2026-06-01");
     fs::write(&path, b"old").unwrap();
     let (candidates, _) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
-    fs::rename(&path, dir.join("admin.2026-06-01.replaced")).unwrap();
+    fs::rename(&path, dir.join("admin").join("admin.2026-06-01.replaced")).unwrap();
     fs::write(&path, b"new").unwrap();
     let preview = CleanupPreviewState {
         preview_id: "replacement".into(),
@@ -336,7 +370,7 @@ fn cleanup_refuses_same_size_replacement_and_symlink_barriers() {
     fs::remove_dir_all(&dir).unwrap();
 
     let dir = temp_log_dir();
-    let path = dir.join("admin.2026-06-01");
+    let path = log_path(&dir, "admin", "2026-06-01");
     fs::write(&path, b"old").unwrap();
     let (candidates, _) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
     fs::remove_file(&path).unwrap();
@@ -360,14 +394,14 @@ fn cleanup_refuses_same_size_replacement_and_symlink_barriers() {
 #[test]
 fn cleanup_transaction_rejects_same_name_replacement_after_final_check() {
     let dir = temp_log_dir();
-    let path = dir.join("admin.2026-06-01");
-    let moved_original = dir.join("admin.2026-06-01.original");
+    let path = log_path(&dir, "admin", "2026-06-01");
+    let moved_original = dir.join("admin").join("admin.2026-06-01.original");
     fs::write(&path, b"old").unwrap();
     let today = NaiveDate::from_ymd_opt(2026, 8, 10).unwrap();
     let cutoff = today - Days::new(RETENTION_DAYS);
     let (candidates, _) = collect_cleanup_candidates(&dir, today, cutoff).unwrap();
     let candidate = &candidates[0];
-    let directory = secure_fs::open_directory(&dir).unwrap().unwrap();
+    let directory = secure_fs::open_directory(&dir.join("admin")).unwrap().unwrap();
     let result = directory.unlink_if_unchanged_with_barrier(
         &candidate.selector.file_name,
         candidate.signature,

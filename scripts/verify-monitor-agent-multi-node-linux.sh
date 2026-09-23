@@ -95,7 +95,7 @@ verify_agent_provenance() {
 on_interrupt() { exit 130; }
 on_terminate() { exit 143; }
 if [ -e "$current" ] && [ ! -L "$current" ]; then
-  echo "refusing to replace legacy Monitor multi-node evidence directory: $current" >&2
+  echo "refusing to replace unsupported Monitor multi-node evidence directory: $current" >&2
   exit 1
 fi
 if [ "${RUSTZEN_MONITOR_MULTI_NODE_TEST_PUBLISH_FAILURE:-}" = 1 ]; then

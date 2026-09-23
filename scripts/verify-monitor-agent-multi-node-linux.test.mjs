@@ -19,7 +19,7 @@ describe("Monitor dual-Agent Linux gate contract", () => {
         expect(gate).toContain("admin-browser-source-identity.sh");
         expect(gate).toContain("atomic_replace_symlink");
         expect(gate).toContain('status=0\nrm -rf "$staged_bin_dir"');
-        expect(gate).toContain("refusing to replace legacy Monitor multi-node evidence directory");
+        expect(gate).toContain("refusing to replace unsupported Monitor multi-node evidence directory");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_PUBLISH_FAILURE");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_SETUP_FAILURE");
         expect(gate).toContain("RUSTZEN_MONITOR_MULTI_NODE_TEST_BUILD_CLEANUP");

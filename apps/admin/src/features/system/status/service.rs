@@ -115,7 +115,7 @@ fn collect_directory_items() -> Vec<DirectoryStorageItem> {
     [
         ("web", "web 静态资源", CONFIG.web_dist_dir()),
         ("bin", "bin 服务程序", runtime_root.join("bin")),
-        ("logs", "logs 日志", CONFIG.log_dir()),
+        ("logs", "logs 日志", CONFIG.runtime.log_dir()),
         ("data", "data 数据", CONFIG.data_dir()),
     ]
     .into_iter()

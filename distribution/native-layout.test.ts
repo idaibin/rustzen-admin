@@ -68,10 +68,13 @@ function validateSelectedUnitSemantics(
         "RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent",
     );
     requireExactDirective(
-        serverBytes["systemd/rz.target"],
+        serverBytes["systemd/rz-full.service"],
         "Wants",
         "rz-admin.service rz-monitor.service",
     );
+    requireExactDirective(serverBytes["systemd/rz-full.service"], "Type", "oneshot");
+    requireExactDirective(serverBytes["systemd/rz-full.service"], "ExecStart", "/bin/true");
+    requireExactDirective(serverBytes["systemd/rz-full.service"], "RemainAfterExit", "yes");
     for (const unit of [...Object.values(serverBytes), agentBytes]) {
         if (directiveValues(unit, "Requires").length !== 0)
             throw new Error("selected units must not contain Requires");
@@ -84,8 +87,8 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
     const serverLayout = generatedNativeLayout(server);
     expect(serverLayout.units.map((x) => x.path)).toEqual([
         "systemd/rz-admin.service",
+        "systemd/rz-full.service",
         "systemd/rz-monitor.service",
-        "systemd/rz.target",
     ]);
     expect(serverLayout.configs.map((x) => x.path)).toEqual([
         "config/rz-admin.env",
@@ -96,7 +99,7 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
         "monitor",
     ]);
     expect(sha256(canonicalJson(serverLayout))).toBe(
-        "1dd21c79e11d159e9dbb114ef0225750edde8daae311286d6355c2f53b4ef617",
+        "73f13c7be86a08188b7d386d38d7c8bdad71302a1b8c42d43cef34168831d678",
     );
     const notifyLayout = generatedNativeLayout(notifyServer);
     expect(notifyLayout.preset).toBe("monitor-notify");
@@ -152,9 +155,12 @@ test("native layout exactly scopes Monitor server and Agent members", () => {
     expect(agentBytes).toContain(
         "User=rz-monitor-agent\nGroup=rz-monitor-agent\nUMask=0027",
     );
-    expect(agentBytes).not.toContain("PartOf=rz.target");
-    expect(serverBytes["systemd/rz.target"]).toContain(
+    expect(agentBytes).not.toContain("PartOf=rz-full.service");
+    expect(serverBytes["systemd/rz-full.service"]).toContain(
         "Wants=rz-admin.service rz-monitor.service\nAfter=network.target",
+    );
+    expect(serverBytes["systemd/rz-full.service"]).toContain(
+        "[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes",
     );
     const selectedUnitBytes = [...Object.values(serverBytes), agentBytes].join(
         "\n",
@@ -172,8 +178,8 @@ test("native layout exactly scopes Analytics Admin and Insights members", () => 
     const layout = generatedNativeLayout(analytics);
     expect(layout.units.map((entry) => entry.path)).toEqual([
         "systemd/rz-admin.service",
+        "systemd/rz-full.service",
         "systemd/rz-insights.service",
-        "systemd/rz.target",
     ]);
     expect(layout.configs).toMatchObject([
         { path: "config/rz-admin.env", consumer: "rz-admin", owner: "access" },
@@ -197,10 +203,13 @@ test("native layout exactly scopes Analytics Admin and Insights members", () => 
     requireExactDirective(admin, "ExecStart", "/opt/rz/current/bin/rz-admin serve");
     requireExactDirective(insights, "ExecStart", "/opt/rz/current/bin/rz-insights serve");
     requireExactDirective(
-        bytes["systemd/rz.target"],
+        bytes["systemd/rz-full.service"],
         "Wants",
         "rz-admin.service rz-insights.service",
     );
+    requireExactDirective(bytes["systemd/rz-full.service"], "Type", "oneshot");
+    requireExactDirective(bytes["systemd/rz-full.service"], "ExecStart", "/bin/true");
+    requireExactDirective(bytes["systemd/rz-full.service"], "RemainAfterExit", "yes");
     for (const forbidden of [
         "rz-monitor",
         "rz-reports",
@@ -223,7 +232,7 @@ test("native unit semantics reject duplicate override directives", () => {
     for (const [path, appended] of [
         ["systemd/rz-admin.service", "User=root\n"],
         ["systemd/rz-monitor.service", "UMask=0000\n"],
-        ["systemd/rz.target", "Wants=rogue.service\n"],
+        ["systemd/rz-full.service", "Wants=rogue.service\n"],
     ] as const) {
         const mutated = { ...originalServer };
         mutated[path] += appended;

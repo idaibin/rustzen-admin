@@ -195,7 +195,7 @@ const steps = {
         },
         {
             action: "assertElementLayout",
-            selector: ".data-table-pagination .ant-pagination",
+            selector: "[data-testid=summaries-pagination] .ant-pagination",
             visibleCount: 1,
             withinViewportRight: true,
         },

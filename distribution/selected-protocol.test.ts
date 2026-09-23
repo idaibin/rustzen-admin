@@ -113,7 +113,7 @@ test("selected protocol accepts only the exact command wire format", async () =>
         for (const invalid of [
             output.slice(0, -1),
             `${output}\n`,
-            output.replace("\n", " \n"),
+            output.split("\n").join(" \n"),
         ])
             await expect(
                 produceSelectedProtocol(

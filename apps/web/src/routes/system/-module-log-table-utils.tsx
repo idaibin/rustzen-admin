@@ -1,3 +1,4 @@
+import { formatBytes } from "@/lib/format";
 import { t } from "@/lib/i18n";
 
 export function getCleanupCandidateColumns() {
@@ -28,27 +29,4 @@ export function getCleanupCandidateColumns() {
             render: (value: number) => formatBytes(value),
         },
     ];
-}
-
-export function formatBytes(bytes: number) {
-    if (!bytes) {
-        return "0 B";
-    }
-    const units = ["B", "KB", "MB", "GB", "TB"] as const;
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-    }
-    const precision = unitIndex === 0 ? 0 : 1;
-    return `${Number(value.toFixed(precision))} ${units[unitIndex]}`;
-}
-
-export function formatDateTime(value: string) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return "-";
-    }
-    return date.toLocaleString();
 }

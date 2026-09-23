@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { appMessage, monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { PanelBody, PanelFooter } from "@/components/page/panel-layout";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -71,7 +72,7 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
             }}
             disabled={!canManage || mutation.isPending}
         >
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+            <PanelBody>
                 <Typography.Paragraph type="secondary">
                     {t(
                         "统一设置 CPU、内存、磁盘和离线告警。修改后立即影响使用全局策略的节点；节点自定义策略优先。",
@@ -157,8 +158,8 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                         </Form.Item>
                     </div>
                 </Card>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+            </PanelBody>
+            <PanelFooter className="justify-between">
                 <Typography.Text type="secondary" className="text-xs">
                     {t("最近更新", "Last updated")}: {formatDateTime(data.updatedAt)}
                 </Typography.Text>
@@ -177,7 +178,7 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                         </Button>
                     ) : null}
                 </Space>
-            </div>
+            </PanelFooter>
         </Form>
     );
 }
