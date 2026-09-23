@@ -1,0 +1,278 @@
+{
+    "schemaVersion": 1,
+    "capabilities": [
+        {
+            "id": "access",
+            "artifactClass": "server",
+            "dependsOn": [],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Minimal Admin, selected Web and selected API/schema/config/native contracts are implemented; signed native packaging, installation and runtime certification are not complete."
+                }
+            ],
+            "webRoots": [
+                "apps/web/src/routes/login.tsx",
+                "apps/web/src/routes/profile.tsx",
+                "apps/web/src/routes/system/user.tsx",
+                "apps/web/src/routes/system/role.tsx",
+                "apps/web/src/routes/__root.tsx",
+                "apps/web/src/routes/403.tsx",
+                "apps/web/src/routes/404.tsx"
+            ],
+            "schemaOwners": ["admin"],
+            "configOwners": ["access"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "monitor",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["monitor"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-monitor",
+                    "binary": "rz-monitor",
+                    "status": "blocked",
+                    "reason": "Selected Controller configuration and protocol contracts are implemented; signed native packaging, installation and runtime certification are not complete."
+                }
+            ],
+            "webRoots": [
+                "apps/web/src/routes/monitoring.tsx",
+                "apps/web/src/routes/monitoring/overview.tsx",
+                "apps/web/src/routes/monitoring/nodes.tsx",
+                "apps/web/src/routes/monitoring/incidents.tsx",
+                "apps/web/src/routes/monitoring/summaries.tsx"
+            ],
+            "schemaOwners": ["monitor"],
+            "configOwners": ["monitor"],
+            "units": ["rz-monitor.service"]
+        },
+        {
+            "id": "insights",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["insights"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-insights",
+                    "binary": "rz-insights",
+                    "status": "blocked",
+                    "reason": "Analytics Admin/Insights selected Cargo, schema, Web/API/config/protocol and native-layout producers are implemented; P8a admission does not provide container, staging, signing, runtime or browser certification."
+                }
+            ],
+            "webRoots": [
+                "apps/web/src/routes/analytics.tsx",
+                "apps/web/src/routes/analytics/overview.tsx",
+                "apps/web/src/routes/analytics/details.tsx"
+            ],
+            "schemaOwners": ["insights"],
+            "configOwners": ["insights"],
+            "units": ["rz-insights.service"]
+        },
+        {
+            "id": "reports",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["reports"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-reports",
+                    "binary": "rz-reports",
+                    "status": "blocked",
+                    "reason": "The formal multi-binary selected Cargo producer and the selected Web graph are not implemented; only the rz-reports service-only closure builds with selected-distribution."
+                }
+            ],
+            "webRoots": [
+                "apps/web/src/routes/reports.tsx",
+                "apps/web/src/routes/reports/templates.tsx",
+                "apps/web/src/routes/reports/runs.tsx"
+            ],
+            "schemaOwners": ["reports"],
+            "configOwners": ["reports"],
+            "units": ["rz-reports.service"]
+        },
+        {
+            "id": "notifications",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Reports producer Linux certification and realtime delivery are not implemented."
+                }
+            ],
+            "webRoots": ["apps/web/src/routes/-notifications-shell.tsx"],
+            "schemaOwners": ["admin-notifications"],
+            "schemaOwnerIntersections": [
+                {
+                    "owner": "monitor-notifications",
+                    "capabilities": ["monitor", "notifications"]
+                },
+                {
+                    "owner": "reports-notifications",
+                    "capabilities": ["reports", "notifications"]
+                }
+            ],
+            "configOwners": ["notifications"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "admin-console",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Optional Admin feature boundary is not implemented."
+                }
+            ],
+            "webRoots": [
+                "apps/web/src/routes/index.tsx",
+                "apps/web/src/routes/system/menu.tsx",
+                "apps/web/src/routes/system/module.tsx",
+                "apps/web/src/routes/system/status.tsx"
+            ],
+            "schemaOwners": ["admin"],
+            "configOwners": ["admin-console"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "release-ui",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Selected release-management feature boundary is not implemented."
+                }
+            ],
+            "webRoots": ["apps/web/src/routes/manage/deploy.tsx"],
+            "schemaOwners": ["admin"],
+            "configOwners": ["release-ui"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "task-admin",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Selected task-administration feature boundary is not implemented."
+                }
+            ],
+            "webRoots": ["apps/web/src/routes/manage/task.tsx"],
+            "schemaOwners": ["admin"],
+            "configOwners": ["task-admin"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "log-console",
+            "artifactClass": "server",
+            "dependsOn": ["access"],
+            "services": ["admin"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-admin",
+                    "binary": "rz-admin",
+                    "status": "blocked",
+                    "reason": "Selected operation-log feature boundary is not implemented."
+                }
+            ],
+            "webRoots": ["apps/web/src/routes/manage/log.tsx"],
+            "schemaOwners": ["admin"],
+            "configOwners": ["log-console"],
+            "units": ["rz-admin.service"]
+        },
+        {
+            "id": "monitor-agent",
+            "artifactClass": "node-agent",
+            "dependsOn": [],
+            "services": ["monitor-agent"],
+            "packageTargets": [
+                {
+                    "package": "rustzen-monitor",
+                    "binary": "rz-monitor-agent",
+                    "status": "blocked",
+                    "reason": "Agent configuration, protocol and native layout contracts are implemented; signed Controller pairing profile packaging, Agent installation and runtime certification are not complete."
+                }
+            ],
+            "webRoots": [],
+            "schemaOwners": [],
+            "configOwners": ["monitor-agent"],
+            "units": ["rz-monitor-agent.service"]
+        }
+    ],
+    "presets": {
+        "node-agent": {
+            "artifactClass": "node-agent",
+            "releaseClass": "production",
+            "capabilities": ["monitor-agent"]
+        },
+        "full": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": [
+                "access",
+                "monitor",
+                "insights",
+                "reports",
+                "notifications",
+                "admin-console",
+                "release-ui",
+                "task-admin",
+                "log-console"
+            ]
+        },
+        "monitor": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": ["access", "monitor"]
+        },
+        "monitor-notify": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": ["access", "monitor", "notifications"]
+        },
+        "analytics": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": ["access", "insights"]
+        },
+        "reports": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": ["access", "reports"]
+        },
+        "current-full-regression": {
+            "artifactClass": "server",
+            "releaseClass": "test",
+            "capabilities": [
+                "access",
+                "monitor",
+                "insights",
+                "reports",
+                "admin-console",
+                "release-ui",
+                "task-admin",
+                "log-console"
+            ]
+        }
+    }
+}

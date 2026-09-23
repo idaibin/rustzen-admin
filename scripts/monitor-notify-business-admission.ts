@@ -1,0 +1,8 @@
+import { canonicalJson } from "../distribution/release-manifest-core.ts";
+import { parseSelectedWebBootstrapBrowserReceipt } from "./selected-web-bootstrap-browser-receipt.ts";
+const hash=/^[a-f0-9]{64}$/;
+export function admitMonitorNotifyBusiness(native:any, receipt:any){
+ const browser:any=parseSelectedWebBootstrapBrowserReceipt(receipt), selection=native?.selection, release=native?.release, admin=native?.services?.find((x:any)=>x.unit==="rz-admin.service")?.executable, monitor=native?.services?.find((x:any)=>x.unit==="rz-monitor.service")?.executable;
+ if(native?.kind!=="monitor-native-runtime-evidence"||native.runtime!==true||native.browser!==false||native.load!==false||native.releaseReady!==false||selection?.preset!=="monitor-notify"||selection?.artifactClass!=="server"||selection?.target!=="x86_64-unknown-linux-musl"||![selection.buildId,selection.compositionId,release?.archiveSha256,release?.certificateSha256,release?.envelopeSha256,release?.manifestSha256,admin?.sha256,monitor?.sha256].every((x:any)=>hash.test(String(x)))||browser.release.buildId!==selection.buildId||browser.release.selection?.compositionId!==selection.compositionId||browser.release.selection?.preset!=="monitor-notify"||["archiveSha256","certificateSha256","envelopeSha256","manifestSha256"].some(key=>browser.release[key]!==release[key])||browser.runtime.before.sha256!==admin.sha256||canonicalJson(browser.runtime.before)!==canonicalJson(browser.runtime.after))throw Error("P8e/P8f-A monitor-notify tuple differs");
+ return {selection,release,admin,monitor,runtime:browser.runtime.after,source:browser.sourceIdentity};
+}

@@ -1,13 +1,15 @@
 pub mod handler;
 pub mod repo;
+mod repo_mutation;
+mod repo_security;
 pub mod service;
 pub mod types;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
 use axum::routing::{delete, get, post, put};
 use handler::{
-    create_user, delete_user, get_user_options, get_user_status_options, list_users, update_user,
-    update_user_password, update_user_status,
+    create_user, delete_user, get_user_options, get_user_status_options, list_users,
+    revoke_user_sessions, update_user, update_user_password, update_user_status,
 };
 use rustzen_auth::capability::system_user;
 use sqlx::SqlitePool;
@@ -68,6 +70,13 @@ pub fn user_contract_routes() -> ContractRouter<SqlitePool> {
             OperationDescriptor::UpdateUserStatus,
             AccessPolicy::Require(system_user::UPDATE_STATUS),
             put(update_user_status),
+        )
+        .expect("static user contract")
+        .post(
+            "/{id}/sessions/revoke-all",
+            OperationDescriptor::RevokeUserSessions,
+            AccessPolicy::Require(system_user::RESET_PASSWORD),
+            post(revoke_user_sessions),
         )
         .expect("static user contract")
 }

@@ -1,16 +1,75 @@
-//! Focused runtime configuration for the four RustZen applications.
+//! Focused runtime configuration for the four Rustzen applications.
 
+#[cfg(any(
+    all(feature = "admin", feature = "admin-monitor"),
+    all(feature = "admin", feature = "admin-insights"),
+    all(feature = "admin-monitor", feature = "admin-insights")
+))]
+compile_error!("select exactly one Admin configuration profile");
+
+#[cfg(all(
+    feature = "admin-insights",
+    any(
+        feature = "insights",
+        feature = "monitor-controller",
+        feature = "monitor-agent",
+        feature = "reports",
+        feature = "notifications"
+    )
+))]
+compile_error!("admin-insights cannot include another process configuration");
+
+#[cfg(any(feature = "admin", feature = "admin-monitor", feature = "admin-insights"))]
 mod admin;
+#[cfg(feature = "monitor-agent")]
+mod agent_activation;
+mod contract;
+#[cfg(feature = "insights")]
 mod insights;
+#[cfg(feature = "insights")]
+mod insights_contract;
+#[cfg(any(feature = "monitor-agent", feature = "monitor-controller"))]
 mod monitor;
+#[cfg(feature = "reports")]
 mod reports;
 mod shared;
 
+pub use contract::ConfigContract;
+#[cfg(feature = "admin-insights")]
+pub use contract::admin_insights_contract;
+#[cfg(feature = "admin-monitor")]
+pub use contract::admin_monitor_contract;
+#[cfg(feature = "monitor-agent")]
+pub use contract::monitor_agent_contract;
+#[cfg(feature = "monitor-controller")]
+pub use contract::monitor_controller_contract;
+#[cfg(feature = "notifications")]
+pub use contract::notifications_contract;
+#[cfg(feature = "reports")]
+pub use contract::reports_contract;
+#[cfg(feature = "insights")]
+pub use insights_contract::insights_contract;
+
+#[cfg(any(feature = "admin", feature = "admin-monitor", feature = "admin-insights"))]
 pub use admin::AdminConfig;
+#[cfg(feature = "monitor-agent")]
+pub use agent_activation::{
+    AgentEnvironment, ControllerProfile, parse_agent_environment_bytes, read_agent_environment,
+    read_controller_profile,
+};
+#[cfg(feature = "insights")]
 pub use insights::InsightsConfig;
-pub use monitor::{MonitorAgentConfig, MonitorControllerConfig};
+#[cfg(feature = "monitor-agent")]
+pub use monitor::MonitorAgentConfig;
+#[cfg(feature = "monitor-controller")]
+pub use monitor::MonitorControllerConfig;
+#[cfg(feature = "reports")]
 pub use reports::ReportsConfig;
-pub use shared::{ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present};
+#[cfg(feature = "monitor-agent")]
+pub use shared::canonical_monitor_endpoint;
+pub use shared::{
+    ConfigError, DatabaseConfig, RuntimeConfig, load_dotenv_if_present, valid_monitor_agent_token,
+};
 
 /// Fixed retention period for Admin logs, task runs, metrics, events, and reports.
 pub const RETENTION_DAYS: u64 = 30;
@@ -28,13 +87,16 @@ pub unsafe fn initialize_process_timezone(timezone: &str) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "admin"))]
 mod contract_tests {
     use figment::{Figment, providers::Serialized};
     use serde::Serialize;
 
-    use crate::{AdminConfig, MonitorControllerConfig};
+    use crate::AdminConfig;
+    #[cfg(feature = "monitor-controller")]
+    use crate::MonitorControllerConfig;
 
+    #[cfg(feature = "monitor-controller")]
     #[derive(Serialize)]
     struct EndpointOverrides<'a> {
         internal_host: &'a str,
@@ -42,13 +104,14 @@ mod contract_tests {
     }
 
     #[derive(Serialize)]
-    struct LegacyOverrides<'a> {
+    struct IgnoredOverrides<'a> {
         app_host: &'a str,
         app_port: u16,
         worker_host: &'a str,
         sqlite_path: &'a str,
     }
 
+    #[cfg(feature = "monitor-controller")]
     #[test]
     fn admin_and_monitor_derive_the_same_fixed_service_endpoint() {
         let overrides = EndpointOverrides { internal_host: "127.0.0.9", monitor_port: 19082 };
@@ -66,16 +129,16 @@ mod contract_tests {
     }
 
     #[test]
-    fn legacy_endpoint_and_database_names_are_not_compatibility_aliases() {
+    fn unknown_endpoint_and_database_names_are_ignored() {
         let config: AdminConfig = Figment::new()
-            .merge(Serialized::defaults(LegacyOverrides {
-                app_host: "legacy.example",
+            .merge(Serialized::defaults(IgnoredOverrides {
+                app_host: "ignored.example",
                 app_port: 19001,
-                worker_host: "legacy.internal",
-                sqlite_path: "/tmp/legacy.db",
+                worker_host: "ignored.internal",
+                sqlite_path: "/tmp/ignored.db",
             }))
             .extract()
-            .expect("ignored legacy values");
+            .expect("ignored values");
 
         assert_eq!(config.admin_host(), "0.0.0.0");
         assert_eq!(config.admin_port(), 9801);
@@ -100,7 +163,9 @@ mod contract_tests {
                 ("RUSTZEN_JWT_SECRET", "replace-me"),
                 ("RUSTZEN_IPC_TOKEN", "replace-me"),
                 ("RUSTZEN_MONITOR_AGENT_TOKEN", "replace-me"),
-                ("RUSTZEN_REPORTS_CREDENTIAL_KEY", "replace-me"),
+                ("RUSTZEN_MONITOR_NODE_ID", "replace-me"),
+                ("RUSTZEN_NOTIFICATION_EVENT_KEY", "replace-me"),
+                ("RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY", "replace-me"),
                 ("RUSTZEN_DEPLOY_SIGNATURE_REQUIRED", "true"),
                 ("RUSTZEN_DEPLOY_VERIFY_KEY", "replace-me"),
             ]

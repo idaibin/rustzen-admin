@@ -8,8 +8,6 @@
 - Selection status: accepted existing product surface; repository-owned source.
 - Use: current route composition and the shared owners referenced from root
   `DESIGN.md`, plus the bilingual copy pattern.
-- Ignore: deleted legacy glass imagery and any visual alternative that is not
-  part of the current standard light/dark Admin system.
 - Product basis:
   `docs/product/features/role-definition-management/spec.md`.
 
@@ -19,7 +17,12 @@ automation consumer or shared-system revision is introduced.
 
 ## Layout and ownership
 
-- Preserve the current role-list `PageCard`, toolbar, table, pagination, and
+- Keep role name, role code and status filters at the content upper right. Text
+  follows the shared automatic-search delay and composition rules; status applies
+  immediately, applied filters reset pagination, and no query/reset buttons remain.
+  Controls stay mounted during loading/errors. Dialog Save/Cancel and permission-tree
+  search remain separate from list filters.
+- Preserve the current role-list `PageCard`, table, pagination, and
   action-column ownership.
 - Preserve the current column order through **Permissions**, then add
   **Assigned users / 已分配用户**, followed by **Updated at** and the existing

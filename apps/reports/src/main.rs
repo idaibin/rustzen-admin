@@ -4,6 +4,8 @@ mod config;
 mod features;
 mod infra;
 mod middleware;
+#[cfg(feature = "notifications")]
+mod notifications;
 
 use crate::{config::CONFIG, infra::logger::init_logging};
 

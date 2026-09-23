@@ -6,7 +6,9 @@ use std::{
 use axum::http::Method;
 use rustzen_ipc::{AccessMode, ModuleManifest};
 
-use super::types::{GatewayLookup, GatewayTarget, ModuleRuntime, ModuleSpec, ModuleStatusResponse};
+#[cfg(feature = "full")]
+use super::types::ModuleStatusResponse;
+use super::types::{GatewayLookup, GatewayTarget, ModuleRuntime, ModuleSpec};
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
@@ -32,7 +34,7 @@ impl ModuleRegistry {
             .unwrap_or_else(|poisoned| Arc::clone(&poisoned.into_inner()))
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "full"))]
     pub fn replace(&self, snapshot: RegistrySnapshot) {
         let replacement = Arc::new(snapshot);
         match self.current.write() {
@@ -76,17 +78,33 @@ impl RegistrySnapshot {
         &self.modules
     }
 
-    #[cfg(test)]
+    /// Returns registered modules in the product's fixed display order.
+    ///
+    /// `BTreeMap` keeps registry lookups deterministic, but its lexical key ordering is not the
+    /// order that the module APIs expose. Unknown modules are retained after the fixed modules so
+    /// test fixtures and future extension modules remain observable.
+    #[cfg(feature = "full")]
+    pub fn display_modules(&self) -> Vec<&ModuleRuntime> {
+        let specs = ModuleSpec::fixed();
+        let mut modules =
+            specs.iter().filter_map(|spec| self.modules.get(spec.id)).collect::<Vec<_>>();
+        modules.extend(
+            self.modules
+                .iter()
+                .filter(|(id, _)| !specs.iter().any(|spec| spec.id == id.as_str()))
+                .map(|(_, runtime)| runtime),
+        );
+        modules
+    }
+
+    #[cfg(all(test, feature = "full"))]
     pub fn into_modules(self) -> BTreeMap<String, ModuleRuntime> {
         self.modules
     }
 
+    #[cfg(feature = "full")]
     pub fn statuses(&self) -> Vec<ModuleStatusResponse> {
-        ["monitor", "insights", "reports"]
-            .into_iter()
-            .filter_map(|module| self.modules.get(module))
-            .map(ModuleStatusResponse::from)
-            .collect()
+        self.display_modules().into_iter().map(ModuleStatusResponse::from).collect()
     }
 
     pub fn lookup(&self, method: &Method, path: &str) -> (GatewayLookup, Option<GatewayTarget>) {
@@ -234,6 +252,7 @@ mod tests {
                 }],
             })),
             manifest_hash: Some([1; 32]),
+            storage: None,
             last_seen_at: Some(chrono::Utc::now()),
             error: None,
         }

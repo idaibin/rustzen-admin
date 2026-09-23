@@ -1,6 +1,6 @@
 [module]
 id = "reports"
-name = "报表"
+name = "自动化"
 api_prefix = "/api/reports"
 contract_version = 1
 

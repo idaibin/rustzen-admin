@@ -3,6 +3,18 @@ import { localizeApiError } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
+export class ApiRequestError extends Error {
+    readonly code?: number;
+    readonly status?: number;
+
+    constructor(message: string, options: { code?: number; status?: number } = {}) {
+        super(message);
+        this.name = "ApiRequestError";
+        this.code = options.code;
+        this.status = options.status;
+    }
+}
+
 export function apiRequest<T, P = Api.BaseParams>(
     props: RequestOptions<P> & { raw: true },
 ): Promise<Api.ApiResponse<T>>;
@@ -12,8 +24,8 @@ export function apiRequest<T, P = Api.BaseParams>(
 export async function apiRequest<T, P = Api.BaseParams>(
     props: RequestOptions<P>,
 ): Promise<T | Api.ApiResponse<T>> {
-    const { url, config } = formatFetchConfig(props);
-    const result = await executeJsonRequest<Api.ApiResponse<T>>(url, config);
+    const { url, config, silent } = formatFetchConfig(props);
+    const result = await executeJsonRequest<Api.ApiResponse<T>>(url, config, silent);
 
     return props.raw ? result : result.data;
 }
@@ -23,13 +35,25 @@ export const generatedApiRequest = <T>(url: string, options: RequestInit): Promi
     executeJsonRequest<T>(url, withDefaultAndAuthHeaders(options));
 
 /** Orval mutator for binary responses; JSON routes keep generatedApiRequest. */
+export interface GeneratedBlobResponse<T extends Blob = Blob> {
+    blob: T;
+    headers: Headers;
+}
+
+export const generatedBlobResponse = async <T extends Blob = Blob>(
+    url: string,
+    options: RequestInit,
+): Promise<GeneratedBlobResponse<T>> => {
+    const response = await fetch(url, withDefaultAndAuthHeaders(options));
+    if (!response.ok) return handleError(response);
+    return { blob: (await response.blob()) as T, headers: response.headers };
+};
+
 export const generatedBlobRequest = async <T extends Blob = Blob>(
     url: string,
     options: RequestInit,
 ): Promise<T> => {
-    const response = await fetch(url, withDefaultAndAuthHeaders(options));
-    if (!response.ok) return handleError(response);
-    return (await response.blob()) as T;
+    return (await generatedBlobResponse<T>(url, options)).blob;
 };
 
 export const apiDownload = async ({
@@ -104,6 +128,7 @@ interface RequestOptions<P = Api.BaseParams> extends RequestInit {
     params?: P;
     query?: Api.BaseParams;
     raw?: boolean;
+    silent?: boolean;
 }
 
 const withDefaultAndAuthHeaders = (options: RequestInit): RequestInit => {
@@ -122,7 +147,13 @@ const withDefaultAndAuthHeaders = (options: RequestInit): RequestInit => {
     return { ...options, headers };
 };
 
-const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions<T>) => {
+const formatFetchConfig = <T>({
+    params,
+    query,
+    url,
+    silent = false,
+    ...options
+}: RequestOptions<T>) => {
     const config = withDefaultAndAuthHeaders(options);
     url = appendQueryString(url, query);
     if (["PUT", "POST", "PATCH"].includes(options.method || "GET")) {
@@ -130,12 +161,22 @@ const formatFetchConfig = <T>({ params, query, url, ...options }: RequestOptions
     } else {
         url = appendQueryString(url, params);
     }
-    return { url, config };
+    return { url, config, silent };
 };
 
-const executeJsonRequest = async <T>(url: string, config: RequestInit): Promise<T> => {
-    const response = await fetch(url, config);
-    if (!response.ok) return handleError(response);
+const executeJsonRequest = async <T>(
+    url: string,
+    config: RequestInit,
+    silent = false,
+): Promise<T> => {
+    let response: Response;
+    try {
+        response = await fetch(url, config);
+    } catch (error) {
+        if (!silent) throw error;
+        return handleError(error, silent);
+    }
+    if (!response.ok) return handleError(response, silent);
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
     if (contentType.includes("text/csv") || contentType.includes("text/plain")) {
         return (await response.text()) as T;
@@ -147,13 +188,63 @@ const executeJsonRequest = async <T>(url: string, config: RequestInit): Promise<
             envelope.code,
             envelope.message || response.statusText || t("请求失败", "Request failed"),
         );
-        appMessage.error(message);
-        return Promise.reject(new Error(message));
+        if (!silent) {
+            appMessage.error(message);
+            return Promise.reject(new Error(message));
+        }
+        return rejectRequestError(message, { code: envelope.code, status: response.status }, true);
     }
     return result;
 };
 
-const handleError = async (error: unknown) => {
+const handleError = async (error: unknown, silent = false) => {
+    if (!silent) return handleVisibleError(error);
+    if (error instanceof DOMException && error.name === "AbortError") {
+        return Promise.reject(error);
+    }
+
+    if (!(error instanceof Response)) {
+        if (error instanceof ApiRequestError) return Promise.reject(error);
+        return rejectRequestError(
+            t("网络请求失败，请稍后重试。", "Network request failed."),
+            {},
+            silent,
+        );
+    }
+
+    const payload = await readErrorPayload(error);
+    const requestUrl = error.url || "";
+    const fallbackMessage = payload?.message || error.statusText || t("请求失败", "Request failed");
+    const message = localizeApiError(payload?.code, fallbackMessage);
+
+    if (error.status === 401) {
+        if (requestUrl.includes("/api/auth/login")) {
+            return rejectRequestError(
+                message || t("用户名或密码错误。", "Invalid username or password."),
+                { code: payload?.code, status: error.status },
+                silent,
+            );
+        }
+
+        useAuthStore.getState().clearAuth();
+        if (window.location.pathname !== "/login") {
+            window.location.replace("/login");
+        }
+        return rejectRequestError(message, { code: payload?.code, status: error.status }, silent);
+    }
+
+    if (error.status >= 500 && requestUrl.includes("/api/auth/")) {
+        useAuthStore.getState().clearAuth();
+        if (window.location.pathname !== "/login") {
+            window.location.replace("/login");
+        }
+        return rejectRequestError(message, { code: payload?.code, status: error.status }, silent);
+    }
+
+    return rejectRequestError(message, { code: payload?.code, status: error.status }, silent);
+};
+
+const handleVisibleError = async (error: unknown) => {
     if (error instanceof DOMException && error.name === "AbortError") {
         return Promise.reject(error);
     }
@@ -191,6 +282,15 @@ const handleError = async (error: unknown) => {
 
     appMessage.error(message);
     return Promise.reject(error);
+};
+
+const rejectRequestError = (
+    message: string,
+    details: { code?: number; status?: number },
+    silent: boolean,
+): Promise<never> => {
+    if (!silent) appMessage.error(message);
+    return Promise.reject(new ApiRequestError(message, details));
 };
 
 const readErrorPayload = async (

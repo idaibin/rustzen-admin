@@ -1,14 +1,22 @@
 [Unit]
-Description=RustZen Monitor Agent
-After=network-online.target
+Description=Rustzen Monitor Agent
 Wants=network-online.target
+After=network-online.target
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
-Type=simple
-EnvironmentFile=/opt/rz/config/rz.env
-ExecStart=/opt/rz/current/bin/rz-monitor agent
+Type=notify
+User=rz-monitor-agent
+Group=rz-monitor-agent
+UMask=0027
+NotifyAccess=main
+TimeoutStartSec=infinity
+EnvironmentFile=/opt/rz/config/rz-monitor-agent.env
+StateDirectory=rustzen-monitor-agent
+LogsDirectory=rustzen-monitor-agent
+Environment=RUSTZEN_RUNTIME_ROOT=/var/lib/rustzen-monitor-agent
+ExecStart=/opt/rz/current/bin/rz-monitor-agent
 WorkingDirectory=/opt/rz
 Restart=on-failure
 RestartSec=5

@@ -1,0 +1,305 @@
+{
+    "admin": {
+        "routes": [
+            {
+                "access": {
+                    "capabilities": ["system:role:delete"],
+                    "kind": "require"
+                },
+                "method": "DELETE",
+                "operation": "deleteRole",
+                "path": "/api/system/roles/{id}"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:delete"],
+                    "kind": "require"
+                },
+                "method": "DELETE",
+                "operation": "deleteUser",
+                "path": "/api/system/users/{id}"
+            },
+            {
+                "access": { "kind": "public" },
+                "method": "GET",
+                "operation": "getWebBinding",
+                "path": "/__web-binding"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "GET",
+                "operation": "logout",
+                "path": "/api/auth/logout"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "GET",
+                "operation": "getCurrentAdminUser",
+                "path": "/api/auth/me"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "GET",
+                "operation": "getInstallation",
+                "path": "/api/installation"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:menu:options"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "getMenuOptions",
+                "path": "/api/system/menus/options"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "GET",
+                "operation": "getModuleNavigation",
+                "path": "/api/system/modules/navigation"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:role:list"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "listRoles",
+                "path": "/api/system/roles"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:role:options"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "getRoleOptions",
+                "path": "/api/system/roles/options"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:list"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "listUsers",
+                "path": "/api/system/users"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:options"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "getUserOptions",
+                "path": "/api/system/users/options"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:options"],
+                    "kind": "require"
+                },
+                "method": "GET",
+                "operation": "getUserStatusOptions",
+                "path": "/api/system/users/status-options"
+            },
+            {
+                "access": { "kind": "public" },
+                "method": "POST",
+                "operation": "login",
+                "path": "/api/auth/login"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:role:create"],
+                    "kind": "require"
+                },
+                "method": "POST",
+                "operation": "createRole",
+                "path": "/api/system/roles"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:create"],
+                    "kind": "require"
+                },
+                "method": "POST",
+                "operation": "createAdminUser",
+                "path": "/api/system/users"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:password"],
+                    "kind": "require"
+                },
+                "method": "POST",
+                "operation": "revokeUserSessions",
+                "path": "/api/system/users/{id}/sessions/revoke-all"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "PUT",
+                "operation": "changeAccountPassword",
+                "path": "/api/account/password"
+            },
+            {
+                "access": { "kind": "authenticated" },
+                "method": "PUT",
+                "operation": "updateAccountProfile",
+                "path": "/api/account/profile"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:role:update"],
+                    "kind": "require"
+                },
+                "method": "PUT",
+                "operation": "updateRole",
+                "path": "/api/system/roles/{id}"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:update"],
+                    "kind": "require"
+                },
+                "method": "PUT",
+                "operation": "updateUser",
+                "path": "/api/system/users/{id}"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:password"],
+                    "kind": "require"
+                },
+                "method": "PUT",
+                "operation": "updateUserPassword",
+                "path": "/api/system/users/{id}/password"
+            },
+            {
+                "access": {
+                    "capabilities": ["system:user:status"],
+                    "kind": "require"
+                },
+                "method": "PUT",
+                "operation": "updateUserStatus",
+                "path": "/api/system/users/{id}/status"
+            }
+        ],
+        "version": 1
+    },
+    "monitor": {
+        "apiPrefix": "/api/monitor",
+        "contractVersion": 1,
+        "menus": [
+            {
+                "code": "overview",
+                "icon": "monitor",
+                "path": "/monitoring/overview",
+                "permission": "monitor:overview:view",
+                "sortOrder": 10,
+                "title": "概览"
+            },
+            {
+                "code": "nodes",
+                "icon": "monitor",
+                "path": "/monitoring/nodes",
+                "permission": "monitor:node:view",
+                "sortOrder": 20,
+                "title": "节点"
+            },
+            {
+                "code": "incidents",
+                "icon": "monitor",
+                "path": "/monitoring/incidents",
+                "permission": "monitor:incident:view",
+                "sortOrder": 30,
+                "title": "告警事件"
+            },
+            {
+                "code": "summaries",
+                "icon": "monitor",
+                "path": "/monitoring/summaries",
+                "permission": "monitor:node:view",
+                "sortOrder": 50,
+                "title": "日报"
+            }
+        ],
+        "module": "monitor",
+        "name": "监控",
+        "routes": [
+            {
+                "access": "protected",
+                "method": "DELETE",
+                "path": "/nodes/{node_id}/alert-settings",
+                "permission": "monitor:manage"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/alert-settings",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/daily-summaries",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/incidents",
+                "permission": "monitor:incident:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/incidents/{id}",
+                "permission": "monitor:incident:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/nodes",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/nodes/{node_id}",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/nodes/{node_id}/alert-settings",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/nodes/{node_id}/metrics",
+                "permission": "monitor:node:view"
+            },
+            {
+                "access": "protected",
+                "method": "GET",
+                "path": "/overview",
+                "permission": "monitor:overview:view"
+            },
+            { "access": "public", "method": "POST", "path": "/agent-reports" },
+            {
+                "access": "protected",
+                "method": "PUT",
+                "path": "/alert-settings",
+                "permission": "monitor:manage"
+            },
+            {
+                "access": "protected",
+                "method": "PUT",
+                "path": "/nodes/{node_id}/alert-settings",
+                "permission": "monitor:manage"
+            }
+        ]
+    }
+}

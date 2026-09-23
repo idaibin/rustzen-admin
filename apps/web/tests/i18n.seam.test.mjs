@@ -1,6 +1,20 @@
-import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test, vi } from "bun:test";
 
 import { getLocale, setLocale, subscribeLocale } from "../src/lib/i18n.ts";
+
+const originalDescriptors = Object.fromEntries(
+    ["document", "localStorage", "window"].map((name) => [
+        name,
+        Object.getOwnPropertyDescriptor(globalThis, name),
+    ]),
+);
+
+afterAll(() => {
+    for (const [name, descriptor] of Object.entries(originalDescriptors)) {
+        if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+        else delete globalThis[name];
+    }
+});
 
 describe("i18n locale seam", () => {
     let store;
@@ -18,11 +32,19 @@ describe("i18n locale seam", () => {
         });
         Object.defineProperty(globalThis, "window", {
             configurable: true,
-            value: { location: { reload: vi.fn() } },
+            value: {
+                addEventListener: () => undefined,
+                removeEventListener: () => undefined,
+                location: { reload: vi.fn() },
+            },
         });
         Object.defineProperty(globalThis, "document", {
             configurable: true,
-            value: { documentElement: { lang: "" } },
+            value: {
+                addEventListener: () => undefined,
+                removeEventListener: () => undefined,
+                documentElement: { lang: "" },
+            },
         });
         setLocale("zh-CN");
     });

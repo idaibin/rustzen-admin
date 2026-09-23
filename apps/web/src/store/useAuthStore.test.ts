@@ -10,7 +10,11 @@ test("reports templates can be reached by either flow or schedule viewers", () =
 });
 
 test("other routes keep one explicit capability", () => {
-    expect(getRouteCapabilityCodes("/monitoring/checks")).toEqual(["monitor:check:view"]);
+    expect(getRouteCapabilityCodes("/monitoring/summaries")).toEqual(["monitor:node:view"]);
+});
+
+test("module log diagnostics route requires its owner-only view capability", () => {
+    expect(getRouteCapabilityCodes("/system/module-log")).toEqual(["system:module:log:view"]);
 });
 
 test("incident routes require the incident viewer capability", () => {

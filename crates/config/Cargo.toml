@@ -1,13 +1,32 @@
 [package]
 name = "rustzen-config"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license.workspace = true
 publish = false
 
+[features]
+default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"]
+admin = []
+admin-monitor = []
+admin-insights = []
+notifications = ["dep:rustzen-ipc"]
+reports-notifications = ["reports", "notifications"]
+insights = []
+monitor-controller = []
+monitor-agent = []
+reports = []
+
 [dependencies]
 dotenvy = "0.15"
 figment = { version = "0.10.19", features = ["env"] }
+libc = "0.2"
 rustzen-runtime = { path = "../runtime" }
+rustzen-ipc = { path = "../ipc", optional = true }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 url = "2"
+
+[dev-dependencies]
+serde_json = "1"

@@ -33,7 +33,7 @@ export const localizeBuiltInUserName = (
 const moduleNames: Record<SystemModule.Id, [string, string]> = {
     monitor: ["监控", "Monitoring"],
     insights: ["分析", "Insights"],
-    reports: ["报表", "Reports"],
+    reports: ["自动化", "Automation"],
 };
 
 export const localizeModuleName = (id: SystemModule.Id, fallback: string) =>
@@ -42,10 +42,12 @@ export const localizeModuleName = (id: SystemModule.Id, fallback: string) =>
 const moduleMenuNames: Record<string, [string, string]> = {
     "monitor:overview": ["概览", "Overview"],
     "monitor:nodes": ["节点", "Nodes"],
-    "monitor:checks": ["服务监控", "Service checks"],
+    "monitor:incidents": ["告警事件", "Alert incidents"],
+    "monitor:summaries": ["日报", "Daily summaries"],
     "insights:overview": ["概览", "Overview"],
     "insights:details": ["明细", "Details"],
     "reports:templates": ["模板", "Templates"],
+    "reports:schedules": ["定时报表", "Scheduled reports"],
     "reports:runs": ["填报执行", "Runs"],
 };
 
@@ -55,7 +57,7 @@ export const localizeModuleMenuName = (
     fallback: string,
 ) => {
     const value = moduleMenuNames[`${moduleId}:${code}`];
-    return value ? t(...value) : fallback;
+    return value?.includes(fallback) ? t(...value) : fallback;
 };
 
 const permissionSegments: Record<string, string> = {
@@ -81,7 +83,7 @@ const permissionSegments: Record<string, string> = {
     event: "Event",
     page: "Page",
     api: "API",
-    reports: "Reports",
+    reports: "Automation",
     report: "Report",
     flow: "Flow",
     run: "Run",

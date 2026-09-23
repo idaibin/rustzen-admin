@@ -7,7 +7,19 @@ repository (`idaibin/forgeway`) owns cross-project templates and review records;
 this repository keeps only the current product contract and its implementation
 handoff.
 
+The current [console interaction requirements](./product.md#console-interaction-requirements)
+cover automatic filters, user search scope, unified alert configuration, Analytics
+status-panel removal, and Dashboard scope. Route acceptance is mapped in the
+[UI index](../ui/index.md#current-console-route-contract).
+
 ## Shared implementation contract
+
+The [distribution specification](features/composable-distribution/spec.md) defines
+the first release as one complete signed distribution with optional runtime module
+disablement and the durable message center. Acceptance covers that complete artifact;
+the operator path is build, copy, install and start, with no password, key or database
+command input during installation. The active full-release work is tracked in the
+[implementation plan](features/composable-distribution/implementation.md).
 
 ### Actors and capabilities
 
@@ -62,7 +74,8 @@ and no local permission state is rendered.
 | Incident diagnostics | Monitor incidents and Monitor SQLite | Web Monitoring routes | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/monitor/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Collection safety | Insights tracking, settings, and Insights SQLite | Web Analytics overview/details; public tracker is not an Admin page | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/insights/contract.ts -> scripts/verify-worker-contracts.mjs` |
 | Scheduled Reports | Reports schedules, flows, runs, and Reports SQLite | Web Reports templates/runs | Rust `ModuleRouter/Manifest -> handwritten apps/web/src/api/reports/contract.ts -> scripts/verify-worker-contracts.mjs` |
-| Module logs | Each service emits its own daily file; Admin authorizes and audits access | Web System Status | Admin `ContractRouter -> OpenAPI -> Orval` plus the fixed runtime log allowlist |
+| Module logs | Each service emits its own daily file; Admin authorizes and audits access | Web Module log diagnostics page | Admin `ContractRouter -> OpenAPI -> Orval` plus the fixed runtime log allowlist |
+| Message center | Admin notifications SQLite; Monitor and Reports relay from their own outboxes | Web notifications shell (bell, inbox Drawer, SSE) | Admin `ContractRouter -> OpenAPI -> Orval` plus the loopback producer ingress contract |
 
 No module reads another module's database. The shared runtime logger owns file
 format and retention mechanics; each service remains responsible for its own
@@ -72,16 +85,25 @@ log content and lifecycle.
 
 | Product area | Feature slice | Product specification | UI specification | Status |
 | --- | --- | --- | --- | --- |
-| Monitoring | Incident diagnostics | [monitor-incident-diagnostics](./features/monitor-incident-diagnostics/spec.md) | [monitor-incident-diagnostics UI](../ui/features/monitor-incident-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
-| Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Implemented; source-resolved; runtime Not verified |
-| Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Implemented; source-resolved; runtime Not verified |
+| Monitoring | Central node monitoring | [monitoring](./features/monitoring/spec.md) | [Monitoring UI](../ui/features/monitoring.md) | Local gateway/service scenarios and representative browser journeys verified; full visual/deployment acceptance pending |
+| Analytics | Collection safety | [analytics-collection-safety](./features/analytics-collection-safety/spec.md) | [analytics-collection-safety UI](../ui/features/analytics-collection-safety.md) | Local worker collection/query contract verified; production host-tracker acceptance pending |
+| Reports | Scheduled automation | [scheduled-report-automation](./features/scheduled-report-automation/spec.md) | [scheduled-report-automation UI](../ui/features/scheduled-report-automation.md) | Local runtime/browser state-closure verified; deployed scheduling and native-host acceptance pending |
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
+| Admin / notifications | Message center and realtime invalidation | [composable-distribution P5-P7](./features/composable-distribution/spec.md) | [Message Center UI](../ui/features/message-center.md) | P5-P7 closed locally; global sustained load, native systemd, production reverse-proxy and production deployment pending |
+| Admin | Maintenance task console | [admin-maintenance-tasks](./features/admin-maintenance-tasks/spec.md) | [Admin maintenance task console UI](../ui/features/admin-maintenance-tasks.md) | Current source contract; local Linux runtime evidence pending |
+| Admin / runtime | Module storage visibility | [system-status-storage](./features/system-status-storage/spec.md) | [page-audit](../ui/page-audit.md) | Implemented; per-module self-report aggregated locally |
+| Admin | Metric-card route alignment | [metric-card-visual-consistency](./features/metric-card-visual-consistency/spec.md) | [metric-card-visual-consistency UI](../ui/features/metric-card-visual-consistency.md) | Current route contract; representative light/dark checks |
 | Admin | Role definition management | [role-definition-management](./features/role-definition-management/spec.md) | [role-definition-management UI](../ui/features/role-definition-management.md) | Ready |
 | Admin | User role assignment readiness | [user-role-assignment-readiness](./features/user-role-assignment-readiness/spec.md) | [user-role-assignment-readiness UI](../ui/features/user-role-assignment-readiness.md) | Ready |
 
 Each row is independently loadable. Implementing one slice does not require
 loading a sibling specification. The root `DESIGN.md` and the shared state and
 permission contract above are the only shared prerequisites.
+
+The linked local verification includes fresh-database runs from 2026-09-03 and
+the final focused reruns from 2026-09-04;
+see [local verification scope](../guides/local-verification.md). It is not a release
+or a deployment approval.
 
 ## Consumer read contract
 

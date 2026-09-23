@@ -1,6 +1,7 @@
 use super::types::{AuthUserRow, LoginCredentialsRow};
 use crate::common::error::ServiceError;
 
+#[cfg(test)]
 use chrono::Utc;
 use sqlx::SqlitePool;
 
@@ -8,23 +9,19 @@ use sqlx::SqlitePool;
 pub struct AuthRepository;
 
 impl AuthRepository {
-    /// Check user by username for authentication (only essential fields)
     pub async fn get_login_credentials(
         pool: &SqlitePool,
         username: &str,
     ) -> Result<Option<LoginCredentialsRow>, ServiceError> {
         sqlx::query_as::<_, LoginCredentialsRow>(
-            "SELECT id, password_hash, status FROM users WHERE username = ? AND deleted_at IS NULL",
+            "SELECT id,password_hash,status,auth_epoch FROM users
+             WHERE username=? AND deleted_at IS NULL",
         )
         .bind(username)
         .fetch_optional(pool)
         .await
-        .map_err(|e| {
-            tracing::error!(
-                "Database error in get_login_credentials, username={}: {:?}",
-                username,
-                e
-            );
+        .map_err(|error| {
+            tracing::error!(%error, "loading login credentials");
             ServiceError::DatabaseQueryFailed
         })
     }
@@ -47,6 +44,7 @@ impl AuthRepository {
     }
 
     /// Update last login timestamp
+    #[cfg(test)]
     pub async fn update_last_login(pool: &SqlitePool, id: i64) -> Result<(), ServiceError> {
         let now = Utc::now().naive_utc();
         sqlx::query("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?")

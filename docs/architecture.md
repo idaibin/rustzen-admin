@@ -1,15 +1,22 @@
 # Architecture
 
-`rustzen-admin` is the source authority for the RustZen Admin, Monitor,
+`rustzen-admin` is the source authority for the Rustzen Admin, Monitor,
 Insights, and Reports runtime. It is a Web/Rust A-class monorepo that produces
 four independent server binaries in one signed release bundle, with one
 version and one rollback boundary.
 
-The same bundle also contains `rz`, a non-resident, read-only operations CLI.
+The same bundle also contains `rz`, a non-resident operations CLI.
 It is a fifth executable entry point, not a fifth service: it owns no database,
 has no systemd unit, and does not change the four server failure domains.
 
 ## Ownership
+
+Admin persists the unique capability catalog in `menus` and module navigation in
+`module_navigation`. Navigation identity is `(module_id, module_menu_code)`;
+its `code` references a capability name without defining another capability.
+Manifest reconciliation updates both projections atomically. This permits
+Monitoring Overview/Settings and Nodes/Summaries to share read permissions while
+retaining independent navigation, visibility, and presentation overrides.
 
 - `apps/admin/` owns the Admin API, authentication and RBAC persistence, the
   in-memory module registry and gateway, release management, Admin migrations,
@@ -26,7 +33,7 @@ has no systemd unit, and does not change the four server failure domains.
 - `crates/config/` owns focused per-application `RUSTZEN_*` parsing and runtime
   path defaults.
 - `crates/storage/` owns shared SQLite connection and maintenance primitives.
-- `crates/runtime/` owns stable runtime-layout helpers and the compatible
+- `crates/runtime/` owns stable runtime-layout helpers and the shared
   daily-file logging mechanism used by all four server applications. It does
   not own application lifecycle or process registration.
 - `deploy/` owns the installer, target, recovery unit, four server units, and
@@ -51,17 +58,8 @@ truth. Automation is an internal Reports feature namespace; it is not a
 separately shipped module. Report Center is deferred and has no process,
 database, route, or permission owner.
 
-Former `rustzen-inspect`, `rustzen-analytics`, and `rustzen-report` repositories
-are live behavior references, not current implementation owners. A module
-expansion must use the fixed comparison in
-`docs/reference/legacy-module-comparison.md`, select capabilities individually,
-and implement them inside the current owner. Old authentication, RBAC, system
-management, deployment, runtime layout, and Web shell code must not be copied
-into a module because Admin and the current release bundle already own those
-contracts.
-
 Shared-code promotion follows `docs/guides/shared-capabilities.md`. Stable
-technical mechanisms may be shared after compatible real consumers and tests
+technical mechanisms may be shared after matching real consumers and tests
 exist. Module models, calculations, statuses, SQL, migrations, schedules,
 retention selection, and business failure semantics remain application-owned.
 Adding a fifth server is a release-topology change, not an ordinary feature
@@ -74,14 +72,33 @@ addition.
 | Admin | `rz-admin serve` | `0.0.0.0:9801` | `data/db/admin.db` |
 | Monitor | `rz-monitor controller` | `127.0.0.1:9802` | `data/db/monitor.db` |
 | Insights | `rz-insights serve` | `127.0.0.1:9803` | `data/db/insights.db` |
-| Reports | `rz-reports serve` | `127.0.0.1:9804` | `data/db/reports.db` |
+| Reports | `rz-reports serve` | `127.0.0.1:9804` | `data/reports/db/reports.db` |
 
-`rz-monitor agent` is an optional managed-node process. It reports to the
-Monitor Controller and is intentionally not part of the server `rz.target`.
+`rz-monitor-agent` is an optional managed-node process. It reports to the
+Monitor Controller and is intentionally not part of the server `rz-full.service`.
+It collects a fixed CPU, memory, and per-mount disk payload every 30 seconds and
+submits it to the Controller. It has no configurable check/task runtime, policy
+engine, incident store, report engine, historical query owner, Outbox, or
+configuration synchronization channel.
+
+The Monitor Controller is the monitoring-data, policy, incident, and report
+authority. It stores the latest state and up to 30 days of raw resource samples,
+evaluates resource policies as samples arrive, and independently evaluates node
+offline state when reports are missing. The terminal product behavior and
+retention boundary are fixed in
+`docs/product/features/monitoring/spec.md`; the Monitoring Rust protocol and
+schemas implement that contract.
+The terminal implementation structure, public and protected API, and executable
+test matrix are defined in `docs/guides/monitoring-architecture.md`,
+`docs/guides/monitoring-api.md`, and `docs/guides/monitoring-testing.md`.
 
 Each server owns only its database and migrations. A module failure leaves
 Admin login and the other module processes available. systemd restarts each
 service independently.
+
+Reports uses one final fresh-install migration baseline. Schedule tables belong
+in that baseline with the rest of the Reports schema; Reports does not retain
+sequential upgrade migrations or alternate-schema paths.
 
 ## Module contract and gateway
 
@@ -162,28 +179,30 @@ All four server applications and the operations CLI use the workspace version.
 target/rz/rz-<version>-<arch>.tar
 └── rz-<version>-<arch>/
     ├── bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
-    ├── systemd/{rz.target,rz-recovery.service,rz-admin.service,
+    ├── systemd/{rz-full.service,rz-recovery.service,rz-admin.service,
     │            rz-monitor.service,rz-insights.service,rz-reports.service}
-    ├── config/rz.env
+    ├── config/{rz.env,rz-reports.env}
     └── setup-layout.sh
 ```
 
-The initial-only installer verifies the complete bundle signature with a
-separately supplied trusted public key, preserves shared configuration and data,
-and installs an immutable release directory:
+`just build-config` also emits `target/rz/rz-install`, a separately copied
+installer with the trusted public verification key embedded by the build. The
+initial-only installer accepts only the complete bundle path, preserves shared
+configuration and data, generates local runtime secrets, and
+installs an immutable release directory:
 
 ```text
 /opt/rz/
 ├── current -> releases/<version>
 ├── releases/<version>/bin/{rz,rz-admin,rz-monitor,rz-insights,rz-reports}
 ├── config/rz.env
-├── data/db/{admin,monitor,insights,reports}.db
+├── data/db/{admin,monitor,insights}.db
 ├── data/releases/rz-<version>-<arch>.tar
-└── data/reports/
+└── data/reports/db/reports.db
 ```
 
-`rz.target` uses `Wants=` for recovery and the four server services. The four
-services use `PartOf=rz.target`, independent restart/start-limit policies, and
+`rz-full.service` uses `Wants=` for recovery and the four server services. The four
+services use `PartOf=rz-full.service`, independent restart/start-limit policies, and
 no `Requires=` coupling. `rz-recovery.service` runs before them and blocks their
 start if an interrupted update cannot be recovered.
 
@@ -245,10 +264,9 @@ the Web client. Generated JSON calls use the `generatedApiRequest` mutator,
 while binary responses use `generatedBlobRequest`; both preserve the existing
 token and error semantics, and feature APIs remain the only page-facing
 callers. `just contract-verify`, `contract-client`,
-`contract-compat`, and `contract-bench` provide focused checks. The fixed
-`contract-admin-native-all-refact-modules-mvp.json` baseline records the one-time
-expansion from the former two-operation bootstrap artifact. `contract-bench` is
+`contract-baseline`, and `contract-bench` provide focused checks. The fixed
+`contract-admin-current.json` baseline detects generated-contract drift. `contract-bench` is
 an isolated release-mode microbenchmark over the 47-operation registration set;
-it alternates legacy-first and contract-first samples and reports separate
+it alternates baseline-first and contract-first samples and reports separate
 prebuilt hot-router probes for Public, Authenticated, and Require paths. It is
 not an end-to-end or production latency claim.

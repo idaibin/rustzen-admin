@@ -7,6 +7,7 @@ MONITOR="${2:-target/release/rz-monitor}"
 INSIGHTS="${3:-target/release/rz-insights}"
 REPORTS="${4:-target/release/rz-reports}"
 CLI="${5:-target/release/rz}"
+AGENT="${6:-target/release/rz-monitor-agent}"
 
 absolute_binary() {
     case "$1" in
@@ -20,15 +21,29 @@ MONITOR="$(absolute_binary "$MONITOR")"
 INSIGHTS="$(absolute_binary "$INSIGHTS")"
 REPORTS="$(absolute_binary "$REPORTS")"
 CLI="$(absolute_binary "$CLI")"
+AGENT="$(absolute_binary "$AGENT")"
 
-for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI"; do
+for binary in "$ADMIN" "$MONITOR" "$INSIGHTS" "$REPORTS" "$CLI" "$AGENT"; do
     if [ ! -x "$binary" ]; then
         echo "verify-services: missing executable: $binary" >&2
         exit 1
     fi
 done
 
+RUSTZEN_VERIFY_BUILD_PROFILE="${RUSTZEN_VERIFY_BUILD_PROFILE:-release}"
+case "$RUSTZEN_VERIFY_BUILD_PROFILE" in
+    debug) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency-debug.json" ;;
+    release) latency_output_default="$PROJECT_ROOT/target/rz/gateway-latency.json" ;;
+    *) echo "verify-services: RUSTZEN_VERIFY_BUILD_PROFILE must be debug or release" >&2; exit 1 ;;
+esac
+export RUSTZEN_VERIFY_BUILD_PROFILE
+export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$latency_output_default}"
+
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/rz-services.XXXXXX")"
+initial_cleanup() {
+    rm -rf "$ROOT"
+}
+trap initial_cleanup EXIT INT TERM
 mkdir -p "$ROOT/logs" "$ROOT/pids" "$ROOT/backups" "$PROJECT_ROOT/target/rz"
 PHASE="startup"
 BASE_PORT="${RUSTZEN_VERIFY_BASE_PORT:-19801}"
@@ -38,7 +53,11 @@ export RUSTZEN_ENV=development
 export RUSTZEN_ADMIN_SQLITE_PATH=./data/db/admin.db
 export RUSTZEN_MONITOR_SQLITE_PATH=./data/db/monitor.db
 export RUSTZEN_INSIGHTS_SQLITE_PATH=./data/db/insights.db
-export RUSTZEN_REPORTS_SQLITE_PATH=./data/db/reports.db
+export RUSTZEN_REPORTS_SQLITE_PATH=./data/reports/db/reports.db
+# The schedule fixture computes its daily/weekly slots in UTC. Keep this
+# disposable verifier explicit rather than coupling it to an installation's
+# product timezone.
+export RUSTZEN_TIMEZONE=UTC
 export RUSTZEN_ADMIN_HOST=127.0.0.1
 export RUSTZEN_ADMIN_PORT="$BASE_PORT"
 export RUSTZEN_INTERNAL_HOST=127.0.0.1
@@ -48,212 +67,57 @@ export RUSTZEN_REPORTS_PORT=$((BASE_PORT + 3))
 export RUSTZEN_JWT_SECRET=local-service-verification-jwt-secret
 export RUSTZEN_IPC_TOKEN=local-service-verification-ipc-secret
 export RUSTZEN_MONITOR_AGENT_TOKEN=local-service-verification-agent-secret
+export RUSTZEN_MONITOR_NODE_ID=verify-monitor-node
 export RUSTZEN_MONITOR_CONTROLLER_URL="http://127.0.0.1:$RUSTZEN_ADMIN_PORT"
-export RUSTZEN_GATEWAY_LATENCY_OUTPUT="${RUSTZEN_GATEWAY_LATENCY_OUTPUT:-$PROJECT_ROOT/target/rz/gateway-latency.json}"
+export RUSTZEN_BUILD_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+export RUSTZEN_COMPOSITION_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 export RUST_LOG=warn
 
-dump_logs() {
-    for log in "$ROOT"/logs/*.log; do
-        [ -s "$log" ] || continue
-        echo "verify-services: tail $log" >&2
-        tail -n 40 "$log" >&2 || true
-    done
+run_bun() {
+    pnpm dlx bun@1.3.14 "$@"
 }
 
-cleanup() {
-    stop_all || true
+LIFECYCLE_HELPER="$PROJECT_ROOT/scripts/verify-service-lifecycle.sh"
+if [ ! -f "$LIFECYCLE_HELPER" ] || [ -L "$LIFECYCLE_HELPER" ]; then
     rm -rf "$ROOT"
-}
+    echo "verify-services: missing regular lifecycle helper: $LIFECYCLE_HELPER" >&2
+    exit 1
+fi
+if ! sh -n "$LIFECYCLE_HELPER"; then
+    rm -rf "$ROOT"
+    echo "verify-services: invalid lifecycle helper: $LIFECYCLE_HELPER" >&2
+    exit 1
+fi
+if ! . "$LIFECYCLE_HELPER"; then
+    rm -rf "$ROOT"
+    echo "verify-services: failed to source lifecycle helper: $LIFECYCLE_HELPER" >&2
+    exit 1
+fi
 trap cleanup EXIT INT TERM
 
-start_service() {
-    name="$1"
-    log="$ROOT/logs/$PHASE-$name.log"
-    case "$name" in
-        admin) "$ADMIN" serve >"$log" 2>&1 & ;;
-        monitor) "$MONITOR" controller >"$log" 2>&1 & ;;
-        insights) "$INSIGHTS" serve >"$log" 2>&1 & ;;
-        reports) "$REPORTS" serve >"$log" 2>&1 & ;;
-        monitor_agent) "$MONITOR" agent >"$log" 2>&1 & ;;
-        *) echo "verify-services: unknown service $name" >&2; exit 1 ;;
-    esac
-    pid=$!
-    printf '%s\n' "$pid" >"$ROOT/pids/$name"
-    printf '%s\n' "$log" >"$ROOT/pids/$name.log"
-}
-
-stop_service() {
-    name="$1"
-    pid_file="$ROOT/pids/$name"
-    [ -f "$pid_file" ] || return 0
-    pid="$(cat "$pid_file")"
-    if kill -0 "$pid" 2>/dev/null; then
-        kill -TERM "$pid" 2>/dev/null || true
-        count=0
-        while kill -0 "$pid" 2>/dev/null && [ "$count" -lt 50 ]; do
-            count=$((count + 1))
-            sleep 0.1
-        done
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "verify-services: $name did not stop after SIGTERM; sending SIGKILL" >&2
-            kill -KILL "$pid" 2>/dev/null || true
-        fi
-    fi
-    wait "$pid" 2>/dev/null || true
-    rm -f "$pid_file" "$ROOT/pids/$name.log"
-}
-
-stop_all() {
-    for name in monitor_agent admin reports insights monitor; do
-        stop_service "$name"
-    done
-}
-
-service_pid() {
-    cat "$ROOT/pids/$1"
-}
-
-assert_alive() {
-    name="$1"
-    pid="$(service_pid "$name")"
-    if ! kill -0 "$pid" 2>/dev/null; then
-        echo "verify-services: $name exited unexpectedly" >&2
-        dump_logs
-        exit 1
-    fi
-}
-
-service_health_url() {
-    case "$1" in
-        admin) printf 'http://127.0.0.1:%s/health\n' "$RUSTZEN_ADMIN_PORT" ;;
-        monitor) printf 'http://127.0.0.1:%s/health\n' "$RUSTZEN_MONITOR_PORT" ;;
-        insights) printf 'http://127.0.0.1:%s/health\n' "$RUSTZEN_INSIGHTS_PORT" ;;
-        reports) printf 'http://127.0.0.1:%s/health\n' "$RUSTZEN_REPORTS_PORT" ;;
-        *) return 1 ;;
-    esac
-}
-
-http_status() {
-    curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$@" 2>/dev/null || true
-}
-
-wait_for_status() {
-    expected="$1"
-    url="$2"
-    token="${3:-}"
-    count=0
-    while [ "$count" -lt 180 ]; do
-        if [ -n "$token" ]; then
-            status="$(http_status -H "authorization: Bearer $token" "$url")"
-        else
-            status="$(http_status "$url")"
-        fi
-        if [ "$status" = "$expected" ]; then
-            return 0
-        fi
-        count=$((count + 1))
-        sleep 0.1
-    done
-    echo "verify-services: expected HTTP $expected from $url, got ${status:-none}" >&2
-    dump_logs
+AUTH_MODULE_GATEWAY_HELPER="$PROJECT_ROOT/scripts/verify-service-auth-module-gateway.sh"
+if [ ! -f "$AUTH_MODULE_GATEWAY_HELPER" ] || [ -L "$AUTH_MODULE_GATEWAY_HELPER" ]; then
+    echo "verify-services: missing regular auth/module-gateway helper: $AUTH_MODULE_GATEWAY_HELPER" >&2
     exit 1
-}
-
-wait_for_health() {
-    name="$1"
-    wait_for_status 200 "$(service_health_url "$name")"
-    assert_alive "$name"
-}
-
-assert_other_services_healthy() {
-    stopped="$1"
-    for name in admin monitor insights reports; do
-        if [ "$name" != "$stopped" ]; then
-            wait_for_health "$name"
-        fi
-    done
-}
-
-parse_json() {
-    expression="$1"
-    bun -e "const value = JSON.parse(await Bun.stdin.text()); console.log($expression)"
-}
-
-login() {
-    username="$1"
-    password="$2"
-    response="$(curl --fail --silent --show-error \
-        -H 'content-type: application/json' \
-        -d "{\"username\":\"$username\",\"password\":\"$password\"}" \
-        "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/auth/login")"
-    printf '%s' "$response"
-}
-
-wait_for_module_state() {
-    module="$1"
-    available="$2"
-    compatible="$3"
-    count=0
-    while [ "$count" -lt 180 ]; do
-        body="$(curl --silent --show-error \
-            -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" \
-            "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/system/modules" 2>/dev/null || true)"
-        if BODY="$body" MODULE_ID="$module" EXPECT_AVAILABLE="$available" \
-            EXPECT_COMPATIBLE="$compatible" bun -e '
-                try {
-                    const payload = JSON.parse(process.env.BODY);
-                    const module = payload.data?.find((item) => item.id === process.env.MODULE_ID);
-                    const matches = module
-                        && String(module.available) === process.env.EXPECT_AVAILABLE
-                        && String(module.compatible) === process.env.EXPECT_COMPATIBLE;
-                    process.exit(matches ? 0 : 1);
-                } catch {
-                    process.exit(1);
-                }
-            '
-        then
-            return 0
-        fi
-        count=$((count + 1))
-        sleep 0.1
-    done
-    echo "verify-services: module state did not converge: $module available=$available compatible=$compatible" >&2
-    dump_logs
+fi
+if ! . "$AUTH_MODULE_GATEWAY_HELPER"; then
+    echo "verify-services: failed to source auth/module-gateway helper: $AUTH_MODULE_GATEWAY_HELPER" >&2
     exit 1
-}
+fi
 
-module_gateway_url() {
-    case "$1" in
-        monitor) printf 'http://127.0.0.1:%s/api/monitor/nodes\n' "$RUSTZEN_ADMIN_PORT" ;;
-        insights) printf 'http://127.0.0.1:%s/api/insights/overview\n' "$RUSTZEN_ADMIN_PORT" ;;
-        reports) printf 'http://127.0.0.1:%s/api/reports/systems\n' "$RUSTZEN_ADMIN_PORT" ;;
-        *) return 1 ;;
-    esac
-}
+MODULE_LOG_HELPER="$PROJECT_ROOT/scripts/verify-module-log-diagnostics.sh"
+if [ ! -f "$MODULE_LOG_HELPER" ] || [ -L "$MODULE_LOG_HELPER" ]; then
+    echo "verify-services: missing regular module-log helper: $MODULE_LOG_HELPER" >&2
+    exit 1
+fi
+. "$MODULE_LOG_HELPER"
 
-assert_gateway_unavailable() {
-    module="$1"
-    url="$(module_gateway_url "$module")"
-    wait_for_status 503 "$url" "$RUSTZEN_ADMIN_TOKEN"
-    body="$(curl --silent --show-error \
-        -H "authorization: Bearer $RUSTZEN_ADMIN_TOKEN" "$url" 2>/dev/null || true)"
-    BODY="$body" MODULE_ID="$module" bun -e '
-        const payload = JSON.parse(process.env.BODY);
-        const expected = `${process.env.MODULE_ID} worker is temporarily unavailable.`;
-        if (payload.code !== 40001 || payload.message !== expected || payload.data !== null) {
-            throw new Error(`invalid unavailable envelope: ${JSON.stringify(payload)}`);
-        }
-    '
-}
-
-assert_module_gateways_healthy_except() {
-    excluded="$1"
-    for module in monitor insights reports; do
-        if [ "$module" != "$excluded" ]; then
-            wait_for_status 200 "$(module_gateway_url "$module")" "$RUSTZEN_ADMIN_TOKEN"
-        fi
-    done
-}
+DATABASE_ISOLATION_HELPER="$PROJECT_ROOT/scripts/verify-database-isolation.sh"
+if [ ! -f "$DATABASE_ISOLATION_HELPER" ] || [ -L "$DATABASE_ISOLATION_HELPER" ]; then
+    echo "verify-services: missing regular database-isolation helper: $DATABASE_ISOLATION_HELPER" >&2
+    exit 1
+fi
+. "$DATABASE_ISOLATION_HELPER"
 
 PHASE="admin-alone"
 start_service admin
@@ -315,20 +179,19 @@ for service in admin monitor insights reports; do
     wait_for_health "$service"
 done
 
-cli_status="$($CLI --json status all)"
-CLI_STATUS="$cli_status" bun -e '
+cli_status="$($CLI --json doctor)"
+CLI_STATUS="$cli_status" run_bun -e '
     const payload = JSON.parse(process.env.CLI_STATUS);
-    const services = payload.data?.services;
+    const services = payload.data?.health?.services;
     if (
         payload.schema_version !== 1
         || payload.ok !== true
-        || payload.command !== "status"
-        || payload.data?.selection !== "all"
+        || payload.command !== "doctor"
         || !Array.isArray(services)
         || services.length !== 4
         || services.some((service) => service.reachable !== true || service.state !== "healthy")
     ) {
-        throw new Error(`invalid rz status response: ${JSON.stringify(payload)}`);
+        throw new Error(`invalid rz doctor response: ${JSON.stringify(payload)}`);
     }
 '
 
@@ -350,6 +213,8 @@ sqlite3 "$ROOT/data/db/admin.db" \
 denied_login="$(login verify-denied 'rustzen@123')"
 denied_token="$(printf '%s' "$denied_login" | parse_json 'value.data.token')"
 wait_for_status 403 "http://127.0.0.1:$RUSTZEN_ADMIN_PORT/api/monitor/nodes" "$denied_token"
+verify_module_log_diagnostics
+echo "verify-services: module-log owner, denial, tail cursor/caps, archive metadata/hash, partial cleanup, and one-time confirmation passed"
 
 PHASE="monitor-agent"
 agent_nodes_before="$(sqlite3 "$ROOT/data/db/monitor.db" 'SELECT COUNT(*) FROM monitor_nodes;')"
@@ -365,13 +230,13 @@ while [ "$agent_count" -lt 100 ]; do
     sleep 0.1
 done
 if [ -z "${agent_nodes_after:-}" ] || [ "$agent_nodes_after" -le "$agent_nodes_before" ]; then
-    echo "verify-services: Monitor Agent heartbeat was not persisted through Admin" >&2
+    echo "verify-services: Monitor Agent report was not persisted through Admin" >&2
     dump_logs
     exit 1
 fi
 stop_service monitor_agent
 
-bun "$PROJECT_ROOT/scripts/verify-worker-contracts.mjs"
+run_bun "$PROJECT_ROOT/scripts/verify-worker-contracts.mjs"
 
 disable_status="$(http_status \
     -X PUT \
@@ -412,65 +277,7 @@ for service in admin monitor insights reports; do
     fi
 done
 
-expect_corrupt_start_failure() {
-    name="$1"
-    start_service "$name"
-    pid="$(service_pid "$name")"
-    count=0
-    while kill -0 "$pid" 2>/dev/null && [ "$count" -lt 40 ]; do
-        count=$((count + 1))
-        sleep 0.1
-    done
-    if kill -0 "$pid" 2>/dev/null; then
-        echo "verify-services: $name unexpectedly accepted a corrupt database" >&2
-        dump_logs
-        exit 1
-    fi
-    wait "$pid" 2>/dev/null || true
-    rm -f "$ROOT/pids/$name" "$ROOT/pids/$name.log"
-}
+verify_database_isolations
 
-verify_database_isolation() {
-    db_service="$1"
-    database="$2"
-    path="$ROOT/data/db/$database.db"
-    backup="$ROOT/backups/$database.db"
-    PHASE="database-$db_service"
-
-    stop_service "$db_service"
-    sqlite3 "$path" ".backup '$backup'"
-    rm -f "$path" "$path-wal" "$path-shm"
-    printf 'not-a-sqlite-database' >"$path"
-    expect_corrupt_start_failure "$db_service"
-    assert_other_services_healthy "$db_service"
-    if [ "$db_service" != admin ]; then
-        wait_for_module_state "$db_service" false true
-    fi
-
-    rm -f "$path" "$path-wal" "$path-shm"
-    cp "$backup" "$path"
-    start_service "$db_service"
-    wait_for_health "$db_service"
-    if [ "$db_service" = admin ]; then
-        wait_for_module_state monitor true true
-        wait_for_module_state insights true true
-        wait_for_module_state reports true true
-    else
-        wait_for_module_state "$db_service" true true
-    fi
-}
-
-verify_database_isolation monitor monitor
-verify_database_isolation insights insights
-verify_database_isolation reports reports
-verify_database_isolation admin admin
-
-for database in admin monitor insights reports; do
-    [ -s "$ROOT/data/db/$database.db" ] || {
-        echo "verify-services: missing restored database $database" >&2
-        exit 1
-    }
-done
-
-echo "verify-services: Admin-alone login, Agent persistence, 24 startup orders, rz status, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
+echo "verify-services: Admin-alone login, module-log owner/denial/tail/archive/cleanup contracts, Agent persistence, 24 startup orders, rz doctor, unavailable gateways, independent termination, four database restores, contracts, and latency passed"
 echo "verify-services: latency evidence: $RUSTZEN_GATEWAY_LATENCY_OUTPUT"

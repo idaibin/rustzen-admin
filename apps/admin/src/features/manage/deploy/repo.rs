@@ -55,6 +55,7 @@ impl DeployRepository {
         let row = sqlx::query_as::<_, DeploymentRow>(
             r#"
             SELECT id, component, version, arch, file_path, file_size, file_hash,
+                   frontend_hash, backend_hash,
                    is_current, is_deployed, is_expired, deployed_at, expired_at, deleted_at,
                    deployed_by, notes, created_at, updated_at
             FROM deploy_versions
@@ -105,9 +106,11 @@ impl DeployRepository {
             r#"
             INSERT INTO deploy_versions (
                 component, version, arch, file_path, file_size, file_hash,
+                frontend_hash, backend_hash,
                 notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id, component, version, arch, file_path, file_size, file_hash,
+                      frontend_hash, backend_hash,
                       is_current, is_deployed, is_expired, deployed_at, expired_at, deleted_at,
                       deployed_by, notes, created_at, updated_at
             "#,
@@ -118,6 +121,8 @@ impl DeployRepository {
         .bind(&payload.file_path)
         .bind(payload.file_size)
         .bind(&payload.file_hash)
+        .bind(&payload.frontend_hash)
+        .bind(&payload.backend_hash)
         .bind(payload.notes.as_deref())
         .fetch_one(&self.pool)
         .await
@@ -140,14 +145,17 @@ impl DeployRepository {
             r#"
             INSERT INTO deploy_versions (
                 component, version, arch, file_path, file_size, file_hash,
+                frontend_hash, backend_hash,
                 is_current, is_deployed, deployed_at, deployed_by, notes,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP, 'installer', ?,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP, 'installer', ?,
                       CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT(component, version, arch) DO UPDATE SET
                 file_path = excluded.file_path,
                 file_size = excluded.file_size,
                 file_hash = excluded.file_hash,
+                frontend_hash = excluded.frontend_hash,
+                backend_hash = excluded.backend_hash,
                 is_current = 1,
                 is_deployed = 1,
                 is_expired = 0,
@@ -163,6 +171,8 @@ impl DeployRepository {
         .bind(&payload.file_path)
         .bind(payload.file_size)
         .bind(&payload.file_hash)
+        .bind(&payload.frontend_hash)
+        .bind(&payload.backend_hash)
         .bind(payload.notes.as_deref())
         .execute(&mut *tx)
         .await
@@ -375,6 +385,7 @@ fn base_select() -> QueryBuilder<Sqlite> {
     QueryBuilder::new(
         r#"
         SELECT id, component, version, arch, file_path, file_size, file_hash,
+               frontend_hash, backend_hash,
                is_current, is_deployed, is_expired, deployed_at, expired_at, deleted_at,
                deployed_by, notes, created_at, updated_at
         FROM deploy_versions
@@ -421,6 +432,8 @@ fn row_to_item(row: DeploymentRow) -> Result<DeploymentItem, ServiceError> {
         file_path: row.file_path,
         file_size: row.file_size,
         file_hash: row.file_hash,
+        frontend_hash: row.frontend_hash,
+        backend_hash: row.backend_hash,
         is_current: row.is_current,
         is_deployed: row.is_deployed,
         is_expired: row.is_expired,

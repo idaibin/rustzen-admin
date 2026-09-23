@@ -156,6 +156,7 @@ function createHarness() {
     const context = {
         URL,
         Request: FakeRequest,
+        TextEncoder,
         XMLHttpRequest: FakeXMLHttpRequest,
         addEventListener,
         clearInterval,
@@ -313,6 +314,216 @@ describe("Insights tracker browser contract", () => {
         expect(harness.sessionStorage.getItem("rz_sid")).not.toBe(initialSession);
     });
 
+    test("drops the newest event when the local queue reaches its fixed limit", async () => {
+        const harness = createHarness();
+        const events = [];
+        let resolveFirst;
+        harness.setFetchResponder(
+            () =>
+                new Promise((resolve) => {
+                    resolveFirst = resolve;
+                }),
+        );
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "queue-project-key",
+        });
+
+        for (let index = 0; index < 49; index += 1) tracker.track("custom_export");
+        for (let index = 0; index < 1000; index += 1) tracker.track("custom_export");
+        expect(tracker.track("custom_export")).toBe(false);
+        expect(events).toContainEqual(
+            expect.objectContaining({
+                type: "queue_dropped",
+                reason: "queue_full",
+                dropped: 1,
+                queueLength: 1000,
+            }),
+        );
+
+        resolveFirst(response(200));
+        await harness.tick();
+        await harness.tick();
+        expect(harness.transportCalls()).toHaveLength(2);
+    });
+
+    test("rejects overlong single events before queueing", () => {
+        const harness = createHarness();
+        const events = [];
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "field-project-key",
+        });
+
+        expect(
+            tracker.track("api_request", { apiPath: `/${"x".repeat(2000)}` }),
+        ).toBe(false);
+        expect(
+            tracker.track("custom_export", { properties: { feature: "x".repeat(257) } }),
+        ).toBe(false);
+        expect(events).toEqual([
+            { type: "event_dropped", reason: "field_too_long", field: "apiPath" },
+            { type: "event_dropped", reason: "field_too_long", field: "properties" },
+        ]);
+        expect(harness.transportCalls()).toHaveLength(0);
+    });
+
+    test("uses UTF-8 byte bounds for property strings", () => {
+        const harness = createHarness();
+        const events = [];
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "utf8-project-key",
+        });
+
+        expect(
+            tracker.track("custom_export", { properties: { feature: "😀".repeat(64) } }),
+        ).toBe(true);
+        expect(
+            tracker.track("custom_export", { properties: { feature: "😀".repeat(65) } }),
+        ).toBe(false);
+        expect(
+            tracker.track("custom_export", { properties: { feature: "中".repeat(85) } }),
+        ).toBe(true);
+        expect(
+            tracker.track("custom_export", { properties: { feature: "中".repeat(86) } }),
+        ).toBe(false);
+        expect(events).toEqual([
+            { type: "event_dropped", reason: "field_too_long", field: "properties" },
+            { type: "event_dropped", reason: "field_too_long", field: "properties" },
+        ]);
+    });
+
+    test("uses UTF-8 byte bounds for the public project key", () => {
+        const acceptedHarness = createHarness();
+        expect(
+            acceptedHarness.window.rustzenAnalytics.enable({
+                consent: true,
+                endpoint: TRACKING_ENDPOINT,
+                projectKey: "😀".repeat(64),
+            }),
+        ).toBe(true);
+
+        const rejectedHarness = createHarness();
+        expect(
+            rejectedHarness.window.rustzenAnalytics.enable({
+                consent: true,
+                endpoint: TRACKING_ENDPOINT,
+                projectKey: "😀".repeat(65),
+            }),
+        ).toBe(false);
+        expect(rejectedHarness.localStorage.dump()).toEqual({});
+        expect(rejectedHarness.sessionStorage.dump()).toEqual({});
+    });
+
+    test("caps each JSON request at the server body limit while delivering long events", async () => {
+        const harness = createHarness();
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            projectKey: "body-size-project-key",
+        });
+        await harness.triggerPagehide();
+
+        const paths = [];
+        for (let index = 0; index < 50; index += 1) {
+            const suffix = String(index).padStart(8, "0");
+            const pagePath = `/${"x".repeat(1991)}${suffix}`;
+            paths.push(pagePath);
+            expect(tracker.track("custom_export", { pagePath })).toBe(true);
+        }
+        for (let index = 0; index < 5; index += 1) await harness.tick();
+
+        const calls = harness.transportCalls();
+        expect(calls.length).toBeGreaterThan(1);
+        for (const call of calls) {
+            expect(new TextEncoder().encode(call.init.body).length).toBeLessThanOrEqual(64 * 1024);
+            expect(JSON.parse(call.init.body).length).toBeLessThanOrEqual(50);
+        }
+        const delivered = calls
+            .flatMap((call) => JSON.parse(call.init.body))
+            .filter((event) => event.eventName === "custom_export")
+            .map((event) => event.pagePath);
+        expect(delivered).toHaveLength(paths.length);
+        expect(new Set(delivered)).toEqual(new Set(paths));
+    });
+
+    test("reports invalid status, duration, and type fields accurately", () => {
+        const harness = createHarness();
+        const events = [];
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "invalid-field-project-key",
+        });
+
+        expect(tracker.track("api_request", { statusCode: 99 })).toBe(false);
+        expect(tracker.track("api_request", { durationMs: -1 })).toBe(false);
+        expect(tracker.track("api_request", { isError: "yes" })).toBe(false);
+        expect(tracker.track("api_request", { apiMethod: {} })).toBe(false);
+        expect(tracker.track("custom_export", { properties: { feature: {} } })).toBe(false);
+        expect(tracker.track("custom_export", { properties: { feature: [] } })).toBe(false);
+        expect(events).toEqual([
+            { type: "event_dropped", reason: "invalid_field", field: "statusCode" },
+            { type: "event_dropped", reason: "invalid_field", field: "durationMs" },
+            { type: "event_dropped", reason: "invalid_field", field: "isError" },
+            { type: "event_dropped", reason: "invalid_field", field: "apiMethod" },
+            { type: "event_dropped", reason: "invalid_field", field: "properties" },
+            { type: "event_dropped", reason: "invalid_field", field: "properties" },
+        ]);
+    });
+
+    test("does not let an invalid event poison a valid mixed batch", async () => {
+        const harness = createHarness();
+        const events = [];
+        harness.setFetchResponder(async (call) => {
+            const batch = JSON.parse(call.init.body);
+            return batch.some((event) => typeof event.apiMethod !== "undefined" &&
+                typeof event.apiMethod !== "string")
+                ? response(422)
+                : response(200);
+        });
+        const tracker = harness.window.rustzenAnalytics;
+        tracker.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "mixed-batch-project-key",
+        });
+
+        expect(tracker.track("api_request", { apiPath: "/api/items", apiMethod: {} })).toBe(false);
+        expect(
+            tracker.track("api_request", {
+                apiPath: "/api/items",
+                apiMethod: "GET",
+                statusCode: 200,
+            }),
+        ).toBe(true);
+        await harness.triggerPagehide();
+
+        expect(harness.transportCalls()).toHaveLength(1);
+        expect(JSON.parse(harness.transportCalls()[0].init.body)).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ eventName: "page_view" }),
+                expect.objectContaining({ eventName: "api_request", apiMethod: "GET" }),
+            ]),
+        );
+        expect(events).toContainEqual({ type: "event_dropped", reason: "invalid_field", field: "apiMethod" });
+        expect(events).toContainEqual(expect.objectContaining({ type: "accepted", status: 200 }));
+    });
+
     test("retries only explicit 429/507 responses within a bounded attempt count", async () => {
         for (const [status, statuses, expectedCalls, expectedAccepted, expectedDelays] of [
             [429, [429, 429, 429, 429, 200], 4, false, [500, 1000, 2000]],
@@ -342,6 +553,27 @@ describe("Insights tracker browser contract", () => {
             await harness.tick();
             expect(harness.transportCalls()).toHaveLength(expectedCalls);
         }
+    });
+
+    test("reports a 413 validation rejection once without retry", async () => {
+        const harness = createHarness();
+        const events = [];
+        harness.setFetchResponder(async () => response(413));
+        harness.window.rustzenAnalytics.enable({
+            consent: true,
+            endpoint: TRACKING_ENDPOINT,
+            onTransportEvent: (event) => events.push(event),
+            projectKey: "payload-project-key",
+        });
+
+        await harness.tick();
+        expect(harness.transportCalls()).toHaveLength(1);
+        expect(events).toContainEqual(
+            expect.objectContaining({ type: "validation_rejected", status: 413, attempt: 0 }),
+        );
+        await harness.runTimeouts();
+        await harness.tick();
+        expect(harness.transportCalls()).toHaveLength(1);
     });
 
     test("drops ambiguous 5xx and network failures without retry or requeue", async () => {

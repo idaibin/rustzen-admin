@@ -34,13 +34,12 @@ const emitChange = () => {
 };
 
 export const setLocale = (locale: Locale) => {
-    if (typeof window === "undefined") {
-        currentLocale = locale;
-        return;
+    if (typeof window !== "undefined") {
+        localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     }
-
-    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-    document.documentElement.lang = locale;
+    if (typeof document !== "undefined") {
+        document.documentElement.lang = locale;
+    }
     const didChange = currentLocale !== locale;
     currentLocale = locale;
     if (didChange) {

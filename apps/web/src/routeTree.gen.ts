@@ -20,14 +20,15 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SystemUserRouteImport } from './routes/system/user'
 import { Route as SystemStatusRouteImport } from './routes/system/status'
 import { Route as SystemRoleRouteImport } from './routes/system/role'
+import { Route as SystemModuleLogRouteImport } from './routes/system/module-log'
 import { Route as SystemModuleRouteImport } from './routes/system/module'
 import { Route as SystemMenuRouteImport } from './routes/system/menu'
 import { Route as ReportsTemplatesRouteImport } from './routes/reports/templates'
 import { Route as ReportsRunsRouteImport } from './routes/reports/runs'
+import { Route as MonitoringSummariesRouteImport } from './routes/monitoring/summaries'
 import { Route as MonitoringOverviewRouteImport } from './routes/monitoring/overview'
 import { Route as MonitoringNodesRouteImport } from './routes/monitoring/nodes'
 import { Route as MonitoringIncidentsRouteImport } from './routes/monitoring/incidents'
-import { Route as MonitoringChecksRouteImport } from './routes/monitoring/checks'
 import { Route as ManageTaskRouteImport } from './routes/manage/task'
 import { Route as ManageLogRouteImport } from './routes/manage/log'
 import { Route as ManageDeployRouteImport } from './routes/manage/deploy'
@@ -89,6 +90,11 @@ const SystemRoleRoute = SystemRoleRouteImport.update({
   path: '/system/role',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SystemModuleLogRoute = SystemModuleLogRouteImport.update({
+  id: '/system/module-log',
+  path: '/system/module-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemModuleRoute = SystemModuleRouteImport.update({
   id: '/system/module',
   path: '/system/module',
@@ -109,6 +115,11 @@ const ReportsRunsRoute = ReportsRunsRouteImport.update({
   path: '/runs',
   getParentRoute: () => ReportsRoute,
 } as any)
+const MonitoringSummariesRoute = MonitoringSummariesRouteImport.update({
+  id: '/summaries',
+  path: '/summaries',
+  getParentRoute: () => MonitoringRoute,
+} as any)
 const MonitoringOverviewRoute = MonitoringOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
@@ -122,11 +133,6 @@ const MonitoringNodesRoute = MonitoringNodesRouteImport.update({
 const MonitoringIncidentsRoute = MonitoringIncidentsRouteImport.update({
   id: '/incidents',
   path: '/incidents',
-  getParentRoute: () => MonitoringRoute,
-} as any)
-const MonitoringChecksRoute = MonitoringChecksRouteImport.update({
-  id: '/checks',
-  path: '/checks',
   getParentRoute: () => MonitoringRoute,
 } as any)
 const ManageTaskRoute = ManageTaskRouteImport.update({
@@ -169,14 +175,15 @@ export interface FileRoutesByFullPath {
   '/manage/deploy': typeof ManageDeployRoute
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
-  '/monitoring/checks': typeof MonitoringChecksRoute
   '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
+  '/monitoring/summaries': typeof MonitoringSummariesRoute
   '/reports/runs': typeof ReportsRunsRoute
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -195,14 +202,15 @@ export interface FileRoutesByTo {
   '/manage/deploy': typeof ManageDeployRoute
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
-  '/monitoring/checks': typeof MonitoringChecksRoute
   '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
+  '/monitoring/summaries': typeof MonitoringSummariesRoute
   '/reports/runs': typeof ReportsRunsRoute
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -222,14 +230,15 @@ export interface FileRoutesById {
   '/manage/deploy': typeof ManageDeployRoute
   '/manage/log': typeof ManageLogRoute
   '/manage/task': typeof ManageTaskRoute
-  '/monitoring/checks': typeof MonitoringChecksRoute
   '/monitoring/incidents': typeof MonitoringIncidentsRoute
   '/monitoring/nodes': typeof MonitoringNodesRoute
   '/monitoring/overview': typeof MonitoringOverviewRoute
+  '/monitoring/summaries': typeof MonitoringSummariesRoute
   '/reports/runs': typeof ReportsRunsRoute
   '/reports/templates': typeof ReportsTemplatesRoute
   '/system/menu': typeof SystemMenuRoute
   '/system/module': typeof SystemModuleRoute
+  '/system/module-log': typeof SystemModuleLogRoute
   '/system/role': typeof SystemRoleRoute
   '/system/status': typeof SystemStatusRoute
   '/system/user': typeof SystemUserRoute
@@ -250,14 +259,15 @@ export interface FileRouteTypes {
     | '/manage/deploy'
     | '/manage/log'
     | '/manage/task'
-    | '/monitoring/checks'
     | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
+    | '/monitoring/summaries'
     | '/reports/runs'
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -276,14 +286,15 @@ export interface FileRouteTypes {
     | '/manage/deploy'
     | '/manage/log'
     | '/manage/task'
-    | '/monitoring/checks'
     | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
+    | '/monitoring/summaries'
     | '/reports/runs'
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -302,14 +313,15 @@ export interface FileRouteTypes {
     | '/manage/deploy'
     | '/manage/log'
     | '/manage/task'
-    | '/monitoring/checks'
     | '/monitoring/incidents'
     | '/monitoring/nodes'
     | '/monitoring/overview'
+    | '/monitoring/summaries'
     | '/reports/runs'
     | '/reports/templates'
     | '/system/menu'
     | '/system/module'
+    | '/system/module-log'
     | '/system/role'
     | '/system/status'
     | '/system/user'
@@ -329,6 +341,7 @@ export interface RootRouteChildren {
   ManageTaskRoute: typeof ManageTaskRoute
   SystemMenuRoute: typeof SystemMenuRoute
   SystemModuleRoute: typeof SystemModuleRoute
+  SystemModuleLogRoute: typeof SystemModuleLogRoute
   SystemRoleRoute: typeof SystemRoleRoute
   SystemStatusRoute: typeof SystemStatusRoute
   SystemUserRoute: typeof SystemUserRoute
@@ -413,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemRoleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/system/module-log': {
+      id: '/system/module-log'
+      path: '/system/module-log'
+      fullPath: '/system/module-log'
+      preLoaderRoute: typeof SystemModuleLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/module': {
       id: '/system/module'
       path: '/system/module'
@@ -441,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRunsRouteImport
       parentRoute: typeof ReportsRoute
     }
+    '/monitoring/summaries': {
+      id: '/monitoring/summaries'
+      path: '/summaries'
+      fullPath: '/monitoring/summaries'
+      preLoaderRoute: typeof MonitoringSummariesRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
     '/monitoring/overview': {
       id: '/monitoring/overview'
       path: '/overview'
@@ -460,13 +487,6 @@ declare module '@tanstack/react-router' {
       path: '/incidents'
       fullPath: '/monitoring/incidents'
       preLoaderRoute: typeof MonitoringIncidentsRouteImport
-      parentRoute: typeof MonitoringRoute
-    }
-    '/monitoring/checks': {
-      id: '/monitoring/checks'
-      path: '/checks'
-      fullPath: '/monitoring/checks'
-      preLoaderRoute: typeof MonitoringChecksRouteImport
       parentRoute: typeof MonitoringRoute
     }
     '/manage/task': {
@@ -522,17 +542,17 @@ const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
 )
 
 interface MonitoringRouteChildren {
-  MonitoringChecksRoute: typeof MonitoringChecksRoute
   MonitoringIncidentsRoute: typeof MonitoringIncidentsRoute
   MonitoringNodesRoute: typeof MonitoringNodesRoute
   MonitoringOverviewRoute: typeof MonitoringOverviewRoute
+  MonitoringSummariesRoute: typeof MonitoringSummariesRoute
 }
 
 const MonitoringRouteChildren: MonitoringRouteChildren = {
-  MonitoringChecksRoute: MonitoringChecksRoute,
   MonitoringIncidentsRoute: MonitoringIncidentsRoute,
   MonitoringNodesRoute: MonitoringNodesRoute,
   MonitoringOverviewRoute: MonitoringOverviewRoute,
+  MonitoringSummariesRoute: MonitoringSummariesRoute,
 }
 
 const MonitoringRouteWithChildren = MonitoringRoute._addFileChildren(
@@ -566,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManageTaskRoute: ManageTaskRoute,
   SystemMenuRoute: SystemMenuRoute,
   SystemModuleRoute: SystemModuleRoute,
+  SystemModuleLogRoute: SystemModuleLogRoute,
   SystemRoleRoute: SystemRoleRoute,
   SystemStatusRoute: SystemStatusRoute,
   SystemUserRoute: SystemUserRoute,

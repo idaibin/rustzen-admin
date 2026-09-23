@@ -2,8 +2,7 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 
 use chrono::{DateTime, FixedOffset, Utc};
 use croner::Cron;
-use rustzen_storage::{SqliteMaintenancePlan, run_sqlite_maintenance};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tokio::time::{sleep, timeout};
 
 use crate::{
@@ -11,15 +10,15 @@ use crate::{
         error::ServiceError,
         pagination::{Pagination, PaginationQuery},
     },
-    features::manage::log::service::LogService,
     infra::config::CONFIG,
 };
 
 use super::{
+    catalog::{ScheduledTask, TaskCatalog},
     repo::{FinishTaskRunInput, InsertTaskRunInput, SyncTaskInput, TaskRepository},
+    schedule::{parse_fixed_timezone, task_run_timeout_duration},
     types::{
-        TaskExecutionContext, TaskExecutor, TaskItem, TaskRunItem, TaskRunQuery, TaskRunStatus,
-        TaskTriggerType,
+        TaskExecutionContext, TaskItem, TaskRunItem, TaskRunQuery, TaskRunStatus, TaskTriggerType,
     },
 };
 
@@ -30,60 +29,6 @@ pub struct TaskService {
     catalog: Arc<RwLock<Option<TaskCatalog>>>,
     timezone: FixedOffset,
 }
-
-#[derive(Clone)]
-struct ScheduledTask {
-    task_key: &'static str,
-    name: &'static str,
-    description: &'static str,
-    expression: &'static str,
-    executor: Arc<dyn TaskExecutor>,
-    run_lock: Arc<Mutex<()>>,
-}
-
-struct TaskCatalog {
-    tasks: Vec<ScheduledTask>,
-}
-
-#[derive(Clone, Copy)]
-struct TaskSpec {
-    task_key: &'static str,
-    name: &'static str,
-    description: &'static str,
-    expression: &'static str,
-    kind: TaskKind,
-}
-
-#[derive(Clone, Copy)]
-enum TaskKind {
-    CleanupOperationLogs,
-    CleanupTaskRuns,
-    SqliteMaintenance,
-}
-
-const TASK_SPECS: [TaskSpec; 3] = [
-    TaskSpec {
-        task_key: "cleanup-operation-logs-retention",
-        name: "清理操作日志",
-        description: "删除超过配置保留天数的操作日志。",
-        expression: "0 20 1 * * * *",
-        kind: TaskKind::CleanupOperationLogs,
-    },
-    TaskSpec {
-        task_key: "cleanup-task-runs-retention",
-        name: "清理任务记录",
-        description: "删除超过配置保留天数的定时任务执行记录。",
-        expression: "0 30 1 * * * *",
-        kind: TaskKind::CleanupTaskRuns,
-    },
-    TaskSpec {
-        task_key: "sqlite-storage-maintenance",
-        name: "SQLite 存储维护",
-        description: "执行 WAL 检查点、优化 SQLite 查询规划统计并回收可复用页面。",
-        expression: "0 0 2 * * * *",
-        kind: TaskKind::SqliteMaintenance,
-    },
-];
 
 impl TaskService {
     pub fn new(pool: sqlx::SqlitePool) -> Result<Self, ServiceError> {
@@ -163,7 +108,9 @@ impl TaskService {
                         }
                     };
 
-                if let Err(err) = service.start_scheduled_task(task.task_key, next_run_at).await {
+                if let Err(err) =
+                    service.start_scheduled_task(task.task_key, scheduled_for, next_run_at).await
+                {
                     tracing::error!("Scheduled task {} failed: {}", task.task_key, err);
                 }
             }
@@ -210,10 +157,11 @@ impl TaskService {
     async fn start_scheduled_task(
         &self,
         task_key: &str,
+        scheduled_for: DateTime<Utc>,
         next_run_at: Option<DateTime<Utc>>,
     ) -> Result<TaskRunItem, ServiceError> {
         self.repo.update_task_next_run_at(task_key, next_run_at).await?;
-        self.start_task_by_key(task_key, TaskTriggerType::Scheduled, Some(Utc::now())).await
+        self.start_task_by_key(task_key, TaskTriggerType::Scheduled, Some(scheduled_for)).await
     }
 
     async fn start_task_by_key(
@@ -247,10 +195,7 @@ impl TaskService {
             Ok(guard) => guard,
             Err(_) => {
                 if trigger_type == TaskTriggerType::Manual {
-                    return Err(ServiceError::InvalidOperation(format!(
-                        "Task {} is already running",
-                        task.task_key
-                    )));
+                    return Err(ServiceError::TaskAlreadyRunning);
                 }
                 return self
                     .repo
@@ -341,183 +286,5 @@ impl TaskService {
     }
 }
 
-fn parse_fixed_timezone(value: &str) -> Result<FixedOffset, ServiceError> {
-    let trimmed = value.trim();
-    let seconds = match trimmed {
-        "UTC" | "Etc/UTC" | "Z" | "+00:00" | "-00:00" => 0,
-        "Asia/Shanghai" | "Asia/Chongqing" | "Asia/Harbin" | "Asia/Urumqi" | "CST" => 8 * 3600,
-        _ => parse_timezone_offset_seconds(trimmed).ok_or_else(|| {
-            ServiceError::InvalidOperation(format!(
-                "Invalid RUSTZEN_TIMEZONE: {trimmed}; use UTC, Asia/Shanghai, or offsets like +08:00"
-            ))
-        })?,
-    };
-
-    FixedOffset::east_opt(seconds).ok_or_else(|| {
-        ServiceError::InvalidOperation(format!("Invalid RUSTZEN_TIMEZONE offset: {trimmed}"))
-    })
-}
-
-fn parse_timezone_offset_seconds(value: &str) -> Option<i32> {
-    let sign = match value.as_bytes().first()? {
-        b'+' => 1,
-        b'-' => -1,
-        _ => return None,
-    };
-    let rest = &value[1..];
-    let (hours, minutes) = if let Some((hours, minutes)) = rest.split_once(':') {
-        (hours.parse::<i32>().ok()?, minutes.parse::<i32>().ok()?)
-    } else {
-        (rest.parse::<i32>().ok()?, 0)
-    };
-
-    if !(0..=23).contains(&hours) || !(0..=59).contains(&minutes) {
-        return None;
-    }
-    Some(sign * ((hours * 3600) + (minutes * 60)))
-}
-
-fn task_run_timeout_duration(timeout_secs: u64) -> Duration {
-    Duration::from_secs(timeout_secs.max(1))
-}
-
-impl TaskCatalog {
-    fn new(repo: Arc<TaskRepository>, pool: sqlx::SqlitePool) -> Self {
-        let tasks = TASK_SPECS
-            .iter()
-            .map(|spec| ScheduledTask {
-                task_key: spec.task_key,
-                name: spec.name,
-                description: spec.description,
-                expression: spec.expression,
-                executor: spec.kind.executor(repo.clone(), pool.clone()),
-                run_lock: Arc::new(Mutex::new(())),
-            })
-            .collect();
-        Self { tasks }
-    }
-
-    fn get(&self, task_key: &str) -> Option<ScheduledTask> {
-        self.tasks.iter().find(|task| task.task_key == task_key).cloned()
-    }
-}
-
-impl TaskKind {
-    fn executor(&self, repo: Arc<TaskRepository>, pool: sqlx::SqlitePool) -> Arc<dyn TaskExecutor> {
-        match self {
-            TaskKind::CleanupOperationLogs => Arc::new(CleanupOperationLogsExecutor { pool }),
-            TaskKind::CleanupTaskRuns => Arc::new(CleanupTaskRunsExecutor { repo }),
-            TaskKind::SqliteMaintenance => Arc::new(SqliteMaintenanceExecutor { pool }),
-        }
-    }
-}
-
-struct CleanupOperationLogsExecutor {
-    pool: sqlx::SqlitePool,
-}
-
-#[async_trait::async_trait]
-impl TaskExecutor for CleanupOperationLogsExecutor {
-    async fn execute(&self, ctx: TaskExecutionContext) -> Result<(), ServiceError> {
-        tracing::info!(
-            task_key = %ctx.task_key,
-            task_name = %ctx.task_name,
-            trigger_type = ?ctx.trigger_type,
-            scheduled_for = ?ctx.scheduled_for,
-            "Cleaning operation logs"
-        );
-        let deleted = LogService::cleanup_old_logs(&self.pool).await?;
-        tracing::info!(deleted, "Operation log cleanup completed");
-        Ok(())
-    }
-}
-
-struct CleanupTaskRunsExecutor {
-    repo: Arc<TaskRepository>,
-}
-
-#[async_trait::async_trait]
-impl TaskExecutor for CleanupTaskRunsExecutor {
-    async fn execute(&self, ctx: TaskExecutionContext) -> Result<(), ServiceError> {
-        tracing::info!(
-            task_key = %ctx.task_key,
-            task_name = %ctx.task_name,
-            trigger_type = ?ctx.trigger_type,
-            scheduled_for = ?ctx.scheduled_for,
-            "Cleaning task runs"
-        );
-        let deleted = self.repo.cleanup_old_task_runs().await?;
-        tracing::info!(deleted, "Task run cleanup completed");
-        Ok(())
-    }
-}
-
-struct SqliteMaintenanceExecutor {
-    pool: sqlx::SqlitePool,
-}
-
-#[async_trait::async_trait]
-impl TaskExecutor for SqliteMaintenanceExecutor {
-    async fn execute(&self, ctx: TaskExecutionContext) -> Result<(), ServiceError> {
-        tracing::info!(
-            task_key = %ctx.task_key,
-            task_name = %ctx.task_name,
-            trigger_type = ?ctx.trigger_type,
-            scheduled_for = ?ctx.scheduled_for,
-            "Running SQLite storage maintenance"
-        );
-
-        let report = run_sqlite_maintenance(&self.pool, SqliteMaintenancePlan::reclaim())
-            .await
-            .map_err(|err| {
-                tracing::error!(%err, "SQLite storage maintenance failed");
-                ServiceError::DatabaseQueryFailed
-            })?;
-        if let Some(checkpoint) = report.checkpoint {
-            tracing::info!(
-                busy = checkpoint.busy,
-                log_frames = checkpoint.log_frames,
-                checkpointed_frames = checkpoint.checkpointed_frames,
-                "SQLite WAL checkpoint completed"
-            );
-        }
-        tracing::info!(
-            before_pages = report.before.page_count,
-            before_freelist = report.before.freelist_count,
-            before_freelist_bytes = report.before.freelist_bytes,
-            after_pages = report.after.page_count,
-            after_freelist = report.after.freelist_count,
-            after_freelist_bytes = report.after.freelist_bytes,
-            optimized = report.optimized,
-            vacuumed = report.vacuumed,
-            "SQLite storage maintenance completed"
-        );
-        Ok(())
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_supported_fixed_timezones() {
-        assert_eq!(parse_fixed_timezone("UTC").unwrap().local_minus_utc(), 0);
-        assert_eq!(parse_fixed_timezone("Asia/Shanghai").unwrap().local_minus_utc(), 8 * 3600);
-        assert_eq!(parse_fixed_timezone("+08:00").unwrap().local_minus_utc(), 8 * 3600);
-        assert_eq!(parse_fixed_timezone("-05:30").unwrap().local_minus_utc(), -((5 * 3600) + 1800));
-    }
-
-    #[test]
-    fn rejects_named_timezone_database_entries() {
-        let err = parse_fixed_timezone("America/New_York").expect_err("timezone is unsupported");
-
-        assert!(err.to_string().contains("Invalid RUSTZEN_TIMEZONE"));
-    }
-
-    #[test]
-    fn task_run_timeout_duration_has_one_second_floor() {
-        assert_eq!(task_run_timeout_duration(0), Duration::from_secs(1));
-        assert_eq!(task_run_timeout_duration(30), Duration::from_secs(30));
-    }
-}
+mod service_tests;

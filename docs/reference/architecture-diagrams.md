@@ -16,10 +16,10 @@ flowchart LR
     Monitor --> MonitorDb["monitor.db"]
     Insights --> InsightsDb["insights.db"]
     Reports --> ReportsDb["reports.db"]
-    Agent["optional rz-monitor agent"] --> Admin
+    Agent["optional rz-monitor-agent"] --> Admin
 ```
 
-All four server processes are members of one `rz.target` and one signed release
+All four server processes are members of one `rz-full.service` and one signed release
 bundle, but each has its own restart and database boundary.
 
 ## Module Contract And Gateway Flow

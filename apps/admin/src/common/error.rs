@@ -32,6 +32,7 @@ pub enum ServiceError {
     RoleIsSystem,
 
     /// Menu is system built-in.
+    #[cfg(feature = "full")]
     #[error("Menu is system built-in")]
     MenuIsSystem,
 
@@ -51,6 +52,10 @@ pub enum ServiceError {
     #[error("Invalid or expired token")]
     InvalidToken,
 
+    /// The authenticated user no longer has the required current capability.
+    #[error("Permission denied")]
+    PermissionDenied,
+
     /// Failed to generate token.
     #[error("Failed to generate token")]
     TokenCreationFailed,
@@ -62,6 +67,11 @@ pub enum ServiceError {
     /// An email that was provided already exists.
     #[error("Email already exists")]
     EmailConflict,
+
+    /// A maintenance task already owns its single-run lock.
+    #[cfg(feature = "full")]
+    #[error("Task is already running")]
+    TaskAlreadyRunning,
 
     /// An operation was attempted that is invalid given the current state.
     #[error("Invalid operation: {0}")]
@@ -80,14 +90,17 @@ pub enum ServiceError {
     PasswordConfirmationMismatch,
 
     /// Failed to upload file.
+    #[cfg(feature = "full")]
     #[error("Failed to create avatar folder")]
     CreateAvatarFolderFailed,
 
     /// Failed to create avatar file.
+    #[cfg(feature = "full")]
     #[error("Failed to create avatar file")]
     CreateAvatarFileFailed,
 
     /// The request body exceeded the configured multipart limit.
+    #[cfg(feature = "full")]
     #[error("Request payload is too large")]
     PayloadTooLarge,
 }
@@ -150,6 +163,7 @@ impl From<ServiceError> for AppError {
             ServiceError::RoleIsSystem => {
                 app_error(StatusCode::BAD_REQUEST, 10009, "Cannot modify system built-in role.")
             }
+            #[cfg(feature = "full")]
             ServiceError::MenuIsSystem => {
                 app_error(StatusCode::BAD_REQUEST, 10010, "Cannot modify system built-in menu.")
             }
@@ -167,21 +181,28 @@ impl From<ServiceError> for AppError {
             ServiceError::EmailConflict => {
                 app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
             }
+            #[cfg(feature = "full")]
+            ServiceError::TaskAlreadyRunning => {
+                app_error(StatusCode::CONFLICT, 10203, "Task is already running.")
+            }
             ServiceError::DatabaseQueryFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20001,
                 "Service is temporarily unavailable. Please try again later.",
             ),
+            #[cfg(feature = "full")]
             ServiceError::CreateAvatarFolderFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20002,
                 "Failed to create avatar folder. Please try again later.",
             ),
+            #[cfg(feature = "full")]
             ServiceError::CreateAvatarFileFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20003,
                 "Failed to create avatar file. Please try again later.",
             ),
+            #[cfg(feature = "full")]
             ServiceError::PayloadTooLarge => {
                 app_error(StatusCode::PAYLOAD_TOO_LARGE, 10013, "Request payload is too large.")
             }
@@ -190,6 +211,9 @@ impl From<ServiceError> for AppError {
                 30000,
                 "Invalid or expired token. Please log in again.",
             ),
+            ServiceError::PermissionDenied => {
+                app_error(StatusCode::FORBIDDEN, 403, "Permission denied")
+            }
         }
     }
 }

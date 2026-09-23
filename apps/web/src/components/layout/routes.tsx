@@ -1,22 +1,10 @@
-import {
-    AppstoreOutlined,
-    ClockCircleOutlined,
-    CloudUploadOutlined,
-    DashboardOutlined,
-    FileTextOutlined,
-    HistoryOutlined,
-    MenuOutlined,
-    MonitorOutlined,
-    SettingOutlined,
-    TeamOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
 import type { ReactNode } from "react";
 
 import { localizeModuleMenuName, localizeModuleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
 import { dedupeModuleNavigation } from "./module-navigation";
+import { navigationIcon } from "./navigation-icons";
 
 export type AppRoutePath =
     | "/"
@@ -29,6 +17,7 @@ export type AppRoutePath =
     | "/system/menu"
     | "/system/module"
     | "/system/status"
+    | "/system/module-log"
     | "/manage/log"
     | "/manage/task"
     | "/manage/deploy";
@@ -55,14 +44,13 @@ export type SearchRouteItem = {
 const dashboardRoute = (): AppRouteItem => ({
     path: "/",
     name: t("仪表盘", "Dashboard"),
-    icon: <DashboardOutlined />,
+    icon: navigationIcon("/"),
     permission: "dashboard:view",
 });
 
 const profileRoute = (): AppRouteItem => ({
     path: "/profile",
     name: t("个人资料", "Profile"),
-    icon: <UserOutlined />,
     requiresPermission: false,
 });
 
@@ -72,29 +60,22 @@ const moduleGroupPaths: Record<SystemModule.Id, AppRouteGroupPath> = {
     reports: "/reports",
 };
 
-const moduleIcons: Record<SystemModule.Icon, ReactNode> = {
-    monitor: <MonitorOutlined />,
-    "chart-no-axes-combined": <AppstoreOutlined />,
-    "file-text": <FileTextOutlined />,
-};
-
 const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteItem[] => {
     const groups = new Map<SystemModule.Id, AppRouteItem>();
     dedupeModuleNavigation(navigation).forEach((item) => {
-        const icon = moduleIcons[item.icon];
-        if (!registeredModuleRoutePaths.has(item.path) || !icon) {
+        if (!registeredModuleRoutePaths.has(item.path)) {
             return;
         }
         const group = groups.get(item.module) ?? {
             path: moduleGroupPaths[item.module],
             name: localizeModuleName(item.module, item.moduleName),
-            icon,
+            icon: navigationIcon(moduleGroupPaths[item.module]),
             children: [],
         };
         group.children?.push({
             path: item.path,
             name: localizeModuleMenuName(item.module, item.code, item.title),
-            icon,
+            icon: navigationIcon(item.path),
             permission: item.permission,
             requiresPermission: false,
         });
@@ -105,31 +86,31 @@ const getModuleRoutes = (navigation: SystemModule.NavigationItem[]): AppRouteIte
 
 const systemRoutes = (): AppRouteItem => ({
     name: t("系统", "System"),
-    icon: <SettingOutlined />,
+    icon: navigationIcon("/system"),
     path: "/system",
     children: [
         {
             path: "/system/user",
             name: t("用户", "Users"),
-            icon: <UserOutlined />,
+            icon: navigationIcon("/system/user"),
             permission: "system:user:list",
         },
         {
             path: "/system/role",
             name: t("角色", "Roles"),
-            icon: <TeamOutlined />,
+            icon: navigationIcon("/system/role"),
             permission: "system:role:list",
         },
         {
             path: "/system/menu",
             name: t("菜单", "Menus"),
-            icon: <MenuOutlined />,
+            icon: navigationIcon("/system/menu"),
             permission: "system:menu:list",
         },
         {
             path: "/manage/log",
             name: t("日志", "Logs"),
-            icon: <HistoryOutlined />,
+            icon: navigationIcon("/manage/log"),
             permission: "manage:log:list",
         },
     ],
@@ -137,31 +118,37 @@ const systemRoutes = (): AppRouteItem => ({
 
 const manageRoutes = (): AppRouteItem => ({
     name: t("管理", "Management"),
-    icon: <CloudUploadOutlined />,
+    icon: navigationIcon("/manage"),
     path: "/manage",
     children: [
         {
             path: "/system/module",
             name: t("系统模块", "System modules"),
-            icon: <AppstoreOutlined />,
+            icon: navigationIcon("/system/module"),
             permission: "system:module:list",
         },
         {
             path: "/system/status",
             name: t("系统状态", "System status"),
-            icon: <MonitorOutlined />,
+            icon: navigationIcon("/system/status"),
             permission: "system:status:view",
+        },
+        {
+            path: "/system/module-log",
+            name: t("模块日志", "Module logs"),
+            icon: navigationIcon("/system/module-log"),
+            permission: "system:module:log:view",
         },
         {
             path: "/manage/task",
             name: t("定时任务", "Scheduled tasks"),
-            icon: <ClockCircleOutlined />,
+            icon: navigationIcon("/manage/task"),
             permission: "manage:task:list",
         },
         {
             path: "/manage/deploy",
             name: t("部署版本", "Deploy versions"),
-            icon: <CloudUploadOutlined />,
+            icon: navigationIcon("/manage/deploy"),
             permission: "manage:deploy:list",
         },
     ],
@@ -172,8 +159,8 @@ const appRoutePaths = new Set<string>([
     "/profile",
     "/monitoring/overview",
     "/monitoring/nodes",
-    "/monitoring/checks",
     "/monitoring/incidents",
+    "/monitoring/summaries",
     "/analytics/overview",
     "/analytics/details",
     "/reports/templates",
@@ -185,6 +172,7 @@ const appRoutePaths = new Set<string>([
     "/system/menu",
     "/system/module",
     "/system/status",
+    "/system/module-log",
     "/manage/log",
     "/manage/task",
     "/manage/deploy",
@@ -193,8 +181,8 @@ const appRoutePaths = new Set<string>([
 const registeredModuleRoutePaths = new Set<SystemModule.RoutePath>([
     "/monitoring/overview",
     "/monitoring/nodes",
-    "/monitoring/checks",
     "/monitoring/incidents",
+    "/monitoring/summaries",
     "/analytics/overview",
     "/analytics/details",
     "/reports/templates",

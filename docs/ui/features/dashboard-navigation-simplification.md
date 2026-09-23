@@ -1,9 +1,7 @@
 # Dashboard And Admin Navigation Simplification
 
-Status: **Implemented and verified** for the retained 1920x1080 and 1440x900
-runtime evidence. This does not re-assert the complete 20-route browser basis
-or human package approval. Future product-surface changes must establish their
-scoped contract before frontend implementation.
+Status: current route contract synchronized with the user's console requirements.
+Observed local coverage and remaining gaps belong to [local verification](../../guides/local-verification.md).
 
 ## Scope and product facts
 
@@ -26,15 +24,18 @@ failures even though they are not navigation examples.
 
 The project-owned product source is `docs/product/product.md`. Shared visual
 semantics and component ownership are defined only by root `DESIGN.md`;
-`apps/web` source is its current implementation adapter, and
-`docs/ui/profile.yaml` is historical task evidence rather than an accepted
-visual source. This slice only owns Dashboard and navigation composition.
+`apps/web` source is its current implementation adapter. This slice only owns
+Dashboard and navigation composition.
 
 ## Layout, components, and tokens
 
 - `PageHeader` owns the single page heading and description.
-- The Dashboard body stacks account overview, the permission-gated system
-  running summary, and module availability in that DOM order.
+- The Dashboard starts directly with four account metric cards, without a redundant
+  account-overview title or enclosing Card. A permission-gated resource panel and
+  module panel follow side by side where space allows, then stack in that DOM order.
+- Resource and module panels use the ordinary bordered surface from DESIGN. Module
+  entries use neutral compact cards, an icon, and an explicit state indicator plus
+  text; an all-green tile is not the only indication of availability.
 - Reuse `Card`, `MetricCard`, `DataState`, `Badge`, and `Button`. Do not
   introduce charts, progress rings, tabs, a quick-action framework, a nested
   dashboard, or a new metric-card variant for this slice.
@@ -67,6 +68,8 @@ preserve the current route and data state.
 
 - Target sizes: 1920x1080 and 1440x900; the page and representative routes must
   have no document-level horizontal overflow.
+- Also check the current console at 1705×1039, 1024×768 and 390×844; narrower
+  grids must preserve order, readable metrics and reachable module controls.
 - Preserve account overview, system running summary, and module availability in
   that DOM and keyboard order when the layout stacks.
 - Keep one semantic `h1`, visible focus behavior from existing primitives,

@@ -25,10 +25,13 @@ async fn jwt_codec_round_trip() {
     let token = codec.encode(7, "alice").expect("token should encode");
     let claims = codec.decode(&token).expect("token should decode");
 
-    assert_eq!(
-        claims,
-        AuthClaims { user_id: 7, username: "alice".to_string(), exp: claims.exp, iat: claims.iat }
-    );
+    assert_eq!(claims.iss, "rustzen-admin");
+    assert_eq!(claims.aud, "rustzen-entry");
+    assert!(uuid::Uuid::parse_str(&claims.sid).is_ok());
+    assert_eq!(claims.user_id, 7);
+    assert_eq!(claims.username, "alice");
+    assert_eq!(claims.user_auth_epoch, 1);
+    assert!(claims.exp > claims.iat);
 }
 
 #[test]
@@ -37,6 +40,38 @@ fn jwt_codec_rejects_expired_tokens() {
     let token = codec.encode(7, "alice").expect("token should encode");
 
     assert!(codec.decode(&token).is_err());
+}
+
+#[test]
+fn jwt_codec_rejects_wrong_issuer_and_audience() {
+    let expected = JwtCodec::with_issuer_audience("secret", 3600, "installation-a", "entry-web");
+    let wrong_issuer =
+        JwtCodec::with_issuer_audience("secret", 3600, "installation-b", "entry-web");
+    let wrong_audience =
+        JwtCodec::with_issuer_audience("secret", 3600, "installation-a", "other-client");
+    let token = wrong_issuer.encode(7, "alice").expect("issuer token");
+    assert!(expected.decode(&token).is_err());
+    let token = wrong_audience.encode(7, "alice").expect("audience token");
+    assert!(expected.decode(&token).is_err());
+}
+
+#[test]
+fn jwt_codec_rejects_claims_without_session_authority() {
+    #[derive(serde::Serialize)]
+    struct ClaimsWithoutSession {
+        user_id: i64,
+        username: &'static str,
+        exp: usize,
+        iat: usize,
+    }
+    let now = chrono::Utc::now().timestamp() as usize;
+    let token = jsonwebtoken::encode(
+        &jsonwebtoken::Header::default(),
+        &ClaimsWithoutSession { user_id: 7, username: "alice", exp: now + 60, iat: now },
+        &jsonwebtoken::EncodingKey::from_secret(b"secret"),
+    )
+    .expect("token without session authority");
+    assert!(JwtCodec::new("secret", 3600).decode(&token).is_err());
 }
 
 #[tokio::test]

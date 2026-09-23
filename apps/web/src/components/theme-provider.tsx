@@ -48,17 +48,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         <ThemeContext value={{ theme, setTheme }}>
             <ConfigProvider
                 locale={antdLocale}
+                variant="filled"
                 theme={{
                     algorithm,
                     token: {
                         borderRadius: 8,
-                        colorLink: theme === "dark" ? "#9fc5ff" : "#1f5fbf",
-                        colorPrimary: theme === "dark" ? "#e9edf4" : "#1f5fbf",
+                        colorLink: theme === "dark" ? "#9fc5ff" : "#1769e8",
+                        colorPrimary: theme === "dark" ? "#e9edf4" : "#1769e8",
+                        colorBgLayout: "var(--background)",
+                        colorBgContainer: "var(--card)",
+                        colorFillTertiary: "var(--muted)",
                         colorText: "var(--foreground)",
-                        colorTextDescription: theme === "dark" ? "#b6beca" : "#58616f",
+                        colorTextDescription: "var(--muted-foreground)",
                         colorTextLightSolid: "var(--primary-foreground)",
-                        colorTextSecondary: theme === "dark" ? "#b6beca" : "#58616f",
-                        colorTextTertiary: theme === "dark" ? "#b6beca" : "#58616f",
+                        colorTextSecondary: "var(--muted-foreground)",
+                        colorTextTertiary: "var(--muted-foreground)",
                         controlHeight: 36,
                         fontSize: 14,
                         lineWidth: 1,
@@ -72,6 +76,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                             fontWeight: 500,
                         },
                         Card: {
+                            colorBgContainer: "var(--card)",
                             borderRadiusLG: 10,
                             boxShadowTertiary: "none",
                             headerFontSize: 16,
@@ -82,13 +87,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                             borderRadius: 8,
                         },
                         Menu: {
+                            itemBg: "transparent",
+                            subMenuItemBg: "transparent",
+                            itemColor: "var(--muted-foreground)",
+                            itemSelectedBg: "var(--sidebar-accent)",
+                            itemSelectedColor: "var(--primary)",
+                            itemHoverBg: "var(--muted)",
+                            iconSize: 14,
+                            collapsedIconSize: 14,
                             itemBorderRadius: 8,
                             itemHeight: 40,
                         },
                         Select: {
                             borderRadius: 8,
                         },
+                        Tag: {
+                            defaultBg: "var(--muted)",
+                            defaultColor: "var(--foreground)",
+                        },
                         Table: {
+                            borderColor: "transparent",
+                            headerSplitColor: "transparent",
                             cellPaddingBlock: 13,
                             headerBg: "var(--table-header)",
                             headerColor: "var(--foreground)",

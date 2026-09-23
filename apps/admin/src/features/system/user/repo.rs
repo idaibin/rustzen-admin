@@ -6,12 +6,14 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{Error as SqlxError, QueryBuilder, Sqlite, SqlitePool};
 
-use super::types::{CreateUserCommand, UserDashboardCounts, UserListQuery, UserWithRolesRow};
+#[cfg(feature = "full")]
+use super::types::UserDashboardCounts;
+use super::types::{UserListQuery, UserWithRolesRow};
 
 /// User db for database operations
 pub struct UserRepository;
 
-const DEFAULT_USER_STATUS: i16 = 1;
+pub(super) const DEFAULT_USER_STATUS: i16 = 1;
 
 impl UserRepository {
     fn format_query(query: &UserListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
@@ -105,100 +107,6 @@ impl UserRepository {
     }
 
     /// Create new user with optional roles (unified method)
-    pub async fn create_user(
-        pool: &SqlitePool,
-        cmd: &CreateUserCommand,
-    ) -> Result<i64, ServiceError> {
-        let mut tx = pool.begin().await.map_err(|e| {
-            tracing::error!("Database error starting transaction for user creation: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-        let now = Utc::now().naive_utc();
-
-        let user_id = sqlx::query_scalar::<_, i64>(
-            "INSERT INTO users (username, email, password_hash, real_name, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
-             RETURNING id",
-        )
-        .bind(&cmd.username)
-        .bind(&cmd.email)
-        .bind(&cmd.password_hash)
-        .bind(cmd.real_name.as_deref())
-        .bind(cmd.status.unwrap_or(DEFAULT_USER_STATUS))
-        .bind(now)
-        .bind(now)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| Self::map_user_write_error("creating user", e))?;
-
-        Self::insert_user_roles(&mut tx, user_id, &cmd.role_ids).await?;
-
-        tx.commit().await.map_err(|e| {
-            tracing::error!("Database error committing user creation transaction: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(user_id)
-    }
-
-    /// Update existing user
-    pub async fn update_user(
-        pool: &SqlitePool,
-        id: i64,
-        email: &str,
-        real_name: &str,
-        role_ids: &[i64],
-    ) -> Result<i64, ServiceError> {
-        let mut tx = pool.begin().await.map_err(|e| {
-            tracing::error!("Database error starting transaction for user update: {:?}", e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        let user_id = sqlx::query_scalar::<_, i64>(
-            "UPDATE users
-             SET email = ?, real_name = ?, updated_at = ?
-             WHERE id = ? AND deleted_at IS NULL
-             RETURNING id",
-        )
-        .bind(email)
-        .bind(real_name)
-        .bind(Utc::now().naive_utc())
-        .bind(id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|e| Self::map_user_write_error("updating user", e))?;
-
-        if let Some(id) = user_id {
-            Self::insert_user_roles(&mut tx, id, role_ids).await?;
-            tx.commit().await.map_err(|e| {
-                tracing::error!("Database error committing user update transaction: {:?}", e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-            Ok(id)
-        } else {
-            Err(ServiceError::NotFound(format!("User id: {}", id)))
-        }
-    }
-
-    /// Soft delete user
-    pub async fn soft_delete(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
-        let result = sqlx::query(
-            "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
-        )
-        .bind(Utc::now().naive_utc())
-        .bind(Utc::now().naive_utc())
-        .bind(id)
-        .execute(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error soft deleting user ID {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
-    /// Set user roles (replace all existing roles)
     pub async fn insert_user_roles(
         tx: &mut sqlx::Transaction<'_, Sqlite>,
         user_id: i64,
@@ -323,44 +231,7 @@ impl UserRepository {
         })
     }
 
-    pub async fn update_user_password(
-        pool: &SqlitePool,
-        id: i64,
-        password_hash: &str,
-    ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?")
-            .bind(password_hash)
-            .bind(Utc::now().naive_utc())
-            .bind(id)
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating user password for ID {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
-    pub async fn update_user_status(
-        pool: &SqlitePool,
-        id: i64,
-        status: i16,
-    ) -> Result<bool, ServiceError> {
-        let result = sqlx::query("UPDATE users SET status = ?, updated_at = ? WHERE id = ?")
-            .bind(status)
-            .bind(Utc::now().naive_utc())
-            .bind(id)
-            .execute(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error updating user status for ID {}: {:?}", id, e);
-                ServiceError::DatabaseQueryFailed
-            })?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
+    #[cfg(feature = "full")]
     pub async fn dashboard_counts(pool: &SqlitePool) -> Result<UserDashboardCounts, ServiceError> {
         let (total_users, active_users, today_logins, pending_users) = tokio::join!(
             sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")
@@ -387,7 +258,7 @@ impl UserRepository {
         })
     }
 
-    fn map_user_write_error(context: &str, err: SqlxError) -> ServiceError {
+    pub(super) fn map_user_write_error(context: &str, err: SqlxError) -> ServiceError {
         if let SqlxError::Database(db_err) = &err
             && let Some(conflict) = classify_user_unique_conflict(
                 db_err.code().as_deref(),
@@ -412,6 +283,7 @@ impl UserRepository {
     }
 }
 
+#[cfg(feature = "full")]
 fn map_dashboard_count_result(
     result: Result<i64, SqlxError>,
     metric_name: &str,
@@ -458,6 +330,62 @@ fn classify_user_unique_conflict(
 #[cfg(test)]
 mod tests {
     use super::{UserUniqueConflict, classify_user_unique_conflict};
+
+    #[tokio::test]
+    async fn deleting_user_releases_roles_atomically() {
+        use super::UserRepository;
+        use crate::features::system::role::repo::{RoleRepository, SoftDeleteOutcome};
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        crate::infra::db::run_migrations(&pool).await.unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("PRAGMA foreign_keys").fetch_one(&pool).await.unwrap(),
+            1
+        );
+        let role: i64 = sqlx::query_scalar("INSERT INTO roles (name, code, status, is_system) VALUES ('Temporary', 'delete_test', 1, FALSE) RETURNING id")
+            .fetch_one(&pool).await.unwrap();
+        let user: i64 = sqlx::query_scalar("INSERT INTO users (username, email, password_hash, status, is_system) VALUES ('delete_test', 'delete@test.local', 'unused', 1, FALSE) RETURNING id")
+            .fetch_one(&pool).await.unwrap();
+        let mut tx = pool.begin().await.unwrap();
+        UserRepository::insert_user_roles(&mut tx, user, &[role]).await.unwrap();
+        tx.commit().await.unwrap();
+        sqlx::query("CREATE TRIGGER fail_role_cleanup BEFORE DELETE ON user_roles BEGIN SELECT RAISE(ABORT, 'test cleanup failure'); END")
+            .execute(&pool).await.unwrap();
+        assert!(UserRepository::soft_delete(&pool, user).await.is_err());
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM users WHERE id = ? AND deleted_at IS NULL"
+            )
+            .bind(user)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            1
+        );
+        assert_eq!(RoleRepository::get_role_user_count(&pool, role).await.unwrap(), 1);
+        sqlx::query("DROP TRIGGER fail_role_cleanup").execute(&pool).await.unwrap();
+        assert!(UserRepository::soft_delete(&pool, user).await.unwrap());
+        assert!(!UserRepository::soft_delete(&pool, user).await.unwrap());
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM users WHERE id = ? AND deleted_at IS NOT NULL"
+            )
+            .bind(user)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            1
+        );
+        assert_eq!(RoleRepository::get_role_user_count(&pool, role).await.unwrap(), 0);
+        assert_eq!(
+            RoleRepository::soft_delete(&pool, role).await.unwrap(),
+            SoftDeleteOutcome::Deleted
+        );
+        pool.close().await;
+    }
 
     #[test]
     fn classify_user_unique_conflict_returns_username_for_sqlite_username_message() {

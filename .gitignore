@@ -8,6 +8,7 @@
 /apps/web/dist
 /apps/web/.eslintcache
 /apps/web/.vite
+/apps/web/.selected-web
 /uploads
 
 
@@ -17,6 +18,8 @@
 *.sw?
 *.log
 *.tmp
+__pycache__/
+*.py[cod]
 *.DS_Store
 
 # Cursor / AI

@@ -1,6 +1,6 @@
 [package]
 name = "rustzen-auth"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license.workspace = true
 publish = false
@@ -17,3 +17,4 @@ thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
 tracing = "0.1"
+uuid = { version = "1.17", features = ["v4"] }

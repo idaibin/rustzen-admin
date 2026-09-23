@@ -1,19 +1,18 @@
 # Operational Metric Card Route Contract
 
-Status: adopted shared authority; implementation verification pending for the current Worktree.
+Status: current route mapping; verification coverage is owned by the local verification guide.
 
 ## Authority and selected source
 
 - Profile: Feature UI.
 - Product basis:
   [Operational Metric Card Visual Consistency](../../product/features/metric-card-visual-consistency/spec.md).
-- Shared visual authority: root `DESIGN.md` at approved SHA-256
-  `724874eec2c075c5cda20800458bc8cca89447a841076d375cd85d4f58d9fd88`.
+- Shared visual authority: current root `DESIGN.md`; no historical content hash is
+  asserted as approval of the current working tree.
 - Selected source: the adopted shared `MetricCard` meaning plus the current factual
   Dashboard, Monitoring overview, and Analytics overview surfaces.
-- Approval: daibin, human product/repository owner, approved the exact DESIGN content
-  hash through controller task `019ff4d6-8b8a-7100-bada-b8cb46d3ed17`.
-- Rights/use: repository-owned source and approved shared authority.
+- Scope authority: the user-confirmed console and card requirements.
+- Rights/use: repository-owned source and current shared authority.
 - Use: existing factual metrics, route-local ordering/grid, icons, localized labels,
   semantic category mapping, query states, and current API ownership.
 - Ignore: the superseded 2026-07-31 crop as shared component authority, its inferred
@@ -40,9 +39,8 @@ Status.
 
 ### Monitoring overview
 
-The route keeps one summary row for registered, online, offline, unhealthy-check, and,
-when permitted, active-incident counts. The active-incident evidence surface follows the
-summary. Refresh metadata remains secondary to the page title and current operational
+The route keeps one summary row for registered, online, offline and active-incident
+counts. The latest-resource evidence surface follows the summary. Refresh metadata remains secondary to the page title and current operational
 state.
 
 ### Analytics overview
@@ -69,8 +67,7 @@ redefine it.
 | Monitoring | Registered nodes | blue |
 | Monitoring | Online nodes | green |
 | Monitoring | Offline nodes | amber |
-| Monitoring | Unhealthy checks | red |
-| Monitoring | Active incidents | violet |
+| Monitoring | Active incidents | red |
 | Analytics | Page views | blue |
 | Analytics | Unique visitors | violet |
 | Analytics | Total events | green |
@@ -87,7 +84,7 @@ second icon system.
 | Dashboard account metrics | Required | Required | Successful zero values | Required with retry | Page access owner | Keep last successful values when available |
 | Dashboard host resources | Required when permitted | Required | Successful zero values | Required with retry | Region absent without `system:status:view` | Keep last successful values when available |
 | Dashboard modules | Required | Required including unavailable module | Not applicable; fixed modules remain named | Required with retry | Existing navigation/capability owner | Existing polling keeps visible data |
-| Monitoring summary | Required | Required | Registered-node zero remains distinguishable from request failure | Required with retry | Incident metric is permission-gated | Keep last successful summary and expose retry |
+| Monitoring summary | Required | Required | Registered-node zero remains distinguishable from request failure | Required with retry | Existing Monitoring route/capability owner | Keep last successful summary and expose retry |
 | Analytics summary | Required | Required | Successful zero values | Required with retry | Existing route/capability owner | Keep last successful summary when available |
 
 A failed initial request never becomes a valid zero/empty metric surface. Permission
@@ -99,7 +96,7 @@ rules remain with product/source owners and are not redefined here.
 | --- | --- | --- | --- |
 | Primary | 1920x1080 CSS px, 100% zoom | light, zh-CN; representative keyboard/focus and state checks | Dashboard, Monitoring, representative data table |
 | Compatibility | 1440x900 CSS px, 100% zoom | light/dark and zh-CN/en-US wrapping across representative surfaces | Dashboard, Monitoring, representative data table |
-| Excluded from this task | smaller viewports | best effort | No completion claim; a future slice may promote a named viewport |
+| Responsive | 1024×768 and 390×844 | representative light/dark | Preserve metric order and visible values without document overflow |
 
 At required viewports:
 
@@ -129,5 +126,6 @@ Ready for `dev-frontend` metric-card route alignment.
 
 Shared-system changes beyond adopting root DESIGN: none. Exact implementation geometry is
 validated against the adopted DESIGN and required viewports; it is not redefined here.
-Runtime completion requires two comparison passes, computed geometry/style checks, the
-applicable state matrix, and no unresolved P0/P1 finding.
+Runtime completion requires scoped geometry/style and state checks. Observed coverage
+and remaining gaps are recorded in [local verification](../../guides/local-verification.md);
+requirements here do not claim full runtime or human visual acceptance.

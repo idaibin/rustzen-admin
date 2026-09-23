@@ -1,22 +1,26 @@
+#[cfg(feature = "full")]
+use super::types::LoginAuditCommand;
 use super::{
     repo::AuthRepository,
-    types::{
-        AuthUserRow, LoginAuditCommand, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus,
-    },
+    session::SessionRepository,
+    types::{AuthUserRow, LoginCredentialsRow, LoginResp, UserInfoResp, UserStatus},
 };
+#[cfg(feature = "full")]
+use crate::features::manage::log::{service::LogService, types::LogWriteCommand};
 use crate::{
     common::error::ServiceError,
-    features::manage::log::{service::LogService, types::LogWriteCommand},
     infra::{auth_runtime::jwt_codec, password::PasswordUtils, permission::PermissionService},
 };
 
 use sqlx::SqlitePool;
+#[cfg(feature = "full")]
 use std::time::Instant;
 
 /// Auth service for login and current-user session operations.
 pub struct AuthService;
 
 impl AuthService {
+    #[cfg(feature = "full")]
     pub async fn login_with_audit(
         pool: &SqlitePool,
         username: &str,
@@ -65,36 +69,94 @@ impl AuthService {
         let start = std::time::Instant::now();
         tracing::info!("Login attempt received for username: {}", username);
 
-        let user = Self::verify_login(pool, username, password).await.map_err(|error| {
-            tracing::warn!("Login verification failed for username={}: {:?}", username, error);
-            error
-        })?;
-        let verification_time = start.elapsed();
-        tracing::debug!(
-            "User verification completed in {:?} for user_id={}",
-            verification_time,
-            user.id
-        );
-
-        let token = jwt_codec().encode(user.id, username).map_err(|e| {
-            tracing::error!("Failed to generate token for user_id={}: {:?}", user.id, e);
+        let user = Self::verify_login(pool, username, password).await?;
+        let codec = jwt_codec();
+        let sid = uuid::Uuid::new_v4().to_string();
+        let issued_at = chrono::Utc::now().timestamp();
+        let claims = codec.claims_at(user.id, username, &sid, user.auth_epoch, issued_at);
+        let token = codec.encode_claims(&claims).map_err(|error| {
+            tracing::error!(%error, "encoding pending login session");
             ServiceError::TokenCreationFailed
         })?;
-
-        tracing::debug!("JWT token generated successfully for user_id={}", user.id);
-
-        Self::cache_user_permissions(pool, user.id).await.map_err(|e| {
-            tracing::error!(
-                "Failed to cache permissions during login for user_id={}: {:?}",
-                user.id,
-                e
-            );
-            e
+        let mut tx = pool.begin_with("BEGIN IMMEDIATE").await.map_err(|error| {
+            tracing::error!(%error, "starting login transaction");
+            ServiceError::DatabaseQueryFailed
         })?;
-
-        AuthRepository::update_last_login(pool, user.id).await?;
-
-        let user_info = Self::get_login_info(pool, user.id).await?;
+        let current = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(
+                 SELECT 1 FROM users
+                 WHERE id=? AND username=? AND password_hash=? AND auth_epoch=?
+                   AND status=1 AND deleted_at IS NULL
+             )",
+        )
+        .bind(user.id)
+        .bind(username)
+        .bind(&user.password_hash)
+        .bind(user.auth_epoch)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "rechecking verified login identity");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        if !current {
+            return Err(ServiceError::InvalidCredentials);
+        }
+        SessionRepository::create_in_transaction(
+            &mut tx,
+            user.id,
+            &sid,
+            user.auth_epoch,
+            issued_at,
+            claims.exp as i64,
+        )
+        .await?;
+        let auth_user = sqlx::query_as::<_, AuthUserRow>(
+            "SELECT id,username,real_name,email,avatar_url,is_system FROM users
+             WHERE id=? AND status=1 AND deleted_at IS NULL",
+        )
+        .bind(user.id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "loading login user information");
+            ServiceError::DatabaseQueryFailed
+        })?
+        .ok_or(ServiceError::InvalidToken)?;
+        let permissions = sqlx::query_scalar::<_, String>(
+            "SELECT menu_code FROM user_permissions WHERE user_id=? ORDER BY menu_code",
+        )
+        .bind(user.id)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "loading login permissions");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        let now = chrono::Utc::now().naive_utc();
+        sqlx::query("UPDATE users SET last_login_at=?,updated_at=? WHERE id=?")
+            .bind(now)
+            .bind(now)
+            .bind(user.id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "updating login timestamp");
+                ServiceError::DatabaseQueryFailed
+            })?;
+        tx.commit().await.map_err(|error| {
+            tracing::error!(%error, "committing login transaction");
+            ServiceError::DatabaseQueryFailed
+        })?;
+        let user_info = UserInfoResp {
+            id: auth_user.id,
+            username: auth_user.username,
+            real_name: auth_user.real_name,
+            email: auth_user.email,
+            avatar_url: auth_user.avatar_url,
+            is_system: auth_user.is_system,
+            permissions,
+        };
 
         let total_time = start.elapsed();
         tracing::info!(
@@ -105,6 +167,21 @@ impl AuthService {
         );
 
         Ok(LoginResp { token, user_info })
+    }
+
+    pub async fn verify_login(
+        pool: &SqlitePool,
+        username: &str,
+        password: &str,
+    ) -> Result<LoginCredentialsRow, ServiceError> {
+        let user = AuthRepository::get_login_credentials(pool, username)
+            .await?
+            .ok_or(ServiceError::InvalidCredentials)?;
+        UserStatus::try_from(user.status)?.check_status()?;
+        if !PasswordUtils::verify_password(password, &user.password_hash) {
+            return Err(ServiceError::InvalidCredentials);
+        }
+        Ok(user)
     }
 
     /// Get detailed user info with roles, menus, and permissions
@@ -121,7 +198,16 @@ impl AuthService {
 
         tracing::debug!("User basic info retrieved for user_id={}, username={}", user_id, username);
 
-        let permissions = PermissionService::refresh_user_permissions(pool, user_id).await?;
+        let permissions = sqlx::query_scalar::<_, String>(
+            "SELECT menu_code FROM user_permissions WHERE user_id=? ORDER BY menu_code",
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "loading current login permissions");
+            ServiceError::DatabaseQueryFailed
+        })?;
 
         tracing::info!(
             "User info retrieved successfully for user_id={}, username={}",
@@ -132,10 +218,13 @@ impl AuthService {
         Ok(UserInfoResp { id, username, real_name, email, avatar_url, is_system, permissions })
     }
 
-    pub fn logout(user_id: i64) {
+    pub async fn logout(pool: &SqlitePool, user_id: i64, sid: &str) -> Result<(), ServiceError> {
+        SessionRepository::revoke_sid(pool, user_id, sid, chrono::Utc::now().timestamp()).await?;
         PermissionService::clear_user_cache(user_id);
+        Ok(())
     }
 
+    #[cfg(feature = "full")]
     async fn record_login_operation(
         pool: &SqlitePool,
         user_id: i64,
@@ -164,63 +253,9 @@ impl AuthService {
             tracing::error!("Failed to log login operation: {:?}", e);
         }
     }
-
-    /// Verify login credentials
-    pub async fn verify_login(
-        pool: &SqlitePool,
-        username: &str,
-        password: &str,
-    ) -> Result<LoginCredentialsRow, ServiceError> {
-        tracing::info!("Starting login verification for username: {}", username);
-
-        let user = AuthRepository::get_login_credentials(pool, username)
-            .await?
-            .ok_or(ServiceError::InvalidCredentials)?;
-
-        tracing::debug!(
-            "User found for username={}, user_id={}, status={}",
-            username,
-            user.id,
-            user.status
-        );
-
-        let status = UserStatus::try_from(user.status)?;
-        status.check_status()?;
-
-        if !PasswordUtils::verify_password(password, &user.password_hash) {
-            tracing::warn!(
-                "Invalid login attempt: password verification failed for username={}, user_id={}",
-                username,
-                user.id
-            );
-            return Err(ServiceError::InvalidCredentials);
-        }
-
-        tracing::info!(
-            "Login verification successful for username={}, user_id={}",
-            username,
-            user.id
-        );
-        Ok(user)
-    }
-
-    /// Cache user permissions
-    pub async fn cache_user_permissions(
-        pool: &SqlitePool,
-        user_id: i64,
-    ) -> Result<(), ServiceError> {
-        tracing::debug!("Starting to cache user permissions for user_id: {}", user_id);
-
-        let permissions = PermissionService::refresh_user_permissions(pool, user_id).await?;
-        tracing::info!(
-            "Successfully refreshed {} permissions cache for user_id={}",
-            permissions.len(),
-            user_id
-        );
-        Ok(())
-    }
 }
 
+#[cfg(feature = "full")]
 fn login_failure_description(error: &ServiceError) -> &'static str {
     match error {
         ServiceError::InvalidCredentials => "用户名或密码错误",
@@ -231,7 +266,7 @@ fn login_failure_description(error: &ServiceError) -> &'static str {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod login_description_tests {
     use super::login_failure_description;
     use crate::common::error::ServiceError;

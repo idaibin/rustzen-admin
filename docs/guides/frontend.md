@@ -8,7 +8,9 @@ build all pass on a newer pair.
 Rules for frontend work under `apps/web/`.
 
 The UI stack is `antd` + `@ant-design/pro-components` as the single component
-library in this application, with `@ant-design/icons` for icon usage.
+library in this application. Sidebar navigation uses `lucide-react` with one
+function-specific outline icon per destination; existing Ant Design control icons
+remain available outside navigation.
 Tailwind CSS is used for layout and spacing only; it must not be treated as a UI
 component system.
 
@@ -42,6 +44,9 @@ component system.
   it does not redefine theme, component, state, layout, responsive, or
   accessibility meaning.
 - React Query owns read-side server state.
+- Use `cn` from the `cn` package when combining conditional or caller-provided Tailwind
+  classes. Pass caller overrides last so conflicting utilities resolve consistently;
+  keep fixed class strings literal. Ant Design styling remains owned by its theme tokens.
 - Zustand stays limited to shared auth state and small persisted UI filters.
 - Implement the `DataState` distinctions defined by `DESIGN.md`. Query owners
   supply the real state, retry through their existing query, and retain the

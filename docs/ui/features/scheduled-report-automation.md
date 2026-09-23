@@ -1,5 +1,9 @@
 # Scheduled Report Automation UI
 
+The Reports-owned module displays as **自动化 / Automation** in the sidebar,
+page search and module-status surfaces. Routes remain `/reports/*`; this naming
+change does not expand browser execution or rename existing child pages.
+
 ## Profile, authority, and selected source
 
 - Profile: **Feature UI**.
@@ -10,19 +14,87 @@
   surfaces in `apps/web/src/routes/reports/templates.tsx` and
   `apps/web/src/routes/reports/runs.tsx`, plus the repository-owned `DESIGN.md`
   adopted root `DESIGN.md` baseline.
-- Selection status: accepted existing product surface and Ant Design system.
-  Rights/use are repository-owned; former standalone report shells and visual
-  alternatives are ignored.
+- Selection status: accepted existing repository-owned product surface and Ant
+  Design system.
 - Target: schedule list/form integrated with existing Templates/Runs surfaces
   in loading, populated, empty, error, permission, processing, and partial
   states at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. New schedule runtime captures are `Not verified` until
-  implementation.
+  zh-CN/en-US. The route-local schedule panel and API client are implemented and
+  locally verified by the current Schedule and Reports manifests bound to the
+  source identity below.
+
+The `linux/amd64` Linux Chromium gates exercised rendered schedule create and
+edit through the container-only route-exact proxy. Their schema-2 Schedule
+manifest retains seven hash-bound run-step receipts and only its named desktop
+and mobile PNGs; invalid and secret-rejection cases do not claim PNG evidence.
+The schema-3 Reports manifest retains four browser receipts, the cancelled
+processing receipt, direct-mutation 403 receipts, source-preservation hashes,
+and four reviewed screenshots.
 
 The selected source proves current PageCard, table, form, Modal, run-detail,
 and DataState ownership. It does not authorize a new workflow builder, a new
 page shell, or exact schedule-specific geometry; the schedule panel remains a
-route-local adaptation.
+route-local adaptation. The schedule child in the shared navigation has the
+stable `navigation-reports-schedules` marker; the English browser journey must
+pair it with `data-label="Scheduled reports"` and reject the Chinese label via
+the same CSS selector.
+
+Only the notifications-capable `full` selection composes the shared
+notification-delivery indicator on Runs. The `reports` preset (`[access, reports]`)
+does not select notifications and has no indicator. In `full`, the trigger and
+its click-through present pending/quarantine counts and charged bytes, the
+five-counter irreversible-gap total, nullable formatted timestamps, and explicit
+loading, permission, error, healthy, and gap states. Fixed copy uses the
+existing Chinese/English localization owner.
+
+Screenshot artifacts remain bounded backend evidence: failed oversize capture
+is shown through the existing run failure evidence and does not create a fake
+artifact or partial download surface.
+
+## Current implementation and verification status
+
+`apps/web/src/routes/reports/templates.tsx` renders the schedule panel behind
+`reports:schedule:view`; its create, edit, enable/disable, and delete controls
+remain behind `reports:schedule:manage`. The route reads the stable
+`checkPermissions` selector before deriving schedule state, so a schedule-only
+viewer can reach the panel without receiving flow-management actions. The
+panel renders daily/weekly values, installation timezone, next due, and the
+latest occurrence; only an occurrence with `runId` exposes the existing run
+link.
+
+The route passes its schedule-manage result to the panel's column composition.
+Only a manager assembles the fixed-width actions column. A view-only panel has
+no actions column at all, so its 390px table keeps the full due-time and
+timezone value such as `10:16 · UTC` visible. The browser flow asserts that
+exact value, the absent actions, and no horizontal overflow.
+
+The static seam tests verify selector/gate composition and the route-local retry
+behavior: failed/cancelled visibility, one per-source pending key shared by the
+list and detail, child selection after success, and source preservation after
+failure. The schedule-save seam verifies that an API failure displays an error
+without closing the dialog, while successful refresh remains the only path that
+announces and closes it. The Reports browser verifier separately verifies
+schedule-only viewer/manager delegated HTTP access while exercising the
+target-backed browser runner. The current Schedule and Reports manifests
+provide the named desktop/mobile visual captures; browser matrices outside
+those exact journeys remain **Not verified**.
+
+The state-closure gate uses the same Reports components and four-service
+runtime. Its manager flow is intended to hold the executor with a bounded series
+of individually supported 30-second pauses, capture the active-run processing
+state, then close the audit and use the rendered run-cancel control. A matching
+current manifest verifies the cancelled pause-step receipt. It shows
+a real terminal failure with the failed step, error, and existing Retry control.
+It compares the source run, steps, and artifacts before and after the retry so
+the selected child cannot replace retained evidence. Its controlled disposable
+SQLite fixture renders one `enqueued` row with a real run link and one
+`skipped` row with a separate due/reason and no link, proving the partial
+summary without claiming scheduler history. A single mobile view-only role
+holds both schedule and run read capabilities; it sees neither schedule
+`schedule-create`, `schedule-edit`, `schedule-toggle`, or `schedule-delete`
+control, nor the run `run-create`, `run-cancel-*`, or Retry control. These
+stable control identifiers keep the combined permission assertion tied to the
+same rendered viewer flow, and its direct mutation requests are denied.
 
 ## Surface and layout contract
 
@@ -44,17 +116,18 @@ route-local adaptation.
 
 ## Component and data-owner mapping
 
-| Responsibility | Current owner | Decision |
-| --- | --- | --- |
-| Page shell and section heading | `PageCard`/existing route heading | Reuse |
-| Schedule list and paging | `DataTableShell` + route-local `ProTable` | Reuse; columns remain route-local |
-| Loading, empty, error, permission, processing | `DataState` | Reuse |
-| Schedule form | Existing Ant Design `Form`, `Select`, time/date controls | Reuse; route-local validation |
-| Enable/disable and outcome labels | Ant Design `Tag`/`Switch` with semantic theme | Wrap route-local meaning; no new status component |
-| Destructive confirmation | Existing `ConfirmDialog` | Reuse |
-| Run link/detail | Existing Reports route detail Modal/Drawer | Wrap/reuse; no new artifact viewer |
-| HTTP transport | Existing Reports API client and `apiRequest` | Reuse; Reports chain is Rust `ModuleRouter/Manifest` -> handwritten `apps/web/src/api/reports/contract.ts` -> `scripts/verify-worker-contracts.mjs` |
-| Schedule/run data | Reports automation and Reports SQLite | Reports owns lifecycle and persistence |
+| Responsibility                                | Current owner                                            | Decision                                                                                                                                            |
+| --------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page shell and section heading                | `PageCard`/existing route heading                        | Reuse                                                                                                                                               |
+| Schedule list and paging                      | `DataTableShell` + route-local `ProTable`                | Reuse; schedule columns are route-local; the manager-only actions column is assembled separately from view-only columns                             |
+| Loading, empty, error, permission, processing | `DataState`                                              | Reuse                                                                                                                                               |
+| Schedule form                                 | Existing Ant Design `Form`, `Select`, time/date controls | Reuse; route-local validation                                                                                                                       |
+| Enable/disable and outcome labels             | Ant Design `Tag`/`Switch` with semantic theme            | Wrap route-local meaning; no new status component                                                                                                   |
+| Destructive confirmation                      | Existing `ConfirmDialog`                                 | Reuse                                                                                                                                               |
+| Run link/detail                               | Existing Reports route detail Modal/Drawer               | Wrap/reuse; no new artifact viewer                                                                                                                  |
+| Terminal-run retry                            | Existing Reports run action buttons and detail Modal     | Wrap/reuse; no new run form or route                                                                                                                |
+| HTTP transport                                | Existing Reports API client and `apiRequest`             | Reuse; Reports chain is Rust `ModuleRouter/Manifest` -> handwritten `apps/web/src/api/reports/contract.ts` -> `scripts/verify-worker-contracts.mjs` |
+| Schedule/run data                             | Reports automation and Reports SQLite                    | Reports owns lifecycle and persistence                                                                                                              |
 
 There is no new shared scheduler table, form DSL, status enum, or workflow
 component. The route-local composition may be promoted only after a second
@@ -62,20 +135,64 @@ compatible consumer exists.
 
 ## State and interaction contract
 
-| State | Presentation | Interaction |
-| --- | --- | --- |
-| Loading | Compact `DataState` in the schedule panel | Create/filter actions wait for required data; no false empty. |
-| Populated | Table with cadence, timezone, next due, and last decision | Open detail/edit only when capability permits; only `enqueued` decisions link to a run. |
-| Empty | `DataState` explains no schedules and allowed create action | Create opens the existing Modal form. |
-| Error | Alert-semantic `DataState` with retry | Retry preserves filters and any open form values. |
-| Permission | Permission-semantic state or hidden mutation actions | Viewer can read only when schedule-view is granted. |
-| Processing | Disabled primary/action controls and inline progress | Duplicate save/toggle/delete cannot start. |
-| Partial | Per-occurrence decision/outcome tags and explicit summary | Skipped items show due/reason with no run link; enqueued items link to their run; no all-success label. |
-| Validation | Field-local guidance plus form-level error | Secret-looking input and cadence errors prevent submission. |
+| State      | Presentation                                                | Interaction                                                                                                                                                                                                     |
+| ---------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Loading    | Compact `DataState` in the schedule panel                   | Create/filter actions wait for required data; no false empty.                                                                                                                                                   |
+| Populated  | Table with cadence, timezone, next due, and last decision   | Open detail/edit only when capability permits; only `enqueued` decisions link to a run.                                                                                                                         |
+| Empty      | `DataState` explains no schedules and allowed create action | Create opens the existing Modal form.                                                                                                                                                                           |
+| Error      | Alert-semantic `DataState` with retry                       | Retry preserves filters and any open form values.                                                                                                                                                               |
+| Permission | Permission-semantic state or hidden mutation actions        | Viewer can read only when schedule-view is granted.                                                                                                                                                             |
+| Processing | Disabled primary/action controls and inline progress        | Duplicate save/toggle/delete cannot start.                                                                                                                                                                      |
+| Partial    | Per-occurrence decision/outcome tags and explicit summary   | Skipped items show their due instant and reason separately with no run link; a DST gap without `dueAt` shows `dueLocal` plus the installation timezone; enqueued items link to their run; no all-success label. |
+| Validation | Field-local guidance plus form-level error                  | Secret-looking input and cadence errors prevent submission.                                                                                                                                                     |
+
+When a create or edit request fails after local validation, the open Modal
+renders a form-level error alert using the server error when available and a
+localized fallback otherwise. The alert remains until the next save attempt or
+the dialog closes. The Modal does not close or reinitialize fields on failure,
+so the operator can correct the retained draft or retry immediately. This
+schedule mutation suppresses its global error toast, leaving the form alert as
+the only failure presentation. A dialog open cycle initializes its draft once;
+flow-option or schedule-prop refreshes never overwrite an active draft, and a
+late callback from a closed cycle cannot alter a later reopened dialog.
 
 The form never exposes credential fields, arbitrary cron text, notification
 channels, or catch-up controls. A disabled schedule is textually distinct from
 a failed run and a skipped occurrence.
+
+The Runs list and Run audit detail show a bilingual Retry action only for
+`failed` and `cancelled` terminal runs and only behind `reports:run:manage`.
+While the request is pending, both the list and Run audit Retry controls for
+that source run are disabled. A successful retry immediately selects the returned direct
+child and reports success, then refreshes the list; a failure is visible through the existing message
+feedback without closing the source run. Repeating the action returns the same
+direct child even after it is terminal. To continue after a failed or cancelled
+child, the operator opens that child and retries it, extending the
+source-to-child chain without replacing an earlier link. Retention can clear a
+child's source reference when the older source is removed, so the UI does not
+promise lineage after source deletion. Retry creates a separate
+manual run from the source's persisted snapshot. It does not change the source
+evidence or expose a second link from any scheduled occurrence, so it is not
+presented as a schedule catch-up action.
+
+### Runs retry Linux Chromium acceptance
+
+The Linux Chromium acceptance closes the rendered terminal-run retry path. It
+seeds a failed source run through the real Reports service, then proves
+that the Runs-list Retry action creates or returns its direct child and selects
+that child's audit. It separately opens the failed source audit and proves its
+Retry action selects the same child by its returned ID. Source run, step, and
+artifact responses are compared before and after both UI actions, so retry
+cannot replace source evidence. The verifier does not assert that the child
+remains `queued`: it identifies the direct child by ID and selected audit state.
+
+The same acceptance proves that succeeded and nonterminal runs have no Retry
+control, and that a real `reports:run:view`-only user sees no Retry control and
+receives a backend rejection for the retry endpoint. It captures a 1440x900
+dark/en-US managed view and a 390x844 light/zh-CN view-only surface, asserting
+key copy and no horizontal overflow. It retains the six schedule lifecycle
+success cases and ten fault-mutation cases. The target-backed Chromium gate now
+verifies this browser retry acceptance.
 
 ## Accessibility and responsive behavior
 
@@ -104,28 +221,81 @@ linkage, and persistence. Admin owns delegation and capability reconciliation.
 
 ## Traceable UI deltas
 
-| ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
-| --- | --- | --- | --- | --- | --- |
-| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition | `Not verified`: schedule panel not yet rendered | Schedule list sits inside existing Templates/Runs shell with no new module page | P1 | Reports route; desktop/narrow composition check |
-| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns | `Not verified`: cadence validation and timezone copy not yet exercised | Daily/weekly fields, local validation, secret rejection, and focus restoration | P1 | route-local form; deterministic form/browser matrix |
-| SR-UI-003 | `source-extracted`: current DataState and run outcome tags | `Not verified`: processing/partial/skipped states not yet rendered | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows due/reason only, enqueued alone links a run | P1 | query/mutation state owner; forced response matrix |
-| SR-UI-004 | `source-extracted`: existing run detail linkage | `Not verified`: schedule-to-run evidence not yet rendered | Each `enqueued` occurrence links to existing run evidence; `skipped` has due/reason only and no run link; no cloned viewer | P1 | Reports route/API owner; interaction and permission check |
+| ID        | Selected source                                                                                    | Current runtime                                                                                                                                                                                                                                                    | Target contract                                                                                                                                                                                                           | Priority | Owner and validation                                                                                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SR-UI-001 | `source-extracted`: current Reports PageCard/table composition                                     | Verified in Linux Chromium at 1440x900 and 390x844                                                                                                                                                                                                                 | Schedule list sits inside existing Templates/Runs shell with no new module page                                                                                                                                           | P1       | Reports route; target-backed browser gate                                                                                                                              |
+| SR-UI-002 | `source-extracted`: existing Reports Form/Modal patterns                                           | Verified locally by the current `linux/amd64` Schedule manifest: manager 1440x900 dark/en-US and schedule-view-only 390x844 light/zh-CN were visually reviewed                                                                                                                                            | Daily/weekly fields, local validation, secret rejection, timezone copy, and focus restoration                                                                                                                             | P1       | `verify-schedule-form-linux`; atomic schema-2 current manifest and route-local form/browser matrix                                                                     |
+| SR-UI-003 | `source-extracted`: current DataState and run outcome tags                                         | Verified target-backed `enqueued` rendering; controlled isolated SQLite fixture covers `missed`                                                                                                                                                                    | Loading, empty, error, permission, processing, and partial remain distinct; skipped shows distinct due/reason fields; a null `dueAt` falls back to `dueLocal` plus installation timezone; enqueued alone links a run      | P1       | real scheduler poll plus isolated fixture; forced response matrix remains outside browser scope                                                                        |
+| SR-UI-004 | `source-extracted`: existing run detail linkage                                                    | Verified target-backed rendered schedule-to-run link                                                                                                                                                                                                               | Each `enqueued` occurrence links to existing run evidence; `skipped` has distinct due/reason fields, with `dueLocal` plus installation timezone when `dueAt` is null, and no run link; no cloned viewer                   | P1       | Templates link opens exact Runs audit; isolated fixture proves no-link state                                                                                           |
+| SR-UI-005 | `source-extracted`: existing Runs action and Run audit controls                                    | Verified in source, deterministic behavior tests, worker HTTP contracts, and the target-backed Linux Chromium gate: failed/cancelled visibility, shared per-source pending, exact child selection, permission denial, and source-evidence preservation are covered | Failed/cancelled runs offer bilingual managed retry; shared per-source pending prevents duplicate list/detail actions, repeated requests select the same direct child, and a terminal child can start the next chain link | P1       | route-local behavior test, Reports worker HTTP retry-chain contract, and target-backed Chromium retry gate                                                             |
+| SR-UI-006 | `source-extracted`: existing Reports DataState, schedule outcome, run audit, and Retry composition | Verified only by a matching current schema-3 `verify-reports-ui-state-linux` manifest                                                                                                                                                                                       | Manager processing, partial decision rows, runtime failure, retry source preservation, and a combined schedule/run view-only role remain distinct on their rendered surfaces                                              | P1       | Linux Chromium state-closure gate with atomic manifest, four run-step receipts, controlled partial fixture, manager/mobile screenshots, and source before/after hashes |
 
-Exact new geometry, computed styles, and runtime schedule outcomes are
-`Not verified` until implementation and browser capture.
+`SR-UI-006` is verified locally for the coordination commit and source basis
+recorded by its named gate's current manifest. Later documentation-only changes
+do not extend or alter that runtime evidence. Native systemd, confined
+native-host seccomp, deployed scheduling, and the remaining visual matrices
+outside this bounded state-closure evidence remain **Not verified**.
 
 ## Responsive and verification matrix
 
-| Priority | Viewport | Theme/locale | Surface and state | Acceptance |
-| --- | --- | --- | --- | --- |
-| Required | 1920x1080 @ 100% | light / zh-CN | Templates schedule populated | Columns, actions, next due, and timezone helper align with existing PageCard; no overflow. |
-| Required | 1440x900 @ 100% | dark / en-US | Schedule form processing/error | Modal focus, semantic contrast, and error wrapping pass. |
-| Required | 390x844 @ 100% | light / zh-CN | Empty/permission schedule list | Create guidance and permission state remain readable; no hidden action. |
-| Required | 390x844 @ 100% | dark / en-US | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable. |
+| Priority | Viewport         | Theme/locale  | Surface and state                | Acceptance                                                                                                                                                               |
+| -------- | ---------------- | ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Required | 1920x1080 @ 100% | light / zh-CN | Templates schedule populated     | Columns, actions, next due, and timezone helper align with existing PageCard; no overflow.                                                                               |
+| Required | 1440x900 @ 100%  | dark / en-US  | Target-backed schedule lifecycle | Daily create, weekly edit, disable/enable and delete; key copy and no horizontal overflow verified.                                                                      |
+| Required | 390x844 @ 100%   | light / zh-CN | Schedule-view-only list          | No actions column is assembled; `10:16 · UTC` is fully visible, mutation controls are absent, and there is no horizontal overflow.                                       |
+| Required | 1440x900 @ 100%  | dark / en-US  | Managed Runs retry               | List retry selects the exact direct-child audit; key copy and no horizontal overflow verified.                                                                           |
+| Required | 390x844 @ 100%   | light / zh-CN | Runs-view-only list              | Retry is hidden, no unauthorized flow lookup or permission-error toast is rendered, and the backend rejects the same user; key copy and no horizontal overflow verified. |
+| Required | 390x844 @ 100%   | dark / en-US  | Form validation/partial outcomes | Fields stack, errors wrap, and outcome tags remain text-readable.                                                                                                        |
+| Required | 1440x900 @ 100%  | dark / en-US  | SR-UI-002 manager form           | Timezone copy, daily create, weekly edit/weekday, local no-request failures, secret-policy rejection, cadence row, exact focus restoration, and no horizontal overflow.  |
+| Required | 390x844 @ 100%   | light / zh-CN | SR-UI-002 schedule-view-only     | Panel/timezone copy visible; create and form unavailable; no horizontal overflow.                                                                                        |
 
 Static checks cover route/API owner, capability visibility, and prohibited
-credential/cron fields. Browser validation requires two same-viewport/state
-comparison passes after implementation; no runtime evidence is claimed here.
+credential/cron fields. The current SR-UI-002 Linux Chromium manifest records
+the local no-request and secret-policy receipts, cancel/save trigger behavior,
+seven run-step receipts, and the manager 1440x900 dark/en-US plus
+schedule-view-only 390x844 light/zh-CN captures without horizontal overflow.
+Native systemd/seccomp remain outside this visual acceptance.
+
+## Current local browser evidence
+
+Both current manifests were executed at coordination commit
+`477ce326d9ccf16e5d0ea91532b77fb5b2cafede`, with dirty source state limited
+to unrelated `AGENTS.md`, source tree
+`64ddf36a328c7d008e995b15295d3282366172b997baa2b746614c60ee04f2f9`,
+`linux/amd64`, and Chromium `120.0.6099.224-1~deb11u1`. Subsequent
+documentation-only commits do not change those runtime inputs.
+
+`target/rz/schedule-form-browser/runs/20260910T172224Z-72061/manifest.json`
+is the schema-2 current Schedule manifest, SHA-256
+`d23a3d0e90886abd2bbc3784b7a7b83eb9a0fc16c7db432bf0953bd2270d9d7b`.
+It retains seven journeys and receipts, with visually reviewed
+`schedule-form-desktop-dark-en.png` (1440x900, SHA-256
+`3326db8a147aa84cddb651e4d5ace8c12cb567a0d7e7e07995a9f853c1fb4978`) and
+`schedule-form-mobile-light-zh.png` (390x844, SHA-256
+`0bc1e4a2024625138e1a67bee6374334365b06d4179e6d694e296b3ac1ae549f`).
+
+`target/rz/reports-ui-state/runs/20260910T173039Z-77141/manifest.json` is the
+schema-3 current Reports manifest, SHA-256
+`f36022e522cdd3558d594b1f9afd382996630b48bc732392c9e66c556d82d930`. It
+retains four browser receipts; cancelled `processing` and `pauseStep` records;
+`retry.sourcePreserved: true`; `partialFixture.skippedRunLinked: false`; equal
+source before/after hashes; and delivery `gapTotal: 15`. Both direct-mutation
+403 receipts have SHA-256
+`c1067e1f99e114495eeb289c5e78fbefa4334fd239f42bfcb842f25ec88fc6cb` and
+canonical body `{"code":403,"message":"Permission denied","data":null}`.
+Its visually reviewed exact-viewport screenshots are processing 1440x900
+`9a1f00d320a21adf12881f80a817cae765e4b01378f2756fa39e0c0a94e9c2b2`, runtime
+failure 1440x900
+`1194872430edfe43813f0b7697e5cdab63aa54979af37b5caf9a4ef261fcfd26`, partial
+1440x900 `1fd831d1d35f71ed27d5e703583302382e10e19046d9a92e88561f31d90417a9`,
+and mobile 390x844
+`c071dd3e20a40376dc53379ebc056565eb0c99dfaab1ce2c388307a88514d17b`.
+
+The Schedule diagnostic-only failed runs
+`20260910T162013Z-21644` and `20260910T164537Z-41283` remain under
+`target/rz/schedule-form-browser/failed-runs/`; neither was published as
+`current`. Native systemd, production deployment, external delivery, and real
+production due-time execution remain **Not verified**.
 
 ## Shared-system changes and readiness
 
@@ -135,6 +305,34 @@ feedback, confirmation, run detail, and theme semantics.
 ## Ready for dev-frontend scheduled report automation
 
 The selected source, layout ownership, component mapping, states, permission
-visibility, responsive/accessibility rules, and acceptance IDs are fixed. The
-slice is **Ready for dev-frontend**. Scheduler HTTP behavior, timezone/runtime
-evidence, final geometry, and two-pass browser review remain `Not verified`.
+visibility, responsive/accessibility rules, and acceptance IDs are implemented
+in the current Reports/Web slice. Scheduler HTTP behavior, the defined Templates
+success lifecycle, and Runs retry are verified; other response matrices, native
+systemd, and native-host seccomp remain **Not verified**.
+
+## Linux Chromium success-path acceptance
+
+Verified by the Linux Chromium gate: the real Reports service and Web route, never the fault proxy, create a daily schedule, edit it to weekly, disable and re-enable it, then delete it. The gate also creates a next-minute daily schedule against a healthy target-backed flow, bounded-waits for the real scheduler to persist `enqueued` plus its run ID, and follows the rendered Templates link into that exact Runs audit. A controlled SQLite fixture in the disposable verifier renders one `missed` decision with separate due/reason fields and proves it has no run link; it is not claimed as an API-created historical occurrence. A schedule-view-only session sees the panel but no create, edit, toggle, or delete action. Evidence captures `1440x900` dark/en-US and `390x844` light/zh-CN, with exact screenshot dimensions, bound SHA-256 values, key copy, and no horizontal overflow.
+
+## Notification delivery health
+
+In `full`, the existing Runs page header carries the same compact delivery
+status trigger. It uses the Reports run-view permission, shows only aggregate
+delivery state, and exposes loading, forbidden and recoverable-error Retry
+states. No menu, page or notification payload is added.
+
+The Reports Linux Chromium state-gate extension is **Closed locally / Passed**
+for the coordination commit and source basis recorded in
+`target/rz/reports-ui-state/current/manifest.json` and accepted by its
+validator. That manifest is authoritative for its source identity, platform,
+Chromium version, journeys, receipts, and screenshots; later documentation-only
+changes do not extend or alter that runtime evidence.
+Its disposable notifications-enabled Reports process seeds deterministic pending
+and quarantine count/byte totals, all five gap counters, and first/last/success
+timestamps. Owner at `1440x900` and a `reports:run:view` session at `390x844`
+verify the card at `/reports/runs` without horizontal overflow; owner and viewer
+API receipts must equal the final SQLite aggregate. Its three timestamps use the
+selected application locale (`en-US` or `zh-CN`) under the verifier's UTC timezone.
+Rendered error and 403 Retry states remain covered by the component seam, not
+this browser runtime proof. Native systemd and production deployment remain
+unverified.

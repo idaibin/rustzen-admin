@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Analytics tracker fixture</title>
+    <script>
+      window.__trackingRequestCount = 0;
+      const hostFetch = window.fetch;
+      window.fetch = (...args) => {
+        const url = String(args[0]?.url || args[0] || "");
+        if (url.includes("/api/insights/track")) window.__trackingRequestCount += 1;
+        return hostFetch(...args);
+      };
+      window.__nativeFetch = window.fetch;
+      window.__nativeOpen = XMLHttpRequest.prototype.open;
+      window.__nativeSend = XMLHttpRequest.prototype.send;
+    </script>
+    <script
+      id="rustzen-tracker"
+      src="http://127.0.0.1:19801/api/insights/tracker.js"
+      data-endpoint="http://127.0.0.1:19801/api/insights/track"
+      data-project-key="linux-analytics-project-key"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Analytics tracker fixture</h1>
+      <p id="state"></p>
+      <p id="request-count"></p>
+      <button id="opt-in" type="button">Opt in</button>
+      <button id="opt-out" type="button">Opt out</button>
+    </main>
+    <script>
+      const state = document.querySelector("#state");
+      const requestCount = document.querySelector("#request-count");
+      const hasIds = () =>
+        Boolean(localStorage.getItem("rz_vid") || sessionStorage.getItem("rz_sid"));
+      const hooksAreNative = () =>
+        window.fetch === window.__nativeFetch &&
+        XMLHttpRequest.prototype.open === window.__nativeOpen &&
+        XMLHttpRequest.prototype.send === window.__nativeSend;
+      const render = (label) => {
+        state.textContent = `${label}:${hooksAreNative() ? "native" : "patched"}:${hasIds() ? "ids" : "no-ids"}`;
+        requestCount.textContent = String(window.__trackingRequestCount);
+      };
+
+      render("pre-optin");
+      document.querySelector("#opt-in").addEventListener("click", () => {
+        window.rustzenAnalytics.enable({ consent: true });
+        window.rustzenAnalytics.track("custom_export", {
+          pagePath: "/fixture/allowed?private=secret#fragment",
+          properties: { feature: "linux-fixture" },
+        });
+        window.dispatchEvent(new Event("pagehide"));
+        render("opted-in");
+      });
+      document.querySelector("#opt-out").addEventListener("click", () => {
+        const requestsBeforeOptOut = window.__trackingRequestCount;
+        window.rustzenAnalytics.optOut();
+        window.rustzenAnalytics.track("custom_export", { pagePath: "/fixture/after-opt-out" });
+        window.fetch("/fixture/ordinary-fetch").catch(() => {});
+        window.dispatchEvent(new Event("pagehide"));
+        setTimeout(() => {
+          if (window.__trackingRequestCount !== requestsBeforeOptOut) {
+            state.textContent = "opted-out:request-count-changed";
+            return;
+          }
+          render("opted-out");
+        }, 150);
+      });
+    </script>
+  </body>
+</html>

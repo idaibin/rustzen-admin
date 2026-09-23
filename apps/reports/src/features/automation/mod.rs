@@ -1,9 +1,17 @@
 mod browser;
+#[cfg(feature = "notifications")]
+mod delivery;
+mod flows;
 mod handler;
-mod repo;
+pub(crate) mod repo;
+mod retry;
 mod scheduler;
 mod service;
+mod systems;
 mod types;
+#[cfg(test)]
+mod types_tests;
+mod validation;
 
 use rustzen_auth::capability::reports;
 use rustzen_ipc::{ManifestError, ModuleRouter, Require};
@@ -13,7 +21,7 @@ use crate::app::AppState;
 pub use scheduler::{initialize, spawn};
 
 pub fn routes(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>, ManifestError> {
-    router
+    let router = router
         .get_with_permission("/systems", handler::systems, Require(reports::SYSTEM_VIEW))?
         .post_with_permission("/systems", handler::create_system, Require(reports::SYSTEM_MANAGE))?
         .put_with_permission(
@@ -61,6 +69,7 @@ pub fn routes(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>, 
             handler::cancel_run,
             Require(reports::RUN_MANAGE),
         )?
+        .post_with_permission("/runs/{id}/retry", handler::retry_run, Require(reports::RUN_MANAGE))?
         .get_with_permission("/runs/{id}/steps", handler::run_steps, Require(reports::RUN_VIEW))?
         .get_with_permission(
             "/runs/{id}/artifacts",
@@ -76,5 +85,12 @@ pub fn routes(router: ModuleRouter<AppState>) -> Result<ModuleRouter<AppState>, 
             "/runs/{id}/live-frame",
             handler::live_frame,
             Require(reports::RUN_VIEW),
-        )
+        )?;
+    #[cfg(feature = "notifications")]
+    let router = router.get_with_permission(
+        "/notification-delivery",
+        delivery::status,
+        Require(reports::RUN_VIEW),
+    )?;
+    Ok(router)
 }

@@ -1,6 +1,0 @@
-version: 3
-status: historical-superseded
-role: legacy-task-pointer
-task_id: application-ui-standardization
-shared_visual_authority: DESIGN.md
-note: Current product behavior belongs to product specifications and source; current route-local UI contracts are indexed by docs/ui/index.md.

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { reportsAPI } from "./api";
+import { reportsCoreAPI as reportsAPI } from "./core-api";
 
 export const reportsQueryKeys = {
     settings: () => ["reports", "settings"] as const,

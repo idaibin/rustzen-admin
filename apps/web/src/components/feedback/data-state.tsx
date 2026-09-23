@@ -1,4 +1,6 @@
-import { Empty, Flex, Progress, Result, Spin, Typography } from "antd";
+import { InboxOutlined } from "@ant-design/icons";
+import { Flex, Progress, Result, Spin, Typography } from "antd";
+import { cn } from "cn";
 import type { ReactNode } from "react";
 
 export type DataStateKind = "loading" | "empty" | "error" | "permission" | "processing";
@@ -22,13 +24,11 @@ export function DataState({
     compact = false,
     className,
 }: DataStateProps) {
-    const containerClassName = [
+    const containerClassName = cn(
         "flex w-full items-center justify-center",
         compact ? "min-h-28 p-4" : "min-h-64 p-6",
         className,
-    ]
-        .filter((item): item is string => typeof item === "string")
-        .join(" ");
+    );
 
     if (kind === "error" || kind === "permission") {
         return (
@@ -46,18 +46,16 @@ export function DataState({
     if (kind === "empty") {
         return (
             <div className={containerClassName} role="status">
-                <Empty
-                    description={
-                        <Flex vertical gap="small">
-                            <Typography.Text strong>{title}</Typography.Text>
-                            {description ? (
-                                <Typography.Text type="secondary">{description}</Typography.Text>
-                            ) : null}
-                        </Flex>
-                    }
-                >
+                <Flex vertical align="center" gap="small" className="text-center">
+                    <span className="flex size-10 items-center justify-center rounded-lg bg-[var(--metric-blue-surface)] text-lg text-[var(--metric-blue-foreground)]">
+                        <InboxOutlined aria-hidden />
+                    </span>
+                    <Typography.Text strong>{title}</Typography.Text>
+                    {description ? (
+                        <Typography.Text type="secondary">{description}</Typography.Text>
+                    ) : null}
                     {action}
-                </Empty>
+                </Flex>
             </div>
         );
     }

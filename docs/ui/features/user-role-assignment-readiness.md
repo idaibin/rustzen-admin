@@ -1,5 +1,10 @@
 # User Role Assignment Readiness UI
 
+The user-list header keeps only username and account-status filters, following the
+shared automatic-search and upper-right placement contract. Email and real name
+remain account fields in rows/forms; list-filter removal does not alter role assignment
+or validation in the dialog. Loading and errors preserve editable filters and focus.
+
 ## Profile and evidence
 
 - Profile: **Feature UI**. No shared token, component meaning, or product-wide

@@ -1,10 +1,11 @@
 # UI Route Audit Matrix
 
-> Historical task evidence. For current shared visual semantics, use
-> [`DESIGN.md`](../../DESIGN.md) and verify live source; this matrix is not a
-> design-system authority.
+> Current route inventory. Shared visual semantics remain in
+> [`DESIGN.md`](../../DESIGN.md); [local verification](../guides/local-verification.md)
+> defines observed coverage. This matrix is not a claim that all states were tested.
 
-This matrix covers the current 20 frontend routes. The application `layout/`
+This matrix covers the current 22 leaf frontend routes plus the Nodes drawers: 19 authenticated
+business routes, sign-in, and the two status routes. The application `layout/`
 owns the global width boundary, `PageHeader` or `PageCard` owns page hierarchy,
 and `DataState` owns global list feedback while each route owns its `ProTable`
 for table surface, sorting, filtering, and paging. Every route supports the
@@ -13,25 +14,28 @@ standard light and dark themes.
 | # | Route | Surface | Current audit result |
 | ---: | --- | --- | --- |
 | 1 | `/login` | Sign-in | Uses one compact sign-in form with localized copy and no horizontal overflow. |
-| 2 | `/` | Dashboard | Uses one heading owner with account totals and module-health cards; detailed resources and trends stay on their owning routes. |
+| 2 | `/` | Dashboard | One heading; four tone count cards, permission-gated CPU/memory/disk summary and textual module health; storage details stay on System Status. |
 | 3 | `/profile` | Detail | Uses one page heading with consistent account cards and localized dialogs. |
 | 4 | `/403` | Permission status | Reuses the permission-state component and preserves the return action. |
 | 5 | `/404` | Error status | Reuses the error-state component and preserves the return action. |
 | 6 | `/monitoring/overview` | Overview | Reuses `MetricCard` with explicit empty, loading, and error states. |
 | 7 | `/monitoring/nodes` | List and detail | Uses the shared page card, `DataState`, actions, and node-detail states. |
-| 8 | `/monitoring/checks` | List and form | Uses `DataState`, the TCP-check form, and test feedback. |
-| 9 | `/analytics/overview` | Overview | Reuses `MetricCard` with consistent metric density and chart surfaces. |
-| 10 | `/analytics/details` | Filtered list | Uses the shared filter toolbar, accessible names, `DataState`, and route-local ProTable paging. |
-| 11 | `/reports/templates` | List and form | Uses consistent template, target-system, action, and `DataState` feedback. |
-| 12 | `/reports/runs` | List and workflow | Uses consistent fill actions, workflow states, run details, and `DataState` feedback. |
-| 13 | `/system/user` | Filtered list | Uses consistent filters, account status, `DataState` feedback, and localized actions. |
-| 14 | `/system/role` | Filtered list | Uses consistent filters, permission summaries, `DataState` feedback, and dialog states. |
-| 15 | `/system/menu` | Tree list | Uses consistent tree hierarchy, `DataState` feedback, and localized actions. |
-| 16 | `/system/module` | Status list | Uses consistent module health, start/stop confirmation, and `DataState` feedback. |
-| 17 | `/system/status` | Resource overview | Uses one page heading with consistent storage and resource cards. |
-| 18 | `/manage/log` | Filtered list | Uses consistent filters, status labels, common log descriptions, and `DataState` feedback. |
-| 19 | `/manage/task` | List and detail | Uses consistent task and run-log states, route-local ProTable paging, and confirmation. |
-| 20 | `/manage/deploy` | List and workflow | Uses consistent upload, deployment, expiry, cleanup, and `DataState` feedback. |
+| 8 | `/monitoring/incidents` | Filtered list and detail | Uses `ProTable`, semantic status tags, background-refresh feedback, and an Ant Design detail Drawer. |
+| 9 | `/monitoring/nodes` drawers | Onboarding and global configuration | Agent setup and connection check; one permission-aware four-control global form and Save. |
+| 10 | `/monitoring/summaries` | List | No search input; `DataState` and retained report pagination. |
+| 11 | `/analytics/overview` | Overview | Reuses `MetricCard` with consistent metric density and chart surfaces. |
+| 12 | `/analytics/details` | Filtered list | Upper-right automatic type/path filters; other clears path; filling table and bottom pagination. |
+| 13 | `/reports/templates` | List and form | Uses consistent template, target-system, action, and `DataState` feedback. |
+| 14 | `/reports/runs` | List and workflow | Uses consistent fill actions, workflow states, run details, and `DataState` feedback. |
+| 15 | `/system/user` | Filtered list | Upper-right username/status only; automatic search preserves focus; localized account actions. |
+| 16 | `/system/role` | Filtered list | Upper-right automatic name/code/status filters; permission summaries and dialogs preserved. |
+| 17 | `/system/menu` | Flat inventory | Upper-right automatic name/code/status filters, readable permission codes, flat rows and table-body scrolling. |
+| 18 | `/system/module` | Status list | Uses consistent module health, start/stop confirmation, and `DataState` feedback. |
+| 19 | `/system/status` | Resource overview | Admin storage with module database panel, directory summary line, and local-resource telemetry. |
+| 20 | `/system/module-log` | Diagnostics | Owner-only module log list, tail, backup, and cleanup. |
+| 21 | `/manage/log` | Filtered list | Uses consistent filters, status labels, common log descriptions, and `DataState` feedback. |
+| 22 | `/manage/task` | List and detail | Task/run-log states and confirmation retained; compact 72px operation column. |
+| 23 | `/manage/deploy` | List and workflow | Uses consistent upload, deployment, expiry, cleanup, and `DataState` feedback. |
 
 ## Acceptance
 
@@ -43,3 +47,5 @@ standard light and dark themes.
   states, with retry available after errors.
 - User-visible copy defaults to Simplified Chinese and retains only product names,
   protocols, methods, formats, and technical abbreviations untranslated.
+- The 19 authenticated business routes have a 1920x1080 release screenshot listed in
+  [`docs/assets/screenshots/README.md`](../assets/screenshots/README.md).

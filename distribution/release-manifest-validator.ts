@@ -1,0 +1,234 @@
+import { resolveSelection } from "./resolver.ts";
+import { selectedServerInventory } from "./selected-server-inventory.ts";
+import {
+    canonicalJson,
+    nonempty,
+    sha256,
+    sortedStrings,
+    validHash,
+} from "./release-manifest-core.ts";
+import { binaryDigests, digestRecord, fileEntries, hashMap, object, onlyKeys, required } from "./release-manifest-validator-fields.ts";
+import type {
+    AgentManifest,
+    ManifestBase,
+    ReleaseManifest,
+    ServerManifest,
+} from "./release-manifest-types.ts";
+type Plan = ReturnType<typeof resolveSelection>;
+
+const baseKeys = [
+    "manifestVersion",
+    "releaseClass",
+    "releaseVersion",
+    "target",
+    "artifactClass",
+    "preset",
+    "capabilities",
+    "services",
+    "compositionId",
+    "selectionDigest",
+    "buildId",
+    "sourceIdentity",
+    "configDigest",
+    "nativeLayoutDigest",
+    "protocolArtifactDigest",
+    "configOwners",
+    "binaryDigests",
+    "files",
+    "agentProtocolContractId",
+];
+const serverKeys = [
+    ...baseKeys,
+    "apiDigest",
+    "schemaFingerprints",
+    "dataContractIds",
+    "webDigest",
+];
+
+export function parseReleaseManifest(
+    value: unknown,
+    expectedSelection: unknown,
+): ReleaseManifest {
+    const plan = resolveSelection(expectedSelection);
+    const record = object(value, "manifest");
+    const artifactClass = string(record.artifactClass, "artifactClass");
+    onlyKeys(
+        record,
+        artifactClass === "server"
+            ? serverKeys
+            : artifactClass === "node-agent"
+              ? baseKeys
+              : [],
+    );
+    const base = parseBase(record, artifactClass);
+    const manifest: ReleaseManifest =
+        artifactClass === "server"
+            ? {
+                  ...base,
+                  artifactClass,
+                  schemaFingerprints: hashMap(
+                      record.schemaFingerprints,
+                      "schemaFingerprints",
+                  ),
+                  dataContractIds: hashMap(
+                      record.dataContractIds,
+                      "dataContractIds",
+                  ),
+                  webDigest: digestRecord(
+                      record.webDigest,
+                      "selected-web-files",
+                      "webDigest",
+                  ),
+                  apiDigest: validHash(string(record.apiDigest, "apiDigest")),
+              }
+            : {
+                  ...base,
+                  artifactClass: "node-agent",
+                  agentProtocolContractId: validHash(
+                      required(
+                          record.agentProtocolContractId,
+                          "agentProtocolContractId",
+                      ),
+                  ),
+              };
+    validateClass(manifest, plan);
+    validatePlan(manifest, plan);
+    return manifest;
+}
+export function validateServerAgentPair(
+    server: ServerManifest,
+    agent: AgentManifest,
+): void {
+    if (!Object.hasOwn(server, "agentProtocolContractId"))
+        throw new Error("selected server has no Agent protocol pairing");
+    if (server.agentProtocolContractId !== agent.agentProtocolContractId)
+        throw new Error("server-Agent protocol IDs do not match");
+}
+
+function parseBase(
+    record: Record<string, unknown>,
+    artifactClass: string,
+): ManifestBase {
+    if (record.manifestVersion !== 1)
+        throw new Error("manifestVersion must be 1");
+    const base: ManifestBase = {
+        manifestVersion: 1,
+        releaseClass: string(
+            record.releaseClass,
+            "releaseClass",
+        ) as ManifestBase["releaseClass"],
+        releaseVersion: nonempty(record.releaseVersion, "releaseVersion"),
+        target: nonempty(record.target, "target"),
+        artifactClass: artifactClass as ManifestBase["artifactClass"],
+        preset: nonempty(record.preset, "preset"),
+        capabilities: sortedStrings(record.capabilities, "capabilities"),
+        services: sortedStrings(record.services, "services"),
+        compositionId: validHash(string(record.compositionId, "compositionId")),
+        selectionDigest: digestRecord(
+            record.selectionDigest,
+            "resolved-selection",
+            "selectionDigest",
+        ),
+        buildId: validHash(string(record.buildId, "buildId")),
+        sourceIdentity: nonempty(record.sourceIdentity, "sourceIdentity"),
+        configDigest: validHash(string(record.configDigest, "configDigest")),
+        nativeLayoutDigest: validHash(
+            string(record.nativeLayoutDigest, "nativeLayoutDigest"),
+        ),
+        protocolArtifactDigest: validHash(
+            string(record.protocolArtifactDigest, "protocolArtifactDigest"),
+        ),
+        configOwners: sortedStrings(record.configOwners, "configOwners"),
+        binaryDigests: binaryDigests(record.binaryDigests),
+        files: fileEntries(record.files),
+        agentProtocolContractId: validHash(
+            required(record.agentProtocolContractId, "agentProtocolContractId"),
+        ),
+    };
+    if (base.releaseClass !== "production" && base.releaseClass !== "test")
+        throw new Error("releaseClass is invalid");
+    return base;
+}
+function validateClass(manifest: ReleaseManifest, plan: Plan) {
+    const paths = manifest.files.map((file) => file.path);
+    const binaries = manifest.binaryDigests.map((digest) => digest.path);
+    if (
+        canonicalJson(
+            paths.filter((path) => path.startsWith("bin/")).sort(),
+        ) !== canonicalJson(binaries.slice().sort())
+    )
+        throw new Error("binary digests must exactly name binary files");
+    for (const digest of manifest.binaryDigests) {
+        const file = manifest.files.find((entry) => entry.path === digest.path);
+        if (!file || file.sha256 !== digest.sha256)
+            throw new Error("binary digest must match the named file bytes");
+    }
+    if (manifest.artifactClass === "node-agent") {
+        if (
+            canonicalJson(manifest.capabilities) !==
+                canonicalJson(["monitor-agent"]) ||
+            canonicalJson(manifest.services) !==
+                canonicalJson(["monitor-agent"]) ||
+            canonicalJson(binaries) !== canonicalJson(["bin/rz-monitor-agent"])
+        )
+            throw new Error(
+                "node-agent manifest has server fields or binaries",
+            );
+        return;
+    }
+    if (
+        !manifest.capabilities.includes("access") ||
+        manifest.services.includes("monitor-agent") ||
+        canonicalJson(binaries) !==
+            canonicalJson(selectedServerInventory(plan).binaries)
+    )
+        throw new Error("server manifest has invalid selected inventory");
+}
+function validatePlan(manifest: ReleaseManifest, plan: Plan) {
+    for (const key of [
+        "preset",
+        "artifactClass",
+        "releaseClass",
+        "target",
+        "compositionId",
+    ] as const)
+        if (manifest[key] !== plan[key])
+            throw new Error(`manifest ${key} differs from resolved selection`);
+    if (
+        canonicalJson(manifest.capabilities) !==
+            canonicalJson(plan.capabilities) ||
+        canonicalJson(manifest.services) !== canonicalJson(plan.services)
+    )
+        throw new Error(
+            "manifest capabilities/services differ from resolved selection",
+        );
+    if (manifest.selectionDigest.sha256 !== sha256(canonicalJson(plan)))
+        throw new Error(
+            "manifest selectionDigest differs from resolved selection",
+        );
+    if (
+        manifest.artifactClass === "server" &&
+        (canonicalJson(Object.keys(manifest.schemaFingerprints).sort()) !==
+            canonicalJson(plan.schemaOwners) ||
+            canonicalJson(Object.keys(manifest.dataContractIds).sort()) !==
+                canonicalJson(plan.schemaOwners) ||
+            canonicalJson(manifest.configOwners) !==
+                canonicalJson(plan.configOwners))
+    )
+        throw new Error(
+            "manifest schema/data owners differ from resolved selection",
+        );
+}
+
+export const canonicalManifestBytes = (
+    manifest: ReleaseManifest,
+    expectedSelection: unknown,
+): Uint8Array =>
+    new TextEncoder().encode(
+        canonicalJson(parseReleaseManifest(manifest, expectedSelection)),
+    );
+
+function string(value: unknown, label: string): string {
+    if (typeof value !== "string") throw new Error(`${label} must be a string`);
+    return value;
+}

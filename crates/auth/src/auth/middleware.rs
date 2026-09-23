@@ -32,6 +32,7 @@ where
 
     let claims = codec.decode(token).map_err(|_| CoreError::InvalidToken)?;
     let current_user = loader.load_current_user(&claims).await?;
+    request.extensions_mut().insert(claims);
     request.extensions_mut().insert(current_user);
     Ok(next.run(request).await)
 }

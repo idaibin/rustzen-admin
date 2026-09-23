@@ -4,7 +4,10 @@ use crate::common::{
 };
 
 use chrono::Utc;
+use rustzen_auth::auth::AuthClaims;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+
+use crate::features::auth::session::SessionRepository;
 
 use super::types::{MenuListQuery, MenuRow};
 
@@ -40,53 +43,79 @@ impl MenuRepository {
         pool: &SqlitePool,
     ) -> Result<Vec<MenuRow>, ServiceError> {
         sqlx::query_as::<_, MenuRow>(
-            "SELECT id, parent_id, parent_code, name, code, menu_type, status, is_system, is_manual, sort_order, path, icon, module_id, module_menu_code, is_active, created_at, updated_at
-             FROM menus
-             WHERE module_id IS NOT NULL
-               AND module_menu_code IS NOT NULL
-               AND is_active = TRUE
-               AND deleted_at IS NULL
-             ORDER BY sort_order ASC, id ASC",
+            "SELECT id,0 AS parent_id,NULL AS parent_code,name,code,2 AS menu_type,status,
+                    TRUE AS is_system,is_manual,sort_order,path,icon,module_id,module_menu_code,
+                    is_active,created_at,updated_at
+             FROM module_navigation WHERE is_active=TRUE ORDER BY sort_order,id",
         )
         .fetch_all(pool)
         .await
         .map_err(|error| {
-            tracing::error!(%error, "Database error loading module menu inventory");
+            tracing::error!(%error, "loading module navigation inventory");
             ServiceError::DatabaseQueryFailed
         })
     }
 
-    pub async fn update_module_override(
+    #[cfg(test)]
+    pub async fn update_navigation(
         pool: &SqlitePool,
-        module_id: &str,
-        module_menu_code: &str,
+        id: i64,
         name: &str,
         icon: Option<&str>,
         sort_order: i16,
         status: i16,
     ) -> Result<i64, ServiceError> {
-        sqlx::query_scalar::<_, i64>(
-            "UPDATE menus
-             SET name = ?, icon = COALESCE(?, icon), sort_order = ?, status = ?,
-                 is_manual = TRUE, updated_at = ?
-             WHERE module_id = ? AND module_menu_code = ? AND is_active = TRUE
-               AND is_system = TRUE AND deleted_at IS NULL
-             RETURNING id",
+        sqlx::query_scalar(
+            "UPDATE module_navigation
+             SET name=?,icon=COALESCE(?,icon),sort_order=?,status=?,is_manual=TRUE,updated_at=?
+             WHERE id=? AND is_active=TRUE RETURNING id",
         )
         .bind(name)
         .bind(icon)
         .bind(sort_order)
         .bind(status)
         .bind(Utc::now().naive_utc())
-        .bind(module_id)
-        .bind(module_menu_code)
+        .bind(id)
         .fetch_optional(pool)
         .await
         .map_err(|error| {
-            tracing::error!(%error, module_id, module_menu_code, "Database error updating module menu override");
+            tracing::error!(%error, id, "updating module navigation");
             ServiceError::DatabaseQueryFailed
         })?
-        .ok_or_else(|| ServiceError::NotFound("Module menu".to_string()))
+        .ok_or_else(|| ServiceError::NotFound("Module navigation".into()))
+    }
+
+    pub async fn update_navigation_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        request: &super::types::UpdateMenuPayload,
+        actor: &AuthClaims,
+    ) -> Result<i64, ServiceError> {
+        let mut tx = pool.begin().await.map_err(database_error("starting menu update"))?;
+        SessionRepository::assert_actor(
+            &mut tx,
+            actor,
+            Some(rustzen_auth::capability::system_menu::UPDATE),
+            Utc::now().timestamp(),
+        )
+        .await?;
+        let updated = sqlx::query_scalar(
+            "UPDATE module_navigation
+             SET name=?,icon=COALESCE(?,icon),sort_order=?,status=?,is_manual=TRUE,updated_at=?
+             WHERE id=? AND is_active=TRUE RETURNING id",
+        )
+        .bind(&request.name)
+        .bind(request.icon.as_deref().filter(|icon| !icon.trim().is_empty()))
+        .bind(request.sort_order)
+        .bind(request.status)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(database_error("updating module navigation"))?
+        .ok_or_else(|| ServiceError::NotFound("Module navigation".into()))?;
+        tx.commit().await.map_err(database_error("committing menu update"))?;
+        Ok(updated)
     }
 
     /// Returns whether the menu is a system built-in menu.
@@ -107,20 +136,29 @@ impl MenuRepository {
         })
     }
 
-    /// Disable a menu.
-    pub async fn disable(pool: &SqlitePool, id: i64) -> Result<bool, ServiceError> {
+    pub async fn disable_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        actor: &AuthClaims,
+    ) -> Result<bool, ServiceError> {
+        let mut tx = pool.begin().await.map_err(database_error("starting menu disable"))?;
+        SessionRepository::assert_actor(
+            &mut tx,
+            actor,
+            Some(rustzen_auth::capability::system_menu::DELETE),
+            Utc::now().timestamp(),
+        )
+        .await?;
         let result = sqlx::query(
-            "UPDATE menus SET status = 2, updated_at = ? WHERE id = ? AND is_system = false AND deleted_at IS NULL"
+            "UPDATE menus SET status = 2, updated_at = ?
+             WHERE id = ? AND is_system = FALSE AND deleted_at IS NULL",
         )
         .bind(Utc::now().naive_utc())
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error disabling menu {}: {:?}", id, e);
-            ServiceError::DatabaseQueryFailed
-        })?;
-
+        .map_err(database_error("disabling menu"))?;
+        tx.commit().await.map_err(database_error("committing menu disable"))?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -142,5 +180,12 @@ impl MenuRepository {
             None,
         )
         .await
+    }
+}
+
+fn database_error(operation: &'static str) -> impl FnOnce(sqlx::Error) -> ServiceError + Copy {
+    move |error| {
+        tracing::error!(%error, operation, "Menu database operation failed");
+        ServiceError::DatabaseQueryFailed
     }
 }

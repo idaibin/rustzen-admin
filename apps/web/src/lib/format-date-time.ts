@@ -18,8 +18,9 @@ export function formatDateTime(value?: string | null, timeZone?: string): string
             second: "2-digit",
             ...(timeZone ? { timeZone } : {}),
         };
-        return new Intl.DateTimeFormat(undefined, options).format(date);
+        return new Intl.DateTimeFormat(getLocale(), options).format(date);
     } catch {
         return "-";
     }
 }
+import { getLocale } from "./i18n";

@@ -6,18 +6,6 @@ declare namespace Insights {
 
     interface OverviewQuery extends TimeQuery {}
 
-    interface CollectionPolicy {
-        collectionEnabled: boolean;
-        projectConfigured: boolean;
-        allowedOrigins: string[];
-    }
-
-    interface CollectionPolicyUpdate {
-        collectionEnabled: boolean;
-        projectKey?: string;
-        allowedOrigins: string[];
-    }
-
     interface TrendPoint {
         date: string;
         pv: number;

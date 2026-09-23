@@ -7,15 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-22
+
 ### Added
 
 - Added `docs/product/product.md` as the current product foundation and fact
   source for positioning, direction, module purposes, and product non-goals.
 - Added independently consumable product specifications for role definition
   management and user role-assignment readiness.
+- Added one signed full-server bundle containing Web, Admin, Monitor, Insights,
+  Reports, and the `rz` lifecycle CLI.
+- Added the canonical `rz-full.service` target and update/recovery units for the
+  four independent services.
+- Added release screenshots for all 19 authenticated business routes.
 
 ### Changed
 
+- Preserve every module navigation page when multiple pages share one capability;
+  presentation overrides now address navigation inventory IDs through
+  `PUT /api/system/menus/inventory/{id}` without changing permission grants.
+- Isolate Reports browser profiles per execution and close browsers on setup
+  failure as well as normal completion; remove owned profiles after shutdown.
+- Extend local verification for Monitoring gateway/RBAC/alert-policy journeys,
+  Reports daily/weekly schedule lifecycle, and concurrent browser execution.
 - Repositioned `rustzen-admin` as a self-hosted product first and a structured
   Rust full-stack reference implementation second.
 - Enforced non-empty user-role and custom-role permission assignments at the
@@ -32,15 +46,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deserialization contract in `crates/ipc`.
 - Documented the current product boundary, shared-capability gate, verified
   reuse index, and live former-product comparison for future module work.
+- Standardized fresh deployment on `/opt/rz`, one generated installer, `rz start`,
+  `rz stop`, `rz restart`, and `rz status`.
 
 ### Fixed
 
+- Remove user-role assignments atomically when deleting a user, and return the
+  shared JSON error envelope for invalid Insights collection-policy fields.
+- Validate uploaded avatars by decoding PNG/JPEG content and derive their stored
+  extension from the detected format.
+- Restore search-result clicks, Dashboard locale updates, custom navigation
+  titles, and fresh task history after execution.
+- Drain Reports executions on SIGTERM/SIGINT, close owned browsers, and persist
+  interrupted runs before exiting.
+- Emit portable release archives without macOS extended attributes; repair the
+  installer signature fallback when `xxd` is unavailable, including UTF-8 locales.
 - Restored lint and TypeScript checks for the Vite configuration while
   preserving the TanStack Router, React, and Tailwind plugin order.
 - Retired stale core route permissions during startup sync while preserving
   manual menus and module-owned capabilities.
 - Restored operation-log coverage for authenticated module enable and disable
   requests, and moved the module-health response DTO to the Modules owner.
+- Fixed the four-service verification fixture to write module logs into each
+  service's owned log directory.
 
 ### Removed
 

@@ -27,6 +27,16 @@
     const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
     const MAX_QUEUE = 1000;
     const MAX_BATCH = 50;
+    const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+    const MAX_PROPERTIES_BYTES = 16 * 1024;
+    const MAX_FIELD_LENGTHS = {
+        platform: 50,
+        pagePath: 2000,
+        referrer: 2000,
+        apiPath: 2000,
+        apiMethod: 20,
+    };
+    const utf8Length = (value) => new TextEncoder().encode(value).length;
     const MAX_TRANSPORT_RETRIES = 3;
     const RETRY_BASE_DELAY_MS = 500;
     const RETRY_MAX_DELAY_MS = 4000;
@@ -131,17 +141,27 @@
     };
 
     const safeProperties = (properties) => {
-        if (!properties || typeof properties !== "object" || Array.isArray(properties)) return {};
-        return Object.fromEntries(
-            Object.entries(properties).filter(([key, value]) => {
-                if (!allowedPropertyKeys.has(key)) return false;
-                return (
-                    typeof value === "string" ||
-                    typeof value === "number" ||
-                    typeof value === "boolean"
-                );
-            }),
-        );
+        if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+            return { error: "invalid_field" };
+        }
+        const safe = {};
+        for (const [key, value] of Object.entries(properties)) {
+            if (!allowedPropertyKeys.has(key)) continue;
+            if (typeof value === "string") {
+                if (utf8Length(value) > 256) return { error: "field_too_long" };
+                safe[key] = value;
+            } else if (typeof value === "number" && Number.isFinite(value)) {
+                safe[key] = value;
+            } else if (typeof value === "boolean") {
+                safe[key] = value;
+            } else {
+                return { error: "invalid_field" };
+            }
+        }
+        if (utf8Length(JSON.stringify(safe)) > MAX_PROPERTIES_BYTES) {
+            return { error: "field_too_long" };
+        }
+        return { value: safe };
     };
 
     // Only these responses have an explicit all-or-nothing contract at the
@@ -156,7 +176,18 @@
 
     const send = () => {
         if (!enabled || !queue.length || sendInFlight) return;
-        const batch = queue.splice(0, MAX_BATCH);
+        let batchSize = 0;
+        while (batchSize < Math.min(queue.length, MAX_BATCH)) {
+            const candidate = queue.slice(0, batchSize + 1);
+            if (utf8Length(JSON.stringify(candidate)) > MAX_REQUEST_BODY_BYTES) break;
+            batchSize += 1;
+        }
+        if (batchSize === 0) {
+            queue.shift();
+            observeTransport("event_dropped", { reason: "request_too_large", dropped: 1 });
+            return;
+        }
+        const batch = queue.splice(0, batchSize);
         sendInFlight = true;
 
         const sendAttempt = async (attempt) => {
@@ -210,8 +241,6 @@
                 }
                 sendInFlight = false;
             } catch {
-                // Network errors are ambiguous for a non-idempotent batch.
-                // Drop once and expose the reason instead of retrying.
                 observeTransport("temporary_dropped", {
                     attempt,
                     dropped: batch.length,
@@ -226,28 +255,89 @@
 
     const track = (eventName, fields = {}) => {
         if (!enabled || !allowedEvents.has(eventName)) return;
+        if (queue.length >= MAX_QUEUE) {
+            observeTransport("queue_dropped", {
+                reason: "queue_full",
+                dropped: 1,
+                queueLength: queue.length,
+            });
+            return false;
+        }
+        const platform = navigator.userAgentData?.platform || navigator.platform;
+        if (typeof platform !== "string" || utf8Length(platform) > MAX_FIELD_LENGTHS.platform) {
+            observeTransport("event_dropped", {
+                reason: typeof platform === "string" ? "field_too_long" : "invalid_field",
+                field: "platform",
+            });
+            return false;
+        }
         refreshIds();
         const input = fields && typeof fields === "object" ? fields : {};
+        let invalidField;
+        let invalidReason;
         const payload = {
             eventName,
             visitorId,
             sessionId,
-            platform: navigator.userAgentData?.platform || navigator.platform,
+            platform,
             occurredAt: new Date().toISOString(),
         };
         Object.entries(input).forEach(([key, value]) => {
             if (!allowedFields.has(key)) return;
             if (value === undefined || value === null) return;
             if (key === "pagePath" || key === "apiPath" || key === "referrer") {
-                payload[key] = pathname(value);
+                if (typeof value !== "string") {
+                    invalidField = key;
+                    invalidReason = "invalid_field";
+                    return;
+                }
+                const normalized = pathname(value);
+                if (utf8Length(normalized) > MAX_FIELD_LENGTHS[key]) {
+                    invalidField = key;
+                    invalidReason = "field_too_long";
+                    return;
+                }
+                payload[key] = normalized;
             } else if (key === "properties") {
-                payload.properties = safeProperties(value);
+                const safe = safeProperties(value);
+                if (safe.error) {
+                    invalidField = key;
+                    invalidReason = safe.error;
+                    return;
+                }
+                payload.properties = safe.value;
+            } else if (key === "apiMethod" && typeof value !== "string") {
+                invalidField = key;
+                invalidReason = "invalid_field";
+            } else if (typeof value === "string" && utf8Length(value) > MAX_FIELD_LENGTHS[key]) {
+                invalidField = key;
+                invalidReason = "field_too_long";
+            } else if (
+                key === "statusCode" &&
+                (!Number.isInteger(value) || value < 100 || value > 599)
+            ) {
+                invalidField = key;
+                invalidReason = "invalid_field";
+            } else if (
+                key === "durationMs" &&
+                (!Number.isInteger(value) || value < 0 || value > 24 * 60 * 60 * 1000)
+            ) {
+                invalidField = key;
+                invalidReason = "invalid_field";
+            } else if (key === "isError" && typeof value !== "boolean") {
+                invalidField = key;
+                invalidReason = "invalid_field";
             } else {
                 payload[key] = value;
             }
         });
+        if (invalidField) {
+            observeTransport("event_dropped", { reason: invalidReason, field: invalidField });
+            return false;
+        }
         queue.push(payload);
         if (queue.length >= MAX_BATCH) send();
+        return true;
     };
 
     const restoreHooks = () => {
@@ -330,7 +420,7 @@
         const nextProjectKey = String(
             options.projectKey || script?.dataset.projectKey || "",
         ).trim();
-        if (!nextProjectKey) return false;
+        if (!nextProjectKey || utf8Length(nextProjectKey) > 256) return false;
         if (enabled) return true;
         const nextEndpoint = options.endpoint || script?.dataset.endpoint || "/api/insights/track";
         endpoint = new URL(nextEndpoint, script?.src || location.href);

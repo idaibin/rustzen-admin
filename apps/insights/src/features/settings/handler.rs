@@ -1,4 +1,5 @@
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rustzen_ipc::ModuleJson;
 
 use crate::{
     app::AppState,
@@ -16,7 +17,7 @@ pub async fn collection_policy(State(state): State<AppState>) -> AppResult<Colle
 
 pub async fn update_collection_policy(
     State(state): State<AppState>,
-    Json(update): Json<CollectionPolicyUpdate>,
+    ModuleJson(update): ModuleJson<CollectionPolicyUpdate>,
 ) -> AppResult<CollectionPolicy> {
     Ok(ApiResponse::success(
         service::update_collection_policy(&state.pool, &state.ingestion, update).await?,

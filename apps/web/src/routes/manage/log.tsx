@@ -10,7 +10,15 @@ import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { DataTableShell } from "@/components/table/data-table-shell";
-import { t } from "@/lib/i18n";
+import {
+    emptyTableLocale,
+    pagedTableProps,
+    tablePagination,
+} from "@/components/table/table-presets";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { formatDuration } from "@/lib/format";
+import { t, useLocale } from "@/lib/i18n";
 import { useLocalStore } from "@/store/useLocalStore";
 
 export const Route = createFileRoute("/manage/log")({
@@ -22,6 +30,7 @@ const ALL_ACTION = "all";
 const PAGE_SIZE = 20;
 
 function LogPage() {
+    useLocale();
     const actionOptions = [
         { label: t("全部", "All"), value: ALL_ACTION },
         { label: t("登录", "Sign-in"), value: DEFAULT_ACTION },
@@ -35,8 +44,11 @@ function LogPage() {
     const actionType = savedActionType || DEFAULT_ACTION;
     const selectedAction = actionType === ALL_ACTION ? undefined : actionType;
     const [searchInput, setSearchInput] = useState("");
-    const [searchKeyword, setSearchKeyword] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
+    const [isComposing, setIsComposing] = useState(false);
+    const searchKeyword = useDebouncedValue(searchInput.trim(), 300, !isComposing);
+    const [currentPage, setCurrentPage] = useFilteredPage(
+        JSON.stringify([actionType, searchKeyword]),
+    );
 
     const params = useMemo<Log.QueryParams>(
         () => ({
@@ -50,6 +62,7 @@ function LogPage() {
     const { data, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["manage", "log", params],
         queryFn: () => manageAPI.log.list(params),
+        staleTime: 0,
     });
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
@@ -69,17 +82,6 @@ function LogPage() {
         setCurrentPage(1);
     };
 
-    const submitSearch = () => {
-        setSearchKeyword(searchInput.trim());
-        setCurrentPage(1);
-    };
-
-    const clearSearch = () => {
-        setSearchInput("");
-        setSearchKeyword("");
-        setCurrentPage(1);
-    };
-
     const exportButton = (
         <AuthWrap code="manage:log:export">
             <Button
@@ -94,7 +96,7 @@ function LogPage() {
     );
 
     const logToolbar = (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-3">
             <Select
                 aria-label={t("操作类型", "Action type")}
                 className="w-36"
@@ -102,32 +104,17 @@ function LogPage() {
                 options={actionOptions}
                 onChange={updateAction}
             />
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Input.Search
-                    prefix={<SearchOutlined />}
-                    aria-label={t("搜索用户或 IP", "Search by user or IP")}
-                    value={searchInput}
-                    placeholder={t("搜索用户或 IP", "Search by user or IP")}
-                    style={{ width: "100%", minWidth: 220 }}
-                    onChange={(event) => {
-                        const value = event.target.value;
-                        setSearchInput(value);
-                        if (!value) {
-                            setSearchKeyword("");
-                            setCurrentPage(1);
-                        }
-                    }}
-                    onSearch={submitSearch}
-                />
-                <Button type="default" onClick={submitSearch}>
-                    {t("查询", "Search")}
-                </Button>
-                {searchKeyword ? (
-                    <Button type="default" onClick={clearSearch}>
-                        {t("清除", "Clear")}
-                    </Button>
-                ) : null}
-            </div>
+            <Input
+                prefix={<SearchOutlined />}
+                aria-label={t("搜索用户或 IP", "Search by user or IP")}
+                placeholder={t("搜索用户或 IP", "Search by user or IP")}
+                value={searchInput}
+                allowClear
+                className="w-[220px] max-w-full"
+                onChange={(event) => setSearchInput(event.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+            />
         </div>
     );
 
@@ -279,21 +266,16 @@ function LogPage() {
                     loading={isFetching}
                     search={false}
                     options={false}
-                    pagination={{
+                    {...pagedTableProps}
+                    pagination={tablePagination({
                         current: currentPage,
                         pageSize: PAGE_SIZE,
                         total,
-                        showSizeChanger: false,
                         onChange: (page) => {
                             setCurrentPage(page);
                         },
-                    }}
-                    locale={{
-                        emptyText: <DataState kind="empty" title={t("暂无日志", "No logs")} />,
-                    }}
-                    toolBarRender={false}
-                    tableAlertOptionRender={false}
-                    rowSelection={false}
+                    })}
+                    locale={emptyTableLocale(t("暂无日志", "No logs"))}
                 />
             </DataTableShell>
         </PageCard>
@@ -312,11 +294,6 @@ const StatusBadge = ({ status }: { status: string }) => {
             {isSuccess ? t("成功", "Success") : t("失败", "Failed")}
         </Tag>
     );
-};
-
-const formatDuration = (durationMs?: number) => {
-    if (!durationMs) return "-";
-    return `${durationMs}ms`;
 };
 
 const operationDescription = (description?: string | null) => {

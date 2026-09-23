@@ -5,23 +5,46 @@ version.workspace = true
 edition = "2024"
 license.workspace = true
 publish = false
+default-run = "rz-monitor"
 
 [[bin]]
 name = "rz-monitor"
 path = "src/main.rs"
+required-features = ["controller"]
+
+[[bin]]
+name = "rz-monitor-agent"
+path = "src/agent_main.rs"
+required-features = ["agent"]
+
+[features]
+default = ["notifications"]
+controller = [
+    "dep:axum",
+    "dep:rustzen-auth",
+    "dep:rustzen-ipc",
+    "dep:rustzen-storage",
+    "dep:sqlx",
+    "rustzen-config/monitor-controller",
+]
+notifications = ["controller", "dep:reqwest", "rustzen-config/notifications"]
+agent = ["dep:reqwest", "dep:sysinfo", "rustzen-config/monitor-agent"]
 
 [dependencies]
-axum = { version = "0.8", features = ["macros"] }
-tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["macros"], optional = true }
+tokio = { version = "1", features = ["full", "test-util"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rustzen-auth = { path = "../../crates/auth" }
-rustzen-config = { path = "../../crates/config" }
-rustzen-ipc = { path = "../../crates/ipc" }
+sha2 = "0.10"
+hex = "0.4"
+libc = "0.2"
+rustzen-auth = { path = "../../crates/auth", optional = true }
+rustzen-config = { path = "../../crates/config", default-features = false }
+rustzen-ipc = { path = "../../crates/ipc", optional = true }
 rustzen-runtime = { path = "../../crates/runtime" }
-rustzen-storage = { path = "../../crates/storage" }
+rustzen-storage = { path = "../../crates/storage", optional = true }
 tracing = "0.1"
-sqlx = { version = "0.9.0", features = [
+sqlx = { version = "0.9.0", optional = true, features = [
     "runtime-tokio",
     "sqlite",
     "chrono",
@@ -30,5 +53,8 @@ sqlx = { version = "0.9.0", features = [
 ] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.17", features = ["v4", "serde"] }
-sysinfo = "0.39.3"
-reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
+sysinfo = { version = "0.39.3", optional = true }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"], optional = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

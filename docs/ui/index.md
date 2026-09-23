@@ -8,14 +8,50 @@ feature specs record only route-local composition, states, and evidence.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |
-| Monitoring | [Incident diagnostics](./features/monitor-incident-diagnostics.md) | [Product spec](../product/features/monitor-incident-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
-| Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Implemented; source-resolved; runtime Not verified |
-| Reports | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Implemented; source-resolved; runtime Not verified |
+| Monitoring | [Monitoring surfaces](./features/monitoring.md) | [Product spec](../product/features/monitoring/spec.md) | Current route contract; representative local UI checks; complete state matrix pending |
+| Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Current contract; see scoped local verification |
+| Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Local runtime/browser state-closure verified; deployed and native-host runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
-| Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Adopted contract; current Worktree runtime verification pending |
-| Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Implemented; retained runtime evidence is historical to that slice |
+| Admin | [Maintenance task console](./features/admin-maintenance-tasks.md) | [Product spec](../product/features/admin-maintenance-tasks/spec.md) | Current route contract; local Linux runtime evidence pending |
+| Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Current route contract; representative light/dark checks |
+| Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
+| Admin / notifications | [Message center](./features/message-center.md) | [Composable distribution P5-P7](../product/features/composable-distribution/spec.md) | P5-P7 closed locally through source, runtime and Chromium gates; global sustained load, native systemd, production reverse-proxy and production deployment Not verified |
 | Admin | [Role definition management](./features/role-definition-management.md) | [Product spec](../product/features/role-definition-management/spec.md) | Implemented; pre-merge evidence retained |
 | Admin | [User role assignment readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge evidence retained |
+| Admin / Reports | [Linux runtime browser validation](./runtime-browser-validation.md) | [Scheduled automation](../product/features/scheduled-report-automation/spec.md) | Reproducible Colima gate; evidence is valid only after a passing current run |
+
+## Current console route contract
+
+Display names: **自动化 / Automation** for the `reports` module and
+**告警事件 / Alert incidents** for `/monitoring/incidents`. Navigation, search,
+module status and page states share these names; internal identifiers stay unchanged.
+
+Product basis: [console interaction requirements](../product/product.md#console-interaction-requirements).
+Shared placement, colors and responsive rules: root [DESIGN.md](../../DESIGN.md).
+Existing list filters occupy the content upper right, with no Search/Reset submit
+buttons; automatic input behavior follows the product contract. Loading/error states
+retain the controls and focus. CRUD submission, password reset, node-policy reset,
+refresh and destructive confirmations are distinct actions and remain available.
+
+| Route | Current filters / local composition | Acceptance |
+| --- | --- | --- |
+| / | Four account cards; permission-gated resource panel and textual module health | CON-06; shared tone and panel rules |
+| /system/user | Username and account status only; new-user action alongside filters | CON-01–03 |
+| /system/role | Role name, role code and status; role-dialog controls remain separate | CON-01–02 |
+| /system/menu | Menu name, permission code and status; read-only/core and editable/module rows retained | CON-01; only table body scrolls vertically |
+| /manage/log | Action type and user/IP; export uses applied filters | CON-01–02 |
+| /system/status | Storage and local-resource telemetry only | CON-01 |
+| /system/module-log | Module and date in the diagnostics heading; refresh/backup/cleanup retained; limits below heading | CON-01; short log list has no inner vertical scroll |
+| /monitoring/incidents | State and type; filling body with bottom pagination | CON-01–02 |
+| /monitoring/nodes | Add node onboarding and Global settings drawers; four global controls and one Save | CON-04 |
+| /monitoring/summaries | No search control; existing report pagination | CON-03 |
+| /analytics/overview | Activity metrics; no collection-policy status card | CON-05 |
+| /analytics/details | Type and page/API path; other reports clear/disable path; bottom pagination | CON-01–02, CON-05 |
+
+No new filters are implied for routes without search. The complete current
+route inventory is mapped in [page-audit](./page-audit.md). Requirements and observed
+runtime coverage are separate: see [local verification](../guides/local-verification.md)
+for checks and remaining gaps. This index does not declare complete visual acceptance.
 
 ## Shared dependencies and exclusions
 

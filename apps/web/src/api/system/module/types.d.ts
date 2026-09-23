@@ -3,8 +3,8 @@ declare namespace SystemModule {
     type RoutePath =
         | "/monitoring/overview"
         | "/monitoring/nodes"
-        | "/monitoring/checks"
         | "/monitoring/incidents"
+        | "/monitoring/summaries"
         | "/analytics/overview"
         | "/analytics/details"
         | "/reports/templates"

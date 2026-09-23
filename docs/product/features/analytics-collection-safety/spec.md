@@ -41,6 +41,9 @@ lazy and inert until the host explicitly enables it with consent.
 | Installation policy and visitor opt-in are separate boundaries. | The installation owner controls whether this installation accepts collection; the host controls whether a visitor opted in. | Insights accepts HTTP ingestion only when `collection_enabled`, `project`, and normalized `origin` match the installation policy; it never claims to verify visitor consent. |
 | The project key is a public routing identifier, not a credential. | It must be present in a browser integration without pretending to protect a secret. | The server uses identifier + normalized source origin to select policy; it never grants authenticated read/manage access from the identifier. |
 | The server verifies the identifier and configured origin. | Browser code alone cannot enforce an ingestion boundary. | Missing, invalid, or origin-mismatched requests are rejected. |
+| The tracker queue is fixed at 1000 events and drops the newest event when full. | A bounded client queue prevents offline or rejected collection from consuming unbounded browser memory. | The dropped event is reported through `onTransportEvent` as `queue_dropped`; older queued events remain eligible for transport. Each request contains at most 50 events and 64 KiB of UTF-8 JSON. |
+| The tracker rejects an event before queueing when a supported field exceeds the existing server bound or has an invalid type/range. | Client-side rejection avoids sending a batch that the server must reject after queueing. | Path, referrer, platform, method, property-value, and serialized-property bounds mirror the server limits; scalar field types and property object/array values are checked explicitly; the tracker emits fixed-length UUID visitor/session IDs; length failures report `event_dropped` with `field_too_long`, while invalid type/range failures use `invalid_field`. |
+| HTTP 413 is a validation rejection and is never retried by the tracker. | An oversized batch cannot become valid without changing its contents. | A 413 emits one `validation_rejected` transport event and drops that batch; only explicit 429/507 responses use bounded retries. |
 | Page and API paths use `pathname` only. | Query values can contain identifiers or secrets. | Stored paths never include a query string. |
 | Built-in events and custom properties use a strict allowlist. | Button text and arbitrary DOM attributes are unstable and privacy risky. | Unknown event names, fields, and property keys are rejected; no free-form DOM scrape is accepted. |
 | Visitor and session identifiers are pseudonymous and short-lived by default. | Useful retention does not require a person's name or account value. | IDs are generated only after opt-in, roll on a fixed schedule, and are removed immediately on opt-out. |
@@ -125,6 +128,36 @@ budget measures the Insights database plus WAL/SHM sidecars. A preflight check
 must fail closed before opening a write transaction when a limit is exceeded.
 Malformed or unknown fields remain a validation error and are never counted as
 accepted data.
+
+The browser transport keeps at most 1000 queued events. Each request contains
+at most 50 events and 64 KiB of UTF-8 JSON. When the queue is full,
+the newest event is dropped and the optional transport observer receives a
+`queue_dropped` record; existing queued events retain their order. Before an
+event enters the queue, the tracker rejects supported fields against the
+server's current bounds. Visitor/session IDs have a 200-byte server bound;
+the tracker emits fixed-length UUID values for those IDs. Platform is bounded
+at 50 UTF-8 bytes, pathname/referrer/API path at 2000 UTF-8 bytes, API method
+at 20 UTF-8 bytes, status codes at 100 to 599, durations at 0 to 86400000
+milliseconds, property strings at 256 UTF-8 bytes, and serialized properties
+at 16 KiB. The tracker requires string path/method fields, boolean error flags,
+integer status/duration values, an object for `properties`, and scalar values
+for allowed property keys; object or array property values are rejected. Such
+an event is reported as `event_dropped` with `field_too_long` for length
+failures or `invalid_field` for type/range failures, and does not trigger a request. A
+413 response is a single `validation_rejected` outcome
+with no retry; 429 and 507 remain the only retryable responses.
+
+The disposable Linux Chromium host gate loads the public tracker asset from the
+real Admin route while serving a minimal fixture host. Before opt-in it proves
+that fetch/XHR hooks, tracking requests, and local IDs are absent. After opt-in
+it proves a pathname event persists through Admin to Insights; after opt-out it
+proves hooks are restored, IDs are cleared, and no new event is stored. The
+same run checks real HTTP 413 and 429 rejection deltas through the public route.
+Real Linux 507 injection is unsafe without changing storage state, so it is
+reported as not verified there; the controlled Rust route seam remains the
+authority for 507 row-preserving behavior. Evidence is published only after
+source digest, Chromium/platform, status, and line-count metadata are bound in
+`target/rz/analytics-tracker/current/manifest.json`.
 
 ## Scope and non-goals
 
@@ -223,18 +256,45 @@ Non-goals:
 ## UI states and evidence
 
 The UI contract is [Analytics Collection Safety UI](../../../ui/features/analytics-collection-safety.md).
-It covers the existing Analytics overview/detail surfaces and the visible
-collection-status explanation where the current settings contract exposes one;
-it does not create a second settings system.
+It covers the existing Analytics overview/detail surfaces. They do not render a
+collection-policy status panel or fetch policy solely to display enabled state, project
+identifier, or allowed-origin count. Ingestion safety and the existing settings/permission
+boundary remain unchanged; this does not create a settings UI.
+
+Details filters by event type and page/API path. Text applies after the shared pause;
+selection changes apply immediately and reset pagination. Other reports clear and
+disable the path filter, so an obsolete path cannot exclude unrelated events.
 
 | State | User-visible meaning | Required behavior |
 | --- | --- | --- |
 | Loading | Analytics query is in progress. | Preserve shell and filters; never show zero as a placeholder. |
 | Populated | Retained data is available. | Show stable metrics/details with their time/path meaning. |
-| Empty | Query succeeded with no retained events in scope. | Explain the selected range and whether collection is enabled. |
-| Error | Query or collection-status read failed. | Show retry and keep last good data when available. |
-| Permission | Viewer lacks the requested Analytics read/manage capability. | Hide mutation actions and explain the boundary. |
+| Empty | Query succeeded with no retained events in scope. | Distinguish no retained activity from no match for the applied filters. |
+| Error | Activity query failed. | Show retry and keep last good data for non-permission failures when available. |
+| Permission | Viewer lacks the requested Analytics read/manage capability. | Hide mutation actions and explain the boundary; a 403 overrides cached Analytics data, including during a background refresh. |
 | Partial | A bounded diagnostic response has some unavailable summaries. | Identify missing categories; do not claim a complete report. |
+
+### Analytics UI state-matrix gate — passed minimum closure
+
+The route-exact controllable Insights fixture passed the minimum closure on
+Colima `linux/arm64`: ten cases across the real Admin routes
+`/analytics/overview` and `/analytics/details`. It covers initial loading,
+successful Details empty, exact 403 permission and 500 error responses,
+Details filter queries resetting pagination to page one, a Details
+background-refresh 500 that retains the prior row rather than rendering empty,
+and Overview/Details background 403 responses that hide previously cached data.
+
+The source-bound manifest records fixture receipts, response modes, and the
+query/page sequence, plus only two captures: 1440x900 dark/en Overview success
+and 390x844 light/zh Details empty. The fixture's explicit
+`eventsFailAfterFirstStatus`/`overviewFailAfterFirstStatus` controls affect only
+the second successful read and accept only `403` or `500`: ordinary background
+refresh uses `500`, while permission-revocation cases use `403`. Ordinary filter
+and pagination reads remain successful.
+
+This is a minimum state-matrix closure, not a full responsive, locale, or
+deployment certification. All other matrix combinations, production, and native
+systemd remain `Not verified`.
 
 ## User-visible data effects
 
@@ -316,9 +376,10 @@ raw secrets or browser payloads.
 | --- | --- | --- |
 | Source/static | tracker, handler, validator, settings, route/capability review | No query-string capture, DOM text scrape, or unbounded custom payload remains. |
 | Automated | Insights validation, retention, origin/identifier, opt-in, body/batch, process-local rate guards, storage/disk, batch-atomicity, policy barriers, and contract tests | 413/429/507 rejection paths persist zero events; 30/300 rate windows are scoped to one running Insights process and reset on restart; policy changes reject prior credentials without new rows; valid data retains existing query behavior. |
+| Local HTTP fixture | Public ingestion and authenticated query requests in the Insights router test harness | A legal pathname remains queryable; `pagePath`, `apiPath`, and `referrer` carrying a query, fragment, absolute URL, free text, newline, or control character return 422 before persistence. A separate Web behavior test limits the target display projection to its fixed fields. This is local fixture and source behavior evidence, not a deployed-service or browser result. |
 | HTTP | Real public ingestion, CORS preflight, and authenticated query requests | Only `collection_enabled`, project, normalized origin, exact preflight/POST CORS headers, payload, rate, storage, and role boundaries are observable; HTTP does not verify visitor consent. |
-| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | No initialization, request patch, request, queue, or ID before opt-in; loading the inert asset and consent-driven initialization remain distinct. |
-| Runtime/deployment | configured origin and retention in the four-service bundle | `Not verified` until environment and browser policy are exercised. |
+| Browser | Host bootstrap, tracker opt-in/opt-out, and Analytics UI matrix | The disposable Linux Chromium host gate verifies inert loading before consent, opt-in persistence, opt-out cleanup, and real 413/429 zero-row rejection. The Colima `linux/arm64` state-matrix minimum closure also verifies ten Overview/Details cases, including loading, Details empty, 403/500, filter page reset, background 500 data retention, and background 403 cache hiding. Other visual/state combinations remain `Not verified`. |
+| Runtime/deployment | configured origin and retention in the four-service bundle | The disposable four-service Linux gate verifies the configured fixture origin and browser policy through Admin and Insights. Production host configuration, native systemd, and retention over elapsed time remain `Not verified`. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
@@ -356,5 +417,7 @@ raw secrets or browser payloads.
 The safety boundary, data ownership, permissions, failure semantics, non-goals,
 and acceptance are fixed. The server implementation can proceed without a new
 UI settings system; the linked Analytics UI contract is ready for the existing
-overview/detail surfaces. External legal review, browser network evidence, and
-deployment configuration remain `Not verified`.
+overview/detail surfaces. External legal review, Analytics UI matrix coverage
+beyond the passed ten-case Colima `linux/arm64` minimum closure, production
+host configuration, native systemd, and retention over elapsed time remain
+`Not verified`.

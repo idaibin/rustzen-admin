@@ -9,16 +9,16 @@
 - Selected source identity: accepted current System Status and Manage Log
   surfaces in `apps/web/src/routes/system/status.tsx` and
   `apps/web/src/routes/manage/log.tsx`, plus repository-owned `DESIGN.md`
-  adopted root `DESIGN.md` baseline.
+  adopted root `DESIGN.md` baseline. The diagnostics surface has since moved to
+  its own owner-only route at `/system/module-log`.
 - Selection status: accepted existing product surfaces. Rights/use are
-  repository-owned; legacy file browsers, glass/gradient references, and the
-  operation-log surface as a process-log substitute are ignored.
-- Target: an owner-only diagnostics section under System Status with
-  module/file list, bounded reverse-cursor tail, bounded Blob archive backup
-  action, cleanup preview, and confirmation in loading, populated, empty,
-  error, processing, and partial states
+  repository-owned; the operation-log surface is not a process-log substitute.
+- Target: an owner-only standalone diagnostics page at `/system/module-log`
+  with module/file list, bounded reverse-cursor tail, bounded Blob archive
+  backup action, cleanup preview, and confirmation in loading, populated,
+  empty, error, processing, and partial states
   at 1920x1080, 1440x900, and 390x844 CSS px, 100% zoom, light/dark,
-  zh-CN/en-US. Runtime captures for the new section are `Not verified`.
+  zh-CN/en-US. The frozen disposable Linux Chromium contract uses owner `/system/module-log`, an explicit current-UTC `admin` fixture and one expired `monitor` fixture while retaining service-created current-day entries; it captures 1440x900 zh-CN and 390x844 en-US, with no page horizontal overflow. The four-service Colima runtime boundary is **Closed locally**; native systemd and production deployment remain `Not verified`.
 
 Dates shown for daily files, retention cutoffs, and current-day protection are
 UTC, matching the rolling logger; labels must make the UTC basis clear.
@@ -29,14 +29,14 @@ does not authorize arbitrary filesystem browsing or a second log database.
 
 ## Surface and layout contract
 
-- Keep one `PageHeader` for System Status. Add a diagnostics `PageCard` below
-  the existing resource/storage summary; do not rename or replace the separate
-  `/manage/log` operation-log page.
+- The diagnostics page owns its single `PageHeader` (h1 模块日志诊断) with the
+  storage/resource telemetry staying on `/system/status`; do not rename or
+  replace the separate `/manage/log` operation-log page.
 - The diagnostics panel begins with a fixed module selector and file/date
   metadata table. Selecting a file opens a bounded reverse-cursor tail Drawer or detail region
   that owns its vertical scroll; the page owns no nested horizontal scroll.
 - The module-log diagnostics route/menu and all three actions are owner-only;
-  admin, viewer, and custom-role users cannot enter this System Status surface
+  admin, viewer, and custom-role users cannot enter the diagnostics page
   and direct endpoint requests are rejected. No diagnostics-local permission
   state is rendered for a user stopped at that boundary. Cleanup uses a preview
   list and existing `ConfirmDialog` pattern; a one-click destructive action is
@@ -47,18 +47,24 @@ does not authorize arbitrary filesystem browsing or a second log database.
   prefix/date/size/status/action essentials, and the detail Drawer retains a
   reachable close and confirmation action.
 
+The module and date filters occupy the diagnostics heading upper right and apply
+on change. Refresh, backup and cleanup remain explicit actions. Limits/help text sits
+below the heading; it does not stretch the filter group. A short log-file list uses
+natural height without an internal vertical scrollbar, while the page owns vertical
+scrolling and the table bounds horizontal overflow. Filter changes clear selection.
+
 ## Component and data-owner mapping
 
 | Responsibility | Current owner | Decision |
 | --- | --- | --- |
-| Page title and status summary | `PageHeader` and existing System Status cards | Reuse |
+| Page title and summary | `PageHeader` on the diagnostics page | Reuse |
 | Module/file metadata list | `DataTableShell` + route-local `ProTable` or existing table pattern | Reuse; columns remain local |
 | Loading, empty, error, processing | `DataState` | Reuse; owner-only route boundary prevents a local permission state |
 | Bounded reverse-cursor log tail | Ant Design `Drawer` + `Typography`/code region | Wrap route-local content; hard caps are 256 KiB, 2,000 lines, and 16 KiB per line; no shared file viewer |
-| Backup download | Existing `apiDownload`/download action semantics | Reuse; bounded 64 MiB Blob, manifest/hash copy, and fail-closed result are route-local |
+| Backup download | Admin generated binary transport and download action semantics | Reuse; bounded 64 MiB Blob, manifest/hash copy, and fail-closed result are route-local. Require and validate `Content-Disposition`, `X-RustZen-Archive-SHA256`, and `X-RustZen-Archive-File-Count` before download; success feedback shows filename, file count, and hash summary. |
 | Cleanup review/confirm | Existing `ConfirmDialog` and Ant Design list/table | Reuse |
 | Partial result | Ant Design `Alert`/`Tag` with semantic status | Wrap route-local item outcomes |
-| HTTP transport | Admin system API client and `apiRequest`/`apiDownload` | Reuse; Admin route is authority |
+| HTTP transport | Admin system API client and binary response metadata | Reuse; Admin route is authority and Web rejects a missing or invalid archive metadata header |
 | Log content | Runtime files emitted by each service | Services own content; Admin owns allowlist/access/audit |
 
 No new global file-browser, log database, table, or archive component is
@@ -106,25 +112,28 @@ that uses the Admin OpenAPI/Orval chain. The document intentionally does not
 duplicate paths or file schemas. Admin owns the fixed allowlist, path safety,
 64 MiB preflight/Blob archive, manifest/hash metadata, confirmation token,
 capability checks, and audit metadata. `crates/runtime` and each service own
-file naming/emission/retention; no module database is read by Admin.
+file naming/emission/retention; no module database is read by Admin. Each fixed
+module selector resolves to its shipped `logs/<module>/<module>.YYYY-MM-DD`
+location. The nested directory is implementation-owned and is never exposed as a user
+path input or archive path; a missing directory is empty and an unsafe
+directory fails closed.
 
 ## Traceable UI deltas
 
 | ID | Selected source | Current runtime | Target contract | Priority | Owner and validation |
 | --- | --- | --- | --- | --- | --- |
-| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `Not verified`: diagnostics section not yet rendered | Add one bounded diagnostics panel without replacing resource/storage summary | P1 | System Status route; desktop/narrow alignment check |
-| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `Not verified`: process-log metadata/tail not yet rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Admin API + route-local table; contract and content-scope check |
-| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `Not verified`: preview/processing/partial paths not yet exercised | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | route action state; forced response/destructive safety matrix |
-| ML-UI-004 | `source-extracted`: current `apiDownload` and semantic status treatment | `Not verified`: 64 MiB preflight, manifest/hash, and long-line rendering not yet captured | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | `apiDownload`, Drawer/content owner; browser and HTTP evidence |
+| ML-UI-001 | `source-extracted`: System Status `PageHeader` and PageCard shell | `source implemented`: the diagnostics page composes one h1 PageCard panel without replacing the resource/storage summary page | Keep one bounded diagnostics panel | P1 | Linux Chromium owner flow freezes desktop/narrow screenshots and no-overflow assertions; actual deployment remains `Not verified` |
+| ML-UI-002 | `source-extracted`: Manage Log table/download semantics | `source implemented`: fixed module/date metadata table and bounded Tail Drawer are rendered | Keep process logs distinct from operation logs; fixed module/file/date metadata only | P1 | Linux Chromium owner flow freezes current-file Tail Drawer/marker/boundary evidence; full archive-byte/hash verification remains the Admin/client service gate |
+| ML-UI-003 | `source-extracted`: existing ConfirmDialog/DataState | `source implemented`: preview, expiry, processing, confirmation, failure, and partial paths are rendered | Preview then short-lived confirm; loading/error/partial remain distinct, while non-owner access stops at the route/API boundary | P1 | Linux Chromium owner flow freezes expired-fixture-only preview, ConfirmDialog confirmation, and result evidence; fault/permission matrices remain separately covered |
+| ML-UI-004 | `source-extracted`: generated binary transport and semantic status treatment | `source implemented`: metadata headers are required before download; success shows filename, file count, and hash summary; Tail Drawer renders bounds/truncation | Bounded Blob backup with manifest/hash metadata; preflight or mid-build change fails closed with no partial download; reverse-cursor tail caps at 256 KiB/2,000 lines/16 KiB per line and sets `truncated=true` whenever a cap is reached | P1 | Linux Chromium owner flow freezes selected-backup summary UI; adapter + service HTTP tests remain the archive-byte/hash authority |
 
-Exact new geometry, archive content, runtime permission, and browser evidence
-are `Not verified` until implementation and validation.
+The disposable Linux Chromium gate freezes the two specified geometry/localization states and success lifecycle. The dedicated four-service Linux runtime gate must be rerun for the per-module directory contract and prove four non-root service identities, matching `logs/<module>/` directory ownership, owner-only access, archive integrity, and cleanup preservation. Native systemd, production deployment, and broader failure/permission browser matrices remain `Not verified`.
 
 ## Responsive and verification matrix
 
 | Priority | Viewport | Theme/locale | Surface and state | Acceptance |
 | --- | --- | --- | --- | --- |
-| Required | 1920x1080 @ 100% | light / zh-CN | System Status populated | Diagnostics panel aligns with existing status content; module/file actions are reachable. |
+| Required | 1920x1080 @ 100% | light / zh-CN | Diagnostics page populated | Diagnostics panel aligns with the page header; module/file actions are reachable. |
 | Required | 1440x900 @ 100% | dark / en-US | Tail Drawer and backup processing | Long lines, integrity copy, focus, and status contrast pass. |
 | Required | 390x844 @ 100% | light / zh-CN | Empty/error | Controls stack; no content or action is clipped. |
 | Required | 390x844 @ 100% | dark / en-US | Cleanup preview/partial confirmation | Candidate list wraps/scrolls in its owner; confirmation remains keyboard reachable. |
@@ -144,9 +153,4 @@ transport, and semantic tokens.
 
 ## Ready for dev-frontend module log diagnostics
 
-The selected source, layout ownership, component mapping, route/API
-authorization and action states, responsive/accessibility rules, and acceptance
-IDs are fixed. The slice
-is **Ready for dev-frontend**. Runtime log availability (especially Insights),
-archive/hash response, path safety, final geometry, and two-pass browser
-evidence remain `Not verified`.
+The selected source, layout ownership, component mapping, route/API authorization and action states, responsive/accessibility rules, and acceptance IDs are fixed. The disposable Linux Chromium verifier is limited to the explicit current `admin` and expired `monitor` fixtures while retaining service-created current-day entries, owner success lifecycle, 1440x900 zh-CN and 390x844 en-US screenshots, and no-overflow assertions. Four-service log availability and Colima runtime permissions are **Closed locally** by the final `current` manifest and review. Native systemd, production deployment, and unlisted browser states remain `Not verified`.

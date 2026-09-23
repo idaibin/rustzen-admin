@@ -4,6 +4,7 @@ use super::{
 };
 use crate::common::{api::OptionsQuery, error::ServiceError, query::parse_optional_i16_filter};
 use crate::infra::permission::PermissionService;
+use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::capability::SYSTEM_WILDCARD;
 
 use sqlx::SqlitePool;
@@ -39,6 +40,7 @@ impl MenuService {
     }
 
     /// Update existing menu with validation
+    #[cfg(test)]
     pub async fn update_menu(
         pool: &SqlitePool,
         id: i64,
@@ -46,38 +48,36 @@ impl MenuService {
     ) -> Result<i64, ServiceError> {
         tracing::info!("Attempting to update menu: {}", id);
         let _module_menu_guard = PermissionService::lock_module_menu_mutation().await;
-        let menu_id = match MenuRepository::identity(pool, id).await? {
-            Some((true, Some(module_id), Some(module_menu_code))) => {
-                MenuRepository::update_module_override(
-                    pool,
-                    &module_id,
-                    &module_menu_code,
-                    &request.name,
-                    request.icon.as_deref().filter(|icon| !icon.trim().is_empty()),
-                    request.sort_order,
-                    request.status,
-                )
-                .await
-            }
-            Some(_) => Err(ServiceError::InvalidOperation(
-                "Only module navigation presentation can be updated.".to_string(),
-            )),
-            None => Err(ServiceError::NotFound(format!("Menu id: {id}"))),
-        }?;
-        PermissionService::refresh_all_user_permissions(pool).await?;
+        let menu_id = MenuRepository::update_navigation(
+            pool,
+            id,
+            &request.name,
+            request.icon.as_deref().filter(|icon| !icon.trim().is_empty()),
+            request.sort_order,
+            request.status,
+        )
+        .await?;
         Ok(menu_id)
     }
 
-    /// Delete menu with child validation
-    pub async fn delete_menu(
+    pub async fn update_menu_authorized(
+        pool: &SqlitePool,
+        id: i64,
+        request: UpdateMenuPayload,
+        actor: &AuthClaims,
+    ) -> Result<i64, ServiceError> {
+        let _module_menu_guard = PermissionService::lock_module_menu_mutation().await;
+        MenuRepository::update_navigation_authorized(pool, id, &request, actor).await
+    }
+
+    pub async fn delete_menu_authorized(
         pool: &SqlitePool,
         id: i64,
         current_user_id: i64,
+        actor: &AuthClaims,
     ) -> Result<(), ServiceError> {
-        tracing::info!("Attempting to disable menu: {}", id);
         Self::ensure_menu_is_mutable(pool, id, current_user_id).await?;
-
-        if MenuRepository::disable(pool, id).await? {
+        if MenuRepository::disable_authorized(pool, id, actor).await? {
             PermissionService::refresh_all_user_permissions(pool).await?;
             Ok(())
         } else {
@@ -92,11 +92,18 @@ impl MenuService {
     ) -> Result<(), ServiceError> {
         match MenuRepository::identity(pool, id).await? {
             Some((true, _, _)) => {
-                if PermissionService::has_permission(current_user_id, SYSTEM_WILDCARD).await? {
-                    Ok(())
-                } else {
-                    Err(ServiceError::MenuIsSystem)
-                }
+                let is_owner = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM user_permissions WHERE user_id=? AND menu_code=?)",
+                )
+                .bind(current_user_id)
+                .bind(SYSTEM_WILDCARD)
+                .fetch_one(pool)
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "checking current menu owner authority");
+                    ServiceError::DatabaseQueryFailed
+                })?;
+                if is_owner { Ok(()) } else { Err(ServiceError::MenuIsSystem) }
             }
             Some((false, _, _)) => Ok(()),
             None => Err(ServiceError::NotFound(format!("Menu id: {}", id))),
@@ -156,7 +163,7 @@ mod tests {
         )
         .await;
 
-        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
         let code: String = sqlx::query_scalar("SELECT code FROM menus WHERE id = ?")
             .bind(menu_id)
             .fetch_one(&pool)
@@ -166,7 +173,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_manual_capability_rows_cannot_be_updated() {
+    async fn unsupported_manual_capability_rows_cannot_be_updated() {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect("sqlite::memory:")
@@ -176,12 +183,12 @@ mod tests {
         let menu_id: i64 = sqlx::query_scalar(
             "INSERT INTO menus
              (parent_id, name, code, menu_type, status, is_system, is_manual, sort_order)
-             VALUES (0, 'Legacy manual', 'legacy:manual', 2, 1, FALSE, TRUE, 1)
+             VALUES (0, 'Unsupported manual', 'unsupported:manual', 2, 1, FALSE, TRUE, 1)
              RETURNING id",
         )
         .fetch_one(&pool)
         .await
-        .expect("legacy manual capability row");
+        .expect("unsupported manual capability row");
 
         let result = MenuService::update_menu(
             &pool,
@@ -195,14 +202,14 @@ mod tests {
         )
         .await;
 
-        assert!(matches!(result, Err(ServiceError::InvalidOperation(_))));
+        assert!(matches!(result, Err(ServiceError::NotFound(_))));
         let row: (String, i32, i16, Option<String>) =
             sqlx::query_as("SELECT name, sort_order, status, icon FROM menus WHERE id = ?")
                 .bind(menu_id)
                 .fetch_one(&pool)
                 .await
-                .expect("unchanged legacy manual capability row");
-        assert_eq!(row, ("Legacy manual".to_string(), 1, 1, None));
+                .expect("unchanged unsupported manual capability row");
+        assert_eq!(row, ("Unsupported manual".to_string(), 1, 1, None));
     }
 
     #[tokio::test]
@@ -214,11 +221,9 @@ mod tests {
             .expect("in-memory sqlite pool");
         crate::infra::db::run_migrations(&pool).await.expect("migrations");
         let menu_id: i64 = sqlx::query_scalar(
-            "INSERT INTO menus
-             (parent_id, name, code, menu_type, status, is_system, is_manual, sort_order,
-              path, icon, module_id, module_menu_code, is_active)
-             VALUES (0, 'Monitor', 'monitor:view', 2, 2, TRUE, TRUE, 1,
-                     '/monitoring', 'monitor', 'monitor', 'monitor', TRUE)
+            "INSERT INTO module_navigation
+             (name,code,status,is_manual,sort_order,path,icon,module_id,module_menu_code)
+             VALUES ('Monitor','monitor:view',2,TRUE,1,'/monitoring','monitor','monitor','monitor')
              RETURNING id",
         )
         .fetch_one(&pool)
@@ -243,7 +248,7 @@ mod tests {
         )
         .await
         .expect("re-enable module menu");
-        let status: i16 = sqlx::query_scalar("SELECT status FROM menus WHERE id = ?")
+        let status: i16 = sqlx::query_scalar("SELECT status FROM module_navigation WHERE id = ?")
             .bind(menu_id)
             .fetch_one(&pool)
             .await

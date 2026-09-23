@@ -9,6 +9,8 @@ import { AuthWrap } from "@/components/auth";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { actionColumnWidth } from "@/components/table/action-column";
+import { displayTableProps, emptyTableLocale } from "@/components/table/table-presets";
 import { localizeModuleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
@@ -73,7 +75,7 @@ function SystemModulePage() {
             title: t("操作", "Actions"),
             key: "actions",
             fixed: "right",
-            width: "6%",
+            width: actionColumnWidth(1),
             render: (_: unknown, module: SystemModule.Item) => {
                 const actionLabel = module.enabled ? t("禁用", "Disable") : t("启用", "Enable");
 
@@ -177,13 +179,10 @@ function SystemModulePage() {
                 loading={isPending}
                 search={false}
                 options={false}
-                pagination={false}
-                locale={{
-                    emptyText:
-                        modules.length === 0 ? (
-                            <DataState kind="empty" title={t("暂无模块", "No modules")} />
-                        ) : undefined,
-                }}
+                {...displayTableProps}
+                locale={emptyTableLocale(t("暂无模块", "No modules"), {
+                    visible: modules.length === 0,
+                })}
             />
         </PageCard>
     );

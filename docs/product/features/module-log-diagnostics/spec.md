@@ -2,7 +2,7 @@
 
 ## Goal and implementation slice
 
-Give an owner a safe way to inspect the four local RustZen service log files,
+Give an owner a safe way to inspect the four local Rustzen service log files,
 download a bounded verified external archive, and remove expired files without confusing
 process logs with Admin operation logs. The fixed scope is `admin`, `monitor`,
 `insights`, and `reports` under the configured runtime log directory.
@@ -16,16 +16,15 @@ runtime rolling logger; local timezone does not change eligibility.
 
 ## Users and scenarios
 
-- An owner opens System Status, selects one allowed module and date, and reads a
-  bounded tail of the corresponding process log.
+- An owner opens the Module log diagnostics page, selects one allowed module and
+  date, and reads a bounded tail of the corresponding process log.
 - An owner requests a backup and receives a bounded Blob archive through the
   existing download transport, containing the selected files, a manifest, and
   a SHA-256 digest that can be checked outside the installation.
 - An owner previews cleanup for a fixed retention cutoff, reviews the exact
   candidates, and confirms with a short-lived token.
 - An admin, viewer, or custom-role user cannot enter the module-log diagnostics
-  surface under System Status and cannot read, export, preview, or delete
-  content through direct endpoints. All three module-log capabilities are
+  page or read, export, preview, or delete content through direct endpoints. All three module-log capabilities are
   owner-only in this slice; no local permission state is rendered for users who
   are stopped at the route/menu boundary.
 - If one file disappears or cannot be read during metadata or cleanup, the
@@ -37,9 +36,9 @@ runtime rolling logger; local timezone does not change eligibility.
 
 | Decision | Rationale | Acceptance consequence |
 | --- | --- | --- |
-| The scope is the four local service prefixes only. | These files have a stable runtime owner and path contract. | No arbitrary path, managed-node OS log, or application log search is accepted. |
+| The scope is the four local service prefixes only. | Each service emits `<module>.YYYY-MM-DD` under its fixed `logs/<module>/` directory. | No arbitrary path, managed-node OS log, or application log search is accepted. The module selector and archive basename remain fixed; the nested directory is never accepted from a request. |
 | Admin owns authorization and audit; each service owns emitted content. | The Web console needs one control-plane boundary without merging databases. | File access is mediated by a fixed allowlist and actions are audited without copying content into Admin DB. |
-| Backup is a bounded external Blob archive downloaded through `apiDownload`. | A same-host copy is not an independent recovery artifact, while an unbounded archive complicates the current client boundary. | A preflight enforces a 64 MiB archive cap; the response includes a manifest and SHA-256 in archive metadata and response metadata; no local backup directory is invented. |
+| Backup is a bounded external Blob archive downloaded through the Admin binary transport. | A same-host copy is not an independent recovery artifact, while an unbounded archive complicates the current client boundary. | A preflight enforces a 64 MiB archive cap; Web requires `Content-Disposition`, `X-RustZen-Archive-SHA256`, and `X-RustZen-Archive-File-Count`, validates them before download, and shows the filename, file count, and hash summary after success; no local backup directory is invented. |
 | Cleanup is preview plus short-lived confirmation. | Destructive file removal needs an explicit review seam. | Preview lists candidates; confirmation cannot be replayed after expiry. |
 | The current UTC day is never deleted and is the only known-active marker. | A running process may still write it and operators need current evidence; cross-platform detection of an external process holding an older file is Not verified. | Cleanup rejects the current UTC-day file even when the cutoff is older; it makes no unsupported held-by-process claim for older files. |
 | Operation logs remain a separate product surface. | They contain request audit semantics, not process stdout/stderr. | `/manage/log` is not relabeled as a module-log viewer. |
@@ -101,16 +100,19 @@ Non-goals:
 
 ## Main and failure flows
 
-1. The owner enters the owner-only System Status diagnostics surface and the
-   fixed module/file list loads. Non-owners are stopped by the route/menu gate
-   and do not receive a local permission state.
+1. The owner enters the owner-only Module log diagnostics page and the fixed
+   module/file list loads. Non-owners are stopped by the route guard with the
+   existing 403 page and do not receive a local permission state.
 2. Selecting an allowed file loads a bounded reverse-cursor tail. The viewer
    labels the module/date, reports `truncated=true` when a byte/line/per-line
    limit is reached, and uses the cursor to request older content.
 3. Backup selection is validated server-side, preflighted against the 64 MiB
-   archive cap, and downloaded as one bounded Blob. The manifest lists every
-   included file and digest. A read, size, change, or hashing failure fails the
-   whole request and returns no partial archive.
+   archive cap, and downloaded as one bounded Blob. Before starting a browser
+   download, Web validates `Content-Disposition`, `X-RustZen-Archive-SHA256`,
+   and `X-RustZen-Archive-File-Count`; its success feedback shows the filename,
+   file count, and hash summary. The manifest lists every included file and
+   digest. A read, size, change, hashing, or invalid/missing metadata failure
+   fails closed and returns no partial archive.
 4. Cleanup preview computes candidates from the fixed prefixes and cutoff. It
    excludes the current UTC-day file, symlinks, unknown names, and path escapes.
 5. The owner reviews the candidate list and confirms once. The token expires
@@ -129,18 +131,30 @@ Non-goals:
   owner-only in this slice; admin, viewer, and custom roles cannot receive
   them through ordinary role assignment.
 - The backend is the authorization and path-safety boundary. UI visibility is
-  advisory. The route/menu boundary keeps non-owners out of the diagnostics
-  surface; direct endpoint calls are rejected with the same owner-only
+  advisory. The dedicated route and menu keep non-owners out of the diagnostics
+  page; direct endpoint calls are rejected with the same owner-only
   authorization result, and no diagnostics-local permission state is shown.
 - Only exact file names matching `<prefix>.YYYY-MM-DD` are eligible. Prefixes
-  are the four fixed service IDs. Symlinks, directories, unknown suffixes,
-  traversal, and arbitrary absolute paths are rejected.
+  are the four fixed service IDs. Every selector resolves only in its matching
+  fixed `<module>/` subdirectory. A missing module directory produces no list
+  item, while a non-directory or symbolic-link module directory fails closed. Symlinks,
+  directories, unknown suffixes, traversal, and arbitrary absolute paths are
+  rejected.
 - A backup manifest includes file name, size, modification time, and SHA-256.
   The bounded Blob archive is not stored as a local recovery copy by this
   slice, and any mid-build file change fails the entire download.
 - Cleanup never removes the current UTC date, a candidate outside the fixed cutoff,
   or an item that fails a safety recheck. The contract does not claim to detect
   an external process holding an older file; that state is Not verified.
+- Linux runtime acceptance follows the shipped units: every service has its
+  own non-root account and matching `logs/<module>/` directory. Each module
+  directory is owned by that module account, uses the `rz-log-control` group and the
+  setgid mode `2770`; service-created daily logs inherit that group at mode
+  `0640`. `/opt/rz/logs` remains mode `0711`. Only the Admin service receives
+  `rz-log-control` as a supplementary group, so it can
+  list, read, archive, and clean up the four fixed directories, while the other
+  service accounts remain limited to their own directory. Admin cannot rewrite
+  another service's log file through group permissions.
 - Partial applies to named metadata/cleanup items that were not read or
   removed. Backup is all-or-none: any archive item failure aborts the entire
   Blob and is not reported as a partial archive.
@@ -150,8 +164,10 @@ Non-goals:
 ## UI states and evidence
 
 The UI contract is [Module Log Diagnostics UI](../../../ui/features/module-log-diagnostics.md).
-It places a diagnostics section under the existing System Status surface and
-keeps operation logs on their existing page. Permission is enforced at the
+Module log diagnostics is an independent owner-only page at `/system/module-log`
+in the management navigation group beside System Status; System Status keeps
+only its storage and local-resource telemetry, and operation logs remain on
+their existing page. Permission is enforced at the
 route/menu/API boundary: non-owners do not enter this surface, so the panel does
 not render a local permission state.
 
@@ -180,7 +196,7 @@ database.
   this slice is runtime-complete.
 - Admin owns the control-plane route, fixed allowlist, preflight/Blob/manifest/hash
   implementation, confirmation token, and audit metadata.
-- `apps/web` owns the System Status diagnostics composition and Admin API client.
+- `apps/web` owns the Module log diagnostics page composition and Admin API client.
 - Existing `PageHeader`, `PageCard`, `DataState`, `DataTableShell`/route-local
   table, Ant Design `Drawer`/`Typography`, `ConfirmDialog`, and download
   transport are reused or wrapped locally. No shared file-viewer component is
@@ -200,9 +216,12 @@ database.
   and caps each line at 16 KiB. The reverse cursor moves toward older content,
   and any cap reached sets `truncated=true`.
 - Backup is one bounded external Blob archive (64 MiB hard cap) and contains a
-  manifest plus SHA-256 digest for every included file; preflight and any
-  mid-build change fail closed with no partial download and no local same-host
-  copy is treated as a backup.
+  manifest plus SHA-256 digest for every included file. Web validates
+  `Content-Disposition`, `X-RustZen-Archive-SHA256`, and
+  `X-RustZen-Archive-File-Count` before download and shows their filename,
+  file-count, and hash-summary evidence; preflight and any mid-build change
+  fail closed with no partial download and no local same-host copy is treated
+  as a backup.
 - Cleanup requires a fresh preview and short-lived confirmation; current UTC-day,
   unknown, symlink, and changed-between-preview files are never deleted. An
   older file held by an external process is Not verified and is not represented
@@ -223,18 +242,18 @@ database.
 
 | Layer | Evidence | Acceptance |
 | --- | --- | --- |
-| Source/static | allowlist, symlink/path checks, capability, archive/hash, token, and audit review | No arbitrary filesystem or content-to-DB path. |
-| Automated | file safety, preflight cap, Blob manifest/hash, mid-build change, preview-confirm, active-day, partial-result, tail caps/cursor, and contract tests | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
-| HTTP | Real owner and non-owner requests through Admin | Owner-only route/API boundaries, direct denial, and bounded content are observable; no local permission state is needed for non-owners. |
-| Browser | System Status diagnostics matrix | Tail, download, preview, confirm, partial, focus, responsive, and localized copy pass. |
-| Runtime/deployment | actual four-service runtime log directory | `Not verified` until all prefixes and permissions are exercised. |
+| Source/static | Implemented: fixed allowlist, symlink/path checks, owner-only capability, archive/hash, token, audit, the dedicated diagnostics page composition, and Web metadata validation | No arbitrary filesystem or content-to-DB path. |
+| Automated | Implemented: file safety, preflight cap, Blob manifest/hash, preview-confirm, active-day, partial-result, tail caps/cursor, OpenAPI/client adapter, and service HTTP checks | Destructive boundaries, archive integrity, and bounded tail semantics pass. |
+| HTTP | Disposable-service owner/non-owner requests through Admin | Owner-only route/API boundaries, direct denial, tail cursor/cap, archive headers, and cleanup token behavior are observable; no local permission state is needed for non-owners. |
+| Browser | Disposable Linux Chromium owner flow at `/system/module-log` | The verifier creates only an explicit current-UTC `admin` fixture and expired `monitor` fixture while retaining service-created current-day entries, then proves the owner panel, current file tail Drawer/markers/boundary copy, selected-backup filename/file-count/SHA summary, preview-only expired fixture, explicit confirm, result state, desktop 1440x900 zh-CN and narrow 390x844 en-US screenshots, and no horizontal overflow. Archive bytes and full SHA verification remain covered by the service/client gate rather than simulated in Chromium. |
+| Runtime/deployment | Requires a fresh `just verify-module-log-runtime-linux` run against the changed Linux binaries | The verifier must prove four non-root process identities, matching `logs/<module>/` ownership, private daily files, and the owner-only Admin diagnostics flow. Native systemd and production deployment remain `Not verified` until exercised. |
 
 ## Assumptions, open questions, rejected and deferred decisions
 
 ### Assumptions
 
-- All four services write daily files under the configured shared runtime log
-  directory before this feature is declared runtime-complete.
+- All four services write daily files in their matching fixed
+  `logs/<module>/` directory.
 - A bounded Blob archive can be consumed by the operator's external storage or
   download flow; long-term retention of that external copy is outside Admin.
 
@@ -261,6 +280,5 @@ database.
 
 The fixed module scope, ownership, permission boundary, path safety, backup
 integrity, cleanup confirmation, failure semantics, non-goals, and acceptance
-are fixed. The linked UI contract is ready for frontend implementation. The
-Insights shared logger prerequisite, runtime permissions, and
-browser/deployment evidence remain `Not verified` until exercised.
+are implemented in the Admin and Web source, including download metadata
+validation. The browser acceptance contract is frozen for the disposable Linux verifier: it may create an explicit current UTC `admin` log fixture and one expired `monitor` fixture while retaining service-created current-day entries; all browser interaction uses the real owner `/system/module-log` UI, while archive-byte/hash proof remains service/client evidence. The dedicated Linux runtime gate is **Closed locally** at the published `current` manifest for source tree `f0f4ede624e96600e894bf9b5a097c6df138a7dd0e2c7ce6386fe667fd4e91d4`; its 25 receipts cover the four service-created prefixes, five exact 403 denials, Reports `999:999` ownership, archive SHA/bytes, and cleanup preservation. The retained first jq-verifier failure does not replace that final result. Native systemd and production deployment remain `Not verified` until exercised.

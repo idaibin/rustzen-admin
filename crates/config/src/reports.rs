@@ -9,8 +9,15 @@ use crate::shared::{
 
 const DEFAULT_INTERNAL_HOST: &str = "127.0.0.1";
 const DEFAULT_REPORTS_PORT: u16 = 9804;
-const DEFAULT_REPORTS_SQLITE_PATH: &str = "./data/db/reports.db";
+const DEFAULT_REPORTS_SQLITE_PATH: &str = "./data/reports/db/reports.db";
 const DEFAULT_CREDENTIAL_KEY: &str = "rustzen-development-credential-key";
+#[cfg(feature = "reports-notifications")]
+const DEFAULT_NOTIFICATION_INGRESS_URL: &str =
+    "http://127.0.0.1:9811/internal/v1/notification-events";
+#[cfg(feature = "reports-notifications")]
+const DEFAULT_NOTIFICATION_EVENT_KEY_ID: &str = "reports-local-v1";
+#[cfg(feature = "reports-notifications")]
+const DEFAULT_NOTIFICATION_EVENT_KEY: &str = "rustzen-local-reports-notification-key-change-me";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReportsConfig {
@@ -34,6 +41,15 @@ pub struct ReportsConfig {
     pub reports_headless: bool,
     #[serde(default = "default_max_concurrency")]
     pub reports_max_concurrency: usize,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default = "default_notification_ingress_url")]
+    pub reports_notification_ingress_url: String,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default = "default_notification_event_key_id")]
+    pub reports_notification_event_key_id: String,
+    #[cfg(feature = "reports-notifications")]
+    #[serde(default = "default_notification_event_key")]
+    pub reports_notification_event_key: String,
 }
 
 impl ReportsConfig {
@@ -72,7 +88,7 @@ impl ReportsConfig {
     }
 
     pub fn log_dir(&self) -> PathBuf {
-        self.runtime.log_dir()
+        self.runtime.log_dir().join("reports")
     }
 
     pub fn timezone(&self) -> &str {
@@ -85,6 +101,15 @@ impl ReportsConfig {
 
     pub fn browser_path(&self) -> Option<&str> {
         self.reports_browser_path.as_deref()
+    }
+
+    #[cfg(feature = "reports-notifications")]
+    pub fn notification_transport(&self) -> (&str, &str, &str) {
+        (
+            &self.reports_notification_ingress_url,
+            &self.reports_notification_event_key_id,
+            &self.reports_notification_event_key,
+        )
     }
 
     fn validate(&self) -> Result<(), ConfigError> {
@@ -109,8 +134,60 @@ impl ReportsConfig {
         if !(1..=4).contains(&self.reports_max_concurrency) {
             return Err(ConfigError::Invalid("RUSTZEN_REPORTS_MAX_CONCURRENCY"));
         }
+        #[cfg(feature = "reports-notifications")]
+        {
+            if !valid_notification_ingress_url(&self.reports_notification_ingress_url)
+                || !rustzen_ipc::valid_notification_key_id(&self.reports_notification_event_key_id)
+                || self.reports_notification_event_key.len() < 32
+                || self.reports_notification_event_key == self.ipc_token
+                || self.reports_notification_event_key == self.reports_credential_key
+            {
+                return Err(ConfigError::Invalid("RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY"));
+            }
+            ensure_production_secret(
+                &self.runtime,
+                "RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY",
+                &self.reports_notification_event_key,
+                DEFAULT_NOTIFICATION_EVENT_KEY,
+            )?;
+        }
         Ok(())
     }
+}
+
+#[cfg(feature = "reports-notifications")]
+fn valid_notification_ingress_url(value: &str) -> bool {
+    let Ok(url) = url::Url::parse(value) else {
+        return false;
+    };
+    let loopback = match url.host() {
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => address.is_loopback(),
+        _ => false,
+    };
+    url.scheme() == "http"
+        && loopback
+        && url.port().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.path() == "/internal/v1/notification-events"
+        && url.query().is_none()
+        && url.fragment().is_none()
+}
+
+#[cfg(feature = "reports-notifications")]
+fn default_notification_ingress_url() -> String {
+    DEFAULT_NOTIFICATION_INGRESS_URL.into()
+}
+
+#[cfg(feature = "reports-notifications")]
+fn default_notification_event_key_id() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY_ID.into()
+}
+
+#[cfg(feature = "reports-notifications")]
+fn default_notification_event_key() -> String {
+    DEFAULT_NOTIFICATION_EVENT_KEY.into()
 }
 
 fn default_credential_key() -> String {
@@ -127,6 +204,8 @@ fn default_max_concurrency() -> usize {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "reports-notifications")]
+    use super::DEFAULT_NOTIFICATION_INGRESS_URL;
     use super::{DEFAULT_CREDENTIAL_KEY, ReportsConfig};
 
     #[test]
@@ -134,7 +213,7 @@ mod tests {
         let config = ReportsConfig::local().expect("local Reports config");
 
         assert_eq!(config.bind_address(), "127.0.0.1:9804");
-        assert!(config.database_path().ends_with("data/db/reports.db"));
+        assert!(config.database_path().ends_with("data/reports/db/reports.db"));
         assert_eq!(config.database.db_idle_timeout, None);
     }
 
@@ -144,11 +223,38 @@ mod tests {
         config.runtime.environment = "production".to_string();
         config.ipc_token = "production-ipc-secret".to_string();
         config.reports_credential_key = "production-credential-secret".to_string();
+        #[cfg(feature = "reports-notifications")]
+        {
+            config.reports_notification_event_key =
+                "production-reports-notification-secret".to_string();
+        }
         config.validate().expect("focused production Reports config");
         config.ipc_token = "replace-me".to_string();
         assert!(config.validate().is_err());
         config.ipc_token = "production-ipc-secret".to_string();
         config.reports_credential_key = DEFAULT_CREDENTIAL_KEY.to_string();
+        assert!(config.validate().is_err());
+    }
+
+    #[cfg(feature = "reports-notifications")]
+    #[test]
+    fn notification_transport_requires_exact_loopback_and_independent_secret() {
+        let mut config = ReportsConfig::local().unwrap();
+        for invalid in [
+            "https://127.0.0.1:9811/internal/v1/notification-events",
+            "http://localhost:9811/internal/v1/notification-events",
+            "http://127.0.0.1:9811/internal/v1/notification-events?redirect=1",
+            "http://user@127.0.0.1:9811/internal/v1/notification-events",
+        ] {
+            config.reports_notification_ingress_url = invalid.into();
+            assert!(config.validate().is_err(), "accepted {invalid}");
+        }
+        config.reports_notification_ingress_url = DEFAULT_NOTIFICATION_INGRESS_URL.into();
+        config.reports_notification_event_key = config.ipc_token.clone();
+        assert!(config.validate().is_err());
+        config.reports_notification_event_key = config.reports_credential_key.clone();
+        assert!(config.validate().is_err());
+        config.reports_notification_event_key_id = "bad\nheader".into();
         assert!(config.validate().is_err());
     }
 }

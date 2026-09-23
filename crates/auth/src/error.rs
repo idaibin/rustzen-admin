@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    http::StatusCode,
+    http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
@@ -13,6 +13,8 @@ pub enum CoreError {
     MissingAuthContext,
     #[error("Permission denied")]
     PermissionDenied,
+    #[error("Authorization authority unavailable")]
+    AuthorityUnavailable,
 }
 
 impl IntoResponse for CoreError {
@@ -23,9 +25,18 @@ impl IntoResponse for CoreError {
                 (StatusCode::UNAUTHORIZED, 401, "Missing auth context")
             }
             CoreError::PermissionDenied => (StatusCode::FORBIDDEN, 403, "Permission denied"),
+            CoreError::AuthorityUnavailable => {
+                (StatusCode::SERVICE_UNAVAILABLE, 50302, "Authorization authority unavailable")
+            }
         };
 
-        (status, Json(CoreErrorResponse { code, message, data: None })).into_response()
+        let mut response =
+            (status, Json(CoreErrorResponse { code, message, data: None })).into_response();
+        response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        if status == StatusCode::SERVICE_UNAVAILABLE {
+            response.headers_mut().insert(header::RETRY_AFTER, HeaderValue::from_static("60"));
+        }
+        response
     }
 }
 

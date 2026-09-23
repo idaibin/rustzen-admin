@@ -1,7 +1,24 @@
 pub mod handler;
 pub mod repo;
 pub mod service;
+pub mod session;
 pub mod types;
+
+#[cfg(all(test, feature = "full"))]
+#[path = "actor_authority_tests.rs"]
+mod actor_authority_tests;
+
+#[cfg(test)]
+#[path = "session_cleanup_tests.rs"]
+mod session_cleanup_tests;
+
+#[cfg(test)]
+#[path = "epoch_trigger_tests.rs"]
+mod epoch_trigger_tests;
+
+#[cfg(test)]
+#[path = "login_concurrency_tests.rs"]
+mod login_concurrency_tests;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
 use axum::routing::{get, post};

@@ -6,7 +6,20 @@ use serde::{Deserialize, Serialize};
 pub struct SystemStatusOverview {
     pub collected_at: DateTime<Utc>,
     pub storage: SystemStorageStatus,
+    pub modules: Vec<ModuleDatabaseStatus>,
     pub resource: LocalResourceStatus,
+}
+
+/// Per-module storage self-report aggregated from the module synchronizer.
+/// `database` is present only while the module is available; an unavailable
+/// module keeps only its last successful collection time.
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleDatabaseStatus {
+    pub module: String,
+    pub available: bool,
+    pub collected_at: Option<String>,
+    pub database: Option<SqliteStorageStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

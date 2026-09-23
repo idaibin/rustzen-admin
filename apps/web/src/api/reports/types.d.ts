@@ -24,7 +24,30 @@ declare namespace Reports {
         | { action: "click"; selector: string }
         | { action: "waitFor"; selector: string }
         | { action: "assertText"; selector: string; text: string }
-        | { action: "screenshot"; name?: string };
+        | { action: "assertValue"; selector: string; value: string }
+        | { action: "assertAbsent"; selector: string }
+        | { action: "screenshot"; name?: string }
+        | { action: "screenshotViewport"; name?: string }
+        | { action: "setViewport"; width: 1440 | 390; height: 900 | 844 }
+        | { action: "setUiPreferences"; theme: "light" | "dark"; locale: "zh-CN" | "en-US" }
+        | { action: "assertNoHorizontalOverflow" }
+        | {
+              action: "assertElementLayout";
+              selector: string;
+              elementCount?: number;
+              visibleCount?: number;
+              maxHeight?: number;
+              withinViewportRight?: boolean;
+              withinViewport?: boolean;
+          }
+        | { action: "assertFocus"; selector: string }
+        | {
+              action: "guardExists";
+              selector: string;
+              onMissing?: "continue" | "skipNext" | "stop" | "fail" | "error";
+          }
+        | { action: "pressKey"; key: string }
+        | { action: "pause"; durationMs: number };
     interface Flow {
         id: string;
         systemId: string;

@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
+import { NotificationShell } from "./-notifications-shell";
+
 const permissionFreePaths = new Set(["/profile", "/403", "/404"]);
 
 const ReactQueryDevtools = import.meta.env.DEV
@@ -76,7 +78,7 @@ function RootLayout() {
 
     return (
         <ThemeProvider>
-            <BaseLayout hidden={!token}>
+            <BaseLayout hidden={!token} headerActions={token ? <NotificationShell /> : null}>
                 <Outlet />
             </BaseLayout>
             <MessageContent />

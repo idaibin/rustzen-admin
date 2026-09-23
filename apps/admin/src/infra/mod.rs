@@ -1,5 +1,6 @@
 pub mod app;
 pub mod auth_runtime;
+pub mod bootstrap_owner;
 pub mod config;
 pub mod contract;
 pub mod db;

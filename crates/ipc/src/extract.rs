@@ -9,8 +9,8 @@ use axum::{
 };
 use serde::de::DeserializeOwned;
 
-/// Typed JSON for module handlers that preserves the former Admin proxy's
-/// envelope for valid JSON whose data does not match the target type.
+/// Typed JSON for module handlers that returns the Admin module-input envelope
+/// for valid JSON whose data does not match the target type.
 pub struct ModuleJson<T>(pub T);
 
 impl<T, S> FromRequest<S> for ModuleJson<T>
@@ -52,7 +52,7 @@ impl IntoResponse for ModuleJsonRejection {
     }
 }
 
-/// Typed query parameters with the former Admin proxy's error envelope.
+/// Typed query parameters with the Admin module-input error envelope.
 pub struct ModuleQuery<T>(pub T);
 
 impl<T, S> FromRequestParts<S> for ModuleQuery<T>

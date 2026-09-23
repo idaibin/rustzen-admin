@@ -6,8 +6,7 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 - Scope class: versioned Web/Rust monorepo.
 - Map and Git root: the repository root.
 - `DESIGN.md` is the single shared visual-semantics entry point. Current
-  route-local UI contracts are indexed by `docs/ui/index.md`; legacy YAML
-  sidecars in that directory are historical pointers only.
+  route-local UI contracts are indexed by `docs/ui/index.md`.
 
 ## Authority and reading paths
 
@@ -38,7 +37,7 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 | Exercise the four-service module contract | `just verify-modules-mvp` |
 | Exercise real Reports browser filling | `just verify-automation-browser <browser-path>` |
 | Build the native release (four servers plus `rz`) | `just build-native` |
-| Verify the read-only operations CLI | `just verify-cli` |
+| Verify the operations CLI | `just verify-cli` |
 | Build the signed Linux release bundle | `just build` |
 
 ## Shared crates
@@ -76,7 +75,7 @@ the root `justfile`, and the nearest `AGENTS.md` remain proof.
 
 | Path | Value | Inspect when |
 | --- | --- | --- |
-| `apps/monitor/src/features/` | Heartbeat, nodes, metrics, and service monitoring; incident and setting internals support the retained overview and probes. | You change Monitoring behavior. |
+| `apps/monitor/src/features/` | Agent reports, node resources, metrics, alerts, incidents, settings, and daily summaries. | You change Monitoring behavior. |
 | `apps/monitor/migrations/` | Monitor-owned schema. | You change Monitor persistence. |
 | `apps/monitor/module.toml` | Monitor metadata and default menu only. | You change module presentation metadata. |
 | `apps/insights/src/features/` | Single-project tracking, instance-wide overview/details, and retention settings. | You change Analytics behavior. |
@@ -120,7 +119,7 @@ not component behavior.
 
 For shared visual work, start with `DESIGN.md`, then revalidate the live definition
 and at least one current consumer. `docs/ui/features/` contains subordinate current
-route-local contracts; legacy `docs/ui/*.yaml` sidecars are historical pointers only.
+route-local contracts.
 
 ## Common task routes
 
@@ -131,7 +130,7 @@ route-local contracts; legacy `docs/ui/*.yaml` sidecars are historical pointers 
 | Change authentication or permission behavior | `crates/auth/` → Admin auth/system feature → `apps/web/src/routes/__root.tsx` and auth store | focused tests, then `just check` |
 | Change release or deployment behavior | Admin deploy feature → bundle/signing script → installer/systemd assets → architecture contract | focused script tests, then `just check` |
 | Change product scope or module purpose | `docs/product/product.md` → affected source and acceptance evidence | documentation checks plus the implementation slice's own gate |
-| Add or expand a module capability | `docs/product/product.md` → `docs/reference/legacy-module-comparison.md` → `docs/guides/shared-capabilities.md` → owning feature and route registration | focused tests, then `just verify-modules-mvp` |
+| Add or expand a module capability | `docs/product/product.md` → `docs/guides/shared-capabilities.md` → owning feature and route registration | focused tests, then `just verify-modules-mvp` |
 | Add a shared Rust capability | `docs/guides/shared-capabilities.md` → closest named crate → exports → two representative consumers | focused tests, then `just check` |
 | Add or change shared UI | target UI feature contract → `DESIGN.md` anchor → current component/token owner → representative routes | frontend checks and browser verification |
 
@@ -142,7 +141,7 @@ authority unless an existing generated pipeline or an explicit task introduces o
 
 | Capability or product job | Canonical definition and access | Representative consumers | Boundary and evidence |
 | --- | --- | --- | --- |
-| Module route and Manifest | `ModuleRouter`, `Require` in `crates/ipc/src/router.rs`, exported by `crates/ipc/src/lib.rs` | Monitor checks/metrics; Insights overview/query; Reports automation | Reuse for module routes; Rust registration is the only method/path/access/capability source. Tested in `crates/ipc`. |
+| Module route and Manifest | `ModuleRouter`, `Require` in `crates/ipc/src/router.rs`, exported by `crates/ipc/src/lib.rs` | Monitor nodes/metrics/incidents; Insights overview/query; Reports automation | Reuse for module routes; Rust registration is the only method/path/access/capability source. Tested in `crates/ipc`. |
 | Service health | `HealthResponse` in `crates/ipc/src/health.rs` | Four service health producers; Admin deploy health gate | Reuse for the fixed release health contract; module-specific diagnostics stay local. |
 | Authentication and capabilities | `crates/auth/src/` exports | Admin permission checks and three module routers | Reuse policy and constants; business authorization decisions remain with the owner. |
 | SQLite connection and maintenance | `crates/storage/src/{sqlite,maintenance}.rs`, exported by `crates/storage/src/lib.rs` | Four databases and retention jobs | Reuse mechanics; schemas, SQL, and retention selection stay application-owned. |
@@ -157,14 +156,6 @@ Before a new declaration, search the named owner, its export or registration,
 and representative consumers. Decide `reuse`, `extend`, `wrap`, justified
 `new`, or `Not verified`; a map miss is not proof that no implementation exists.
 
-## Former product references
-
-`docs/reference/legacy-module-comparison.md` fixes the current comparison basis
-for `rustzen-inspect`, `rustzen-analytics`, and `rustzen-report`. Those
-repositories are behavior references only. They are not current owners or
-package dependencies. New module work must select capabilities row by row and
-must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
-
 ## Deployment and verification
 
 | Path | Value | Inspect when |
@@ -173,7 +164,7 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 | `scripts/package-release-bundle.sh` | Exact bundle assembly and marker checks. | You change bundle membership. |
 | `scripts/deploy-sign.mjs` | Complete-bundle signing and verification. | You change signature behavior. |
 | `deploy/setup-layout.sh` | Signature-verifying initial installer and first atomic `current` link. | You change installation. |
-| `deploy/rz.target` and `deploy/rz-*.service` | Recovery, four server units, and separate Monitor Agent unit. | You change systemd topology. |
+| `deploy/rz-full.service` and `deploy/rz-*.service` | Recovery, four server units, and separate Monitor Agent unit. | You change systemd topology. |
 | `scripts/verify-services.sh` | Four-service runtime, isolation, DB restore, and latency verification. | You change runtime contracts or acceptance gates. |
 | `scripts/test-setup-layout.sh` | Signature, initial-install boundary, and unit-topology integration tests. | You change bundle or install layout. |
 
@@ -187,11 +178,9 @@ must not copy their duplicate Admin, auth, RBAC, deployment, or Web-shell code.
 | `docs/guides/` | Current development rules. | You edit backend, frontend, permission, or deployment behavior. |
 | `docs/guides/shared-capabilities.md` | Shared-code ownership and new-module intake gate. | You consider copying, extracting, or creating a shared declaration. |
 | `docs/reference/` | Optional deeper current context. | Current facts and guides are not enough. |
-| `docs/reference/legacy-module-comparison.md` | Fixed live-source comparison with former standalone products. | You decide which former behaviors to retain, reproduce, defer, or drop. |
 | `docs/history/` | Non-current plans and records. | You need historical rationale. |
 | `DESIGN.md` | Shared visual semantics and implementation naming anchors. | You change product-wide visual semantics, shared components, or themes. |
 | `docs/ui/index.md` and `docs/ui/features/` | Current subordinate route-local UI contracts; not a shared visual authority. | You need page composition, applicable states, or feature acceptance. |
-| `docs/ui/*.yaml` | Historical superseded pointers; not current contracts. | You need to identify the retired UI-standardization task. |
 
 ## Commands
 
@@ -214,5 +203,5 @@ Run recipes from the repository root and inspect their current bodies in the
   migration semantics.
 - Reports credentials, datasets, uploads, DSL expansion, suspend/resume, and
   scheduling each require a separate product and failure-state specification.
-- Former repository runtime behavior is not verified by this map; re-run its
-  current tests and the selected `rustzen-admin` acceptance path before reuse.
+- External repository runtime behavior is not verified by this map; define and run
+  a current `rustzen-admin` acceptance path before reuse.

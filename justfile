@@ -9,6 +9,14 @@ dev-server:
 dev-monitor:
     cargo run -p rustzen-monitor -- controller
 
+dev-monitor-agent:
+    cargo run -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+
+verify-monitor-agent:
+    cargo test -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    cargo clippy -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent -- -D warnings
+    pnpm dlx bun@1.3.14 scripts/distribution-verify-agent.ts
+
 dev-insights:
     cargo run -p rustzen-insights -- serve
 
@@ -19,7 +27,11 @@ dev-web:
     cd apps/web && bun run dev
 
 # check
+verify-service-wiring:
+    scripts/test-verify-services.sh
+
 check:
+    just verify-service-wiring
     cd apps/web && bun install --frozen-lockfile
     cd apps/web && bun run vp fmt --check
     cd apps/web && bun run vp lint
@@ -30,20 +42,26 @@ check:
     cargo fmt --all -- --check
     cargo check --workspace
     cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
+    # Admin fixtures share a process-global permission cache across independent databases.
+    # Serialize test cases; each concurrency test still runs its own parallel tasks.
+    cargo test --workspace -- --test-threads=1
 
 verify-services:
+    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-service-auth-module-gateway.test.mjs scripts/verify-services.test.mjs
     cargo test -p rustzen-admin changed_manifest_swaps_after_commit_and_invalid_change_rolls_back
-    cargo test -p rustzen-admin warm_gateway_streams_with_memory_auth_and_a_closed_database
+    cargo test -p rustzen-admin gateway_fails_closed_when_the_authority_database_is_closed
     cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
-    scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz
+    cargo build --release -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    RUSTZEN_VERIFY_BUILD_PROFILE=release scripts/verify-services.sh target/release/rz-admin target/release/rz-monitor target/release/rz-insights target/release/rz-reports target/release/rz target/release/rz-monitor-agent
 
 verify-modules-mvp:
+    pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-service-auth-module-gateway.test.mjs scripts/verify-services.test.mjs
     cargo build --workspace
-    scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    RUSTZEN_VERIFY_BUILD_PROFILE=debug scripts/verify-services.sh target/debug/rz-admin target/debug/rz-monitor target/debug/rz-insights target/debug/rz-reports target/debug/rz target/debug/rz-monitor-agent
 
 # Admin-native route contract. Rust registration is the authority; this artifact
-# is a derived input for client generation and compatibility checks. Module
+# is a derived input for client generation and baseline checks. Module
 # service routes remain outside this OpenAPI document until their shared IPC
 # contract carries operation and schema metadata.
 contract-generate:
@@ -58,8 +76,8 @@ contract-verify:
     cd apps/web && bun x tsc --noEmit
     cd apps/web && bun test src/api/request.contract.test.ts
 
-contract-compat:
-    cmp -s openapi/baselines/contract-admin-native-all-refact-modules-mvp.json openapi/admin-contract.json
+contract-baseline:
+    cmp -s openapi/baselines/contract-admin-current.json openapi/admin-contract.json
 
 contract-client:
     cd apps/web && bun run contract:generate && bun scripts/normalize-contract-client.mjs && bun run vp fmt "${CONTRACT_CLIENT_OUTPUT:-src/api/generated/admin-contract.ts}"
@@ -71,11 +89,76 @@ verify-cli:
     cargo test -p rustzen-cli
     cargo clippy -p rustzen-cli --all-targets -- -D warnings
     cargo build -p rustzen-cli
-    tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version; "{{justfile_directory()}}/target/debug/rz" --json status all
+    tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version
 
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
+
+verify-reports-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-linux.test.mjs
+    scripts/verify-reports-linux.sh
+
+# Run the full Linux services and drive the rendered Admin UI through Reports Chromium.
+build-admin-browser-linux:
+    scripts/build-admin-browser-linux.sh
+
+ensure-admin-browser-linux:
+    scripts/ensure-admin-browser-verifier-image.sh
+
+verify-admin-browser-linux:
+    scripts/test-verify-admin-browser-linux.sh
+    scripts/test-ensure-admin-browser-verifier-image.sh
+    scripts/verify-admin-browser-linux.sh
+
+# Run the four shipped service identities and verify Admin-owned module-log operations.
+verify-module-log-runtime-linux:
+    scripts/test-verify-module-log-runtime-linux.sh
+    cargo test -p rustzen-admin features::system::status::logs::service::tests -- --test-threads=1
+    scripts/verify-module-log-runtime-linux.sh
+
+verify-analytics-tracker-linux:
+    scripts/verify-analytics-tracker-linux.sh
+
+verify-analytics-ui-state-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-analytics-ui-state-linux.test.mjs
+    scripts/verify-analytics-ui-state-linux.sh
+
+verify-monitoring-ui-state-linux:
+    pnpm dlx bun@1.3.14 test \
+        scripts/monitoring-ui-state-fixture.test.mjs \
+        scripts/monitoring-ui-state-cleanup.test.mjs \
+        scripts/monitoring-ui-state-layout.test.mjs \
+        scripts/monitoring-ui-state-provenance.test.mjs \
+        scripts/monitoring-ui-state-delivery-lib.test.mjs \
+        scripts/verify-monitoring-ui-state-linux.test.mjs
+    scripts/verify-monitoring-ui-state-linux.sh
+
+verify-monitor-agent-multi-node-linux:
+    scripts/verify-monitor-agent-multi-node-linux.sh
+
+# Render two real Agent reports in Nodes and record Chromium evidence.
+verify-monitor-agent-multi-node-ui-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-monitor-agent-multi-node-ui-linux.test.mjs
+    scripts/verify-monitor-agent-multi-node-ui-linux.sh
+
+# Run the full Admin access-session authority lifecycle in disposable Linux.
+verify-admin-session-authority-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-admin-session-authority-linux.test.mjs
+    scripts/verify-admin-session-authority-linux.sh
+
+verify-schedule-form-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-schedule-form-linux.test.mjs
+    scripts/verify-schedule-form-linux.sh
+
+verify-reports-ui-state-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-reports-ui-state-linux.test.mjs scripts/reports-ui-state-browser-lib.test.mjs
+    scripts/verify-reports-ui-state-linux.sh
+
+verify-task-console-linux:
+    pnpm dlx bun@1.3.14 test scripts/verify-task-console-linux.test.mjs
+    scripts/verify-task-console-linux.sh
+
 
 e2e-modules browser_path:
     just verify-modules-mvp
@@ -83,7 +166,7 @@ e2e-modules browser_path:
 
 # Reset local sqlite database and let migrations re-run on next startup.
 reset-db:
-    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights reports; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done; rm -f "${runtime_root}/data/rustzen.db" "${runtime_root}/data/rustzen.db-shm" "${runtime_root}/data/rustzen.db-wal"
+    runtime_root="${RUSTZEN_RUNTIME_ROOT:-.rustzen-admin}"; for db in admin monitor insights; do rm -f "${runtime_root}/data/db/${db}.db" "${runtime_root}/data/db/${db}.db-shm" "${runtime_root}/data/db/${db}.db-wal"; done; rm -f "${runtime_root}/data/reports/db/reports.db" "${runtime_root}/data/reports/db/reports.db-shm" "${runtime_root}/data/reports/db/reports.db-wal" "${runtime_root}/data/rustzen.db" "${runtime_root}/data/rustzen.db-shm" "${runtime_root}/data/rustzen.db-wal"
 
 # Build all (production)
 build:
@@ -92,6 +175,7 @@ build:
 
 # Build one signed x86_64 Linux bundle containing all four services.
 build-release:
+    just build-config
     just _build-binaries x86_64 x86_64-unknown-linux-musl linux/amd64
     VERSION=$(awk -F '"' '/^version = / { print $2; exit }' Cargo.toml); BUNDLE=$(scripts/package-release-bundle.sh "$VERSION" x86_64 target/rz/build/x86_64/bin target/rz); bun scripts/deploy-sign.mjs sign-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64; bun scripts/deploy-sign.mjs verify-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64
 
@@ -107,21 +191,31 @@ build-web:
 build-config:
     mkdir -p target/rz/config target/rz/systemd
     cp .env.example target/rz/config/rz.env
-    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/config/rz.env
-    cp deploy/rz.target deploy/rz-recovery.service deploy/rz-admin.service deploy/rz-monitor.service deploy/rz-insights.service deploy/rz-reports.service target/rz/systemd/
+    cp .env.reports.example target/rz/config/rz-reports.env
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/config/rz.env && sed "s/__RUSTZEN_DEPLOY_VERIFY_KEY__/$VERIFY_KEY/g" deploy/setup-layout.sh > target/rz/rz-install && chmod 0755 target/rz/rz-install
+    cp deploy/rz-full.service deploy/rz-recovery.service deploy/rz-admin.service deploy/rz-monitor.service deploy/rz-insights.service deploy/rz-reports.service deploy/rz-update.service deploy/rz-update.path target/rz/systemd/
     cp deploy/setup-layout.sh target/rz/setup-layout.sh
     chmod +x target/rz/setup-layout.sh
 
 _build-binaries ARCH TARGET_TRIPLE PLATFORM:
     rm -rf target/rz/build/{{ARCH}}
     mkdir -p target/rz/build/{{ARCH}}
-    docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --target export --output type=local,dest=target/rz/build/{{ARCH}} .
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key); docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --build-arg RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" --target export --output type=local,dest=target/rz/build/{{ARCH}} .
 
 # Update project version.
 bump-version VERSION:
-    @perl -0pi -e 's/(\[workspace\.package\]\nversion = ")[^"]+/\1{{VERSION}}/' Cargo.toml
-    @perl -pi -e 's/"version": ".*"/"version": "{{VERSION}}"/' apps/web/package.json
+    @VERSION='{{VERSION}}' perl -0pi -e 's/(\[workspace\.package\]\nversion = ")[^"]+/$1$ENV{VERSION}/' Cargo.toml
+    @VERSION='{{VERSION}}' perl -pi -e 's/^version = "[^"]+"$/version = "$ENV{VERSION}"/' crates/auth/Cargo.toml crates/config/Cargo.toml crates/ipc/Cargo.toml crates/runtime/Cargo.toml crates/storage/Cargo.toml
+    @VERSION='{{VERSION}}' perl -0pi -e 's/(\A\{\n\s*"name": "rustzen-admin-web",\n\s*"version": ")[^"]+/$1$ENV{VERSION}/' apps/web/package.json
 
 # Clean build outputs
 clean:
     rm -rf target apps/web/dist .rustzen-admin
+
+verify-monitor-agent-pairing:
+    scripts/verify-monitor-agent-pairing-linux.sh
+
+verify-monitor-protocol:
+    cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
+    cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+    bash -c 'cmp <(target/debug/rz-monitor contract protocol) <(target/debug/rz-monitor-agent contract protocol)'

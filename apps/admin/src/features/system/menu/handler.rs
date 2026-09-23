@@ -5,10 +5,10 @@ use super::{
 use crate::common::api::{ApiResponse, AppResult, OptionsQuery};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
 };
-use rustzen_auth::auth::CurrentUser;
+use rustzen_auth::auth::{AuthClaims, CurrentUser};
 use sqlx::SqlitePool;
 
 /// Get menu list with optional filtering
@@ -32,20 +32,22 @@ pub async fn list_module_menu_inventory(
 /// Update module-owned navigation presentation.
 /// Body: name, icon, sort_order, status.
 pub async fn update_menu(
+    Extension(actor): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMenuPayload>,
 ) -> AppResult<i64> {
-    Ok(ApiResponse::success(MenuService::update_menu(&pool, id, request).await?))
+    Ok(ApiResponse::success(MenuService::update_menu_authorized(&pool, id, request, &actor).await?))
 }
 
 /// Disable menu
 pub async fn delete_menu(
     current_user: CurrentUser,
+    Extension(actor): Extension<AuthClaims>,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> AppResult<()> {
-    MenuService::delete_menu(&pool, id, current_user.user_id).await?;
+    MenuService::delete_menu_authorized(&pool, id, current_user.user_id, &actor).await?;
     Ok(ApiResponse::success(()))
 }
 

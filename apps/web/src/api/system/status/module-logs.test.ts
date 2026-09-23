@@ -132,7 +132,7 @@ test("module log adapter unwraps typed metadata, tail, preview, and confirmation
     }
 });
 
-test("module log backup uses the bounded download transport and fixed module scope", async () => {
+test("module log backup validates archive metadata before downloading", async () => {
     const originalFetch = globalThis.fetch;
     const originalDocument = globalThis.document;
     const originalCreateObjectURL = URL.createObjectURL;
@@ -143,7 +143,13 @@ test("module log backup uses the bounded download transport and fixed module sco
         requestBody = String(init?.body ?? "");
         return new Response(new Blob(["archive"]), {
             status: 200,
-            headers: { "content-type": "application/x-tar" },
+            headers: {
+                "content-disposition": "attachment; filename=rustzen-module-logs.tar",
+                "content-type": "application/x-tar",
+                "x-rustzen-archive-file-count": "2",
+                "x-rustzen-archive-sha256":
+                    "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+            },
         });
     }) as typeof fetch;
     Object.defineProperty(globalThis, "document", {
@@ -167,8 +173,13 @@ test("module log backup uses the bounded download transport and fixed module sco
             moduleLogAPI.backup([
                 { module: "admin", date: "2026-08-09" },
                 { module: "reports", date: "2026-08-08" },
+                { module: "admin", date: "2026-08-09" },
             ]),
-        ).resolves.toBe("rustzen-module-logs.tar");
+        ).resolves.toEqual({
+            filename: "rustzen-module-logs.tar",
+            fileCount: 2,
+            archiveSha256: "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+        });
         expect(JSON.parse(requestBody)).toEqual({
             files: [
                 { module: "admin", date: "2026-08-09" },
@@ -179,6 +190,115 @@ test("module log backup uses the bounded download transport and fixed module sco
         await expect(
             moduleLogAPI.backup([{ module: "unknown", date: "2026-08-08" }]),
         ).rejects.toThrow("Unsupported module log module");
+    } finally {
+        globalThis.fetch = originalFetch;
+        Object.defineProperty(globalThis, "document", {
+            configurable: true,
+            value: originalDocument,
+        });
+        URL.createObjectURL = originalCreateObjectURL;
+        URL.revokeObjectURL = originalRevokeObjectURL;
+    }
+});
+
+test("module log backup rejects a metadata count that differs from unique selected files", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalDocument = globalThis.document;
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const downloads: string[] = [];
+    let objectUrlCalls = 0;
+    globalThis.fetch = (async () =>
+        new Response(new Blob(["archive"]), {
+            status: 200,
+            headers: {
+                "content-disposition": "attachment; filename=rustzen-module-logs.tar",
+                "x-rustzen-archive-file-count": "1",
+                "x-rustzen-archive-sha256":
+                    "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+            },
+        })) as unknown as typeof fetch;
+    Object.defineProperty(globalThis, "document", {
+        configurable: true,
+        value: {
+            createElement: () => ({
+                click: () => downloads.push("downloaded"),
+                download: "",
+                href: "",
+            }),
+            body: { appendChild: () => undefined, removeChild: () => undefined },
+        },
+    });
+    URL.createObjectURL = () => {
+        objectUrlCalls += 1;
+        return "blob:module-logs";
+    };
+    URL.revokeObjectURL = () => undefined;
+    try {
+        await expect(
+            moduleLogAPI.backup([
+                { module: "admin", date: "2026-08-09" },
+                { module: "reports", date: "2026-08-08" },
+            ]),
+        ).rejects.toThrow("file count does not match");
+        expect(downloads).toEqual([]);
+        expect(objectUrlCalls).toBe(0);
+    } finally {
+        globalThis.fetch = originalFetch;
+        Object.defineProperty(globalThis, "document", {
+            configurable: true,
+            value: originalDocument,
+        });
+        URL.createObjectURL = originalCreateObjectURL;
+        URL.revokeObjectURL = originalRevokeObjectURL;
+    }
+});
+
+test("module log backup fails closed when archive metadata is absent, malformed, or mismatched", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalDocument = globalThis.document;
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const downloads: string[] = [];
+    Object.defineProperty(globalThis, "document", {
+        configurable: true,
+        value: {
+            createElement: () => ({
+                click: () => downloads.push("downloaded"),
+                download: "",
+                href: "",
+            }),
+            body: { appendChild: () => undefined, removeChild: () => undefined },
+        },
+    });
+    URL.createObjectURL = () => "blob:module-logs";
+    URL.revokeObjectURL = () => undefined;
+    try {
+        const invalidHeaderSets: HeadersInit[] = [
+            {},
+            {
+                "content-disposition": "attachment; filename=rustzen-module-logs.tar",
+                "x-rustzen-archive-file-count": "one",
+                "x-rustzen-archive-sha256": "not-a-sha256",
+            },
+            {
+                "content-disposition": "attachment; filename=rustzen-module-logs.tar",
+                "x-rustzen-archive-file-count": "1",
+                "x-rustzen-archive-sha256":
+                    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            },
+        ];
+        for (const headers of invalidHeaderSets) {
+            globalThis.fetch = (async () =>
+                new Response(new Blob(["archive"]), {
+                    status: 200,
+                    headers,
+                })) as unknown as typeof fetch;
+            await expect(
+                moduleLogAPI.backup([{ module: "admin", date: "2026-08-09" }]),
+            ).rejects.toThrow("Module log backup");
+        }
+        expect(downloads).toEqual([]);
     } finally {
         globalThis.fetch = originalFetch;
         Object.defineProperty(globalThis, "document", {

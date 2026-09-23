@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use rustzen_ipc::{AccessMode, ModuleManifest};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "full")]
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::infra::config::CONFIG;
 
@@ -37,6 +39,7 @@ pub struct ModuleRuntime {
     pub condition: ModuleCondition,
     pub manifest: Option<Arc<ModuleManifest>>,
     pub manifest_hash: Option<[u8; 32]>,
+    pub storage: Option<rustzen_ipc::ModuleStorageReport>,
     pub last_seen_at: Option<DateTime<Utc>>,
     pub error: Option<String>,
 }
@@ -49,6 +52,7 @@ impl ModuleRuntime {
             condition: ModuleCondition::Unavailable,
             manifest: None,
             manifest_hash: None,
+            storage: None,
             last_seen_at: None,
             error: Some("service has not published a valid Manifest".to_string()),
         }
@@ -76,6 +80,7 @@ pub struct ModuleStatusResponse {
     pub error: Option<String>,
 }
 
+#[cfg(feature = "full")]
 impl From<&ModuleRuntime> for ModuleStatusResponse {
     fn from(runtime: &ModuleRuntime) -> Self {
         Self {
@@ -94,6 +99,7 @@ impl From<&ModuleRuntime> for ModuleStatusResponse {
     }
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleHealthResponse {
@@ -102,6 +108,7 @@ pub struct ModuleHealthResponse {
     pub release_version: Option<String>,
 }
 
+#[cfg(feature = "full")]
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateModuleRequest {

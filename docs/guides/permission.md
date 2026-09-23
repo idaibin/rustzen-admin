@@ -7,8 +7,10 @@ Current capability, module delegation, and menu-reconciliation rules.
 - `crates/auth/` owns shared auth types, capability constants, and Admin-native
   route permission checks.
 - `crates/ipc/` owns module route access metadata and HMAC delegated context.
-- `apps/admin/src/infra/permission.rs` owns the in-memory user permission cache,
-  built-in role policy, and transactional module menu reconciliation.
+- `apps/admin/src/infra/permission/` owns built-in role policy, capability
+  projection, and transactional module reconciliation. `mod.rs` orchestrates
+  transactions and projection refresh; `capabilities.rs`, `navigation.rs`,
+  and `roles.rs` own their respective persistence rules.
 - `apps/admin/src/features/modules/` owns fixed module enabled state, Manifest
   synchronization, the immutable runtime registry, and gateway authorization.
 - Module Rust route registration is the single source for method, path, public
@@ -22,6 +24,20 @@ Current capability, module delegation, and menu-reconciliation rules.
 
 ## Capability rules
 
+Module navigation is persisted in `module_navigation`, keyed by module ID and
+Manifest menu code. Multiple pages may reference the same capability without
+collapsing their navigation or presentation overrides. The `menus` capability
+catalog remains unique by permission code and continues to own role grants.
+Both projections reconcile in one transaction before the runtime Manifest changes.
+
+`GET /api/system/menus/inventory` returns navigation IDs;
+`PUT /api/system/menus/inventory/{id}` edits only that navigation row's title,
+icon, order, and visibility. Capability IDs are a separate namespace. The former
+`PUT /api/system/menus/{id}` route is not registered. Hiding or removing a navigation
+entry does not revoke a surviving API capability. Removed Manifest entries become
+inactive; presentation overrides follow the stable module/menu identity when its
+path or required permission changes.
+
 - Admin-native routes use `PermissionsCheck::Require(...)` by default. Use
   `Any(...)` or `All(...)` only for a concrete feature need.
 - Capability strings use colon-separated business intent, such as
@@ -30,15 +46,18 @@ Current capability, module delegation, and menu-reconciliation rules.
   children.
 - `users.is_system`, `roles.is_system`, and `menus.is_system` are record flags,
   not grants.
-- User capabilities come from role-menu relations only. A missing permission
-  cache entry may be rebuilt from SQLite at authentication time, but a warm
-  gateway request never queries the database.
+- User capabilities come from role-menu relations only. Every protected Admin
+  and module-gateway request validates its session, enabled user, auth epoch and
+  current grants from one SQLite snapshot. Process-local permission snapshots
+  may support reconciliation diagnostics and tests, but never authorize a
+  request or an access-control write.
 
 ## Built-in roles
 
 - `owner` is the only built-in role that receives `*` and the only role that
-  may view or manage system modules, system status, scheduled tasks, and
-  deployment releases.
+  may manage system modules, system status, scheduled task execution, and
+  deployment releases. `manage:task:list` is assignable read-only; task runs
+  remain owner-only.
 - `admin` receives concrete module and ordinary Admin-management capabilities,
   excluding all owner-only capability roots.
 - `viewer` receives concrete read-only capabilities, excluding all owner-only
@@ -61,10 +80,8 @@ validates the fixed identity and contract, and transactionally reconciles:
 - built-in role grants derived from the current capability catalog.
 
 Existing custom-role leaf grants are preserved and newly introduced
-capabilities remain unassigned. During the breaking split only, a legacy
-`monitor:*`, `insights:*`, or `reports:*` custom-role relation is expanded once
-to the exact capabilities in that module's first valid Manifest, then the
-wildcard relation is retired so later capabilities are not granted implicitly.
+capabilities remain unassigned. Module synchronization accepts exact capability
+grants only; it does not create, expand or retain module wildcard grants.
 
 Only after the database transaction commits is the immutable runtime registry
 swapped. Invalid or incompatible changes return the module to unavailable state
@@ -83,8 +100,9 @@ presentation overrides. Manual menu-visibility overrides remain effective.
 ## Request flow
 
 1. Admin matches method and full path in the in-memory registry.
-2. For a protected route, Admin decodes the JWT and checks the one required
-   capability against the in-memory permission cache.
+2. For a protected route, Admin decodes the JWT and checks the persisted session,
+   enabled user, current auth epoch and required capability in SQLite. Access
+   writes repeat the same actor check after acquiring their write transaction.
 3. Admin creates an HMAC context containing one user ID and one access value;
    it never forwards roles or a full permission set.
 4. The module verifies signature freshness, method, path, module, identity, and

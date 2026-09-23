@@ -1,0 +1,10 @@
+[Unit]
+Description=Rustzen Update Request Watcher
+
+[Path]
+PathExists=/opt/rz/data/update-requests/pending.json
+PathChanged=/opt/rz/data/update-requests/pending.json
+Unit=rz-update.service
+
+[Install]
+WantedBy=multi-user.target

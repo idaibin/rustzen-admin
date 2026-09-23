@@ -9,7 +9,14 @@ authoritative for runtime and repository structure.
 
 ## Product boundary
 
-RustZen Admin is primarily a lightweight, self-hosted operations and
+The supported first release is one complete signed distribution containing Admin,
+Monitor, Insights, Reports, the Web application and the durable message center.
+All three product modules are installed and enabled by default. The owner may disable
+an installed module at runtime, which removes its navigation and gateway access but
+does not change the signed installed inventory. The first-release acceptance boundary
+is the complete distribution.
+
+Rustzen Admin is primarily a lightweight, self-hosted operations and
 administration product for developer-operators and small technical teams. It is
 secondarily a structured Rust full-stack reference implementation; product
 journeys take priority over generic framework demonstrations.
@@ -20,12 +27,32 @@ version and one rollback boundary:
 
 - Admin owns identity, RBAC, module control, release management, and the Web
   application.
-- Monitoring owns managed nodes, metrics, probes, and incidents.
+- Monitoring owns managed nodes, resource metrics, alerts, incidents, and daily summaries.
 - Analytics owns product-event collection and analysis.
 - Reports owns target-backed browser filling templates and runs.
 
 The current product does not contain a fifth service, a dynamic plugin system,
 or independently versioned modules.
+
+The complete distribution uses one Ed25519 release signature and one deployment
+transaction. Its signed identity records separate `frontend` and `backend`
+digests so operators can distinguish the embedded Web build from the server
+executable set. These digests are audit identities, not independently deployable
+artifacts; frontend-only, backend-only, and mixed-version updates remain unsupported.
+
+The supported installation journey is deliberately short: build the complete
+bundle, copy it to a server, run its installer, and execute `rz start`. The
+installer does not ask for an administrator password, a signing key, a
+verification key, or database commands. It uses the release verification key
+packaged by the trusted build, generates service-to-service secrets locally,
+and prepares the fresh runtime layout. Each service owns creation and validation
+of its fresh SQLite database during startup. Operator configuration is limited
+to ordinary runtime overrides such as bind addresses, ports, paths and timezone.
+
+Admin API updates use the same packaged verification key and the existing
+owner-only deployment permission. A candidate is one complete release. It
+becomes current only after all four services pass health checks; otherwise the
+previous release and its database snapshots are restored.
 
 ## Target users, problems, and principles
 
@@ -55,7 +82,7 @@ Product decisions follow these principles:
 - Admin performs day-to-day operations without owner-only release authority.
 - Viewer reads the concrete module capabilities granted by the module
   Manifests.
-- An operator can inspect module health, monitor nodes and checks, query
+- An operator can inspect module health, monitor nodes and resource metrics, query
   analytics observations, and execute or inspect report-filling runs without
   leaving the Admin console.
 
@@ -74,7 +101,7 @@ The retained end-to-end journeys are:
 
 - Admin: sign in, inspect system state, manage users and roles, control modules,
   inspect operations, and manage releases within owner/admin/viewer boundaries.
-- Monitoring: inspect health, nodes, recent metrics, checks, and incident state,
+- Monitoring: inspect health, nodes, recent metrics, alerts, and incident state,
   with missing data distinguishable from healthy empty data.
 - Analytics: inspect installation-wide activity and raw details without a query
   or collection failure blocking other product areas.
@@ -90,16 +117,55 @@ write-only-input boundary is specified, implemented, and verified.
 Across those journeys, loading, empty, validation, permission, business-error,
 retry, audit, interruption, and recovery results must remain explicit.
 
+## Console interaction requirements
+
+Confirmed product requirements for the current console:
+
+- Existing list filters apply automatically; operators do not submit a Search or
+  Reset action. Text input applies after a 300 ms pause, composition candidates do
+  not query, clearing applies immediately, and selection/date changes apply immediately.
+- A changed applied filter starts at page one before the request. Loading and failures
+  preserve editable filters and keyboard focus; failures expose retry rather than false empty data.
+- User management offers username and account-status filters only. Removing email
+  and real-name filters does not remove those user fields from forms or results.
+- Role, menu, operation-log, incident, analytics-detail, and module-log lists retain
+  their current filter meanings. Log export uses the applied list conditions.
+- Daily summaries present the retained per-node reports without a node-ID search.
+- The Nodes page owns Add node onboarding and Global settings actions. The independent
+  Alert Settings menu/page is removed. Add node presents the signed offline Agent
+  installation prerequisites and verifies registration through real reports; it creates no
+  empty records and never displays a token or a direct Agent-start command.
+- The four global alert settings form one drawer configuration task and one Save operation.
+  Node overrides, inheritance, permission gates, validation, and alert evaluation are unchanged.
+- Analytics overview/details show observed activity without a collection-policy status
+  panel or a policy-status read solely for display. Removing that panel does not disable
+  ingestion policy, allowed-origin enforcement, or backend management permissions.
+- Dashboard keeps four account totals, a permission-gated CPU/memory/disk summary,
+  and textual availability for the three modules. No extra metrics or trends are implied.
+
+Acceptance IDs: CON-01 automatic filters and immediate clearing; CON-02 page-one
+queries and retained input focus; CON-03 user filter scope and no Daily Summaries
+search; CON-04 one alert configuration task; CON-05 activity-only Analytics surfaces;
+CON-06 factual Dashboard scope. The [UI index](../ui/index.md) maps these behaviors
+to route composition. Root [DESIGN.md](../../DESIGN.md) owns shared appearance,
+placement, responsive layout, and component semantics. These requirements do not
+change backend APIs, permissions, release scope, or independently bump the version.
+
 ## Product language
 
-| Product term | Current meaning | Product owner |
-| --- | --- | --- |
-| Admin | Control plane, identity, RBAC, release, and Web host. | Admin |
-| Monitoring | Node, metric, probe, and incident operations. | Monitoring |
-| Analytics | Instance-wide event overview and detail queries. | Analytics |
-| Reports | Target systems, browser filling templates, runs, artifacts, and live frames. | Reports |
-| Automation | An internal Reports capability, not a separately shipped module. | Reports |
-| Report Center | A possible future cross-module report catalog. It is not implemented. | Deferred |
+Confirmed display names: **自动化 / Automation** for the Reports-owned module,
+and **告警事件 / Alert incidents** for `/monitoring/incidents`. Navigation,
+page search, module status, headings and state messages use these names.
+Internal service names, routes, permissions, child-page names and browser
+execution scope remain unchanged.
+
+| Product term  | Current meaning                                                                                                                                         | Product owner |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Admin         | Control plane, identity, RBAC, release, and Web host.                                                                                                   | Admin         |
+| Monitoring    | Node, resource metric, alert, incident, and daily-summary operations.                                                                                   | Monitoring    |
+| Analytics     | Instance-wide event overview and detail queries.                                                                                                        | Analytics     |
+| Automation    | Target systems, browser filling templates, runs, artifacts, and live frames. Display name of the Reports-owned module, not a separately shipped module. | Reports       |
+| Report Center | A possible future cross-module report catalog. It is not implemented.                                                                                   | Deferred      |
 
 Technical ownership and stable internal names are defined in
 [`architecture.md`](../architecture.md) and
@@ -107,12 +173,12 @@ Technical ownership and stable internal names are defined in
 
 ## Module purposes and direction
 
-| Product area | Internal name | Current purpose | Direction | Explicit non-goal |
-| --- | --- | --- | --- | --- |
-| Admin | Admin | Trusted control plane for identity, RBAC, module state, system status, operations, and releases. | Clarify installation, access, diagnosis, update, and recovery. | ERP, generic CRUD generation, low-code admin, or workflow builder. |
-| Monitoring | Monitor | Managed-node, metric, probe, and incident operations. | Improve the path from signal to actionable incident for small installations. | Full APM, tracing, log warehouse, or cloud orchestrator. |
-| Analytics | Insights | Lightweight installation-wide activity collection, overview, detail, and retention. | Make the retained signals useful before adding event families or segmentation. | Marketing automation, general BI, warehouse, or multi-tenant analytics. |
-| Reports | Reports | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
+| Product area | Internal name | Current purpose                                                                                                 | Direction                                                                          | Explicit non-goal                                                                |
+| ------------ | ------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Admin        | Admin         | Trusted control plane for identity, RBAC, module state, system status, operations, and releases.                | Clarify installation, access, diagnosis, update, and recovery.                     | ERP, generic CRUD generation, low-code admin, or workflow builder.               |
+| Monitoring   | Monitor       | Managed-node, resource metric, alert, incident, and daily-summary operations.                                   | Improve the path from signal to actionable incident for small installations.       | Full APM, tracing, log warehouse, or cloud orchestrator.                         |
+| Analytics    | Insights      | Lightweight installation-wide activity collection, overview, detail, and retention.                             | Make the retained signals useful before adding event families or segmentation.     | Marketing automation, general BI, warehouse, or multi-tenant analytics.          |
+| Automation   | Reports       | Controlled browser-filling targets, templates, runs, steps, live frames, artifacts, cancellation, and recovery. | Strengthen authoring, validation, credential boundaries, visibility, and recovery. | Unrestricted scripts, general RPA, document editor, or open-ended browser agent. |
 
 ## Confirmed decisions
 
@@ -131,9 +197,7 @@ Technical ownership and stable internal names are defined in
    component semantics, and design-approval records. A new or changed product
    surface still requires a scoped UI specification before frontend
    implementation; `docs/ui/features/*` may retain slice-local behavior and
-   acceptance evidence. Structured `docs/ui/` packages such as
-   `evaluation.yaml` and `artifact-manifest.yaml` are historical or task-local
-   evidence only and do not govern current approval.
+   acceptance evidence.
 7. Dashboard is a control-plane landing page: it shows account totals, module
    health, and a permission-gated summary of the Admin host's CPU, memory, and
    disk usage. Detailed storage and host-resource diagnostics remain owned by
@@ -151,48 +215,48 @@ Technical ownership and stable internal names are defined in
    integration or upgrade-compatibility contract and may be removed from the
    resettable baseline when schema cleanup is in scope.
 
-## Legacy-product decisions
-
-The evidence and path-level comparison are recorded in
-[`legacy-module-comparison.md`](../reference/legacy-module-comparison.md).
-
 ### Monitoring
 
-Retain and extend the current Monitor implementation. The former
-`rustzen-inspect` is a behavior reference for alert policies, agent-side
-collection, time-drift handling, and period reports. Do not copy its Admin,
-system, project, deployment, permission, or runtime-layout layers.
+Monitoring is defined by
+[`features/monitoring/spec.md`](./features/monitoring/spec.md). It uses
+the current Monitoring surface with a lightweight fixed-metric Agent and a
+Controller-owned 30-day data, policy, incident, and report model. Agents report
+CPU, memory, and per-mount disk usage every 30 seconds; they do not receive
+configuration or execute configurable checks.
 
-Alert policy management and period reports are separate future feature slices;
-they are not authorized by this foundation specification alone.
+Monitoring alert policies and reports are authorized only within the Monitoring
+central ownership and retention rules. Notification delivery configuration and
+reports beyond the 30-day data window are not Monitoring capabilities; authorized
+operators can read aggregate delivery health for existing Monitoring incidents
+only when notification delivery is available.
+
+The Monitor delivery-card Linux Chromium extension has a local, checkout-bound
+closure: it passes only when
+`target/rz/monitoring-ui-state/current/manifest.json` matches the current
+checkout and has `status: "passed"`. That evidence validates 23 canonical
+route runs, 18 owner and 26 viewer delivery steps, four screenshots, real
+Monitor SQLite and authorized API receipts, permission behavior, and either
+zero retries or a recorded single retry receipt. Runtime module disablement remains
+covered by the complete Web application's module-state and authorization gates.
 
 ### Analytics
 
-Retain the current single-project, instance-wide Analytics behavior. The former
-`rustzen-analytics` is the reference for a possible multi-project evolution:
-project lifecycle, stable project keys, browser-origin and application-package
-allowlists, bounded ingestion, aggregation, and richer project queries.
+Retain the current single-project, instance-wide Analytics behavior.
 
 Multi-project behavior changes event identity, permissions, navigation, and
-data ownership. It requires one dedicated feature specification and migration
-plan before implementation. The old repository's duplicate Admin and deploy
-features must not return.
+data ownership. It requires one dedicated feature specification before
+implementation.
 
 ### Reports and Automation
 
 Retain the current target, flow, run, step, screenshot, artifact, cancellation,
-and live-frame loop. The former `rustzen-report` is the behavior reference for
-possible account credentials, datasets, upload processing, a richer expression
-and group DSL, suspend/resume semantics, scheduled runs, and detailed live job
-events.
+and live-frame loop.
 
-Each capability is a separate feature slice. The old authentication, users,
-system settings, deployment, and application shell are rejected because Admin
-already owns them. The browser runtime stays Reports-owned until another real
-module needs the same semantics; it must not become a generic workflow engine
-in advance.
+Each capability is a separate feature slice. The browser runtime stays
+Reports-owned until another real module needs the same semantics; it must not
+become a generic workflow engine in advance.
 
-The selected bounded Reports automation slice is
+The bounded Reports automation slice is
 [`scheduled-report-automation`](./features/scheduled-report-automation/spec.md):
 daily and weekly schedules around existing target-backed flows, installation
 timezone, missed-occurrence skip semantics, and one ordinary run per enqueued
@@ -209,9 +273,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 ## Non-goals
 
-- Whole-repository source copying from a former product.
-- Compatibility wrappers for former HTTP paths, database names, binaries, or
-  deployment layouts.
 - A universal business status enum, CRUD framework, form DSL, dashboard
   builder, repository layer, or workflow engine.
 - A generic dictionary administration surface without a current product
@@ -224,8 +285,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 - Confirmed: the current product has Admin, Monitoring, Analytics, and Reports
   in one release; Automation remains part of Reports.
-- Confirmed: former products are capability evidence, not whole-product
-  migration targets.
 - Confirmed: Dashboard includes account totals, module health, and the three
   key Admin-host resource percentages for operators who can view System
   Status; detailed resource and product telemetry stay on their owning pages.
@@ -242,8 +301,6 @@ behavior. They do not justify a fifth process or a new contract crate today.
   notifications, or webhooks.
 - Assumption: the primary adopter is a developer-operator or small technical
   team managing one installation.
-- Assumption: the named former repositories remain the best product-behavior
-  references. Revalidate their live default branches before each slice.
 - Open: which retained journey currently causes the most user friction and
   should receive the next bounded feature specification.
 - Open: which deferred capability becomes the first implementation slice.
@@ -252,8 +309,11 @@ behavior. They do not justify a fifth process or a new contract crate today.
 - Rejected: copying a former repository's Admin shell, authentication, RBAC,
   deployment, or directory layout into a module.
 - Deferred: multi-project Analytics, Reports credentials/datasets/
-  expression-group DSL/notifications/webhooks, Monitoring alert policies and
-  period reports, Report Center, and a fifth process.
+  expression-group DSL/webhooks, Monitoring notification delivery
+  configuration
+  and reports beyond its 30-day window, Report Center, and a fifth process.
+  Monitoring global/node thresholds and daily summaries are implemented within
+  the current central-monitoring scope.
 
 ## Development horizon and success signals
 
@@ -287,7 +347,7 @@ Before implementation begins, a module proposal must provide:
 
 ## Ready verdict
 
-Ready for legacy comparison and feature-specification slices.
+Ready for feature-specification slices.
 
 Not ready for direct implementation of multi-project Analytics, expanded
 Reports automation, Report Center, or a fifth module. Each remains deferred

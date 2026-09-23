@@ -23,7 +23,7 @@ From `RUSTZEN_RUNTIME_ROOT`, the backend derives:
 - `data/db/admin.db`
 - `data/db/monitor.db`
 - `data/db/insights.db`
-- `data/db/reports.db`
+- `data/reports/db/reports.db`
 - `data/reports`
 - `data/uploads`
 - `data/avatars`

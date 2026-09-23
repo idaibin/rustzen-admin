@@ -9,6 +9,7 @@ pub struct LoginCredentialsRow {
     pub id: i64,
     pub password_hash: String,
     pub status: i16,
+    pub auth_epoch: i64,
 }
 
 /// Basic user info for session/profile.
@@ -85,6 +86,7 @@ pub struct UserInfoResp {
 }
 
 /// Service command for recording login audit metadata.
+#[cfg(feature = "full")]
 #[derive(Debug, Clone)]
 pub struct LoginAuditCommand {
     pub ip_address: String,

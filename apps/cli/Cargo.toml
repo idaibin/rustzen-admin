@@ -11,8 +11,15 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
+base64 = "0.22"
+ed25519-dalek = { version = "2.2", features = ["pkcs8", "pem"] }
+hex = "0.4"
+libc = "0.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 rustzen-ipc = { path = "../../crates/ipc" }
+rustzen-config = { path = "../../crates/config", default-features = false, features = ["monitor-agent"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
+tar = "0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

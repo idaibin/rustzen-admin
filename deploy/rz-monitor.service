@@ -1,18 +1,25 @@
 [Unit]
-Description=RustZen Monitor Controller
+Description=Rustzen Monitor Controller
 After=network.target rz-recovery.service
-PartOf=rz.target
+PartOf=rz-full.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
 Type=simple
+UMask=0027
+User=rz-monitor
+Group=rz-monitor
 EnvironmentFile=/opt/rz/config/rz.env
 ExecCondition=/usr/bin/test ! -e /opt/rz/data/recovery-blocked
 ExecStart=/opt/rz/current/bin/rz-monitor controller
 WorkingDirectory=/opt/rz
 Restart=on-failure
 RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/rz/data/db/monitor /opt/rz/logs/monitor
 
 [Install]
-WantedBy=rz.target
+WantedBy=rz-full.service

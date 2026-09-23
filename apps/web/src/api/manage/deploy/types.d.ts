@@ -9,6 +9,8 @@ declare namespace Deploy {
         filePath: string;
         fileSize: number;
         fileHash: string;
+        frontendHash: string;
+        backendHash: string;
         isCurrent: boolean;
         isDeployed: boolean;
         isExpired: boolean;

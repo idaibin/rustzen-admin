@@ -7,8 +7,8 @@ pub const BUILTIN_VIEWER_ROLE_CODE: &str = "viewer";
 
 const DEPLOY_CAPABILITY_PREFIX: &str = "manage:deploy:";
 const DEPLOY_VIEW_CAPABILITY: &str = "manage:deploy:list";
-const OWNER_ONLY_CAPABILITY_ROOTS: &[&str] =
-    &["system:module", "system:status", "manage:task", "manage:deploy"];
+const OWNER_ONLY_CAPABILITY_ROOTS: &[&str] = &["system:module", "system:status", "manage:deploy"];
+const OWNER_ONLY_TASK_CAPABILITIES: &[&str] = &["manage:task:run"];
 const VIEW_ACTIONS: &[&str] = &["list", "view", "options"];
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
@@ -47,6 +47,9 @@ impl RolePolicy {
     }
 
     pub fn is_owner_only_capability(self, capability_code: &str) -> bool {
+        if OWNER_ONLY_TASK_CAPABILITIES.contains(&capability_code) {
+            return true;
+        }
         OWNER_ONLY_CAPABILITY_ROOTS.iter().any(|root| {
             capability_code == *root || capability_code.starts_with(&format!("{root}:"))
         })
@@ -62,6 +65,7 @@ impl RolePolicy {
         OWNER_ONLY_CAPABILITY_ROOTS
             .iter()
             .any(|root| format!("{root}:").starts_with(wildcard_prefix))
+            || wildcard_prefix.starts_with("manage:task:")
     }
 }
 
@@ -86,8 +90,7 @@ mod role_policy_tests {
             "system:module:list",
             "system:status",
             "system:status:view",
-            "manage:task",
-            "manage:task:list",
+            "manage:task:run",
             "manage:deploy",
             "manage:deploy:list",
         ] {
@@ -98,6 +101,8 @@ mod role_policy_tests {
         assert!(policy.is_owner_only_capability_or_wildcard("system:*"));
         assert!(policy.is_owner_only_capability_or_wildcard("manage:*"));
         assert!(!policy.is_owner_only_capability_or_wildcard("system:user:*"));
+        assert!(policy.role_allows_capability(BUILTIN_ADMIN_ROLE_CODE, "manage:task:list"));
+        assert!(policy.role_allows_capability(BUILTIN_VIEWER_ROLE_CODE, "manage:task:list"));
         assert!(policy.role_allows_capability(BUILTIN_VIEWER_ROLE_CODE, "system:user:list"));
         assert!(!policy.role_allows_capability(BUILTIN_VIEWER_ROLE_CODE, "system:user:create"));
         for module in ["monitor", "insights", "reports"] {
@@ -118,7 +123,6 @@ mod role_policy_tests {
         for capability in [
             "monitor:overview:view",
             "monitor:node:view",
-            "monitor:check:view",
             "monitor:incident:view",
             "insights:overview:view",
             "insights:event:view",
@@ -141,9 +145,7 @@ pub mod dashboard {
 pub mod monitor {
     pub const OVERVIEW_VIEW: &str = "monitor:overview:view";
     pub const NODE_VIEW: &str = "monitor:node:view";
-    pub const CHECK_VIEW: &str = "monitor:check:view";
     pub const INCIDENT_VIEW: &str = "monitor:incident:view";
-    pub const CHECK_MANAGE: &str = "monitor:check:manage";
     pub const MANAGE: &str = "monitor:manage";
 }
 

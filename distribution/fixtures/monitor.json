@@ -1,0 +1,1 @@
+{ "schemaVersion": 1, "preset": "monitor", "target": "x86_64-unknown-linux-musl" }

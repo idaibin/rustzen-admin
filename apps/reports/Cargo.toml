@@ -9,6 +9,10 @@ publish = false
 name = "rz-reports"
 path = "src/main.rs"
 
+[features]
+default = ["notifications"]
+notifications = ["dep:hex", "dep:reqwest", "dep:sha2", "rustzen-config/reports-notifications"]
+
 [dependencies]
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
@@ -16,7 +20,7 @@ chrono-tz = "0.10"
 chromiumoxide = "0.9.1"
 futures = "0.3"
 rustzen-auth = { path = "../../crates/auth" }
-rustzen-config = { path = "../../crates/config" }
+rustzen-config = { path = "../../crates/config", default-features = false, features = ["reports"] }
 rustzen-ipc = { path = "../../crates/ipc" }
 rustzen-runtime = { path = "../../crates/runtime" }
 rustzen-storage = { path = "../../crates/storage" }
@@ -35,6 +39,9 @@ tokio-util = { version = "0.7", features = ["io"] }
 tracing = "0.1"
 uuid = { version = "1.17", features = ["v4", "serde"] }
 url = "2"
+hex = { version = "0.4", optional = true }
+sha2 = { version = "0.10", optional = true }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"], optional = true }
 
 [dev-dependencies]
 tower = "0.5"

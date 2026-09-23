@@ -1,19 +1,31 @@
+import { SearchOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Input, Select, Tag } from "antd";
+import { Button, Input, Pagination, Select, Tag, Typography } from "antd";
 import { useState } from "react";
 
 import { insightsAPI } from "@/api";
+import { ApiRequestError } from "@/api/request";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { DataTableShell } from "@/components/table/data-table-shell";
+import {
+    displayTableProps,
+    emptyTableLocale,
+    tablePagination,
+} from "@/components/table/table-presets";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { formatDuration } from "@/lib/format";
 import { formatDateTime } from "@/lib/format-date-time";
-import { t } from "@/lib/i18n";
+import { t, useLocale } from "@/lib/i18n";
 
-import { CollectionPolicyStatus } from "./-collection-policy-status";
+import { projectEventTarget, type EventTargetKind } from "./-event-target";
 
 type EventRow = Insights.Event;
-type EventKindFilter = "all" | "page" | "api" | "other";
+type EventKindFilter = "all" | EventTargetKind;
 
 export const Route = createFileRoute("/analytics/details")({
     component: AnalyticsEventsPage,
@@ -22,34 +34,105 @@ export const Route = createFileRoute("/analytics/details")({
 const PAGE_SIZE = 20;
 
 function AnalyticsEventsPage() {
+    useLocale();
     const [eventKind, setEventKind] = useState<EventKindFilter>("all");
     const [pathInput, setPathInput] = useState("");
-    const [path, setPath] = useState("");
-    const [current, setCurrent] = useState(1);
+    const [isComposing, setIsComposing] = useState(false);
+    const debouncedPath = useDebouncedValue(pathInput.trim(), 300, !isComposing);
+    const path = eventKind === "other" ? "" : debouncedPath;
+    const [current, setCurrent] = useFilteredPage(JSON.stringify([eventKind, path]));
     const query: Insights.EventQuery = {
         eventKind: eventKind === "all" ? undefined : eventKind,
         path: path || undefined,
         current,
         pageSize: PAGE_SIZE,
     };
-    const { data, error, isFetching, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["insights", "events", query],
         queryFn: () => insightsAPI.events(query),
+        staleTime: 0,
+        refetchInterval: 30_000,
     });
 
     const eventRows: EventRow[] = data?.data ?? [];
+    const permissionDenied = error instanceof ApiRequestError && error.status === 403;
+
+    const searchControls = (
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap">
+            <Select<EventKindFilter>
+                className="w-full sm:w-40"
+                aria-label={t("记录类型", "Activity type")}
+                value={eventKind}
+                options={[
+                    { value: "all", label: t("全部类型", "All types") },
+                    { value: "page", label: t("页面访问", "Page visits") },
+                    { value: "api", label: t("接口请求", "API requests") },
+                    { value: "other", label: t("其他上报", "Other reports") },
+                ]}
+                onChange={(value) => {
+                    setEventKind(value);
+                    if (value === "other") {
+                        setPathInput("");
+                    }
+                    setCurrent(1);
+                }}
+            />
+            <Input
+                className="w-full sm:w-60"
+                allowClear
+                disabled={eventKind === "other"}
+                aria-label={t("搜索页面或接口路径", "Search page or API path")}
+                placeholder={t("页面或接口路径", "Page or API path")}
+                prefix={<SearchOutlined />}
+                value={pathInput}
+                onChange={(event) => {
+                    setPathInput(event.target.value);
+                }}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+            />
+        </div>
+    );
 
     if (!data && isPending) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("分析明细", "Analytics details")}
                 description={t(
                     "查看页面访问、接口请求和其他操作上报。",
                     "View page visits, API requests, and other reported operations.",
                 )}
             >
-                <CollectionPolicyStatus />
                 <DataState kind="loading" title={t("正在加载访问记录", "Loading activity")} />
+            </PageCard>
+        );
+    }
+
+    if (permissionDenied) {
+        return (
+            <PageCard
+                toolbar={searchControls}
+                title={t("分析明细", "Analytics details")}
+                description={t(
+                    "查看页面访问、接口请求和其他操作上报。",
+                    "View page visits, API requests, and other reported operations.",
+                )}
+            >
+                <DataState
+                    kind="permission"
+                    title={t(
+                        "没有查看分析明细的权限",
+                        "You do not have permission to view activity",
+                    )}
+                    description={t(
+                        "无法读取分析明细，请检查 Insights 服务后重试。",
+                        "Unable to read analytics data. Check the Insights service and try again.",
+                    )}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
+                />
             </PageCard>
         );
     }
@@ -57,13 +140,13 @@ function AnalyticsEventsPage() {
     if (!data && error) {
         return (
             <PageCard
+                toolbar={searchControls}
                 title={t("分析明细", "Analytics details")}
                 description={t(
                     "查看页面访问、接口请求和其他操作上报。",
                     "View page visits, API requests, and other reported operations.",
                 )}
             >
-                <CollectionPolicyStatus />
                 <DataState
                     kind="error"
                     title={t("访问记录加载失败", "Failed to load activity")}
@@ -121,8 +204,7 @@ function AnalyticsEventsPage() {
             title: t("耗时", "Duration"),
             key: "durationMs",
             width: 100,
-            render: (_: unknown, row: EventRow) =>
-                row.durationMs == null ? "-" : `${row.durationMs} ms`,
+            render: (_: unknown, row: EventRow) => formatDuration(row.durationMs),
         },
         {
             title: t("发生时间", "Occurred at"),
@@ -136,106 +218,68 @@ function AnalyticsEventsPage() {
 
     return (
         <PageCard
+            toolbar={searchControls}
             title={t("分析明细", "Analytics details")}
             description={t(
                 "查看页面访问、接口请求和其他操作上报。",
                 "View page visits, API requests, and other reported operations.",
             )}
-            toolbar={
-                <div className="flex flex-wrap items-center gap-3">
-                    <Select<EventKindFilter>
-                        className="w-40"
-                        aria-label={t("记录类型", "Activity type")}
-                        value={eventKind}
-                        options={[
-                            { value: "all", label: t("全部类型", "All types") },
-                            { value: "page", label: t("页面访问", "Page visits") },
-                            { value: "api", label: t("接口请求", "API requests") },
-                            { value: "other", label: t("其他上报", "Other reports") },
-                        ]}
-                        onChange={(value) => {
-                            setEventKind(value);
-                            if (value === "other") {
-                                setPathInput("");
-                                setPath("");
-                            }
-                            setCurrent(1);
-                        }}
+        >
+            <DataTableShell fill ariaLabel={t("分析明细", "Analytics details table")}>
+                {error ? (
+                    <BackgroundRefreshNotice
+                        updatedAt={dataUpdatedAt}
+                        onRetry={() => void refetch()}
                     />
-                    <Input.Search
-                        className="w-full sm:w-80"
-                        allowClear
-                        disabled={eventKind === "other"}
-                        aria-label={t("搜索页面或接口路径", "Search page or API path")}
-                        placeholder={t("页面或接口路径", "Page or API path")}
-                        value={pathInput}
-                        onChange={(event) => {
-                            const value = event.target.value;
-                            setPathInput(value);
-                            if (!value) {
-                                setPath("");
-                                setCurrent(1);
-                            }
-                        }}
-                        onSearch={(value) => {
-                            setPath(value.trim());
-                            setCurrent(1);
-                        }}
+                ) : null}
+                <ProTable<EventRow>
+                    rowKey="id"
+                    dataSource={eventRows}
+                    columns={columns}
+                    loading={isFetching}
+                    search={false}
+                    options={false}
+                    scroll={{ y: "100%" }}
+                    {...displayTableProps}
+                    locale={emptyTableLocale(
+                        hasFilters
+                            ? t("没有匹配的访问记录", "No matching activity")
+                            : t("暂无访问记录", "No activity yet"),
+                        {
+                            visible: !eventRows.length,
+                            description: hasFilters
+                                ? t(
+                                      "请调整类型或路径筛选条件。",
+                                      "Adjust the type or path filters.",
+                                  )
+                                : t(
+                                      "接收到页面访问、接口请求或其他操作上报后，记录会显示在这里。",
+                                      "Page visits, API requests, and other reports will appear here after they are received.",
+                                  ),
+                        },
+                    )}
+                />
+                <div className="flex shrink-0 items-center justify-between gap-4 pt-3">
+                    <Typography.Text type="secondary">
+                        {t(`共 ${data?.total ?? 0} 条`, `${data?.total ?? 0} total`)}
+                    </Typography.Text>
+                    <Pagination
+                        {...tablePagination({
+                            current,
+                            pageSize: PAGE_SIZE,
+                            total: data?.total ?? 0,
+                            showLessItems: true,
+                            onChange: setCurrent,
+                        })}
                     />
                 </div>
-            }
-        >
-            <CollectionPolicyStatus />
-            <ProTable<EventRow>
-                rowKey="id"
-                dataSource={eventRows}
-                columns={columns}
-                loading={isFetching}
-                search={false}
-                options={false}
-                pagination={{
-                    current,
-                    pageSize: PAGE_SIZE,
-                    total: data?.total ?? 0,
-                    onChange: (page) => setCurrent(page),
-                    showSizeChanger: false,
-                }}
-                locale={{
-                    emptyText: !eventRows.length ? (
-                        <DataState
-                            kind="empty"
-                            title={
-                                hasFilters
-                                    ? t("没有匹配的访问记录", "No matching activity")
-                                    : t("暂无访问记录", "No activity yet")
-                            }
-                            description={
-                                hasFilters
-                                    ? t(
-                                          "请调整类型或路径筛选条件。",
-                                          "Adjust the type or path filters.",
-                                      )
-                                    : t(
-                                          "接收到页面访问、接口请求或其他操作上报后，记录会显示在这里。",
-                                          "Page visits, API requests, and other reports will appear here after they are received.",
-                                      )
-                            }
-                        />
-                    ) : undefined,
-                }}
-            />
+            </DataTableShell>
         </PageCard>
     );
 }
 
-function eventKind(event: EventRow): Exclude<EventKindFilter, "all"> {
-    if (event.eventName === "page_view") return "page";
-    if (event.eventName === "api_request") return "api";
-    return "other";
-}
-
 function EventKindTag({ event }: { event: EventRow }) {
-    const kind = eventKind(event);
+    const kind = projectEventTarget(event).kind;
     const meta = {
         page: { color: "blue", label: t("页面访问", "Page visit") },
         api: { color: "cyan", label: t("接口请求", "API request") },
@@ -245,28 +289,28 @@ function EventKindTag({ event }: { event: EventRow }) {
 }
 
 function EventTarget({ event }: { event: EventRow }) {
-    const kind = eventKind(event);
-    if (kind === "page") {
+    const target = projectEventTarget(event);
+    if (target.kind === "page") {
         return (
             <div>
-                <div className="truncate font-mono text-xs">{event.pagePath || "-"}</div>
-                {event.referrer ? (
+                <div className="truncate font-mono text-xs">{target.pagePath || "-"}</div>
+                {target.referrer ? (
                     <div className="truncate text-xs text-muted-foreground">
-                        {t("来源", "Referrer")}：{event.referrer}
+                        {t("来源", "Referrer")}：{target.referrer}
                     </div>
                 ) : null}
             </div>
         );
     }
-    if (kind === "api") {
+    if (target.kind === "api") {
         return (
             <div className="flex min-w-0 items-center gap-2">
-                <Tag>{event.apiMethod || "API"}</Tag>
-                <span className="truncate font-mono text-xs">{event.apiPath || "-"}</span>
+                <Tag>{target.apiMethod || "API"}</Tag>
+                <span className="truncate font-mono text-xs">{target.apiPath || "-"}</span>
             </div>
         );
     }
-    return <span className="font-mono text-xs">{event.eventName}</span>;
+    return <span className="font-mono text-xs">{target.eventName}</span>;
 }
 
 function EventResultTag({ event }: { event: EventRow }) {

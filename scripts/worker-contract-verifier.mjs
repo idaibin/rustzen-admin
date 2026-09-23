@@ -4,7 +4,7 @@ export const publicRouteAllowlist = {
         "OPTIONS /api/insights/track",
         "POST /api/insights/track",
     ]),
-    monitor: new Set(["POST /api/monitor/heartbeat"]),
+    monitor: new Set(["POST /api/monitor/agent-reports"]),
     reports: new Set(),
 };
 

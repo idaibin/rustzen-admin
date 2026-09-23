@@ -13,19 +13,19 @@ import {
 } from "recharts";
 
 import { insightsAPI } from "@/api";
+import { ApiRequestError } from "@/api/request";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { MetricCard } from "@/components/page/metric-card";
 import { PageHeader } from "@/components/page/page-header";
-import { t } from "@/lib/i18n";
-
-import { CollectionPolicyStatus } from "./-collection-policy-status";
+import { t, useLocale } from "@/lib/i18n";
 
 export const Route = createFileRoute("/analytics/overview")({
     component: AnalyticsOverviewPage,
 });
 
 function AnalyticsOverviewPage() {
+    useLocale();
     const {
         data: overview,
         dataUpdatedAt,
@@ -37,6 +37,7 @@ function AnalyticsOverviewPage() {
         queryFn: () => insightsAPI.overview({}),
         refetchInterval: 30_000,
     });
+    const permissionDenied = error instanceof ApiRequestError && error.status === 403;
     if (isPending && !overview) {
         return (
             <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
@@ -47,10 +48,37 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
-                <CollectionPolicyStatus />
                 <DataState
                     kind="loading"
                     title={t("正在加载分析概览", "Loading analytics overview")}
+                />
+            </div>
+        );
+    }
+
+    if (permissionDenied) {
+        return (
+            <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+                <PageHeader
+                    title={t("分析概览", "Analytics overview")}
+                    description={t(
+                        "查看当前实例的页面、接口、事件和访客活动。",
+                        "View page, API, event, and visitor activity for the current instance.",
+                    )}
+                />
+                <DataState
+                    kind="permission"
+                    title={t(
+                        "没有查看分析概览的权限",
+                        "You do not have permission to view analytics",
+                    )}
+                    description={t(
+                        "无法读取分析数据，请检查 Insights 服务后重试。",
+                        "Unable to read analytics data. Check the Insights service and try again.",
+                    )}
+                    action={
+                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                    }
                 />
             </div>
         );
@@ -66,7 +94,6 @@ function AnalyticsOverviewPage() {
                         "View page, API, event, and visitor activity for the current instance.",
                     )}
                 />
-                <CollectionPolicyStatus />
                 <DataState
                     kind="error"
                     title={
@@ -95,7 +122,6 @@ function AnalyticsOverviewPage() {
                     "View page, API, event, and visitor activity for the current instance.",
                 )}
             />
-            <CollectionPolicyStatus />
             <div className="flex flex-col gap-4">
                 <Typography.Text strong>{t("核心活动", "Core activity")}</Typography.Text>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

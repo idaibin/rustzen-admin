@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const MARKER_BEGIN = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n");
 const MARKER_END = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n");
-const PAYLOAD_VERSION = "rustzen-bundle-v1";
+const PAYLOAD_VERSION = "rustzen-release-v2";
+const BINARIES = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_KEY_FILE = path.join(
     PROJECT_ROOT,
@@ -59,8 +60,16 @@ function signBundle() {
 
     const original = fs.readFileSync(file);
     const content = stripBundleMarker(original);
+    const scopes = releaseScopes(content, version, arch);
     const contentSha256 = sha256Hex(content);
-    const marker = signedMarker({ component: "bundle", version, arch, contentSha256, privateKey });
+    const marker = signedMarker({
+        component: "release",
+        version,
+        arch,
+        contentSha256,
+        ...scopes,
+        privateKey,
+    });
     const mode = fs.statSync(file).mode;
 
     fs.writeFileSync(file, Buffer.concat([content, MARKER_BEGIN, Buffer.from(marker), MARKER_END]));
@@ -77,23 +86,33 @@ function verifyBundle() {
     if (begin < 0) {
         throw new Error("Signed release bundle marker is missing.");
     }
+    const content = data.subarray(0, begin);
+    const scopes = releaseScopes(content, version, arch);
     const markerStart = begin + MARKER_BEGIN.length;
     const markerEnd = data.indexOf(MARKER_END, markerStart);
     if (markerEnd < 0 || markerEnd + MARKER_END.length !== data.length) {
         throw new Error("Signed release bundle marker is invalid.");
     }
     const marker = JSON.parse(data.subarray(markerStart, markerEnd).toString("utf8"));
-    const contentSha256 = sha256Hex(data.subarray(0, begin));
+    const contentSha256 = sha256Hex(content);
     if (
-        marker.schemaVersion !== 1 ||
-        marker.component !== "bundle" ||
+        marker.schemaVersion !== 2 ||
+        marker.component !== "release" ||
         marker.version !== version ||
         marker.arch !== arch ||
-        marker.contentSha256 !== contentSha256
+        marker.contentSha256 !== contentSha256 ||
+        marker.frontendSha256 !== scopes.frontendSha256 ||
+        marker.backendSha256 !== scopes.backendSha256
     ) {
         throw new Error("Signed release metadata does not match the artifact.");
     }
-    const payload = signaturePayload({ component: "bundle", version, arch, contentSha256 });
+    const payload = signaturePayload({
+        component: "release",
+        version,
+        arch,
+        contentSha256,
+        ...scopes,
+    });
     const valid = crypto.verify(
         null,
         Buffer.from(payload),
@@ -106,22 +125,139 @@ function verifyBundle() {
     console.log(`Verified release bundle: ${file}`);
 }
 
-function signedMarker({ component, version, arch, contentSha256, privateKey }) {
-    const payload = signaturePayload({ component, version, arch, contentSha256 });
-    const signature = crypto.sign(null, Buffer.from(payload), privateKey).toString("hex");
-    const marker = {
-        schemaVersion: 1,
+function signedMarker({
+    component,
+    version,
+    arch,
+    contentSha256,
+    frontendSha256,
+    backendSha256,
+    privateKey,
+}) {
+    const payload = signaturePayload({
         component,
         version,
         arch,
         contentSha256,
+        frontendSha256,
+        backendSha256,
+    });
+    const signature = crypto.sign(null, Buffer.from(payload), privateKey).toString("hex");
+    const marker = {
+        schemaVersion: 2,
+        component,
+        version,
+        arch,
+        contentSha256,
+        frontendSha256,
+        backendSha256,
         signature,
     };
     return JSON.stringify(marker);
 }
 
-function signaturePayload({ component, version, arch, contentSha256 }) {
-    return `${PAYLOAD_VERSION}\ncomponent=${component}\nversion=${version}\narch=${arch}\ncontent_sha256=${contentSha256}\n`;
+function signaturePayload({
+    component,
+    version,
+    arch,
+    contentSha256,
+    frontendSha256,
+    backendSha256,
+}) {
+    return `${PAYLOAD_VERSION}\ncomponent=${component}\nversion=${version}\narch=${arch}\ncontent_sha256=${contentSha256}\nfrontend_sha256=${frontendSha256}\nbackend_sha256=${backendSha256}\n`;
+}
+
+function releaseScopes(content, version, arch) {
+    const members = readTarFiles(content);
+    const root = `rz-${version}-${arch}`;
+    const binaries = BINARIES.map((name) => {
+        const data = members.get(`${root}/bin/${name}`);
+        if (!data) {
+            throw new Error(`Release bundle is missing binary: ${name}`);
+        }
+        validateReleaseBinary(data, name, version, arch);
+        return { name, data, sha256: sha256Hex(data) };
+    });
+    const admin = binaries.find(({ name }) => name === "rz-admin").data;
+    const markerPrefix = Buffer.from(
+        `RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary=rz-admin\nversion=${version}\nfrontend_sha256=`,
+    );
+    const markerStart = admin.indexOf(markerPrefix);
+    if (markerStart < 0 || admin.indexOf(markerPrefix, markerStart + 1) >= 0) {
+        throw new Error("Admin release identity marker is missing or duplicated.");
+    }
+    const valueStart = markerStart + markerPrefix.length;
+    const frontendSha256 = admin.subarray(valueStart, valueStart + 64).toString("ascii");
+    if (!/^[0-9a-f]{64}$/.test(frontendSha256) || admin[valueStart + 64] !== 10) {
+        throw new Error("Admin frontend digest marker is invalid.");
+    }
+    const backendInventory = binaries
+        .map(
+            ({ name, data, sha256 }) =>
+                `binary=${name}\nsize=${data.length}\nsha256=${sha256}\n`,
+        )
+        .join("");
+    return { frontendSha256, backendSha256: sha256Hex(Buffer.from(backendInventory)) };
+}
+
+function validateReleaseBinary(data, name, version, arch) {
+    if (data.length < 20 || !data.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46]))) {
+        throw new Error(`Release bundle member is not an ELF executable: ${name}`);
+    }
+    const expectedMachine = arch === "x86_64" ? 62 : arch === "aarch64" ? 183 : null;
+    if (expectedMachine === null || data.readUInt16LE(18) !== expectedMachine) {
+        throw new Error(`Release bundle member architecture mismatch: ${name}`);
+    }
+    const marker = Buffer.from(
+        `RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary=${name}\nversion=${version}\n`,
+    );
+    if (data.indexOf(marker) < 0) {
+        throw new Error(`Release bundle member identity marker mismatch: ${name}`);
+    }
+}
+
+function readTarFiles(content) {
+    if (content.length === 0 || content.length % 512 !== 0) {
+        throw new Error("Release bundle is not an aligned tar archive.");
+    }
+    const files = new Map();
+    let offset = 0;
+    while (offset + 512 <= content.length) {
+        const header = content.subarray(offset, offset + 512);
+        if (header.every((byte) => byte === 0)) {
+            break;
+        }
+        const name = tarText(header.subarray(0, 100));
+        const prefix = tarText(header.subarray(345, 500));
+        const pathName = prefix ? `${prefix}/${name}` : name;
+        const sizeText = tarText(header.subarray(124, 136)).trim();
+        if (!/^[0-7]+$/.test(sizeText)) {
+            throw new Error("Release bundle contains an invalid tar size.");
+        }
+        const size = Number.parseInt(sizeText, 8);
+        if (!Number.isSafeInteger(size) || size < 0) {
+            throw new Error("Release bundle contains an unsupported tar size.");
+        }
+        const dataStart = offset + 512;
+        const dataEnd = dataStart + size;
+        if (dataEnd > content.length) {
+            throw new Error("Release bundle contains a truncated tar member.");
+        }
+        const type = header[156];
+        if (type === 0 || type === 48) {
+            if (files.has(pathName)) {
+                throw new Error(`Release bundle contains a duplicate file: ${pathName}`);
+            }
+            files.set(pathName, content.subarray(dataStart, dataEnd));
+        }
+        offset = dataStart + Math.ceil(size / 512) * 512;
+    }
+    return files;
+}
+
+function tarText(data) {
+    const end = data.indexOf(0);
+    return data.subarray(0, end < 0 ? data.length : end).toString("utf8");
 }
 
 function stripBundleMarker(data) {
@@ -219,7 +355,7 @@ Environment:
   RUSTZEN_DEPLOY_SIGN_KEY_FILE=/path/to/ed25519-private.pem
   # or
   RUSTZEN_DEPLOY_SIGN_KEY='-----BEGIN PRIVATE KEY-----\\n...'
-  # optional iCloud-compatible secrets directory override
+  # optional iCloud secrets directory override
   RUSTZEN_SECRETS_DIR=/path/to/rustzen/secrets
 
 Lookup order:

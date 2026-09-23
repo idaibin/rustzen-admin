@@ -1,19 +1,16 @@
 use std::sync::Arc;
 
 use axum::{Json, Router, extract::State, routing::get};
-use rustzen_ipc::{
-    DelegationVerifier, HealthResponse, ModuleDefinition, ModuleManifest, ModuleRouter, Require,
-};
+use rustzen_ipc::{HealthResponse, ModuleManifest, ModuleStorageReport};
 use rustzen_storage::SqlitePool;
 
-use crate::{config, features, infra};
-
-const MODULE_TOML: &str = include_str!("../module.toml");
+use crate::{config, features, infra, module_routes::build_module_routes};
 
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub pool: SqlitePool,
     pub agent_token: Arc<str>,
+    pub nodes_cache: Arc<features::monitoring::NodesCache>,
     manifest: Arc<ModuleManifest>,
 }
 
@@ -21,16 +18,22 @@ pub async fn run_controller() -> Result<(), Box<dyn std::error::Error>> {
     let pool = infra::db::connect().await?;
     infra::db::migrate(&pool).await?;
     infra::db::verify(&pool).await?;
-    features::metrics::spawn_retention(pool.clone());
-    features::checks::spawn_scheduler(pool.clone());
-    features::checks::spawn_retention(pool.clone());
-    features::incidents::spawn_evaluator(pool.clone());
+    infra::db::verify_schema(&pool).await.map_err(std::io::Error::other)?;
+    features::monitoring::spawn_background(pool.clone());
+    #[cfg(feature = "notifications")]
+    let notification_relay = {
+        let (url, key_id, key) = config::controller().notification_transport();
+        crate::notifications::start(pool.clone(), url.into(), key_id.into(), key.as_bytes()).await?
+    };
 
     let (app, _) = build_app(pool, config::controller().monitor_agent_token.clone())?;
     let address = config::controller().bind_address();
     let listener = tokio::net::TcpListener::bind(&address).await?;
     tracing::info!(%address, "Monitor Controller started");
-    axum::serve(listener, app).await?;
+    let server_result = axum::serve(listener, app).await;
+    #[cfg(feature = "notifications")]
+    notification_relay.shutdown().await;
+    server_result?;
     Ok(())
 }
 
@@ -38,59 +41,75 @@ pub(crate) fn build_app(
     pool: SqlitePool,
     agent_token: String,
 ) -> Result<(Router, ModuleManifest), Box<dyn std::error::Error>> {
-    let definition = ModuleDefinition::from_toml(MODULE_TOML)?;
-    let module_id = definition.module.id.clone();
-    let api_prefix = definition.module.api_prefix.clone();
-    let verifier = DelegationVerifier::new(&config::controller().ipc_token)?;
-    let module_router = ModuleRouter::<AppState>::new(module_id, verifier)
-        .post_public("/heartbeat", features::heartbeat::handler::submit)?
-        .get_with_permission(
-            "/overview",
-            features::nodes::handler::overview,
-            Require(rustzen_auth::capability::monitor::OVERVIEW_VIEW),
-        )?
-        .get_with_permission(
-            "/nodes",
-            features::nodes::handler::list,
-            Require(rustzen_auth::capability::monitor::NODE_VIEW),
-        )?
-        .get_with_permission(
-            "/nodes/{node_id}",
-            features::nodes::handler::get,
-            Require(rustzen_auth::capability::monitor::NODE_VIEW),
-        )?;
-    let module_router = features::metrics::routes(module_router)?;
-    let module_router = features::checks::routes(module_router)?;
-    let module_router = features::incidents::routes(module_router)?;
-    let (module_routes, manifest) = module_router.build(&definition, env!("CARGO_PKG_VERSION"))?;
+    let (module_routes, manifest) = build_module_routes(&config::controller().ipc_token)?;
+    let api_prefix = manifest.api_prefix.clone();
     let state = AppState {
         pool,
         agent_token: Arc::from(agent_token),
+        nodes_cache: Arc::new(features::monitoring::NodesCache::default()),
         manifest: Arc::new(manifest.clone()),
     };
     let app = Router::new()
         .route("/health", get(health))
         .route("/internal/v1/manifest", get(runtime_manifest))
+        .route("/internal/v1/storage", get(runtime_storage))
         .nest(&api_prefix, module_routes)
         .with_state(state);
     Ok((app, manifest))
 }
 
 async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse::ok(env!("CARGO_PKG_VERSION")))
+    Json(HealthResponse::ok_selected(env!("CARGO_PKG_VERSION")))
 }
 
 async fn runtime_manifest(State(state): State<AppState>) -> Json<ModuleManifest> {
     Json((*state.manifest).clone())
 }
 
+async fn runtime_storage() -> Json<ModuleStorageReport> {
+    Json(ModuleStorageReport::collect("monitor", &config::controller().database_path()))
+}
+
 #[cfg(test)]
 mod tests {
-    use rustzen_ipc::AccessMode;
+    use std::sync::Arc;
 
+    use axum::{
+        body::Body,
+        extract::State,
+        http::{HeaderMap, Request, StatusCode},
+        response::IntoResponse,
+    };
+    use rustzen_ipc::{AccessMode, DelegatedAccess, DelegatedContext, DelegationSigner};
+    use tower::ServiceExt;
+    use uuid::Uuid;
+
+    use crate::features::monitoring::{record_at, submit};
     use crate::infra::db::migrated_test_pool;
+    use crate::protocol::{
+        AGENT_REPORT_AUTH_HEADER, AGENT_REPORT_METHOD, AGENT_REPORT_PATH, AGENT_REPORT_ROUTE,
+        AgentReport, AgentReportStatus, ByteUsage, MAX_AGENT_REPORT_BODY_BYTES,
+        parse_agent_response,
+    };
 
-    use super::build_app;
+    use super::{AppState, build_app};
+
+    #[tokio::test]
+    async fn storage_endpoint_self_reports_the_monitor_database() {
+        let pool = migrated_test_pool().await;
+        let (app, _) = build_app(pool, "agent-secret".to_string()).expect("build app");
+        use tower::ServiceExt;
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/internal/v1/storage")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("storage");
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
 
     #[tokio::test]
     async fn runtime_manifest_is_derived_from_the_registered_routes() {
@@ -101,15 +120,26 @@ mod tests {
         assert_eq!(manifest.api_prefix, "/api/monitor");
         assert_eq!(manifest.release_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(manifest.menus.len(), 4);
+        assert!(!manifest.menus.iter().any(|menu| menu.code == "settings"));
         assert!(manifest.menus.iter().any(|menu| {
             menu.code == "incidents"
                 && menu.path == "/monitoring/incidents"
                 && menu.permission == "monitor:incident:view"
         }));
-        assert_eq!(manifest.routes.len(), 15);
+        #[cfg(not(feature = "notifications"))]
+        assert_eq!(manifest.routes.len(), 13);
+        #[cfg(feature = "notifications")]
+        {
+            assert_eq!(manifest.routes.len(), 14);
+            assert!(manifest.routes.iter().any(|route| {
+                route.method == "GET"
+                    && route.path == "/notification-delivery"
+                    && route.permission.as_deref() == Some("monitor:incident:view")
+            }));
+        }
         assert!(manifest.routes.iter().any(|route| {
-            route.method == "POST"
-                && route.path == "/heartbeat"
+            route.method == AGENT_REPORT_METHOD
+                && route.path == AGENT_REPORT_ROUTE
                 && route.access == AccessMode::Public
                 && route.permission.is_none()
         }));
@@ -128,7 +158,7 @@ mod tests {
                         && route.permission.as_deref() == Some("monitor:node:view")
                 })
                 .count()
-                == 3
+                == 4
         );
         assert!(
             manifest
@@ -142,5 +172,271 @@ mod tests {
                 .count()
                 == 2
         );
+        assert!(manifest.routes.iter().all(|route| !route.path.contains("heartbeat")));
+        assert!(manifest.routes.iter().all(|route| !route.path.contains("checks")));
+        assert!(manifest.routes.iter().any(|route| {
+            route.method == "GET"
+                && route.path == "/nodes/{node_id}/alert-settings"
+                && route.permission.as_deref() == Some("monitor:node:view")
+        }));
+        assert!(manifest.routes.iter().any(|route| {
+            route.method == "GET"
+                && route.path == "/alert-settings"
+                && route.permission.as_deref() == Some("monitor:node:view")
+        }));
+        assert_eq!(
+            manifest
+                .routes
+                .iter()
+                .filter(|route| {
+                    matches!(route.method.as_str(), "PUT" | "DELETE")
+                        && route.path == "/nodes/{node_id}/alert-settings"
+                        && route.permission.as_deref() == Some("monitor:manage")
+                })
+                .count(),
+            2
+        );
+    }
+
+    #[tokio::test]
+    async fn agent_report_route_returns_401_without_token_and_422_for_invalid_input() {
+        let pool = migrated_test_pool().await;
+        let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
+        let report = AgentReport {
+            node_id: "route-node".to_string(),
+            boot_id: Uuid::new_v4(),
+            sequence: 1,
+            hostname: "route-node".to_string(),
+            agent_version: "test".to_string(),
+            collected_at: chrono::Utc::now(),
+            cpu_percent: 10.0,
+            memory: ByteUsage { used_bytes: 1, total_bytes: 2 },
+            disks: Vec::new(),
+        };
+        let unauthorized = submit(State(state.clone()), Request::new(Body::from("{")))
+            .await
+            .unwrap_err()
+            .into_response();
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+        let mut invalid_report = report;
+        invalid_report.cpu_percent = 101.0;
+        let mut headers = HeaderMap::new();
+        headers.insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+        let mut request = Request::new(Body::from(serde_json::to_vec(&invalid_report).unwrap()));
+        *request.headers_mut() = headers;
+        let invalid_pool = migrated_test_pool().await;
+        let invalid = submit(
+            State(AppState {
+                pool: invalid_pool.clone(),
+                agent_token: Arc::from("agent-secret"),
+                nodes_cache: Arc::new(Default::default()),
+                manifest: state.manifest.clone(),
+            }),
+            request,
+        )
+        .await
+        .unwrap_err()
+        .into_response();
+        assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM monitor_nodes")
+                .fetch_one(&invalid_pool)
+                .await
+                .unwrap(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn agent_report_route_returns_accepted_duplicate_and_stale_envelopes() {
+        let pool = migrated_test_pool().await;
+        let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
+        let boot = Uuid::new_v4();
+        let at = chrono::Utc::now();
+        let report = AgentReport {
+            node_id: "route-status-node".to_string(),
+            boot_id: boot,
+            sequence: 1,
+            hostname: "route-status-node".to_string(),
+            agent_version: "test".to_string(),
+            collected_at: at,
+            cpu_percent: 10.0,
+            memory: ByteUsage { used_bytes: 1, total_bytes: 2 },
+            disks: Vec::new(),
+        };
+
+        async fn submit_report(state: AppState, report: &AgentReport) -> serde_json::Value {
+            let mut request = Request::new(Body::from(serde_json::to_vec(report).unwrap()));
+            request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+            let response = submit(State(state), request).await.unwrap().into_response();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            serde_json::from_slice(&body).unwrap()
+        }
+
+        let accepted = submit_report(state.clone(), &report).await;
+        assert_eq!(accepted["code"], 0);
+        assert_eq!(accepted["data"]["status"], "accepted");
+        let duplicate = submit_report(state.clone(), &report).await;
+        assert_eq!(duplicate["data"]["status"], "duplicate");
+        let mut newer = report.clone();
+        newer.sequence = 2;
+        newer.collected_at = at + chrono::Duration::seconds(30);
+        assert_eq!(submit_report(state.clone(), &newer).await["data"]["status"], "accepted");
+        assert_eq!(submit_report(state, &report).await["data"]["status"], "stale");
+    }
+
+    #[tokio::test]
+    async fn historical_fenced_reports_return_200_statuses_but_new_sequence_is_422() {
+        let pool = migrated_test_pool().await;
+        let (_, manifest) = build_app(pool.clone(), "agent-secret".to_string()).expect("build app");
+        let state = AppState {
+            pool,
+            agent_token: Arc::from("agent-secret"),
+            nodes_cache: Arc::new(Default::default()),
+            manifest: Arc::new(manifest),
+        };
+        let received = chrono::Utc::now();
+        let historical = received - chrono::Duration::minutes(10);
+        let first_boot = Uuid::new_v4();
+        let make_report = |boot, sequence, collected_at| AgentReport {
+            node_id: "historical-route-node".to_string(),
+            boot_id: boot,
+            sequence,
+            hostname: "historical-route-node".to_string(),
+            agent_version: "test".to_string(),
+            collected_at,
+            cpu_percent: 10.0,
+            memory: ByteUsage { used_bytes: 1, total_bytes: 2 },
+            disks: Vec::new(),
+        };
+        record_at(&state.pool, make_report(first_boot, 1, historical), historical).await.unwrap();
+        let second = make_report(first_boot, 2, historical + chrono::Duration::seconds(30));
+        record_at(&state.pool, second.clone(), second.collected_at).await.unwrap();
+
+        async fn post(state: &AppState, report: &AgentReport) -> axum::response::Response {
+            let mut request = Request::new(Body::from(serde_json::to_vec(report).unwrap()));
+            request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+            match submit(State(state.clone()), request).await {
+                Ok(value) => value.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        let duplicate = post(&state, &second).await;
+        assert_eq!(duplicate.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(duplicate.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap()["data"]["status"],
+            "duplicate"
+        );
+        let lower = make_report(first_boot, 1, historical);
+        let lower_response = post(&state, &lower).await;
+        assert_eq!(lower_response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(lower_response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap()["data"]["status"],
+            "stale"
+        );
+
+        let second_boot = Uuid::new_v4();
+        let takeover = make_report(second_boot, 1, historical + chrono::Duration::seconds(60));
+        record_at(&state.pool, takeover, historical + chrono::Duration::seconds(60)).await.unwrap();
+        let retired = make_report(first_boot, 3, historical + chrono::Duration::seconds(90));
+        let retired_response = post(&state, &retired).await;
+        assert_eq!(retired_response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(retired_response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap()["data"]["status"],
+            "stale"
+        );
+        let new_sequence = make_report(second_boot, 2, historical + chrono::Duration::seconds(90));
+        let invalid = post(&state, &new_sequence).await;
+        assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM resource_samples WHERE node_id='historical-route-node'"
+            )
+            .fetch_one(&state.pool)
+            .await
+            .unwrap(),
+            3
+        );
+    }
+    fn delegated_headers() -> HeaderMap {
+        let context = DelegatedContext::new(
+            "wire-test",
+            None,
+            "monitor",
+            axum::http::Method::POST,
+            AGENT_REPORT_PATH,
+            DelegatedAccess::Public,
+        )
+        .unwrap();
+        DelegationSigner::new("rustzen-dev-ipc-token-change-in-production")
+            .unwrap()
+            .sign(&context)
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn agent_report_router_conforms_to_shared_wire_contract() {
+        let pool = migrated_test_pool().await;
+        let (router, _) = build_app(pool, "agent-secret".into()).unwrap();
+        let report = AgentReport {
+            node_id: "wire-node".into(),
+            boot_id: Uuid::new_v4(),
+            sequence: 1,
+            hostname: "wire-node".into(),
+            agent_version: "test".into(),
+            collected_at: chrono::Utc::now(),
+            cpu_percent: 1.0,
+            memory: ByteUsage { used_bytes: 1, total_bytes: 2 },
+            disks: vec![],
+        };
+        let mut request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(serde_json::to_vec(&report).unwrap()))
+            .unwrap();
+        *request.headers_mut() = delegated_headers();
+        request.headers_mut().insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+        let response = router.clone().oneshot(request).await.unwrap();
+        assert!(response.status().is_success(), "{}", response.status());
+        let bytes =
+            axum::body::to_bytes(response.into_body(), MAX_AGENT_REPORT_BODY_BYTES).await.unwrap();
+        assert_eq!(
+            parse_agent_response(true, std::str::from_utf8(&bytes).unwrap()).unwrap(),
+            AgentReportStatus::Accepted
+        );
+        let mut missing_request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(serde_json::to_vec(&report).unwrap()))
+            .unwrap();
+        *missing_request.headers_mut() = delegated_headers();
+        let missing = router.clone().oneshot(missing_request).await.unwrap();
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        let mut oversized_request = Request::builder()
+            .method("POST")
+            .uri(AGENT_REPORT_PATH)
+            .body(Body::from(vec![b'x'; MAX_AGENT_REPORT_BODY_BYTES + 1]))
+            .unwrap();
+        *oversized_request.headers_mut() = delegated_headers();
+        oversized_request
+            .headers_mut()
+            .insert(AGENT_REPORT_AUTH_HEADER, "agent-secret".parse().unwrap());
+        let oversized = router.oneshot(oversized_request).await.unwrap();
+        assert_eq!(oversized.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 }
