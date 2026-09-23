@@ -10,9 +10,7 @@
   surfaces in `apps/web/src/routes/analytics/overview.tsx` and
   `apps/web/src/routes/analytics/details.tsx`, plus the repository-owned
   adopted root `DESIGN.md` baseline.
-- Selection status: accepted existing product surface. Rights/use are
-  repository-owned; legacy analytics shell and unrelated visual references are
-  ignored.
+- Selection status: accepted existing repository-owned product surface.
 - Target: existing overview/details in populated, loading, empty, error,
   permission, and partial states at 1920x1080, 1440x900, and 390x844 CSS px,
   100% zoom, light/dark, zh-CN/en-US. Public tracker execution has no Admin

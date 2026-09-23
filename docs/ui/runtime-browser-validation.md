@@ -7,8 +7,8 @@ real Chromium session through the rendered Admin Web application.
 Run `just build-admin-browser-linux` and then `just verify-admin-browser-linux`.
 The verifier has two bounded stages: `ensure-admin-browser-linux` builds or
 reuses a pinned Debian/Chromium 120 image (900 seconds by default, capped at
-1800), then the business container run is capped at 480 seconds (capped at
-900). The pinned image is accepted only when its platform-specific Dockerfile
+1800), then the complete 25-case business container matrix is capped at 2400 seconds.
+The pinned image is accepted only when its platform-specific Dockerfile
 key, schema, base image, snapshot, Chromium version, OS/architecture labels,
 and in-image provenance agree. Cache inspection and provenance reading are
 bounded as one hot-path check. Docker architecture discovery is separately
@@ -76,6 +76,25 @@ overflow. Archive bytes and SHA-256 remain validated by the service/client gate,
 not by a browser download surrogate. It does not establish systemd PID 1
 behavior, an upgrade, a production identity provider, a remote host, another
 browser engine, or full visual acceptance of every route and state.
+
+## Analytics UI state matrix
+
+Run `just verify-analytics-ui-state-linux` after the full Linux build. The
+ten-case Chromium matrix has a bounded 900-second container budget. Each case
+refreshes the verifier's API session before creating its flow so later cases
+cannot evict the control token at the session limit.
+
+## Monitoring UI state matrix
+
+Run `just verify-monitoring-ui-state-linux` after the full Linux build. The
+23-case matrix permits at most one audited retry when Chromium fails before it
+can read the fixture: the failed source run must have either no browser steps or
+only a successful `setUiPreferences` step, the fixture read count must remain
+unchanged, and the retry must be the sole persisted child of that source run.
+All semantic failures and any later infrastructure failure remain terminal.
+The delivery-health extension verifies the visible gap trigger, opens its
+click-triggered popover, and then verifies the pending, quarantine, and timestamp
+details in that visible overlay for both owner and restricted viewer journeys.
 
 ## Analytics public tracker host gate
 

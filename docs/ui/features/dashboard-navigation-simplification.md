@@ -24,9 +24,8 @@ failures even though they are not navigation examples.
 
 The project-owned product source is `docs/product/product.md`. Shared visual
 semantics and component ownership are defined only by root `DESIGN.md`;
-`apps/web` source is its current implementation adapter, and
-`docs/ui/profile.yaml` is historical task evidence rather than an accepted
-visual source. This slice only owns Dashboard and navigation composition.
+`apps/web` source is its current implementation adapter. This slice only owns
+Dashboard and navigation composition.
 
 ## Layout, components, and tokens
 

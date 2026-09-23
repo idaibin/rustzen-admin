@@ -14,15 +14,11 @@ status-panel removal, and Dashboard scope. Route acceptance is mapped in the
 
 ## Shared implementation contract
 
-The [composable-distribution design](features/composable-distribution/spec.md)
-records the authorized full/pruned deployment direction and optional
-notifications. It is a reviewed design now partially delivered: Monitor server
-P1-P4, notifications P5-P7 and the local P8 certification chains for the
-monitor and analytics selections are implemented and verified, while the
-remaining selections stay uncertified and production deployment stays
-Not verified. Its [review record](features/composable-distribution/review.md)
-keeps the requested ten completed ChatGPT rounds and final local corrections
-separate from the per-selection runtime acceptance tracked in the
+The [distribution specification](features/composable-distribution/spec.md) defines
+the first release as one complete signed distribution with optional runtime module
+disablement and the durable message center. Acceptance covers that complete artifact;
+the operator path is build, copy, install and start, with no password, key or database
+command input during installation. The active full-release work is tracked in the
 [implementation plan](features/composable-distribution/implementation.md).
 
 ### Actors and capabilities
@@ -95,7 +91,7 @@ log content and lifecycle.
 | Admin / runtime | Module log diagnostics, backup, and cleanup | [module-log-diagnostics](./features/module-log-diagnostics/spec.md) | [module-log-diagnostics UI](../ui/features/module-log-diagnostics.md) | Implemented; source-resolved; runtime Not verified |
 | Admin / notifications | Message center and realtime invalidation | [composable-distribution P5-P7](./features/composable-distribution/spec.md) | [Message Center UI](../ui/features/message-center.md) | P5-P7 closed locally; global sustained load, native systemd, production reverse-proxy and production deployment pending |
 | Admin | Maintenance task console | [admin-maintenance-tasks](./features/admin-maintenance-tasks/spec.md) | [Admin maintenance task console UI](../ui/features/admin-maintenance-tasks.md) | Current source contract; local Linux runtime evidence pending |
-| Admin / runtime | Module storage visibility | [system-status-storage](./features/system-status-storage/spec.md) | [page-audit](../../ui/page-audit.md) | Implemented; per-module self-report aggregated locally |
+| Admin / runtime | Module storage visibility | [system-status-storage](./features/system-status-storage/spec.md) | [page-audit](../ui/page-audit.md) | Implemented; per-module self-report aggregated locally |
 | Admin | Metric-card route alignment | [metric-card-visual-consistency](./features/metric-card-visual-consistency/spec.md) | [metric-card-visual-consistency UI](../ui/features/metric-card-visual-consistency.md) | Current route contract; representative light/dark checks |
 | Admin | Role definition management | [role-definition-management](./features/role-definition-management/spec.md) | [role-definition-management UI](../ui/features/role-definition-management.md) | Ready |
 | Admin | User role assignment readiness | [user-role-assignment-readiness](./features/user-role-assignment-readiness/spec.md) | [user-role-assignment-readiness UI](../ui/features/user-role-assignment-readiness.md) | Ready |

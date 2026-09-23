@@ -23,13 +23,11 @@ in source code, and runtime structure remains grounded in
 | --- | --- | --- |
 | [product.md](./product/product.md) | Current product fact | Defines product positioning, direction, module purposes, scope, non-goals, and decision status. |
 | [product/index.md](./product/index.md) | Current product index | Lists independently consumable feature specifications and readiness. |
-| [composable-distribution](./product/features/composable-distribution/spec.md) | Reviewed design, implementation underway | Full and physically pruned distributions, optional inbox/SSE, and contracts; Monitor server P1-P4 and notifications P5-P7 are closed locally, monitor and analytics selections completed local P8 certification, monitor-notify closed its browser journey and load gate on separate retained builds, and node-agent passed its local PID1 gate under installer-test keys; the full, reports and custom selections are uncertified and production deployment remains Not verified. |
-| [composable-distribution architecture](./product/features/composable-distribution/architecture.md) | Design package | Distribution topology, per-selection architecture, and evaluated alternatives. |
-| [composable-distribution contracts](./product/features/composable-distribution/contracts.md) | Design package | Normative distribution, event and inbox contracts with incremental implementation status. |
-| [composable-distribution implementation](./product/features/composable-distribution/implementation.md) | Design package | Execution plan with slice progress and the P8 admission matrix. |
-| [composable-distribution review](./product/features/composable-distribution/review.md) | Design package | Completed historical design-review record, kept separate from execution evidence. |
-| [composable-distribution sources](./product/features/composable-distribution/sources.md) | Design package | Community evidence and applied decisions retrieved 2026-09-03. |
-| [composable-distribution validation](./product/features/composable-distribution/validation.md) | Design package | Planned implementation gates and acceptance with explicit evidence status. |
+| [composable-distribution](./product/features/composable-distribution/spec.md) | Current full-release contract | One complete signed distribution with Admin, Monitor, Insights, Reports, Web and notifications; runtime module disablement is supported, and production deployment remains Not verified. |
+| [composable-distribution architecture](./product/features/composable-distribution/architecture.md) | Current release architecture | Defines the complete signed bundle, service topology, runtime disablement and update boundary. |
+| [composable-distribution contracts](./product/features/composable-distribution/contracts.md) | Current contracts | Defines the complete-release identity, event and inbox contracts. |
+| [composable-distribution implementation](./product/features/composable-distribution/implementation.md) | Current implementation plan | Tracks the single full-release implementation and validation boundary. |
+| [composable-distribution validation](./product/features/composable-distribution/validation.md) | Current acceptance contract | Defines source, artifact, install, startup, restart and update-safety gates for the full release. |
 | [monitoring](./product/features/monitoring/spec.md) | Current product specification | Defines central Agent reports, node resources, alerts, incidents, retention, and daily summaries. |
 | [analytics-collection-safety](./product/features/analytics-collection-safety/spec.md) | Current product specification | Defines explicit opt-in, key/origin validation, bounded event collection, and privacy-safe defaults. |
 | [scheduled-report-automation](./product/features/scheduled-report-automation/spec.md) | Current product specification | Defines daily/weekly Reports scheduling with missed-occurrence skip semantics. |
@@ -71,7 +69,6 @@ in source code, and runtime structure remains grounded in
 | [reference/api-camelcase-audit.md](./reference/api-camelcase-audit.md) | Appendix | Audits API casing boundaries. |
 | [reference/workspace-root-impl.md](./reference/workspace-root-impl.md) | Appendix | Explains runtime-root path derivation. |
 | [reference/code-review-checklist.md](./reference/code-review-checklist.md) | Appendix | Provides a compact review checklist. |
-| [reference/legacy-module-comparison.md](./reference/legacy-module-comparison.md) | Current comparison | Fixes live former-product revisions and maps selected behaviors to retain, reproduce, reuse, defer, or drop decisions. |
 | [history/README.md](./history/README.md) | Historical index | Explains where non-current records live. |
 | [history/feats/login-page-design.md](./history/feats/login-page-design.md) | Historical design | Preserves the completed login-page design input and asset link. |
 | [history/feats/sqlite-first-roadmap.md](./history/feats/sqlite-first-roadmap.md) | Historical feature task record | Breaks the sqlite-first design into executable and verifiable tasks. |
@@ -91,5 +88,5 @@ in source code, and runtime structure remains grounded in
 - Put completed designs, task records, proposals, fixes, and incidents in `history/`.
 - Do not put Chinese text in documentation files.
 - Use `kebab-case.md` for Markdown file names.
-- Ship a feature directory under `product/features/` as `spec.md` by default. A design-package layout with `architecture.md`, `contracts.md`, `implementation.md`, `review.md`, `sources.md`, and `validation.md` belongs only to a reviewed design package; `composable-distribution` is the current example. Do not copy that layout onto slices that a single specification already covers.
+- Ship a feature directory under `product/features/` as `spec.md` by default. A design-package layout with `architecture.md`, `contracts.md`, `implementation.md`, and `validation.md` belongs only to a reviewed design package; `composable-distribution` is the current example. Do not copy that layout onto slices that a single specification already covers.
 - sqlite-first design records under docs/history/ are historical inputs. Current implementation truth remains source code, [architecture.md](./architecture.md), and [guides/](./guides/).

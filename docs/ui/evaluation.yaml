@@ -1,6 +1,0 @@
-version: 3
-status: historical-superseded
-role: legacy-evaluation-pointer
-decision: superseded-by-approved-DESIGN
-current_evidence: .codex/artifacts/ui-authority-v4/frontend-visual-evidence.json
-note: The ignored task artifact is validation evidence, not durable visual authority.

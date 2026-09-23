@@ -18,9 +18,9 @@ just verify-reports-linux
 git diff --check
 ```
 
-`just verify-monitor-admin` certifies the local minimal Admin source/build
-boundary. It does not assemble or install a selected distribution; selected Web,
-systemd inventory and signed native packaging are separate later gates.
+`just verify-monitor-admin` checks the local Admin and Monitor source/build boundary.
+It does not assemble or install the complete signed release; systemd inventory and
+native packaging are separate gates.
 
 `just build-native` builds the Web application, four optimized server binaries,
 and the non-resident `rz` operations CLI for the current machine. `just build`
@@ -42,21 +42,37 @@ target/rz/rz-<version>-<x86_64|aarch64>.tar
     │   ├── rz-insights
     │   └── rz-reports
     ├── systemd/
-    │   ├── rz.target
+    │   ├── rz-full.service
     │   ├── rz-recovery.service
     │   ├── rz-admin.service
     │   ├── rz-monitor.service
     │   ├── rz-insights.service
-    │   └── rz-reports.service
+    │   ├── rz-reports.service
+    │   ├── rz-update.service
+    │   └── rz-update.path
     ├── config/rz.env
     ├── config/rz-reports.env
+    ├── identity/controller.json
     └── setup-layout.sh
 ```
 
 All five ELF executables must match the declared architecture and workspace
 version. Each embeds `RUSTZEN_RELEASE_MARKER` with
-`artifact=rz-bundle-member` and its exact binary name. The appended Ed25519
-signature covers the complete tar payload as component `bundle`.
+`artifact=rz-bundle-member` and its exact binary name. `rz-admin` additionally
+embeds the canonical Web build digest. The appended Ed25519 signature covers
+the complete tar payload as component `release` and binds two audit scopes:
+
+- `frontendSha256`: the embedded Web build identity;
+- `backendSha256`: the canonical digest of the five executable files.
+
+There is still exactly one signature and one update/rollback boundary. The two
+scope digests distinguish frontend and backend bytes for inspection; they do not
+permit either scope to be uploaded or deployed independently.
+
+`identity/controller.json` binds the signed full bundle to the exact Monitor binary
+and Agent protocol contract. The standalone Agent reuses the trusted public key saved
+by its own signed installation, so Controller pairing accepts only the full bundle and
+an HTTPS endpoint and does not require another key argument.
 
 ```bash
 bun scripts/deploy-sign.mjs sign-bundle \
@@ -75,16 +91,15 @@ when no key is available. It does not create or rotate a signing key.
 
 ## Installation and systemd
 
-Obtain the release verification key through the trusted release channel, then
-run `setup-layout.sh` with that key and the signed bundle:
+`just build` generates a separately copied `rz-install` and the signed complete
+bundle. Copy both files to the server, then pass only the bundle path:
 
 ```bash
-RUSTZEN_DEPLOY_VERIFY_KEY=<trusted-ed25519-public-key> \
-  ./setup-layout.sh rz-<version>-<arch>.tar
+./rz-install rz-<version>-<arch>.tar
 ```
 
-The installer validates the complete Ed25519 signature and exact safe member
-set before installing executable content. It stores the signed bundle
+The generated installer contains the trusted public verification key and validates the complete Ed25519 signature, the frontend/backend
+scope digests, and the exact safe member set before installing executable content. It stores the signed bundle
 byte-for-byte, installs an immutable release directory, and atomically creates
 one relative link:
 
@@ -101,25 +116,46 @@ one relative link:
 `setup-layout.sh` is initial-install only. If `current` already exists it fails
 closed; every upgrade must use the Admin release worker so database backups,
 health gates, the rollback journal, and the single-release boundary cannot be
-bypassed. The installer links six units into systemd, reloads the daemon, and
-enables `rz.target` without starting placeholder production secrets. After
-replacing every remaining placeholder in `config/rz.env` and
-`config/rz-reports.env`, start the server set with:
+bypassed. The installer links eight units into systemd, creates the stable
+`/usr/local/bin/rz` command, reloads the daemon, enables `rz-full.service`,
+and starts the enabled `rz-update.path` watcher without starting server services.
+The watcher also picks up a pending request when activated after a restart.
+The installer generates local runtime
+secrets, including the shared IPC and Reports notification values. Then start
+the server set with:
 
 ```bash
-systemctl enable --now rz.target
-systemctl status rz.target
-systemctl restart rz-monitor.service
+rz start
+rz status
+rz restart
+rz stop
 ```
 
-`rz.target` uses `Wants=` for recovery and all four services. Every server unit
-uses `PartOf=rz.target`, `Restart=on-failure`, and an independent start-limit
+For direct systemd inspection, the type suffix is optional:
+
+```bash
+systemctl status rz-full
+```
+
+Before the first login, read `/opt/rz/data/initial-owner-password` as root.
+Admin consumes and deletes its separate installer-created, Admin-only bootstrap input before it
+listens; delete the retained credential file after changing the owner password.
+
+`rz-full.service` uses `Wants=` for recovery and all four services. Every server unit
+uses `PartOf=rz-full.service`, `Restart=on-failure`, and an independent start-limit
 policy. There is no `Requires=` coupling. `rz-recovery.service` runs before the
 four services and leaves `data/recovery-blocked` in place if interrupted-update
 recovery fails.
 
+The four resident services use separate non-root users and module-specific writable
+directories: each writes private daily files only in `/opt/rz/logs/<module>/`.
+`rz-update.path` and the root-only `rz-update.service` are installed but
+are not members of `rz-full.service`; they handle only the fixed update-request file.
+
 `rz-monitor-agent.service` is installed only on managed nodes, runs
-`rz-monitor-agent`, and is not part of `rz.target`. Build it separately with
+`rz-monitor-agent`, and is not part of `rz-full.service`. Its `rz install-agent`
+command verifies a signed Agent package with the official public key compiled into the
+release CLI; it accepts no public-key or key-ID argument. Build the Agent separately with
 `cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent`.
 The server bundle does not include this collector binary.
 
@@ -133,26 +169,27 @@ TLS behavior. Those remain native deployment acceptance work.
 
 `rz` has no systemd unit and is not a service alias. It is upgraded and rolled
 back only with the same signed release and `current` link as the four servers.
-Operators can invoke `/opt/rz/current/bin/rz` directly or add that directory to
-their managed shell `PATH`. Its current contract is read-only:
+The installer exposes the release-linked executable as `/usr/local/bin/rz`.
+Its service-management contract is:
 
 ```bash
-rz --json doctor
-rz --json version
-rz --json status all
-rz --json status admin
+rz start
+rz stop
+rz restart
+rz status
 ```
 
-`status` performs only bounded loopback `/health` reads. `doctor` reports
-installation paths, binary presence, and the same health summary. Its config
-reader accepts only the internal host and four port keys; credential values
-are neither retained nor emitted.
+`status` reports the four resident service states and fails when any unit is not
+active. `doctor` remains the bounded health check for all four loopback `/health`
+endpoints. Its config reader
+accepts only the internal host and four port keys; credential values are neither
+retained nor emitted.
 
 ## Configuration
 
-The release environment template contains eight non-empty production values:
+The release environment template contains ten non-empty production values:
 environment, runtime root, JWT secret, IPC token, Monitor Agent token, Monitor
-node ID, bundle
+node ID, the Admin notification key, the Reports notification key, bundle
 signature enforcement, and the public verification key. Ports, database paths,
 pool limits, logging, timezone, retention, and task timeout use code defaults
 unless explicitly overridden. Do not add blank optional values; an absent
@@ -177,13 +214,44 @@ Supported optional overrides are:
 - `RUSTZEN_MONITOR_CONTROLLER_URL` for a remote Monitor Agent; its default is
   the local Admin agent-report endpoint
 
+### Reverse-proxy upload limit
+
+The public reverse proxy must allow the Admin deployment upload contract before
+forwarding `/api/manage/deploy/upload` to port 9801. Admin accepts a release file up
+to 256 MiB and reserves another 1 MiB for multipart framing, so an Nginx server or
+location block must set at least:
+
+```nginx
+client_max_body_size 257m;
+```
+
+Reload Nginx and verify its effective configuration before uploading a release.
+The default Nginx 1 MiB limit rejects the signed server bundle with HTTP 413 before
+Admin can validate or record it.
+
 ## Apply, recovery, and rollback
 
 Only `owner` may view or mutate releases. Admin, Viewer, and custom roles cannot
 receive deployment capabilities.
 
-Apply runs the fixed transient `rz-update.service` outside the Admin service
-cgroup. The worker:
+Admin stores owner-uploaded, already signature-validated candidates in
+`/opt/rz/data/releases`. The directory is writable only by the `rz-admin` service
+identity; installed bundle files remain installer-owned and group-readable. Every
+read, deploy, recovery, and rollback path revalidates the signed bundle, so replacing
+or corrupting a stored file cannot introduce unsigned code.
+
+Admin writes `/opt/rz/data/update-requests/pending.json` with only the release ID and
+actor. The request is created as a private `0600` file in the same directory, fully
+synced, and atomically renamed into place; a pending or processing request prevents a
+second request from replacing it. `rz-update.path` starts the fixed root-only
+`rz-update.service` outside the Admin service cgroup; the helper rejects links,
+non-regular files, malformed requests and invalid release IDs before invoking the
+worker. A malformed claimed request remains at
+`/opt/rz/data/update-requests/.pending.json.processing` for diagnosis rather than
+being silently deleted. The worker retains a valid claimed request through all
+candidate/current-release validation, database setup and backup preflight. It removes
+the claimed request only after the initial durable update journal is written, which is
+the explicit acceptance point for the update transaction. The worker:
 
 1. revalidates the candidate signed bundle and current installed rollback
    bundle;
@@ -223,11 +291,11 @@ envelopes with surviving module requests, direct delegation rejection, all four
 database corruption/restore boundaries, and the Manifest
 service-restart/route-change/incompatible HTTP contract.
 
-Before the 24 four-service startup orders, the verifier prepares its disposable
-Monitor database with `init-db`, `bind-database`, and `validate-database` in
-that order. The Monitor controller remains fail-closed and does not migrate the
-database at process start. The public Just target runs its pinned Bun static
-harness-contract test before its Rust checks, builds, and dynamic verifier.
+The verifier may call the Monitor database commands as internal idempotence checks,
+but the production path does not depend on them. `rz-monitor controller` creates,
+migrates and validates its fresh database before opening the service. The public Just
+target runs its pinned Bun static harness-contract test before its Rust checks, builds,
+and dynamic verifier.
 
 The worker verifier also exercises Monitoring shared-capability navigation,
 owner/viewer policy access, report fencing, alert/recovery transitions, pagination,
@@ -290,7 +358,11 @@ only, not production-wide latency claims.
 
 Reports runs as the dedicated unprivileged `rz-reports` user. The installer
 creates that account and grants it only `data/reports` (including the database
-and browser directories) plus `logs/reports`; `rz-reports.service` keeps Chromium sandboxing enabled and uses systemd
+and browser directories) plus `logs/reports`; each other resident service is
+likewise limited to its own database/data paths and `logs/<module>`. Module log
+directories and files inherit the dedicated `rz-log-control` group so the owner-only Admin log
+diagnostics API can read, archive, and clean them up; service users cannot read
+one another's logs. `rz-reports.service` keeps Chromium sandboxing enabled and uses systemd
 privilege restrictions. Do not run Reports browser execution as root or add
 Chromium `--no-sandbox` to production configuration.
 Linux hosts must permit unprivileged user namespaces for Chromium's user

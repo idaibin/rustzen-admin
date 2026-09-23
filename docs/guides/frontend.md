@@ -8,7 +8,9 @@ build all pass on a newer pair.
 Rules for frontend work under `apps/web/`.
 
 The UI stack is `antd` + `@ant-design/pro-components` as the single component
-library in this application, with `@ant-design/icons` for icon usage.
+library in this application. Sidebar navigation uses `lucide-react` with one
+function-specific outline icon per destination; existing Ant Design control icons
+remain available outside navigation.
 Tailwind CSS is used for layout and spacing only; it must not be treated as a UI
 component system.
 

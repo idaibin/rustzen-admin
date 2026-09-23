@@ -12,6 +12,9 @@
 
 ## Reading Order
 
+Unless explicitly relative (such as `../../DESIGN.md`), `docs/` and command paths
+in this repository's nested guidance are relative to the repository root.
+
 1. Read `README.md`.
 2. Read `AGENTS.md`.
 3. For product boundary, positioning, direction, or module-purpose decisions,
@@ -32,7 +35,7 @@
 - Deployment assets live in `deploy/`.
 - Root keeps workspace metadata, docs, command entry points, and shared crates.
 - Deployment contract uses one signed `target/rz/rz-<version>-<arch>.tar`
-  bundle, `/opt/rz`, `deploy/rz.target`, `deploy/rz-recovery.service`, four
+  bundle, `/opt/rz`, `deploy/rz-full.service`, `deploy/rz-recovery.service`, four
   server units, and `deploy/setup-layout.sh`.
 - Do not apply Peripheral Vercel, Tauri client, or legacy `zen-server` /
   `zen-web` layout rules to this repository.

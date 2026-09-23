@@ -1,6 +1,0 @@
-version: 3
-status: historical-superseded
-role: legacy-artifact-pointer
-artifact_id: rustzen-admin-application-ui-standardization
-superseded_by: DESIGN.md
-note: Legacy hashes, scores, visual-source declarations, and approval placeholders are intentionally retired and must not be used as current contracts.

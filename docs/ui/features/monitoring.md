@@ -44,15 +44,7 @@ The route remains `/monitoring/incidents`.
 | Nodes / Global Settings drawer | One configuration Card with CPU, memory, disk and offline controls; one Save and last-update footer | Four controls share one Form; outlined numeric inputs remain visible on the panel. Management permission controls editing and Save. |
 | Daily Summaries | PageCard, DataTableShell, ProTable, separate bottom Pagination and DataState | No search input. Browse per-node daily summaries using the existing fixed-size pagination, without fabricated zero-valued ranges. It refreshes in the background every 30 seconds. At the 390px narrow layout, Date, Node, and Coverage remain visible; Samples and the resource, offline, and incident detail columns are hidden until the `sm` breakpoint so rows do not collapse into vertical text or crop at the right edge. |
 
-The reusable notification-delivery indicator appears in the Incidents page
-header only in the `full` and `monitor-notify` selections. It is a compact
-status trigger; clicking reveals pending and quarantine counts with their
-charged bytes, the sum of all five irreversible gap counters, and formatted
-nullable delivery timestamps. Pure `monitor` has no indicator, notification
-endpoint, or card test identifier in its generated or emitted Web artifact.
-
-At 390px the delivery indicator remains in the readable Incident page header. The
-filters wrap without overlap, the table and bottom pagination stay within the
+At 390px the filters wrap without overlap, the table and bottom pagination stay within the
 content viewport, and the table retains its own bounded scroll behavior if a
 future localized value needs more room. The visible Event header and first row
 stay within normal compact table height, so the screenshot demonstrates readable
@@ -151,25 +143,7 @@ point markers and use their lines.
 
 The Nodes Drawer is informational until the Web product has a secure delivery path for
 signed release files and a root-only secret provisioning boundary. It presents ordered
-Ant Design steps for archive, manifest, envelope, trusted key, key ID, root-only config
-format, and CLI phases. Its primary execution action is disabled. It contains no copied
+Ant Design steps for the signed Agent package, full Controller bundle, HTTPS endpoint,
+root-only config format, and CLI phases. Controller pairing reuses the public key
+retained by the Agent installation and asks for no second key. Its primary execution action is disabled. It contains no copied
 shell block, token field, token value, or direct Agent command.
-
-## Notification delivery health
-
-In `full` and `monitor-notify`, the Incidents page header carries a compact
-delivery status trigger. Clicking it shows pending and quarantine counts, the
-irreversible total (omitted+expired+unconfirmed+quarantined+evicted), first/last
-gap and last success. Zero gaps is healthy; a nonzero total is explicit.
-Loading, 403 and 500 are distinct and each recoverable state has Retry. No
-payload is rendered.
-
-The Monitor Linux Chromium delivery-card extension has a local, checkout-bound
-closure: it passes only when
-`target/rz/monitoring-ui-state/current/manifest.json` matches the current
-checkout and has `status: "passed"`. It records 23 canonical route runs, 18
-owner and 26 viewer delivery steps, four screenshots, real Monitor SQLite and
-authorized API receipts, permission behavior, and either zero retries or a
-recorded single retry receipt. Pure Monitor absence remains covered by the
-selected-Web composition gate; runtime error and forbidden card rendering
-remains the component-test seam unless a bounded Monitor harness seam is added.

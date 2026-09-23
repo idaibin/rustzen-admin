@@ -80,10 +80,8 @@ validates the fixed identity and contract, and transactionally reconciles:
 - built-in role grants derived from the current capability catalog.
 
 Existing custom-role leaf grants are preserved and newly introduced
-capabilities remain unassigned. During the breaking split only, a legacy
-`monitor:*`, `insights:*`, or `reports:*` custom-role relation is expanded once
-to the exact capabilities in that module's first valid Manifest, then the
-wildcard relation is retired so later capabilities are not granted implicitly.
+capabilities remain unassigned. Module synchronization accepts exact capability
+grants only; it does not create, expand or retain module wildcard grants.
 
 Only after the database transaction commits is the immutable runtime registry
 swapped. Invalid or incompatible changes return the module to unavailable state
