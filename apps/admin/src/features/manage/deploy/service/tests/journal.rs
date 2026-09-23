@@ -2,7 +2,8 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Barrier, Mutex},
+    thread,
 };
 
 use super::super::{
@@ -10,7 +11,8 @@ use super::super::{
     claim_update_request, cleanup_failed_release, create_dir_all_durable, load_installed_bundle,
     read_update_journal_at, read_update_request, restore_database_paths,
     restore_release_state_with_paths, roll_services_with, run_boot_recovery, swap_symlink,
-    update_request_path, validate_upload_size, validate_version, write_update_journal_at,
+    take_update_request, update_request_path, validate_upload_size, validate_version,
+    write_update_journal_and_acknowledge, write_update_journal_at, write_update_request,
 };
 use crate::features::manage::deploy::types::{
     DeployComponent, DeploymentPayload, ExpireVersionRequest,
@@ -64,6 +66,189 @@ fn update_request_claim_moves_the_exact_pending_file_before_reading() {
     assert_eq!(parsed.release_id, 8);
     fs::remove_file(claimed).expect("remove claimed request");
     fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn update_request_writer_stays_private_under_admin_umask_and_enters_worker_transaction() {
+    use std::os::unix::fs::PermissionsExt;
+
+    struct UmaskGuard(libc::mode_t);
+    impl Drop for UmaskGuard {
+        fn drop(&mut self) {
+            unsafe { libc::umask(self.0) };
+        }
+    }
+
+    let root = std::env::temp_dir().join(format!("rz-update-writer-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    static UMASK_LOCK: Mutex<()> = Mutex::new(());
+    let write_result = {
+        let _serial = UMASK_LOCK.lock().expect("umask lock");
+        let _umask = UmaskGuard(unsafe { libc::umask(0o027) });
+        write_update_request(
+            &root,
+            &super::super::UpdateRequest { release_id: 9, deployed_by: "owner".to_string() },
+        )
+    };
+    write_result.expect("write update request");
+
+    let pending = update_request_path(&root);
+    assert_eq!(
+        fs::metadata(&pending).expect("pending metadata").permissions().mode() & 0o777,
+        0o600
+    );
+    let claimed = take_update_request(&root).expect("worker takes private request");
+    assert_eq!(claimed.request.release_id, 9);
+    assert_eq!(claimed.request.deployed_by, "owner");
+    assert!(!pending.exists());
+    assert!(claimed.path.is_file());
+    let journal_path = root.join("data/update-state.json");
+    let journal = update_journal_fixture(&root, 9);
+    write_update_journal_and_acknowledge(&journal, Some(&claimed.path), |journal| {
+        write_update_journal_at(&journal_path, journal)
+    })
+    .expect("durable journal acknowledges claimed request");
+    assert!(journal_path.is_file());
+    assert!(!claimed.path.exists());
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn invalid_claimed_update_request_is_retained_for_diagnosis() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = std::env::temp_dir().join(format!("rz-update-invalid-{}", uuid::Uuid::new_v4()));
+    let directory = root.join("data/update-requests");
+    fs::create_dir_all(&directory).expect("request directory");
+    let pending = update_request_path(&root);
+    fs::write(&pending, br#"{"releaseId":0,"deployedBy":"owner"}"#).expect("invalid request");
+    let mut permissions = fs::metadata(&pending).expect("pending metadata").permissions();
+    permissions.set_mode(0o600);
+    fs::set_permissions(&pending, permissions).expect("private mode");
+
+    assert!(take_update_request(&root).is_err());
+    assert!(!pending.exists());
+    let claimed = directory.join(".pending.json.processing");
+    assert!(claimed.is_file());
+    assert!(read_update_request(&claimed).is_err());
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn concurrent_update_request_writers_publish_exactly_one_pending_request() {
+    let root = std::env::temp_dir().join(format!("rz-update-concurrent-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    let barrier = Arc::new(Barrier::new(3));
+    let mut writers = Vec::new();
+    for release_id in [11, 12] {
+        let root = root.clone();
+        let barrier = Arc::clone(&barrier);
+        writers.push(thread::spawn(move || {
+            barrier.wait();
+            let result = write_update_request(
+                &root,
+                &super::super::UpdateRequest {
+                    release_id,
+                    deployed_by: format!("owner-{release_id}"),
+                },
+            );
+            (release_id, result.is_ok())
+        }));
+    }
+    barrier.wait();
+    let results =
+        writers.into_iter().map(|writer| writer.join().expect("writer thread")).collect::<Vec<_>>();
+    assert_eq!(results.iter().filter(|(_, succeeded)| *succeeded).count(), 1);
+    let successful_id = results
+        .into_iter()
+        .find_map(|(id, succeeded)| succeeded.then_some(id))
+        .expect("one writer succeeds");
+    assert_eq!(
+        read_update_request(&update_request_path(&root)).expect("pending request").release_id,
+        successful_id
+    );
+    assert!(fs::read_dir(root.join("data/update-requests")).expect("request directory").all(
+        |entry| !entry.expect("directory entry").file_name().to_string_lossy().ends_with(".new")
+    ));
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn writer_cannot_republish_pending_while_claimer_transfers_it_to_processing() {
+    let root = std::env::temp_dir().join(format!("rz-update-claim-race-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    write_update_request(
+        &root,
+        &super::super::UpdateRequest { release_id: 21, deployed_by: "owner".to_string() },
+    )
+    .expect("initial request");
+    let barrier = Arc::new(Barrier::new(3));
+    let claim_root = root.clone();
+    let claim_barrier = Arc::clone(&barrier);
+    let claimer = thread::spawn(move || {
+        claim_barrier.wait();
+        claim_update_request(&claim_root)
+    });
+    let write_root = root.clone();
+    let write_barrier = Arc::clone(&barrier);
+    let writer = thread::spawn(move || {
+        write_barrier.wait();
+        write_update_request(
+            &write_root,
+            &super::super::UpdateRequest { release_id: 22, deployed_by: "other".to_string() },
+        )
+    });
+    barrier.wait();
+    let claimed = claimer.join().expect("claimer thread").expect("claim succeeds");
+    assert!(writer.join().expect("writer thread").is_err());
+    assert!(!update_request_path(&root).exists());
+    assert_eq!(read_update_request(&claimed).expect("claimed request").release_id, 21);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[test]
+fn claimed_request_survives_pre_journal_failure_and_is_removed_only_after_durable_journal() {
+    let root = std::env::temp_dir().join(format!("rz-update-ack-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    write_update_request(
+        &root,
+        &super::super::UpdateRequest { release_id: 31, deployed_by: "owner".to_string() },
+    )
+    .expect("request");
+    let claimed = take_update_request(&root).expect("claim and parse request");
+    let journal = update_journal_fixture(&root, claimed.request.release_id);
+    assert!(
+        write_update_journal_and_acknowledge(&journal, Some(&claimed.path), |_| {
+            Err(std::io::Error::other("injected pre-journal failure").into())
+        })
+        .is_err()
+    );
+    assert!(claimed.path.is_file());
+
+    let journal_path = root.join("data/update-state.json");
+    write_update_journal_and_acknowledge(&journal, Some(&claimed.path), |journal| {
+        write_update_journal_at(&journal_path, journal)
+    })
+    .expect("journal durability acknowledges request");
+    assert!(journal_path.is_file());
+    assert!(!claimed.path.exists());
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+fn update_journal_fixture(root: &Path, release_id: i64) -> UpdateJournal {
+    UpdateJournal {
+        release_id,
+        backup_dir: root.join("data/backups/fixture"),
+        link: root.join("current"),
+        old_target: PathBuf::from("releases/0.5.0"),
+        new_release_dir: root.join("releases/0.5.1"),
+        install_staging_dir: root.join("releases/.0.5.1.1.installing"),
+        installed_by_update: true,
+        stage: "backedUp".to_string(),
+        restarted_units: Vec::new(),
+    }
 }
 
 #[tokio::test]

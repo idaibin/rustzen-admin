@@ -186,16 +186,21 @@ pub(super) async fn wait_for_health(
     url: &str,
     expected_version: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    for _ in 0..20 {
-        if let Ok(response) = client.get(url).send().await
-            && response.status().is_success()
-            && let Ok(body) = response.json::<HealthResponse>().await
-            && body.status == "ok"
-            && body.release_version == expected_version
-        {
-            return Ok(());
+    let probe = async {
+        loop {
+            if let Ok(response) = client.get(url).send().await
+                && response.status().is_success()
+                && let Ok(body) = response.json::<HealthResponse>().await
+                && body.status == "ok"
+                && body.release_version == expected_version
+            {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
-        tokio::time::sleep(Duration::from_millis(500)).await;
+    };
+    if tokio::time::timeout(Duration::from_secs(30), probe).await.is_ok() {
+        return Ok(());
     }
     Err(std::io::Error::other(format!("health gate failed for release {expected_version}: {url}"))
         .into())

@@ -3,7 +3,10 @@ use std::{
     fs,
     future::Future,
     io::{Read, Write},
-    os::unix::fs::{MetadataExt, OpenOptionsExt},
+    os::{
+        fd::AsRawFd,
+        unix::fs::{MetadataExt, OpenOptionsExt},
+    },
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -54,12 +57,28 @@ const SYSTEMD_UNITS: &[&str] =
 const UPDATE_REQUEST_DIR: &str = "update-requests";
 const UPDATE_REQUEST_FILE: &str = "pending.json";
 const UPDATE_REQUEST_PROCESSING_FILE: &str = ".pending.json.processing";
+const UPDATE_REQUEST_LOCK_FILE: &str = ".update-request.lock";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct UpdateRequest {
     release_id: i64,
     deployed_by: String,
+}
+
+struct ClaimedUpdateRequest {
+    request: UpdateRequest,
+    path: PathBuf,
+}
+
+struct UpdateRequestLock {
+    file: fs::File,
+}
+
+impl Drop for UpdateRequestLock {
+    fn drop(&mut self) {
+        unsafe { libc::flock(self.file.as_raw_fd(), libc::LOCK_UN) };
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -333,21 +352,24 @@ impl DeployService {
     }
 
     pub async fn run_update_worker(id: i64) -> Result<(), Box<dyn std::error::Error>> {
-        Self::run_update_worker_for(id, None).await
+        Self::run_update_worker_for(id, None, None).await
     }
 
     pub async fn run_update_request_worker() -> Result<(), Box<dyn std::error::Error>> {
         let runtime_root = fs::canonicalize(CONFIG.runtime_root_dir())?;
-        let claimed = claim_update_request(&runtime_root)?;
-        let request = read_update_request(&claimed);
-        fs::remove_file(&claimed)?;
-        let request = request?;
-        Self::run_update_worker_for(request.release_id, Some(request.deployed_by)).await
+        let claimed = take_update_request(&runtime_root)?;
+        Self::run_update_worker_for(
+            claimed.request.release_id,
+            Some(claimed.request.deployed_by),
+            Some(&claimed.path),
+        )
+        .await
     }
 
     async fn run_update_worker_for(
         id: i64,
         deployed_by: Option<String>,
+        claimed_request: Option<&Path>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         recover_interrupted_update().await?;
         let pool = crate::infra::db::create_default_pool().await?;
@@ -399,7 +421,7 @@ impl DeployService {
             stage: "backedUp".to_string(),
             restarted_units: Vec::new(),
         };
-        write_update_journal(&journal)?;
+        write_update_journal_and_acknowledge(&journal, claimed_request, write_update_journal)?;
 
         let update_result = async {
             journal.stage = "installing".to_string();
@@ -444,18 +466,11 @@ impl DeployService {
         .await;
 
         if let Err(error) = update_result {
-            let rollback_result = rollback_update(&journal).await;
-            return match rollback_result {
-                Ok(()) => {
-                    remove_update_journal()?;
-                    tracing::error!(%error, "Release update failed and was rolled back");
-                    Ok(())
-                }
-                Err(rollback_error) => Err(std::io::Error::other(format!(
-                    "release update failed: {error}; rollback failed: {rollback_error}"
-                ))
-                .into()),
-            };
+            return complete_update_failure(
+                error,
+                rollback_update(&journal).await,
+                remove_update_journal,
+            );
         }
         remove_update_journal()?;
         Ok(())
@@ -473,6 +488,30 @@ impl DeployService {
     }
 }
 
+fn complete_update_failure<F>(
+    update_error: Box<dyn std::error::Error>,
+    rollback_result: Result<(), Box<dyn std::error::Error>>,
+    remove_journal: F,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: FnOnce() -> Result<(), std::io::Error>,
+{
+    match rollback_result {
+        Ok(()) => {
+            remove_journal()?;
+            tracing::error!(%update_error, "Release update failed and was rolled back");
+            Err(std::io::Error::other(format!(
+                "release update failed and was rolled back: {update_error}"
+            ))
+            .into())
+        }
+        Err(rollback_error) => Err(std::io::Error::other(format!(
+            "release update failed: {update_error}; rollback failed: {rollback_error}"
+        ))
+        .into()),
+    }
+}
+
 fn update_request_path(runtime_root: &Path) -> PathBuf {
     runtime_root.join("data").join(UPDATE_REQUEST_DIR).join(UPDATE_REQUEST_FILE)
 }
@@ -480,33 +519,90 @@ fn update_request_path(runtime_root: &Path) -> PathBuf {
 fn write_update_request(runtime_root: &Path, request: &UpdateRequest) -> Result<(), ServiceError> {
     let directory = runtime_root.join("data").join(UPDATE_REQUEST_DIR);
     let path = update_request_path(runtime_root);
-    if fs::symlink_metadata(&directory)
-        .map(|metadata| metadata.file_type().is_symlink())
-        .unwrap_or(false)
-        || fs::symlink_metadata(&path)
-            .map(|metadata| metadata.file_type().is_symlink())
-            .unwrap_or(false)
-    {
-        return Err(ServiceError::InvalidOperation(
-            "Update request path must not be a symlink".into(),
-        ));
-    }
-    let temporary = directory.join(".pending.json.new");
-    fs::write(
-        &temporary,
-        serde_json::to_vec(request)
-            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?,
-    )
-    .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
-    fs::rename(temporary, path)
+    let _lock = lock_update_request_directory(&directory)
         .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
-    Ok(())
+    for request_path in [&path, &directory.join(UPDATE_REQUEST_PROCESSING_FILE)] {
+        match fs::symlink_metadata(request_path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(ServiceError::InvalidOperation(
+                    "Update request path must not be a symlink".into(),
+                ));
+            }
+            Ok(_) => {
+                return Err(ServiceError::InvalidOperation(
+                    "An update request is already pending or being processed".into(),
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(ServiceError::InvalidOperation(error.to_string())),
+        }
+    }
+
+    let temporary = directory.join(format!(".pending.json.{}.new", uuid::Uuid::new_v4()));
+    let bytes = serde_json::to_vec(request)
+        .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+    let result = (|| -> Result<(), ServiceError> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(&temporary)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        file.write_all(&bytes)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        file.sync_all().map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        let metadata =
+            file.metadata().map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        if !metadata.is_file() || metadata.mode() & 0o777 != 0o600 {
+            return Err(ServiceError::InvalidOperation(
+                "Update request temporary file must be private and regular".into(),
+            ));
+        }
+        drop(file);
+        fs::rename(&temporary, &path)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        sync_directory(&directory)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+fn sync_directory(directory: &Path) -> Result<(), std::io::Error> {
+    fs::File::open(directory)?.sync_all()
+}
+
+fn lock_update_request_directory(directory: &Path) -> Result<UpdateRequestLock, std::io::Error> {
+    let directory_metadata = fs::symlink_metadata(directory)?;
+    if directory_metadata.file_type().is_symlink() || !directory_metadata.is_dir() {
+        return Err(std::io::Error::other("update request directory must be a regular directory"));
+    }
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(directory.join(UPDATE_REQUEST_LOCK_FILE))?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() || metadata.mode() & 0o777 != 0o600 {
+        return Err(std::io::Error::other("update request lock must be private and regular"));
+    }
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(UpdateRequestLock { file })
 }
 
 fn claim_update_request(runtime_root: &Path) -> Result<PathBuf, std::io::Error> {
     let directory = runtime_root.join("data").join(UPDATE_REQUEST_DIR);
     let pending = update_request_path(runtime_root);
     let claimed = directory.join(UPDATE_REQUEST_PROCESSING_FILE);
+    let _lock = lock_update_request_directory(&directory)?;
     if fs::symlink_metadata(&claimed).is_ok() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::AlreadyExists,
@@ -514,7 +610,54 @@ fn claim_update_request(runtime_root: &Path) -> Result<PathBuf, std::io::Error> 
         ));
     }
     fs::rename(pending, &claimed)?;
+    sync_directory(&directory)?;
     Ok(claimed)
+}
+
+fn take_update_request(
+    runtime_root: &Path,
+) -> Result<ClaimedUpdateRequest, Box<dyn std::error::Error>> {
+    let claimed = claim_update_request(runtime_root)?;
+    let request = read_update_request(&claimed);
+    let request = match request {
+        Ok(request) => request,
+        Err(error) => {
+            tracing::error!(path = %claimed.display(), %error, "Retaining invalid update request for diagnosis");
+            return Err(error);
+        }
+    };
+    Ok(ClaimedUpdateRequest { request, path: claimed })
+}
+
+fn acknowledge_claimed_update_request(claimed: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let metadata = fs::symlink_metadata(claimed)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.mode() & 0o077 != 0 {
+        return Err(
+            std::io::Error::other("claimed update request must be private and regular").into()
+        );
+    }
+    fs::remove_file(claimed)?;
+    sync_directory(
+        claimed
+            .parent()
+            .ok_or_else(|| std::io::Error::other("claimed update request has no parent"))?,
+    )?;
+    Ok(())
+}
+
+fn write_update_journal_and_acknowledge<F>(
+    journal: &UpdateJournal,
+    claimed: Option<&Path>,
+    write_journal: F,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: FnOnce(&UpdateJournal) -> Result<(), Box<dyn std::error::Error>>,
+{
+    write_journal(journal)?;
+    if let Some(claimed) = claimed {
+        acknowledge_claimed_update_request(claimed)?;
+    }
+    Ok(())
 }
 
 fn read_update_request(path: &Path) -> Result<UpdateRequest, Box<dyn std::error::Error>> {

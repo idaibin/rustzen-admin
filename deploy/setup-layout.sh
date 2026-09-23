@@ -786,6 +786,7 @@ done
 
 "$SYSTEMCTL_BIN" daemon-reload
 "$SYSTEMCTL_BIN" enable rz-full.service rz-update.path
+"$SYSTEMCTL_BIN" start rz-update.path
 INSTALL_COMPLETED=true
 
 echo "Installed Rustzen $VERSION ($ARCH) at $RELEASE_DIR"

@@ -2,16 +2,36 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use super::super::{
     DeployService, SYSTEMD_UNITS, UpdateJournal, backup_database_online, backup_database_paths,
-    cleanup_failed_release, create_dir_all_durable, load_installed_bundle, read_update_journal_at,
-    restore_database_paths, restore_release_state_with_paths, roll_services_with,
-    run_boot_recovery, swap_symlink, validate_upload_size, validate_version,
+    cleanup_failed_release, complete_update_failure, create_dir_all_durable, load_installed_bundle,
+    read_update_journal_at, restore_database_paths, restore_release_state_with_paths,
+    roll_services_with, run_boot_recovery, swap_symlink, validate_upload_size, validate_version,
     write_update_journal_at,
 };
+
+#[test]
+fn successful_rollback_still_propagates_the_original_update_failure() {
+    let journal_removed = Arc::new(AtomicBool::new(false));
+    let observed = Arc::clone(&journal_removed);
+    let error = complete_update_failure(
+        std::io::Error::other("injected upgrade failure").into(),
+        Ok(()),
+        move || {
+            observed.store(true, Ordering::SeqCst);
+            Ok(())
+        },
+    )
+    .expect_err("successful rollback must not report a successful update");
+    assert!(journal_removed.load(Ordering::SeqCst));
+    assert!(error.to_string().contains("injected upgrade failure"));
+}
 use crate::features::manage::deploy::types::{
     DeployComponent, DeploymentPayload, ExpireVersionRequest,
 };

@@ -91,6 +91,28 @@ pub(super) fn extract_archive(
 }
 
 #[cfg(unix)]
+pub(super) fn normalize_release_directory_modes(release: &Path) -> Result<(), std::io::Error> {
+    for (directory, mode) in [
+        (release.to_path_buf(), 0o755),
+        (release.join("bin"), 0o755),
+        (release.join("systemd"), 0o755),
+        (release.join("identity"), 0o755),
+        (release.join("config"), 0o700),
+    ] {
+        if !fs::symlink_metadata(&directory)?.file_type().is_dir() {
+            return Err(std::io::Error::other("release member directory is invalid"));
+        }
+        set_mode(&directory, mode)?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub(super) fn normalize_release_directory_modes(_release: &Path) -> Result<(), std::io::Error> {
+    Ok(())
+}
+
+#[cfg(unix)]
 pub(super) fn normalize_release_config_ownership(
     release: &Path,
     runtime_root: &Path,

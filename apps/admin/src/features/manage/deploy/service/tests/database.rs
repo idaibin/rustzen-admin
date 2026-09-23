@@ -29,11 +29,25 @@ fn four_database_backup_and_restore_are_independent() {
     for path in &paths {
         let name = path.file_stem().and_then(|value| value.to_str()).expect("name");
         fs::write(path, format!("{name}-database")).expect("database");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o640)).expect("database mode");
+        }
         fs::write(PathBuf::from(format!("{}-wal", path.display())), format!("{name}-wal"))
             .expect("wal");
     }
 
     backup_database_paths(&paths, &backup).expect("backup");
+    #[cfg(unix)]
+    for path in &paths {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(
+            backup.join(path.file_name().expect("name")),
+            fs::Permissions::from_mode(0o600),
+        )
+        .expect("private backup mode");
+    }
     for path in &paths {
         fs::write(path, "corrupt").expect("corrupt");
         let wal = PathBuf::from(format!("{}-wal", path.display()));
@@ -46,6 +60,14 @@ fn four_database_backup_and_restore_are_independent() {
     for path in &paths {
         let name = path.file_stem().and_then(|value| value.to_str()).expect("name");
         assert_eq!(fs::read_to_string(path).expect("database"), format!("{name}-database"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(path).expect("database metadata").permissions().mode() & 0o777,
+                0o640
+            );
+        }
         assert!(!PathBuf::from(format!("{}-wal", path.display())).exists());
     }
     fs::remove_dir_all(root).expect("remove backup root");

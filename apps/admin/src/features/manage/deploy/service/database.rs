@@ -107,24 +107,29 @@ pub(super) fn restore_database_paths(
             .parent()
             .filter(|parent| parent.is_dir())
             .ok_or_else(|| std::io::Error::other("database destination directory is missing"))?;
-        sources.push((source, path.clone(), parent.to_path_buf()));
+        let destination_metadata = fs::symlink_metadata(path)?;
+        if !destination_metadata.file_type().is_file() {
+            return Err(std::io::Error::other("database destination is not a regular file").into());
+        }
+        sources.push((source, path.clone(), parent.to_path_buf(), destination_metadata));
     }
 
     let restore_id = uuid::Uuid::new_v4();
     let mut staged = Vec::new();
-    for (source, destination, parent) in &sources {
+    for (source, destination, parent, metadata) in &sources {
         let file_name =
             destination.file_name().ok_or_else(|| std::io::Error::other("invalid db path"))?;
         let temporary =
             parent.join(format!(".{}.restore-{restore_id}", file_name.to_string_lossy()));
         fs::copy(source, &temporary)?;
+        preserve_database_permissions(&temporary, metadata)?;
         fs::OpenOptions::new().read(true).open(&temporary)?.sync_all()?;
         staged.push((temporary, destination.clone()));
     }
     for (temporary, destination) in &staged {
         fs::rename(temporary, destination)?;
     }
-    for (_, destination, _) in &sources {
+    for (_, destination, _, _) in &sources {
         for suffix in ["-wal", "-shm"] {
             let sidecar = PathBuf::from(format!("{}{suffix}", destination.display()));
             if sidecar.exists() {
@@ -132,10 +137,32 @@ pub(super) fn restore_database_paths(
             }
         }
     }
-    for (_, _, parent) in &sources {
+    for (_, _, parent, _) in &sources {
         sync_directory(parent)?;
     }
     Ok(())
+}
+
+#[cfg(unix)]
+fn preserve_database_permissions(
+    path: &Path,
+    original: &fs::Metadata,
+) -> Result<(), std::io::Error> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    let copied = fs::symlink_metadata(path)?;
+    if copied.uid() != original.uid() || copied.gid() != original.gid() {
+        std::os::unix::fs::chown(path, Some(original.uid()), Some(original.gid()))?;
+    }
+    fs::set_permissions(path, fs::Permissions::from_mode(original.permissions().mode() & 0o777))
+}
+
+#[cfg(not(unix))]
+fn preserve_database_permissions(
+    path: &Path,
+    original: &fs::Metadata,
+) -> Result<(), std::io::Error> {
+    fs::set_permissions(path, original.permissions())
 }
 
 pub(super) fn database_paths() -> [PathBuf; 4] {

@@ -4,7 +4,8 @@ mod validation;
 pub use install::installed_release_arch;
 use install::{
     collect_installed_files, extract_archive, installed_mode_matches,
-    normalize_release_config_ownership, sync_directory, sync_release_tree,
+    normalize_release_config_ownership, normalize_release_directory_modes, sync_directory,
+    sync_release_tree,
 };
 
 use validation::inspect_archive;
@@ -106,6 +107,7 @@ pub fn install_bundle(
     fs::create_dir(&staging)?;
 
     let result = extract_archive(content, version, &info.arch, &staging).and_then(|()| {
+        normalize_release_directory_modes(&staging)?;
         normalize_release_config_ownership(&staging, runtime_root)?;
         sync_release_tree(&staging)?;
         fs::rename(&staging, &destination)?;
@@ -397,6 +399,18 @@ pub(crate) mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
+            for (path, expected) in [
+                (release.clone(), 0o755),
+                (release.join("bin"), 0o755),
+                (release.join("systemd"), 0o755),
+                (release.join("identity"), 0o755),
+                (release.join("config"), 0o700),
+            ] {
+                assert_eq!(
+                    fs::metadata(path).expect("directory").permissions().mode() & 0o777,
+                    expected
+                );
+            }
             let reports = release.join("bin/rz-reports");
             fs::set_permissions(&reports, fs::Permissions::from_mode(0o644)).expect("chmod");
             assert!(verify_installed_bundle(&data, &info, version, &release).is_err());

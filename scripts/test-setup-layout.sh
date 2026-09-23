@@ -455,7 +455,7 @@ for unit in rz-full.service rz-recovery.service rz-admin.service rz-monitor.serv
         "$(readlink "$SYSTEMD_DIR_ONE/$unit")" \
         "$unit systemd link"
 done
-EXPECTED_SYSTEMCTL_CALLS="$(printf 'daemon-reload\nenable rz-full.service rz-update.path\n')"
+EXPECTED_SYSTEMCTL_CALLS="$(printf 'daemon-reload\nenable rz-full.service rz-update.path\nstart rz-update.path\n')"
 assert_equals "$EXPECTED_SYSTEMCTL_CALLS" "$(cat "$SYSTEMCTL_LOG_PATH")" \
     "initial systemctl calls"
 
