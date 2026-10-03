@@ -60,7 +60,7 @@ function SystemModulePage() {
             key: "enabled",
             width: "22%",
             render: (_: unknown, module: SystemModule.Item) => (
-                <Tag color={module.enabled ? "blue" : "default"}>
+                <Tag color={module.enabled ? "success" : "default"}>
                     {module.enabled ? t("已启用", "Enabled") : t("已禁用", "Disabled")}
                 </Tag>
             ),
@@ -193,12 +193,15 @@ function ModuleHealthTag({ module }: { module: SystemModule.Item }) {
         return <Tag color="default">{t("已禁用", "Disabled")}</Tag>;
     }
     if (module.available) {
-        return <Tag color="green">{t("可用", "Available")}</Tag>;
+        return <Tag color="success">{t("可用", "Available")}</Tag>;
     }
     if (module.compatible) {
         return (
-            <Tooltip title={module.error || t("未提供错误原因", "No error details")}>
-                <Tag color="orange" tabIndex={0}>
+            <Tooltip
+                trigger={["hover", "focus"]}
+                title={module.error || t("未提供错误原因", "No error details")}
+            >
+                <Tag color="warning" tabIndex={0}>
                     {t("不可用", "Unavailable")}
                 </Tag>
             </Tooltip>
@@ -206,16 +209,22 @@ function ModuleHealthTag({ module }: { module: SystemModule.Item }) {
     }
     if (module.releaseVersion) {
         return (
-            <Tooltip title={module.error || t("未提供错误原因", "No error details")}>
-                <Tag color="red" tabIndex={0}>
+            <Tooltip
+                trigger={["hover", "focus"]}
+                title={module.error || t("未提供错误原因", "No error details")}
+            >
+                <Tag color="error" tabIndex={0}>
                     {t("不兼容", "Incompatible")}
                 </Tag>
             </Tooltip>
         );
     }
     return (
-        <Tooltip title={module.error || t("未提供错误原因", "No error details")}>
-            <Tag color="red" tabIndex={0}>
+        <Tooltip
+            trigger={["hover", "focus"]}
+            title={module.error || t("未提供错误原因", "No error details")}
+        >
+            <Tag color="error" tabIndex={0}>
                 {t("未就绪", "Not ready")}
             </Tag>
         </Tooltip>

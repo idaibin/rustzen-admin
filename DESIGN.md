@@ -12,7 +12,7 @@ colors:
   foreground: "#172033"
   foreground-muted: "#64748B"
   success: "#16804A"
-  warning: "#A86108"
+  warning: "#A76008"
   danger: "#C9363E"
   info: "#1769E8"
 typography:

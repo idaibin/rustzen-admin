@@ -21,7 +21,7 @@
     --accent-foreground: var(--foreground);
     --destructive: #c9363e;
     --status-success: #16804a;
-    --status-warning: #a86108;
+    --status-warning: #a76008;
     --status-danger: #c9363e;
     --status-info: #1769e8;
     --status-success-surface: color-mix(in srgb, var(--status-success) 5%, var(--card));
