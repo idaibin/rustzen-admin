@@ -1,8 +1,8 @@
 import { MoonOutlined, SunOutlined } from "@ant-design/icons";
-import { App as AntdApp, Button, ConfigProvider, theme as antdTheme } from "antd";
+import { App as AntdApp, Button, ConfigProvider, theme as antdTheme, type ThemeConfig } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
 
 import { t, useLocale } from "@/lib/i18n";
 
@@ -22,6 +22,41 @@ function readStoredTheme(): Theme {
     }
 }
 
+// CSS owns the palette. Ant Design algorithms need concrete colors, not var() seeds.
+function readThemeTokens(): ThemeConfig["token"] {
+    if (typeof document === "undefined") return {};
+    const style = getComputedStyle(document.documentElement);
+    const color = (name: string) => style.getPropertyValue(`--${name}`).trim();
+    return {
+        colorPrimary: color("primary"),
+        colorPrimaryHover: color("primary-hover"),
+        colorPrimaryActive: color("primary-active"),
+        colorInfo: color("status-info"),
+        colorInfoText: color("status-info"),
+        colorSuccess: color("status-success"),
+        colorSuccessText: color("status-success"),
+        colorWarning: color("status-warning"),
+        colorWarningText: color("status-warning"),
+        colorError: color("status-danger"),
+        colorErrorText: color("status-danger"),
+        colorLink: color("link"),
+        colorBgBase: color("card"),
+        colorBgLayout: color("background"),
+        colorBgContainer: color("card"),
+        colorBgElevated: color("popover"),
+        colorFillTertiary: color("muted"),
+        colorTextBase: color("foreground"),
+        colorText: color("foreground"),
+        colorTextDescription: color("muted-foreground"),
+        colorTextSecondary: color("muted-foreground"),
+        colorTextTertiary: color("muted-foreground"),
+        colorTextPlaceholder: color("placeholder"),
+        colorTextLightSolid: color("primary-foreground"),
+        colorBorder: color("input"),
+        colorBorderSecondary: color("border"),
+    };
+}
+
 const ThemeContext = createContext<{
     theme: Theme;
     setTheme: (theme: Theme) => void;
@@ -30,13 +65,15 @@ const ThemeContext = createContext<{
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>(readStoredTheme);
     const locale = useLocale();
+    const [palette, setPalette] = useState(readThemeTokens);
 
     const antdLocale = locale === "en-US" ? enUS : zhCN;
     const algorithm = theme === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm;
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         document.documentElement.classList.remove("white");
         document.documentElement.classList.toggle("dark", theme === "dark");
+        setPalette(readThemeTokens());
         try {
             localStorage.setItem(THEME_STORAGE_KEY, theme);
         } catch {
@@ -53,16 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                     algorithm,
                     token: {
                         borderRadius: 8,
-                        colorLink: theme === "dark" ? "#9fc5ff" : "#1769e8",
-                        colorPrimary: theme === "dark" ? "#e9edf4" : "#1769e8",
-                        colorBgLayout: "var(--background)",
-                        colorBgContainer: "var(--card)",
-                        colorFillTertiary: "var(--muted)",
-                        colorText: "var(--foreground)",
-                        colorTextDescription: "var(--muted-foreground)",
-                        colorTextLightSolid: "var(--primary-foreground)",
-                        colorTextSecondary: "var(--muted-foreground)",
-                        colorTextTertiary: "var(--muted-foreground)",
+                        ...palette,
                         controlHeight: 36,
                         fontSize: 14,
                         lineWidth: 1,
@@ -74,6 +102,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                             borderRadius: 8,
                             controlHeight: 36,
                             fontWeight: 500,
+                            primaryColor: "var(--primary-foreground)",
+                            colorPrimary: "var(--primary)",
+                            colorPrimaryHover: "var(--primary-hover)",
+                            colorPrimaryActive: "var(--primary-active)",
                         },
                         Card: {
                             colorBgContainer: "var(--card)",
@@ -93,6 +125,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                             itemSelectedBg: "var(--sidebar-accent)",
                             itemSelectedColor: "var(--primary)",
                             itemHoverBg: "var(--muted)",
+                            itemHoverColor: "var(--foreground)",
                             iconSize: 14,
                             collapsedIconSize: 14,
                             itemBorderRadius: 8,
@@ -100,10 +133,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                         },
                         Select: {
                             borderRadius: 8,
+                            optionSelectedBg: "var(--accent)",
                         },
                         Tag: {
                             defaultBg: "var(--muted)",
                             defaultColor: "var(--foreground)",
+                            colorSuccess: "var(--status-success)",
+                            colorSuccessBg: "var(--status-success-surface)",
+                            colorWarning: "var(--status-warning)",
+                            colorWarningBg: "var(--status-warning-surface)",
+                            colorError: "var(--status-danger)",
+                            colorErrorBg: "var(--status-danger-surface)",
+                            colorInfo: "var(--status-info)",
+                            colorInfoBg: "var(--status-info-surface)",
                         },
                         Table: {
                             borderColor: "transparent",

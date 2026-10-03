@@ -59,14 +59,14 @@ function LoginPage() {
 
                 <div className="mx-auto grid min-h-[100svh] w-full items-center gap-8 py-24 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_500px] xl:gap-14 2xl:grid-cols-[minmax(0,1fr)_532px] 2xl:gap-20">
                     <section className="hidden min-w-0 self-stretch lg:flex lg:flex-col lg:justify-center">
-                        <div className="h-105 xl:h-125 2xl:h-153">
+                        <div className="login-illustration h-105 xl:h-125 2xl:h-153">
                             <img
                                 src={loginIllustrationUrl}
                                 alt={`${APP_BRAND_NAME} Operations Management Platform`}
-                                className="h-full w-full object-contain object-left drop-shadow-[0_28px_60px_rgba(31,95,191,0.12)]"
+                                className="h-full w-full object-contain object-left"
                             />
                         </div>
-                        <div className="-mt-7 flex w-full items-center gap-5 pl-2 xl:-mt-9 xl:gap-6 2xl:-mt-14 2xl:gap-10 2xl:pl-3">
+                        <div className="mt-6 flex w-full items-center gap-5 pl-2 xl:gap-6 2xl:gap-10 2xl:pl-3">
                             <div className="shrink-0 text-[28px] leading-none font-extrabold whitespace-nowrap text-foreground xl:text-[34px] 2xl:text-[40px]">
                                 {t("让运维，更从容", "Operations, with confidence")}
                             </div>
@@ -86,7 +86,7 @@ function LoginPage() {
                     </section>
 
                     <Card
-                        className="w-full max-w-105 justify-self-center rounded-[18px] border border-border bg-card shadow-[0_24px_64px_rgba(31,65,116,0.1)] xl:max-w-125 2xl:max-w-133"
+                        className="w-full max-w-105 justify-self-center rounded-[18px] border border-border bg-card xl:max-w-125 2xl:max-w-133"
                         styles={{ body: { padding: 0 } }}
                         aria-label={t("登录", "Sign in")}
                     >
@@ -203,7 +203,7 @@ function LoginPage() {
                                         htmlType="submit"
                                         block
                                         loading={isSubmitting}
-                                        className="h-14 rounded-[10px] text-lg font-semibold shadow-[0_10px_22px_rgba(31,95,191,0.2)] 2xl:h-15"
+                                        className="h-14 rounded-[10px] text-lg font-semibold 2xl:h-15"
                                     >
                                         {isSubmitting
                                             ? t("正在登录...", "Signing in...")

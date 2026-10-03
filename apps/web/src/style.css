@@ -214,3 +214,9 @@
         display: inline-flex;
     }
 }
+
+/* The light illustration retains a matte surface in dark mode. */
+.dark .login-illustration {
+    background: var(--illustration-surface);
+    border-radius: 12px;
+}

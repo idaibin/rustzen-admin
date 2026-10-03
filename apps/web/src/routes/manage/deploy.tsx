@@ -316,10 +316,10 @@ function DeployStatusBadge({ record }: { record: Deploy.Item }) {
         return <Tag color="blue">{t("当前", "Current")}</Tag>;
     }
     if (record.isExpired) {
-        return <Tag color="red">{t("已过期", "Expired")}</Tag>;
+        return <Tag color="error">{t("已过期", "Expired")}</Tag>;
     }
     if (record.isDeployed) {
-        return <Tag color="green">{t("已部署", "Deployed")}</Tag>;
+        return <Tag color="success">{t("已部署", "Deployed")}</Tag>;
     }
     return <Tag>{t("已上传", "Uploaded")}</Tag>;
 }

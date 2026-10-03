@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Unify light and dark palettes through the existing CSS theme and Ant Design
+  provider; retain blue primary actions in dark mode and improve status text,
+  placeholders, elevated surfaces, and chart contrast.
+- Keep chart series roles consistent across themes and give the login illustration
+  a dark-mode matte surface with a separate, readable caption.
+
 ## [0.5.1] - 2026-09-22
 
 ### Added

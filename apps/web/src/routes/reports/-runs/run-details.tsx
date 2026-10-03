@@ -159,7 +159,9 @@ export function RunDetails({
                         {t("完成时间：", "Finished at: ")}
                         {formatDateTime(currentRun?.finishedAt)}
                     </p>
-                    {currentRun?.error ? <p className="text-red-600">{currentRun.error}</p> : null}
+                    {currentRun?.error ? (
+                        <p className="text-status-danger">{currentRun.error}</p>
+                    ) : null}
                     {currentRun ? (
                         <RetryRunButton run={currentRun} onRetried={onRetried} surface="audit" />
                     ) : null}

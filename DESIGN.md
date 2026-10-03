@@ -2,7 +2,7 @@
 name: "Rustzen Admin"
 description: "Shared visual semantics for the Rustzen self-hosted operations console"
 colors:
-  canvas: "#F2F5FA"
+  canvas: "#F3F5F8"
   sidebar: "#FBFCFE"
   header: "#FFFFFF"
   content: "#FFFFFF"
@@ -11,10 +11,10 @@ colors:
   primary: "#1769E8"
   foreground: "#172033"
   foreground-muted: "#64748B"
-  success: "#16A34A"
-  warning: "#F59E0B"
-  danger: "#E5484D"
-  info: "#4F46E5"
+  success: "#16804A"
+  warning: "#A86108"
+  danger: "#C9363E"
+  info: "#1769E8"
 typography:
   page-title:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -139,9 +139,25 @@ Ant Design supplies components, not the application geometry.
   visualization. Do not add route-local separator colors or duplicate a component's
   built-in border ownership.
 
-Dark mode, where retained by the product, must map the same semantic roles and preserve
-surface, focus, hover, disabled, and overlay contrast. It is compatibility behavior, not
-the canonical design-source theme for the 1920x1080 page suite.
+Dark mode maps the same semantic roles to slate surfaces and a readable blue accent.
+It must retain the blue brand identity rather than replacing primary actions with gray
+or white. Elevated overlays remain visibly distinct from content; input boundaries,
+placeholder text, keyboard focus and chart tooltips must remain readable in both themes.
+Primary buttons use the corresponding solid foreground, including dark ink on the brighter
+dark-mode blue. Success, warning and failure tags use Ant Design semantic presets, not
+independent green/orange/red palettes. Information uses blue; violet is a metric/chart
+series role, not a second information color.
+
+The existing `apps/web/src/styles/theme.css` owns concrete runtime palette values.
+`ThemeProvider` reads those values after applying the root theme before paint and feeds
+concrete colors to Ant Design's algorithms; CSS `var()` strings must not be algorithm
+color seeds. Ant Design continues to derive disabled and control states. Primary hover/active colors
+and the Tag semantic foregrounds and pale fills map to the shared CSS theme so button
+and status text retain contrast rather than inheriting unsuitable derived fills.
+Charts consume the same theme roles for axes, grid, series and tooltip surfaces.
+Chart series retain their blue/teal/violet/amber/red identity across themes.
+The existing light login illustration keeps a matte backing in dark mode, without
+modifying the image or adding glow or decorative shadows.
 
 ## Typography
 

@@ -85,12 +85,22 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                                     <LineChart data={data.points}>
                                         <XAxis
                                             dataKey="collectedAt"
+                                            stroke="var(--muted-foreground)"
                                             tickFormatter={(value) =>
                                                 new Date(String(value)).toLocaleTimeString()
                                             }
                                         />
-                                        <YAxis domain={[0, 100]} />
-                                        <Tooltip />
+                                        <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: "var(--popover)",
+                                                borderColor: "var(--border)",
+                                                borderRadius: 8,
+                                                color: "var(--foreground)",
+                                            }}
+                                            labelStyle={{ color: "var(--foreground)" }}
+                                            cursor={{ stroke: "var(--muted-foreground)" }}
+                                        />
                                         <Line
                                             type="monotone"
                                             dataKey="cpuPercent"

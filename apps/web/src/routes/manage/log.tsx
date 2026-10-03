@@ -290,7 +290,7 @@ const ActionBadge = ({ action }: { action: string }) => {
 const StatusBadge = ({ status }: { status: string }) => {
     const isSuccess = status === "SUCCESS";
     return (
-        <Tag color={isSuccess ? "green" : "red"}>
+        <Tag color={isSuccess ? "success" : "error"}>
             {isSuccess ? t("成功", "Success") : t("失败", "Failed")}
         </Tag>
     );
