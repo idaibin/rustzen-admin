@@ -6,6 +6,7 @@ import { appMessage, systemAPI } from "@/api";
 import { menuQueryOptions } from "@/api/system/menu/query-options";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions } from "@/constant/options";
+import { useSubmission } from "@/hooks/use-submission";
 import { localizeBuiltInMenuName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
@@ -27,7 +28,14 @@ interface RoleFormValues {
 
 export function RoleDialog({ children, record, mode = "create", onSuccess }: RoleDialogProps) {
     const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [menuIds, setMenuIds] = useState<number[]>([]);
     const [permissionSearch, setPermissionSearch] = useState("");
     const [form] = Form.useForm<RoleFormValues>();
@@ -154,7 +162,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
             return;
         }
 
-        setSubmitting(true);
+        if (!permissionReady || !beginSubmission()) return;
         try {
             if (mode === "create") {
                 await systemAPI.role.create({
@@ -179,8 +187,10 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
             form.resetFields();
             setOpen(false);
             setMenuIds([]);
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -188,10 +198,19 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
 
     return (
         <>
-            <span className="inline-flex" onClick={() => setOpen(true)}>
+            <span
+                className="inline-flex"
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
+            >
                 {children}
             </span>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 destroyOnHidden
                 onCancel={() => {
@@ -206,6 +225,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
                 width={900}
             >
                 <Form
+                    disabled={submitting}
                     form={form}
                     layout="vertical"
                     requiredMark={false}
@@ -303,6 +323,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
                         />
                     </Form.Item>
                     <DialogFooter
+                        error={submissionError}
                         onCancel={() => {
                             form.resetFields();
                             setMenuIds([]);

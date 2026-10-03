@@ -8,6 +8,7 @@ feature specs record only route-local composition, states, and evidence.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |
+| Admin / shared interactions | [Interaction-state unification](./features/interaction-state-unification.md) | [Product acceptance](../product/features/interaction-state-unification/spec.md) | Reviewed finite source/API/UI checklist passed; 19-route render matrix plus final targeted corrections; native deployment and selected-portal runtime excluded |
 | Monitoring | [Monitoring surfaces](./features/monitoring.md) | [Product spec](../product/features/monitoring/spec.md) | Current route contract; representative local UI checks; complete state matrix pending |
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Current contract; see scoped local verification |
 | Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Local runtime/browser state-closure verified; deployed and native-host runtime Not verified |

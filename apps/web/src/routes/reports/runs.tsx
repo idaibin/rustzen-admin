@@ -18,6 +18,7 @@ import {
     pagedTableProps,
     tablePagination,
 } from "@/components/table/table-presets";
+import { useSubmission } from "@/hooks/use-submission";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -97,7 +98,17 @@ function RunsPage() {
         if (current > lastPage) setCurrent(lastPage);
     }, [current, data, isFetching, total]);
 
+    const { submitting: cancelling, beginSubmission, finishSubmission } = useSubmission();
     const cancel = useMutation({
+        onSettled: finishSubmission,
+        onError: (error) => {
+            if (!(error instanceof Response))
+                appMessage.error(
+                    error instanceof Error
+                        ? error.message
+                        : t("取消执行失败，请重试。", "Cancelling the run failed. Please retry."),
+                );
+        },
         mutationFn: reportsAPI.cancelRun,
         onSuccess: async (run) => {
             await client.invalidateQueries({ queryKey: ["reports", "runs"] });
@@ -174,15 +185,22 @@ function RunsPage() {
                                 danger
                                 data-testid={`run-cancel-${row.id}`}
                                 aria-label={t("取消执行", "Cancel run")}
-                                disabled={!(row.status === "queued" || row.status === "running")}
-                                onClick={() => cancel.mutate(row.id)}
+                                disabled={
+                                    cancelling ||
+                                    !(row.status === "queued" || row.status === "running")
+                                }
+                                loading={cancelling && cancel.variables === row.id}
+                                aria-busy={cancelling && cancel.variables === row.id}
+                                onClick={() => {
+                                    if (beginSubmission()) cancel.mutate(row.id);
+                                }}
                             />
                         </AuthWrap>
                     </div>
                 ),
             },
         ],
-        [cancel, flows, locale, runStatusMeta],
+        [cancel, cancelling, beginSubmission, flows, locale, runStatusMeta],
     );
     const actions = (
         <Space>
@@ -210,7 +228,7 @@ function RunsPage() {
                         "Unable to read run records. Check the Reports service and try again.",
                     )}
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -241,7 +259,7 @@ function RunsPage() {
                     }
                     compact
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }

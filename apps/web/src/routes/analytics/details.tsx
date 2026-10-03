@@ -130,7 +130,9 @@ function AnalyticsEventsPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </PageCard>
@@ -155,7 +157,9 @@ function AnalyticsEventsPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </PageCard>
@@ -228,6 +232,7 @@ function AnalyticsEventsPage() {
             <DataTableShell fill ariaLabel={t("分析明细", "Analytics details table")}>
                 {error ? (
                     <BackgroundRefreshNotice
+                        retrying={isFetching}
                         updatedAt={dataUpdatedAt}
                         onRetry={() => void refetch()}
                     />

@@ -1,7 +1,6 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Button, Card, Form, Input, Typography, type FormProps } from "antd";
-import { useState } from "react";
+import { Alert, Button, Card, Form, Input, Typography, type FormProps } from "antd";
 
 import { authAPI } from "@/api";
 import loginIllustrationUrl from "@/assets/login-illustration.png";
@@ -9,6 +8,7 @@ import rustzenLogoUrl from "@/assets/rustzen-logo.png";
 import { LanguageSwitch } from "@/components/language-switch";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { APP_BRAND_NAME, RUSTZEN_BRAND_NAME } from "@/constant/brand";
+import { useSubmission } from "@/hooks/use-submission";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -24,11 +24,17 @@ interface LoginPayload {
 function LoginPage() {
     const navigate = useNavigate();
     useLocale();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const {
+        submitting: isSubmitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+    } = useSubmission();
     const { handleLogin } = useAuthStore();
 
     const onLogin: FormProps<LoginPayload>["onFinish"] = async ({ username, password }) => {
-        setIsSubmitting(true);
+        if (!beginSubmission()) return;
         try {
             const res = await authAPI.login({
                 username: username.trim(),
@@ -36,8 +42,10 @@ function LoginPage() {
             });
             handleLogin(res.token, res.userInfo);
             void navigate({ to: "/", replace: true });
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setIsSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -104,6 +112,7 @@ function LoginPage() {
                             </div>
 
                             <Form
+                                disabled={isSubmitting}
                                 layout="vertical"
                                 onFinish={onLogin}
                                 className="grid gap-6 2xl:gap-7"
@@ -197,6 +206,14 @@ function LoginPage() {
                                     </Form.Item>
                                 </div>
 
+                                {submissionError ? (
+                                    <Alert
+                                        type="error"
+                                        showIcon
+                                        title={submissionError}
+                                        role="alert"
+                                    />
+                                ) : null}
                                 <Form.Item className="!mb-0">
                                     <Button
                                         type="primary"

@@ -241,7 +241,9 @@ function RolePage() {
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </PageCard>

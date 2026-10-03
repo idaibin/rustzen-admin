@@ -17,9 +17,11 @@ type DeliveryState = ReturnType<typeof notificationDeliveryState>;
 export function NotificationDeliveryDetails({
     state,
     onRetry,
+    retrying = false,
 }: {
     state: DeliveryState;
     onRetry?: () => void;
+    retrying?: boolean;
 }) {
     if (state.kind === "loading")
         return (
@@ -39,7 +41,7 @@ export function NotificationDeliveryDetails({
                         : t("通知投递状态加载失败", "Failed to load notification delivery status")}
                 </Typography.Text>
                 {onRetry ? (
-                    <Button size="small" onClick={onRetry}>
+                    <Button size="small" loading={retrying} onClick={onRetry}>
                         {t("重试", "Retry")}
                     </Button>
                 ) : null}
@@ -96,9 +98,11 @@ const triggerCopy = (state: DeliveryState) => {
 export function NotificationDeliveryCardView({
     state,
     onRetry,
+    retrying = false,
 }: {
     state: DeliveryState;
     onRetry?: () => void;
+    retrying?: boolean;
 }) {
     const { badge, label } = triggerCopy(state);
     return (
@@ -106,7 +110,9 @@ export function NotificationDeliveryCardView({
             trigger="click"
             placement="bottomRight"
             title={t("通知投递状态", "Notification delivery")}
-            content={<NotificationDeliveryDetails state={state} onRetry={onRetry} />}
+            content={
+                <NotificationDeliveryDetails state={state} onRetry={onRetry} retrying={retrying} />
+            }
         >
             <Button data-testid={`notification-delivery-${state.kind}`} size="small" type="text">
                 <Badge status={badge} text={label} />
@@ -133,6 +139,7 @@ export function NotificationDeliveryCard({
             <NotificationDeliveryCardView
                 state={state}
                 onRetry={() => void retryDelivery(q.refetch)}
+                retrying={q.isFetching}
             />
         </div>
     );

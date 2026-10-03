@@ -15,6 +15,7 @@ import {
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 import { ModuleLogCleanupPreview } from "./-module-log-cleanup-preview";
@@ -39,6 +40,8 @@ export function ModuleLogDiagnostics() {
     const [cleanupPreview, setCleanupPreview] = useState<ModuleLogCleanupPreviewData | null>(null);
     const [cleanupResult, setCleanupResult] = useState<ModuleLogCleanupResult | null>(null);
     const [cleanupClock, setCleanupClock] = useState(() => Date.now());
+    const backupSubmission = useSubmission();
+    const previewSubmission = useSubmission();
 
     const listParams = useMemo(
         () => ({
@@ -64,12 +67,14 @@ export function ModuleLogDiagnostics() {
     });
 
     const backupMutation = useMutation({
+        onSettled: backupSubmission.finishSubmission,
         mutationFn: () =>
             moduleLogAPI.backup(
                 selectedFiles.map((file) => ({ module: toModule(file.module), date: file.date })),
             ),
     });
     const previewMutation = useMutation({
+        onSettled: previewSubmission.finishSubmission,
         mutationFn: moduleLogAPI.previewCleanup,
         onSuccess: (preview) => {
             setCleanupPreview(preview);
@@ -133,10 +138,15 @@ export function ModuleLogDiagnostics() {
                 title={t("模块日志诊断", "Module log diagnostics")}
                 actions={
                     <ModuleLogActions
-                        backupPending={backupMutation.isPending}
-                        onBackup={() => backupMutation.mutate()}
-                        onPreview={() => previewMutation.mutate()}
-                        previewPending={previewMutation.isPending}
+                        backupPending={backupSubmission.submitting}
+                        onBackup={() => {
+                            if (selectedFiles.length && backupSubmission.beginSubmission())
+                                backupMutation.mutate();
+                        }}
+                        onPreview={() => {
+                            if (previewSubmission.beginSubmission()) previewMutation.mutate();
+                        }}
+                        previewPending={previewSubmission.submitting}
                         selectedCount={selectedFiles.length}
                     />
                 }

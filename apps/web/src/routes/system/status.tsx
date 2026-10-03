@@ -22,7 +22,7 @@ export const Route = createFileRoute("/system/status")({
 
 function SystemStatusPage() {
     useLocale();
-    const { data, isError, isLoading, refetch } = useQuery({
+    const { data, isError, isLoading, isFetching, refetch } = useQuery({
         queryKey: ["system", "status"],
         queryFn: systemAPI.status.overview,
         refetchInterval: 30 * 1000,
@@ -63,7 +63,11 @@ function SystemStatusPage() {
                         "Check the Admin service logs and local resource permissions, then try again.",
                     )}
                     action={
-                        <Button icon={<ReloadOutlined />} onClick={() => void refetch()}>
+                        <Button
+                            icon={<ReloadOutlined />}
+                            loading={isFetching}
+                            onClick={() => void refetch()}
+                        >
                             {t("重新加载", "Reload")}
                         </Button>
                     }

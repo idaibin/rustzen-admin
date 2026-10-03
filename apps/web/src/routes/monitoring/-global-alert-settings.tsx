@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { appMessage, monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { PanelBody, PanelFooter } from "@/components/page/panel-layout";
+import { useSubmission } from "@/hooks/use-submission";
 import { formatDateTime } from "@/lib/format-date-time";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -15,13 +16,24 @@ import {
     type FailedNetworkAction,
 } from "./-save-state";
 
-export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
+export function GlobalAlertSettings({
+    onClose,
+    onPendingChange,
+}: {
+    onClose: () => void;
+    onPendingChange?: (pending: boolean) => void;
+}) {
     const [form] = Form.useForm<Monitor.UpdateAlertSettings>();
     const [failedSave, setFailedSave] =
         useState<FailedNetworkAction<Monitor.UpdateAlertSettings>>();
     const client = useQueryClient();
+    const { submitting, beginSubmission, finishSubmission } = useSubmission();
+    useEffect(() => {
+        onPendingChange?.(submitting);
+    }, [onPendingChange, submitting]);
+    useEffect(() => () => onPendingChange?.(false), [onPendingChange]);
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
-    const { data, isPending, refetch } = useQuery({
+    const { data, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "alert-settings"],
         queryFn: monitorAPI.alertSettings,
     });
@@ -30,6 +42,7 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
     }, [canManage]);
     const mutation = useMutation({
         mutationFn: monitorAPI.updateAlertSettings,
+        onSettled: finishSubmission,
         onMutate: () => setFailedSave(undefined),
         onSuccess: async () => {
             await client.invalidateQueries({ queryKey: ["monitor"] });
@@ -38,6 +51,9 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
         onError: (error, values) =>
             setFailedSave(failedNetworkAction(error, { type: "save", values })),
     });
+    const save = (values: Monitor.UpdateAlertSettings) => {
+        if (canManage && beginSubmission()) mutation.mutate(values);
+    };
     if (!data)
         return (
             <div className="space-y-5">
@@ -50,7 +66,9 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                     }
                     action={
                         !isPending ? (
-                            <Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>
+                            <Button loading={isFetching} onClick={() => void refetch()}>
+                                {t("重试", "Retry")}
+                            </Button>
                         ) : undefined
                     }
                 />
@@ -67,10 +85,8 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
             }}
             layout="vertical"
             className="flex h-full flex-col gap-5"
-            onFinish={(values) => {
-                if (canManage && !mutation.isPending) mutation.mutate(values);
-            }}
-            disabled={!canManage || mutation.isPending}
+            onFinish={save}
+            disabled={!canManage || submitting}
         >
             <PanelBody>
                 <Typography.Paragraph type="secondary">
@@ -92,9 +108,11 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                         action={
                             <Button
                                 data-testid="monitor-global-save-retry"
+                                disabled={submitting}
+                                loading={submitting}
                                 onClick={() =>
                                     retryFailedNetworkAction(canManage, failedSave, {
-                                        save: (values) => mutation.mutate(values),
+                                        save,
                                         reset: () => undefined,
                                     })
                                 }
@@ -164,7 +182,7 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                     {t("最近更新", "Last updated")}: {formatDateTime(data.updatedAt)}
                 </Typography.Text>
                 <Space>
-                    <Button disabled={mutation.isPending} onClick={onClose}>
+                    <Button disabled={submitting} onClick={onClose}>
                         {t("关闭", "Close")}
                     </Button>
                     {canManage ? (
@@ -172,7 +190,7 @@ export function GlobalAlertSettings({ onClose }: { onClose: () => void }) {
                             data-testid="monitor-global-save"
                             type="primary"
                             htmlType="submit"
-                            loading={mutation.isPending}
+                            loading={submitting}
                         >
                             {t("保存", "Save")}
                         </Button>

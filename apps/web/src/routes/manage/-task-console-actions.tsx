@@ -107,7 +107,11 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
                                 : t("请稍后重试。", "Please try again later.")
                         }
                         action={
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         }

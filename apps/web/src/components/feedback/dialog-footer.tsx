@@ -1,4 +1,4 @@
-import { Button } from "antd";
+import { Alert, Button } from "antd";
 import type { ReactNode } from "react";
 
 import { t } from "@/lib/i18n";
@@ -13,6 +13,7 @@ interface DialogFooterProps {
     danger?: boolean;
     submitHtmlType?: "submit" | "button";
     onSubmit?: () => void;
+    error?: ReactNode;
 }
 
 export function DialogFooter({
@@ -25,25 +26,32 @@ export function DialogFooter({
     danger = false,
     submitHtmlType = "button",
     onSubmit,
+    error,
 }: DialogFooterProps) {
     return (
-        <div className="flex items-center justify-end gap-2">
-            <Button type="default" onClick={onCancel}>
-                {cancelLabel ?? t("取消", "Cancel")}
-            </Button>
-            {submitLabel !== undefined ? (
-                <Button
-                    data-testid={submitTestId}
-                    type="primary"
-                    danger={danger}
-                    loading={submitting}
-                    disabled={submitDisabled}
-                    htmlType={submitHtmlType}
-                    onClick={onSubmit}
-                >
-                    {submitLabel}
-                </Button>
+        <>
+            {error ? (
+                <Alert className="mb-3" type="error" showIcon title={error} role="alert" />
             ) : null}
-        </div>
+            <div className="flex items-center justify-end gap-2">
+                <Button type="default" disabled={submitting} onClick={onCancel}>
+                    {cancelLabel ?? t("取消", "Cancel")}
+                </Button>
+                {submitLabel !== undefined ? (
+                    <Button
+                        data-testid={submitTestId}
+                        type="primary"
+                        danger={danger}
+                        loading={submitting}
+                        disabled={submitDisabled}
+                        aria-busy={submitting}
+                        htmlType={submitHtmlType}
+                        onClick={onSubmit}
+                    >
+                        {submitLabel}
+                    </Button>
+                ) : null}
+            </div>
+        </>
     );
 }

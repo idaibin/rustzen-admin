@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button, Card, Drawer, Progress, Space, Typography } from "antd";
+import { useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { monitorAPI } from "@/api";
@@ -11,7 +12,8 @@ import { t } from "@/lib/i18n";
 import { NodeAlertPolicy } from "./-node-alert-policy";
 
 export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: () => void }) {
-    const { data, error, isPending, refetch } = useQuery({
+    const [policyPending, setPolicyPending] = useState(false);
+    const { data, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "metrics", node?.nodeId],
         queryFn: () => monitorAPI.metrics(node!.nodeId, { bucket: "5m" }),
         enabled: Boolean(node),
@@ -20,7 +22,12 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
         <Drawer
             data-testid="monitor-node-details"
             open={Boolean(node)}
-            onClose={onClose}
+            closable={!policyPending}
+            keyboard={!policyPending}
+            mask={{ closable: !policyPending }}
+            onClose={() => {
+                if (!policyPending) onClose();
+            }}
             title={node?.hostname ?? t("节点详情", "Node details")}
             size="large"
             styles={{ wrapper: { maxWidth: "100vw" }, body: { overflowY: "auto" } }}
@@ -37,7 +44,11 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                     >
                         {t("启动标识", "Boot ID")}: {node.bootId}
                     </Typography.Text>
-                    <NodeAlertPolicy key={node.nodeId} nodeId={node.nodeId} />
+                    <NodeAlertPolicy
+                        key={node.nodeId}
+                        nodeId={node.nodeId}
+                        onPendingChange={setPolicyPending}
+                    />
                     <div className="grid gap-3 md:grid-cols-3">
                         <Usage usage={node.memory} label={t("内存", "Memory")} />
                         <Card size="small">
@@ -73,7 +84,7 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                                 kind="error"
                                 title={t("指标加载失败", "Failed to load metrics")}
                                 action={
-                                    <Button onClick={() => void refetch()}>
+                                    <Button loading={isFetching} onClick={() => void refetch()}>
                                         {t("重试", "Retry")}
                                     </Button>
                                 }

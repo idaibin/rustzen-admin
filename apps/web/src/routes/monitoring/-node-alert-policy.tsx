@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { appMessage, monitorAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -24,14 +25,25 @@ export function NodeAlertPolicySourceTag({ source }: { source: "global" | "custo
     );
 }
 
-export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
+export function NodeAlertPolicy({
+    nodeId,
+    onPendingChange,
+}: {
+    nodeId: string;
+    onPendingChange?: (pending: boolean) => void;
+}) {
     const [form] = Form.useForm<Monitor.UpdateAlertSettings>();
     const [failedAction, setFailedAction] =
         useState<FailedNetworkAction<Monitor.UpdateAlertSettings>>();
     const hydratedNodeId = useRef<string | undefined>(undefined);
     const client = useQueryClient();
+    const { submitting, beginSubmission, finishSubmission } = useSubmission();
+    useEffect(() => {
+        onPendingChange?.(submitting);
+    }, [onPendingChange, submitting]);
+    useEffect(() => () => onPendingChange?.(false), [onPendingChange]);
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
-    const { data, error, isPending, refetch } = useQuery({
+    const { data, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "node-alert-settings", nodeId],
         queryFn: () => monitorAPI.nodeAlertSettings(nodeId),
     });
@@ -53,6 +65,7 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
         if (!canManage) setFailedAction(undefined);
     }, [canManage]);
     const save = useMutation({
+        onSettled: finishSubmission,
         mutationFn: (values: Monitor.UpdateAlertSettings) =>
             monitorAPI.updateNodeAlertSettings(nodeId, values),
         onMutate: () => setFailedAction(undefined),
@@ -68,6 +81,7 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
             setFailedAction(failedNetworkAction(error, { type: "save", values })),
     });
     const reset = useMutation({
+        onSettled: finishSubmission,
         mutationFn: () => monitorAPI.resetNodeAlertSettings(nodeId),
         onMutate: () => setFailedAction(undefined),
         onSuccess: async (value) => {
@@ -80,7 +94,13 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
         },
         onError: (error) => setFailedAction(failedNetworkAction(error, { type: "reset" })),
     });
-    const busy = save.isPending || reset.isPending;
+    const busy = submitting || save.isPending || reset.isPending;
+    const savePolicy = (values: Monitor.UpdateAlertSettings) => {
+        if (canManage && beginSubmission()) save.mutate(values);
+    };
+    const resetPolicy = () => {
+        if (canManage && beginSubmission()) reset.mutate();
+    };
     if (!data) {
         return (
             <Card size="small" title={t("告警策略", "Alert policy")}>
@@ -93,7 +113,9 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                     }
                     action={
                         error ? (
-                            <Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>
+                            <Button loading={isFetching} onClick={() => void refetch()}>
+                                {t("重试", "Retry")}
+                            </Button>
                         ) : undefined
                     }
                     compact
@@ -132,10 +154,12 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                     action={
                         <Button
                             data-testid="monitor-node-save-retry"
+                            disabled={busy}
+                            loading={busy}
                             onClick={() =>
                                 retryFailedNetworkAction(canManage, failedAction, {
-                                    save: (values) => save.mutate(values),
-                                    reset: () => reset.mutate(),
+                                    save: savePolicy,
+                                    reset: resetPolicy,
                                 })
                             }
                         >
@@ -144,14 +168,7 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                     }
                 />
             ) : null}
-            <Form
-                form={form}
-                layout="vertical"
-                disabled={!canManage || busy}
-                onFinish={(values) => {
-                    if (canManage && !busy) save.mutate(values);
-                }}
-            >
+            <Form form={form} layout="vertical" disabled={!canManage || busy} onFinish={savePolicy}>
                 <PolicyThreshold name="cpu" label="CPU" />
                 <PolicyThreshold name="memory" label={t("内存", "Memory")} />
                 <PolicyThreshold name="disk" label={t("磁盘", "Disk")} />
@@ -190,9 +207,7 @@ export function NodeAlertPolicy({ nodeId }: { nodeId: string }) {
                                 data-testid="monitor-node-reset"
                                 loading={reset.isPending}
                                 disabled={busy}
-                                onClick={() => {
-                                    if (canManage && !busy) reset.mutate();
-                                }}
+                                onClick={resetPolicy}
                             >
                                 {t("重置为全局默认", "Reset to global defaults")}
                             </Button>

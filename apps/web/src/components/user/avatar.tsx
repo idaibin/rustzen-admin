@@ -1,8 +1,8 @@
 import { UploadOutlined } from "@ant-design/icons";
 import { Avatar, Button, Upload, type UploadProps } from "antd";
-import { useState } from "react";
 
 import { accountAPI, appMessage } from "@/api";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -11,7 +11,7 @@ const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png"]);
 
 export const UserAvatar = () => {
     const { userInfo, updateAvatar } = useAuthStore();
-    const [uploading, setUploading] = useState(false);
+    const { submitting: uploading, beginSubmission, finishSubmission } = useSubmission();
 
     const validateFile = (file: File) => {
         if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
@@ -41,7 +41,7 @@ export const UserAvatar = () => {
             return;
         }
 
-        setUploading(true);
+        if (!beginSubmission()) return;
         try {
             const avatarUrl = await accountAPI.updateAvatar({ file: uploadFile });
             updateAvatar(avatarUrl);
@@ -53,7 +53,7 @@ export const UserAvatar = () => {
             );
             onError?.(new Error(t("上传失败", "Upload failed")));
         } finally {
-            setUploading(false);
+            finishSubmission();
         }
     };
 

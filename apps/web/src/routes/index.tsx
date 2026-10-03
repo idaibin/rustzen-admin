@@ -51,7 +51,7 @@ function SystemResourceCards() {
     const canViewSystemStatus = useAuthStore((state) =>
         state.checkPermissions("system:status:view"),
     );
-    const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["system", "status"],
         queryFn: systemAPI.status.overview,
         enabled: canViewSystemStatus,
@@ -104,6 +104,7 @@ function SystemResourceCards() {
                 loadingTitle={t("正在加载系统状态", "Loading system health")}
                 errorTitle={t("系统状态加载失败", "Failed to load system health")}
                 updatedAt={dataUpdatedAt}
+                retrying={isFetching}
                 onRetry={() => void refetch()}
             >
                 <div className="grid gap-6 md:grid-cols-3">
@@ -140,7 +141,7 @@ function SystemResourceCards() {
 function ModuleHealthCards() {
     useLocale();
     const { token } = theme.useToken();
-    const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["dashboard", "modules"],
         queryFn: dashboardAPI.modules,
         refetchInterval: 15_000,
@@ -166,6 +167,7 @@ function ModuleHealthCards() {
                 loadingTitle={t("正在加载模块状态", "Loading module status")}
                 errorTitle={t("模块状态加载失败", "Failed to load module status")}
                 updatedAt={dataUpdatedAt}
+                retrying={isFetching}
                 onRetry={() => void refetch()}
             >
                 <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
@@ -238,6 +240,7 @@ function AccountMetricCards() {
         dataUpdatedAt,
         error,
         isPending,
+        isFetching,
         refetch,
     } = useQuery({
         queryKey: ["dashboard", "stats"],
@@ -280,6 +283,7 @@ function AccountMetricCards() {
                 loadingTitle={t("正在加载账号统计", "Loading account statistics")}
                 errorTitle={t("账号统计加载失败", "Failed to load account statistics")}
                 updatedAt={dataUpdatedAt}
+                retrying={isFetching}
                 onRetry={() => void refetch()}
             >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -300,6 +304,7 @@ function AccountMetricCards() {
 
 function DashboardQueryBoundary({
     isPending,
+    retrying,
     error,
     hasData,
     loadingTitle,
@@ -309,6 +314,7 @@ function DashboardQueryBoundary({
     children,
 }: {
     isPending: boolean;
+    retrying: boolean;
     error: Error | null;
     hasData: boolean;
     loadingTitle: string;
@@ -329,7 +335,11 @@ function DashboardQueryBoundary({
                     "无法读取当前数据，请检查 Admin 服务后重试。",
                     "Unable to read the current data. Check the Admin service and try again.",
                 )}
-                action={<Button onClick={onRetry}>{t("重新加载", "Reload")}</Button>}
+                action={
+                    <Button loading={retrying} onClick={onRetry}>
+                        {t("重新加载", "Reload")}
+                    </Button>
+                }
                 compact
             />
         );
@@ -337,7 +347,13 @@ function DashboardQueryBoundary({
     return (
         <>
             {children}
-            {error ? <BackgroundRefreshNotice updatedAt={updatedAt} onRetry={onRetry} /> : null}
+            {error ? (
+                <BackgroundRefreshNotice
+                    retrying={retrying}
+                    updatedAt={updatedAt}
+                    onRetry={onRetry}
+                />
+            ) : null}
         </>
     );
 }

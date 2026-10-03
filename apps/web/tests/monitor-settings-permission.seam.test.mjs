@@ -7,10 +7,10 @@ const nodePolicySource = await Bun.file("src/routes/monitoring/-node-alert-polic
 
 test("alert settings remain readable but only managers receive enabled controls and save", () => {
     expect(source).toContain('state.checkPermissions("monitor:manage")');
-    expect(source).toContain("disabled={!canManage || mutation.isPending}");
+    expect(source).toContain("disabled={!canManage || submitting}");
     expect(source).toContain("{canManage ? (");
     expect(source).toContain('htmlType="submit"');
-    expect(source).toContain("canManage && !mutation.isPending");
+    expect(source).toContain("canManage && beginSubmission()");
     expect(source).toContain("retryFailedNetworkAction(canManage, failedSave");
     expect(source).toContain("if (!canManage) setFailedSave(undefined)");
     expect(source).toContain('failedNetworkAction(error, { type: "save", values })');
@@ -33,11 +33,13 @@ test("node policy shows its source and allows managers to save or reset an overr
     expect(nodePolicySource).toContain("Reset to global defaults");
     expect(nodePolicySource).toContain("monitorAPI.updateNodeAlertSettings");
     expect(nodePolicySource).toContain("monitorAPI.resetNodeAlertSettings");
-    expect(nodePolicySource).toContain("const busy = save.isPending || reset.isPending");
-    expect(nodePolicySource).toContain("if (canManage && !busy) reset.mutate()");
+    expect(nodePolicySource).toContain(
+        "const busy = submitting || save.isPending || reset.isPending",
+    );
+    expect(nodePolicySource).toContain("if (canManage && beginSubmission()) reset.mutate()");
     expect(nodePolicySource).toContain("retryFailedNetworkAction(canManage, failedAction");
     expect(nodePolicySource).toContain("if (!canManage) setFailedAction(undefined)");
-    expect(nodeDetailsSource).toContain("<NodeAlertPolicy key={node.nodeId}");
+    expect(nodeDetailsSource).toMatch(/<NodeAlertPolicy\s+key=\{node.nodeId\}/);
     expect(nodePolicySource).toContain("shouldHydrateNodePolicy");
     expect(nodePolicySource).toContain('failedNetworkAction(error, { type: "save", values })');
     expect(nodePolicySource).toContain("The monitoring service could not be reached");
@@ -53,4 +55,14 @@ test("Nodes keeps cached rows visible and provides a background-refresh retry", 
     expect(nodesSource).toContain("hasMonitorBackgroundRefreshFailure(data, error)");
     expect(nodesSource).toContain("<BackgroundRefreshNotice");
     expect(nodesSource).toContain("onRetry={() => void refetch()}");
+});
+
+test("pending monitor writes reach owning Drawer dismissal gates", () => {
+    expect(source).toContain("onSettled: finishSubmission");
+    expect(nodePolicySource.match(/onSettled: finishSubmission/g)).toHaveLength(2);
+    for (const owner of [nodesSource, nodeDetailsSource]) {
+        expect(owner).toMatch(/closable=\{!\w+Pending\}/);
+        expect(owner).toMatch(/keyboard=\{!\w+Pending\}/);
+        expect(owner).toContain("onPendingChange=");
+    }
 });

@@ -37,7 +37,11 @@ export function ModuleLogTailDrawer({ error, file, onClose, onLoadOlder, open, q
                     title={t("模块日志读取失败", "Failed to read module log")}
                     description={error}
                     action={
-                        <Button type="primary" onClick={() => void query.refetch()}>
+                        <Button
+                            type="primary"
+                            loading={query.isFetching}
+                            onClick={() => void query.refetch()}
+                        >
                             {t("重新加载", "Reload")}
                         </Button>
                     }

@@ -31,6 +31,7 @@ function AnalyticsOverviewPage() {
         dataUpdatedAt,
         error,
         isPending,
+        isFetching,
         refetch,
     } = useQuery({
         queryKey: ["insights", "overview"],
@@ -77,7 +78,9 @@ function AnalyticsOverviewPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </div>
@@ -106,7 +109,9 @@ function AnalyticsOverviewPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </div>
@@ -152,7 +157,11 @@ function AnalyticsOverviewPage() {
                 </div>
             </div>
             {error ? (
-                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+                <BackgroundRefreshNotice
+                    retrying={isFetching}
+                    updatedAt={dataUpdatedAt}
+                    onRetry={() => void refetch()}
+                />
             ) : null}
             <Card title={t("每日活动", "Daily activity")}>
                 <div

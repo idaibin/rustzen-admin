@@ -1,10 +1,11 @@
 import { PlayCircleOutlined } from "@ant-design/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Select } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 const defaultRunInput = JSON.stringify({ value: "" }, null, 2);
@@ -12,9 +13,20 @@ const defaultRunInput = JSON.stringify({ value: "" }, null, 2);
 export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
     const client = useQueryClient();
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [flowId, setFlowId] = useState("");
     const [inputJson, setInputJson] = useState(defaultRunInput);
     const mutation = useMutation({
+        onSettled: finishSubmission,
+        onError: failSubmission,
         mutationFn: reportsAPI.createRun,
         onSuccess: async () => {
             await client.invalidateQueries({ queryKey: ["reports", "runs"] });
@@ -26,6 +38,7 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
     const save = () => {
         try {
             const input = JSON.parse(inputJson) as Record<string, unknown>;
+            if (!flowId || !beginSubmission()) return;
             mutation.mutate({ flowId, input });
         } catch {
             appMessage.error(t("输入内容必须是有效的 JSON", "Input must be valid JSON"));
@@ -44,13 +57,21 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
                 data-testid="run-create"
                 disabled={!flows.length}
                 icon={<PlayCircleOutlined />}
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
             >
                 {t("新建填报", "New report run")}
             </Button>
             <Modal
                 open={open}
-                onCancel={() => setOpen(false)}
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
+                onCancel={() => {
+                    if (!submitting) setOpen(false);
+                }}
                 footer={null}
                 title={t("开始填报", "Start report run")}
                 width={760}
@@ -71,17 +92,19 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
                         "Do not submit passwords, tokens, keys, or other sensitive information.",
                     )}
                 />
-                <Form layout="vertical">
-                    <Form.Item label={t("流程", "Template")}>
+                <Form layout="vertical" disabled={submitting} onFinish={save}>
+                    <Form.Item label={t("流程", "Template")} htmlFor={`${fieldId}-flow`}>
                         <Select
+                            id={`${fieldId}-flow`}
                             value={flowId || undefined}
                             onChange={setFlowId}
                             options={flows.map((flow) => ({ value: flow.id, label: flow.name }))}
                             placeholder={t("选择模板", "Select template")}
                         />
                     </Form.Item>
-                    <Form.Item label={t("输入 JSON", "Input JSON")}>
+                    <Form.Item label={t("输入 JSON", "Input JSON")} htmlFor={`${fieldId}-input`}>
                         <Input.TextArea
+                            id={`${fieldId}-input`}
                             className="font-mono"
                             rows={10}
                             value={inputJson}
@@ -89,10 +112,14 @@ export function RunDialog({ flows }: { flows: Reports.Flow[] }) {
                         />
                     </Form.Item>
                     <DialogFooter
-                        onCancel={() => setOpen(false)}
+                        error={submissionError}
+                        onCancel={() => {
+                            if (!submitting) setOpen(false);
+                        }}
                         submitLabel={t("提交执行", "Submit run")}
-                        submitting={mutation.isPending}
-                        onSubmit={save}
+                        submitting={submitting}
+                        submitDisabled={!flowId}
+                        submitHtmlType="submit"
                     />
                 </Form>
             </Modal>

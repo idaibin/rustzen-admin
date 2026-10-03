@@ -7,6 +7,7 @@ const provider = await Bun.file(
     new URL("../src/components/theme-provider.tsx", import.meta.url),
 ).text();
 const css = await Bun.file(new URL("../src/styles/theme.css", import.meta.url)).text();
+const layoutCss = await Bun.file(new URL("../src/style.css", import.meta.url)).text();
 
 function palette(selector) {
     const block = css.slice(css.indexOf(`${selector} {`)).split("}")[0];
@@ -57,6 +58,11 @@ describe("module status theme ownership", () => {
 });
 
 describe("shared theme contrast guard", () => {
+    test("keyboard scroll-region focus uses an opaque inset semantic ring", () => {
+        expect(layoutCss).toMatch(
+            /\.data-table-shell \[role="region"\]\[tabindex="0"\]:focus-visible\s*\{\s*outline: 2px solid var\(--ring\);\s*outline-offset: -2px;/,
+        );
+    });
     for (const [name, tokens] of [
         ["light", palette(":root")],
         ["dark", palette(".dark")],
@@ -81,6 +87,35 @@ describe("shared theme contrast guard", () => {
                     4.5,
                 );
             }
+        });
+        test(`${name} link, destructive, and focus states retain contrast`, () => {
+            for (const state of ["link", "link-hover", "link-active"])
+                expect(
+                    contrast(rgb(tokens[state]), rgb(tokens.card)),
+                    `${name} ${state}`,
+                ).toBeGreaterThanOrEqual(4.5);
+            for (const state of ["status-danger", "status-danger-hover", "status-danger-active"])
+                expect(
+                    contrast(rgb(tokens[state]), rgb(tokens["primary-foreground"])),
+                    `${name} ${state}`,
+                ).toBeGreaterThanOrEqual(4.5);
+            expect(
+                contrast(rgb(tokens.primary), rgb(tokens.card)),
+                `${name} focus boundary`,
+            ).toBeGreaterThanOrEqual(3);
+            expect(provider).toContain('colorPrimaryBorder: color("primary")');
+            expect(provider).toContain('defaultActiveColor: "var(--link-active)"');
+            expect(provider).toContain('itemSelectedColor: "var(--sidebar-accent-foreground)"');
+            expect(
+                contrast(rgb(tokens[name === "light" ? "link-hover" : "link"]), rgb(tokens.accent)),
+                `${name} selected navigation text`,
+            ).toBeGreaterThanOrEqual(4.5);
+            expect(
+                contrast(rgb(tokens["link-active"]), rgb(tokens.popover)),
+                `${name} outlined active text on overlay`,
+            ).toBeGreaterThanOrEqual(4.5);
+            expect(provider).toContain('colorLinkHover: color("link-hover")');
+            expect(provider).toContain('colorErrorHover: color("status-danger-hover")');
         });
         test(`${name} primary default, hover and active text is readable`, () => {
             for (const state of ["primary", "primary-hover", "primary-active"])

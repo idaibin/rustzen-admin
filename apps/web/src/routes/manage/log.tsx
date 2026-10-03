@@ -5,7 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button, Input, Select, Tag } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
-import { manageAPI } from "@/api";
+import { appMessage, manageAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
@@ -17,6 +17,7 @@ import {
 } from "@/components/table/table-presets";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFilteredPage } from "@/hooks/use-filtered-page";
+import { useSubmission } from "@/hooks/use-submission";
 import { formatDuration } from "@/lib/format";
 import { t, useLocale } from "@/lib/i18n";
 import { useLocalStore } from "@/store/useLocalStore";
@@ -30,6 +31,7 @@ const ALL_ACTION = "all";
 const PAGE_SIZE = 20;
 
 function LogPage() {
+    const { submitting: exporting, beginSubmission, finishSubmission } = useSubmission();
     useLocale();
     const actionOptions = [
         { label: t("全部", "All"), value: ALL_ACTION },
@@ -86,8 +88,20 @@ function LogPage() {
         <AuthWrap code="manage:log:export">
             <Button
                 icon={<DownloadOutlined />}
-                onClick={() => {
-                    void manageAPI.log.export(params);
+                loading={exporting}
+                aria-busy={exporting}
+                onClick={async () => {
+                    if (!beginSubmission()) return;
+                    try {
+                        await manageAPI.log.export(params);
+                    } catch (error) {
+                        if (!(error instanceof Response))
+                            appMessage.error(
+                                t("导出失败，请重试。", "Export failed. Please retry."),
+                            );
+                    } finally {
+                        finishSubmission();
+                    }
                 }}
             >
                 {t("导出", "Export")}
@@ -206,7 +220,7 @@ function LogPage() {
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -252,7 +266,11 @@ function LogPage() {
                                 : t("请稍后重试。", "Please try again later.")
                         }
                         action={
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         }

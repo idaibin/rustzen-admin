@@ -1,7 +1,7 @@
 import { SearchOutlined } from "@ant-design/icons";
 import { Button, Empty, Flex, Input, Menu, Modal } from "antd";
 import type { MenuProps } from "antd";
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 
 import { t } from "@/lib/i18n";
 
@@ -16,6 +16,7 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
     const [open, setOpen] = useState(false);
     const [keyword, setKeyword] = useState("");
     const [activeIndex, setActiveIndex] = useState(0);
+    const resultsId = useId();
 
     const filteredRoutes = useMemo(() => {
         const normalizedKeyword = keyword.trim().toLowerCase();
@@ -35,11 +36,22 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
             label: groupLabel,
             children: groupRoutes.map((route) => ({
                 key: route.path,
+                id: `${resultsId}-${encodeURIComponent(route.path)}`,
+                role: "option",
                 icon: route.icon,
                 label: `${route.label} · ${route.path}`,
             })),
         }));
-    }, [filteredRoutes]);
+    }, [filteredRoutes, resultsId]);
+
+    const activeRoute = filteredRoutes[Math.min(activeIndex, filteredRoutes.length - 1)];
+    useEffect(() => {
+        if (open && activeRoute) {
+            document
+                .getElementById(`${resultsId}-${encodeURIComponent(activeRoute.path)}`)
+                ?.scrollIntoView({ block: "nearest" });
+        }
+    }, [open, activeRoute, resultsId]);
 
     useEffect(() => {
         const handleShortcut = (event: globalThis.KeyboardEvent) => {
@@ -68,6 +80,8 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
     };
 
     const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        // Enter chooses an IME candidate before it can choose a search result.
+        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
         if (event.key === "Escape") {
             closeSearch();
             return;
@@ -93,7 +107,6 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
 
         if (event.key === "Enter") {
             event.preventDefault();
-            const activeRoute = filteredRoutes[activeIndex];
             if (activeRoute) {
                 selectRoute(activeRoute);
             }
@@ -135,18 +148,36 @@ export const AppSearch = ({ routes, onSelect }: AppSearchProps) => {
                         onChange={(event) => setKeyword(event.target.value)}
                         onKeyDown={handleInputKeyDown}
                         aria-label={t("搜索页面", "Search pages")}
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-expanded={open}
+                        aria-controls={resultsId}
+                        aria-activedescendant={
+                            activeRoute
+                                ? `${resultsId}-${encodeURIComponent(activeRoute.path)}`
+                                : undefined
+                        }
                     />
 
                     {filteredRoutes.length === 0 ? (
-                        <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description={t("未找到页面", "No pages found")}
-                        />
+                        <div
+                            id={resultsId}
+                            role="listbox"
+                            aria-label={t("页面搜索结果", "Page search results")}
+                        >
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={t("未找到页面", "No pages found")}
+                            />
+                        </div>
                     ) : (
                         <div className="max-h-80 overflow-y-auto">
                             <Menu
+                                id={resultsId}
+                                role="listbox"
+                                aria-label={t("页面搜索结果", "Page search results")}
                                 items={menuItems}
-                                selectedKeys={[filteredRoutes[activeIndex]?.path ?? ""]}
+                                selectedKeys={[activeRoute?.path ?? ""]}
                                 onClick={({ key }) => {
                                     const route = filteredRoutes.find((item) => item.path === key);
                                     if (route) {

@@ -51,7 +51,7 @@ export function RoleActions({ record, onSuccess }: { record: Role.Item; onSucces
             </AuthWrap>
             <AuthWrap code="system:role:delete">
                 {deletionState.disabled ? (
-                    <Tooltip title={deletionBlockedReason}>
+                    <Tooltip title={deletionBlockedReason} trigger={["hover", "focus"]}>
                         <span
                             className="inline-flex"
                             tabIndex={0}

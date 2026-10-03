@@ -203,7 +203,7 @@ function DeployPage() {
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -264,7 +264,7 @@ function DeployPage() {
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }

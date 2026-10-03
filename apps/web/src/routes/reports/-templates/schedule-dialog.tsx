@@ -1,10 +1,11 @@
 import { EditOutlined } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Select, Switch } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 import {
@@ -27,6 +28,8 @@ export function ScheduleDialog({
     onSaved: () => Promise<unknown>;
 }) {
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
+    const { submitting, beginSubmission, finishSubmission } = useSubmission();
     const [flowId, setFlowId] = useState("");
     const [cadence, setCadence] = useState<Reports.ScheduleCadence>("daily");
     const [weekday, setWeekday] = useState<number>(1);
@@ -75,6 +78,7 @@ export function ScheduleDialog({
         fallbackError: t("计划保存失败，请稍后重试。", "Unable to save the schedule. Try again."),
     });
     const mutation = useMutation({
+        onSettled: finishSubmission,
         mutationFn: ({ input }: { input: Reports.SaveSchedule; cycle: number }) =>
             schedule
                 ? reportsAPI.updateSchedule(schedule.id, input)
@@ -94,6 +98,7 @@ export function ScheduleDialog({
             if (!selectedFlow?.enabled) {
                 throw new Error(t("所选流程目标已停用。", "The selected flow target is disabled."));
             }
+            if (!beginSubmission()) return;
             mutation.mutate({
                 input: {
                     flowId,
@@ -131,12 +136,17 @@ export function ScheduleDialog({
             <Modal
                 data-testid="schedule-dialog"
                 open={open}
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 title={
                     schedule
                         ? t("编辑定时报表计划", "Edit scheduled report")
                         : t("新建定时报表计划", "New scheduled report")
                 }
-                onCancel={closeDialog}
+                onCancel={() => {
+                    if (!submitting) closeDialog();
+                }}
                 footer={null}
                 width={760}
                 destroyOnHidden
@@ -160,9 +170,10 @@ export function ScheduleDialog({
                         description={saveError}
                     />
                 ) : null}
-                <Form layout="vertical">
-                    <Form.Item label={t("流程", "Template")} required>
+                <Form layout="vertical" disabled={submitting} onFinish={save}>
+                    <Form.Item label={t("流程", "Template")} htmlFor={`${fieldId}-flow`} required>
                         <Select
+                            id={`${fieldId}-flow`}
                             data-testid="schedule-flow"
                             value={flowId || undefined}
                             onChange={(value) => setFlowId(value)}
@@ -177,8 +188,13 @@ export function ScheduleDialog({
                         />
                     </Form.Item>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Form.Item label={t("频率", "Cadence")} required>
+                        <Form.Item
+                            label={t("频率", "Cadence")}
+                            htmlFor={`${fieldId}-cadence`}
+                            required
+                        >
                             <Select
+                                id={`${fieldId}-cadence`}
                                 data-testid="schedule-cadence"
                                 value={cadence}
                                 onChange={(value: Reports.ScheduleCadence) => setCadence(value)}
@@ -203,8 +219,13 @@ export function ScheduleDialog({
                             />
                         </Form.Item>
                         {cadence === "weekly" ? (
-                            <Form.Item label={t("星期", "Weekday")} required>
+                            <Form.Item
+                                label={t("星期", "Weekday")}
+                                htmlFor={`${fieldId}-weekday`}
+                                required
+                            >
                                 <Select
+                                    id={`${fieldId}-weekday`}
                                     data-testid="schedule-weekday"
                                     value={weekday}
                                     onChange={(value) => setWeekday(value)}
@@ -228,43 +249,59 @@ export function ScheduleDialog({
                             </Form.Item>
                         ) : null}
                     </div>
-                    <Form.Item label={t("本地执行时间", "Local due time")} required>
+                    <Form.Item
+                        label={t("本地执行时间", "Local due time")}
+                        htmlFor={`${fieldId}-due-time`}
+                        required
+                    >
                         <Input
+                            id={`${fieldId}-due-time`}
                             data-testid="schedule-due-time"
                             type="time"
                             value={dueTime}
                             onChange={(event) => setDueTime(event.target.value)}
                         />
                     </Form.Item>
-                    <Form.Item label={t("安全输入 JSON", "Safe input JSON")}>
+                    <Form.Item
+                        label={t("安全输入 JSON", "Safe input JSON")}
+                        htmlFor={`${fieldId}-input`}
+                    >
                         <Input.TextArea
+                            id={`${fieldId}-input`}
                             className="font-mono text-xs"
                             rows={7}
                             value={inputJson}
                             onChange={(event) => setInputJson(event.target.value)}
                         />
                     </Form.Item>
-                    <Form.Item label={t("描述", "Description")}>
+                    <Form.Item label={t("描述", "Description")} htmlFor={`${fieldId}-description`}>
                         <Input
+                            id={`${fieldId}-description`}
                             data-testid="schedule-description"
                             value={description}
                             onChange={(event) => setDescription(event.target.value)}
                         />
                     </Form.Item>
-                    <Form.Item label={t("启用计划", "Enable schedule")}>
+                    <Form.Item
+                        label={t("启用计划", "Enable schedule")}
+                        htmlFor={`${fieldId}-enabled`}
+                    >
                         <Switch
+                            id={`${fieldId}-enabled`}
                             data-testid="schedule-enabled"
                             checked={enabled}
                             onChange={setEnabled}
                         />
                     </Form.Item>
                     <DialogFooter
-                        onCancel={closeDialog}
+                        onCancel={() => {
+                            if (!submitting) closeDialog();
+                        }}
                         submitLabel={t("校验并保存", "Validate and save")}
-                        submitting={mutation.isPending}
-                        submitDisabled={mutation.isPending}
+                        submitting={submitting}
+                        submitDisabled={submitting}
                         submitTestId="schedule-save"
-                        onSubmit={save}
+                        submitHtmlType="submit"
                     />
                 </Form>
             </Modal>

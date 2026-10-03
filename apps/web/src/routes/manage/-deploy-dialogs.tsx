@@ -7,19 +7,28 @@ import {
 } from "@ant-design/icons";
 import { Button, Form, Input, Modal, Upload } from "antd";
 import type { UploadFile } from "antd/es/upload/interface";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { appMessage, manageAPI } from "@/api";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
     const [version, setVersion] = useState("");
     const [arch, setArch] = useState("");
     const [notes, setNotes] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [fileList, setFileList] = useState<UploadFile[]>([]);
 
     const selectedFile = fileList[0]?.originFileObj ?? null;
@@ -41,7 +50,7 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
             return;
         }
 
-        setSubmitting(true);
+        if (!beginSubmission()) return;
         try {
             await manageAPI.deploy.upload({
                 version: version.trim(),
@@ -53,17 +62,29 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
             onSuccess?.();
             reset();
             setOpen(false);
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
     return (
         <>
-            <Button type="default" icon={<UploadOutlined />} onClick={() => setOpen(true)}>
+            <Button
+                type="default"
+                icon={<UploadOutlined />}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
+            >
                 {t("上传版本", "Upload version")}
             </Button>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 onCancel={() => {
                     setOpen(false);
@@ -74,20 +95,23 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
                 width="650px"
                 destroyOnHidden
             >
-                <Form layout="vertical">
+                <Form disabled={submitting} layout="vertical">
                     <Form.Item
+                        htmlFor={`${fieldId}-version`}
                         label={t("版本", "Version")}
                         required
                         tooltip={t("用于展示与回滚核验", "Used for tracking and rollback checks")}
                     >
                         <Input
+                            id={`${fieldId}-version`}
                             value={version}
                             placeholder="0.5.0"
                             onChange={(event) => setVersion(event.target.value)}
                         />
                     </Form.Item>
-                    <Form.Item label={t("架构", "Architecture")}>
+                    <Form.Item htmlFor={`${fieldId}-arch`} label={t("架构", "Architecture")}>
                         <Input
+                            id={`${fieldId}-arch`}
                             value={arch}
                             placeholder="x86_64"
                             onChange={(event) => setArch(event.target.value)}
@@ -102,6 +126,7 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
                         )}
                     >
                         <Upload.Dragger
+                            aria-label={t("选择部署文件", "Select a deployment file")}
                             multiple={false}
                             maxCount={1}
                             accept=".tar,application/x-tar"
@@ -125,8 +150,9 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
                             </p>
                         </Upload.Dragger>
                     </Form.Item>
-                    <Form.Item label={t("备注", "Notes")}>
+                    <Form.Item htmlFor={`${fieldId}-notes`} label={t("备注", "Notes")}>
                         <Input.TextArea
+                            id={`${fieldId}-notes`}
                             rows={3}
                             value={notes}
                             placeholder={t("可选备注", "Optional notes")}
@@ -134,6 +160,7 @@ export function UploadVersionDialog({ onSuccess }: { onSuccess?: () => void }) {
                         />
                     </Form.Item>
                     <DialogFooter
+                        error={submissionError}
                         onCancel={() => {
                             setOpen(false);
                             reset();
@@ -197,12 +224,20 @@ export function ExpireVersionDialog({
     onSuccess?: () => void;
 }) {
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
     const [notes, setNotes] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const disabled = version.isCurrent || version.isExpired;
 
     const submit = async () => {
-        setSubmitting(true);
+        if (disabled || !beginSubmission()) return;
         try {
             await manageAPI.deploy.expire(version.id, {
                 notes: notes.trim() || null,
@@ -210,8 +245,10 @@ export function ExpireVersionDialog({
             appMessage.success(t("版本已设为过期", "Version expired"));
             onSuccess?.();
             setOpen(false);
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -221,10 +258,16 @@ export function ExpireVersionDialog({
                 type="text"
                 icon={<FileDoneOutlined />}
                 disabled={disabled}
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
                 aria-label={t("将版本设为过期", "Expire version")}
             />
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 onCancel={() => {
                     setOpen(false);
@@ -240,9 +283,10 @@ export function ExpireVersionDialog({
                     </span>
                 }
             >
-                <Form layout="vertical">
-                    <Form.Item label={t("备注", "Notes")}>
+                <Form disabled={submitting} layout="vertical">
+                    <Form.Item htmlFor={`${fieldId}-notes`} label={t("备注", "Notes")}>
                         <Input.TextArea
+                            id={`${fieldId}-notes`}
                             rows={3}
                             value={notes}
                             placeholder={t("可选原因", "Optional reason")}
@@ -250,12 +294,14 @@ export function ExpireVersionDialog({
                         />
                     </Form.Item>
                     <DialogFooter
+                        error={submissionError}
                         onCancel={() => {
                             setOpen(false);
                             setNotes("");
                         }}
                         submitLabel={t("设为过期", "Expire")}
                         submitting={submitting}
+                        submitDisabled={disabled}
                         danger
                         onSubmit={submit}
                     />

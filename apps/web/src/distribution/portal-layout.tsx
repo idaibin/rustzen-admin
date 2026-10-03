@@ -7,6 +7,7 @@ import { appMessage, authAPI } from "@/api";
 import { LanguageSwitch } from "@/components/language-switch";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { APP_BRAND_NAME } from "@/constant/brand";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -37,6 +38,7 @@ export function createPortalBaseLayout<const TRoutes extends readonly PortalNavI
         const router = useRouter();
         const userInfo = useAuthStore((state) => state.userInfo);
         const clearAuth = useAuthStore((state) => state.clearAuth);
+        const { submitting: signingOut, beginSubmission, finishSubmission } = useSubmission();
         const checkPermissions = useAuthStore((state) => state.checkPermissions);
         if (hidden) return children;
         const menuItems: MenuProps["items"] = routes
@@ -47,10 +49,20 @@ export function createPortalBaseLayout<const TRoutes extends readonly PortalNavI
                 label: t(item.chinese, item.english),
             }));
         const logout = async () => {
+            if (!beginSubmission()) return;
             try {
                 await authAPI.logout();
                 appMessage.success(t("退出登录成功", "Signed out successfully"));
+            } catch (error) {
+                if (!(error instanceof Response))
+                    appMessage.error(
+                        t(
+                            "未能连接退出服务，已清除本地登录。",
+                            "Sign-out service could not be reached. Local sign-in has been cleared.",
+                        ),
+                    );
             } finally {
+                finishSubmission();
                 clearAuth();
                 void router.navigate({ to: "/login" });
             }
@@ -109,7 +121,13 @@ export function createPortalBaseLayout<const TRoutes extends readonly PortalNavI
                                         : void router.navigate({ to: "/profile" }),
                             }}
                         >
-                            <Button type="text" aria-label={t("账号菜单", "Account menu")}>
+                            <Button
+                                type="text"
+                                loading={signingOut}
+                                disabled={signingOut}
+                                aria-busy={signingOut}
+                                aria-label={t("账号菜单", "Account menu")}
+                            >
                                 <Avatar
                                     size="small"
                                     src={userInfo?.avatarUrl ?? undefined}

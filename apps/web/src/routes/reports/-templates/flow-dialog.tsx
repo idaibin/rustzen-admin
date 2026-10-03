@@ -1,10 +1,11 @@
 import { EditOutlined, PlusCircleOutlined } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Input, Modal, Select } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 const example: Reports.FlowStep[] = [
@@ -25,6 +26,15 @@ export function FlowDialog({
     onSaved: () => Promise<unknown>;
 }) {
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [name, setName] = useState("");
     const [systemId, setSystemId] = useState("");
     const [json, setJson] = useState("");
@@ -38,6 +48,8 @@ export function FlowDialog({
     }, [open, flow, systems]);
 
     const mutation = useMutation({
+        onSettled: finishSubmission,
+        onError: failSubmission,
         mutationFn: (input: Reports.SaveFlow) =>
             flow ? reportsAPI.updateFlow(flow.id, input) : reportsAPI.createFlow(input),
         onSuccess: async () => {
@@ -55,6 +67,7 @@ export function FlowDialog({
             if (!Array.isArray(steps)) {
                 throw new Error();
             }
+            if (!name.trim() || !systemId || !beginSubmission()) return;
             mutation.mutate({ name, systemId, steps });
         } catch {
             appMessage.error(t("步骤必须是有效的 JSON 数组", "Steps must be a valid JSON array"));
@@ -66,17 +79,26 @@ export function FlowDialog({
             <Button
                 type={flow ? "text" : "primary"}
                 icon={flow ? <EditOutlined /> : <PlusCircleOutlined />}
+                aria-label={flow ? t("编辑模板", "Edit template") : undefined}
                 disabled={!systems.length}
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
             >
                 {flow ? null : t("新建模板", "New template")}
             </Button>
             <Modal
                 open={open}
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 title={
                     flow ? t("编辑模板", "Edit template") : t("新建报表模板", "New report template")
                 }
-                onCancel={() => setOpen(false)}
+                onCancel={() => {
+                    if (!submitting) setOpen(false);
+                }}
                 footer={null}
                 width={760}
                 destroyOnHidden
@@ -87,13 +109,18 @@ export function FlowDialog({
                         "Supported actions: goto, fill, click, waitFor, assertText, assertValue, assertAbsent, screenshot, screenshotViewport, setViewport, setUiPreferences, assertNoHorizontalOverflow, assertElementLayout, guardExists, pressKey, pause.",
                     )}
                 </p>
-                <Form layout="vertical">
+                <Form layout="vertical" disabled={submitting} onFinish={save}>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Form.Item label={t("名称", "Name")}>
-                            <Input value={name} onChange={(event) => setName(event.target.value)} />
+                        <Form.Item label={t("名称", "Name")} htmlFor={`${fieldId}-name`}>
+                            <Input
+                                id={`${fieldId}-name`}
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                            />
                         </Form.Item>
-                        <Form.Item label={t("系统", "System")}>
+                        <Form.Item label={t("系统", "System")} htmlFor={`${fieldId}-system`}>
                             <Select
+                                id={`${fieldId}-system`}
                                 value={systemId}
                                 onChange={(value) => setSystemId(value)}
                                 options={systems.map((s) => ({ value: s.id, label: s.name }))}
@@ -102,8 +129,9 @@ export function FlowDialog({
                             />
                         </Form.Item>
                     </div>
-                    <Form.Item label={t("步骤 JSON", "Steps JSON")}>
+                    <Form.Item label={t("步骤 JSON", "Steps JSON")} htmlFor={`${fieldId}-steps`}>
                         <Input.TextArea
+                            id={`${fieldId}-steps`}
                             className="font-mono text-xs"
                             rows={15}
                             value={json}
@@ -111,11 +139,14 @@ export function FlowDialog({
                         />
                     </Form.Item>
                     <DialogFooter
-                        onCancel={() => setOpen(false)}
+                        error={submissionError}
+                        onCancel={() => {
+                            if (!submitting) setOpen(false);
+                        }}
                         submitLabel={t("校验并保存", "Validate and save")}
-                        submitting={mutation.isPending}
+                        submitting={submitting}
                         submitDisabled={!name || !systemId}
-                        onSubmit={save}
+                        submitHtmlType="submit"
                     />
                 </Form>
             </Modal>

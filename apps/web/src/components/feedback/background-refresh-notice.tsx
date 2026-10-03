@@ -6,9 +6,14 @@ import { getLocale, t } from "@/lib/i18n";
 interface BackgroundRefreshNoticeProps {
     updatedAt: number;
     onRetry: () => void;
+    retrying?: boolean;
 }
 
-export function BackgroundRefreshNotice({ updatedAt, onRetry }: BackgroundRefreshNoticeProps) {
+export function BackgroundRefreshNotice({
+    updatedAt,
+    onRetry,
+    retrying = false,
+}: BackgroundRefreshNoticeProps) {
     const lastUpdated = new Intl.DateTimeFormat(getLocale(), {
         hour: "2-digit",
         minute: "2-digit",
@@ -29,7 +34,13 @@ export function BackgroundRefreshNotice({ updatedAt, onRetry }: BackgroundRefres
                 `Last successful update: ${lastUpdated}`,
             )}
             action={
-                <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
+                <Button
+                    size="small"
+                    loading={retrying}
+                    aria-busy={retrying}
+                    icon={<ReloadOutlined />}
+                    onClick={onRetry}
+                >
                     {t("重试", "Retry")}
                 </Button>
             }

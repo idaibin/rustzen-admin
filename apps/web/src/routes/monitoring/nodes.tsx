@@ -32,6 +32,7 @@ export const Route = createFileRoute("/monitoring/nodes")({ component: Monitorin
 
 function MonitoringNodesPage() {
     const [panel, setPanel] = useState<"add" | "settings">();
+    const [settingsPending, setSettingsPending] = useState(false);
     const [selected, setSelected] = useState<Monitor.Node>();
     const canManage = useAuthStore((state) => state.checkPermissions("monitor:manage"));
     const canViewSettings = useAuthStore((state) => state.checkPermissions("monitor:node:view"));
@@ -175,7 +176,9 @@ function MonitoringNodesPage() {
                         "Unable to read monitored nodes. Check your permission and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             ) : !data ? (
@@ -188,7 +191,7 @@ function MonitoringNodesPage() {
                     }
                     action={
                         !isPending ? (
-                            <Button onClick={() => void refetch()}>
+                            <Button loading={isFetching} onClick={() => void refetch()}>
                                 {t("重新加载", "Reload")}
                             </Button>
                         ) : undefined
@@ -198,6 +201,7 @@ function MonitoringNodesPage() {
                 <>
                     {hasMonitorBackgroundRefreshFailure(data, error) ? (
                         <BackgroundRefreshNotice
+                            retrying={isFetching}
                             updatedAt={dataUpdatedAt}
                             onRetry={() => void refetch()}
                         />
@@ -222,7 +226,12 @@ function MonitoringNodesPage() {
             )}
             <Drawer
                 open={Boolean(panel)}
-                onClose={() => setPanel(undefined)}
+                closable={!settingsPending}
+                keyboard={!settingsPending}
+                mask={{ closable: !settingsPending }}
+                onClose={() => {
+                    if (!settingsPending) setPanel(undefined);
+                }}
                 title={
                     panel === "add" ? t("添加节点", "Add node") : t("全局配置", "Global settings")
                 }
@@ -234,7 +243,10 @@ function MonitoringNodesPage() {
                     <NodeOnboarding onClose={() => setPanel(undefined)} />
                 ) : null}
                 {panel === "settings" && canViewSettings ? (
-                    <GlobalAlertSettings onClose={() => setPanel(undefined)} />
+                    <GlobalAlertSettings
+                        onClose={() => setPanel(undefined)}
+                        onPendingChange={setSettingsPending}
+                    />
                 ) : null}
             </Drawer>
             <NodeDetails node={selected} onClose={() => setSelected(undefined)} />

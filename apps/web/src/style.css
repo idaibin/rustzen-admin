@@ -70,6 +70,11 @@
         margin-bottom: 0;
     }
 
+    .data-table-shell [role="region"][tabindex="0"]:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: -2px;
+    }
+
     .data-table-shell .ant-table-placeholder [role="status"] {
         position: sticky;
         left: 0;
@@ -160,6 +165,17 @@
     height: 64px;
     flex-shrink: 0;
     padding: 16px;
+}
+.shell-brand a:hover {
+    color: var(--link-hover);
+}
+.shell-brand a:active {
+    color: var(--link-active);
+}
+.shell-brand a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+    border-radius: var(--radius);
 }
 .shell-navigation {
     flex: 1;

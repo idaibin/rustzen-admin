@@ -6,11 +6,13 @@ import { t } from "@/lib/i18n";
 export const MessageListItem = ({
     item,
     readPending,
+    readDisabled = false,
     onOpen,
     onRead,
 }: {
     item: Notifications.Item;
     readPending: boolean;
+    readDisabled?: boolean;
     onOpen: () => void;
     onRead: () => void;
 }) => (
@@ -18,16 +20,22 @@ export const MessageListItem = ({
         actions={
             !item.readAt
                 ? [
-                      <Button key="read" type="link" loading={readPending} onClick={onRead}>
+                      <Button
+                          key="read"
+                          type="link"
+                          loading={readPending}
+                          disabled={readDisabled}
+                          onClick={onRead}
+                      >
                           {t("已读", "Read")}
                       </Button>,
                   ]
                 : undefined
         }
     >
-        <button
-            type="button"
-            className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-start"
+        <Button
+            type="text"
+            className="min-w-0 flex-1 !h-auto !justify-start !whitespace-normal !text-start"
             aria-label={t(`打开消息：${item.title}`, `Open message: ${item.title}`)}
             onClick={onOpen}
         >
@@ -55,6 +63,6 @@ export const MessageListItem = ({
                     </>
                 }
             />
-        </button>
+        </Button>
     </List.Item>
 );

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/system/module")({ component: SystemModule
 
 function SystemModulePage() {
     const queryClient = useQueryClient();
-    const { data, error, isPending, refetch } = useQuery({
+    const { data, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["system", "modules"],
         queryFn: systemAPI.module.list,
         refetchInterval: 10_000,
@@ -157,7 +157,9 @@ function SystemModulePage() {
                             : t("请稍后重试。", "Please try again later.")
                     }
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </PageCard>
