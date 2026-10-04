@@ -217,3 +217,44 @@ and the final receipt records cleanup. Reproduction is explicit:
 Next Ready: a separately preplanned, at-most-20-request synchronized cohort correctness
 check with measured client request overlap. It must not be presented as this strict-rate
 observation, and it does not replace the still-blocked browser UI/E2E acceptance.
+
+## One overlapping-client cohort: 2026-10-04
+
+A separate plan was frozen before this new experiment:
+`target/rz/daily-summary-overlap/plan.json`, SHA-256
+`ffc3c02a083eed17f72de68595d980e404653063197319de3f2d52684b3c1f15`,
+source base `972bedd6fab22d54111223acf1563a2b24ecb5e0`. This plan explicitly replaces
+the previous strict dispatch-spacing workload for this one experiment only; it does
+not increase or repeat that 100-request workload.
+
+Exactly one cohort of four real GET requests ran after a four-client barrier, using
+the same owned owner JWT and pages 1/2/1/2. The barrier ends before each HTTP timer
+starts; no sleep or artificial hold extends measured request intervals. Each request
+uses the existing two-second HTTP timeout; the barrier has a five-second timeout.
+There is no automatic repeat if overlap is not observed.
+
+Receipt: `target/rz/daily-summary-overlap/run-2hkprz3p/result.json`. All four responses
+were 200 and exactly matched the corresponding previously validated payloads. The
+recorded client HTTP intervals overlap with a computed maximum of four. Three pure
+interval-oracle tests separately cover overlapping intervals, touching intervals,
+zero-duration intervals and invalid ordering. The existing three mocked load-budget
+checks and four fixture/oracle checks also pass; none creates additional real GETs.
+
+This proves one bounded overlapping-client read-correctness scenario. It does **not**
+prove simultaneous server critical-section execution, multi-user/concurrent-write
+correctness, performance/SLO acceptance or production capacity. The browser UI and
+browser-entry E2E remain blocked. The four cohort GETs are additional to the previous
+200 measured load GETs; normal fixture readiness/paging calls remain separately scoped.
+Both owned services were stopped. Review must not replay this one-cohort experiment
+without a separately approved budget.
+
+After the one authorized run, only two CLI help strings and generic receipt-limit
+wording were clarified in the gateway runner; no scheduling, HTTP, assertion or
+cleanup behavior changed. The exact at-run runner was preserved as
+`run-2hkprz3p/verifier-at-run.py` and verified against the receipt's original SHA-256.
+The overlap helper and its oracle are unchanged. Evidence reuse is limited to this
+metadata-only difference; no second cohort was silently executed.
+
+The current backend/API branch has closed generated-summary, gateway paging, serial
+role/revocation, owned outage/recovery and one overlapping-client read scenarios.
+Broader Monitoring/Agent workflows and browser acceptance remain distinct open work.

@@ -31,14 +31,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--admin-binary', type=Path, required=True)
     parser.add_argument('--monitor-binary', type=Path, required=True)
-    parser.add_argument('--observe-reads', action='store_true', help='Fixed100GET local read observation; no performance SLO')
+    parser.add_argument('--verify-overlap', action='store_true', help='Exactly one four-GET cohort; no automatic replay')
+    parser.add_argument('--observe-reads', action='store_true', help='Fixed 100-GET local read observation; no performance SLO')
     parser.add_argument('--verify-recovery', action='store_true', help='Stop/restart only this fixture Monitor once')
     parser.add_argument('--plan', type=Path, help='Pre-execution acceptance plan; required for recovery')
     parser.add_argument('--verify-roles', action='store_true', help='Also run owned non-owner role/revocation cases')
     parser.add_argument('--output-parent', type=Path, default=Path('target/rz/daily-summary-gateway'))
     args = parser.parse_args()
-    if (args.verify_recovery or args.observe_reads) and not args.plan:
-        parser.error('--verify-recovery/--observe-reads requires a pre-execution --plan')
+    if (args.verify_recovery or args.observe_reads or args.verify_overlap) and not args.plan:
+        parser.error('--verify-recovery/--observe-reads/--verify-overlap requires a pre-execution --plan')
     plan_bytes = args.plan.read_bytes() if args.plan else None
     plan = json.loads(plan_bytes) if plan_bytes else None
     plan_sha256 = hashlib.sha256(plan_bytes).hexdigest() if plan_bytes else None
@@ -141,6 +142,10 @@ def main():
         if args.observe_reads:
             from monitor_daily_summary_load import verify_read_observation
             read_observation = verify_read_observation(request, token, processes, receipts, output)
+        overlap_receipt = None
+        if args.verify_overlap:
+            from monitor_daily_summary_overlap import verify_overlap
+            overlap_receipt = verify_overlap(request, token, receipts, output, plan_sha256)
         unsigned_status = request('/api/monitor/daily-summaries')[0]
         assert unsigned_status == 401
         with sqlite3.connect(database) as db:
@@ -157,15 +162,17 @@ def main():
                 process.wait(timeout=10)
         for log in logs:
             log.close()
-    result = {'status': 'passed', 'readObservation': read_observation, 'planSha256': plan_sha256, 'plan': plan, 'recoveryReceipt': recovery_receipt, 'roleReceipts': role_receipts, 'day': str(day),
+    result = {'status': 'passed', 'overlapReceipt': overlap_receipt, 'readObservation': read_observation, 'planSha256': plan_sha256, 'plan': plan, 'recoveryReceipt': recovery_receipt, 'roleReceipts': role_receipts, 'day': str(day),
               'startedAt': started_at, 'completedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
               'verifierSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               'fixtureSha256': hashlib.sha256(Path(FIXTURE.__file__).read_bytes()).hexdigest(), 'receipts': receipts, 'unsignedStatus': unsigned_status,
               'binaries': {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in binaries.items()},
               'cleanup': 'Both owned processes stopped', 'readinessAttempts': readiness_attempts,
-              'boundaries': ('Real development-owner plus two synthetic custom roles and serial grant/revoke/disable checks. ' if args.verify_roles else 'Real development-owner only. ') + 'JWT/gateway/module/SQLite with raw telemetry fixtures. Browser/UI, all other roles, concurrency, performance, other modules, systemd, hourly elapsed ticks and production not verified.'}
+              'boundaries': ('Real development-owner plus two synthetic custom roles and serial grant/revoke/disable checks. ' if args.verify_roles else 'Real development-owner only. ') + 'JWT/gateway/module/SQLite with raw telemetry fixtures. Browser/UI, all other roles, unlisted concurrency behavior, performance budgets, other modules, systemd, hourly elapsed ticks and production not verified.'}
     if args.plan:
         assert hashlib.sha256(args.plan.read_bytes()).hexdigest() == plan_sha256, 'Plan changed during execution'
+    if args.verify_overlap:
+        result['overlapVerifierSha256'] = hashlib.sha256(Path(__file__).with_name('monitor_daily_summary_overlap.py').read_bytes()).hexdigest()
     if args.observe_reads:
         result['loadVerifierSha256'] = hashlib.sha256(Path(__file__).with_name('monitor_daily_summary_load.py').read_bytes()).hexdigest()
     if args.verify_recovery:

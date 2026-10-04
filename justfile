@@ -117,6 +117,11 @@ observe-monitor-daily-summary-reads plan: verify-monitor-daily-summary-gateway
     python3 -m unittest discover -s scripts -p test_monitor_daily_summary_load.py -v
     python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --observe-reads --plan "{{plan}}" --output-parent target/rz/daily-summary-load
 
+# Exactly one four-GET client cohort. No automatic repeat if overlap is unobserved.
+verify-monitor-daily-summary-overlap plan: verify-monitor-daily-summary-gateway
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_overlap.py -v
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-overlap --plan "{{plan}}" --output-parent target/rz/daily-summary-overlap
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
