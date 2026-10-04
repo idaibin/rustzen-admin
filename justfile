@@ -129,6 +129,14 @@ verify-insights-ingestion-runtime plan:
     cargo build --locked -p rustzen-insights --bin rz-insights
     python3 scripts/verify-insights-ingestion-runtime.py --admin-binary target/debug/rz-admin --insights-binary target/debug/rz-insights --plan "{{plan}}"
 
+# Real tracker JavaScript in a fake browser VM; no real browser/network acceptance.
+verify-insights-tracker-vm:
+    bun test apps/insights/src/features/tracking/tracker.test.mjs
+
+# Static React/API source contracts only; does not render or interact with a page.
+verify-analytics-ui-source-seams:
+    bun test apps/web/tests/analytics-ui.seam.test.mjs
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"

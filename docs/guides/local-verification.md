@@ -1,6 +1,10 @@
 # Local verification status
 
-This document records only the current delivery boundary as checked on 2026-09-23.
+The release-level snapshot below was recorded on 2026-09-23. The subsequent scoped
+2026-10-04 local checks are consolidated in
+[`local-runtime-coverage.md`](../plans/local-runtime-coverage.md). Executed-check
+success is separate from overall completeness: real browser acceptance remains
+blocked, and none of the new local checks certifies a signed or deployed release.
 Historical runs remain in Git and in their source-bound machine-local manifests;
 they do not certify a changed working tree or a different release artifact.
 
