@@ -121,3 +121,15 @@ are retained without rewriting history; the consolidated checklist names the lat
 checks that supersede harness timing/selector diagnostics. All owned browser/service
 processes were stopped. No fixture databases, screenshots, caches or runtime keys are
 part of the source commits.
+
+## Subsequent daily-summary backend/API closure
+
+On 2026-10-04 the finite acceptance in
+[`daily-summary-runtime-acceptance.md`](./daily-summary-runtime-acceptance.md)
+verified the actual default-feature Monitor startup worker against a fresh owned
+SQLite database. Historical raw inputs are synthetic; summary rows are generated
+by the application, including a second generation after restart and a new sample.
+Correct aggregates, zero-data behavior, registration boundary, persisted upsert and
+delegated HTTP authorization passed. The earlier route screenshot remains synthetic
+UI evidence; this new backend/API receipt does not retroactively certify that view.
+The next Ready item is Admin-gateway/UI display of these generated summaries.

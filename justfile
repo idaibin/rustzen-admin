@@ -91,6 +91,12 @@ verify-cli:
     cargo build -p rustzen-cli
     tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version
 
+# Real Monitor startup worker + synthetic historical inputs; no direct summary writes.
+verify-monitor-daily-summary-runtime:
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_runtime.py -v
+    cargo build --locked -p rustzen-monitor --bin rz-monitor
+    python3 scripts/verify-monitor-daily-summary-runtime.py --binary target/debug/rz-monitor
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
