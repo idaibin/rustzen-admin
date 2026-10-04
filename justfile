@@ -295,3 +295,8 @@ verify-reports-backend:
 verify-reports-due-worker plan:
     python3 -m unittest discover -s scripts -p test_reports_due_worker.py -v
     python3 scripts/verify-reports-due-worker.py --binary target/debug/rz-reports --plan "{{plan}}"
+
+# Admin JWT/RBAC reads of a retained real Reports run; max20 HTTP, no new runs.
+verify-reports-gateway-read plan source_receipt:
+    python3 -m unittest discover -s scripts -p test_reports_gateway_read.py -v
+    python3 scripts/verify-reports-gateway-read.py --plan "{{plan}}" --admin-binary target/debug/rz-admin --reports-binary target/debug/rz-reports --source-receipt "{{source_receipt}}"

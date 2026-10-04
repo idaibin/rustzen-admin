@@ -280,3 +280,57 @@ This is a real negative scheduled-run lifecycle plus signed module HTTP and pers
 process-restart evidence. It does not prove successful target execution, rendering/PDF,
 Admin JWT/gateway/RBAC or browser-entry E2E. The next independent seam is Admin gateway
 readback of this retained application-generated failed run under bounded user roles.
+
+## Admin gateway and serial reader authorization
+
+Basis: `73ae95370b39ebb2431674594494247758540b13`, plus the scoped gateway runner,
+its two pure oracle tests, command and documentation. This is the first current
+Reports acceptance here that crosses real Admin login/JWT, current role grants,
+Admin gateway/HMAC delegation, Reports service and persisted run readback.
+
+The input is the immediately preceding application-generated failed run, not a
+manually inserted run. The original closed database is opened read-only and copied
+using SQLite backup into a new owned fixture. Schedules are disabled in the copy
+before either process starts; the original database hash remains unchanged. A fresh
+Admin database contains one synthetic custom reader/role. The retained target is
+already disabled. No new run, browser or real notification is permitted.
+
+Pre-run revised plan: `target/rz/reports-gateway-read/plan-v2.json`, SHA-256
+`d2c02156745c7d0970d8ff6c354df3dc3c5ba0dd9d4a60375c8d34556926f1f7`.
+It binds runner, both binaries, relevant source/contracts, original receipt and
+original database before launch. The first attempt stopped at Reports configuration
+validation before any HTTP: the fixture sink path was not the required notification
+endpoint. Correcting only that local path resolved it. The initial plan and zero-HTTP
+failure in `run-6ok0f9nj` remain retained; the total is 17 actual HTTP attempts across
+both attempts, within the overall 20-attempt budget. No product/security rule changed.
+
+The successful `run-nnch26nt` used 17 HTTP attempts and 46 guard checks, from
+2026-10-04 13:19:01 to 13:19:03 UTC:
+
+- Owner and a reader with exactly `reports:run:view` received the exact prior failed
+  run, including ID, flow, error and timestamps.
+- An unsigned read returned 401. The reader's schedule read and run creation both
+  returned 403; the copied database still had exactly one run and one occurrence.
+- Removing run-view from the reader's role made the same JWT return 403. Restoring it
+  made that same session return 200 with the identical run. Owner access remained 200.
+- Steps, artifacts, outbox, observed children and unexpected notification requests
+  stayed zero. Both native processes and the owned sink stopped. The source DB digest
+  and all pre-bound source/runner/binary hashes remained unchanged.
+
+Receipt: `target/rz/reports-gateway-read/run-nnch26nt/result.json`, SHA-256
+`0976dbdce5cfdead01e5845dee78dddf06866776b4c3f28d0c2263bce9610a4f`.
+Login responses, passwords, Authorization headers and raw JWTs are never persisted in
+this receipt. The Admin binary hash is
+`b57fd5121a955ccaa56d3960db601a944fb99236204f9acec62d5a1c567127f6`, matching the earlier
+real gateway receipt `daily-summary-gateway/run-_fu9dk8s/result.json`; its Admin/shared
+sources are unchanged from that verified baseline and its dynamic libraries are
+present. Reports reuses the exact preceding due-worker binary. Neither is a release
+or full frontend-build attestation.
+
+`just verify-reports-gateway-read <plan> <source-receipt>` is the reproducible entry.
+The two pure input-evidence oracle tests, Python AST parse and diff check pass; the
+underlying commands ran directly because just is absent in this restored environment.
+The complete scoped Rust gate from `7ad98ef` remains unaffected by this scripts/docs
+batch and is reused with its exact original result. Browser rendering, successful
+Reports target execution, concurrency, every other role and full browser-entry E2E
+remain unverified. No broader permission or UI verdict is inferred.

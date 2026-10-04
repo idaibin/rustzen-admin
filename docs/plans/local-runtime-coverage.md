@@ -8,8 +8,8 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `7ad98ef2cb2a7bed700749e4aea40e4ac6b655af`, plus the
-Reports real due-worker acceptance scripts and scoped command/documentation update.
+Latest execution basis: `73ae95370b39ebb2431674594494247758540b13`, plus the
+Reports Admin gateway/RBAC acceptance scripts and command/documentation update.
 The previous fixed-calendar HTTP smoke retains its original executable receipt. The separately reviewed Reports weekly-DST
 calendar correction is included in that source basis. The
 Monitor, Insights and Web application sources remain unchanged from the restored
@@ -42,6 +42,7 @@ approval. This document is an evidence matrix, not a second task ledger.
 | Analytics page source seams | Four source-string/order tests for locale, responsive class declarations, 403 precedence and route-local errors | Passed static contracts only; no React render or interaction proof |
 | Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Earlier full UTC pass only; no full 22-case replay on fixed binary; not Admin JWT/RBAC or due execution |
 | Reports fixed-calendar module metadata | One current-date, eight-request America/New_York fixture smoke on the corrected binary; future due values round-trip to local time/weekday; all execution/delivery guards stay zero | Passed for that native metadata boundary; not a real spring transition or due job |
+| Reports Admin gateway and serial reader authorization | Seventeen real HTTP attempts: owner/custom run-only reader, exact prior application-generated failure readback, unsigned401, schedule/create403, same-JWT revoke403/restore200, owner unaffected | Passed for one custom reader and serial role changes; no all-roles/concurrency or rendered UI claim |
 | Reports native due-worker failure lifecycle | One real timer-generated occurrence/run, disabled-target failure, eight signed module HTTP reads/writes, one OS process restart plus 16-second repeat observation, same persisted run/occurrence | Passed negative path only; no browser steps/artifacts/notification delivery or successful render |
 | Reports scheduler/service/SQLite integration | Two new deterministic production-poll cases: due +60s, missed +61s, file-pool reopen/recovery, repeat enqueue/skip, cancelled linkage, disabled/effectiveAt boundaries | Passed with real fresh SQLite and injected clock; no process restart, timer worker or browser execution |
 | Reports pure scheduler/input functions | Six calendar and two input-validation Rust tests, including red-to-green weekly DST horizon regression | Passed as unit functions; no real timer/browser proof |
@@ -102,9 +103,9 @@ browser run must be planned separately once a supported reachable preview exists
   approved, reachable preview. Do not change network/security settings or switch
   browser-control mechanisms to evade the recorded refusal.
 - Reports future-schedule metadata/CRUD and selected input rejection are now covered
-  at the signed module API, followed by one real due failure. Admin gateway/user-role
-  integration and successful target/render execution remain separate plans; browser
-  execution must not evade the blocked preview or silently enable external delivery.
+  at the signed module API, followed by one real due failure and a separate real
+  Admin gateway/custom-reader authorization read journey. Successful target/render
+  execution remains unverified; browser work must not evade the recorded refusal.
 - Real Agent transport, other roles/modules, concurrent writes, production load and
   release provenance remain separate scenarios. Do not infer their completion from
   these receipts, and do not repeat passing loads just to accumulate test counts.
@@ -164,8 +165,11 @@ The bounded native due-worker failure journey now passes in its own source-bound
 receipt: one actual due occurrence, exact failed run/error, eight HTTP requests and
 same-database process-restart persistence, with zero browser/target/delivery effects.
 See the Reports record for the 919 sampled guards and fixed executable identity.
-The next independent Ready seam is Reports Admin gateway/user-role readback of that
-retained application-generated run. Successful Reports browser execution and real
+Reports Admin gateway/custom-reader readback of that retained application-generated
+run now passes its own 17-HTTP receipt, including same-session revocation/restoration.
+The next independent backend candidate is the previously unverified real Monitor Agent
+transport, subject to its own contract/dependency/safety preflight. Successful Reports
+browser execution and real
 rendered frontend/E2E remain blocked by the preview refusal; those dependencies do
 not block independent gateway/API acceptance. This acceptance batch does not alter
 Reports production sources, so the complete 72-test scoped Rust gate from `7ad98ef`
