@@ -97,6 +97,13 @@ verify-monitor-daily-summary-runtime:
     cargo build --locked -p rustzen-monitor --bin rz-monitor
     python3 scripts/verify-monitor-daily-summary-runtime.py --binary target/debug/rz-monitor
 
+# Requires the real Web bundle embedded in the full Admin binary; no browser claim.
+verify-monitor-daily-summary-gateway:
+    cd apps/web && bun install --frozen-lockfile && bun run build
+    cargo build --locked -p rustzen-admin --bin rz-admin
+    cargo build --locked -p rustzen-monitor --bin rz-monitor
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"

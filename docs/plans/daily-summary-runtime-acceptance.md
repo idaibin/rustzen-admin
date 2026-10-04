@@ -52,3 +52,34 @@ persistence and delegated rejection checks. Four fixture/oracle tests passed. Th
 passed: 76 tests, zero failures, with one harness thread.
 No screenshot, browser, systemd, signed installation, production provider or
 cross-platform acceptance follows from this backend/API result.
+
+## Subsequent Admin gateway closure: 2026-10-04
+
+`just verify-monitor-daily-summary-gateway` builds the real Web distribution and full
+Admin/Monitor binaries, then runs both services and API checks inside one execution
+environment against fresh owned databases. The new verifier reuses the raw-input
+fixture and metric oracle above. A real development-owner login yields the transient
+JWT used for the actual Admin gateway; no token is saved in evidence. Twenty-one
+additional registered nodes create 23 application-generated summaries.
+
+- Backend/API integration passed: page 1 → page 2 → page 1 returns 20/3/20 rows,
+  no duplicate node across the first two pages, retained total 23, matching sampled
+  and empty-node oracle, SQLite row count 23, and unsigned gateway rejection 401.
+- Source basis: `4af9c7e1eb38ca7c1f9dadafb2dadeace4be5a02` plus the gateway verifier,
+  command and this documentation. Production application code is unchanged.
+- Web production build and full Admin build passed; the existing large-chunk warning
+  remains. These are build checks, not rendered-page acceptance.
+- The gateway receipt records both binary SHA-256 values and successful process
+  cleanup under `target/rz/daily-summary-gateway/run-*/result.json`.
+- Frontend page, frontend interactions, and full browser E2E remain **blocked** in
+  this environment: cloud Chrome reported `net::ERR_BLOCKED_BY_CLIENT` opening the
+  local loopback URL. The server logged a successful loopback bind, but a separate
+  executor request could not reach that process. No supported preview mapping was
+  available in the inspected tool surface. This does not establish the exact cause
+  of the browser refusal; no alternate route or security setting was used to bypass it.
+- Other user roles, elapsed hourly scheduling, Agent transport, systemd, production
+  and the other two modules are not certified by this owner-only API journey.
+
+Next Ready independent acceptance: exercise permitted and denied non-owner roles
+through the Admin gateway with fresh owned accounts and observe revoked access.
+UI remains pending a supported reachable preview; this next step does not replace it.
