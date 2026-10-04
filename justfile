@@ -112,6 +112,11 @@ verify-monitor-daily-summary-roles: verify-monitor-daily-summary-gateway
 verify-monitor-daily-summary-recovery plan: verify-monitor-daily-summary-gateway
     python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-recovery --plan "{{plan}}" --output-parent target/rz/daily-summary-recovery
 
+# Exactly100 measured GETs per invocation; no automatic scaling or SLO claim.
+observe-monitor-daily-summary-reads plan: verify-monitor-daily-summary-gateway
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_load.py -v
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --observe-reads --plan "{{plan}}" --output-parent target/rz/daily-summary-load
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"

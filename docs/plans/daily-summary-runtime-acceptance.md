@@ -166,3 +166,54 @@ Four fixture/oracle tests passed again. Browser page/function/E2E remain blocked
 other-module availability, concurrent users, production load and performance remain
 unverified. A future Ready candidate is a small fixed local concurrent-read workload
 that records correctness and latency observations without inventing a product SLO.
+
+## Fixed rate-limited read observation: 2026-10-04
+
+Pre-run plan SHA-256:
+`c96f6ddd1da735ff7945c83eba9e0cfb21d8050a3caa8485e531f5b536d598a4`,
+`target/rz/daily-summary-load/plan.json`, source base
+`38959f326252ac1e7f1cee59a8030e69ff45db5e`. The plan was frozen before implementation
+and execution, then embedded and verified unchanged by the receipt. Only test code and
+documentation changed; the native binary and 23-row raw-input fixture identities are
+retained in the result.
+
+Workload: one owned owner JWT, four client worker threads, 100 measured GETs per run,
+page 1/2 alternating, global dispatch spacing of at least 100 ms (not 10 RPS per
+client), at most four in flight, 30-second dispatch budget, and a 1 GiB combined owned
+service RSS abort ceiling. Any payload/status mismatch stops further dispatch. No
+production/third-party target, write workload or automatic load escalation is involved.
+The ordinary gateway gate's readiness and 1/2/1 checks precede the measured requests;
+there is no separate load warmup or sequential comparator.
+
+Two real measured runs were executed, **200 load GETs in aggregate**:
+
+1. `run-epg9_mz1`: first 100-GET observation. The client timer included resource-sample
+   overhead. Preserved as an initial observation, not silently overwritten.
+2. `run-ac9jv4fn`: second 100-GET regression after fail-closed diagnostic preservation
+   and moving the latency timer immediately around HTTP request/response. This final
+   receipt is bound to its exact verifier/helper hashes. No further real load replay
+   was performed for this slice; independent review uses these receipts and mocked
+   deterministic harness checks.
+
+Both have 100/100 responses equal to the fixed expected page payloads and zero errors.
+The final single-point observation records p50 5.07 ms, p95 7.26 ms (nearest-rank,
+100 samples), min 4.16 ms, max 9.82 ms, and observed combined service RSS peak
+81,674,240 bytes. The recorded 10.08 completed responses/second divides by time from
+first dispatch to last completion; finite-window endpoint effects explain why that
+number is slightly above the 10-per-second dispatch spacing. It is not a capacity claim.
+
+Crucially, **maximum observed in-flight requests was one** despite four worker threads.
+This closes bounded rate-limited read correctness only. Actual overlapping requests,
+multi-user concurrency, performance-budget/SLO acceptance, improvement over a baseline,
+production capacity and tail-latency certification remain **not run**. No p99 claim is
+made. Shared-executor scheduling and client-generator overhead are not isolated.
+
+Three mocked harness checks prove the exact request cap, stopping on a wrong payload,
+and RSS-ceiling refusal before a request; the four fixture/oracle tests also pass.
+These seven tests are not additional real HTTP load. Both service processes were stopped
+and the final receipt records cleanup. Reproduction is explicit:
+`just observe-monitor-daily-summary-reads <current-plan-path>`; it is not a recurring run.
+
+Next Ready: a separately preplanned, at-most-20-request synchronized cohort correctness
+check with measured client request overlap. It must not be presented as this strict-rate
+observation, and it does not replace the still-blocked browser UI/E2E acceptance.
