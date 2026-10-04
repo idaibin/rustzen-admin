@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from zoneinfo import ZoneInfo
 
 
 def digest(path):
@@ -26,10 +27,13 @@ def digest(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--smoke-fixed-calendar', action='store_true', help='One eight-request current-date IANA metadata smoke')
     parser.add_argument('--plan', type=Path, required=True)
     parser.add_argument('--output-parent', type=Path, default=Path('target/rz/reports-schedule-contract'))
     args = parser.parse_args()
     if not __debug__: raise RuntimeError('Run without Python optimization')
+    request_cap = 8 if args.smoke_fixed_calendar else 24
+    timezone = 'America/New_York' if args.smoke_fixed_calendar else 'UTC'
     binary = args.binary.resolve(strict=True)
     plan_bytes = args.plan.read_bytes(); plan = json.loads(plan_bytes)
     plan_sha = hashlib.sha256(plan_bytes).hexdigest()
@@ -53,7 +57,7 @@ def main():
     secret = 'reports-schedule-owned-ipc-fixture-only'
     environment = {key: value for key, value in os.environ.items() if not key.startswith('RUSTZEN_')}
     environment.update(RUSTZEN_ENV='development', RUSTZEN_RUNTIME_ROOT=str(output), RUSTZEN_REPORTS_SQLITE_PATH=str(database),
-                       RUSTZEN_REPORTS_PORT=str(port), RUSTZEN_INTERNAL_HOST='127.0.0.1', RUSTZEN_TIMEZONE='UTC',
+                       RUSTZEN_REPORTS_PORT=str(port), RUSTZEN_INTERNAL_HOST='127.0.0.1', RUSTZEN_TIMEZONE=timezone,
                        RUSTZEN_IPC_TOKEN=secret, RUSTZEN_REPORTS_NOTIFICATION_INGRESS_URL=sink_url + '/internal/v1/notification-events')
     receipts = []; guard_checks = 0; process = None
     started = dt.datetime.now(dt.timezone.utc).isoformat()
@@ -75,7 +79,7 @@ def main():
         return counts
 
     def request(method, path, capability, body=None, expected=200):
-        assert len(receipts) < 24, 'The 24-HTTP-request budget is exhausted'
+        assert len(receipts) < request_cap, f'The {request_cap}-HTTP-request budget is exhausted'
         guard()
         headers = {'content-type': 'application/json'}
         if capability is not None:
@@ -95,9 +99,14 @@ def main():
         return value.get('data')
 
     def future_due(value):
-        assert value['enabled'] and value['timezone'] == 'UTC'
+        assert value['enabled'] and value['timezone'] == timezone
         due = dt.datetime.fromisoformat(value['nextDue'].replace('Z', '+00:00'))
         assert (due - dt.datetime.now(dt.timezone.utc)).total_seconds() >= 7200
+        if args.smoke_fixed_calendar:
+            local_due = due.astimezone(ZoneInfo(timezone))
+            assert local_due.strftime('%H:%M') == value['dueTime']
+            if value['cadence'] == 'weekly':
+                assert local_due.weekday() == value['weekday']
         assert value['lastOccurrence'] is None and value['lastRun'] is None
 
     log = (output / 'reports.log').open('w')
@@ -111,39 +120,56 @@ def main():
             time.sleep(.05)
         guard()
         view, manage = 'reports:schedule:view', 'reports:schedule:manage'
-        assert request('GET', '/api/reports/settings', view)['timezone'] == 'UTC'
+        assert request('GET', '/api/reports/settings', view)['timezone'] == timezone
         system = request('POST', '/api/reports/systems', 'reports:system:manage', {'name': 'Owned schedule target', 'baseUrl': sink_url, 'enabled': True})
         flow = request('POST', '/api/reports/flows', 'reports:flow:manage', {'systemId': system['id'], 'name': 'Never executed schedule fixture', 'steps': [{'action': 'goto', 'url': '/owned-fixture'}]})
-        now = dt.datetime.now(dt.timezone.utc)
-        daily_input = {'flowId': flow['id'], 'cadence': 'daily', 'weekday': None, 'dueTime': (now + dt.timedelta(hours=3)).strftime('%H:%M'), 'input': {}, 'enabled': False}
-        daily = request('POST', '/api/reports/schedules', manage, daily_input)
-        assert daily['enabled'] is False and daily['nextDue'] is None
-        daily_path = '/api/reports/schedules/' + daily['id']
-        assert request('GET', daily_path, view)['id'] == daily['id']
-        request('PUT', daily_path, view, daily_input, expected=403)
-        future_due(request('PUT', daily_path, manage, {**daily_input, 'enabled': True}))
-        disabled = request('PUT', daily_path, manage, daily_input)
-        assert disabled['enabled'] is False and disabled['nextDue'] is None
-        weekly_slot = now + dt.timedelta(days=1, hours=3)
-        weekly_input = {**daily_input, 'cadence': 'weekly', 'weekday': weekly_slot.weekday(), 'dueTime': weekly_slot.strftime('%H:%M')}
-        weekly = request('POST', '/api/reports/schedules', manage, weekly_input)
-        assert weekly['enabled'] is False and weekly['nextDue'] is None
-        weekly_path = '/api/reports/schedules/' + weekly['id']
-        future_due(request('PUT', weekly_path, manage, {**weekly_input, 'enabled': True}))
-        assert len(request('GET', '/api/reports/schedules', view)) == 2
-        invalid = [({**daily_input, 'cadence': 'monthly'}, 422),
-                   ({**daily_input, 'weekday': 1}, 400), ({**weekly_input, 'weekday': None}, 400),
-                   ({**daily_input, 'dueTime': '25:61'}, 400),
-                   ({**daily_input, 'input': {'password': 'synthetic-non-secret'}}, 400)]
-        for body, expected in invalid:
-            request('POST', '/api/reports/schedules', manage, body, expected)
-        assert len(request('GET', '/api/reports/schedules', view)) == 2
-        request('DELETE', daily_path, manage)
-        request('GET', daily_path, view, expected=404)
-        request('DELETE', weekly_path, manage)
-        assert request('GET', '/api/reports/schedules', view) == []
-        request('GET', '/api/reports/schedules', None, expected=401)
+        now = dt.datetime.now(dt.timezone.utc).astimezone(ZoneInfo(timezone))
+        future_hours = 4 if args.smoke_fixed_calendar else 3
+        daily_input = {'flowId': flow['id'], 'cadence': 'daily', 'weekday': None, 'dueTime': (now + dt.timedelta(hours=future_hours)).strftime('%H:%M'), 'input': {}, 'enabled': False}
+        if args.smoke_fixed_calendar:
+            daily = request('POST', '/api/reports/schedules', manage, {**daily_input, 'enabled': True})
+            future_due(daily)
+            weekly_slot = now + dt.timedelta(days=1, hours=future_hours)
+            weekly_input = {**daily_input, 'cadence': 'weekly', 'weekday': weekly_slot.weekday(), 'dueTime': weekly_slot.strftime('%H:%M'), 'enabled': True}
+            weekly = request('POST', '/api/reports/schedules', manage, weekly_input)
+            future_due(weekly)
+            schedules = request('GET', '/api/reports/schedules', view)
+            assert {item['id'] for item in schedules} == {daily['id'], weekly['id']}
+            for item in schedules: future_due(item)
+            request('DELETE', '/api/reports/schedules/' + daily['id'], manage)
+            request('DELETE', '/api/reports/schedules/' + weekly['id'], manage)
+        else:
+            daily = request('POST', '/api/reports/schedules', manage, daily_input)
+            assert daily['enabled'] is False and daily['nextDue'] is None
+            daily_path = '/api/reports/schedules/' + daily['id']
+            assert request('GET', daily_path, view)['id'] == daily['id']
+            request('PUT', daily_path, view, daily_input, expected=403)
+            future_due(request('PUT', daily_path, manage, {**daily_input, 'enabled': True}))
+            disabled = request('PUT', daily_path, manage, daily_input)
+            assert disabled['enabled'] is False and disabled['nextDue'] is None
+            weekly_slot = now + dt.timedelta(days=1, hours=3)
+            weekly_input = {**daily_input, 'cadence': 'weekly', 'weekday': weekly_slot.weekday(), 'dueTime': weekly_slot.strftime('%H:%M')}
+            weekly = request('POST', '/api/reports/schedules', manage, weekly_input)
+            assert weekly['enabled'] is False and weekly['nextDue'] is None
+            weekly_path = '/api/reports/schedules/' + weekly['id']
+            future_due(request('PUT', weekly_path, manage, {**weekly_input, 'enabled': True}))
+            assert len(request('GET', '/api/reports/schedules', view)) == 2
+            invalid = [({**daily_input, 'cadence': 'monthly'}, 422),
+                       ({**daily_input, 'weekday': 1}, 400), ({**weekly_input, 'weekday': None}, 400),
+                       ({**daily_input, 'dueTime': '25:61'}, 400),
+                       ({**daily_input, 'input': {'password': 'synthetic-non-secret'}}, 400)]
+            for body, expected in invalid:
+                request('POST', '/api/reports/schedules', manage, body, expected)
+            assert len(request('GET', '/api/reports/schedules', view)) == 2
+            request('DELETE', daily_path, manage)
+            request('GET', daily_path, view, expected=404)
+            request('DELETE', weekly_path, manage)
+            assert request('GET', '/api/reports/schedules', view) == []
+            request('GET', '/api/reports/schedules', None, expected=401)
         final_counts = guard()
+        with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as db:
+            final_schedule_count = db.execute('SELECT COUNT(*) FROM automation_schedules').fetchone()[0]
+        assert final_schedule_count == 0
     except Exception as error:
         failure = f'{type(error).__name__}: {error}'
     finally:
@@ -152,12 +178,14 @@ def main():
             try: process.wait(timeout=10)
             except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=10)
         log.close(); sink.shutdown(); sink.server_close(); sink_thread.join(timeout=2)
-    result = {'status': 'failed' if failure else 'passed', 'error': failure, 'receipts': receipts, 'requestCount': len(receipts),
+    result = {'mode': 'fixed-calendar-smoke' if args.smoke_fixed_calendar else 'full-future-contract', 'requestCap': request_cap, 'installationTimezone': timezone, 'status': 'failed' if failure else 'passed', 'error': failure, 'receipts': receipts, 'requestCount': len(receipts),
               'plan': plan, 'planSha256': plan_sha, 'startedAt': started, 'completedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
               'runnerSha256After': digest(__file__), 'binarySha256After': digest(binary), 'guardChecks': guard_checks,
               'unexpectedTargetOrNotificationRequests': hits, 'cleanup': 'Owned Reports process and loopback sink stopped',
               'boundaries': 'Real signed Reports module HTTP only. Future schedules never become due; no queued run/browser/notification delivery. Not Admin JWT/RBAC, browser UI, due-occurrence execution, rendering/PDF or production.'}
-    if not failure: result['finalZeroRowCounts'] = final_counts
+    if not failure:
+        result['finalZeroRowCounts'] = final_counts
+        result['finalScheduleCount'] = final_schedule_count
     assert digest(binary) == plan['binarySha256'] and digest(__file__) == plan['runnerSha256']
     assert hashlib.sha256(args.plan.read_bytes()).hexdigest() == plan_sha
     (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

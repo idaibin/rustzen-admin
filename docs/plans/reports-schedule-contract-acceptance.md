@@ -123,6 +123,45 @@ the UTC acceptance harness/commands/docs and leaves the application source ident
   the new build replaced `target/debug/rz-reports`.
 
 The P2 is corrected and covered at the pure calendar boundary. This is not an
-all-timezone certification; current fixed-calendar HTTP and actual due execution were
-not replayed. The original UTC receipt remains earlier-source evidence, not a claim
+all-timezone certification; at that pure-correction checkpoint, fixed-calendar HTTP and actual due execution had
+not been replayed. The separate current-date smoke below adds only its stated boundary. The original UTC receipt remains earlier-source evidence, not a claim
 that the newly built native process has been exercised.
+
+
+## Fixed-binary current-date IANA smoke
+
+A separate, explicitly bounded plan authorized exactly one smoke after the source fix:
+`target/rz/reports-fixed-calendar-smoke/plan.json`, SHA-256
+`bbd8c12201877f489684008576f8d79b38775e96b40b3eb149e7cd32d6cd2404`.
+Source base: `d10adc8b89fa70c610616fb435fe7917fc717280` plus the smoke-mode harness
+extension. The corrected Reports executable is pre-bound by SHA-256
+`2decca24fc6419f1b973b2ca7c00d956ea937607cd4f208a196b671ff6581a98`;
+runner, executable and plan hashes are verified before launch and after shutdown.
+The earlier 22-request runner was preserved as `run-j63jl1_4/runner-at-run.py` with
+its original hash, rather than pretending the extended runner was used in that run.
+
+`just verify-reports-fixed-calendar-smoke <current-plan-path>` invokes the explicit
+`--smoke-fixed-calendar` mode, with a hard eight-request cap. It does not rebuild an
+unbound executable or silently run the full 22-request contract. The operator first
+builds and binds the desired binary in the plan, as with the original gate.
+
+Exactly eight module requests passed: settings, owned target, owned template, future
+daily create, future weekly create, list, and both schedule deletions. The installation
+fixture uses `America/New_York` only in the child application's environment. Neither
+the OS timezone nor the system clock changes. Both nextDue values are at least two
+hours ahead and round-trip from UTC into the installation timezone to the expected
+HH:MM and, for weekly cadence, weekday. List preserves both created IDs.
+
+Receipt: `target/rz/reports-fixed-calendar-smoke/run-jaxbl6yr/result.json`.
+Eighteen guard checks observed zero child processes, runs, occurrences, artifacts,
+notification outbox rows and sink requests. Final schedule count is also zero. The
+owned process and sink were stopped. No automatic repeat or additional 22-request
+run occurred.
+
+This now proves current-date metadata HTTP wiring on the corrected native binary.
+It does not execute the spring DST transition: the historical gap is covered by the
+six pure calendar regressions, while this smoke uses the actual current date. Actual
+due jobs, real browser/PDF rendering, notification delivery, Admin JWT/user-role
+integration and rendered UI/E2E remain unverified. The old full UTC rejection/capability
+receipt retains its original executable/source identity; it is not rewritten as a full
+post-fix replay.
