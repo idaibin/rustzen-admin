@@ -9,6 +9,8 @@ use chrono_tz::Tz;
 use crate::{common::error::AppError, features::automation::types::ScheduleRow};
 
 const SCHEDULE_LATE_WINDOW_SECONDS: i64 = 60;
+// A weekly slot can fall in a DST gap; include the following week as well.
+const NEXT_DUE_LOOKAHEAD_DAYS: i64 = 14;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum ScheduleZone {
@@ -70,7 +72,7 @@ fn next_due_for_timezone<T: TimeZone>(
     timezone: &T,
 ) -> Result<Option<DueOccurrence>, AppError> {
     let local_now = now.with_timezone(timezone);
-    for day_offset in 0..=8 {
+    for day_offset in 0..=NEXT_DUE_LOOKAHEAD_DAYS {
         let date = local_now.date_naive() + TimeDelta::days(day_offset);
         if !date_matches_schedule(date, schedule)? {
             continue;

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep the next valid weekly Reports occurrence visible when the nearer weekly
+  slot falls in a daylight-saving gap; the forward lookup now includes the following week.
+
 ### Changed
 
 - Unify light and dark palettes through the existing CSS theme and Ant Design

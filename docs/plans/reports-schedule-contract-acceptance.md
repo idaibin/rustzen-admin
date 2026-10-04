@@ -81,13 +81,48 @@ DST gap/fold handling and effective-at admission. These function results do not 
 real scheduler timer fired or a browser run completed. Python compilation and
 `git diff --check` passed. Overall browser/full-product acceptance remains incomplete.
 
-## Separate open finding: weekly DST next-due horizon
+## Separate finding: weekly DST next-due horizon
 
 Independent review reproduced an existing P2 outside this UTC-only receipt:
 `next_due_at` for a weekly Sunday 02:30 schedule, queried at
 `2026-03-02T12:00:00Z` in `America/New_York`, returns null. The March 8 slot falls in
 an actual DST gap; the next valid slot is March 15 at `06:30:00Z`, beyond the current
 eight-day forward search. The accepted schedule spec requires skipping the gap and
-advancing to the next valid slot. This finding remains open pending a separate minimal
-calendar fix and pure regression review. No HTTP receipt is being rewritten or replayed,
+advancing to the next valid slot. This finding was recorded as open at the UTC-only acceptance checkpoint. The
+separate source correction and pure regression evidence below do not rewrite that run. No HTTP receipt is being rewritten or replayed,
 and no all-timezone scheduling claim follows from the UTC acceptance above.
+
+
+## Minimal source correction and pure regression
+
+The next-due forward search now includes day 14. This covers a query just after a
+weekly slot, a DST-gap slot seven days later, and the next valid slot fourteen days
+later. The backward occurrence scan, earlier-offset fold rule, 60-second admission
+window, run creation and HTTP status policies are unchanged. No version was bumped;
+the behavior correction is recorded under `Unreleased`.
+
+The pre-execution pure-fix plan is
+`target/rz/reports-weekly-dst-fix/plan.json`, SHA-256
+`fef29cf098631b1349dd181c8f005677d024313c4df3d352722e2e4eabfad8f8`.
+It binds the original calendar, new regression source, planned corrected calendar and
+Rust compiler hash before the red test. Its original `fb0edee` base is preserved;
+rebinding to parent `d734d4e` is justified because that intervening commit contains only
+the UTC acceptance harness/commands/docs and leaves the application source identical.
+
+- Red: the new weekly test on unchanged calendar code fails, actual null versus
+  March 15 `06:30:00Z`, when queried after the prior Sunday slot. Full diagnostic is
+  preserved in the task-local `rustzen-reports-dst-red.log`.
+- Green: the same weekly case also checks the March 2 query. A separate daily case
+  checks the upcoming March 8 gap rather than only dates after it. All six calendar
+  tests and both input-validation tests pass; existing UTC, fold, missed-window and
+  effective-at cases remain in that focused suite.
+- The default-feature Reports binary builds with the same bounded development profile.
+  No HTTP, scheduler process, job, browser or notification was run for this correction.
+- The earlier native HTTP executable is retained as
+  `run-j63jl1_4/rz-reports-at-run`, verified against its original receipt hash before
+  the new build replaced `target/debug/rz-reports`.
+
+The P2 is corrected and covered at the pure calendar boundary. This is not an
+all-timezone certification; current fixed-calendar HTTP and actual due execution were
+not replayed. The original UTC receipt remains earlier-source evidence, not a claim
+that the newly built native process has been exercised.

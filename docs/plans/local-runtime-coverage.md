@@ -8,12 +8,14 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `fb0edee90900bdde4995acab88b0ea4991ab6517`, plus this
-coverage/command/documentation-only update. Compared with the restored baseline
-`b94909de11c4e09a50815eceec123dbe8c00a6f6`, no files under `apps/`, `crates/`,
-`Cargo.toml`, `Cargo.lock` or `rust-toolchain.toml` changed in these runtime-acceptance
-commits. Earlier rows are retained only with this unaffected-code rationale and their
-own source/harness receipts; their original identities are not rewritten as new runs.
+Latest execution basis: `d734d4e71518095006bc1fcdd469ef18c47657c0`, plus the
+separately reviewed Reports weekly-DST calendar correction and documentation. The
+Monitor, Insights and Web application sources remain unchanged from the restored
+`b94909de11c4e09a50815eceec123dbe8c00a6f6` baseline. Reports now has one bounded
+forward-calendar change and two regressions; its previous UTC HTTP receipt is retained
+as earlier-source evidence and is not promoted to a native runtime claim for the fixed
+binary. Other unaffected rows retain their own original source/harness receipts and
+explicit boundary limits; original identities are never rewritten as new runs.
 
 Product/UI authorities remain `docs/product/product.md`, the Monitoring and Analytics
 collection-safety specifications, `docs/ui/index.md`, and root `DESIGN.md`. The candidate
@@ -36,8 +38,8 @@ approval. This document is an evidence matrix, not a second task ledger.
 | Insights scenario harness | Two Bun tests of the existing scenario oracle | Passed with mocked transport; not additional real HTTP |
 | Tracker client functions | Twelve VM tests of actual tracker JavaScript, including consent state, opt-out, identifiers, pathname sanitization, limits, queueing and bounded retry | Passed in fake DOM/storage/network/timers; no browser-host consent proof |
 | Analytics page source seams | Four source-string/order tests for locale, responsive class declarations, 403 precedence and route-local errors | Passed static contracts only; no React render or interaction proof |
-| Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Passed for metadata/CRUD; not Admin JWT/RBAC or actual due-time execution |
-| Reports pure scheduler/input functions | Four calendar and two input-validation Rust tests | Passed as unit functions; no real timer/browser proof |
+| Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Earlier UTC-only pass; native fixed-calendar HTTP not rerun; not Admin JWT/RBAC or due execution |
+| Reports pure scheduler/input functions | Six calendar and two input-validation Rust tests, including red-to-green weekly DST horizon regression | Passed as unit functions; no real timer/browser proof |
 | Current real frontend page rendering | No successful browser connection to current owned preview | Blocked |
 | Current real frontend user interactions | No successful browser connection to current owned preview | Blocked |
 | Full browser-entry E2E | No current browser → gateway → persistence run | Blocked |
@@ -82,10 +84,9 @@ browser run must be planned separately once a supported reachable preview exists
 
 ## Remaining meaningful work and prerequisites
 
-- Open Reports P2: weekly Sunday 02:30 in America/New_York can report null nextDue
-  when the nearest week is a DST gap and the following valid week exceeds the
-  eight-day lookup horizon. See the Reports record; a separate pure calendar fix
-  is planned. Current UTC-only HTTP evidence remains valid within its scope.
+- Reports weekly-DST P2 is corrected at source and pure-regression boundaries. Current
+  fixed-calendar native HTTP and due-time execution have not been rerun; the earlier
+  UTC-only receipt remains explicitly tied to its retained pre-fix executable.
 
 - Browser-dependent work is genuinely blocked: current Monitor/Analytics page rendering,
   interaction, real consent/bootstrap and complete browser-entry journeys need an
