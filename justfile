@@ -283,3 +283,10 @@ verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     bash -c 'cmp <(target/debug/rz-monitor contract protocol) <(target/debug/rz-monitor-agent contract protocol)'
+
+# Reports-only native unit/service/SQLite gate; never starts the server or browser.
+verify-reports-backend:
+    cargo fmt -p rustzen-reports -- --check
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo check --locked -p rustzen-reports --all-targets
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo clippy --locked -p rustzen-reports --all-targets -- -D warnings
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports -- --test-threads=1

@@ -165,3 +165,62 @@ due jobs, real browser/PDF rendering, notification delivery, Admin JWT/user-role
 integration and rendered UI/E2E remain unverified. The old full UTC rejection/capability
 receipt retains its original executable/source identity; it is not rewritten as a full
 post-fix replay.
+
+## Production single-poll / SQLite lifecycle integration
+
+Follow-on basis: `5c1ef0fd7e3ca786c4c61d0cef05e59842e08268`. The Reports scheduler
+had pure calendar and repository transaction tests, but no direct integration of
+`process_schedules_once` with service readback after reopening a file database.
+Two new tests in `scheduler/tests.rs` cover this accepted contract. The only change
+in production source is a `cfg(test)` module declaration; runtime behavior is unchanged.
+
+The fixture uses a fresh SQLite database, actual migrations, the production poll,
+service readback/cancellation and startup recovery entry, with an injected fixed time.
+It never calls `spawn`, starts a server, launches a browser or sends a notification.
+The target is disabled and points at loopback; the browser path is nonexistent.
+Closing and reopening the pool proves persistent state rather than an in-memory cache;
+it is not an actual operating-system process restart or timer-driven execution.
+Schedules are inserted through the repository fixture helper with an empty stored flow;
+this does not certify schedule-create validation or executable-flow acceptance.
+
+- Daily and Monday-weekly schedules produce no decision before due, then exactly two
+  queued runs and two linked decisions at the inclusive +60-second boundary.
+- A queued run cancels through the real service. After pool reopen/startup recovery,
+  both a same-window enqueue poll and a +61-second skip attempt retain exactly the
+  original two decisions/runs and the cancelled run's link/input snapshot.
+- A fresh +61-second poll produces one `missed` decision with no run. Disabled and
+  post-due-effective schedules have no decision. Reopen and repoll preserve that state.
+- All scheduled initiators remain null, artifacts/outbox stay empty, output directories
+  are not created, SQLite `quick_check` succeeds and owned fixture directories are removed.
+
+Pre-execution plan revision 4:
+`target/rz/reports-due-integration/plan-v4.json`, SHA-256
+`ea3cf9134efa706609748406f741ee9d6f19e34514af19026cd191d3cded2094`.
+It preserves the original plan and records an independent review improvement before
+execution: replay the Enqueue branch after reopen, then the late Skip branch. Executable
+identity and final results are recorded separately in the execution receipt.
+
+The first compile exposed a fixture-only SQLx 0.9 static-query requirement; the first
+focused run then failed because the raw migrations omitted the optional notification
+schema. The fixture now calls the production `run_migrations`. Both failures and plan
+revisions are retained; neither required changing application behavior. Both failed
+fixture directories were verified as owned and removed. The corrected focused run
+passes 2/2; the complete default-feature Reports suite passes 72/72 (including local
+loopback notification-transport tests, without real delivery).
+
+Final execution plan: `target/rz/reports-due-integration/attempt2/execution-plan.json`,
+SHA-256 `ac60ff19dc61bbaaad870439982b1e8036fc3833fc5c2431c9cdcb5b808d2699`.
+It binds the actual test executable before execution. The sibling `result.json` records
+commands, timestamps, exit codes, log hashes and post-source/binary equality. Scoped
+formatting passed with the existing stable-rustfmt nightly-option warning. Final
+`cargo check --locked -p rustzen-reports --all-targets` and scoped Clippy with
+`-D warnings` both passed. Source and test executable hashes remained unchanged.
+
+The current `tests` 0.1.1 guidance drives focused checks during editing and the complete
+applicable Reports gate before submission: `just verify-reports-backend`. Its commands
+were run directly because this restored environment has no just executable; the new
+recipe itself has not been parser-executed here. The existing full workspace
+`just check` is broader; this test-only slice does not claim that gate passed. Monitor,
+Insights and frontend application sources are unchanged, so their scoped prior evidence
+remains reusable with its original identities and limitations. Real UI/E2E remains
+blocked by the recorded preview refusal. No complete project/release verdict follows.

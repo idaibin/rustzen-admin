@@ -285,3 +285,6 @@ pub async fn cleanup_once(state: &AppState) -> Result<(u64, u64), AppError> {
     }
     Ok(repo::cleanup_retention(&state.pool, &artifact_cutoff, &run_cutoff).await?)
 }
+
+#[cfg(test)]
+mod tests;

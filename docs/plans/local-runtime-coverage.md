@@ -8,8 +8,9 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `d10adc8b89fa70c610616fb435fe7917fc717280`, plus the
-fixed-calendar smoke harness/command/documentation update. The separately reviewed Reports weekly-DST
+Latest execution basis: `5c1ef0fd7e3ca786c4c61d0cef05e59842e08268`, plus the
+test-only Reports single-poll/SQLite integration and scoped command/documentation update.
+The previous fixed-calendar HTTP smoke retains its original executable receipt. The separately reviewed Reports weekly-DST
 calendar correction is included in that source basis. The
 Monitor, Insights and Web application sources remain unchanged from the restored
 `b94909de11c4e09a50815eceec123dbe8c00a6f6` baseline. Reports now has one bounded
@@ -41,6 +42,7 @@ approval. This document is an evidence matrix, not a second task ledger.
 | Analytics page source seams | Four source-string/order tests for locale, responsive class declarations, 403 precedence and route-local errors | Passed static contracts only; no React render or interaction proof |
 | Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Earlier full UTC pass only; no full 22-case replay on fixed binary; not Admin JWT/RBAC or due execution |
 | Reports fixed-calendar module metadata | One current-date, eight-request America/New_York fixture smoke on the corrected binary; future due values round-trip to local time/weekday; all execution/delivery guards stay zero | Passed for that native metadata boundary; not a real spring transition or due job |
+| Reports scheduler/service/SQLite integration | Two new deterministic production-poll cases: due +60s, missed +61s, file-pool reopen/recovery, repeat enqueue/skip, cancelled linkage, disabled/effectiveAt boundaries | Passed with real fresh SQLite and injected clock; no process restart, timer worker or browser execution |
 | Reports pure scheduler/input functions | Six calendar and two input-validation Rust tests, including red-to-green weekly DST horizon regression | Passed as unit functions; no real timer/browser proof |
 | Current real frontend page rendering | No successful browser connection to current owned preview | Blocked |
 | Current real frontend user interactions | No successful browser connection to current owned preview | Blocked |
@@ -88,7 +90,9 @@ browser run must be planned separately once a supported reachable preview exists
 
 - Reports weekly-DST P2 is corrected at source and pure-regression boundaries. A new
   eight-request smoke verifies current-date metadata on the fixed native binary; actual
-  due-time execution remains unverified. The earlier full UTC receipt stays tied to its
+  timer/worker execution remains unverified. Two new direct production-poll integration
+  cases now cover due decisions and service readback after reopening SQLite; this does
+  not promote timer or OS-process-restart coverage. The earlier full UTC receipt stays tied to its
   retained pre-fix executable.
 
 - Browser-dependent work is genuinely blocked: current Monitor/Analytics page rendering,
@@ -140,3 +144,24 @@ resolves the earlier “just unavailable” syntax-check gap, without changing U
 - The exact DST-fix commit's accessible GitHub status and PR-workflow queries returned
   no checks/runs. This is not a required-CI pass or a ready-to-merge claim. Main and
   production deployment were not modified.
+
+
+## Reports integration follow-on and Ready frontier
+
+The current test-only slice follows `tests` 0.1.1 at
+`idaibin/skills@741f4161c863219528d2596ce03fdeb7ce7f1f1a`. Its pre-execution plan,
+failed fixture attempt, correction and current results are retained in the
+[Reports record](./reports-schedule-contract-acceptance.md). The complete applicable
+Reports binary suite passes 72/72; this includes the two new direct-poll cases.
+No production behavior, shared crate or frontend source changes in this slice.
+The existing Monitor/Insights/VM/static receipts therefore remain unaffected and keep
+their original source identities. The repository-wide `just check` and required remote
+CI are not promoted from the scoped Reports result.
+
+The next independent Ready acceptance is a bounded native Reports due-worker failure
+journey with an owned disabled target: persist one due occurrence, retain one failed
+run and its error after an owned process restart, and prove no browser or notification
+is reached. It requires a separate pre-bound plan and strict child/loopback guards;
+the passing direct-poll tests do not count as its execution. Reports Admin gateway/RBAC
+is another independent unverified seam. Real rendered frontend/E2E remains blocked by
+the existing preview refusal; those dependencies do not block these backend/API tasks.
