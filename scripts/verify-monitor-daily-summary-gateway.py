@@ -31,8 +31,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--admin-binary', type=Path, required=True)
     parser.add_argument('--monitor-binary', type=Path, required=True)
+    parser.add_argument('--verify-roles', action='store_true', help='Also run owned non-owner role/revocation cases')
     parser.add_argument('--output-parent', type=Path, default=Path('target/rz/daily-summary-gateway'))
     args = parser.parse_args()
+    started_at = dt.datetime.now(dt.timezone.utc).isoformat()
     binaries = {'admin': args.admin_binary.resolve(strict=True), 'monitor': args.monitor_binary.resolve(strict=True)}
     args.output_parent.mkdir(parents=True, exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix='run-', dir=args.output_parent.resolve()))
@@ -57,13 +59,13 @@ def main():
                        (f'pagination-{i:02}', f'pagination-{i:02}'))
         assert db.execute('SELECT COUNT(*) FROM node_daily_summaries').fetchone()[0] == 0
 
-    def request(path, token=None, body=None):
+    def request(path, token=None, body=None, method=None):
         headers = {'content-type': 'application/json'}
         if token:
             headers['Authorization'] = 'Bearer ' + token
         try:
             req = urllib.request.Request(f'http://127.0.0.1:{admin_port}' + path, headers=headers,
-                                         data=json.dumps(body).encode() if body else None)
+                                         data=json.dumps(body).encode() if body else None, method=method)
             with urllib.request.urlopen(req, timeout=2) as response:
                 return response.status, json.load(response)
         except urllib.error.HTTPError as error:
@@ -115,6 +117,10 @@ def main():
         assert len({row['nodeId'] for row in all_rows}) == 23
         FIXTURE.verify_rows([row for row in all_rows if row['nodeId'] in ('empty', 'sampled')], day)
         assert receipts[0]['body'] == receipts[2]['body']
+        role_receipts = []
+        if args.verify_roles:
+            from monitor_daily_summary_roles import verify_role_access
+            role_receipts = verify_role_access(request, token)
         unsigned_status = request('/api/monitor/daily-summaries')[0]
         assert unsigned_status == 401
         with sqlite3.connect(database) as db:
@@ -131,10 +137,15 @@ def main():
                 process.wait(timeout=10)
         for log in logs:
             log.close()
-    result = {'status': 'passed', 'day': str(day), 'receipts': receipts, 'unsignedStatus': unsigned_status,
+    result = {'status': 'passed', 'roleReceipts': role_receipts, 'day': str(day),
+              'startedAt': started_at, 'completedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
+              'verifierSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              'fixtureSha256': hashlib.sha256(Path(FIXTURE.__file__).read_bytes()).hexdigest(), 'receipts': receipts, 'unsignedStatus': unsigned_status,
               'binaries': {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in binaries.items()},
               'cleanup': 'Both owned processes stopped', 'readinessAttempts': readiness_attempts,
-              'boundaries': 'Real development-owner login/JWT/gateway/module/SQLite. Raw telemetry fixtures. Browser/UI, other roles, other modules, systemd, hourly elapsed ticks and production not verified.'}
+              'boundaries': ('Real development-owner plus two synthetic custom roles and serial grant/revoke/disable checks. ' if args.verify_roles else 'Real development-owner only. ') + 'JWT/gateway/module/SQLite with raw telemetry fixtures. Browser/UI, all other roles, concurrency, performance, other modules, systemd, hourly elapsed ticks and production not verified.'}
+    if args.verify_roles:
+        result['roleVerifierSha256'] = hashlib.sha256(Path(__file__).with_name('monitor_daily_summary_roles.py').read_bytes()).hexdigest()
     (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps({'status': 'passed', 'result': str(output / 'result.json')}))
 

@@ -104,6 +104,10 @@ verify-monitor-daily-summary-gateway:
     cargo build --locked -p rustzen-monitor --bin rz-monitor
     python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor
 
+# Serial role/revocation acceptance on fresh local identities, not concurrency/load.
+verify-monitor-daily-summary-roles: verify-monitor-daily-summary-gateway
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-roles --output-parent target/rz/daily-summary-rbac
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"

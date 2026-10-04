@@ -83,3 +83,49 @@ additional registered nodes create 23 application-generated summaries.
 Next Ready independent acceptance: exercise permitted and denied non-owner roles
 through the Admin gateway with fresh owned accounts and observe revoked access.
 UI remains pending a supported reachable preview; this next step does not replace it.
+
+## Non-owner role and revocation closure: 2026-10-04
+
+This slice was planned before execution using the candidate `tests` guidance at
+`idaibin/skills@23cc6b0a30abf15dd86cbb6cd148d13c731cca97` (no global installation or
+stable-promotion claim). The project-native plan is retained under ignored
+`target/rz/daily-summary-rbac/plan.json`; requirement authority remains this repository's
+product specification and `docs/guides/permission.md`, not the testing skill.
+The original plan is preserved with its earlier `4af9c7e` source base. Execution
+was explicitly rebound to `13bd091`: the intervening commit adds only the reviewed
+gateway harness/command/documentation; application binaries, product/permission
+authorities, initialization schema and role expectations did not change. The final
+role receipt binds the subsequently extended verifier/helper by exact hashes.
+
+`just verify-monitor-daily-summary-roles` reuses the existing gateway fixture and adds
+`--verify-roles`. The helper creates only two synthetic users and two custom roles in
+the newly initialized local Admin database, using real owner-authorized HTTP endpoints.
+It obtains capability IDs from the actual catalog rather than hardcoding database IDs.
+It does not mutate a user's existing database or any external service. Local development
+fixture credentials and session tokens are never included in the JSON receipts.
+
+| Case | Contract / boundary | Oracle | Current state |
+| --- | --- | --- | --- |
+| RZA-DS-R1 | Product granted-capability rule; real Admin JWT → Monitor delegation | Custom `monitor:node:view` user receives 200 and 23 summaries | Passed |
+| RZA-DS-R2 | Same route, independently authenticated custom overview-only user | 403, with exact capability list checked through `/api/auth/me` | Passed |
+| RZA-DS-R3 | Least-privilege Admin native API | Summary reader cannot list roles (403) | Passed |
+| RZA-DS-R4 | Current authorization after role grant mutation | Same existing JWT: remove summary capability → 403; restore → 200, without restarting services | Passed |
+| RZA-DS-R5 | User-enabled/session rule and user isolation | Disable reader → existing JWT rejected 401; independent owner still receives 200 | Passed |
+| UI page / frontend function / full browser E2E | Existing daily-summary UI contract | Real rendered and interactive states | Blocked by the recorded browser prerequisite |
+| Concurrent actors | Distinct from the serial cases above | No concurrent schedule was exercised | Not run |
+| Performance | No agreed workload/budget for this slice | No throughput/latency acceptance claim | Not run |
+
+Run basis: `13bd0918606da54acbe21900bf889b112449f90d` plus the role helper, gateway
+flag/receipt extension, command and this documentation. Production application code,
+PRD, wire contract and UI remain unchanged. Results under
+`target/rz/daily-summary-rbac/run-*/result.json` include exact helper/verifier/fixture
+SHA-256, both native binary hashes, start/end timestamps, each observed role status,
+the underlying 20/3/20 paging receipt and successful process cleanup. Four existing
+fixture/oracle regressions also pass. The earlier 76 Monitor tests are unchanged-code
+regression evidence, not a new 76-test execution in this role slice.
+
+This is a real API-entry-to-storage journey with serial permission changes, not a
+browser-entry E2E or a general certification of all roles. Source review and repository
+delivery remain separate gates. Next independent acceptance candidate: bounded
+Monitor outage/restart recovery through the Admin gateway; UI stays pending a supported
+reachable preview and is not replaced by that candidate.
