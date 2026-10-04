@@ -31,9 +31,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--admin-binary', type=Path, required=True)
     parser.add_argument('--monitor-binary', type=Path, required=True)
+    parser.add_argument('--verify-recovery', action='store_true', help='Stop/restart only this fixture Monitor once')
+    parser.add_argument('--plan', type=Path, help='Pre-execution acceptance plan; required for recovery')
     parser.add_argument('--verify-roles', action='store_true', help='Also run owned non-owner role/revocation cases')
     parser.add_argument('--output-parent', type=Path, default=Path('target/rz/daily-summary-gateway'))
     args = parser.parse_args()
+    if args.verify_recovery and not args.plan:
+        parser.error('--verify-recovery requires a pre-execution --plan')
+    plan_bytes = args.plan.read_bytes() if args.plan else None
+    plan = json.loads(plan_bytes) if plan_bytes else None
+    plan_sha256 = hashlib.sha256(plan_bytes).hexdigest() if plan_bytes else None
     started_at = dt.datetime.now(dt.timezone.utc).isoformat()
     binaries = {'admin': args.admin_binary.resolve(strict=True), 'monitor': args.monitor_binary.resolve(strict=True)}
     args.output_parent.mkdir(parents=True, exist_ok=True)
@@ -121,6 +128,14 @@ def main():
         if args.verify_roles:
             from monitor_daily_summary_roles import verify_role_access
             role_receipts = verify_role_access(request, token)
+        recovery_receipt = None
+        if args.verify_recovery:
+            from monitor_daily_summary_recovery import verify_recovery
+            def restart_monitor():
+                log = (output / 'monitor-restarted.log').open('w')
+                logs.append(log)
+                return subprocess.Popen([str(binaries['monitor']), 'controller'], env=environment, cwd=output, stdout=log, stderr=log)
+            recovery_receipt = verify_recovery(request, token, processes, restart_monitor)
         unsigned_status = request('/api/monitor/daily-summaries')[0]
         assert unsigned_status == 401
         with sqlite3.connect(database) as db:
@@ -137,13 +152,17 @@ def main():
                 process.wait(timeout=10)
         for log in logs:
             log.close()
-    result = {'status': 'passed', 'roleReceipts': role_receipts, 'day': str(day),
+    result = {'status': 'passed', 'planSha256': plan_sha256, 'plan': plan, 'recoveryReceipt': recovery_receipt, 'roleReceipts': role_receipts, 'day': str(day),
               'startedAt': started_at, 'completedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
               'verifierSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               'fixtureSha256': hashlib.sha256(Path(FIXTURE.__file__).read_bytes()).hexdigest(), 'receipts': receipts, 'unsignedStatus': unsigned_status,
               'binaries': {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in binaries.items()},
               'cleanup': 'Both owned processes stopped', 'readinessAttempts': readiness_attempts,
               'boundaries': ('Real development-owner plus two synthetic custom roles and serial grant/revoke/disable checks. ' if args.verify_roles else 'Real development-owner only. ') + 'JWT/gateway/module/SQLite with raw telemetry fixtures. Browser/UI, all other roles, concurrency, performance, other modules, systemd, hourly elapsed ticks and production not verified.'}
+    if args.plan:
+        assert hashlib.sha256(args.plan.read_bytes()).hexdigest() == plan_sha256, 'Plan changed during execution'
+    if args.verify_recovery:
+        result['recoveryVerifierSha256'] = hashlib.sha256(Path(__file__).with_name('monitor_daily_summary_recovery.py').read_bytes()).hexdigest()
     if args.verify_roles:
         result['roleVerifierSha256'] = hashlib.sha256(Path(__file__).with_name('monitor_daily_summary_roles.py').read_bytes()).hexdigest()
     (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

@@ -129,3 +129,40 @@ browser-entry E2E or a general certification of all roles. Source review and rep
 delivery remain separate gates. Next independent acceptance candidate: bounded
 Monitor outage/restart recovery through the Admin gateway; UI stays pending a supported
 reachable preview and is not replaced by that candidate.
+
+## Owned Monitor outage/recovery closure: 2026-10-04
+
+This existing product requirement was selected before implementation: module failure
+must not prevent Admin login; an enabled, authorized destination remains discoverable
+when its service is unavailable. The persisted navigation assertion below is an API
+contract check only, not proof of the browser sidebar or search rendering.
+
+Pre-execution plan: `target/rz/daily-summary-recovery/plan.json`, SHA-256
+`f9416f7810d886ff1ee39c74ed782dd8957656e96d2a2fd46aeeb48cd2598b64`,
+created before the first run and tied to `ba566a2f77d46c516d32e5cdbf4ee6f8db8f10cd`.
+The `tests` candidate at `23cc6b0a30abf15dd86cbb6cd148d13c731cca97` directed the
+contract/case/oracle/evidence separation. Final receipts embed the original plan,
+its pre-run digest, verifier and helper hashes, binary identities, timestamps and
+cleanup; a changed plan during execution fails the run. The production application
+and accepted contracts are unchanged; this slice only extends the harness and docs.
+
+Run `just verify-monitor-daily-summary-recovery <plan-path>` after preparing a current,
+timestamped acceptance plan. This builds/runs the ordinary gateway gate, then performs
+one owned Monitor termination and restart. It does not stop another process or change
+network/security settings. A 30-second discovery/recovery deadline accommodates the
+existing ten-second module sync loop; it is a harness resource bound, not an agreed
+production SLO or a performance acceptance threshold.
+
+| Case | Real boundary / oracle | Result |
+| --- | --- | --- |
+| RZA-DS-F1 | After the owned Monitor stops, gateway returns 503 / code 40001 / null data and an unavailable message, never a successful empty page | Passed |
+| RZA-DS-F2 | Admin remains alive, `/health` returns 200, fresh owner login and that fresh session's `/api/auth/me` both return 200 during outage | Passed |
+| RZA-DS-F3 | Wait until real discovery reports Monitor enabled but unavailable; persisted navigation API still returns the identical Monitor paths including summaries | Passed |
+| RZA-DS-F4 | Restart same binary/database; original owner JWT regains 200; page-two payload and total 23 equal the pre-outage result; module becomes available | Passed |
+
+First receipt: `target/rz/daily-summary-recovery/run-f7des5fi/result.json`.
+The main process and replacement Monitor were stopped in the common cleanup path.
+Four fixture/oracle tests passed again. Browser page/function/E2E remain blocked;
+other-module availability, concurrent users, production load and performance remain
+unverified. A future Ready candidate is a small fixed local concurrent-read workload
+that records correctness and latency observations without inventing a product SLO.

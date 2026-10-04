@@ -108,6 +108,10 @@ verify-monitor-daily-summary-gateway:
 verify-monitor-daily-summary-roles: verify-monitor-daily-summary-gateway
     python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-roles --output-parent target/rz/daily-summary-rbac
 
+# Supply a timestamped, current-contract plan before the owned outage experiment.
+verify-monitor-daily-summary-recovery plan: verify-monitor-daily-summary-gateway
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-recovery --plan "{{plan}}" --output-parent target/rz/daily-summary-recovery
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
