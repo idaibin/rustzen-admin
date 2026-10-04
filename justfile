@@ -122,6 +122,13 @@ verify-monitor-daily-summary-overlap plan: verify-monitor-daily-summary-gateway
     python3 -m unittest discover -s scripts -p test_monitor_daily_summary_overlap.py -v
     python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-overlap --plan "{{plan}}" --output-parent target/rz/daily-summary-overlap
 
+# Fresh owned Admin/Insights, at most20 total HTTP requests, no browser claim.
+verify-insights-ingestion-runtime plan:
+    cd apps/web && bun install --frozen-lockfile && bun run build
+    cargo build --locked -p rustzen-admin --bin rz-admin
+    cargo build --locked -p rustzen-insights --bin rz-insights
+    python3 scripts/verify-insights-ingestion-runtime.py --admin-binary target/debug/rz-admin --insights-binary target/debug/rz-insights --plan "{{plan}}"
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
