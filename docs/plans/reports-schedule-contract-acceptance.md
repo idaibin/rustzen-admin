@@ -224,3 +224,59 @@ recipe itself has not been parser-executed here. The existing full workspace
 Insights and frontend application sources are unchanged, so their scoped prior evidence
 remains reusable with its original identities and limitations. Real UI/E2E remains
 blocked by the recorded preview refusal. No complete project/release verdict follows.
+
+## Real due-worker failure and process-restart acceptance
+
+Next basis: `7ad98ef2cb2a7bed700749e4aea40e4ac6b655af`, with a new bounded Python
+runner and oracle tests only. The native default-feature Reports executable was rebuilt
+from that source. This slice closes the negative timer/worker lifecycle gap without
+executing a browser: the operator creates a valid target, goto flow and near-future
+schedule, then disables the target before due. The production worker must retain a
+failed run with the exact `target system is disabled` error, linked to one `enqueued`
+occurrence. The same database is reopened by a real second service process.
+
+Pre-run plan: `target/rz/reports-due-worker/plan.json`, SHA-256
+`43f5fa0eea52c82c0a196e860679b6a4e513a4959542252f639113416a10216c`.
+The runner, executable, Reports source/migration authorities and test oracle are hashed
+before execution and verified afterward. `tests` 0.1.1 guides the case/evidence boundaries.
+
+The finite budget is eight module HTTP attempts, one owned process restart, a 120-second
+terminal-observation deadline, and a 180-second whole-run dispatch deadline. Startup,
+request and shutdown calls have their own small timeouts; these are not OS resource
+limits. The new run is scheduled 30–90 seconds ahead, with a minimum 25-second margin
+after creation and confirmed disabled target at least 20 seconds before due. No system
+clock/timezone changes occur. The child application uses UTC only through configuration.
+
+Safety checks run before/after requests and during waiting: no child process, target or
+notification sink request, step, artifact or notification outbox row. The browser path
+also points to a nonexistent owned path. Child detection is sampled rather than a
+continuous process trace; the source-resolved disabled-target branch precedes browser
+execution. Any failure stops the experiment; there is no automatic native replay.
+
+The two pure oracle checks cover UTC minute/day rollover safety margin and rejection of
+incorrect terminal errors/status/timestamps. They do not simulate the complete worker.
+The single real run passed: exactly eight HTTP attempts, one process restart and
+919 guard checks, from 2026-10-04 13:07:52 to 13:09:23 UTC. The actual scheduler
+persisted one `enqueued` occurrence and the run failed with the exact disabled-target
+error before any step. HTTP schedule/run readback agreed with SQLite. After restarting
+the native process and observing another 16 seconds, both complete run and occurrence
+objects were unchanged; counts remained one each and the initiator remained null.
+Artifacts, steps, notification outbox, sink requests and observed child processes stayed
+zero. SQLite `quick_check` passed. Both owned service processes and the sink stopped.
+
+- Receipt: `target/rz/reports-due-worker/run-q9rmtcgp/result.json`.
+- Receipt SHA-256: `abdbdb28953f26d442f1ce0cf72dae9fb21c06739ad425cc01297ef8b7b33922`.
+- Native executable SHA-256: `2bd19e654315e5cc43ebfd3a5c3f6cde70138c953341c851abeec6427b3221f7`.
+- Final runner/binary/source hashes match their pre-run plan; no native replay occurred.
+
+`just verify-reports-due-worker <pre-bound-plan>` names the reproducible entry. The
+Python oracle tests, AST parse and diff check pass. The recipe has not been parsed by
+just in this restored environment; its underlying commands ran directly. The Reports
+72-test/fmt/check/Clippy result at `7ad98ef` remains applicable because this batch changes
+only test scripts, a command and documents, with all Reports/shared production source
+unchanged. No runtime, HTTP or load is repeated solely to accumulate another pass.
+
+This is a real negative scheduled-run lifecycle plus signed module HTTP and persisted
+process-restart evidence. It does not prove successful target execution, rendering/PDF,
+Admin JWT/gateway/RBAC or browser-entry E2E. The next independent seam is Admin gateway
+readback of this retained application-generated failed run under bounded user roles.

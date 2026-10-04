@@ -290,3 +290,8 @@ verify-reports-backend:
     CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo check --locked -p rustzen-reports --all-targets
     CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo clippy --locked -p rustzen-reports --all-targets -- -D warnings
     CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports -- --test-threads=1
+
+# One real timer/worker failure against an owned disabled target; no browser/delivery.
+verify-reports-due-worker plan:
+    python3 -m unittest discover -s scripts -p test_reports_due_worker.py -v
+    python3 scripts/verify-reports-due-worker.py --binary target/debug/rz-reports --plan "{{plan}}"

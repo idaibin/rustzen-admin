@@ -8,8 +8,8 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `5c1ef0fd7e3ca786c4c61d0cef05e59842e08268`, plus the
-test-only Reports single-poll/SQLite integration and scoped command/documentation update.
+Latest execution basis: `7ad98ef2cb2a7bed700749e4aea40e4ac6b655af`, plus the
+Reports real due-worker acceptance scripts and scoped command/documentation update.
 The previous fixed-calendar HTTP smoke retains its original executable receipt. The separately reviewed Reports weekly-DST
 calendar correction is included in that source basis. The
 Monitor, Insights and Web application sources remain unchanged from the restored
@@ -42,6 +42,7 @@ approval. This document is an evidence matrix, not a second task ledger.
 | Analytics page source seams | Four source-string/order tests for locale, responsive class declarations, 403 precedence and route-local errors | Passed static contracts only; no React render or interaction proof |
 | Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Earlier full UTC pass only; no full 22-case replay on fixed binary; not Admin JWT/RBAC or due execution |
 | Reports fixed-calendar module metadata | One current-date, eight-request America/New_York fixture smoke on the corrected binary; future due values round-trip to local time/weekday; all execution/delivery guards stay zero | Passed for that native metadata boundary; not a real spring transition or due job |
+| Reports native due-worker failure lifecycle | One real timer-generated occurrence/run, disabled-target failure, eight signed module HTTP reads/writes, one OS process restart plus 16-second repeat observation, same persisted run/occurrence | Passed negative path only; no browser steps/artifacts/notification delivery or successful render |
 | Reports scheduler/service/SQLite integration | Two new deterministic production-poll cases: due +60s, missed +61s, file-pool reopen/recovery, repeat enqueue/skip, cancelled linkage, disabled/effectiveAt boundaries | Passed with real fresh SQLite and injected clock; no process restart, timer worker or browser execution |
 | Reports pure scheduler/input functions | Six calendar and two input-validation Rust tests, including red-to-green weekly DST horizon regression | Passed as unit functions; no real timer/browser proof |
 | Current real frontend page rendering | No successful browser connection to current owned preview | Blocked |
@@ -90,9 +91,10 @@ browser run must be planned separately once a supported reachable preview exists
 
 - Reports weekly-DST P2 is corrected at source and pure-regression boundaries. A new
   eight-request smoke verifies current-date metadata on the fixed native binary; actual
-  timer/worker execution remains unverified. Two new direct production-poll integration
-  cases now cover due decisions and service readback after reopening SQLite; this does
-  not promote timer or OS-process-restart coverage. The earlier full UTC receipt stays tied to its
+  timer/worker failure now passes a separate single native run and process restart
+  against an owned disabled target. Successful target/browser execution remains
+  unverified. Two direct production-poll integration cases separately cover due
+  decisions and service readback after reopening SQLite. The earlier full UTC receipt stays tied to its
   retained pre-fix executable.
 
 - Browser-dependent work is genuinely blocked: current Monitor/Analytics page rendering,
@@ -100,9 +102,9 @@ browser run must be planned separately once a supported reachable preview exists
   approved, reachable preview. Do not change network/security settings or switch
   browser-control mechanisms to evade the recorded refusal.
 - Reports future-schedule metadata/CRUD and selected input rejection are now covered
-  at the signed module API. Admin gateway/user-role integration and an actual due
-  occurrence remain separate plans; due browser execution must not be used to evade
-  the blocked preview or silently enable external delivery.
+  at the signed module API, followed by one real due failure. Admin gateway/user-role
+  integration and successful target/render execution remain separate plans; browser
+  execution must not evade the blocked preview or silently enable external delivery.
 - Real Agent transport, other roles/modules, concurrent writes, production load and
   release provenance remain separate scenarios. Do not infer their completion from
   these receipts, and do not repeat passing loads just to accumulate test counts.
@@ -158,10 +160,14 @@ The existing Monitor/Insights/VM/static receipts therefore remain unaffected and
 their original source identities. The repository-wide `just check` and required remote
 CI are not promoted from the scoped Reports result.
 
-The next independent Ready acceptance is a bounded native Reports due-worker failure
-journey with an owned disabled target: persist one due occurrence, retain one failed
-run and its error after an owned process restart, and prove no browser or notification
-is reached. It requires a separate pre-bound plan and strict child/loopback guards;
-the passing direct-poll tests do not count as its execution. Reports Admin gateway/RBAC
-is another independent unverified seam. Real rendered frontend/E2E remains blocked by
-the existing preview refusal; those dependencies do not block these backend/API tasks.
+The bounded native due-worker failure journey now passes in its own source-bound
+receipt: one actual due occurrence, exact failed run/error, eight HTTP requests and
+same-database process-restart persistence, with zero browser/target/delivery effects.
+See the Reports record for the 919 sampled guards and fixed executable identity.
+The next independent Ready seam is Reports Admin gateway/user-role readback of that
+retained application-generated run. Successful Reports browser execution and real
+rendered frontend/E2E remain blocked by the preview refusal; those dependencies do
+not block independent gateway/API acceptance. This acceptance batch does not alter
+Reports production sources, so the complete 72-test scoped Rust gate from `7ad98ef`
+is reused with its original evidence; the new Python oracles and actual worker run
+provide the affected-harness verification.
