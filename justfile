@@ -137,6 +137,11 @@ verify-insights-tracker-vm:
 verify-analytics-ui-source-seams:
     bun test apps/web/tests/analytics-ui.seam.test.mjs
 
+# Future-only module contract: no due jobs, browser execution or notification delivery.
+verify-reports-schedule-contract plan:
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo build --locked -p rustzen-reports --bin rz-reports
+    python3 scripts/verify-reports-schedule-contract.py --binary target/debug/rz-reports --plan "{{plan}}"
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"

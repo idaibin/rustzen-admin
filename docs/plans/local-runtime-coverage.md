@@ -8,7 +8,7 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `2f3c525ca3877cd66de013e72525cb1fac402121`, plus this
+Latest execution basis: `fb0edee90900bdde4995acab88b0ea4991ab6517`, plus this
 coverage/command/documentation-only update. Compared with the restored baseline
 `b94909de11c4e09a50815eceec123dbe8c00a6f6`, no files under `apps/`, `crates/`,
 `Cargo.toml`, `Cargo.lock` or `rust-toolchain.toml` changed in these runtime-acceptance
@@ -36,11 +36,15 @@ approval. This document is an evidence matrix, not a second task ledger.
 | Insights scenario harness | Two Bun tests of the existing scenario oracle | Passed with mocked transport; not additional real HTTP |
 | Tracker client functions | Twelve VM tests of actual tracker JavaScript, including consent state, opt-out, identifiers, pathname sanitization, limits, queueing and bounded retry | Passed in fake DOM/storage/network/timers; no browser-host consent proof |
 | Analytics page source seams | Four source-string/order tests for locale, responsive class declarations, 403 precedence and route-local errors | Passed static contracts only; no React render or interaction proof |
+| Reports schedule module API | One future-only 22-request signed-module run: daily/weekly CRUD, UTC/next-due metadata, capability/input rejection and deletion; zero runs/occurrences/artifacts/outbox | Passed for metadata/CRUD; not Admin JWT/RBAC or actual due-time execution |
+| Reports pure scheduler/input functions | Four calendar and two input-validation Rust tests | Passed as unit functions; no real timer/browser proof |
 | Current real frontend page rendering | No successful browser connection to current owned preview | Blocked |
 | Current real frontend user interactions | No successful browser connection to current owned preview | Blocked |
 | Full browser-entry E2E | No current browser → gateway → persistence run | Blocked |
 | Signed bundle/install/systemd/production | Not part of these local acceptance runs | Not run; previous release snapshot is not promoted |
 
+The [Reports future-schedule record](./reports-schedule-contract-acceptance.md) adds its
+pre-bound executable/runner/plan and zero-execution guards.
 The separate [Monitor record](./daily-summary-runtime-acceptance.md) and
 [Insights record](./insights-ingestion-runtime-acceptance.md) retain exact scenario
 boundaries, commands, plan hashes, receipt paths and publication checkpoints. The
@@ -78,13 +82,19 @@ browser run must be planned separately once a supported reachable preview exists
 
 ## Remaining meaningful work and prerequisites
 
+- Open Reports P2: weekly Sunday 02:30 in America/New_York can report null nextDue
+  when the nearest week is a DST gap and the following valid week exceeds the
+  eight-day lookup horizon. See the Reports record; a separate pure calendar fix
+  is planned. Current UTC-only HTTP evidence remains valid within its scope.
+
 - Browser-dependent work is genuinely blocked: current Monitor/Analytics page rendering,
   interaction, real consent/bootstrap and complete browser-entry journeys need an
   approved, reachable preview. Do not change network/security settings or switch
   browser-control mechanisms to evade the recorded refusal.
-- Existing Reports input-safety and daily/weekly schedule lifecycle contracts are
-  candidates for another finite backend/API plan. They were not exercised in this
-  batch and require their own current binary, owned fixtures and request budget.
+- Reports future-schedule metadata/CRUD and selected input rejection are now covered
+  at the signed module API. Admin gateway/user-role integration and an actual due
+  occurrence remain separate plans; due browser execution must not be used to evade
+  the blocked preview or silently enable external delivery.
 - Real Agent transport, other roles/modules, concurrent writes, production load and
   release provenance remain separate scenarios. Do not infer their completion from
   these receipts, and do not repeat passing loads just to accumulate test counts.
