@@ -8,8 +8,9 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `d734d4e71518095006bc1fcdd469ef18c47657c0`, plus the
-separately reviewed Reports weekly-DST calendar correction and documentation. The
+Latest execution basis: `8c80039502c1492da6bd27c6100b8de8f9e30088`, plus the
+pure-command/parser documentation update. The separately reviewed Reports weekly-DST
+calendar correction is included in that source basis. The
 Monitor, Insights and Web application sources remain unchanged from the restored
 `b94909de11c4e09a50815eceec123dbe8c00a6f6` baseline. Reports now has one bounded
 forward-calendar change and two regressions; its previous UTC HTTP receipt is retained
@@ -103,3 +104,37 @@ browser run must be planned separately once a supported reachable preview exists
 All owned services and the failed agent-created preview tab were closed. Local fixture
 artifacts remain intentionally available for review; generated Web tooling hooks are
 untracked local installation artifacts, not part of these commits.
+
+
+## Pure regression entries and official command parsing
+
+Two additional entries keep low-side-effect checks separate from runtime gates:
+
+- `just verify-reports-calendar-unit`: the six calendar and two input-validation Rust
+  functions, using the same bounded build profile as the accepted source fix.
+- `just verify-local-acceptance-harness-unit`: the ten existing Python fixture,
+  fail-closed-budget and interval-oracle checks. No native service or real HTTP load.
+
+Together with `verify-insights-tracker-vm` and `verify-analytics-ui-source-seams`, these
+names state their evidence layer. There is deliberately no “everything accepted”
+aggregate that would hide blocked browser rows. The underlying suites already ran as
+recorded above; the parser checks below are not another execution of those suites.
+
+Official `just` 1.58.0 was built from crates.io in an isolated workspace tool directory.
+The locked install completed with an upstream yanked-dependency warning for
+`chacha20 0.10.1`; a warning-free tool installation is not claimed. No repository package
+or lockfile was changed for this tool install. The command still requires its documented
+Rust/Bun/Python tools on PATH when recipes are actually executed.
+
+Ten preplanned `--version`, `--list`, `--show` and `--dry-run` checks passed for the four
+pure/VM/static recipe names. None executed a recipe. The official parser therefore
+resolves the earlier “just unavailable” syntax-check gap, without changing UI/E2E status.
+
+- Pre-run plan: `target/rz/local-pure-gates/plan.json`, SHA-256
+  `8358019cbe408015df1e9210c30158c8bc2e074f387020290f0235d8d1fdf90e`.
+- Receipt/logs: `target/rz/local-pure-gates/result.json` and `command-*.log`.
+- The plan freezes the just binary and justfile hashes before parser execution and
+  verifies both afterward. `recipesExecuted` is explicitly false in the receipt.
+- The exact DST-fix commit's accessible GitHub status and PR-workflow queries returned
+  no checks/runs. This is not a required-CI pass or a ready-to-merge claim. Main and
+  production deployment were not modified.

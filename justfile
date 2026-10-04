@@ -142,6 +142,15 @@ verify-reports-schedule-contract plan:
     CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo build --locked -p rustzen-reports --bin rz-reports
     python3 scripts/verify-reports-schedule-contract.py --binary target/debug/rz-reports --plan "{{plan}}"
 
+# Pure Rust calendar/input functions only; does not start a Reports service or browser.
+verify-reports-calendar-unit:
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports features::automation::scheduler::calendar::tests -- --test-threads=1
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports features::automation::validation::tests -- --test-threads=1
+
+# Mock/pure/owned-SQLite harness assertions only; no native service or HTTP load.
+verify-local-acceptance-harness-unit:
+    python3 -m unittest discover -s scripts -p 'test_monitor_daily_summary_*.py' -v
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
