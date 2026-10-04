@@ -8,8 +8,9 @@ cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback previ
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest execution basis: `73ae95370b39ebb2431674594494247758540b13`, plus the
-Reports Admin gateway/RBAC acceptance scripts and command/documentation update.
+Latest delivered execution basis: `8f80902417a39e2da19ca4deee498c25ddf28de3`.
+This follow-on documentation update records dependency preflight only, without
+changing or replaying the accepted Reports application/runtime evidence.
 The previous fixed-calendar HTTP smoke retains its original executable receipt. The separately reviewed Reports weekly-DST
 calendar correction is included in that source basis. The
 Monitor, Insights and Web application sources remain unchanged from the restored
@@ -167,11 +168,65 @@ same-database process-restart persistence, with zero browser/target/delivery eff
 See the Reports record for the 919 sampled guards and fixed executable identity.
 Reports Admin gateway/custom-reader readback of that retained application-generated
 run now passes its own 17-HTTP receipt, including same-session revocation/restoration.
-The next independent backend candidate is the previously unverified real Monitor Agent
-transport, subject to its own contract/dependency/safety preflight. Successful Reports
+The next independent backend candidate, real Monitor Agent transport, reached its
+dependency preflight and is currently blocked as detailed below. Successful Reports
 browser execution and real
 rendered frontend/E2E remain blocked by the preview refusal; those dependencies do
 not block independent gateway/API acceptance. This acceptance batch does not alter
 Reports production sources, so the complete 72-test scoped Rust gate from `7ad98ef`
 is reused with its original evidence; the new Python oracles and actual worker run
 provide the affected-harness verification.
+
+
+## Current prerequisite frontier after the three Reports milestones
+
+Delivered milestones on `feat/theme-palette-20261003`:
+
+- `7ad98ef`: direct production-poll/persistent-SQLite lifecycle, focused 2 plus full
+  Reports 72, scoped formatting/check/Clippy and independent review.
+- `73ae953`: one real due-worker failure, eight module HTTP attempts, one real process
+  restart and zero browser/target/notification effects, independently reviewed.
+- `8f809024`: seventeen real Admin gateway/RBAC HTTP attempts using the previous
+  application-generated run, independently reviewed. The setup-only failed attempt
+  used zero HTTP and remains visible.
+
+The next authorized single-Agent development-mode transport scenario was selected
+with a budget of two genuine samples at the fixed 30-second cadence, at most 90 seconds
+and six auxiliary HTTP requests. Only the build-preflight plan was frozen; no runtime
+plan was finalized. No Agent execution or transport request occurred: the Agent
+binary was absent, and its build stopped during dependency acquisition. Offline Cargo
+resolution identifies the missing package as `sysinfo v0.39.6`; the download attempt
+reported `CONNECT tunnel failed, response 403`. The configured registry download base
+is `https://static.crates.io/crates`; the retained error does not expose the complete
+blocked request URL. No alternate registry/mirror or network/security workaround was
+attempted. Build plan and blocked receipt are in `target/rz/monitor-agent-transport/`.
+The build session is no longer available to the status tool; its terminal exit status
+was not returned after tool cancellation, so a successful build/clean exit is not claimed.
+
+The official isolated Rust 1.95.0 toolchain, rustfmt and Clippy were restored and used
+successfully for the Reports gate. The earlier shared tool directory is absent in this
+execution environment; Bun and just are not currently on PATH. Existing historical
+parser/VM receipts remain scoped evidence, not a claim that those tools are installed
+now. Reports recipes were executed through their recorded underlying commands.
+
+Remaining next actions and conditions:
+
+- Single-Agent transport: restore the denied official dependency through an approved
+  available route, then bind a built Agent executable and a new finite runtime plan.
+  Do not turn the unexecuted plan into passed transport coverage.
+- The repository's full dual-Agent gate also requires Docker and OS identity/ownership
+  setup unavailable here. A development-mode single-Agent run would not replace
+  dual identities, production TLS, installed activation or system-service readiness.
+- Rustzen CLI is a separate prerequisite candidate: no compiled `rz` exists here and
+  offline dependency resolution first reports missing `anstream v1.0.0`. No CLI
+  download was attempted; this is an unverified prerequisite, not a proven network
+  denial or a claim that the CLI can never run.
+- Whole-Web pure/source tests could be assessed independently after verifying their
+  current Bun/dependency prerequisites. They have not been newly executed in these
+  Reports batches and would not resolve real browser rendering/E2E.
+- Current real UI/E2E and successful Reports rendering remain blocked by the recorded
+  browser preview refusal. No alternative browser route was used to evade it.
+
+No repeat of passing API/load scenarios was started to fill those gaps. The latest
+exact-head accessible GitHub combined-status and PR-workflow queries returned empty
+results; required CI is unverified. Main remained `edd06daf34bf106064fee7241ff70600a8bf236b`.
