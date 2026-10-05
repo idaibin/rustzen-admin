@@ -149,3 +149,60 @@ PID1/systemd install/update/recovery, production upload limits, selected-portal 
 real Agent transport, successful Reports rendering and all-role/concurrency journeys
 remain separate acceptance work. The dashboard disk-discovery fixture reports 0 B/0 B
 in this sandbox; it is not evidence of real disk capacity.
+
+## Populated browser continuation — 2026-10-05
+
+`scripts/verify-populated-browser.mjs` starts four actual default-feature services,
+a real Agent, isolated Chromium and one owned local HTTP target. It refuses occupied
+ports, uses a new workspace runtime/database per run and stops its own children.
+Agent startup is checked by TCP; its transport phase allows at most six auxiliary
+HTTP attempts and 90 seconds, with no direct sample insertion.
+
+Final incoming base: `2de058ab190875fe4e1f2d4df3e75da93f445902` plus the recorded
+UI/runner file hashes; fixture build/composition/schema strings are test bindings,
+not release provenance. Final receipt: `2026-10-05T02-48-14.834Z/result.json`,
+SHA-256 `3bdc7e9cbd203c7ed62d8f8a4d14059b928a688a233c16153deb4eeebb41fab7`.
+
+- Agent: two genuine samples, 30.013-second spacing, sequence 2, positive actual
+  memory and valid CPU; SQLite read-only and Admin gateway raw metrics agree. Five
+  auxiliary HTTP attempts. Agent is stopped after its second sample; no PID1 claim.
+- Tracker: actual served script, explicit browser consent, same-origin fixture fetch
+  and custom event; three stored events (page_view/api_request/custom_export). Before
+  consent there are no events or visitor identity; after opt-out an additional fetch
+  and track call produce none. Query data is absent from the stored page pathname.
+- Reports: real Web dialog queues a four-step owned flow. All steps succeed in native
+  Chromium; screenshot/live-frame downloads have valid PNG headers. The actual UI
+  download equals the API artifact SHA-256. No PDF action was requested or certified.
+- Eight 1920×1080 light/dark UI screenshots include real chart hover tooltips.
+  Screenshot document overflow and page-error checks pass. Visual inspection confirms
+  populated Analytics values 1 PV / 1 UV / 3 events / 1 request.
+- UI fix: memory card/history percentages display one decimal; tooltip timestamp uses
+  the existing localized formatter; missing disk mounts have an explicit empty message.
+- Final source checks: 167 Web tests / 916 assertions, types, format, lint and Web
+  build pass; lint has 48 existing warnings and build retains its large-chunk warning.
+  Rebuilt Admin embeds the changed bundle. Agent build, Node syntax and diff checks
+  pass. Rust source is unchanged; prior 475-test workspace receipt is not rerun here.
+
+```bash
+cargo build --locked -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
+RUSTZEN_BROWSER_PATH=/absolute/path/to/isolated/chromium \
+RUSTZEN_PLAYWRIGHT_MODULE=/absolute/path/to/playwright \
+node scripts/verify-populated-browser.mjs
+```
+
+Build the default four binaries and Web first as above. The harness requires Node,
+Python SQLite and an isolated Chromium; default output is
+`target/rz/populated-browser/<timestamp>/result.json`. Its owned Chromium wrapper
+uses no-sandbox for this root container only; it is not a production configuration.
+
+Earlier diagnostic attempts are retained: first complete business run had an
+unsettled cleanup await (already-stopped Agent had signalCode rather than exitCode);
+one readiness run exhausted the request budget before Agent startup; two hover
+runs targeted a covered point instead of the last/topmost series point. These are
+harness failures, preserved separately from the final zero-exit passed run. Startup
+now uses TCP and cleanup handles signal termination. No injected product responses
+or SQL-written metrics/events are used.
+
+This closes the earlier single-Agent/build and Reports-rendering gaps only in this
+owned development scope. Disk capacity, external target portals, selected builds,
+all-role/concurrency, release/systemd/production and main integration remain separate.

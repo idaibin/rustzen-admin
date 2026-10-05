@@ -235,3 +235,14 @@ Remaining next actions and conditions:
 No repeat of passing API/load scenarios was started to fill those gaps. The latest
 exact-head accessible GitHub combined-status and PR-workflow queries returned empty
 results; required CI is unverified. Main remained `edd06daf34bf106064fee7241ff70600a8bf236b`.
+
+## 2026-10-05 populated development continuation
+
+The historical Agent dependency blocker above is resolved: locked Agent build passed.
+IN-11–IN-13 in `interaction-state-tasks.md` now pass with the actual four-service
+runtime, real Agent two-sample transport (30.013 seconds, five auxiliary requests),
+real browser Tracker consent/opt-out and successful native Reports render plus Web
+artifact download. Eight light/dark captures and the final receipt are documented
+in `../guides/local-verification.md`. Earlier failed harness attempts are preserved.
+This supersedes the old blocked status for that single-Agent development slice;
+it does not supersede release, PID1, multi-user or production evidence requirements.

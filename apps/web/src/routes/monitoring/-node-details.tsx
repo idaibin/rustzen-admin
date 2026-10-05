@@ -61,6 +61,11 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                             <Typography.Text type="secondary">
                                 {t("磁盘挂载点", "Disk mounts")}
                             </Typography.Text>
+                            {node.disks.length === 0 ? (
+                                <div className="text-sm text-muted-foreground">
+                                    {t("未采集到磁盘挂载点", "No disk mounts reported")}
+                                </div>
+                            ) : null}
                             {node.disks.map((disk) => (
                                 <div key={disk.mountPoint}>
                                     {disk.mountPoint}: {disk.usagePercent.toFixed(1)}%
@@ -103,6 +108,14 @@ export function NodeDetails({ node, onClose }: { node?: Monitor.Node; onClose: (
                                         />
                                         <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" />
                                         <Tooltip
+                                            labelFormatter={(value) =>
+                                                formatDateTime(String(value))
+                                            }
+                                            formatter={(value) =>
+                                                typeof value === "number"
+                                                    ? `${value.toFixed(1)}%`
+                                                    : String(value)
+                                            }
                                             contentStyle={{
                                                 background: "var(--popover)",
                                                 borderColor: "var(--border)",
@@ -160,7 +173,11 @@ function Usage({ usage, label }: { usage: Monitor.Usage; label?: string }) {
             <div className="text-sm">
                 {formatBytes(usage.usedBytes)} / {formatBytes(usage.totalBytes)}
             </div>
-            <Progress percent={usage.usagePercent} size="small" />
+            <Progress
+                percent={usage.usagePercent}
+                format={() => `${usage.usagePercent.toFixed(1)}%`}
+                size="small"
+            />
         </Card>
     );
 }

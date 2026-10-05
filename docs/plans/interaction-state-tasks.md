@@ -153,3 +153,27 @@ scenario in `local-runtime-coverage.md`. Dependency availability alone is not a 
 Agent runtime. Successful Reports rendering and release/systemd/production acceptance
 remain separately scoped. Native OS file-picker chrome is outside the Playwright
 filechooser-event check. Page rendering does not certify every business write journey.
+
+## Autonomous continuation targets (2026-10-05)
+
+Continue `feat/theme-verification-20261005` from `2de058a`.
+
+| ID | Outcome | Acceptance | Status |
+| --- | --- | --- | --- |
+| IN-11 | Real single-Agent transport and populated node view | Two genuine 30-second samples within 90 seconds; read-only SQLite and gateway readback; light/dark screenshots | Passed; final receipt linked below |
+| IN-12 | Browser Tracker and populated Analytics | Explicit consent, real browser collection, opt-out, stored events and light/dark screenshots | Passed; three real events and opt-out verified |
+| IN-13 | Successful Reports execution | Actual UI dispatch, owned local target, Chromium rendering, downloaded artifacts and light/dark screenshots | Passed; four steps, real UI download matches artifact bytes |
+
+These bounded development checks do not authorize main integration or production changes.
+
+Final receipt: `2026-10-05T02-48-14.834Z/result.json`, SHA-256 `3bdc7e9cbd203c7ed62d8f8a4d14059b928a688a233c16153deb4eeebb41fab7`.
+Eight canonical 1920×1080 screenshots cover light/dark node details, real history
+tooltips, populated Analytics and successful Reports. Actual values exposed long
+percentage precision in cards/tooltips; display is now one decimal, and an empty
+disk report has an explicit message. Full records and reproduction are in
+`../guides/local-verification.md`. This continuation is self-reviewed.
+
+The next finite acceptance target is populated Analytics/Reports at 1440×900 and
+390×844, including report artifact access by an authorized viewer. The earlier
+114-view empty-fixture matrix remains separate evidence. Main/release/systemd and
+production acceptance remain outside this development milestone.
