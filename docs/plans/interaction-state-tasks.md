@@ -20,7 +20,7 @@ Root DESIGN bytes remain unchanged at SHA-256
 | IN-06 | Local implementation checkpoint | repo-delivery | IN-02, IN-03 source gates | Exact path staging; 164 tests, types/lint/build pass; verified remote baseline; `[skip ci]` | Local checkpoint `d3cbb8a9cbcb8d56b8aaad789665c6d56511d117`; no remote publication claimed |
 | IN-07 | Final branch publication | repo-delivery | IN-04, IN-05 | Reviewed immutable basis and explicit remote readback; no main merge/deployment | Delivered at `b94909de`; 2026-10-05 fresh remote readback confirms it is an ancestor of `ac8ce732` on the original feature branch |
 
-Ready frontier as of 2026-10-05: IN-10 branch-only publication below. IN-07 publication is complete. Actual API/SQLite outcomes and synthetic fault fixtures
+Ready frontier as of 2026-10-05: no remaining item in the finite IN-08–10 scope. IN-07 publication is complete. Actual API/SQLite outcomes and synthetic fault fixtures
 remain separately identified. A commit containing this ledger is not itself proof of
 remote publication. Main merge and native host deployment remain excluded.
 
@@ -146,7 +146,7 @@ native-effect gap, rather than repeating old API receipts or adding a second led
 | --- | --- | --- | --- | --- | --- |
 | IN-08 | Current four-service profile upload and responsive theme acceptance | ops-browser | Current Web/API/account owners; IN-03 | Actual browser filechooser event, client type/size rejection, real corrupt-image rejection, one labeled network fault/retry, single pending dispatch, image bytes, reload/restart/fresh-login persistence; 19 routes × 3 frames × 2 themes, screenshots and hashed receipt | Passed (scoped); final receipt and 19 screenshot hashes are recorded in `local-verification.md` |
 | IN-09 | Restore the current complete source quality gate | dev-rust | IN-08 does not block pure checks; root justfile | Web test/type/format/lint/build, tracker VM, service wiring, Rust fmt/check/Clippy/workspace tests; preserve failure receipts and fix only discovered issues | Passed; 167 Web / 475 Rust tests, tracker 12 and post-fix CLI 9; fmt/types/check/Clippy/build complete |
-| IN-10 | Publish this validated continuation to the new branch | repo-delivery | IN-08, IN-09 | Exact allowed paths, source/tree comparison and remote readback; screenshot/report bundle delivered separately | Ready; IN-08/09 complete, exact scope self-reviewed; remote publication is verified separately from this ledger |
+| IN-10 | Publish this validated continuation to the new branch | repo-delivery | IN-08, IN-09 | Exact allowed paths, source/tree comparison and remote readback; screenshot/report bundle delivered separately | Delivered; source milestone `dede6eeeb5794a3ed02e5cc7e035181088dfee89` read back on the new remote branch; main remains `edd06da`; this reconciliation is documentation-only |
 
 Next independent product frontier remains the existing bounded single-Agent transport
 scenario in `local-runtime-coverage.md`. Dependency availability alone is not a passed
