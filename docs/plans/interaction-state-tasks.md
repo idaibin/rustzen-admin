@@ -18,11 +18,17 @@ Root DESIGN bytes remain unchanged at SHA-256
 | IN-04 | Browser acceptance with owned fixtures | ops-browser | IN-02, IN-03 | Frozen source hashes; actual states, keyboard, contrast and callback counts at contract viewports | Passed (scoped); real owned API/DB flows plus independently labeled fault fixtures |
 | IN-05 | Independent review and final checks | repo-review | IN-03, IN-04 | Fixed diff, no unresolved P0–P2, tests/types/lint/build, explicit gaps | Reviewed; no unresolved actionable findings at manifest `74a170e2…`; final reconciliation below is documentation-only |
 | IN-06 | Local implementation checkpoint | repo-delivery | IN-02, IN-03 source gates | Exact path staging; 164 tests, types/lint/build pass; verified remote baseline; `[skip ci]` | Local checkpoint `d3cbb8a9cbcb8d56b8aaad789665c6d56511d117`; no remote publication claimed |
-| IN-07 | Final branch publication | repo-delivery | IN-04, IN-05 | Reviewed immutable basis and explicit remote readback; no main merge/deployment | Ready for branch-only delivery after this documented coverage; remote SHA must be verified separately |
+| IN-07 | Final branch publication | repo-delivery | IN-04, IN-05 | Reviewed immutable basis and explicit remote readback; no main merge/deployment | Delivered as `b94909de11c4e09a50815eceec123dbe8c00a6f6`; ancestor/current remote readback verified on 2026-10-05 |
 
-Ready frontier: IN-07 only. Actual API/SQLite outcomes and synthetic fault fixtures
-remain separately identified. A commit containing this ledger is not itself proof of
-remote publication. Main merge and native host deployment remain excluded.
+Ready frontier: none for this finite interaction pass. The reviewed implementation
+was published in [`b94909de11c4e09a50815eceec123dbe8c00a6f6`](https://github.com/idaibin/rustzen-admin/commit/b94909de11c4e09a50815eceec123dbe8c00a6f6).
+On 2026-10-05, remote branch readback returned `ac8ce7321fdfff73e5e534f390800c4a7475cda6`;
+GitHub comparison confirms the interaction commit is its ancestor (16 ahead, zero
+behind). IN-06 remains the historical local checkpoint; IN-07 records the actual
+remote publication. This status correction does not rerun or broaden the historical
+API/SQLite, browser, or synthetic-fault evidence below. Main merge and native host
+deployment remain excluded; [current coverage](./local-runtime-coverage.md) tracks
+later backend completion and unresolved current UI gates.
 
 ## Finite source inventory
 
@@ -132,4 +138,6 @@ by the application, including a second generation after restart and a new sample
 Correct aggregates, zero-data behavior, registration boundary, persisted upsert and
 delegated HTTP authorization passed. The earlier route screenshot remains synthetic
 UI evidence; this new backend/API receipt does not retroactively certify that view.
-The next Ready item is Admin-gateway/UI display of these generated summaries.
+Subsequent Admin gateway/API verification is complete within the linked Monitor record.
+Current real rendered summary acceptance remains blocked as recorded in
+[scoped local coverage](./local-runtime-coverage.md); API evidence does not close that UI gate.

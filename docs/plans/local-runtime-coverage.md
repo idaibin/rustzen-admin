@@ -26,6 +26,40 @@ collection-safety specifications, `docs/ui/index.md`, and root `DESIGN.md`. The 
 case/evidence separation; it does not replace those product contracts or grant release
 approval. This document is an evidence matrix, not a second task ledger.
 
+## Completed-work delivery summary, 2026-10-05
+
+Fresh remote readback confirmed `feat/theme-palette-20261003` at
+`ac8ce7321fdfff73e5e534f390800c4a7475cda6`, including all completed batches below.
+This reconciliation fixes stale pre-publication ledger statuses; it does not repeat
+implementation, tests, browser work or previously delivered commits.
+
+- Theme/status semantics and keyboard diagnostics were delivered in
+  [`42d6cb1`](https://github.com/idaibin/rustzen-admin/commit/42d6cb104a68a484685f6e6d9372b1d8e8af9b97).
+  The [theme ledger](./theme-palette-tasks.md) retains scoped component-fixture evidence,
+  approved design identity and the original 158-test Web checkpoint.
+- Shared pointer/keyboard/focus, pending/disabled/error states and recoverable
+  interactions were delivered in
+  [`b94909d`](https://github.com/idaibin/rustzen-admin/commit/b94909de11c4e09a50815eceec123dbe8c00a6f6).
+  The [interaction ledger](./interaction-state-tasks.md) records 167 Web tests,
+  type/lint/build checks, historical 19-route/114-view rendering and separately scoped
+  real API/SQLite actions. The matrix is historical resting-view evidence, not 114
+  complete workflows or a fresh browser rerun in the current environment.
+- Monitor completion covers real summary generation/upsert, delegated and gateway
+  reads, serial role revocation, outage/recovery and bounded read observations;
+  [the Monitor record](./daily-summary-runtime-acceptance.md) separates each boundary.
+- Insights completion covers ingestion/CORS/rejected-batch atomicity plus tracker VM
+  functions and Analytics static seams; see [the Insights record](./insights-ingestion-runtime-acceptance.md).
+- Reports completion covers schedule metadata/CRUD, the weekly DST-gap fix, persistent
+  due/cancel state, a real disabled-target worker failure/restart, and Admin reader
+  authorization; see [the Reports record](./reports-schedule-contract-acceptance.md).
+
+The original local checkout is absent in the 2026-10-05 execution workspace, so a fresh
+local clean-tree/untracked-artifact verdict is unavailable. The last verified local
+state on 2026-10-04 matched `ac8ce732` with only generated `apps/web/.vite-hooks/`
+untracked. Today's completion/delivery claims are grounded in current immutable remote
+contents and ancestry, not an assumed surviving checkout. No raw database,
+authentication log or secret is published by this summary correction.
+
 ## Boundary-specific coverage
 
 | Boundary | Concrete evidence | State / limitation |
