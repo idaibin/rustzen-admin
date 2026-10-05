@@ -213,7 +213,7 @@ impl PrivateParent {
         if stat.st_mode & libc::S_IFMT != libc::S_IFREG
             || stat.st_uid != 0
             || stat.st_gid != 0
-            || u32::from(stat.st_mode & 0o777) != mode
+            || u64::from(stat.st_mode & 0o777) != u64::from(mode)
         {
             return Err("fresh-root journal is unsafe".into());
         }
