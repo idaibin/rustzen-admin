@@ -168,12 +168,11 @@ mod tests {
 
     #[test]
     fn browser_headless_mode_uses_new_headless_only_when_requested() {
-        let new_headless = apply_browser_headless_mode(BrowserConfig::builder(), true)
-            .build()
-            .expect("new headless config");
-        let headed = apply_browser_headless_mode(BrowserConfig::builder(), false)
-            .build()
-            .expect("headed config");
+        // This tests configuration only; avoid host Chrome discovery and never launch it.
+        let builder = || BrowserConfig::builder().chrome_executable("configuration-only-chrome");
+        let new_headless =
+            apply_browser_headless_mode(builder(), true).build().expect("new headless config");
+        let headed = apply_browser_headless_mode(builder(), false).build().expect("headed config");
         assert!(format!("{new_headless:?}").contains("headless: New"));
         assert!(format!("{headed:?}").contains("headless: False"));
     }
