@@ -364,3 +364,22 @@ Main/release, selected-build coverage, disk-capacity measurements, external port
 all-role/concurrency and production remain separate. The next finite UI goal is
 keyboard focus and visible loading/error recovery across Reports audit/download
 interactions in both themes. Continue on the same branch with an owned fixture.
+
+
+## Completed interaction slice, 2026-10-05
+
+IN-17–21 are verified in the same owned branch and fresh fixtures; see
+[the final receipt and evidence boundary](../guides/local-verification.md#reports-interaction-closure-2026-10-05).
+Six light/dark × 1920/1440/390 Reports cases cover initial loading, synthetic
+transport errors, manual recovery, cached-row retention, single pending download,
+failure retry and keyboard focus. Four native Profile modal cases verify the
+shared focus patch across a second consumer. Clean installation reapplies both
+ES/CJS patch variants. Viewer write denial and download revocation pass again.
+All 76 UI screenshot hashes match the passing receipt; no document overflow or
+page errors are recorded. This is owned execution and self-review, supplementing
+the historical evidence without rewriting its restrictions.
+
+There is no remaining task in this finite UI/theme interaction acceptance slice.
+Main/release, systemd, selected-build breadth, capacity, external portals, exhaustive
+roles/concurrency and production remain separate project work. No deployment,
+branch deletion, external login or main merge was performed.

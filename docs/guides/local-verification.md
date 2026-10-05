@@ -248,3 +248,57 @@ Node syntax and Git whitespace checks pass. This continuation is self-reviewed.
 Rust source and approved DESIGN bytes are unchanged; historical Rust test counts
 are not a new workspace-test run. The screenshot bundle retains the diagnostic
 receipt and before-image separately, excluding runtime databases and credentials.
+
+
+## Reports interaction closure, 2026-10-05
+
+Owned final receipt: `2026-10-05T14-28-04.955Z/result.json`, status passed, exit 0.
+Receipt SHA256: `247e00b54bfae7aff642df27eb1e84819d4e2118e6f97cb4ae7a847ebac1f7e3`.
+Incoming source: `d528d731d290ace53168c2edf6a0c399b237782c`, plus the tested
+hash-bound changes below. The receipt does not claim that a final delivery commit
+was built before its creation.
+
+| Tested file | SHA256 |
+| --- | --- |
+| Reports run details | `2238c70907a6cfbe83ac15254629438efa177e536a4098215f551572982dd5fa` |
+| Populated browser runner | `2e55ceaacacc93340feeb528c92cf9d821e086b20dd6548f79504dd04b1c7916` |
+| Web package.json | `e347ab53649580a355e0c0f6a71866cfaf7ed433c0d372bde43919b88095c664` |
+| Web bun.lock | `a9eb0913f436ce5e00a725508f1b42e6994b938ac95e09c68a2a8e177dda9406` |
+| Maintained focus patch | `bc3945efd1dd65971f069a728bdf9921a602aef97e64912ef48ec9383472332f` |
+
+The package hash is verified directly against the receipt during delivery.
+Reports distinguishes initial loading, read errors, true emptiness and background
+refresh errors. Named Steps/Artifacts controls restore actual backend rows; cached
+rows remain visible on refresh failure. Owned transport routes inject explicitly
+labeled synthetic 503 faults; they are not evidence of a native backend outage.
+A held download admits one request across three immediate activations; failure
+releases the lock and Enter retries a real PNG while preserving keyboard focus.
+
+Physical Tab/Shift-Tab, Escape and trigger focus restoration pass across Reports
+in light/dark at 1920×1080, 1440×900 and 390×844. Profile Edit also passes in both
+themes at desktop/narrow sizes without attempting to save the form. A reproduced
+native Tab boundary escape required the maintained dependency patch described in
+[frontend guidance](./frontend.md); Ant Modal retains overlay/focus ownership.
+A fresh `bun install --frozen-lockfile --ignore-scripts` reproduces the patch in
+both module distributions, with no version upgrade.
+
+The 76 UI screenshots include real populated Analytics/Reports, recovery states,
+keyboard focus and read-only download checks. Every screenshot hash was recomputed
+and matches. Captures have no document overflow; narrow modal bounds are left 8,
+right 382, width 374. Page errors are empty; owned native binaries are unchanged
+during the run. Native Agent samples, three browser Tracker events with consent/
+opt-out and a real four-step report remain in the maintained runner. Owner, viewer
+and recovered downloads match actual PNG SHA256
+`6fda7bf5a9b524766ae390d3216d312dbe5cc6ce4a13592b69fbaa6109d16af7`.
+Viewer permissions are exactly `reports:run:view`; create returns 403 and the same
+token's download returns 403 after revocation. Its forbidden Dashboard landing
+is expected before navigation to permitted Reports.
+
+Validation: 167 Web tests / 916 assertions / zero failures; types, formatting,
+Web build and rebuilt Admin pass. Web check: zero errors, 48 existing warnings.
+Monitor/Insights/Reports and Agent native builds pass. Node syntax and Git whitespace
+checks pass. Rust source and approved DESIGN bytes are unchanged; historical Rust
+test counts are not newly rerun. This work is self-reviewed. The final artifact
+retains diagnostic receipts/failure images separately from the passing receipt,
+and excludes runtime databases, credentials and page HTML. Release/systemd,
+production and exhaustive all-role/concurrency acceptance remain separate.

@@ -128,3 +128,15 @@ component system.
 - Route-local `-content/` directories before real need.
 - Shared API type redeclarations inside pages.
 - Route-local state pushed into global stores without cross-page need.
+
+
+## Maintained focus patch
+
+`patches/@rc-component%2Futil@1.12.0.patch` is registered in package.json and
+bun.lock. Bun applies it during normal frozen installation; dependency versions
+remain unchanged. Its ES/CJS changes affect only Tab and Shift+Tab at the first
+and last controls of an already locked dialog: prevent browser-chrome traversal
+and focus the opposite boundary. Ignored nested elements and lock registration
+remain with the library owner. Reports and profile dialogs are the regression
+consumers in `scripts/verify-populated-browser.mjs`. Remove this patch only after
+an upstream replacement passes those same browser boundaries.

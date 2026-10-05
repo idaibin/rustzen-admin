@@ -1,0 +1,38 @@
+diff --git a/es/Dom/focus.js b/es/Dom/focus.js
+index 4969cabc17c476c25d20365028d40c577ffebfe1..138fb5927cca2d59b372ad39dd2c18083fa155b1 100644
+--- a/es/Dom/focus.js
++++ b/es/Dom/focus.js
+@@ -132,10 +132,14 @@ function onWindowKeyDown(e) {
+     const last = focusableList[focusableList.length - 1];
+     if (e.shiftKey && activeElement === focusableList[0]) {
+       // Tab backward on first focusable element
++      e.preventDefault();
+       lastFocusElement = last;
++      lastFocusElement?.focus({ preventScroll: true });
+     } else if (!e.shiftKey && activeElement === last) {
+       // Tab forward on last focusable element
++      e.preventDefault();
+       lastFocusElement = focusableList[0];
++      lastFocusElement?.focus({ preventScroll: true });
+     }
+   }
+ }
+diff --git a/lib/Dom/focus.js b/lib/Dom/focus.js
+index 840664019cf88c791d01963b921451ee7bffa5d6..9872d714c7f0e08c5a9b65d36695967041ccf237 100644
+--- a/lib/Dom/focus.js
++++ b/lib/Dom/focus.js
+@@ -142,10 +142,14 @@ function onWindowKeyDown(e) {
+     const last = focusableList[focusableList.length - 1];
+     if (e.shiftKey && activeElement === focusableList[0]) {
+       // Tab backward on first focusable element
++      e.preventDefault();
+       lastFocusElement = last;
++      lastFocusElement?.focus({ preventScroll: true });
+     } else if (!e.shiftKey && activeElement === last) {
+       // Tab forward on last focusable element
++      e.preventDefault();
+       lastFocusElement = focusableList[0];
++      lastFocusElement?.focus({ preventScroll: true });
+     }
+   }
+ }

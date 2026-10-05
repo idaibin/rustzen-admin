@@ -228,3 +228,30 @@ On 2026-10-05 the user requested retention instead of deletion. Remote readback
 confirmed palette tip `ff0a162a08029f91b5e694416dcd333e9429af4d` and working tip
 `132aa82fd5c669dfb0dad6f91f29bb9e6f649e81`; old-only/current-only counts are 0/7.
 No additional merge is necessary. Continue implementation only on the working branch.
+
+
+## Reports interaction closure, 2026-10-05
+
+Accepted request: complete remaining UI/interaction tasks and verify together on
+`feat/theme-verification-20261005`, incoming `d528d73`. Existing DESIGN, query,
+DataState, download and Ant Modal owners govern this slice. No new product behavior.
+
+| ID | Outcome | Owner | Acceptance | Status / next action |
+| --- | --- | --- | --- | --- |
+| IN-17 | Audit loading/error/recovery | ops-browser | Steps/artifacts distinguish pending, error and empty; cached rows survive refresh error; named query retry restores real rows in both themes | Passed: six theme/viewport cases |
+| IN-18 | Download failure and pending recovery | ops-browser | Labeled owned transport fault, visible feedback, rapid repeat admits one pending request, retry downloads actual matching PNG | Passed in owned browser runtime |
+| IN-19 | Keyboard modal acceptance | ops-browser | Enter opens audit, focus remains inside, Escape closes, trigger regains focus; three viewports/two themes | Passed in owned browser runtime |
+| IN-20 | Final delivery | repo-delivery | Frozen self-review, types/format/check/tests/build, runtime receipt/screenshots, remote tree/readback | Runtime/checks passed; delivery recorded in the final artifact |
+
+IN-21 (dev-frontend): retain Ant Modal ownership while patching the existing
+`@rc-component/util@1.12.0` first/last Tab boundary in both ES/CJS distributions.
+Passed: Reports forward/reverse Tab in six cases; native Profile Edit in four
+light/dark desktop/narrow cases; Escape restores trigger focus. A clean frozen-lock
+install reproduces the patch. No dependency versions changed.
+
+Final owned receipt: `2026-10-05T14-28-04.955Z/result.json`, status passed, exit 0;
+SHA256 `247e00b54bfae7aff642df27eb1e84819d4e2118e6f97cb4ae7a847ebac1f7e3`.
+All 76 screenshot hashes were recomputed and match. This finite theme/interaction
+slice has no remaining implementation frontier. Main/release/production acceptance
+remains separate. The screenshot artifact records the final published commit and
+remote tree verification; this work is self-reviewed, not independently reviewed.

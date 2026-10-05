@@ -254,6 +254,7 @@ try {
     await page.locator("#login_password").fill("rustzen@123");
     await page.locator("#login_password").press("Enter");
     await page.waitForURL(base + "/");
+    await page.getByRole("heading", { name: "仪表盘", exact: true }).waitFor();
     for (const theme of ["light", "dark"]) {
         await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
         await page.goto(base + "/monitoring/nodes");
@@ -396,6 +397,14 @@ try {
             bytes,
         );
     }
+    const reloadAudit = async (label) => {
+        const control = page.locator(".ant-modal button").filter({ hasText: label });
+        await control.scrollIntoViewIfNeeded();
+        const debug = await control.evaluate((el) => ({ label: el.textContent, visibility: getComputedStyle(el).visibility, rect: {top:el.getBoundingClientRect().top,bottom:el.getBoundingClientRect().bottom}, disabled: el.disabled }));
+        record("audit-reload-control", debug);
+        assert.equal(await page.getByRole("button", { name: label, exact: true }).count(), 1, "Reload control missing from accessibility tree");
+        await control.click();
+    };
     for (const [width, height] of [
         [1920, 1080],
         [1440, 900],
@@ -420,6 +429,108 @@ try {
                 })
                 .scrollIntoViewIfNeeded();
             await shot(`reports-artifacts-${theme}-${width}`);
+
+            // Keyboard dismissal and focus restoration use the existing Ant Modal owner.
+            await page.keyboard.press("Escape");
+            await page.getByRole("dialog").waitFor({ state: "hidden" });
+            const trigger = page.getByTestId(`run-view-${run.id}`);
+            assert(await trigger.evaluate((el) => el === document.activeElement), "Audit trigger focus not restored");
+
+            // Explicit owned transport faults: no backend business result is fabricated.
+            let phase = "hold";
+            let releaseReads;
+            const readsHeld = new Promise((resolveRead) => { releaseReads = resolveRead; });
+            const readFault = async (route) => {
+                if (phase === "hold") await readsHeld;
+                if (phase === "pass") return route.continue();
+                return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: 503, message: "Owned audit read fault" }) });
+            };
+            const stepPath = `${base}/api/reports/runs/${run.id}/steps`;
+            const artifactPath = `${base}/api/reports/runs/${run.id}/artifacts`;
+            await page.route(stepPath, readFault);
+            await page.route(artifactPath, readFault);
+            await page.reload(); // Fresh client query cache for initial loading/failure acceptance.
+            await trigger.focus();
+            await trigger.press("Enter");
+            await page.getByText("正在加载步骤", { exact: true }).waitFor();
+            await page.getByText("正在加载产物", { exact: true }).waitFor();
+            assert(await page.evaluate(() => Boolean(document.activeElement?.closest('.ant-modal'))), "Initial focus outside audit");
+            await delay(500); // Settle the modal opening animation before geometry/capture.
+            await shot(`audit-loading-${theme}-${width}`);
+            phase = "fail";
+            releaseReads();
+            await page.getByText("步骤加载失败", { exact: true }).waitFor();
+            await page.getByText("产物加载失败", { exact: true }).waitFor();
+            assert.equal(await page.getByText("暂无产物", { exact: true }).count(), 0);
+            await page.getByText("产物加载失败", { exact: true }).scrollIntoViewIfNeeded();
+            await shot(`audit-initial-error-${theme}-${width}`);
+            phase = "pass";
+            await reloadAudit("重新加载产物");
+            await page.getByText("产物加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await reloadAudit("重新加载步骤");
+            const artifactControl = page.getByRole("button", { name: artifacts.find((a) => a.kind === "screenshot").fileName, exact: true });
+            await artifactControl.waitFor();
+            await page.getByText("步骤加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await page.getByText("产物加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await artifactControl.scrollIntoViewIfNeeded();
+            await shot(`audit-recovered-${theme}-${width}`);
+            phase = "fail";
+            await reloadAudit("重新加载步骤");
+            await reloadAudit("重新加载产物");
+            await page.getByText("产物加载失败", { exact: true }).waitFor();
+            assert.equal(await artifactControl.count(), 1, "Cached artifact was lost");
+            assert(await page.getByText("1. goto", { exact: true }).count(), "Cached steps were lost");
+            await page.getByText("产物加载失败", { exact: true }).scrollIntoViewIfNeeded();
+            await shot(`audit-cached-error-${theme}-${width}`);
+            phase = "pass";
+            await reloadAudit("重新加载产物");
+            await page.getByText("产物加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await reloadAudit("重新加载步骤");
+            await page.getByText("步骤加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await page.getByText("产物加载失败", { exact: true }).waitFor({ state: "hidden" });
+            await page.unroute(stepPath, readFault);
+            await page.unroute(artifactPath, readFault);
+
+            // Hold a real download action, reject once, then retry the native artifact bytes.
+            let downloadRequests = 0;
+            let releaseDownload;
+            const downloadHeld = new Promise((resolveDownload) => { releaseDownload = resolveDownload; });
+            const downloadPath = `${base}/api/reports/runs/${run.id}/artifacts/${artifacts.find((a) => a.kind === "screenshot").id}`;
+            const downloadFault = async (route) => {
+                downloadRequests++;
+                await downloadHeld;
+                return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: 503, message: "Owned download fault" }) });
+            };
+            await page.route(downloadPath, downloadFault);
+            await artifactControl.evaluate((el) => { el.click(); el.click(); el.click(); });
+            await page.waitForFunction(() => document.querySelector('button[aria-busy="true"]'));
+            await artifactControl.scrollIntoViewIfNeeded();
+            await shot(`download-pending-${theme}-${width}`);
+            assert.equal(downloadRequests, 1, "Repeated activation dispatched duplicate download");
+            releaseDownload();
+            await page.getByText("Owned download fault", { exact: true }).waitFor();
+            await page.waitForFunction(() => !document.querySelector('button[aria-busy="true"]'));
+            await shot(`download-error-${theme}-${width}`);
+            await page.unroute(downloadPath, downloadFault);
+            const recoveredDownload = page.waitForEvent("download");
+            await artifactControl.focus();
+            await artifactControl.press("Enter");
+            const recovered = await recoveredDownload;
+            const recoveredFile = resolve(output, `recovered-download-${theme}-${width}.png`);
+            await recovered.saveAs(recoveredFile);
+            assert.equal(sha(recoveredFile), artifacts.find((a) => a.kind === "screenshot").downloadSHA256);
+            await page.waitForFunction(() => !document.querySelector('button[aria-busy="true"]'));
+            assert(await artifactControl.evaluate((el) => el === document.activeElement), "Download did not retain keyboard focus");
+            // Actual Tab navigation must remain within the dialog, including its boundary.
+            for (let tab = 0; tab < 12; tab++) {
+                await page.keyboard.press("Tab");
+                const active = await page.evaluate(() => ({ inside: Boolean(document.activeElement?.closest('.ant-modal')), tag: document.activeElement?.tagName, name: document.activeElement?.getAttribute('aria-label'), text: document.activeElement?.textContent?.slice(0, 80) }));
+                assert(active.inside, `Tab escaped audit: ${JSON.stringify(active)}`);
+            }
+            await page.keyboard.press("Shift+Tab");
+            assert(await page.evaluate(() => Boolean(document.activeElement?.closest('.ant-modal'))), "Reverse Tab escaped audit");
+            await shot(`audit-keyboard-${theme}-${width}`);
+            record("reports-interaction-recovery", { width, height, theme, initialLoading: true, initialReadFailure: true, staleRowsRetained: true, realRetry: true, downloadRequests, downloadSHA256: sha(recoveredFile), focusTrap: true, focusRestored: true, fault: "owned 503 browser transport interception" });
         }
     }
     const screenshotArtifact = artifacts.find((a) => a.kind === "screenshot");
@@ -430,6 +541,26 @@ try {
     await download.saveAs(downloadedPath);
     assert.equal(sha(downloadedPath), screenshotArtifact.downloadSHA256);
     record("real-reports-ui-run-and-artifact-download", { run: current, steps, artifacts });
+    // Cross-consumer acceptance for the shared Ant dialog focus owner; no profile writes.
+    for (const [width, height] of [[1920,1080],[390,844]]) {
+        await page.setViewportSize({width,height});
+        for (const theme of ["light","dark"]) {
+            await page.evaluate((t)=>localStorage.setItem("rustzen-admin-theme",t),theme);
+            await page.goto(base+"/profile");
+            const editProfile=page.getByRole("button",{name:"编辑个人资料",exact:true});
+            await editProfile.focus();await editProfile.press("Enter");
+            await page.getByRole("dialog").waitFor();await delay(500);
+            for (const key of ["Tab","Shift+Tab"]) for(let i=0;i<16;i++) {
+                await page.keyboard.press(key);
+                assert(await page.evaluate(()=>Boolean(document.activeElement?.closest('.ant-modal'))), `Profile ${key} focus escaped`);
+            }
+            await shot(`profile-keyboard-${theme}-${width}`);
+            await page.keyboard.press("Escape");
+            await page.getByRole("dialog").waitFor({state:"hidden"});
+            assert(await editProfile.evaluate(el=>el===document.activeElement),"Profile focus not restored");
+            record("shared-dialog-keyboard",{width,height,theme,forward:true,reverse:true,focusRestored:true,profileWrites:0});
+        }
+    }
     // A separate authenticated browser receives only the Reports read capability.
     const menus = await api("/api/system/menus");
     const runView = menus.find((m) => m.code === "reports:run:view");
@@ -470,7 +601,9 @@ try {
     await page.locator("#login_username").fill("owned_reports_viewer");
     await page.locator("#login_password").fill("OwnedReportsFixture123!");
     await page.locator("#login_password").press("Enter");
-    await page.waitForURL(base + "/");
+    // This viewer lacks dashboard:view; the current root contract lands on 403.
+    await page.waitForURL(base + "/403");
+    await page.getByText("403 · 禁止访问", {exact:true}).waitFor();
     for (const theme of ["light", "dark"]) {
         await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
         await page.goto(base + "/reports/runs");
@@ -525,6 +658,9 @@ try {
                 status: "passed",
                 source,
                 runnerSHA256: sha(fileURLToPath(import.meta.url)),
+                webPackageSHA256: sha(resolve(root,"apps/web/package.json")),
+                webLockSHA256: sha(resolve(root,"apps/web/bun.lock")),
+                dependencyPatches: Object.fromEntries(Object.entries(JSON.parse(readFileSync(resolve(root,"apps/web/package.json"),"utf8")).patchedDependencies ?? {}).map(([name,path])=>[name,{path,sha256:sha(resolve(root,"apps/web",path))}])),
                 reportUISourceSHA256: sha(
                     resolve(root, "apps/web/src/routes/reports/-runs/run-details.tsx"),
                 ),
@@ -546,7 +682,10 @@ try {
         ),
     );
 } catch (error) {
-    if (page) await page.screenshot({ path: resolve(output, "failure.png") }).catch(() => {});
+    if (page) {
+        await page.screenshot({ path: resolve(output, "failure.png") }).catch(() => {});
+        writeFileSync(resolve(output,"failure.html"), await page.content().catch(() => "Unavailable"));
+    }
     writeFileSync(
         resolve(output, "result.json"),
         JSON.stringify(
