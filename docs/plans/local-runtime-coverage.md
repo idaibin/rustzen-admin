@@ -2,7 +2,12 @@
 
 ## Verdict and fixed basis
 
-**Executed checks: passed within the rows below. Overall acceptance: incomplete.**
+**2026-10-04 snapshot: executed checks passed within the rows below; overall acceptance incomplete.**
+
+For the subsequent 2026-10-05 current-browser and source-gate update, see
+[local verification](../guides/local-verification.md#2026-10-05-local-continuation).
+The historical blocked rows below remain evidence of that earlier environment, not
+a permanent claim about the restored one.
 Real page rendering, browser interactions and browser-entry E2E remain blocked by the
 cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback preview.
 Source seams, VM tests, build success and real API journeys cannot close those rows.
