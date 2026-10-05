@@ -18,11 +18,19 @@ Root DESIGN bytes remain unchanged at SHA-256
 | IN-04 | Browser acceptance with owned fixtures | ops-browser | IN-02, IN-03 | Frozen source hashes; actual states, keyboard, contrast and callback counts at contract viewports | Passed (scoped); real owned API/DB flows plus independently labeled fault fixtures |
 | IN-05 | Independent review and final checks | repo-review | IN-03, IN-04 | Fixed diff, no unresolved P0–P2, tests/types/lint/build, explicit gaps | Reviewed; no unresolved actionable findings at manifest `74a170e2…`; final reconciliation below is documentation-only |
 | IN-06 | Local implementation checkpoint | repo-delivery | IN-02, IN-03 source gates | Exact path staging; 164 tests, types/lint/build pass; verified remote baseline; `[skip ci]` | Local checkpoint `d3cbb8a9cbcb8d56b8aaad789665c6d56511d117`; no remote publication claimed |
-| IN-07 | Final branch publication | repo-delivery | IN-04, IN-05 | Reviewed immutable basis and explicit remote readback; no main merge/deployment | Delivered at `b94909de`; 2026-10-05 fresh remote readback confirms it is an ancestor of `ac8ce732` on the original feature branch |
+| IN-07 | Final branch publication | repo-delivery | IN-04, IN-05 | Reviewed immutable basis and explicit remote readback; no main merge/deployment | Delivered as `b94909de11c4e09a50815eceec123dbe8c00a6f6`; ancestor/current remote readback verified on 2026-10-05 |
 
-Ready frontier as of 2026-10-05: no remaining item in the finite IN-08–10 scope. IN-07 publication is complete. Actual API/SQLite outcomes and synthetic fault fixtures
-remain separately identified. A commit containing this ledger is not itself proof of
-remote publication. Main merge and native host deployment remain excluded.
+Ready frontier: none for the original IN-01–07 interaction pass. The reviewed implementation
+was published in [`b94909de11c4e09a50815eceec123dbe8c00a6f6`](https://github.com/idaibin/rustzen-admin/commit/b94909de11c4e09a50815eceec123dbe8c00a6f6).
+On 2026-10-05, remote branch readback returned `ac8ce7321fdfff73e5e534f390800c4a7475cda6`;
+GitHub comparison confirms the interaction commit is its ancestor (16 ahead, zero
+behind). IN-06 remains the historical local checkpoint; IN-07 records the actual
+remote publication. This status correction does not rerun or broaden the historical
+API/SQLite, browser, or synthetic-fault evidence below. Main merge and native host
+deployment remain excluded; [current coverage](./local-runtime-coverage.md) tracks
+later backend completion and environment-specific UI evidence limits.
+The Work IN-08–13 reports below are preserved separately; this Cloud integration
+has not rerun them; the later attributed evidence verification is recorded below.
 
 ## Finite source inventory
 
@@ -132,8 +140,11 @@ by the application, including a second generation after restart and a new sample
 Correct aggregates, zero-data behavior, registration boundary, persisted upsert and
 delegated HTTP authorization passed. The earlier route screenshot remains synthetic
 UI evidence; this new backend/API receipt does not retroactively certify that view.
-The next Ready item is Admin-gateway/UI display of these generated summaries.
-
+Subsequent Admin gateway/API verification is complete within the linked Monitor record.
+At the palette reconciliation, real rendered summary acceptance remained blocked by
+that environment's preview refusal; API evidence alone did not close the UI gate.
+The later Work execution reports below have their own basis and scope. This Cloud
+integration does not newly verify populated summary rendering.
 
 ## 2026-10-05 continuation goals
 
@@ -148,10 +159,10 @@ native-effect gap, rather than repeating old API receipts or adding a second led
 | IN-09 | Restore the current complete source quality gate | dev-rust | IN-08 does not block pure checks; root justfile | Web test/type/format/lint/build, tracker VM, service wiring, Rust fmt/check/Clippy/workspace tests; preserve failure receipts and fix only discovered issues | Passed; 167 Web / 475 Rust tests, tracker 12 and post-fix CLI 9; fmt/types/check/Clippy/build complete |
 | IN-10 | Publish this validated continuation to the new branch | repo-delivery | IN-08, IN-09 | Exact allowed paths, source/tree comparison and remote readback; screenshot/report bundle delivered separately | Delivered; source milestone `dede6eeeb5794a3ed02e5cc7e035181088dfee89` read back on the new remote branch; main remains `edd06da`; this reconciliation is documentation-only |
 
-Next independent product frontier remains the existing bounded single-Agent transport
-scenario in `local-runtime-coverage.md`. Dependency availability alone is not a passed
-Agent runtime. Successful Reports rendering and release/systemd/production acceptance
-remain separately scoped. Native OS file-picker chrome is outside the Playwright
+At the IN-08–10 milestone, the next independent product frontier was the bounded
+single-Agent transport scenario; Work subsequently reported IN-11–13 below.
+Dependency availability alone is not a passed Agent runtime. Reports rendering and
+release/systemd/production acceptance retain their separate evidence boundaries. Native OS file-picker chrome is outside the Playwright
 filechooser-event check. Page rendering does not certify every business write journey.
 
 ## Autonomous continuation targets (2026-10-05)
@@ -173,7 +184,28 @@ percentage precision in cards/tooltips; display is now one decimal, and an empty
 disk report has an explicit message. Full records and reproduction are in
 `../guides/local-verification.md`. This continuation is self-reviewed.
 
-The next finite acceptance target is populated Analytics/Reports at 1440×900 and
-390×844, including report artifact access by an authorized viewer. The earlier
+Work identified populated Analytics/Reports at 1440×900 and 390×844, including
+report artifact access by an authorized viewer, as its next finite acceptance target.
+It is not an executable Cloud frontier while this task's browser/network restrictions
+remain in force; coordinate with the existing owner before any continuation. The earlier
 114-view empty-fixture matrix remains separate evidence. Main/release/systemd and
 production acceptance remain outside this development milestone.
+
+## Cloud branch integration evidence boundary, 2026-10-05
+
+The unified development branch is `feat/theme-verification-20261005`. This merge
+preserves Work tip `39ac997d206ccbee9d00d6c2dbb52f047bb91217` and palette reconciliation
+`ff0a162a08029f91b5e694416dcd333e9429af4d`, whose common ancestor is
+`ac8ce7321fdfff73e5e534f390800c4a7475cda6`. No application source, runner, dependency,
+or approved DESIGN bytes are changed by this integration.
+
+IN-08–13 above retain the Work owner's execution and delivery reports. The Cloud
+integrator could read the fixed Git source but could not download the separate raw
+bundles. The coordinating reviewer subsequently reported independent populated ZIP,
+result/screenshot hash and pixel checks. This Cloud integrator recomputed the two
+final UI/runner Git hashes and confirmed they match that reviewer's receipt values;
+only those source-bound populated results are corroborated by this handoff. The
+profile bundle remains unverified here. This is evidence review, not a runtime rerun
+or new permission to execute the Cloud-blocked paths.
+See [the coverage boundary](./local-runtime-coverage.md#cloud-integration-boundary-2026-10-05)
+for exact identities, download/pixel limitations and unchanged Cloud restrictions.

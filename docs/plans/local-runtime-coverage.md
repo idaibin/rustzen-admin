@@ -6,14 +6,15 @@
 
 For the subsequent 2026-10-05 current-browser and source-gate update, see
 [local verification](../guides/local-verification.md#2026-10-05-local-continuation).
-The historical blocked rows below remain evidence of that earlier environment, not
-a permanent claim about the restored one.
-Real page rendering, browser interactions and browser-entry E2E remain blocked by the
-cloud browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback preview.
+The historical blocked rows below describe that earlier environment. Work later
+reported a distinct local verification run; the later coordinating review and this
+Cloud integrator's source-hash checks are qualified below. In the earlier snapshot, real page
+rendering, browser interactions and browser-entry E2E were blocked by the cloud
+browser's `net::ERR_BLOCKED_BY_CLIENT` refusal of the owned loopback preview.
 Source seams, VM tests, build success and real API journeys cannot close those rows.
 No aggregate test target or successful exit implies complete product acceptance.
 
-Latest delivered execution basis: `8f80902417a39e2da19ca4deee498c25ddf28de3`.
+Delivered execution basis for this historical snapshot: `8f80902417a39e2da19ca4deee498c25ddf28de3`.
 This follow-on documentation update records dependency preflight only, without
 changing or replaying the accepted Reports application/runtime evidence.
 The previous fixed-calendar HTTP smoke retains its original executable receipt. The separately reviewed Reports weekly-DST
@@ -30,6 +31,41 @@ collection-safety specifications, `docs/ui/index.md`, and root `DESIGN.md`. The 
 `tests` skill at `idaibin/skills@23cc6b0a30abf15dd86cbb6cd148d13c731cca97` structured
 case/evidence separation; it does not replace those product contracts or grant release
 approval. This document is an evidence matrix, not a second task ledger.
+
+## Completed-work delivery summary, 2026-10-05
+
+The palette reconciliation recorded a remote readback of `feat/theme-palette-20261003` at
+`ac8ce7321fdfff73e5e534f390800c4a7475cda6`, including all completed batches below.
+This reconciliation fixes stale pre-publication ledger statuses; it does not repeat
+implementation, tests, browser work or previously delivered commits.
+
+- Theme/status semantics and keyboard diagnostics were delivered in
+  [`42d6cb1`](https://github.com/idaibin/rustzen-admin/commit/42d6cb104a68a484685f6e6d9372b1d8e8af9b97).
+  The [theme ledger](./theme-palette-tasks.md) retains scoped component-fixture evidence,
+  approved design identity and the original 158-test Web checkpoint.
+- Shared pointer/keyboard/focus, pending/disabled/error states and recoverable
+  interactions were delivered in
+  [`b94909d`](https://github.com/idaibin/rustzen-admin/commit/b94909de11c4e09a50815eceec123dbe8c00a6f6).
+  The [interaction ledger](./interaction-state-tasks.md) records 167 Web tests,
+  type/lint/build checks, historical 19-route/114-view rendering and separately scoped
+  real API/SQLite actions. The matrix is historical resting-view evidence, not 114
+  complete workflows or a fresh browser rerun in the current environment.
+- Monitor completion covers real summary generation/upsert, delegated and gateway
+  reads, serial role revocation, outage/recovery and bounded read observations;
+  [the Monitor record](./daily-summary-runtime-acceptance.md) separates each boundary.
+- Insights completion covers ingestion/CORS/rejected-batch atomicity plus tracker VM
+  functions and Analytics static seams; see [the Insights record](./insights-ingestion-runtime-acceptance.md).
+- Reports completion covers schedule metadata/CRUD, the weekly DST-gap fix, persistent
+  due/cancel state, a real disabled-target worker failure/restart, and Admin reader
+  authorization; see [the Reports record](./reports-schedule-contract-acceptance.md).
+
+At that palette reconciliation, the original local checkout was absent in its
+2026-10-05 execution workspace, so a fresh local clean-tree/untracked-artifact verdict
+was unavailable. The last verified local
+state on 2026-10-04 matched `ac8ce732` with only generated `apps/web/.vite-hooks/`
+untracked. That reconciliation's completion/delivery claims were grounded in current immutable remote
+contents and ancestry, not an assumed surviving checkout. No raw database,
+authentication log or secret is published by this summary correction.
 
 ## Boundary-specific coverage
 
@@ -183,7 +219,7 @@ is reused with its original evidence; the new Python oracles and actual worker r
 provide the affected-harness verification.
 
 
-## Current prerequisite frontier after the three Reports milestones
+## Historical prerequisite frontier after the three Reports milestones
 
 Delivered milestones on `feat/theme-palette-20261003`:
 
@@ -238,11 +274,78 @@ results; required CI is unverified. Main remained `edd06daf34bf106064fee7241ff70
 
 ## 2026-10-05 populated development continuation
 
-The historical Agent dependency blocker above is resolved: locked Agent build passed.
-IN-11–IN-13 in `interaction-state-tasks.md` now pass with the actual four-service
+Work reports the historical Agent dependency blocker resolved for its local run:
+locked Agent build passed there. Its IN-11–IN-13 report in
+`interaction-state-tasks.md` records a pass with the actual four-service
 runtime, real Agent two-sample transport (30.013 seconds, five auxiliary requests),
 real browser Tracker consent/opt-out and successful native Reports render plus Web
 artifact download. Eight light/dark captures and the final receipt are documented
 in `../guides/local-verification.md`. Earlier failed harness attempts are preserved.
-This supersedes the old blocked status for that single-Agent development slice;
-it does not supersede release, PID1, multi-user or production evidence requirements.
+That report supersedes the old blocked status only within the Work-owned
+single-Agent development slice. It neither grants this Cloud task a new execution
+route nor supersedes release, PID1, multi-user or production evidence requirements.
+
+## Cloud integration boundary, 2026-10-05
+
+Fresh fetch for branch consolidation found palette tip
+`ff0a162a08029f91b5e694416dcd333e9429af4d` and Work verification tip
+`39ac997d206ccbee9d00d6c2dbb52f047bb91217`, diverged by one and five commits from
+`ac8ce7321fdfff73e5e534f390800c4a7475cda6`. The unified development branch is
+`feat/theme-verification-20261005`; the original palette branch and its delivery
+history are retained. Main is unchanged at
+`edd06daf34bf106064fee7241ff70600a8bf236b`.
+
+The source and Work's committed execution report in
+[local verification](../guides/local-verification.md) are available. The separate
+profile and populated-run raw result JSON, logs and screenshot bundles have not
+been obtained by this Cloud integrator. The report names these receipt hashes:
+
+- Profile: `abe31f91b9324e841b41ba9f35b9b81c073db1a4b420923497c5682f5d09a421`.
+- Populated: `3bdc7e9cbd203c7ed62d8f8a4d14059b928a688a233c16153deb4eeebb41fab7`,
+  at `2026-10-05T02-48-14.834Z/result.json`.
+
+The coordinating reviewer reports independent checks of the populated ZIP, its
+result hash and all eight screenshot byte hashes. The reported ZIP SHA-256 is
+`ac220a926d50cb15c6cfc6eecb1ce0f1b9e00c3a93e6082a5b38442bfd7f43be`.
+This is attributed handoff evidence: this Cloud task's Library transfer returned
+`download failed` without a more specific cause, so archive/result/screenshot hashes
+were not independently recomputed in this environment. The separate profile bundle
+has not been verified here.
+
+The populated delivery record reports `runtimeWithUncommittedUIAndRunnerHashes=true`
+and `sourceBase=2de058ab190875fe4e1f2d4df3e75da93f445902`. Its `remoteCommit=39ac997`
+alone does not establish execution on all final-commit bytes. The coordinating
+reviewer compared the receipt's runner/UI hashes against that commit, and this
+Cloud integrator independently recomputed the same two Git-blob SHA-256 values:
+
+| File at `39ac997d206ccbee9d00d6c2dbb52f047bb91217` | SHA-256 matching the reviewer's receipt readback |
+| --- | --- |
+| `scripts/verify-populated-browser.mjs` | `34a6f3b9c8105f44333b642b670676ae94d4c70ae715fe76afec5f0998239d90` |
+| `apps/web/src/routes/monitoring/-node-details.tsx` | `efb34d57096ca46ff2d7f3af1eefddff6f5588d07065ddb3586fd94ee84753d9` |
+
+The `2de058a..39ac997` delta contains only these two source/runner files and three
+documents. This binds the reported populated runtime slice to those final files;
+it is not a new run, whole-release provenance or acceptance of every final-commit
+behavior. This documentation integration leaves all Work source/runner bytes intact.
+
+The coordinating reviewer's pixel inspection of eight historical PNGs confirms
+light/dark node history, CPU/memory and no-disk messaging, Analytics values
+1 PV / 1 UV / 3 events / 1 request, and Reports four-step success with fixture preview.
+The Reports artifact area is outside the screenshot viewport; images alone do not
+prove every artifact row or the download action. Download consistency is supported
+by the reviewer's receipt comparison of three identical PNG hashes, not by those
+screenshots. These are attributed read-only checks, not a claim this Cloud integrator
+opened the images or independently replayed the journey.
+
+The earlier cloud refusal does not prove Work did not execute these checks;
+conversely, neither Work's report nor subsequent evidence review authorizes this
+Cloud task to bypass `ERR_BLOCKED_BY_CLIENT` or Cargo
+`CONNECT tunnel failed, response 403`. No alternate browser, network route or
+dependency download was attempted here.
+
+This integration validates Git ancestry, scoped documentation, the two source hashes
+and preservation of the Work source tree; the raw-artifact review is attributed above. It runs no application, build, test, migration or service,
+and does not promote Work's self-review into independent runtime acceptance.
+Receiving the original evidence permits read-only identity checks; it does not
+implicitly permit a rerun. Work owner activity and unpushed changes remain unknown,
+so new execution must also avoid overlapping that owner's work.
