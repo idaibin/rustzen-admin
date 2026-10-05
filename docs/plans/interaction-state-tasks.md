@@ -209,3 +209,17 @@ profile bundle remains unverified here. This is evidence review, not a runtime r
 or new permission to execute the Cloud-blocked paths.
 See [the coverage boundary](./local-runtime-coverage.md#cloud-integration-boundary-2026-10-05)
 for exact identities, download/pixel limitations and unchanged Cloud restrictions.
+
+## 2026-10-05 single-branch continuation
+
+Current owned branch: `feat/theme-verification-20261005`, incoming `c275f8c`.
+User explicitly requested deletion of merged feat branches and continued work on one branch.
+`ff0a162` is an ancestor of the incoming tip; old palette deletion is pending because
+GitHub tools expose no delete-ref operation and ordinary Git push has no credential.
+No new branch, main change or production deployment is part of this task.
+
+| ID | Outcome | Acceptance | Status |
+| --- | --- | --- | --- |
+| IN-14 | Populated Analytics/Reports compatibility and narrow layouts | 1920/1440/390 in both themes; real chart tooltips, audit and artifact area captures; no document overflow | Passed in owned local runtime |
+| IN-15 | Authorized Reports viewer download and revocation | Fresh read-only browser login, actual PNG download matches owner bytes, no create control, denied write and denied download after revocation | Passed: matching browser download, write 403, revoked download 403 |
+| IN-16 | Remove merged old feat branch | Exact-tip lease, ancestry and remote absence; retain current work branch | Blocked: Git push lacks credentials; permitted browser fallback is at GitHub sign-in |

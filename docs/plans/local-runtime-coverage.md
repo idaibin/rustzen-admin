@@ -349,3 +349,18 @@ and does not promote Work's self-review into independent runtime acceptance.
 Receiving the original evidence permits read-only identity checks; it does not
 implicitly permit a rerun. Work owner activity and unpushed changes remain unknown,
 so new execution must also avoid overlapping that owner's work.
+
+
+## Single-branch owned runtime continuation, 2026-10-05
+
+This workspace now has direct execution evidence for IN-14 and IN-15, recorded in
+[local verification](../guides/local-verification.md#populated-responsive-continuation-2026-10-05).
+It supplements, rather than rewrites, the historical Cloud restrictions above.
+The final owned run passed the populated 1920/1440/390 light/dark matrix, Reports
+artifact containment, read-only actual downloads, denied writes and permission
+revocation. Thirty screenshots and a hash-bound receipt support this finite scope.
+
+Main/release, selected-build coverage, disk-capacity measurements, external portals,
+all-role/concurrency and production remain separate. The next finite UI goal is
+keyboard focus and visible loading/error recovery across Reports audit/download
+interactions in both themes. Continue on the same branch with an owned fixture.

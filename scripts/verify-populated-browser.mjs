@@ -100,6 +100,18 @@ const shot = async (name) => {
         false,
         "Document overflow",
     );
+    const modal = page.locator(".ant-modal:visible");
+    if (await modal.count()) {
+        const bounds = await modal.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return { left: r.left, right: r.right, width: r.width, contentWidth: el.scrollWidth };
+        });
+        assert(
+            bounds.left >= 0 && bounds.right <= (await page.evaluate(() => innerWidth)),
+            JSON.stringify(bounds),
+        );
+        record("modal-contained", bounds);
+    }
     await page.screenshot({ path });
     screenshots.push({
         name: `${name}.png`,
@@ -310,15 +322,29 @@ try {
     assert.equal(await tracker.evaluate(() => localStorage.getItem("rz_vid")), null);
     record("real-browser-tracker-consent-and-optout", { events });
     await tracker.close();
-    for (const theme of ["light", "dark"]) {
-        await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
-        await page.goto(base + "/analytics/overview");
-        await delay(1000);
-        assert.equal(await page.locator(".recharts-wrapper").count(), 1);
-        await page.locator(".recharts-dot").last().hover();
-        await delay(600);
-        await shot(`populated-analytics-${theme}`);
+    for (const [width, height] of [
+        [1920, 1080],
+        [1440, 900],
+        [390, 844],
+    ]) {
+        await page.setViewportSize({ width, height });
+        for (const theme of ["light", "dark"]) {
+            await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
+            await page.goto(base + "/analytics/overview");
+            await delay(1000);
+            assert.equal(await page.locator(".recharts-wrapper").count(), 1);
+            await page.getByRole("heading",{name:"分析概览",exact:true}).scrollIntoViewIfNeeded();
+            await shot(`populated-analytics-top-${theme}-${width}`);
+            await page.locator(".recharts-dot").last().hover();
+            await delay(600);
+            assert.equal(
+                await page.evaluate(() => document.documentElement.classList.contains("dark")),
+                theme === "dark",
+            );
+            await shot(`populated-analytics-${theme}-${width}`);
+        }
     }
+    await page.setViewportSize({ width: 1920, height: 1080 });
     const system = await api("/api/reports/systems", "POST", {
         name: "Owned local acceptance",
         baseUrl: "http://127.0.0.1:9805",
@@ -370,13 +396,31 @@ try {
             bytes,
         );
     }
-    for (const theme of ["light", "dark"]) {
-        await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
-        await page.goto(base + "/reports/runs");
-        await page.getByTestId(`run-view-${run.id}`).click();
-        await page.getByTestId("run-audit").waitFor({ state: "attached" });
-        await delay(500);
-        await shot(`reports-success-${theme}`);
+    for (const [width, height] of [
+        [1920, 1080],
+        [1440, 900],
+        [390, 844],
+    ]) {
+        await page.setViewportSize({ width, height });
+        for (const theme of ["light", "dark"]) {
+            await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
+            await page.goto(base + "/reports/runs");
+            await page.getByTestId(`run-view-${run.id}`).click();
+            await page.getByTestId("run-audit").waitFor({ state: "attached" });
+            await delay(500);
+            assert.equal(
+                await page.evaluate(() => document.documentElement.classList.contains("dark")),
+                theme === "dark",
+            );
+            await shot(`reports-success-${theme}-${width}`);
+            await page
+                .getByRole("button", {
+                    name: artifacts.find((a) => a.kind === "screenshot").fileName,
+                    exact: true,
+                })
+                .scrollIntoViewIfNeeded();
+            await shot(`reports-artifacts-${theme}-${width}`);
+        }
     }
     const screenshotArtifact = artifacts.find((a) => a.kind === "screenshot");
     const downloadPromise = page.waitForEvent("download");
@@ -386,6 +430,84 @@ try {
     await download.saveAs(downloadedPath);
     assert.equal(sha(downloadedPath), screenshotArtifact.downloadSHA256);
     record("real-reports-ui-run-and-artifact-download", { run: current, steps, artifacts });
+    // A separate authenticated browser receives only the Reports read capability.
+    const menus = await api("/api/system/menus");
+    const runView = menus.find((m) => m.code === "reports:run:view");
+    assert(runView);
+    const role = {
+        name: "Owned Reports viewer",
+        code: "owned_reports_viewer",
+        status: 1,
+        menuIds: [runView.id],
+        description: "Owned browser fixture",
+    };
+    await api("/api/system/roles", "POST", role);
+    const roles = await api("/api/system/roles?current=1&pageSize=100");
+    const roleId = roles.find((r) => r.code === role.code).id;
+    await api("/api/system/users", "POST", {
+        username: "owned_reports_viewer",
+        email: "viewer@example.invalid",
+        password: "OwnedReportsFixture123!",
+        realName: "Owned viewer",
+        roleIds: [roleId],
+        status: 1,
+    });
+    const ownerToken = token;
+    token = (
+        await api("/api/auth/login", "POST", {
+            username: "owned_reports_viewer",
+            password: "OwnedReportsFixture123!",
+        })
+    ).token;
+    const viewerToken = token;
+    const me = await api("/api/auth/me");
+    assert.deepEqual(me.permissions, ["reports:run:view"]);
+    token = ownerToken;
+    const viewerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    page = await viewerContext.newPage();
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(base + "/login");
+    await page.locator("#login_username").fill("owned_reports_viewer");
+    await page.locator("#login_password").fill("OwnedReportsFixture123!");
+    await page.locator("#login_password").press("Enter");
+    await page.waitForURL(base + "/");
+    for (const theme of ["light", "dark"]) {
+        await page.evaluate((t) => localStorage.setItem("rustzen-admin-theme", t), theme);
+        await page.goto(base + "/reports/runs");
+        await page.getByTestId(`run-view-${run.id}`).click();
+        assert.equal(await page.getByTestId("run-create").count(), 0);
+        await page
+            .getByRole("button", { name: screenshotArtifact.fileName, exact: true })
+            .scrollIntoViewIfNeeded();
+        const pending = page.waitForEvent("download");
+        await page.getByRole("button", { name: screenshotArtifact.fileName, exact: true }).click();
+        const received = await pending;
+        const file = resolve(output, `viewer-download-${theme}.png`);
+        await received.saveAs(file);
+        assert.equal(sha(file), screenshotArtifact.downloadSHA256);
+        await shot(`reports-viewer-download-${theme}-390`);
+    }
+    const deniedWrite = await fetch(base + "/api/reports/runs", {
+        method: "POST",
+        headers: { authorization: `Bearer ${viewerToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ flowId: flow.id, input: {} }),
+    });
+    assert.equal(deniedWrite.status, 403);
+    await api(`/api/system/roles/${roleId}`, "PUT", {
+        ...role,
+        menuIds: [menus.find((m) => m.code === "reports:schedule:view").id],
+    });
+    const deniedDownload = await fetch(
+        `${base}/api/reports/runs/${run.id}/artifacts/${screenshotArtifact.id}`,
+        { headers: { authorization: `Bearer ${viewerToken}` } },
+    );
+    assert.equal(deniedDownload.status, 403);
+    record("reports-read-only-viewer", {
+        permissions: me.permissions,
+        downloadSHA256: screenshotArtifact.downloadSHA256,
+        deniedWrite: deniedWrite.status,
+        revokedDownload: deniedDownload.status,
+    });
     assert.deepEqual(errors, []);
     assert.deepEqual(
         Object.fromEntries(
@@ -403,6 +525,9 @@ try {
                 status: "passed",
                 source,
                 runnerSHA256: sha(fileURLToPath(import.meta.url)),
+                reportUISourceSHA256: sha(
+                    resolve(root, "apps/web/src/routes/reports/-runs/run-details.tsx"),
+                ),
                 uiSourceSHA256: sha(
                     resolve(root, "apps/web/src/routes/monitoring/-node-details.tsx"),
                 ),
@@ -421,7 +546,7 @@ try {
         ),
     );
 } catch (error) {
-    if (page) await shot("failure").catch(() => {});
+    if (page) await page.screenshot({ path: resolve(output, "failure.png") }).catch(() => {});
     writeFileSync(
         resolve(output, "result.json"),
         JSON.stringify(

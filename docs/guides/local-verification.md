@@ -206,3 +206,45 @@ or SQL-written metrics/events are used.
 This closes the earlier single-Agent/build and Reports-rendering gaps only in this
 owned development scope. Disk capacity, external target portals, selected builds,
 all-role/concurrency, release/systemd/production and main integration remain separate.
+
+
+## Populated responsive continuation, 2026-10-05
+
+The single working branch remains `feat/theme-verification-20261005`, incoming
+`c275f8c66d1957c0c64b8e464d122056bd869d36`. A new owned runtime executed the existing
+runner with fresh SQLite fixtures and rebuilt native services. This is a runtime
+execution in this workspace, distinct from the historical Cloud evidence review.
+
+The first diagnostic run exposed long artifact names shifting the Reports modal on
+390px screens. The existing tables now own horizontal scrolling and the download
+button wraps long names. The diagnostic revocation setup also used an invalid empty
+custom role; the final setup replaces run-view with schedule-view, satisfying the
+existing role rule while removing run access. No authentication rules were changed.
+
+Final receipt: `2026-10-05T06-22-43.925Z/result.json`, exit 0, status passed.
+Receipt SHA256: `700f6629072a772b55c39897010849b610ff6568442d90741f23b08dfcf24321`.
+Runner SHA256: `91be360859e18829aec13ac6099fbc78579d8e582ab7bf45b4087f00247ca3ee`.
+Reports UI SHA256: `e6d0b4d46255ac43a614a4e905ebc9de6683600073811ef4ee888d8d58a8ecb0`.
+The receipt source is the incoming commit plus these hash-bound uncommitted changes;
+its identity does not claim a final delivery commit was already built.
+
+Thirty screenshots cover populated Analytics metrics and real chart hover at
+1920×1080, 1440×900 and 390×844, Reports audit and artifact areas in both themes,
+four real-Agent captures and two read-only viewer download captures. Every capture
+checks document overflow and visible modal containment; narrow Reports modal bounds
+are left 8, right 382, width 374. Page errors are empty.
+
+The genuine Agent sent two samples 30.003 seconds apart, with five auxiliary HTTP
+attempts. Tracker consent and opt-out persisted three real browser events. A native
+four-step Reports flow succeeded. Owner and viewer browser downloads match the API
+PNG SHA256 `6fda7bf5a9b524766ae390d3216d312dbe5cc6ce4a13592b69fbaa6109d16af7`.
+Viewer permissions are exactly `reports:run:view`; create controls are absent, a
+real create POST returns 403, and the same viewer token receives 403 on download
+after the role loses run-view.
+
+Validation: 167 Web tests, 916 assertions, zero failures; types, Web formatting,
+Web build and rebuilt Admin pass. Web check has zero errors and 48 existing warnings.
+Node syntax and Git whitespace checks pass. This continuation is self-reviewed.
+Rust source and approved DESIGN bytes are unchanged; historical Rust test counts
+are not a new workspace-test run. The screenshot bundle retains the diagnostic
+receipt and before-image separately, excluding runtime databases and credentials.

@@ -86,13 +86,15 @@ export function RunDetails({
             title: t("文件", "File"),
             dataIndex: "fileName",
             key: "fileName",
+            width: 280,
             render: (_: unknown, row) => <ArtifactDownloadButton artifact={row} />,
         },
-        { title: t("类型", "Kind"), dataIndex: "kind", key: "kind" },
+        { title: t("类型", "Kind"), dataIndex: "kind", key: "kind", width: 120 },
         {
             title: t("创建时间", "Created at"),
             dataIndex: "createdAt",
             key: "createdAt",
+            width: 180,
             render: (_: unknown, row) => formatDateTime(row.createdAt),
         },
     ];
@@ -173,6 +175,7 @@ export function RunDetails({
                     rowKey="id"
                     columns={stepColumns}
                     dataSource={steps}
+                    scroll={{ x: 480 }}
                     search={false}
                     options={false}
                     {...displayTableProps}
@@ -198,6 +201,7 @@ export function RunDetails({
                     rowKey="id"
                     columns={artifactColumns}
                     dataSource={artifacts}
+                    scroll={{ x: 580 }}
                     search={false}
                     options={false}
                     {...displayTableProps}
@@ -224,6 +228,12 @@ function ArtifactDownloadButton({ artifact }: { artifact: Reports.Artifact }) {
     return (
         <Button
             type="link"
+            style={{
+                height: "auto",
+                whiteSpace: "normal",
+                overflowWrap: "anywhere",
+                textAlign: "left",
+            }}
             loading={submitting}
             disabled={submitting}
             aria-busy={submitting}
