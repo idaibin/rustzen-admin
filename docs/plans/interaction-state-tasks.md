@@ -214,12 +214,17 @@ for exact identities, download/pixel limitations and unchanged Cloud restriction
 
 Current owned branch: `feat/theme-verification-20261005`, incoming `c275f8c`.
 User explicitly requested deletion of merged feat branches and continued work on one branch.
-`ff0a162` is an ancestor of the incoming tip; old palette deletion is pending because
-GitHub tools expose no delete-ref operation and ordinary Git push has no credential.
+`ff0a162` is an ancestor of the incoming tip. The user subsequently cancelled
+branch deletion and requested merged work only; retain the old palette branch.
 No new branch, main change or production deployment is part of this task.
 
 | ID | Outcome | Acceptance | Status |
 | --- | --- | --- | --- |
 | IN-14 | Populated Analytics/Reports compatibility and narrow layouts | 1920/1440/390 in both themes; real chart tooltips, audit and artifact area captures; no document overflow | Passed in owned local runtime |
 | IN-15 | Authorized Reports viewer download and revocation | Fresh read-only browser login, actual PNG download matches owner bytes, no create control, denied write and denied download after revocation | Passed: matching browser download, write 403, revoked download 403 |
-| IN-16 | Remove merged old feat branch | Exact-tip lease, ancestry and remote absence; retain current work branch | Blocked: Git push lacks credentials; permitted browser fallback is at GitHub sign-in |
+| IN-16 | Retain merged old feat branch | User cancelled deletion; old palette tip is an ancestor of current work branch | Closed: merge verified, deletion cancelled |
+
+On 2026-10-05 the user requested retention instead of deletion. Remote readback
+confirmed palette tip `ff0a162a08029f91b5e694416dcd333e9429af4d` and working tip
+`132aa82fd5c669dfb0dad6f91f29bb9e6f649e81`; old-only/current-only counts are 0/7.
+No additional merge is necessary. Continue implementation only on the working branch.
