@@ -383,3 +383,14 @@ There is no remaining task in this finite UI/theme interaction acceptance slice.
 Main/release, systemd, selected-build breadth, capacity, external portals, exhaustive
 roles/concurrency and production remain separate project work. No deployment,
 branch deletion, external login or main merge was performed.
+
+
+## Local regression and release-fixture closure, 2026-10-07
+
+Continued `feat/theme-verification-20261005` from `0ae2253aced14abe6a7f19bc9fba1d77e9b08452` on macOS with isolated Rust 1.95.0, Bun 1.3.14 and Node 24.19.0. Fresh current runs pass 475 backend tests (one ignored benchmark), 167 frontend tests with 916 assertions, and 174 distribution/CLI contract tests. Full frontend build passes with existing chunk-size warnings. Tests do not execute a Linux installation or promote a release.
+
+Release fixture repairs derive recorded releaseVersion from Cargo.toml, use an explicitly different version for rejection, align canonical staging order, and refresh the server archive golden for its current rz-full.service payload. The node-agent archive golden is unchanged. Signed CLI/certificate tests and deterministic byte comparisons pass. No product version bump was made.
+
+Broader historical selected-build scripts were also attempted: some still request retired analytics-distribution/selected-distribution Cargo features or selected Web graphs, and short default timeouts affected some Linux fixture tests. They are not included in the 174 passing distribution/CLI contract count. Their earlier failed logs are retained; no retired features were reintroduced to expand the current complete-distribution product boundary.
+
+Linux systemd installation/recovery, production, exhaustive role/concurrency matrices, capacity and external portals remain unverified. Main and release promotion remain separate. This closes local regression and fixture drift only, not the entire project roadmap.

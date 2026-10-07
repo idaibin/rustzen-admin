@@ -239,7 +239,7 @@ test("host validator rejects malformed recorded release versions and unknown pro
             await produce(root);
         }
         await expect(
-            verifyContainerExport(root, selection, sourceIdentity, "0.5.1"),
+            verifyContainerExport(root, selection, sourceIdentity, `${releaseVersion}-different`),
         ).rejects.toThrow("workspace version");
         const provenance = await Bun.file(path).json();
         await writeFile(path, canonicalJson({ ...provenance, unknown: true }));

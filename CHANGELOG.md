@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bind container release test exports to the current workspace version so CLI
+  acceptance remains valid after a version change.
+
 - Keep the next valid weekly Reports occurrence visible when the nearer weekly
   slot falls in a daylight-saving gap; the forward lookup now includes the following week.
 

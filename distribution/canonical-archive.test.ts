@@ -41,7 +41,7 @@ test("canonical ustar is deterministic and binds one staging snapshot", async ()
     for (const [kind, digest] of [
         [
             "server",
-            "eb75943d699ec564a17b9f31af4e333375e386b4b048e6860c79599a7f873e0a",
+            "7e86efd97d3efafb2ad42613b0af28f3c81e896d860322652c23e7535e9ade97",
         ],
         [
             "node-agent",

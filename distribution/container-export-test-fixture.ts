@@ -1,3 +1,4 @@
+import { readWorkspaceVersion } from "./workspace-version.ts";
 import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -15,7 +16,7 @@ import { canonicalBindingBytes, createWebBinding, readWebFiles, stampIndex } fro
 import { selectedWebRoutes } from "../scripts/distribution-web-inventory-policy.ts";
 export const selection = { schemaVersion: 1, preset: "monitor", target: "x86_64-unknown-linux-musl" };
 export const sourceIdentity = `git:${"a".repeat(40)} tree:${"b".repeat(64)} state:clean`;
-export const releaseVersion = "0.5.0";
+export const releaseVersion = await readWorkspaceVersion(resolve(import.meta.dir, ".."));
 export async function createExport(selectionInput = selection, options: { evidence?: "linux-amd64-buildkit" } = {}) {
     const root = await mkdtemp(join(tmpdir(), "rz-container-validator-"));
     const plan = resolveSelection(selectionInput);
@@ -83,7 +84,7 @@ export async function createInventory(root: string, selectionInput = selection) 
 export async function produce(root: string, selectionInput = selection, options: { evidence?: "linux-amd64-buildkit" } = {}) {
     const plan = resolveSelection(selectionInput);
     selectedServerSyntheticExportPlan(plan);
-    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: syntheticServerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion: "0.5.0", runtime: options.evidence ? { platform: "linux", arch: "x64" } : plan.preset === "analytics" ? { platform: "darwin", arch: "arm64" } : { platform: "linux", arch: "x64" }, evidence: options.evidence });
+    await produceContainerExport({ selection: selectionInput, outputRoot: root, targetTriple: "x86_64-unknown-linux-musl", sourceIdentity, buildCommands: syntheticServerBuildCommands(plan), rustcVv: recordedRustc(), releaseVersion, runtime: options.evidence ? { platform: "linux", arch: "x64" } : plan.preset === "analytics" ? { platform: "darwin", arch: "arm64" } : { platform: "linux", arch: "x64" }, evidence: options.evidence });
 }
 export function recordedRustc() { return "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2\n"; }
 export function expectedCommands(selectionInput = selection) {
