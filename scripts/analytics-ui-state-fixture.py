@@ -18,6 +18,14 @@ UPSTREAM_HOST = os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_UPSTREAM", "127.0.0.1"
 UPSTREAM_PORT = int(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_UPSTREAM_PORT", "19801"))
 PORT = int(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_PORT", "19805"))
 SLOW_SECONDS = float(os.environ.get("RUSTZEN_ANALYTICS_FIXTURE_SLOW_SECONDS", "5"))
+
+
+def safe_response_header(key, value):
+    if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+        raise ValueError("upstream response header contains a line break")
+    return key, value
+
+
 state = {
     "overview": "success",
     "events": "success",
@@ -117,7 +125,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(response.status)
         for key, value in response.getheaders():
             if key.lower() not in {"connection", "transfer-encoding", "content-length"}:
-                self.send_header(key, value)
+                self.send_header(*safe_response_header(key, value))
         self.send_header("content-length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)

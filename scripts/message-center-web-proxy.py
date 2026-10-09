@@ -15,6 +15,12 @@ HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", 
 lock = threading.Lock()
 
 
+def safe_response_header(key, value):
+    if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+        raise ValueError("upstream response header contains a line break")
+    return key, value
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -88,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
         if is_sse:
             self.send_response(response.status)
             for key, value in response.getheaders():
-                if key.lower() not in HOP and key.lower() != "content-length": self.send_header(key, value)
+                if key.lower() not in HOP and key.lower() != "content-length": self.send_header(*safe_response_header(key, value))
             self.send_header("connection", "close"); self.end_headers(); self.receipt(response.status)
             ready_file = mode.get("streamReadyFile")
             if ready_file:
@@ -116,7 +122,7 @@ class Handler(BaseHTTPRequestHandler):
             connection.close(); raise
         connection.close(); self.send_response(response.status)
         for key, value in response.getheaders():
-            if key.lower() not in HOP and key.lower() != "content-length": self.send_header(key, value)
+            if key.lower() not in HOP and key.lower() != "content-length": self.send_header(*safe_response_header(key, value))
         self.send_header("content-length", str(len(payload))); self.end_headers(); self.receipt(response.status)
         self.wfile.write(payload); self.wfile.flush()
         ready_file = mode.get("readyFile")
@@ -127,7 +133,10 @@ class Handler(BaseHTTPRequestHandler):
     def static(self):
         path = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
         root = pathlib.Path(self.server.web_root).resolve(); target = (root / path).resolve()
-        if root not in target.parents or not target.is_file(): target = root / "index.html"
+        if root not in target.parents or not target.is_file(): target = (root / "index.html").resolve()
+        if root not in target.parents or not target.is_file():
+            self.send_error(404)
+            return
         body = target.read_bytes(); self.send_response(200)
         self.send_header("content-type", mimetypes.guess_type(target.name)[0] or "application/octet-stream")
         self.send_header("content-length", str(len(body))); self.end_headers(); self.wfile.write(body)

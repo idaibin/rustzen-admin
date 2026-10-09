@@ -135,6 +135,7 @@ def run_case(args, writer, scenario):
     os.chmod(socket_path, 0o666)
     server = Server(("127.0.0.1", args.port), Handler)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.certificate, args.private_key)
     server.socket = context.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

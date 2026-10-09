@@ -26,6 +26,14 @@ class Upstream(BaseHTTPRequestHandler):
         return
 
     def do_GET(self):
+        if self.path in {"/api/folded", "/api/folded-stream"}:
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("content-type", "text/event-stream" if self.path.endswith("stream") else "text/plain")
+            self.send_header("x-upstream", "safe\r\n injected: yes")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers(); self.wfile.write(body)
+            return
         if self.path == "/api/json":
             self.send_response(200)
             self.send_header("content-type", "application/json")
@@ -56,6 +64,7 @@ class ProxyIntegrationTest(unittest.TestCase):
         cls.proxy.web_root = str(root); cls.proxy.receipt = str(cls.receipt)
         cls.proxy.mode_file = str(cls.mode); cls.proxy.backend_port = cls.upstream.server_port
         cls.proxy.counts = {}
+        cls.proxy.handle_error = lambda *_args: None
         cls.threads = [threading.Thread(target=server.serve_forever, daemon=True)
                        for server in (cls.upstream, cls.proxy)]
         for thread in cls.threads: thread.start()
@@ -75,6 +84,46 @@ class ProxyIntegrationTest(unittest.TestCase):
         self.assertEqual(response.headers.get("content-length"), str(len(JSON_BODY)))
         self.assertEqual(response.read(), JSON_BODY)
         connection.close()
+
+    def test_folded_upstream_header_is_not_forwarded(self):
+        for path in ("/api/folded", "/api/folded-stream"):
+            with self.subTest(path=path):
+                connection = self.connect(); connection.request("GET", path)
+                with self.assertRaises(http.client.RemoteDisconnected):
+                    connection.getresponse()
+                connection.close()
+
+    def test_static_root_keeps_assets_inside_root(self):
+        root = pathlib.Path(self.temp.name)
+        (root / "app.js").write_text("window.fixture = true")
+        for path, expected in (("/app.js", b"window.fixture = true"),
+                               ("/missing", b"gate"),
+                               ("/../outside", b"gate")):
+            with self.subTest(path=path):
+                connection = self.connect(); connection.request("GET", path)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.read(), expected)
+                connection.close()
+        with tempfile.TemporaryDirectory() as outside:
+            (pathlib.Path(outside) / "secret.txt").write_text("outside-secret")
+            (root / "escape").symlink_to(outside, target_is_directory=True)
+            connection = self.connect(); connection.request("GET", "/escape/secret.txt")
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.read(), b"gate")
+            connection.close()
+            index = root / "index.html"
+            index.unlink(); index.symlink_to(pathlib.Path(outside) / "secret.txt")
+            try:
+                connection = self.connect(); connection.request("GET", "/missing")
+                response = connection.getresponse()
+                self.assertEqual(response.status, 404)
+                self.assertNotIn(b"outside-secret", response.read())
+                connection.close()
+            finally:
+                index.unlink(); index.write_text("gate")
+                (root / "escape").unlink()
 
     def test_sse_is_streamed_without_content_length(self):
         connection = self.connect(); started = time.monotonic()

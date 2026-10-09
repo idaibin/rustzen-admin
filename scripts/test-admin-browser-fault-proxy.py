@@ -40,6 +40,14 @@ class Upstream(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path in {"/proxy-header-ok", "/proxy-header-folded"}:
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("x-upstream", "safe\r\n injected: yes" if self.path.endswith("folded") else "safe")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/api/manage/tasks":
             body = b'{"data":[{"taskKey":"cleanup-operation-logs-retention","running":false,"lastStatus":"success"}]}'
             self.send_response(200)
@@ -88,6 +96,27 @@ def task_request(proxy_port, method, path):
         connection.request(method, path)
         response = connection.getresponse()
         return response.status, json.loads(response.read())
+    finally:
+        connection.close()
+
+
+def check_forwarded_headers(proxy_port):
+    connection = http.client.HTTPConnection("127.0.0.1", proxy_port, timeout=5)
+    try:
+        connection.request("GET", "/proxy-header-ok")
+        response = connection.getresponse()
+        if response.status != 200 or response.getheader("x-upstream") != "safe" or response.read() != b"ok":
+            raise AssertionError("normal upstream response was not forwarded")
+    finally:
+        connection.close()
+    connection = http.client.HTTPConnection("127.0.0.1", proxy_port, timeout=5)
+    try:
+        connection.request("GET", "/proxy-header-folded")
+        try:
+            response = connection.getresponse()
+        except http.client.RemoteDisconnected:
+            return
+        raise AssertionError(f"folded upstream header was forwarded with status {response.status}")
     finally:
         connection.close()
 
@@ -149,6 +178,7 @@ def main():
                 raise AssertionError("count proxy did not become ready")
             if request(proxy_port) != 204:
                 raise AssertionError("count mode did not forward the matching mutation")
+            check_forwarded_headers(proxy_port)
         finally:
             proxy.send_signal(signal.SIGTERM)
             proxy.wait(timeout=5)

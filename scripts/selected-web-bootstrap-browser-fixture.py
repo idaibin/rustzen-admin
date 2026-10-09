@@ -13,6 +13,12 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
+def safe_response_header(key, value):
+    if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+        raise ValueError("upstream response header contains a line break")
+    return key, value
+
+
 def remove_entry_integrity(body):
     marker = b"entry.integrity="
     replacement = b"entry.integrity=undefined;"
@@ -85,7 +91,7 @@ class Fixture:
                 self.send_response(response.status)
                 for key, value in response_headers:
                     if key.lower() not in {"connection", "content-length", "transfer-encoding"}:
-                        self.send_header(key, value)
+                        self.send_header(*safe_response_header(key, value))
                 self.send_header("content-length", str(len(response_body)))
                 if self.command == "GET" and not path.startswith("/api/") and path != "/__web-binding":
                     self.send_header("set-cookie", "rz_bootstrap_proof=1; Path=/; SameSite=Lax")
