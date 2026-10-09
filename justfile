@@ -151,6 +151,10 @@ verify-reports-calendar-unit:
 verify-local-acceptance-harness-unit:
     python3 -m unittest discover -s scripts -p 'test_monitor_daily_summary_*.py' -v
 
+# Loopback HTTP/TLS boundary checks for the local verification fixtures; no native services.
+verify-local-fixture-security-boundaries:
+    python3 scripts/test-local-fixture-security-boundaries.py -v
+
 # One eight-request smoke for a pre-bound fixed Reports binary; no due job/browser.
 verify-reports-fixed-calendar-smoke plan:
     python3 scripts/verify-reports-schedule-contract.py --binary target/debug/rz-reports --smoke-fixed-calendar --plan "{{plan}}" --output-parent target/rz/reports-fixed-calendar-smoke
