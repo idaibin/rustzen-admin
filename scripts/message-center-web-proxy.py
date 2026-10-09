@@ -22,20 +22,6 @@ def safe_response_header(key, value):
     return key, value
 
 
-def read_static_member(root, candidate):
-    # The regular-file check and the read share one descriptor, so renaming or
-    # replacing the path after the open cannot redirect the served bytes.
-    if root not in candidate.parents:
-        return None
-    try:
-        with candidate.open("rb") as handle:
-            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-                return None
-            return handle.read(), candidate.name
-    except OSError:
-        return None
-
-
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -148,14 +134,31 @@ class Handler(BaseHTTPRequestHandler):
     def static(self):
         path = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
         root = pathlib.Path(self.server.web_root).resolve()
-        member = read_static_member(root, (root / path).resolve())
-        if member is None: member = read_static_member(root, (root / "index.html").resolve())
-        if member is None:
+        target = (root / path).resolve()
+        body = None
+        # The regular-file check and the read share one descriptor, so renaming
+        # or replacing the path after the open cannot redirect the served bytes.
+        if root in target.parents:
+            try:
+                with target.open("rb") as handle:
+                    if stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                        body = handle.read()
+            except OSError:
+                body = None
+        if body is None:
+            target = (root / "index.html").resolve()
+            if root in target.parents:
+                try:
+                    with target.open("rb") as handle:
+                        if stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                            body = handle.read()
+                except OSError:
+                    body = None
+        if body is None:
             self.send_error(404)
             return
-        body, name = member
         self.send_response(200)
-        self.send_header("content-type", mimetypes.guess_type(name)[0] or "application/octet-stream")
+        self.send_header("content-type", mimetypes.guess_type(target.name)[0] or "application/octet-stream")
         self.send_header("content-length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def route(self):
