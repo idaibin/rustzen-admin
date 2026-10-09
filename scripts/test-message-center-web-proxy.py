@@ -103,6 +103,9 @@ class ProxyIntegrationTest(unittest.TestCase):
                 connection = self.connect(); connection.request("GET", path)
                 response = connection.getresponse()
                 self.assertEqual(response.status, 200)
+                content_type = response.getheader("content-type")
+                self.assertIn(content_type, {"text/javascript", "application/javascript"}
+                              if path == "/app.js" else {"text/html"})
                 self.assertEqual(response.read(), expected)
                 connection.close()
         with tempfile.TemporaryDirectory() as outside:
@@ -160,7 +163,15 @@ class ProxyIntegrationTest(unittest.TestCase):
                 "accept": "text/event-stream", "authorization": "Bearer browser-token"})
             response = connection.getresponse(); response.read(); connection.close()
             self.assertEqual(response.status, status)
-            receipt = json.loads(self.receipt.read_text().splitlines()[-1])
+            deadline = time.monotonic() + 1
+            while True:
+                lines = self.receipt.read_text().splitlines()
+                receipt = json.loads(lines[-1]) if lines else None
+                if receipt and receipt["case"] == mode["name"] and receipt["status"] == status:
+                    break
+                if time.monotonic() >= deadline:
+                    self.fail(f"missing receipt for {mode['name']}: {receipt}")
+                time.sleep(0.01)
             self.assertEqual((receipt["case"], receipt["status"]), (mode["name"], status))
             self.assertGreater(receipt["atNs"], 0)
         self.mode.write_text("{}")

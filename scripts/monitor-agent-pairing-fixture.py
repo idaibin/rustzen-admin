@@ -73,6 +73,13 @@ def redacted_tail(path):
     return re.sub(r"(RUSTZEN_MONITOR_AGENT_TOKEN=)[^\\s]+", r"\\1[redacted]", text)
 
 
+def tls_server_context(certificate, private_key):
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(certificate, private_key)
+    return context
+
+
 def run_case(args, writer, scenario):
     received = []
 
@@ -134,9 +141,7 @@ def run_case(args, writer, scenario):
     receiver.bind(str(socket_path))
     os.chmod(socket_path, 0o666)
     server = Server(("127.0.0.1", args.port), Handler)
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.load_cert_chain(args.certificate, args.private_key)
+    context = tls_server_context(args.certificate, args.private_key)
     server.socket = context.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

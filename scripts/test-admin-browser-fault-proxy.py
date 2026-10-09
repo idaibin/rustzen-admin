@@ -2,6 +2,7 @@
 """Verify that repeated fault matches are counted and never reach upstream."""
 import concurrent.futures
 import http.client
+import importlib.util
 import json
 import os
 import signal
@@ -141,6 +142,27 @@ def main():
                 "RUSTZEN_VERIFY_FAULT_RECEIPT": str(receipt),
             }
         )
+        # http.client parses a wire status line before returning its reason.
+        # Exercise the output boundary directly for a malformed reason value.
+        previous = {key: os.environ.get(key) for key in environment if key.startswith("RUSTZEN_VERIFY_")}
+        os.environ.update({key: value for key, value in environment.items() if key.startswith("RUSTZEN_VERIFY_")})
+        try:
+            spec = importlib.util.spec_from_file_location("fault_proxy", root / "admin-browser-fault-proxy.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            handler = object.__new__(module.Proxy)
+            try:
+                handler._respond(200, "OK\r\n injected: yes", [], b"")
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("malformed upstream status reason was accepted")
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
         proxy = subprocess.Popen(
             ["python3", str(root / "admin-browser-fault-proxy.py")], env=environment
         )
