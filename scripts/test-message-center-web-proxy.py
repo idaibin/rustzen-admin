@@ -147,10 +147,11 @@ class ProxyIntegrationTest(unittest.TestCase):
         finally:
             (root / "alias.js").unlink()
 
-    def test_static_read_is_bound_to_the_opened_descriptor(self):
+    def test_static_post_open_name_swap_is_confined(self):
         # Deterministic interleave: swap the served name for a symlink to an
-        # outside file between the open and the read. The response must still
-        # carry the bytes of the already-opened member.
+        # outside file after the descriptor is opened. The confirmation
+        # realpath then leaves the root and the member is rejected, so only the
+        # SPA fallback is served and the outside bytes never reach the client.
         root = pathlib.Path(self.temp.name)
         bound = root / "bound.js"; bound.write_text("bound-original")
         real_fstat = PROXY.os.fstat
@@ -164,45 +165,72 @@ class ProxyIntegrationTest(unittest.TestCase):
                     connection = self.connect(); connection.request("GET", "/bound.js")
                     response = connection.getresponse()
                     self.assertEqual(response.status, 200)
-                    self.assertEqual(response.read(), b"bound-original")
+                    self.assertEqual(response.read(), b"gate")
                     connection.close()
             finally:
                 if bound.is_symlink(): bound.unlink()
                 bound.write_text("bound-original")
 
-    def test_static_swap_between_resolve_and_open_needs_local_write(self):
-        # The remaining window is a local rename between resolve() and open().
-        # The proxy has no HTTP write surface, so this forced interleave is the
-        # minimal primitive the residual race requires; kept open by the
-        # in-root symlink compatibility (no per-component O_NOFOLLOW walk).
+    def test_static_swap_between_normalize_and_open_is_confined(self):
+        # Deterministic interleave: replace the member with an outside symlink
+        # between the containment realpath and the open. The opened descriptor
+        # then belongs to the outside file and the post-open confirmation no
+        # longer resolves inside the root, so the fallback is served instead.
         root = pathlib.Path(self.temp.name)
         window = root / "window.js"; window.write_text("window-original")
-        real_resolve = pathlib.Path.resolve
+        real_realpath = PROXY.os.path.realpath
         with tempfile.TemporaryDirectory() as outside:
             secret = pathlib.Path(outside) / "secret.txt"; secret.write_text("outside-secret")
-            def swap_after_resolve(self, *args, **kwargs):
-                result = real_resolve(self, *args, **kwargs)
-                if self.name == "window.js" and not self.is_symlink():
+            def swap_after_first_normalize(path, *args, **kwargs):
+                result = real_realpath(path, *args, **kwargs)
+                if path.endswith("window.js") and window.exists() and not window.is_symlink():
                     window.unlink(); window.symlink_to(secret)
                 return result
             try:
-                with mock.patch.object(pathlib.Path, "resolve", swap_after_resolve):
+                with mock.patch.object(PROXY.os.path, "realpath", side_effect=swap_after_first_normalize):
                     connection = self.connect(); connection.request("GET", "/window.js")
                     response = connection.getresponse()
                     self.assertEqual(response.status, 200)
-                    self.assertEqual(response.read(), b"outside-secret")
+                    self.assertEqual(response.read(), b"gate")
                     connection.close()
-                # Without the interleave the swapped name is just a statically
-                # present outside symlink: resolve() confines it and the SPA
-                # fallback is served instead.
-                connection = self.connect(); connection.request("GET", "/window.js")
-                response = connection.getresponse()
-                self.assertEqual(response.status, 200)
-                self.assertEqual(response.read(), b"gate")
-                connection.close()
             finally:
                 if window.is_symlink(): window.unlink()
                 window.write_text("window-original")
+
+    def test_static_double_swap_is_rejected_by_descriptor_identity(self):
+        # Strongest forced interleave: point the name at an outside file for the
+        # open, then restore the original member before the confirmation
+        # realpath. The paths look legitimate at both checks, so only the
+        # (st_dev, st_ino) identity between the opened descriptor and the named
+        # in-root member can reject the swap; without it the outside bytes
+        # would be served.
+        root = pathlib.Path(self.temp.name)
+        victim = root / "victim.js"; victim.write_text("victim-original")
+        real_realpath = PROXY.os.path.realpath
+        armed = {"swapped": False}
+        with tempfile.TemporaryDirectory() as outside:
+            secret = pathlib.Path(outside) / "secret.txt"; secret.write_text("outside-secret")
+            def scripted_realpath(path, *args, **kwargs):
+                if path.endswith("victim.js") and victim.exists() and not victim.is_symlink():
+                    result = real_realpath(path, *args, **kwargs)
+                    victim.unlink(); victim.symlink_to(secret)
+                    armed["swapped"] = True
+                    return result
+                if armed["swapped"] and victim.is_symlink():
+                    victim.unlink(); victim.write_text("victim-original")
+                return real_realpath(path, *args, **kwargs)
+            try:
+                with mock.patch.object(PROXY.os.path, "realpath", side_effect=scripted_realpath):
+                    connection = self.connect(); connection.request("GET", "/victim.js")
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 200)
+                    body = response.read()
+                    connection.close()
+                self.assertEqual(body, b"gate")
+                self.assertNotIn(b"outside-secret", body)
+            finally:
+                if victim.is_symlink(): victim.unlink()
+                victim.write_text("victim-original")
 
     def test_sse_is_streamed_without_content_length(self):
         connection = self.connect(); started = time.monotonic()

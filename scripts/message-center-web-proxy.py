@@ -132,33 +132,44 @@ class Handler(BaseHTTPRequestHandler):
                                                            "status": 200, "readyAtNs": time.time_ns()}, separators=(",", ":")))
 
     def static(self):
-        path = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
-        root = pathlib.Path(self.server.web_root).resolve()
-        target = (root / path).resolve()
-        body = None
-        # The regular-file check and the read share one descriptor, so renaming
-        # or replacing the path after the open cannot redirect the served bytes.
-        if root in target.parents:
+        root = os.path.realpath(self.server.web_root)
+        requested = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
+        body = None; served = None
+        # Containment is enforced on the realpath-normalized candidate and then
+        # re-confirmed against the opened descriptor: the member is served only
+        # when the descriptor is a regular file whose (st_dev, st_ino) matches
+        # the currently named in-root path, so swapping the path between the
+        # checks and the read cannot redirect the served bytes.
+        for component in (requested, "index.html"):
             try:
-                with target.open("rb") as handle:
-                    if stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-                        body = handle.read()
+                target = os.path.realpath(os.path.join(root, component))
+                if not target.startswith(root + os.sep):
+                    continue
+                descriptor = os.open(target, os.O_RDONLY | os.O_NONBLOCK)
+            except (OSError, ValueError):
+                continue
+            try:
+                opened = os.fstat(descriptor)
+                confirmed = os.path.realpath(target)
+                named = os.stat(confirmed) if confirmed.startswith(root + os.sep) else None
+                if (named is not None and stat.S_ISREG(opened.st_mode)
+                        and (named.st_dev, named.st_ino) == (opened.st_dev, opened.st_ino)):
+                    handle = os.fdopen(descriptor, "rb"); descriptor = None
+                    try:
+                        body = handle.read(); served = confirmed
+                    finally:
+                        handle.close()
             except OSError:
-                body = None
-        if body is None:
-            target = (root / "index.html").resolve()
-            if root in target.parents:
-                try:
-                    with target.open("rb") as handle:
-                        if stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-                            body = handle.read()
-                except OSError:
-                    body = None
+                pass
+            finally:
+                if descriptor is not None: os.close(descriptor)
+            if body is not None:
+                break
         if body is None:
             self.send_error(404)
             return
         self.send_response(200)
-        self.send_header("content-type", mimetypes.guess_type(target.name)[0] or "application/octet-stream")
+        self.send_header("content-type", mimetypes.guess_type(served)[0] or "application/octet-stream")
         self.send_header("content-length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def route(self):
