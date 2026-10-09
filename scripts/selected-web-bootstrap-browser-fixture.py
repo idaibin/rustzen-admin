@@ -6,12 +6,30 @@ standard library can provide a no-dependency HTTP proxy/receipt server.
 """
 import http.client
 import json
-import re
 import socket
 import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+def remove_entry_integrity(body):
+    marker = b"entry.integrity="
+    replacement = b"entry.integrity=undefined;"
+    pieces = []
+    scan = copy_from = count = 0
+    while (start := body.find(marker, scan)) != -1:
+        end = body.find(b";", start + len(marker))
+        if end == -1:
+            break
+        if end == start + len(marker):
+            scan = end + 1
+            continue
+        pieces.extend((body[copy_from:start], replacement))
+        copy_from = scan = end + 1
+        count += 1
+    pieces.append(body[copy_from:])
+    return b"".join(pieces), count
 
 
 class Fixture:
@@ -62,7 +80,7 @@ class Fixture:
                     response_body = b"globalThis.__rz_sri_tamper_executed = true;"
                     response_headers = [("content-type", "text/javascript")]
                 if fixture.case == "sriIntegrityRemoved" and path == "/monitoring/nodes":
-                    response_body, count = re.subn(rb"entry\.integrity=[^;]+;", b"entry.integrity=undefined;", response_body)
+                    response_body, count = remove_entry_integrity(response_body)
                     if count != 1: raise RuntimeError("bootstrap integrity slot is missing")
                 self.send_response(response.status)
                 for key, value in response_headers:
