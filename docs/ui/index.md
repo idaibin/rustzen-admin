@@ -22,6 +22,14 @@ feature specs record only route-local composition, states, and evidence.
 | Admin | [User role assignment readiness](./features/user-role-assignment-readiness.md) | [Product spec](../product/features/user-role-assignment-readiness/spec.md) | Implemented; pre-merge evidence retained |
 | Admin / Reports | [Linux runtime browser validation](./runtime-browser-validation.md) | [Scheduled automation](../product/features/scheduled-report-automation/spec.md) | Reproducible Colima gate; evidence is valid only after a passing current run |
 
+## English-default locale acceptance
+
+Product basis: [template-first slice](../product/product.md#template-first-and-english-default-slice-2026-10-09).
+Existing login and header language controls retain their placement and visual
+semantics. LANG-01/02 cover fresh English, explicit Chinese persistence, invalid
+storage fallback, HTML lang, Ant Design copy and locale-aware dates. Verify the
+existing desktop login viewport; this slice does not change responsive layout.
+
 ## Current console route contract
 
 Display names: **自动化 / Automation** for the `reports` module and

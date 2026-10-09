@@ -1,66 +1,84 @@
 # rustzen-admin
 
-简体中文 | [English](./README-en.md)
+English | [简体中文](./README-zh.md)
 
-`rustzen-admin` 在一个源码仓库和一个签名发布包中提供 Rustzen Admin、Monitor、Insights 和 Reports 运行时。
+`rustzen-admin` provides the Rustzen Admin, Monitor, Insights, and Reports
+runtime in one source repository and one signed release bundle.
 
-这是一个面向小型自托管环境的轻量运维与管理产品，同时也是结构化的 Rust 全栈参考实现。
+A general-purpose Rust full-stack admin template with a runnable complete
+reference application.
 
-> `rustzen-admin` 将 Axum 后端、React 前端、共享 crate、部署资产和仓库级文档组织在同一个代码库中，强调清晰边界、可维护性，以及对 AI 协作友好的工程结构。
+> `rustzen-admin` combines an Axum backend, a React frontend, shared crates,
+> deployment assets, and repository-level documentation in a single codebase
+> designed for clear boundaries, maintainability, and AI-friendly collaboration.
 
-## 概览
+## Overview
 
-`rustzen-admin` 首先是一个可直接部署的开源管理产品，并保留清晰、可复用的工程结构供二次开发参考，而不只是孤立的 UI 演示。
+`rustzen-admin` primarily serves developers building business administration
+applications: reuse authentication, instance-level RBAC, audit logs, shared
+layout and feature-layer examples. Department data scopes and multi-tenant
+isolation are not implemented.
 
-仓库采用 monorepo 组织方式：
+Monitor, Insights and Reports remain implemented extension examples and
+candidates for a future separation assessment. The supported release still
+contains one signed bundle, four services and their SQLite databases; runtime
+module disablement does not imply optional builds, uninstall or independent
+releases. The UI defaults to English and preserves explicit Simplified Chinese
+choices.
 
-- `crates/auth/` 包含 Rust 服务共享的认证与权限能力
-- `crates/ipc/` 包含共享模块响应与分页、健康响应、Manifest、路由和 HMAC 委托契约
-- `crates/storage/` 包含共享 SQLite 连接池和维护能力
-- `apps/admin/` 包含 Admin API、网关、RBAC、发布管理和 Web 资源托管
-- `apps/monitor/` 提供监控能力和可选的受管节点 Agent
-- `apps/insights/` 提供产品分析和公共追踪脚本
-- `apps/reports/` 提供报表模板、填报执行和实时运行视图
-- `apps/cli/` 提供不常驻的统一运维命令 `rz`
-- `apps/web/` 包含 React 前端应用
-- `deploy/` 包含部署资产和发布支持文件
-- `docs/` 包含仓库级架构与开发指南
-- 仓库根目录保存共享命令、工作区元数据和协作入口文档
+Keep the English and Chinese entries aligned; [product.md](./docs/product/product.md)
+is authoritative for product facts.
 
-该结构明确了后端、前端和仓库规则，便于理解、审查和持续演进。
+The repository is organized as a monorepo:
 
-## 页面预览
+- `crates/auth/` contains shared auth and permission capabilities for Rust services
+- `crates/ipc/` contains shared module response and pagination, health, Manifest, route, and HMAC delegation contracts
+- `crates/storage/` contains shared SQLite pool and maintenance primitives
+- `apps/admin/` contains the Admin API, gateway, RBAC, release management, and Web asset host
+- `apps/monitor/` powers Monitoring and the optional managed-node Agent
+- `apps/insights/` powers product Analytics and its public tracker
+- `apps/reports/` powers report templates, filling runs, and live execution views
+- `apps/cli/` provides the non-resident `rz` operations command
+- `apps/web/` contains the React frontend application
+- `deploy/` contains deployment assets and release support files
+- `docs/` contains repository-level architecture and development guides
+- the root keeps shared commands, workspace metadata, and collaboration entry documents
 
-以下为当前完整服务候选在 Linux 中运行时，以 1920×1080 浏览器视口截取的
-代表性页面。19 个登录后业务路由均有候选截图；完整清单见
-[发布截图索引](./docs/assets/screenshots/README.md)，验收边界见
-[本地验证记录](./docs/guides/local-verification.md)。
+This layout keeps backend, frontend, and repository rules explicit, making the codebase easier to understand, review, and evolve.
 
-| 仪表盘 | 监控节点 |
+## Screenshots
+
+These representative pages were captured at a 1920×1080 browser viewport from the
+current full-service candidate running in Linux. All 19 authenticated business routes
+have a candidate screenshot; see the [release screenshot index](./docs/assets/screenshots/README.md)
+for the complete set and the [local verification record](./docs/guides/local-verification.md)
+for the acceptance boundary.
+
+| Dashboard | Monitoring Nodes |
 | --- | --- |
-| ![仪表盘](./docs/assets/screenshots/dashboard.png) | ![监控节点](./docs/assets/screenshots/monitoring-nodes.png) |
+| ![Dashboard](./docs/assets/screenshots/dashboard.png) | ![Monitoring Nodes](./docs/assets/screenshots/monitoring-nodes.png) |
 
-| 分析明细 | 自动任务 |
+| Analytics Details | Automated Report |
 | --- | --- |
-| ![分析明细](./docs/assets/screenshots/analytics-details.png) | ![自动任务](./docs/assets/screenshots/management-scheduled-tasks.png) |
+| ![Analytics Details](./docs/assets/screenshots/analytics-details.png) | ![Automated Report](./docs/assets/screenshots/management-scheduled-tasks.png) |
 
-## 仓库结构
+## Repository Layout
 
-→ 架构概览：[docs/architecture.md](./docs/architecture.md)
+→ Architecture summary: [docs/architecture.md](./docs/architecture.md)
 
-## 产品方向
+## Product Direction
 
-→ 产品定位、发展方向与模块边界：[docs/product/product.md](./docs/product/product.md)
+→ Product positioning, direction, and module boundaries: [docs/product/product.md](./docs/product/product.md)
 
-## 文档
+## Documentation
 
-→ 完整文档索引：[docs/README.md](./docs/README.md)
+→ Complete documentation index: [docs/README.md](./docs/README.md)
 
-## 命令入口
+## Command Source
 
-根目录 `justfile` 是命令的事实来源；执行前请先查看对应目标。
-本地开发与测试构建保留可用回溯信息，但不生成完整变量级调试数据，避免大型
-workspace 的 `target/` 被非必要调试信息持续放大。
+Use the root `justfile` as the command source of truth; inspect the relevant target before running it.
+Local development and test builds retain usable backtraces without generating full
+variable-level debug data, which keeps the workspace `target/` directory bounded.
 
 ```bash
 cargo run -p rustzen-admin -- serve
@@ -70,9 +88,10 @@ cargo run -p rustzen-reports -- serve
 cargo run -p rustzen-cli -- --json doctor
 ```
 
-部署包会把 `rz` 与四个服务二进制安装到同一
-`/opt/rz/current/bin/` 目录，并创建 `/usr/local/bin/rz` 命令入口。`rz` 不加入 `rz-full.service`，不拥有数据库，
-也不会合并四个服务的进程或故障域。整体服务命令为：
+The release installs `rz` beside the four server binaries under
+`/opt/rz/current/bin/` and creates the `/usr/local/bin/rz` command entry.
+`rz` is not part of `rz-full.service`, owns no database, and
+does not merge the four process or failure boundaries. Its service controls are:
 
 ```bash
 rz --help
@@ -82,23 +101,24 @@ rz restart
 rz status
 ```
 
-直接查看 systemd 时统一使用 `systemctl status rz-full`；systemd 内部对应的
-正式单元名是 `rz-full.service`。
+For direct systemd inspection, use `systemctl status rz-full`. The canonical unit
+name is `rz-full.service`.
 
-正式发布只有一条安装路径：`just build` 生成包含 Web 与四个服务的签名完整包，
-将包和构建生成的安装脚本复制到服务器，执行安装脚本后运行 `rz start`。
-安装不要求输入管理员密码、签名密钥、验证公钥或数据库命令；首次启动时各服务
-自行创建并校验其 SQLite 数据库。
+There is one production installation path. `just build` creates a signed complete
+bundle containing the Web application and all four services. Copy the bundle and
+the generated installer to the server, run the installer, then run `rz start`.
+Installation does not ask for an administrator password, signing key, verification
+key, or database command. Each service creates and validates its own SQLite database
+on first start.
 
-完整构建产物统一生成到 `target/rz/`：
+Complete build outputs are written to `target/rz/`:
 
 ```text
 target/rz/rz-<version>-<arch>.tar
 target/rz/rz-install
 ```
 
-前者是包含 Web、Admin、Monitor、Insights、Reports 和 `rz` 的签名完整包，
-后者是服务器安装脚本。安装时只需把这两个文件复制到服务器：
+Install the two copied files with:
 
 ```bash
 sudo ./rz-install ./rz-<version>-<arch>.tar
@@ -106,39 +126,48 @@ sudo rz start
 rz status
 ```
 
-JSON 成功响应固定包含 `schema_version`、`ok`、`command` 和 `data`；
-CLI 参数或执行失败固定包含 `schema_version`、`ok`、`command` 和
-`error.code` / `error.message`。`doctor` 只按端点白名单读取配置，
-凭据键不会进入 CLI 状态，也不会输出凭据值。
+JSON success responses always contain `schema_version`, `ok`, `command`, and
+`data`. CLI failures contain `schema_version`, `ok`, `command`, plus
+`error.code` and `error.message`. `doctor` reads only an endpoint allowlist
+from configuration; credential keys never enter CLI state and credential
+values are never emitted.
 
-本地启动默认使用 SQLite，不需要 PostgreSQL。
-SQLite 连接能力、角色策略、运行时目录和日志均由本仓库维护，不依赖 `rustzen-core` 运行时。
-本地开发不需要 `.env`：数据库路径、端口、连接池限制、运行目录、日志、时区、JWT 有效期，以及仅用于开发的 JWT/IPC 密钥均有内置默认值。环境变量只用于覆盖这些默认值。
+Local startup is SQLite-first and does not require PostgreSQL.
+SQLite connection primitives, role policy, runtime layout, and logging are owned
+inside this repository; there is no `rustzen-core` runtime dependency.
+Local development needs no `.env`: database paths, ports, connection-pool
+limits, runtime paths, logging, timezone, JWT lifetime, and development-only
+JWT/IPC secrets have built-in defaults. Use environment variables only to
+override those defaults.
 
-如果启动出现 `VersionMismatch`，说明本地数据库结构与当前初始化 SQL 校验和不一致。请执行：
+If startup fails with `VersionMismatch`, your local database schema is out-of-date with current migration checksums. Run:
 
 ```bash
 just reset-db
 cargo run -p rustzen-admin -- serve
 ```
 
-再次启动后会自动重建数据库。
+If startup succeeds, the database will be recreated automatically.
 
-## 演示环境
+## Demo
 
-- 本地演示地址：[https://admin.rustzen.dev](https://admin.rustzen.dev)
-- 用户名：`owner`
-- 演示密码：`rustzen@123`
+- Local demo URL: [https://admin.rustzen.dev](https://admin.rustzen.dev)
+- Username: `owner`
+- Demo password: `rustzen@123`
 
-该公开凭据仅用于上述演示环境。正式安装仍会随机生成初始密码，由服务器 root
-用户从 `/opt/rz/data/initial-owner-password` 读取；用户修改密码后，以修改后的密码为准。
+This public credential is only for the demo environment. A production installation
+still generates a random initial password, which the server's root user reads from
+`/opt/rz/data/initial-owner-password`; after a password change, use the new password.
 
-## 说明
+## Notes
 
-- `README.md` 和 `AGENTS.md` 只保留轻量入口信息。
-- `docs/history/` 保存历史执行记录，不是当前实现事实来源。
+- `README.md` and `AGENTS.md` stay as lightweight entry documents.
+- `docs/history/` contains historical execution records and is not current implementation truth.
 
-## 许可证与商标
+## License and Trademark
 
-源代码采用 [Apache License 2.0](./LICENSE.md) 许可，可在该许可证约束下进行商业使用、修改和分发。
-Rustzen 名称、Logo、域名、官方包命名空间和官方分发渠道不包含在软件许可证授权范围内。详见 [NOTICE.md](./NOTICE.md) 和 [TRADEMARKS.md](./TRADEMARKS.md)。
+Source code is licensed under the [Apache License 2.0](./LICENSE.md). Commercial
+use, modification, and distribution are permitted subject to that license.
+Rustzen names, logos, domains, official package namespaces, and official
+distribution channels are not included in the software license. See
+[NOTICE.md](./NOTICE.md) and [TRADEMARKS.md](./TRADEMARKS.md).

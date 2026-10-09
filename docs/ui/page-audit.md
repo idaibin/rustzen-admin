@@ -45,7 +45,8 @@ standard light and dark themes.
   readable solid surfaces in standard light and dark themes.
 - Query-backed lists expose distinct initial loading, empty, error, and populated
   states, with retry available after errors.
-- User-visible copy defaults to Simplified Chinese and retains only product names,
+- User-visible copy defaults to English, preserves explicit Simplified Chinese
+  preferences, and retains only product names,
   protocols, methods, formats, and technical abbreviations untranslated.
 - The 19 authenticated business routes have a 1920x1080 release screenshot listed in
   [`docs/assets/screenshots/README.md`](../assets/screenshots/README.md).

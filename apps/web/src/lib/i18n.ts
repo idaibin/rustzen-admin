@@ -16,9 +16,9 @@ const listeners = new Set<LocaleListener>();
 
 const readLocale = () => {
     if (typeof window === "undefined") {
-        return "zh-CN" as const;
+        return "en-US" as const;
     }
-    return localStorage.getItem(LOCALE_STORAGE_KEY) === "en-US" ? "en-US" : "zh-CN";
+    return localStorage.getItem(LOCALE_STORAGE_KEY) === "zh-CN" ? "zh-CN" : "en-US";
 };
 
 let currentLocale: Locale = readLocale();
@@ -55,7 +55,7 @@ export const subscribeLocale = (listener: LocaleListener) => {
 export const t = (chinese: string, english: string): string =>
     getLocale() === "en-US" ? english : chinese;
 
-const LocaleContext = createContext<Locale>("zh-CN");
+const LocaleContext = createContext<Locale>("en-US");
 
 export const LocaleProvider = ({ children }: { children: ReactNode }) => {
     const locale = useSyncExternalStore(subscribeLocale, getLocale, getLocale);

@@ -72,7 +72,9 @@ component system.
 - `layout/`, route pages, and shared page/table components implement the owners
   named by `DESIGN.md`; page-local composition and applicable states remain in
   the owning Feature UI contract and route source.
-- The UI defaults to Simplified Chinese and also supports English. Write fixed
+- The UI defaults to English and preserves explicitly saved Simplified Chinese
+  preferences. Missing/invalid preferences fall back to English; browser language
+  does not choose the UI locale. Write fixed
   user-facing copy with `t(chinese, english)` from `apps/web/src/lib/i18n.ts`.
   Retain untranslated product names, protocol/method names, file formats, role
   codes, and technical abbreviations where appropriate.

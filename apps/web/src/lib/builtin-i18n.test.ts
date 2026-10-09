@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { localizeModuleMenuName } from "./builtin-i18n";
 import { setLocale } from "./i18n";
 
-afterEach(() => setLocale("zh-CN"));
+afterEach(() => setLocale("en-US"));
 
 test("module menu translations preserve user supplied titles in both languages", () => {
     for (const locale of ["zh-CN", "en-US"] as const) {

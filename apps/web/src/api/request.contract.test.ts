@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 
 import type { DeploymentUpload } from "@/api/generated/admin-contract";
+import { setLocale } from "@/lib/i18n";
 
 const persistedAuthStore = new Map<string, string>();
 const localStorageMock = {
@@ -70,6 +71,7 @@ test("feature adapters call generated operations with Bearer and unwrap data", a
 });
 
 test("generated feature adapter preserves non-success API envelope errors", async () => {
+    setLocale("en-US");
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
         new Response(JSON.stringify({ code: 10201, message: "Username already exists." }), {
@@ -83,7 +85,7 @@ test("generated feature adapter preserves non-success API envelope errors", asyn
                 password: "secret",
                 roleIds: [3],
             }),
-        ).rejects.toThrow("用户名已存在。");
+        ).rejects.toThrow("The username already exists.");
     } finally {
         globalThis.fetch = originalFetch;
     }

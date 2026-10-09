@@ -7,6 +7,44 @@ direction, module purposes, boundaries, and non-goals. Source remains
 authoritative for delivered behavior; `docs/architecture.md` remains
 authoritative for runtime and repository structure.
 
+## Template-first and English-default slice (2026-10-09)
+
+Approved scope: restore general-purpose admin template positioning and English
+as the initial UI language. Preserve explicit Chinese preferences, existing
+module implementations and the complete-distribution release boundary.
+
+Acceptance:
+- TPL-01: English README.md and Chinese README-zh.md describe equivalent facts
+  and commands; README-en.md becomes a link to the canonical English entry.
+- TPL-02: distinguish delivered authentication, instance-level RBAC, audit,
+  shared layout and feature-layer examples from unimplemented department data
+  scopes and multi-tenant isolation.
+- LANG-01: first visit, missing/invalid storage and no-window rendering use
+  en-US regardless of browser language; initialization never overwrites preferences.
+- LANG-02: explicit zh-CN/en-US selections persist across reloads; shared copy,
+  HTML lang, Ant Design and date formatting follow the selected locale.
+- SCOPE-01: existing modules stay installed; runtime disablement does not imply
+  optional builds or independent releases. No backend/schema/deployment changes.
+
+Validation: focused locale regressions, existing localization/date tests, Web
+format/lint/typecheck/tests/build, README link checks and independent review.
+Browser acceptance covers initial English, Chinese selection/reload and invalid
+storage in the unchanged login layout. Production and full backend verification
+are outside this slice.
+
+Local verification (2026-10-09): Bun 1.3.14 ran all 174 Web tests successfully,
+including fresh-process locale/HTML bootstrap checks and existing date/copy
+coverage. Web formatting, lint, TypeScript and production build passed; lint
+still reports warnings in existing test/generated code, and the build retains
+its large-chunk warning. All 30 README relative link occurrences resolve and
+English/Chinese command blocks match. An isolated Chrome session at 1440x900
+against the production Web preview confirmed English on fresh storage despite
+navigator.language=zh-CN, Chinese after selection/reload, and English on invalid
+storage without overwriting that value. No backend or production claim follows.
+Independent review identified a stale default-language acceptance sentence and
+an English README install-path omission; both were corrected before commit.
+
+
 ## Product boundary
 
 The supported first release is one complete signed distribution containing Admin,
@@ -16,10 +54,17 @@ an installed module at runtime, which removes its navigation and gateway access 
 does not change the signed installed inventory. The first-release acceptance boundary
 is the complete distribution.
 
-Rustzen Admin is primarily a lightweight, self-hosted operations and
-administration product for developer-operators and small technical teams. It is
-secondarily a structured Rust full-stack reference implementation; product
-journeys take priority over generic framework demonstrations.
+Rustzen Admin is primarily a general-purpose Rust full-stack admin template
+for developers building business administration applications. Its runnable
+reference application provides authentication, instance-level RBAC, audit logs,
+shared layout and layered feature implementations. Department data scopes,
+tenant membership and multi-tenant isolation are not implemented.
+
+Monitor, Insights and Reports remain implemented extension examples. Their
+separation is a future assessment, not a delivered optional-build or independent-
+release contract. This first positioning slice retains the full distribution.
+The UI defaults to English, preserves explicit Chinese preferences and does
+not infer the application locale from browser language.
 
 The product is one operations console delivered as one signed release. The
 release contains four independently restarted server processes but keeps one
@@ -56,8 +101,10 @@ previous release and its database snapshots are restored.
 
 ## Target users, problems, and principles
 
-The primary-user definition remains an adoption assumption to validate. The
-current product addresses five concrete problems:
+The primary audience is developers extending the template for their own admin
+applications. The usefulness of the bundled operations examples remains an
+adoption assumption to validate. The current reference application addresses
+five concrete problems:
 
 - administer accounts, roles, permissions, and fixed modules from one place;
 - understand installation and managed-service health;
@@ -72,9 +119,9 @@ Product decisions follow these principles:
 3. Preserve one product experience while isolating module failures and data.
 4. Require explicit authorization, visible status, audit evidence, and
    recoverable outcomes for privileged work.
-5. Prefer named user problems over template completeness or speculative
-   abstractions.
-6. Deepen the four fixed product areas before considering extensibility.
+5. Prioritize reusable administration foundations and demonstrated developer
+   needs over speculative abstractions.
+6. Keep extension examples bounded; assess separation before adding modules.
 
 ## Users and core journeys
 
@@ -292,15 +339,15 @@ behavior. They do not justify a fifth process or a new contract crate today.
   module Manifests generate them, and role management assigns them.
 - Confirmed: Dictionary management is removed from the current surface; its
   dormant SQLite table is not an upgrade-compatibility contract.
-- Confirmed: the primary positioning is a lightweight self-hosted operations
-  product; the reference-implementation role is secondary.
+- Confirmed: general-purpose admin template positioning is primary; the
+  complete operations application is its runnable reference and extension set.
 - Confirmed: SQLite and one coherent signed release are the current supported
   operating boundary.
 - Confirmed: Reports has selected the bounded daily/weekly schedule slice; it
   does not authorize credentials, datasets, expression/group DSL,
   notifications, or webhooks.
-- Assumption: the primary adopter is a developer-operator or small technical
-  team managing one installation.
+- Assumption: developers benefit from the current complete reference release;
+  demand for a smaller template distribution still needs validation.
 - Open: which retained journey currently causes the most user friction and
   should receive the next bounded feature specification.
 - Open: which deferred capability becomes the first implementation slice.
@@ -317,12 +364,20 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 ## Development horizon and success signals
 
-Now, consolidate onboarding, permission safety, understandable states, update
-recovery, and the four retained journeys. Next, deepen only the highest-friction
-steps proven by adoption evidence. Later, evaluate bounded notifications,
-exports, or target-specific helpers; hosted SaaS, multi-tenancy, fleet
-administration, dynamic plugins, and a broader extension model require a new
-product-boundary decision.
+Now, restore template-first documentation and English-default onboarding while
+preserving the supported complete release. Next, evaluate a minimal Admin-only
+distribution before implementation: inventory build-time assets, fixed module
+registry/navigation, dashboard and notification dependencies, service units,
+installer, signed inventory and health/update/rollback gates. Selected-build
+code and fixtures alone do not establish a supported installation journey.
+
+The smallest follow-up should prove one Admin-only artifact alongside the full
+artifact. Acceptance must cover clean build/install/login, RBAC and audit, no
+dead module routes or background calls, and update/recovery for each declared
+composition. This is a substantial cross-layer change with additional build,
+runtime and deployment validation cost; independent module releases and a
+plugin ecosystem remain outside that proposal. Department scopes and shared-
+instance multi-tenancy require separate specifications and isolation tests.
 
 The product is succeeding when a new owner can install, sign in, understand
 health, and complete one useful journey in every enabled module; ordinary
