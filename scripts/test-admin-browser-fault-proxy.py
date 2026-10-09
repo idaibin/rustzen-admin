@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify that repeated fault matches are counted and never reach upstream."""
+import atexit
 import concurrent.futures
 import http.client
 import importlib.util
@@ -122,6 +123,15 @@ def check_forwarded_headers(proxy_port):
         connection.close()
 
 
+def stop_proxy(proxy):
+    proxy.send_signal(signal.SIGTERM)
+    try:
+        proxy.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proxy.kill()
+        proxy.wait(timeout=5)
+
+
 def main():
     root = Path(__file__).resolve().parent
     upstream_port = free_port()
@@ -129,6 +139,9 @@ def main():
     upstream = ThreadingHTTPServer(("127.0.0.1", upstream_port), Upstream)
     upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
     upstream_thread.start()
+    atexit.register(upstream_thread.join, timeout=2)
+    atexit.register(upstream.server_close)
+    atexit.register(upstream.shutdown)
     with tempfile.TemporaryDirectory(prefix="rz-fault-proxy-test-") as temporary:
         receipt = Path(temporary) / "receipt.json"
         environment = os.environ.copy()
@@ -178,8 +191,7 @@ def main():
             if results != [None, None]:
                 raise AssertionError(f"network faults unexpectedly returned statuses: {results}")
         finally:
-            proxy.send_signal(signal.SIGTERM)
-            proxy.wait(timeout=5)
+            stop_proxy(proxy)
         data = json.loads(receipt.read_text(encoding="utf-8"))
         if data["hitCount"] != 2:
             raise AssertionError(f"expected two exact fault hits, received {data}")
@@ -202,8 +214,7 @@ def main():
                 raise AssertionError("count mode did not forward the matching mutation")
             check_forwarded_headers(proxy_port)
         finally:
-            proxy.send_signal(signal.SIGTERM)
-            proxy.wait(timeout=5)
+            stop_proxy(proxy)
         count_data = json.loads(receipt_count.read_text(encoding="utf-8"))
         if count_data["hitCount"] != 1 or Upstream.mutation_count != 1:
             raise AssertionError(f"count mode did not record one forwarded mutation: {count_data}")
@@ -235,13 +246,10 @@ def main():
                 if status != 200 or succeeded["data"][0]["running"] is not False:
                     raise AssertionError(f"transition did not restore upstream state: {succeeded}")
             finally:
-                proxy.send_signal(signal.SIGTERM)
-                proxy.wait(timeout=5)
+                stop_proxy(proxy)
             transition = json.loads(transition_receipt.read_text(encoding="utf-8"))
             if transition["transitionRunId"] != "manual-run" or transition["transitionReads"] != 2 or transition["hitCount"] != 3:
                 raise AssertionError(f"transition receipt was not replay-safe: {transition}")
-        upstream.shutdown()
-        upstream.server_close()
     print("Admin browser fault proxy replay guard passed")
 
 

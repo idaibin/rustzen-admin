@@ -22,6 +22,36 @@ def safe_response_header(key, value):
     return key, value
 
 
+def read_static_member(root, member):
+    # Walk from the root directory descriptor: every component is opened
+    # exactly once, relative to a pinned directory, with symlink following
+    # disabled, and the bytes are read from the opened descriptor. No name is
+    # resolved again after the open, so swapping directory entries between
+    # checks cannot redirect what is served; only objects physically reachable
+    # from the root directory without following links can ever be served.
+    directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for name in member[len(root) + 1:].split("/"):
+            if name in ("", ".", ".."):
+                return None
+            following = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+            os.close(directory)
+            directory = following
+        if not stat.S_ISREG(os.fstat(directory).st_mode):
+            return None
+        handle = os.fdopen(directory, "rb")
+        directory = None
+        try:
+            return handle.read(), member.rsplit("/", 1)[-1]
+        finally:
+            handle.close()
+    except (OSError, ValueError):
+        return None
+    finally:
+        if directory is not None:
+            os.close(directory)
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -135,35 +165,21 @@ class Handler(BaseHTTPRequestHandler):
         root = os.path.realpath(self.server.web_root)
         requested = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
         body = None; served = None
-        # Containment is enforced on the realpath-normalized candidate and then
-        # re-confirmed against the opened descriptor: the member is served only
-        # when the descriptor is a regular file whose (st_dev, st_ino) matches
-        # the currently named in-root path, so swapping the path between the
-        # checks and the read cannot redirect the served bytes.
+        # The realpath-plus-prefix screen resolves legitimate in-root symlinks
+        # and rejects paths escaping the root; the descriptor walk inside
+        # read_static_member is the enforcement that survives concurrent name
+        # swaps. Symlinks resolving outside the root, or swapped in after the
+        # screen, fall back to the SPA index.
         for component in (requested, "index.html"):
             try:
-                target = os.path.realpath(os.path.join(root, component))
-                if not target.startswith(root + os.sep):
+                candidate = os.path.realpath(os.path.join(root, component))
+                if not candidate.startswith(root + os.sep):
                     continue
-                descriptor = os.open(target, os.O_RDONLY | os.O_NONBLOCK)
+                member = read_static_member(root, candidate)
             except (OSError, ValueError):
-                continue
-            try:
-                opened = os.fstat(descriptor)
-                confirmed = os.path.realpath(target)
-                named = os.stat(confirmed) if confirmed.startswith(root + os.sep) else None
-                if (named is not None and stat.S_ISREG(opened.st_mode)
-                        and (named.st_dev, named.st_ino) == (opened.st_dev, opened.st_ino)):
-                    handle = os.fdopen(descriptor, "rb"); descriptor = None
-                    try:
-                        body = handle.read(); served = confirmed
-                    finally:
-                        handle.close()
-            except OSError:
-                pass
-            finally:
-                if descriptor is not None: os.close(descriptor)
-            if body is not None:
+                member = None
+            if member is not None:
+                body, served = member
                 break
         if body is None:
             self.send_error(404)

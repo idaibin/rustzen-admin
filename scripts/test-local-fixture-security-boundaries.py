@@ -113,7 +113,11 @@ class BoundaryTests(unittest.TestCase):
                         self.fail(f"{name} did not become ready")
                 finally:
                     process.terminate()
-                    process.wait(timeout=3)
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
 
     def test_agent_tls_context_requires_tls_1_2(self):
         module = load("monitor-agent-pairing-fixture")
