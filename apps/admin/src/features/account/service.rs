@@ -2,7 +2,7 @@ use super::{
     repo::AccountRepository,
     types::{ChangeAccountPasswordRequest, UpdateAccountProfileRequest},
 };
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use crate::common::files::{remove_avatar_by_url, save_avatar};
 use crate::{
     common::error::ServiceError,
@@ -10,7 +10,7 @@ use crate::{
     infra::{password::PasswordUtils, permission::PermissionService},
 };
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use axum::extract::Multipart;
 use rustzen_auth::auth::AuthClaims;
 use sqlx::SqlitePool;
@@ -19,7 +19,7 @@ use sqlx::SqlitePool;
 pub struct AccountService;
 
 impl AccountService {
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub async fn update_avatar(
         pool: &SqlitePool,
         user_id: i64,

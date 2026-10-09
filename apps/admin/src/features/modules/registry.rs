@@ -6,7 +6,7 @@ use std::{
 use axum::http::Method;
 use rustzen_ipc::{AccessMode, ModuleManifest};
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use super::types::ModuleStatusResponse;
 use super::types::{GatewayLookup, GatewayTarget, ModuleRuntime, ModuleSpec};
 
@@ -34,7 +34,7 @@ impl ModuleRegistry {
             .unwrap_or_else(|poisoned| Arc::clone(&poisoned.into_inner()))
     }
 
-    #[cfg(all(test, feature = "full"))]
+    #[cfg(all(test, feature = "core"))]
     pub fn replace(&self, snapshot: RegistrySnapshot) {
         let replacement = Arc::new(snapshot);
         match self.current.write() {
@@ -83,9 +83,9 @@ impl RegistrySnapshot {
     /// `BTreeMap` keeps registry lookups deterministic, but its lexical key ordering is not the
     /// order that the module APIs expose. Unknown modules are retained after the fixed modules so
     /// test fixtures and future extension modules remain observable.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub fn display_modules(&self) -> Vec<&ModuleRuntime> {
-        let specs = ModuleSpec::fixed();
+        let specs = ModuleSpec::installed();
         let mut modules =
             specs.iter().filter_map(|spec| self.modules.get(spec.id)).collect::<Vec<_>>();
         modules.extend(
@@ -97,12 +97,12 @@ impl RegistrySnapshot {
         modules
     }
 
-    #[cfg(all(test, feature = "full"))]
+    #[cfg(all(test, feature = "modules"))]
     pub fn into_modules(self) -> BTreeMap<String, ModuleRuntime> {
         self.modules
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub fn statuses(&self) -> Vec<ModuleStatusResponse> {
         self.display_modules().into_iter().map(ModuleStatusResponse::from).collect()
     }

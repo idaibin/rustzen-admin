@@ -23,7 +23,6 @@ use crate::{
     },
 };
 
-#[cfg(feature = "notifications")]
 use axum::Extension;
 use axum::{Router, middleware, routing::get};
 use rustzen_auth::auth::auth_middleware;

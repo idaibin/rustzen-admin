@@ -1,4 +1,4 @@
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use super::types::UserDashboardCounts;
 use super::{
     repo::UserRepository,
@@ -216,7 +216,7 @@ impl UserService {
         Ok(updated)
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub async fn dashboard_counts(pool: &SqlitePool) -> Result<UserDashboardCounts, ServiceError> {
         UserRepository::dashboard_counts(pool).await
     }

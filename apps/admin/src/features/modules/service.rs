@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use chrono::Utc;
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
 use rustzen_ipc::{DelegationSigner, ModuleManifest, ModuleStorageReport};
@@ -10,7 +10,7 @@ use sqlx::SqlitePool;
 
 use crate::{common::error::ServiceError, infra::permission::PermissionService};
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use super::types::{ModuleHealthResponse, ModuleRuntime, ModuleStatusResponse};
 use super::{
     registry::ModuleRegistry,
@@ -27,7 +27,7 @@ pub struct ModuleControlState {
     pub registry: ModuleRegistry,
     pub client: reqwest::Client,
     pub signer: DelegationSigner,
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub enabled_update: Arc<tokio::sync::Mutex<()>>,
 }
 
@@ -38,13 +38,13 @@ impl ModuleControlState {
         signer: DelegationSigner,
     ) -> Result<Self, ServiceError> {
         let enabled = ModuleRepository::load_enabled(&pool).await?;
-        let registry = ModuleRegistry::new(ModuleSpec::fixed(), &enabled);
+        let registry = ModuleRegistry::new(ModuleSpec::installed(), &enabled);
         Ok(Self {
             pool,
             registry,
             client,
             signer,
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             enabled_update: Arc::default(),
         })
     }
@@ -53,12 +53,12 @@ impl ModuleControlState {
 pub struct ModuleService;
 
 impl ModuleService {
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub fn statuses(state: &ModuleControlState) -> Vec<ModuleStatusResponse> {
         state.registry.snapshot().statuses()
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub fn dashboard_health(state: &ModuleControlState) -> Vec<ModuleHealthResponse> {
         let snapshot = state.registry.snapshot();
         snapshot
@@ -98,12 +98,13 @@ impl ModuleService {
             .collect())
     }
 
-    #[cfg(all(feature = "full", test))]
+    #[cfg(all(feature = "core", test))]
     pub async fn set_enabled(
         state: &ModuleControlState,
         module: &str,
         enabled: bool,
     ) -> Result<Vec<ModuleStatusResponse>, ServiceError> {
+        Self::assert_installed(state, module)?;
         let _enabled_guard = state.enabled_update.lock().await;
         ModuleRepository::set_enabled(&state.pool, module, enabled).await?;
         if !state.registry.update_module(module, |runtime| {
@@ -118,13 +119,14 @@ impl ModuleService {
         Ok(Self::statuses(state))
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub async fn set_enabled_authorized(
         state: &ModuleControlState,
         module: &str,
         enabled: bool,
         actor: &AuthClaims,
     ) -> Result<Vec<ModuleStatusResponse>, ServiceError> {
+        Self::assert_installed(state, module)?;
         let _enabled_guard = state.enabled_update.lock().await;
         ModuleRepository::set_enabled_authorized(&state.pool, module, enabled, actor).await?;
         if !state.registry.update_module(module, |runtime| {
@@ -137,6 +139,17 @@ impl ModuleService {
             return Err(ServiceError::NotFound(format!("Module {module}")));
         }
         Ok(Self::statuses(state))
+    }
+
+    /// Reject module mutations for anything outside the installed inventory
+    /// before any database write: a core build has an empty inventory, so its
+    /// dormant seed rows can never be flipped by an enable request.
+    fn assert_installed(state: &ModuleControlState, module: &str) -> Result<(), ServiceError> {
+        if state.registry.snapshot().modules().contains_key(module) {
+            Ok(())
+        } else {
+            Err(ServiceError::NotFound(format!("Module {module}")))
+        }
     }
 
     pub fn spawn_synchronizer(state: ModuleControlState) {
@@ -295,5 +308,5 @@ fn validate_fixed_manifest(spec: &ModuleSpec, manifest: &ModuleManifest) -> Resu
     Ok(())
 }
 
-#[cfg(all(test, feature = "full"))]
+#[cfg(all(test, feature = "modules"))]
 mod tests;

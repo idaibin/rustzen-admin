@@ -1,5 +1,7 @@
 pub mod gateway;
 pub mod handler;
+#[cfg(all(test, feature = "core"))]
+mod inventory_tests;
 pub mod registry;
 pub mod repo;
 pub mod service;
@@ -7,12 +9,12 @@ pub mod types;
 
 use crate::infra::contract::{AccessPolicy, ContractRouter, OperationDescriptor};
 use axum::routing::get;
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use axum::routing::put;
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use rustzen_auth::capability::{dashboard, system_module};
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use self::handler::{dashboard, list, update};
 use self::{handler::navigation, service::ModuleControlState};
 
@@ -25,7 +27,7 @@ pub fn control_routes() -> ContractRouter<ModuleControlState> {
             get(navigation),
         )
         .expect("static module control contract");
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     let router = router
         .get(
             "/api/system/modules",

@@ -227,7 +227,14 @@ async fn export_logs_route_returns_csv_content_type_and_body() {
 #[test]
 fn admin_native_contract_inventory_has_no_duplicate_operations_or_routes() {
     let contracts = documented_all_contracts();
-    assert_eq!(contracts.len(), 54);
+    // The native route count is composition-derived: the notifications
+    // feature contributes its six inbox operations on top of the shared
+    // Admin surface.
+    #[cfg(feature = "notifications")]
+    let expected = 54;
+    #[cfg(not(feature = "notifications"))]
+    let expected = 48;
+    assert_eq!(contracts.len(), expected);
 
     let mut operations = std::collections::BTreeSet::new();
     let mut routes = std::collections::BTreeSet::new();
@@ -235,6 +242,6 @@ fn admin_native_contract_inventory_has_no_duplicate_operations_or_routes() {
         assert!(operations.insert(contract.operation.operation_id()));
         assert!(routes.insert((contract.method, contract.path)));
     }
-    assert_eq!(operations.len(), 54);
-    assert_eq!(routes.len(), 54);
+    assert_eq!(operations.len(), expected);
+    assert_eq!(routes.len(), expected);
 }

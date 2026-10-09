@@ -4,7 +4,7 @@ pub mod service;
 pub mod session;
 pub mod types;
 
-#[cfg(all(test, feature = "full"))]
+#[cfg(all(test, feature = "core"))]
 #[path = "actor_authority_tests.rs"]
 mod actor_authority_tests;
 

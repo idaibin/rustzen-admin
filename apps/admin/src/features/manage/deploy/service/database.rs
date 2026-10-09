@@ -70,7 +70,7 @@ pub(super) fn write_backup_manifest(
 pub(super) fn restore_databases_for_units_at(
     backup_dir: &Path,
     units: &[&str],
-    all_paths: &[PathBuf; 4],
+    all_paths: &[PathBuf],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let paths = SYSTEMD_UNITS
         .iter()
@@ -165,13 +165,24 @@ fn preserve_database_permissions(
     fs::set_permissions(path, original.permissions())
 }
 
-pub(super) fn database_paths() -> [PathBuf; 4] {
-    [
-        CONFIG.monitor_database_path(),
-        CONFIG.insights_database_path(),
-        CONFIG.reports_database_path(),
-        CONFIG.admin_database_path(),
-    ]
+/// Backup set for the update transaction, derived from the installed
+/// composition: a `modules` build backs up all four owned databases; a core
+/// build owns and backs up only the Admin database. The return type keeps a
+/// fixed order (module databases before Admin) for journal determinism.
+pub(super) fn database_paths() -> Vec<PathBuf> {
+    #[cfg(feature = "modules")]
+    {
+        vec![
+            CONFIG.monitor_database_path(),
+            CONFIG.insights_database_path(),
+            CONFIG.reports_database_path(),
+            CONFIG.admin_database_path(),
+        ]
+    }
+    #[cfg(not(feature = "modules"))]
+    {
+        vec![CONFIG.admin_database_path()]
+    }
 }
 
 #[cfg(unix)]

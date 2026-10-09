@@ -42,7 +42,7 @@ impl SystemStatusService {
 /// hides stale bytes and keeps only the last successful collection time.
 fn collect_module_storage(registry: &ModuleRegistry) -> Vec<ModuleDatabaseStatus> {
     let snapshot = registry.snapshot();
-    ModuleSpec::fixed()
+    ModuleSpec::installed()
         .into_iter()
         .map(|spec| {
             let runtime = snapshot.modules().get(spec.id);
@@ -246,7 +246,7 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "modules"))]
 mod module_storage_tests {
     use axum::{Json, Router, routing::get};
     use std::{collections::BTreeMap, sync::Arc, time::Duration};

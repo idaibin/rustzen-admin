@@ -348,3 +348,100 @@ orphans; retire candidates for a focused composition-scope cleanup commit).
    (no connections to 9802-9804).
 4. Focused tests for the inventory boundary (dashboard modules endpoint,
    module control routes, gateway behavior in core).
+
+### OE-2 slice 1 record (2026-10-09, Rust composition vertical)
+
+Executed exactly the bounded task above; working tree committed per slice.
+
+**Source changes.**
+
+- `apps/admin/Cargo.toml`: new `core` feature (full dependency set minus
+  notifications), new `modules` feature (installed example-module
+  inventory), `full = ["core", "modules", "reports-notifications"]`. The
+  default feature set and therefore the full build graph are unchanged.
+- All 75 former `feature = "full"` cfg gates renamed to `core`
+  (complete-Admin semantics: audit-capable login, user/account surfaces,
+  permission/menu reconciliation, log middleware). Module-behavior test
+  modules (`modules/service/tests.rs`, `gateway_tests.rs`,
+  `system/status module_storage_tests`) now gate on `modules`; the
+  notifications-contract OpenAPI test and `TraceWriter` gained their missing
+  `notifications` gates.
+- `features/modules/types.rs`: `ModuleSpec::installed()` returns the fixed
+  inventory only in a `modules` build and an empty vector otherwise;
+  `ModuleSpec::fixed()` and the `CONFIG` import are `modules`-gated. The
+  registry, module service and system-status projections now consume
+  `installed()`; `sync_once` iterates the registry snapshot, so an empty
+  inventory performs no network probe by construction.
+- `features/modules/service.rs`: new `assert_installed` pre-write guard on
+  both `set_enabled` variants — enabling anything outside the installed
+  inventory is rejected **before** the database write (previously the dormant
+  seed row was updated first and the request then failed, leaving a
+  write-then-fail inconsistency).
+- Update machinery derived from composition: `SYSTEMD_UNITS`
+  (`service/mod.rs`), `service_probes()` and `database_paths()` /
+  `restore_databases_for_units_at` (`deploy/service/{recovery,database}.rs`)
+  are `modules`-gated to the four-service set and collapse to the Admin-only
+  set in core.
+- `apps/admin/build.rs`: composition identity is feature-derived
+  (`rustzen-full-composition-v1` for `modules` builds — byte-identical to
+  the previous constant — and `rustzen-core-composition-v1` otherwise) and
+  exposed as `RUSTZEN_PACKAGED_COMPOSITION`. The embedded web root remains
+  the shared full build until the core Web producer lands (next slice).
+- New `features/modules/inventory_tests.rs` (four tests, run under every
+  composition with derived expectations): installed inventory matches the
+  composition; statuses/dashboard follow the installed inventory; enabling
+  outside the inventory is rejected without modifying the dormant seed row;
+  synchronizing an empty inventory is a no-op. The contract-inventory test
+  now derives its operation count (48 without / 54 with notifications).
+
+**Verification (all real exit codes).**
+
+- `cargo check -p rustzen-admin --no-default-features --features core` —
+  pass, no warnings.
+- `cargo clippy -p rustzen-admin --all-targets -- -D warnings` and the same
+  with `--no-default-features --features core` — both pass.
+- `cargo test -p rustzen-admin -- --test-threads=1` — 220 passed / 0 failed
+  (full unchanged).
+- `cargo test -p rustzen-admin --no-default-features --features core --
+  --test-threads=1` — 151 passed / 0 failed (core).
+
+**Local core vertical (composition `core`, target = this host, debug
+binary, fresh runtime root `/tmp/rz-core-vertical/root`, port 19801).**
+
+- Build: `cargo build -p rustzen-admin --no-default-features --features
+  core` (exit 0). Startup log contains no module/manifest/notification/
+  ingress lines; `lsof` shows the process's only socket is its own
+  listener — zero outbound connections, i.e. no probing of 9802-9804.
+- Real API receipts (all captured under
+  `target/rz/oe2-core-vertical-20261009/`):
+  `POST /api/auth/login` (owner) → code 0 with a 339-byte token;
+  `GET /api/auth/me` → owner identity with permissions;
+  `GET /api/manage/logs` → `AUTH_LOGIN 用户登录成功` plus request audit rows
+  (audit capture/list work in core);
+  `GET /api/system/roles` → owner/admin/viewer;
+  `GET /api/dashboard/stats` → account totals;
+  `GET /api/dashboard/modules`, `GET /api/system/modules`,
+  `GET /api/system/modules/navigation` → 200 with empty arrays;
+  `PUT /api/system/modules/monitor/enabled` → 404 "Module monitor not
+  found." (pre-write rejection);
+  `GET /api/monitor/nodes` and `GET /api/reports/systems` → 404 (gateway
+  fail-closed with an empty registry);
+  `GET /api/notifications/unread-count` → 404 (notification surface absent).
+- Runtime root after the run contains only `admin.db` (+wal/shm) — no module
+  databases are created.
+
+**Boundary queue receipt:** checked after OE-0/OE-1 and again at this
+boundary — `/tmp/rustzen-optional-examples-changes.md` still does not exist;
+no entries to acknowledge.
+
+**Next bounded task (OE-2 slice 2): the core Web build.** One shared shell
+with build-owned route selection: a staging producer that keeps the real
+layout/auth/account/audit surfaces, omits the module route directories,
+module API clients and the notification shell, strips the `__root.tsx`
+notification import using the existing verified strip mechanism, builds into
+a dedicated output directory, and is embedded by a core Admin build through a
+parameterized web root with the core composition identity. Exit: core Admin
+serves the core Web build (login page + authenticated core surfaces over the
+real API), full Web builds/tests stay green, and the embedded core asset set
+contains no module route chunks or notification code (asserted by inventory
+checks, not by navigation hiding).

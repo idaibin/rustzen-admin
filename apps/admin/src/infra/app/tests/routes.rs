@@ -1,8 +1,10 @@
 use super::*;
 
+#[cfg(feature = "notifications")]
 #[derive(Clone)]
 struct TraceWriter(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
 
+#[cfg(feature = "notifications")]
 impl std::io::Write for TraceWriter {
     fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
         self.0.lock().expect("trace buffer").extend_from_slice(buffer);

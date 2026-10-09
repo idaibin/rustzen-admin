@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use rustzen_ipc::{AccessMode, ModuleManifest};
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use serde::Deserialize;
 use serde::Serialize;
 
+#[cfg(feature = "modules")]
 use crate::infra::config::CONFIG;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -16,12 +17,29 @@ pub struct ModuleSpec {
 }
 
 impl ModuleSpec {
+    /// The full example-module inventory. Only meaningful in a `modules`
+    /// build; tests that exercise module inventory run under that feature.
+    #[cfg(feature = "modules")]
     pub fn fixed() -> Vec<Self> {
         vec![
             Self { id: "monitor", name: "监控", base_url: CONFIG.monitor_base_url() },
             Self { id: "insights", name: "分析", base_url: CONFIG.insights_base_url() },
             Self { id: "reports", name: "报表", base_url: CONFIG.reports_base_url() },
         ]
+    }
+
+    /// The installed example-module inventory for this build. A build without
+    /// the `modules` feature installs no example modules: the registry stays
+    /// empty, no module endpoint is probed, and module control/gateway
+    /// surfaces reject every module reference instead of installing code.
+    #[cfg(feature = "modules")]
+    pub fn installed() -> Vec<Self> {
+        Self::fixed()
+    }
+
+    #[cfg(not(feature = "modules"))]
+    pub fn installed() -> Vec<Self> {
+        Vec::new()
     }
 }
 
@@ -80,7 +98,7 @@ pub struct ModuleStatusResponse {
     pub error: Option<String>,
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 impl From<&ModuleRuntime> for ModuleStatusResponse {
     fn from(runtime: &ModuleRuntime) -> Self {
         Self {
@@ -99,7 +117,7 @@ impl From<&ModuleRuntime> for ModuleStatusResponse {
     }
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleHealthResponse {
@@ -108,7 +126,7 @@ pub struct ModuleHealthResponse {
     pub release_version: Option<String>,
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateModuleRequest {

@@ -52,8 +52,13 @@ use validation::*;
 
 pub const DEPLOY_FILE_MAX_SIZE: usize = 256 * 1024 * 1024;
 const DEPLOY_BODY_LIMIT: usize = DEPLOY_FILE_MAX_SIZE + 1024 * 1024;
+// Restart/backup unit order derived from the installed composition; see
+// service_probes and database_paths for the matching probe and database sets.
+#[cfg(feature = "modules")]
 const SYSTEMD_UNITS: &[&str] =
     &["rz-monitor.service", "rz-insights.service", "rz-reports.service", "rz-admin.service"];
+#[cfg(not(feature = "modules"))]
+const SYSTEMD_UNITS: &[&str] = &["rz-admin.service"];
 const UPDATE_REQUEST_DIR: &str = "update-requests";
 const UPDATE_REQUEST_FILE: &str = "pending.json";
 const UPDATE_REQUEST_PROCESSING_FILE: &str = ".pending.json.processing";

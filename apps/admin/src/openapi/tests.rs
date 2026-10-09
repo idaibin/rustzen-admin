@@ -112,6 +112,7 @@ fn production_operations_expose_grounded_inputs_outputs_and_csv_transport() {
     );
 }
 
+#[cfg(feature = "notifications")]
 #[test]
 fn notification_contract_bounds_limit_uses_json_errors_and_hides_internal_sequence() {
     let document: serde_json::Value = serde_json::from_str(&normalized_json().unwrap()).unwrap();

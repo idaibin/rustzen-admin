@@ -1,2 +1,2 @@
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 pub mod log;

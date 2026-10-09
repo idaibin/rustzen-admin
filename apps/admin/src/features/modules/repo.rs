@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use chrono::Utc;
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use rustzen_auth::auth::AuthClaims;
 use sqlx::SqlitePool;
 
@@ -22,7 +22,7 @@ impl ModuleRepository {
         Ok(rows.into_iter().collect())
     }
 
-    #[cfg(all(feature = "full", test))]
+    #[cfg(all(feature = "core", test))]
     pub async fn set_enabled(
         pool: &SqlitePool,
         module: &str,
@@ -42,7 +42,7 @@ impl ModuleRepository {
         Ok(())
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub async fn set_enabled_authorized(
         pool: &SqlitePool,
         module: &str,

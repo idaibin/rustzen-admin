@@ -218,6 +218,6 @@ fn status_error(status: StatusCode, code: i32, message: impl Into<String>) -> Re
         .into_response()
 }
 
-#[cfg(all(test, feature = "full"))]
+#[cfg(all(test, feature = "modules"))]
 #[path = "gateway_tests.rs"]
 mod tests;

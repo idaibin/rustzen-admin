@@ -4,15 +4,35 @@ use sha2::{Digest, Sha256};
 
 fn main() {
     println!("cargo:rerun-if-changed=migrations");
-    let web_root = Path::new("../web/dist");
+    // Re-run when the feature-derived composition changes; cargo exports
+    // CARGO_FEATURE_<NAME> for every enabled feature of this package.
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_MODULES");
+    let web_root = web_root();
     println!("cargo:rerun-if-changed={}", web_root.display());
-    let digest = full_web_digest(web_root);
+    let digest = full_web_digest(&web_root);
     println!("cargo:rustc-env=RUSTZEN_RELEASE_FRONTEND_DIGEST={digest}");
     println!("cargo:rustc-env=RUSTZEN_PACKAGED_WEB_DIGEST={digest}");
+    let composition = composition_label();
     println!(
         "cargo:rustc-env=RUSTZEN_PACKAGED_WEB_COMPOSITION_ID={:x}",
-        Sha256::digest(b"rustzen-full-composition-v1")
+        Sha256::digest(format!("rustzen-{composition}-composition-v1").as_bytes())
     );
+    println!("cargo:rustc-env=RUSTZEN_PACKAGED_COMPOSITION={composition}");
+}
+
+fn composition_label() -> &'static str {
+    if std::env::var_os("CARGO_FEATURE_MODULES").is_some() {
+        "full"
+    } else {
+        "core"
+    }
+}
+
+/// The embedded Web root. A dedicated core Web build lands with the core Web
+/// producer; until then both compositions embed the shared full build and the
+/// distinction is recorded by the composition identity, not the asset set.
+fn web_root() -> PathBuf {
+    PathBuf::from("../web/dist")
 }
 
 fn full_web_digest(root: &Path) -> String {

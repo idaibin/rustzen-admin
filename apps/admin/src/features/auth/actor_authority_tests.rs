@@ -76,7 +76,7 @@ async fn revoked_actor_cannot_update_or_delete_menu_rows() {
     );
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 #[tokio::test]
 async fn revoked_actor_cannot_change_module_enabled_state() {
     let (pool, actor) = revoked_owner().await;

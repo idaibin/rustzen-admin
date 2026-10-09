@@ -8,8 +8,10 @@ publish = false
 
 [features]
 default = ["full"]
-full = [
-    "reports-notifications",
+# Complete Admin behaviors without the example modules: shared shell,
+# authentication with audit, accounts, roles, instance RBAC, diagnostics,
+# and the release/recovery machinery.
+core = [
     "rustzen-config/admin",
     "dep:croner",
     "dep:ed25519-dalek",
@@ -22,8 +24,13 @@ full = [
     "dep:tar",
     "tower-http/fs",
 ]
+# Installed example-module inventory: enables Monitor/Insights/Reports
+# synchronization, gateway and projections. Without it the installed
+# inventory is empty and no module endpoint is probed at runtime.
+modules = []
 notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "dep:hex", "rustzen-config/notifications"]
 reports-notifications = ["notifications", "rustzen-config/reports-notifications"]
+full = ["core", "modules", "reports-notifications"]
 
 [[bin]]
 name = "rz-admin"

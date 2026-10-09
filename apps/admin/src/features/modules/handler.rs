@@ -1,11 +1,11 @@
 use axum::extract::State;
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use axum::{Extension, Json, extract::Path};
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use super::types::{ModuleHealthResponse, ModuleStatusResponse, UpdateModuleRequest};
 use super::{
     service::{ModuleControlState, ModuleService},
@@ -13,7 +13,7 @@ use super::{
 };
 use crate::common::api::{ApiResponse, AppResult};
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 pub async fn list(State(state): State<ModuleControlState>) -> AppResult<Vec<ModuleStatusResponse>> {
     Ok(ApiResponse::success(ModuleService::statuses(&state)))
 }
@@ -25,14 +25,14 @@ pub async fn navigation(
     Ok(ApiResponse::success(ModuleService::navigation(&state, &user).await?))
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 pub async fn dashboard(
     State(state): State<ModuleControlState>,
 ) -> AppResult<Vec<ModuleHealthResponse>> {
     Ok(ApiResponse::success(ModuleService::dashboard_health(&state)))
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 pub async fn update(
     Extension(actor): Extension<AuthClaims>,
     State(state): State<ModuleControlState>,

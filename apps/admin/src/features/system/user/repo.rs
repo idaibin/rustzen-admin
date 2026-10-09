@@ -6,7 +6,7 @@ use crate::common::{
 use chrono::Utc;
 use sqlx::{Error as SqlxError, QueryBuilder, Sqlite, SqlitePool};
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use super::types::UserDashboardCounts;
 use super::types::{UserListQuery, UserWithRolesRow};
 
@@ -231,7 +231,7 @@ impl UserRepository {
         })
     }
 
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     pub async fn dashboard_counts(pool: &SqlitePool) -> Result<UserDashboardCounts, ServiceError> {
         let (total_users, active_users, today_logins, pending_users) = tokio::join!(
             sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")
@@ -283,7 +283,7 @@ impl UserRepository {
     }
 }
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 fn map_dashboard_count_result(
     result: Result<i64, SqlxError>,
     metric_name: &str,

@@ -32,7 +32,7 @@ pub enum ServiceError {
     RoleIsSystem,
 
     /// Menu is system built-in.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     #[error("Menu is system built-in")]
     MenuIsSystem,
 
@@ -69,7 +69,7 @@ pub enum ServiceError {
     EmailConflict,
 
     /// A maintenance task already owns its single-run lock.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     #[error("Task is already running")]
     TaskAlreadyRunning,
 
@@ -90,17 +90,17 @@ pub enum ServiceError {
     PasswordConfirmationMismatch,
 
     /// Failed to upload file.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     #[error("Failed to create avatar folder")]
     CreateAvatarFolderFailed,
 
     /// Failed to create avatar file.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     #[error("Failed to create avatar file")]
     CreateAvatarFileFailed,
 
     /// The request body exceeded the configured multipart limit.
-    #[cfg(feature = "full")]
+    #[cfg(feature = "core")]
     #[error("Request payload is too large")]
     PayloadTooLarge,
 }
@@ -163,7 +163,7 @@ impl From<ServiceError> for AppError {
             ServiceError::RoleIsSystem => {
                 app_error(StatusCode::BAD_REQUEST, 10009, "Cannot modify system built-in role.")
             }
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             ServiceError::MenuIsSystem => {
                 app_error(StatusCode::BAD_REQUEST, 10010, "Cannot modify system built-in menu.")
             }
@@ -181,7 +181,7 @@ impl From<ServiceError> for AppError {
             ServiceError::EmailConflict => {
                 app_error(StatusCode::CONFLICT, 10202, "Email already exists.")
             }
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             ServiceError::TaskAlreadyRunning => {
                 app_error(StatusCode::CONFLICT, 10203, "Task is already running.")
             }
@@ -190,19 +190,19 @@ impl From<ServiceError> for AppError {
                 20001,
                 "Service is temporarily unavailable. Please try again later.",
             ),
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             ServiceError::CreateAvatarFolderFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20002,
                 "Failed to create avatar folder. Please try again later.",
             ),
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             ServiceError::CreateAvatarFileFailed => app_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 20003,
                 "Failed to create avatar file. Please try again later.",
             ),
-            #[cfg(feature = "full")]
+            #[cfg(feature = "core")]
             ServiceError::PayloadTooLarge => {
                 app_error(StatusCode::PAYLOAD_TOO_LARGE, 10013, "Request payload is too large.")
             }

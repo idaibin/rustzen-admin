@@ -7,14 +7,14 @@ use crate::{
     features::auth::types::UserInfoResp,
 };
 
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 use axum::extract::Multipart;
 use axum::{Extension, Json, extract::State};
 use rustzen_auth::auth::{AuthClaims, CurrentUser};
 use sqlx::SqlitePool;
 
 /// Update current-account avatar.
-#[cfg(feature = "full")]
+#[cfg(feature = "core")]
 #[tracing::instrument(name = "update_avatar", skip(current_user, pool))]
 pub async fn update_avatar(
     current_user: CurrentUser,

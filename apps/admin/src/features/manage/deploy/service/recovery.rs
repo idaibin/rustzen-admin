@@ -25,13 +25,25 @@ pub(super) fn load_installed_bundle(
     Ok((data, bundle))
 }
 
-pub(super) fn service_probes() -> [(&'static str, String); 4] {
-    [
-        ("rz-monitor.service", format!("{}/health", CONFIG.monitor_base_url())),
-        ("rz-insights.service", format!("{}/health", CONFIG.insights_base_url())),
-        ("rz-reports.service", format!("{}/health", CONFIG.reports_base_url())),
-        ("rz-admin.service", format!("http://127.0.0.1:{}/health", CONFIG.admin_port())),
-    ]
+/// Restart/health probe set derived from the installed composition: a
+/// `modules` build rolls the four services, a core build rolls only Admin.
+pub(super) fn service_probes() -> Vec<(&'static str, String)> {
+    #[cfg(feature = "modules")]
+    {
+        vec![
+            ("rz-monitor.service", format!("{}/health", CONFIG.monitor_base_url())),
+            ("rz-insights.service", format!("{}/health", CONFIG.insights_base_url())),
+            ("rz-reports.service", format!("{}/health", CONFIG.reports_base_url())),
+            ("rz-admin.service", format!("http://127.0.0.1:{}/health", CONFIG.admin_port())),
+        ]
+    }
+    #[cfg(not(feature = "modules"))]
+    {
+        vec![(
+            "rz-admin.service",
+            format!("http://127.0.0.1:{}/health", CONFIG.admin_port()),
+        )]
+    }
 }
 
 pub(super) async fn roll_services(
@@ -113,7 +125,7 @@ pub(super) fn restore_release_state(
 pub(super) fn restore_release_state_with_paths(
     journal: &UpdateJournal,
     units: &[&str],
-    paths: &[PathBuf; 4],
+    paths: &[PathBuf],
 ) -> Result<(), Box<dyn std::error::Error>> {
     swap_symlink(&journal.link, &journal.old_target)?;
     restore_databases_for_units_at(&journal.backup_dir, units, paths)
