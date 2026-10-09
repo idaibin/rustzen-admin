@@ -3,6 +3,25 @@
 Status: current route contract synchronized with the user's console requirements.
 Observed local coverage and remaining gaps belong to [local verification](../../guides/local-verification.md).
 
+## Planned optional-example composition (OE-A01–04)
+
+Status: planned under the [OE product contract](../../product/features/composable-distribution/spec.md#optional-examples-target-approved-not-implemented).
+Keep root DESIGN.md semantics and existing shared layout/controls. Core retains
+account totals, permission-gated local resource summary, account/role management,
+audit navigation and supported native Admin tools. Omit the module panel, module
+search/nav/routes, module log selectors, notification bell/SSE and tracker when
+not installed; no fake offline card for an absent example. Core must remain usable
+at direct login/account/role/audit URLs without a module server.
+Full preserves existing module states and English/Chinese presentation. Installed
+but offline stays discoverable with explicit unavailable/retry feedback; disabled
+is hidden and gateway denied; insufficient permission remains denied. Missing code
+cannot be enabled by a UI toggle. Composition identity is visible where users choose
+an update so a wrong-composition candidate is explained before apply.
+Validate 1440x900 and 390x844: keyboard login/language switch, navigation, role
+selection, audit list/empty/error/retry, missing deep link, enabled-module outage
+and configuration error. Source/API checks and screenshots alone do not replace
+real browser journeys. No shared visual redesign is authorized by this slice.
+
 ## Scope and product facts
 
 This is one control-plane entry slice covering:

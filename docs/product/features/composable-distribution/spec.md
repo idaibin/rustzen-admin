@@ -5,6 +5,71 @@ signed distribution. A signed 0.5.1 fresh installation and its release worker ha
 passed in a disposable systemd container. Transition from the existing 0.5.0 worker
 and production deployment remain unverified.
 
+## Optional examples target (approved, not implemented)
+
+Baseline: `2bbd0c62f7743522b209fd60fd3f1ad0010b9faf`, existing development branch
+`feat/theme-verification-20261005`. The template-first/English-default change is
+already complete and must not be repeated. The full-only outcome below describes
+the currently shipped contract; the following bounded target supersedes it only
+as implementation and acceptance close. No source/build success alone marks a
+composition supported.
+
+| Choice | Target delivery | Runtime/data | Selection |
+| --- | --- | --- | --- |
+| `core` | Shared Admin shell, authentication, account/role management, instance RBAC, audit capture and browsing, native diagnostics and existing release/recovery machinery | `rz-admin` and `admin.db`; nonresident `rz`; no module/producer workers or endpoints | Default for new development and new builds after OE gates pass |
+| `full` | Same core plus existing Monitor, Insights, Reports and their notifications | Existing four resident services and their owned databases | Explicit complete-example build; retained for existing full installations |
+
+Core may retain bounded Admin maintenance tasks and dormant Admin tables to avoid
+rewriting services or changing baseline SQL checksums. It must not probe module
+ports, require module secrets, start notification producer ingress/SSE, inject the
+Insights tracker, or ship module Web routes/binaries merely hidden by navigation.
+No new process, plugin system, generic workflow or second shell is required.
+The full examples are an opt-in set in this slice; independently selecting each
+module or adding/removing modules within an existing installation is deferred.
+
+Target developer interface: `just dev-server`/`just dev-web` and `just build`
+resolve to core; `just build-full` explicitly builds full examples. Exact command
+wiring must be implemented and verified before documentation advertises it.
+Existing full deployments choose full updates from their installed identity,
+never from the new source-tree default. Outputs use separate composition paths
+under `target/rz/` to prevent same-version artifacts overwriting one another;
+retain the full archive basename where legacy verifiers require it.
+
+Example use: build/install full in a fresh isolated environment, then use existing
+owner module enable/disable controls. Those controls affect access, not installed
+inventory. Core has no enabled flag capable of installing missing code. Wrong-
+composition updates fail before mutation with a clear supported-path message.
+No automatic full-to-core downgrade, data deletion or cross-composition install
+in an occupied root is allowed in this first slice.
+
+### Compatibility and trust boundary
+
+Use the current signed release/update pipeline as the only delivery authority.
+Introduce a bounded signed composition inventory (core/full) through that pipeline,
+covering service/binary/Web/config/schema ownership and required members. Existing
+signature validation must cover this inventory; an unsigned environment switch or
+client-supplied list cannot determine files, units, health checks or backups.
+Missing/unknown composition fails closed for new artifacts. Recognize a historical
+full artifact only after its existing signature, exact inventory and identity pass;
+never infer core from missing files or trust a missing field as a general fallback.
+
+Old full workers use strict member inventories and cannot be assumed to accept a
+new manifest file. Stage OE-1 must choose and prove the narrow transition: preferably
+one compatibility full candidate in the existing signed format whose new worker
+can validate subsequent explicit inventories. If the old verifier accepts the
+chosen representation unchanged, prove that with the actual old executable instead
+of requiring an unnecessary bridge. The old trust roots, paths, unit identities and
+owner-only update gate remain valid. Do not invent a release version or call a
+synthetic-version run a real released-version upgrade.
+
+Preserve the existing Admin/module database schemas and migration checksums wherever
+possible. This user-authorized deployed-full compatibility slice is narrower than
+general migration support. A required incompatible schema change or inability to
+preserve old data is a stage blocker, not permission to reset data. A complete
+rollback validates the previous artifact under its own format and restores the
+previous composition, units/config/link and journaled database state; it must not
+recompute these from the candidate after a crash.
+
 ## Outcome
 
 A developer builds one complete, signed product distribution with explicit host

@@ -4,6 +4,37 @@ This matrix is the release acceptance authority for the first complete distribut
 First-install acceptance is intentionally separate from version-to-version update
 acceptance: release 0.5.0 does not need a fabricated second version in order to ship.
 
+## Optional examples acceptance
+
+These future gates do not inherit pass status from full-only or selected-prototype
+evidence. Each receipt records commit, dirty-diff hash if any, composition, target,
+artifact SHA/signature identity, command, outcome, and evidence path. Final readiness
+requires an immutable clean source/artifact pair and an independent review.
+
+| Stable ID | Required scenario / expected result | Implementation/test owners |
+| --- | --- | --- |
+| OE-A01 | Fresh core with no module binaries, DBs, listeners or module credentials: real login, account/role RBAC, audit capture/list and layout work | Admin app/config/auth/audit + owned runtime fixture; UI dashboard slice |
+| OE-A02 | Owner/admin/viewer/custom role and revoked session: API gates hold in both compositions; absent module direct URLs/API fail closed, with no dead nav or unauthorized data | auth/module router/permission tests + browser/API receipts |
+| OE-A03 | Core first English, saved Chinese, invalid preference; sidebar/search/dashboard have no module requests, notification polling or tracker; full retained journeys work | shared Web build graph + actual browser at 1440x900 and 390x844; no manual route-tree edits |
+| OE-A04 | Full installed/enabled/offline vs disabled vs not installed stay distinct; runtime disable/enable does not install files; unknown/absent-module enable rejected | module registry/reconciliation + gateway/UI tests |
+| OE-A05 | Core needs no module config; missing included-module config/secrets and bad composition fail explicitly, without partial startup/data mutation; audit/maintenance are Admin-local | config/runtime/schema/worker integration tests |
+| OE-A06 | Both composition build commands produce real supported-target binaries/Web; core archive physically lacks module code/assets/config/units; inventory matches compiled behavior | justfile/Docker/package graph and archive/binary inspection |
+| OE-A07 | Wrong key, unsigned/tampered inventory, missing/extra file, bad path/mode/arch/version rejected before activation; full Controller pairing metadata remains bound | JS/Rust/shell shared verifier fixtures and real signed artifact tests |
+| OE-A08 | Fresh disposable systemd install, start/stop/restart and host restart: core expects Admin only, full four services; service identities, paths, generated secrets and CLI status correct | setup-layout/CLI/service units + owned Linux runtime |
+| OE-A09 | Real supported preceding full release to compatibility candidate then new full (or proven direct path): preserve users, grants, audit, module data, settings and credentials; old artifact provenance recorded | actual old binary/verifier + owner upload/apply; no resets or synthetic old-version claim |
+| OE-A10 | Core→core/full→full success and failed health/restart: validate exact identity, backup included DBs and restore journaled restart set; reject wrong composition before write | deployment DB/journal/recovery tests and real candidate runtime |
+| OE-A11 | Crash before/after snapshot, publish/current switch, each service restart and health gate: boot recovery restores previous link/config/units/data under previous inventory; no mixed versions | existing fault injection expanded to two compositions |
+| OE-A12 | Existing full cannot silently become core from changed defaults; occupied-root installer still refuses bypass update; legacy format admission is exact signed full only | installer/update negative tests; compatibility receipts |
+| OE-A13 | README EN/ZH, product/UI/architecture, manifest examples, command help and current stage agree; independent review closes findings | docs/link/command checks + final reviewer report |
+
+Minimum full runtime proof uses the supported x86_64 Linux target. Keep each other
+advertised architecture as a separate build/package/runtime row; untested rows are
+Not verified and cannot be claimed release-ready. Use local candidate versions only
+in clearly labeled test fixtures; public version/release approval is separate.
+No unit-only or stubbed systemctl run substitutes for OE-A08–11. If the actual old
+release artifact cannot be obtained, OE-A09 stays blocked. A compatibility bridge
+that only accepts new candidates does not itself prove rollback to the old format.
+
 ## Required evidence
 
 | Layer | Verification | Passing result |

@@ -221,6 +221,41 @@ boot recovery unit close process-crash and host-restart interruption windows.
 Module-only activation, separate service versions, mixed releases, an old
 single-binary fallback, and multiple active release links are not supported.
 
+## Planned core/full composition boundary
+
+Status: design for [OE stages](product/features/composable-distribution/implementation.md#optional-examples-stages),
+not a claim that current full-only commands support core. Use one shared Admin
+implementation and the existing package/sign/install/update chain, with two reviewed
+composition inventories. Keep the existing `rz-full.service` aggregate name for
+installed-path compatibility; generate/validate its member set for the selected
+composition rather than introducing another lifecycle controller.
+
+| Current coupling verified at 2bbd0c6 | Planned owner/change |
+| --- | --- |
+| `apps/admin/Cargo.toml` defaults to full; `infra/app/runtime.rs` starts module synchronization and notification ingress | Bound core/full build/runtime composition; initialize only installed producers and module registry entries; keep authoritative session/RBAC checks |
+| `features/modules/types.rs::ModuleSpec::fixed`, migration module seeds, permission/menu reconciliation | Installed inventory is distinct from DB enablement and grants; filter seeded dormant modules at every gateway/control/menu boundary; no base-schema rewrite just to remove seeds |
+| `apps/web/src/routes/__root.tsx` imports notifications; generated route tree includes every module | One shared shell and build-owned route selection; omit absent route chunks, tracker, notification requests and API clients from core; do not edit routeTree.gen.ts manually |
+| Admin dashboard/status/module logs and task catalog | Keep Admin-local counts, diagnostics, audit and maintenance; enumerate module projections/paths only from trusted installed inventory |
+| `justfile`, `Dockerfile`, `scripts/package-release-bundle.sh` require five executables and controller identity | Core builds/stages rz + rz-admin only; full keeps five; controller pairing metadata and Reports config exist only with their owners |
+| `scripts/deploy-sign.mjs`, `deploy/setup-layout.sh`, Admin deploy `bundle.rs` use exact full members | Extend the same validators with an authenticated bounded composition inventory; preserve strict path/mode/digest/signature checks and legacy full admission |
+| `apps/cli/src/operations.rs` checks four services; deploy `service/database.rs::database_paths` returns four paths | Derive expected services, health and backup set from trusted installed/candidate identities; missing included members fail; absent examples are not unhealthy |
+| deploy recovery/journal and root-owned update watcher | Persist source and destination inventories plus restore progress; retain service accounts, root-only mutation and existing crash recovery semantics |
+
+The existing `distribution/` catalog and selected producers are supporting code,
+not current readiness evidence: `selected-cargo-producer.ts` still requests
+`monitor-distribution`/`analytics-distribution`, absent from current Admin Cargo
+features; catalog readiness messages can be stale. Reuse only validated pieces.
+OE-1 records keep/adapt/retire decisions for these entry points and CLI install
+prototypes so a parallel selected-release installer is not revived accidentally.
+Rust/JS/shell consumers may need adapters, but must share one inventory contract
+and cross-language fixtures rather than independently drifting capability lists.
+
+Core and full retain the same existing Admin schema on this first slice. Each
+included service owns DB creation and validation; core neither creates nor needs
+module databases. Full notifications preserve current inbox/outbox authority.
+Core omits producer ingestion, relays and realtime UI; never reuse absence as an
+authorization bypass. Module removal/data destruction is not an install action.
+
 ## Verification
 
 The root `justfile` is the command authority. `just verify-services` uses

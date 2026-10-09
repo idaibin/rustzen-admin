@@ -45,6 +45,26 @@ Independent review identified a stale default-language acceptance sentence and
 an English README install-path omission; both were corrected before commit.
 
 
+## Approved next slice: optional operations examples
+
+The user approved a default Admin-only template and an explicit complete-example
+composition on 2026-10-09. This is planned work, not delivered behavior at
+`2bbd0c62f7743522b209fd60fd3f1ad0010b9faf`. The [distribution plan](features/composable-distribution/implementation.md#optional-examples-stages)
+is the execution authority; [OE acceptance](features/composable-distribution/validation.md#optional-examples-acceptance)
+is its exit contract. Until those gates pass, the current complete-release
+instructions below remain accurate. README commands switch only with working code.
+
+Core must run authentication, instance-level RBAC, audit and shared layout without
+Monitor, Insights, Reports, their databases, Chromium or their configuration.
+Retain Admin-native account, role, audit browsing, diagnostics and release/recovery
+support where this avoids a second Admin implementation. Do not remove audit just
+because the historical access-only prototype omitted its browsing surface.
+The first supported choices are `core` and `full`, not arbitrary module subsets.
+Department scopes and multi-tenancy remain separate, unimplemented capabilities.
+The user's compatibility requirement applies to the immediately preceding supported
+full release and its data; it does not authorize arbitrary historical migration,
+existing-data resets, production deployment, publication or main-branch merge.
+
 ## Product boundary
 
 The supported first release is one complete signed distribution containing Admin,
