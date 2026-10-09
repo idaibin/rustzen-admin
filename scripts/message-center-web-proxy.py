@@ -169,7 +169,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         self.send_response(200)
-        self.send_header("content-type", mimetypes.guess_type(served)[0] or "application/octet-stream")
+        self.send_header(*safe_response_header("content-type", mimetypes.guess_type(served)[0] or "application/octet-stream"))
         self.send_header("content-length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def route(self):
