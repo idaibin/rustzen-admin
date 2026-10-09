@@ -64,7 +64,6 @@ in source code, and runtime structure remains grounded in
 | [guides/monitoring-architecture.md](./guides/monitoring-architecture.md) | Current fact | Fixes the implementation architecture behind the Monitoring product specification. |
 | [guides/monitoring-testing.md](./guides/monitoring-testing.md) | Current test matrix | Defines the executable Monitoring acceptance matrix and its database rules. |
 | [reference/README.md](./reference/README.md) | Appendix index | Lists optional deep-context files. |
-| [Vercel Container Images 适用性研究](./reference/vercel-container-images.md) | Research only | Assesses a stateless Axum candidate against the current four-service runtime; no deployment is configured. |
 | [reference/architecture-diagrams.md](./reference/architecture-diagrams.md) | Appendix | Visualizes topology and request flows. |
 | [reference/capability-map.md](./reference/capability-map.md) | Appendix | Maps current capabilities to real backend and frontend owners. |
 | [reference/api-camelcase-audit.md](./reference/api-camelcase-audit.md) | Appendix | Audits API casing boundaries. |
