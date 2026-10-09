@@ -31,6 +31,11 @@
   `Modal` with okText/okButtonProps or footer button pairs for confirm flows.
 - Dialog footers: `src/components/feedback/dialog-footer.tsx` (`DialogFooter`) for
   cancel/submit button rows inside Modal/Drawer forms.
+- Reentrant async actions: `src/hooks/use-submission.ts` (`useSubmission`) owns
+  immediate admission, pending state and optional recoverable form errors. Guard
+  the handler, not only the button; release in `finally` or mutation `onSettled`.
+  Keep existing resource-keyed mutation guards where one action spans surfaces.
+  Ordinary read refreshes use their query's `isFetching`, not a write lock.
 - Tables: `src/components/table/table-presets.tsx` (`displayTableProps`,
   `pagedTableProps`, `tablePagination`, `emptyTableLocale`) plus `action-column.ts`
   and `data-table-shell.tsx`; async feedback via `data-state.tsx` (`DataState`).

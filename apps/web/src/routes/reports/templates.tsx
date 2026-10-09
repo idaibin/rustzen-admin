@@ -6,6 +6,7 @@ import { reportsQueryKeys, reportsQueryOptions } from "@/api/reports/query-optio
 import { AuthWrap } from "@/components/auth";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -27,6 +28,7 @@ function FlowsPage() {
         data: flows = [],
         error,
         isPending,
+        isFetching,
         refetch,
     } = useQuery({
         ...reportsQueryOptions.flows(),
@@ -38,7 +40,17 @@ function FlowsPage() {
             client.invalidateQueries({ queryKey: reportsQueryKeys.flowOptions() }),
         ]);
     const refreshSystems = () => client.invalidateQueries({ queryKey: reportsQueryKeys.systems() });
+    const { submitting: cloning, beginSubmission, finishSubmission } = useSubmission();
     const clone = useMutation({
+        onSettled: finishSubmission,
+        onError: (error) => {
+            if (!(error instanceof Response))
+                appMessage.error(
+                    error instanceof Error
+                        ? error.message
+                        : t("复制失败，请重试。", "Copy failed. Please retry."),
+                );
+        },
         mutationFn: (flow: Reports.Flow) =>
             reportsAPI.createFlow({
                 systemId: flow.systemId,
@@ -98,8 +110,13 @@ function FlowsPage() {
             flows={flows}
             error={error}
             isPending={isPending}
+            retrying={isFetching}
             refetch={() => void refetch()}
-            onClone={clone.mutate}
+            cloning={cloning}
+            cloningId={cloning ? clone.variables?.id : undefined}
+            onClone={(flow) => {
+                if (beginSubmission()) clone.mutate(flow);
+            }}
             onRefresh={refresh}
             onRefreshSystems={refreshSystems}
         />

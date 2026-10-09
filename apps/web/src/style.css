@@ -70,6 +70,11 @@
         margin-bottom: 0;
     }
 
+    .data-table-shell [role="region"][tabindex="0"]:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: -2px;
+    }
+
     .data-table-shell .ant-table-placeholder [role="status"] {
         position: sticky;
         left: 0;
@@ -161,6 +166,17 @@
     flex-shrink: 0;
     padding: 16px;
 }
+.shell-brand a:hover {
+    color: var(--link-hover);
+}
+.shell-brand a:active {
+    color: var(--link-active);
+}
+.shell-brand a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+    border-radius: var(--radius);
+}
 .shell-navigation {
     flex: 1;
     min-height: 0;
@@ -213,4 +229,10 @@
     .shell-mobile-toggle {
         display: inline-flex;
     }
+}
+
+/* The light illustration retains a matte surface in dark mode. */
+.dark .login-illustration {
+    background: var(--illustration-surface);
+    border-radius: 12px;
 }

@@ -107,7 +107,7 @@ function MonitoringIncidentsPage() {
                         "Unable to read alert incidents. Check your permission and try again.",
                     )}
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -133,7 +133,11 @@ function MonitoringIncidentsPage() {
                     }
                     action={
                         !isPending ? (
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         ) : undefined
@@ -220,7 +224,11 @@ function MonitoringIncidentsPage() {
             )}
         >
             {hasMonitorBackgroundRefreshFailure(data, error) ? (
-                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+                <BackgroundRefreshNotice
+                    retrying={isFetching}
+                    updatedAt={dataUpdatedAt}
+                    onRetry={() => void refetch()}
+                />
             ) : null}
             <DataTableShell fill ariaLabel={t("告警事件", "Alert incidents table")}>
                 <ProTable

@@ -6,6 +6,7 @@ import { appMessage, systemAPI } from "@/api";
 import { DataState } from "@/components/feedback/data-state";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions } from "@/constant/options";
+import { useSubmission } from "@/hooks/use-submission";
 import { localizeBuiltInRoleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
@@ -29,7 +30,14 @@ export const UserDialog = ({
     onSuccess?: () => void;
 }) => {
     const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [form] = Form.useForm<UserDialogValues>();
 
     const {
@@ -100,7 +108,7 @@ export const UserDialog = ({
             return;
         }
 
-        setSubmitting(true);
+        if (!roleReady || !beginSubmission()) return;
         try {
             if (mode === "create") {
                 await systemAPI.user.create({
@@ -123,17 +131,28 @@ export const UserDialog = ({
             onSuccess?.();
             form.resetFields();
             setOpen(false);
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
     return (
         <>
-            <span className="inline-flex" onClick={() => setOpen(true)}>
+            <span
+                className="inline-flex"
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
+            >
                 {children}
             </span>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 destroyOnHidden
                 onCancel={() => {
@@ -146,6 +165,7 @@ export const UserDialog = ({
                 footer={null}
             >
                 <Form
+                    disabled={submitting}
                     form={form}
                     layout="vertical"
                     requiredMark={false}
@@ -232,6 +252,7 @@ export const UserDialog = ({
                     </Form.Item>
                     <Form.Item className="!mb-0">
                         <DialogFooter
+                            error={submissionError}
                             onCancel={() => {
                                 form.resetFields();
                                 setOpen(false);
@@ -300,7 +321,12 @@ function RolePicker({
                     "Failed to load roles. Retry, or contact an owner if access is still unavailable.",
                 )}
                 action={
-                    <Button type="default" onClick={() => void onRetry?.()} disabled={retrying}>
+                    <Button
+                        type="default"
+                        loading={retrying}
+                        onClick={() => void onRetry?.()}
+                        disabled={retrying}
+                    >
                         {t("重新加载", "Reload")}
                     </Button>
                 }

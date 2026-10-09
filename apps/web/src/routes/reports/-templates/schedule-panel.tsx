@@ -31,12 +31,14 @@ export function SchedulePanel() {
         error: settingsError,
         isPending: settingsPending,
         refetch: refetchSettings,
+        isFetching: fetchingSettings,
     } = useQuery(reportsQueryOptions.settings());
     const {
         data: flowOptions = [],
         error: flowOptionsError,
         isPending: flowOptionsPending,
         refetch: refetchFlowOptions,
+        isFetching: fetchingFlowOptions,
     } = useQuery(reportsQueryOptions.flowOptions());
     const refresh = () =>
         Promise.all([
@@ -85,7 +87,11 @@ export function SchedulePanel() {
                         "The installation timezone could not be confirmed; no default timezone is substituted.",
                     )}
                     action={
-                        <Button size="small" onClick={() => void refetchSettings()}>
+                        <Button
+                            size="small"
+                            loading={fetchingSettings}
+                            onClick={() => void refetchSettings()}
+                        >
                             {t("重试", "Retry")}
                         </Button>
                     }
@@ -102,7 +108,11 @@ export function SchedulePanel() {
                         "Flow options for scheduled reports could not be loaded; the full flow list is not used as a fallback.",
                     )}
                     action={
-                        <Button size="small" onClick={() => void refetchFlowOptions()}>
+                        <Button
+                            size="small"
+                            loading={fetchingFlowOptions}
+                            onClick={() => void refetchFlowOptions()}
+                        >
                             {t("重试", "Retry")}
                         </Button>
                     }
@@ -125,7 +135,11 @@ export function SchedulePanel() {
                     kind="error"
                     title={t("计划刷新失败", "Failed to refresh schedules")}
                     description={t("请稍后重试。", "Please try again later.")}
-                    action={<Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>}
+                    action={
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重试", "Retry")}
+                        </Button>
+                    }
                     compact
                 />
             ) : null}
@@ -155,7 +169,9 @@ export function SchedulePanel() {
                         "Unable to read scheduled reports. Check the Reports service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                     compact
                 />

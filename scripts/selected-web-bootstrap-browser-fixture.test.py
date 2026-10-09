@@ -18,6 +18,19 @@ gate_spec = importlib.util.spec_from_file_location("gate", Path(__file__).with_n
 gate = importlib.util.module_from_spec(gate_spec); gate_spec.loader.exec_module(gate)
 import selected_web_bootstrap_cdp as cdp
 
+assert module.remove_entry_integrity(b'<script>entry.integrity="sha256-good";</script>') == (
+    b'<script>entry.integrity=undefined;</script>', 1
+)
+assert module.remove_entry_integrity(b'entry.integrity=;entry.integrity="valid";') == (
+    b'entry.integrity=;entry.integrity=undefined;', 1
+)
+assert module.remove_entry_integrity(b'entry.integrity="a";entry.integrity="b";')[1] == 2
+repeated_prefixes = b'entry.integrity=' * 50_000
+assert module.remove_entry_integrity(repeated_prefixes) == (repeated_prefixes, 0)
+assert module.remove_entry_integrity(repeated_prefixes + b';') == (
+    b'entry.integrity=undefined;', 1
+)
+
 assert cdp.page_socket_for_target([
     {"id":"older","type":"page","webSocketDebuggerUrl":"ws://127.0.0.1:1/devtools/page/older"},
     {"id":"newer","type":"page","webSocketDebuggerUrl":"ws://127.0.0.1:1/devtools/page/newer"},

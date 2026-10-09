@@ -20,6 +20,12 @@ TRANSITION_RUN_ID = None
 TRANSITION_READS = 0
 
 
+def safe_response_header(key, value):
+    if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+        raise ValueError("upstream response header contains a line break")
+    return key, value
+
+
 def write_receipt(*_args):
     with HITS_LOCK:
         hits = HITS
@@ -44,10 +50,12 @@ class Proxy(BaseHTTPRequestHandler):
         return response.status, response.reason, response.getheaders(), response.read()
 
     def _respond(self, status, reason, headers, body):
+        if "\r" in reason or "\n" in reason:
+            raise ValueError("upstream response reason contains a line break")
         self.send_response(status, reason)
         for key, value in headers:
             if key.lower() not in {"connection", "transfer-encoding", "content-length"}:
-                self.send_header(key, value)
+                self.send_header(*safe_response_header(key, value))
         self.send_header("content-length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

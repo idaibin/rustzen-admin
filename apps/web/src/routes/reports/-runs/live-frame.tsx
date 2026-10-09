@@ -9,7 +9,7 @@ import { t } from "@/lib/i18n";
 import { isActiveRun } from "./status";
 
 export function LiveFrame({ run }: { run?: Reports.Run }) {
-    const { data, error, refetch } = useQuery({
+    const { data, error, isFetching, refetch } = useQuery({
         queryKey: ["reports", "live-frame", run?.id],
         queryFn: ({ signal }) => reportsAPI.liveFrame(run!.id, signal),
         enabled: Boolean(run),
@@ -40,7 +40,11 @@ export function LiveFrame({ run }: { run?: Reports.Run }) {
                         kind="error"
                         title={t("实时画面加载失败", "Failed to load live view")}
                         action={
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         }

@@ -6,12 +6,36 @@ standard library can provide a no-dependency HTTP proxy/receipt server.
 """
 import http.client
 import json
-import re
 import socket
 import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+def safe_response_header(key, value):
+    if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+        raise ValueError("upstream response header contains a line break")
+    return key, value
+
+
+def remove_entry_integrity(body):
+    marker = b"entry.integrity="
+    replacement = b"entry.integrity=undefined;"
+    pieces = []
+    scan = copy_from = count = 0
+    while (start := body.find(marker, scan)) != -1:
+        end = body.find(b";", start + len(marker))
+        if end == -1:
+            break
+        if end == start + len(marker):
+            scan = end + 1
+            continue
+        pieces.extend((body[copy_from:start], replacement))
+        copy_from = scan = end + 1
+        count += 1
+    pieces.append(body[copy_from:])
+    return b"".join(pieces), count
 
 
 class Fixture:
@@ -62,12 +86,12 @@ class Fixture:
                     response_body = b"globalThis.__rz_sri_tamper_executed = true;"
                     response_headers = [("content-type", "text/javascript")]
                 if fixture.case == "sriIntegrityRemoved" and path == "/monitoring/nodes":
-                    response_body, count = re.subn(rb"entry\.integrity=[^;]+;", b"entry.integrity=undefined;", response_body)
+                    response_body, count = remove_entry_integrity(response_body)
                     if count != 1: raise RuntimeError("bootstrap integrity slot is missing")
                 self.send_response(response.status)
                 for key, value in response_headers:
                     if key.lower() not in {"connection", "content-length", "transfer-encoding"}:
-                        self.send_header(key, value)
+                        self.send_header(*safe_response_header(key, value))
                 self.send_header("content-length", str(len(response_body)))
                 if self.command == "GET" and not path.startswith("/api/") and path != "/__web-binding":
                     self.send_header("set-cookie", "rz_bootstrap_proof=1; Path=/; SameSite=Lax")

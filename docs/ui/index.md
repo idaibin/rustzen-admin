@@ -8,11 +8,13 @@ feature specs record only route-local composition, states, and evidence.
 
 | Product area | UI slice | Product basis | Status |
 | --- | --- | --- | --- |
+| Admin / shared interactions | [Interaction-state unification](./features/interaction-state-unification.md) | [Product acceptance](../product/features/interaction-state-unification/spec.md) | Reviewed finite source/API/UI checklist passed; 19-route render matrix plus final targeted corrections; native deployment and selected-portal runtime excluded |
 | Monitoring | [Monitoring surfaces](./features/monitoring.md) | [Product spec](../product/features/monitoring/spec.md) | Current route contract; representative local UI checks; complete state matrix pending |
 | Analytics | [Collection safety](./features/analytics-collection-safety.md) | [Product spec](../product/features/analytics-collection-safety/spec.md) | Current contract; see scoped local verification |
 | Automation | [Scheduled automation](./features/scheduled-report-automation.md) | [Product spec](../product/features/scheduled-report-automation/spec.md) | Local runtime/browser state-closure verified; deployed and native-host runtime Not verified |
 | Admin / runtime | [Module log diagnostics](./features/module-log-diagnostics.md) | [Product spec](../product/features/module-log-diagnostics/spec.md) | Implemented; source-resolved; runtime Not verified |
 | Admin | [Maintenance task console](./features/admin-maintenance-tasks.md) | [Product spec](../product/features/admin-maintenance-tasks/spec.md) | Current route contract; local Linux runtime evidence pending |
+| Admin | [Module status theme consistency](./features/module-status-theme-consistency.md) | [Product foundation](../product/product.md) | Exact design hash user-approved; local module-component light/dark runtime acceptance passed; full-backend routes not revalidated |
 | Admin | [Metric-card route alignment](./features/metric-card-visual-consistency.md) | [Product spec](../product/features/metric-card-visual-consistency/spec.md) | Current route contract; representative light/dark checks |
 | Admin | [Dashboard navigation](./features/dashboard-navigation-simplification.md) | [Product foundation](../product/product.md) | Current dashboard composition; representative local browser checks |
 | Admin / notifications | [Message center](./features/message-center.md) | [Composable distribution P5-P7](../product/features/composable-distribution/spec.md) | P5-P7 closed locally through source, runtime and Chromium gates; global sustained load, native systemd, production reverse-proxy and production deployment Not verified |

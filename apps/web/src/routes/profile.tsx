@@ -8,6 +8,7 @@ import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { PageCard } from "@/components/page/page-card";
 import { PageHeader } from "@/components/page/page-header";
 import { UserAvatar } from "@/components/user";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -76,7 +77,14 @@ function EditProfileDialog({
     onUpdated: (value: Auth.UserInfoResponse) => void;
 }) {
     const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [form] = Form.useForm<ProfileFormValues>();
 
     const closeDialog = () => {
@@ -89,11 +97,12 @@ function EditProfileDialog({
             email: userInfo?.email ?? "",
             realName: userInfo?.realName ?? "",
         });
+        clearSubmissionError();
         setOpen(true);
     };
 
     const submit: FormProps<ProfileFormValues>["onFinish"] = async (values) => {
-        setSubmitting(true);
+        if (!beginSubmission()) return;
         try {
             const nextUserInfo = await accountAPI.updateProfile({
                 email: values.email.trim(),
@@ -102,8 +111,10 @@ function EditProfileDialog({
             onUpdated(nextUserInfo);
             appMessage.success(t("个人资料已更新", "Profile updated"));
             closeDialog();
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -118,6 +129,9 @@ function EditProfileDialog({
                 {t("编辑", "Edit")}
             </Button>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 onCancel={closeDialog}
                 destroyOnHidden
@@ -125,6 +139,7 @@ function EditProfileDialog({
                 footer={null}
             >
                 <Form
+                    disabled={submitting}
                     form={form}
                     onFinish={submit}
                     layout="vertical"
@@ -151,6 +166,7 @@ function EditProfileDialog({
                     </Form.Item>
                     <Form.Item className="!mb-0">
                         <DialogFooter
+                            error={submissionError}
                             onCancel={closeDialog}
                             submitLabel={t("保存", "Save")}
                             submitting={submitting}
@@ -165,7 +181,14 @@ function EditProfileDialog({
 
 function ChangePasswordDialog() {
     const [open, setOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [form] = Form.useForm<PasswordFormValues>();
 
     const closeDialog = () => {
@@ -179,7 +202,7 @@ function ChangePasswordDialog() {
             return;
         }
 
-        setSubmitting(true);
+        if (!beginSubmission()) return;
         try {
             await accountAPI.changePassword({
                 currentPassword: values.currentPassword,
@@ -188,8 +211,10 @@ function ChangePasswordDialog() {
             });
             appMessage.success(t("密码已修改", "Password changed"));
             closeDialog();
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -198,19 +223,31 @@ function ChangePasswordDialog() {
             <Button
                 type="text"
                 icon={<LockOutlined />}
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
                 aria-label={t("修改密码", "Change password")}
             >
                 {t("修改密码", "Change password")}
             </Button>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 onCancel={closeDialog}
                 destroyOnHidden
                 title={t("修改密码", "Change password")}
                 footer={null}
             >
-                <Form form={form} onFinish={submit} layout="vertical" requiredMark={false}>
+                <Form
+                    disabled={submitting}
+                    form={form}
+                    onFinish={submit}
+                    layout="vertical"
+                    requiredMark={false}
+                >
                     <Form.Item
                         name="currentPassword"
                         label={t("当前密码", "Current password")}
@@ -249,6 +286,7 @@ function ChangePasswordDialog() {
                     </Form.Item>
                     <Form.Item className="!mb-0">
                         <DialogFooter
+                            error={submissionError}
                             onCancel={closeDialog}
                             submitLabel={t("保存", "Save")}
                             submitting={submitting}

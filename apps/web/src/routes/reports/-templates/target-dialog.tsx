@@ -1,17 +1,29 @@
 import { GlobalOutlined } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Input, Modal } from "antd";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { appMessage, reportsAPI } from "@/api";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 export function TargetDialog({ onSaved }: { onSaved: () => Promise<unknown> }) {
     const [open, setOpen] = useState(false);
+    const fieldId = useId();
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
     const [name, setName] = useState("");
     const [baseUrl, setBaseUrl] = useState("");
     const mutation = useMutation({
+        onSettled: finishSubmission,
+        onError: failSubmission,
         mutationFn: () =>
             reportsAPI.createSystem({
                 name: name.trim(),
@@ -25,15 +37,31 @@ export function TargetDialog({ onSaved }: { onSaved: () => Promise<unknown> }) {
         },
     });
 
+    const save = () => {
+        if (!name.trim() || !baseUrl.trim() || !beginSubmission()) return;
+        mutation.mutate();
+    };
+
     return (
         <>
-            <Button type="default" icon={<GlobalOutlined />} onClick={() => setOpen(true)}>
+            <Button
+                type="default"
+                icon={<GlobalOutlined />}
+                onClick={() => {
+                    clearSubmissionError();
+                    setOpen(true);
+                }}
+            >
                 {t("添加目标系统", "Add target system")}
             </Button>
             <Modal
                 open={open}
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 title={t("添加报表目标", "Add report target")}
                 onCancel={() => {
+                    if (submitting) return;
                     setOpen(false);
                     setName("");
                     setBaseUrl("");
@@ -47,23 +75,31 @@ export function TargetDialog({ onSaved }: { onSaved: () => Promise<unknown> }) {
                         "Templates can only navigate within this trusted origin.",
                     )}
                 </p>
-                <Form layout="vertical">
-                    <Form.Item label={t("名称", "Name")}>
-                        <Input value={name} onChange={(event) => setName(event.target.value)} />
-                    </Form.Item>
-                    <Form.Item label={t("基础地址", "Base URL")}>
+                <Form layout="vertical" disabled={submitting} onFinish={save}>
+                    <Form.Item label={t("名称", "Name")} htmlFor={`${fieldId}-name`}>
                         <Input
+                            id={`${fieldId}-name`}
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                        />
+                    </Form.Item>
+                    <Form.Item label={t("基础地址", "Base URL")} htmlFor={`${fieldId}-base-url`}>
+                        <Input
+                            id={`${fieldId}-base-url`}
                             value={baseUrl}
                             placeholder="https://example.com"
                             onChange={(event) => setBaseUrl(event.target.value)}
                         />
                     </Form.Item>
                     <DialogFooter
-                        onCancel={() => setOpen(false)}
+                        error={submissionError}
+                        onCancel={() => {
+                            if (!submitting) setOpen(false);
+                        }}
                         submitLabel={t("添加目标系统", "Add target system")}
-                        submitting={mutation.isPending}
+                        submitting={submitting}
                         submitDisabled={!name.trim() || !baseUrl.trim()}
-                        onSubmit={() => mutation.mutate()}
+                        submitHtmlType="submit"
                     />
                 </Form>
             </Modal>

@@ -88,6 +88,7 @@ export function PermissionPicker({
                                 type="default"
                                 onClick={() => void onRetry?.()}
                                 disabled={permissionRefreshing}
+                                loading={permissionRefreshing}
                             >
                                 {t("重新加载", "Reload")}
                             </Button>
@@ -102,6 +103,7 @@ export function PermissionPicker({
                 ) : (
                     <div className="grid gap-3">
                         <Input
+                            aria-label={t("搜索权限", "Search permissions")}
                             value={permissionSearch}
                             placeholder={t("搜索权限", "Search permissions")}
                             onChange={(event) => onSearchChange(event.target.value)}
@@ -112,6 +114,7 @@ export function PermissionPicker({
                             </div>
                         ) : (
                             <Tree
+                                aria-label={t("可分配权限", "Assignable permissions")}
                                 checkable
                                 checkedKeys={visibleCheckedValues}
                                 treeData={treeData}

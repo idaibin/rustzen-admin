@@ -52,7 +52,9 @@ export const IncidentDrawer = ({
                     title={t("事件不可访问", "Incident is inaccessible")}
                     action={
                         !inaccessible ? (
-                            <Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>
+                            <Button loading={isFetching} onClick={() => void refetch()}>
+                                {t("重试", "Retry")}
+                            </Button>
                         ) : undefined
                     }
                     compact

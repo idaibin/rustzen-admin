@@ -17,7 +17,15 @@ export const visibleMessages = <T extends { id: string }>(
     hiddenIds: ReadonlySet<string>,
 ): T[] => (forbidden ? [] : items.filter((item) => !hiddenIds.has(item.id)));
 
-export const MessageWriteError = ({ error, onRetry }: { error: unknown; onRetry: () => void }) => {
+export const MessageWriteError = ({
+    error,
+    onRetry,
+    pending = false,
+}: {
+    error: unknown;
+    onRetry: () => void;
+    pending?: boolean;
+}) => {
     if (!error) return null;
     const failure = classifyWriteFailure(error);
     return (
@@ -33,7 +41,7 @@ export const MessageWriteError = ({ error, onRetry }: { error: unknown; onRetry:
             }
             action={
                 failure === "retryable" ? (
-                    <Button size="small" onClick={onRetry}>
+                    <Button size="small" loading={pending} disabled={pending} onClick={onRetry}>
                         {t("重试", "Retry")}
                     </Button>
                 ) : undefined

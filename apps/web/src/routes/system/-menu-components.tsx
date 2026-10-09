@@ -7,6 +7,7 @@ import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions, getModuleIconOptions } from "@/constant/options";
+import { useSubmission } from "@/hooks/use-submission";
 import { t } from "@/lib/i18n";
 
 export type DisplayMenuItem = Menu.Item & {
@@ -50,7 +51,14 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
     const [status, setStatus] = useState("1");
     const [sortOrder, setSortOrder] = useState("0");
     const [icon, setIcon] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const {
+        submitting,
+        beginSubmission,
+        finishSubmission,
+        submissionError,
+        failSubmission,
+        clearSubmissionError,
+    } = useSubmission();
 
     useEffect(() => {
         if (open) {
@@ -76,7 +84,7 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
             return;
         }
 
-        setSubmitting(true);
+        if (!beginSubmission()) return;
         try {
             await systemAPI.menu.update(record.id, {
                 name: trimmedName,
@@ -90,8 +98,10 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
             });
             onSuccess?.();
             setOpen(false);
+        } catch (error) {
+            failSubmission(error);
         } finally {
-            setSubmitting(false);
+            finishSubmission();
         }
     };
 
@@ -101,12 +111,16 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                 onClick={(event) => {
                     event.stopPropagation();
                     event.preventDefault();
+                    clearSubmissionError();
                     setOpen(true);
                 }}
             >
                 {children}
             </span>
             <Modal
+                closable={!submitting}
+                keyboard={!submitting}
+                mask={{ closable: !submitting }}
                 open={open}
                 onCancel={() => setOpen(false)}
                 destroyOnHidden
@@ -120,9 +134,9 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                         "Override only the navigation title, icon, order, and visibility. The module manifest continues to own the route and permission code.",
                     )}
                 </p>
-                <Form layout="vertical" onFinish={submit}>
+                <Form disabled={submitting} layout="vertical" onFinish={submit}>
                     <div className="grid gap-2 md:grid-cols-2">
-                        <Form.Item label={t("菜单名称", "Menu name")} required>
+                        <Form.Item htmlFor="menu-name" label={t("菜单名称", "Menu name")} required>
                             <Input
                                 id="menu-name"
                                 value={name}
@@ -130,12 +144,16 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                                 onChange={(event) => setName(event.target.value)}
                             />
                         </Form.Item>
-                        <Form.Item label={t("权限编码", "Permission code")} required>
+                        <Form.Item
+                            htmlFor="menu-code"
+                            label={t("权限编码", "Permission code")}
+                            required
+                        >
                             <Input id="menu-code" value={record.code} disabled />
                         </Form.Item>
                     </div>
                     {record.path ? (
-                        <Form.Item label={t("路由路径", "Route path")}>
+                        <Form.Item htmlFor="menu-path" label={t("路由路径", "Route path")}>
                             <Input id="menu-path" value={record.path} disabled />
                         </Form.Item>
                     ) : null}
@@ -170,7 +188,7 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                         </div>
                     </div>
                     <div className="grid gap-2">
-                        <Form.Item label={t("排序", "Sort order")}>
+                        <Form.Item htmlFor="menu-sort-order" label={t("排序", "Sort order")}>
                             <Input
                                 id="menu-sort-order"
                                 type="number"
@@ -183,6 +201,7 @@ function ModuleMenuDialog({ children, record, onSuccess }: ModuleMenuDialogProps
                         </Form.Item>
                     </div>
                     <DialogFooter
+                        error={submissionError}
                         onCancel={() => setOpen(false)}
                         submitLabel={t("保存", "Save")}
                         submitting={submitting}

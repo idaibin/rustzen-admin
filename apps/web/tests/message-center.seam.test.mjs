@@ -54,7 +54,12 @@ test("one realtime lifecycle follows auth, visibility and BFCache changes", () =
 });
 
 test("message rows and write failures remain explicit and accessible", () => {
-    expect(listItem).toContain('<button\n            type="button"');
+    expect(listItem).toContain('<Button\n            type="text"');
+    expect(listItem).toContain("disabled={readDisabled}");
+    expect(drawer.match(/beginSubmission\(\)/g)).toHaveLength(2);
+    expect(drawer.match(/onSettled: finishSubmission/g)).toHaveLength(2);
+    expect(detail).toContain("onNavigate();");
+    expect(detail).toContain("Back to messages");
     expect(listItem).toContain("aria-label={t(`打开消息：${item.title}`");
     expect(drawer).toContain("MessageWriteError");
     expect(drawer).toContain('failure === "missing"');

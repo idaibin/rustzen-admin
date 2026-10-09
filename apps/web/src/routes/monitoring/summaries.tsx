@@ -113,7 +113,9 @@ function DailySummariesPage() {
                         "Unable to read daily summaries. Check your permission and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             ) : !data ? (
@@ -126,7 +128,9 @@ function DailySummariesPage() {
                     }
                     action={
                         !isPending ? (
-                            <Button onClick={() => void refetch()}>{t("重试", "Retry")}</Button>
+                            <Button loading={isFetching} onClick={() => void refetch()}>
+                                {t("重试", "Retry")}
+                            </Button>
                         ) : undefined
                     }
                 />
@@ -134,6 +138,7 @@ function DailySummariesPage() {
                 <DataTableShell fill ariaLabel={t("监控日报", "Monitoring daily summaries")}>
                     {hasMonitorBackgroundRefreshFailure(data, error) ? (
                         <BackgroundRefreshNotice
+                            retrying={isFetching}
                             updatedAt={dataUpdatedAt}
                             onRetry={() => void refetch()}
                         />

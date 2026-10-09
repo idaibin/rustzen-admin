@@ -128,3 +128,27 @@ fn occurrence_before_effective_at_is_not_replayed_after_create_or_reenable() {
     schedule.effective_at = "2026-08-10T09:59:59+00:00".into();
     assert!(occurrence_is_effective(&occurrence, &schedule.effective_at, &zone));
 }
+
+#[test]
+fn weekly_next_due_skips_dst_gap_into_following_week() {
+    let mut weekly = schedule("weekly", Some(6), "02:30");
+    weekly.effective_at = "2026-03-01T00:00:00Z".into();
+    for now in ["2026-03-01T08:00:00Z", "2026-03-02T12:00:00Z"] {
+        assert_eq!(
+            super::next_due_at(&weekly, utc(now), "America/New_York").expect("next due"),
+            Some("2026-03-15T06:30:00+00:00".to_string()),
+            "the March 8 gap must not hide the next valid week when queried at {now}",
+        );
+    }
+}
+
+#[test]
+fn daily_next_due_skips_an_upcoming_dst_gap() {
+    let mut daily = schedule("daily", None, "02:30");
+    daily.effective_at = "2026-03-01T00:00:00Z".into();
+    assert_eq!(
+        super::next_due_at(&daily, utc("2026-03-07T12:00:00Z"), "America/New_York")
+            .expect("next due"),
+        Some("2026-03-09T06:30:00+00:00".to_string()),
+    );
+}

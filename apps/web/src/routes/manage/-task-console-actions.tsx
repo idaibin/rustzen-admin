@@ -107,7 +107,11 @@ function TaskRunLogDialog({ taskKey, taskName }: { taskKey: string; taskName: st
                                 : t("请稍后重试。", "Please try again later.")
                         }
                         action={
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         }
@@ -240,12 +244,12 @@ export function TaskStatusBadge({
         { label: string; color: string; icon: ReactNode }
     > = {
         running: { label: t("运行中", "Running"), color: "blue", icon: <LoadingOutlined /> },
-        success: { label: t("成功", "Success"), color: "green", icon: <CheckCircleOutlined /> },
-        failed: { label: t("失败", "Failed"), color: "red", icon: <ExclamationCircleOutlined /> },
+        success: { label: t("成功", "Success"), color: "success", icon: <CheckCircleOutlined /> },
+        failed: { label: t("失败", "Failed"), color: "error", icon: <ExclamationCircleOutlined /> },
         skipped: { label: t("已跳过", "Skipped"), color: "default", icon: <PauseCircleOutlined /> },
         never: {
             label: t("从未运行", "Never run"),
-            color: "orange",
+            color: "warning",
             icon: <ClockCircleOutlined />,
         },
     };

@@ -31,6 +31,7 @@ function AnalyticsOverviewPage() {
         dataUpdatedAt,
         error,
         isPending,
+        isFetching,
         refetch,
     } = useQuery({
         queryKey: ["insights", "overview"],
@@ -77,7 +78,9 @@ function AnalyticsOverviewPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </div>
@@ -106,7 +109,9 @@ function AnalyticsOverviewPage() {
                         "Unable to read analytics data. Check the Insights service and try again.",
                     )}
                     action={
-                        <Button onClick={() => void refetch()}>{t("重新加载", "Reload")}</Button>
+                        <Button loading={isFetching} onClick={() => void refetch()}>
+                            {t("重新加载", "Reload")}
+                        </Button>
                     }
                 />
             </div>
@@ -152,7 +157,11 @@ function AnalyticsOverviewPage() {
                 </div>
             </div>
             {error ? (
-                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+                <BackgroundRefreshNotice
+                    retrying={isFetching}
+                    updatedAt={dataUpdatedAt}
+                    onRetry={() => void refetch()}
+                />
             ) : null}
             <Card title={t("每日活动", "Daily activity")}>
                 <div
@@ -165,10 +174,23 @@ function AnalyticsOverviewPage() {
                 >
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={overview.trend}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" />
-                            <YAxis allowDecimals={false} />
-                            <Tooltip />
+                            <CartesianGrid
+                                stroke="var(--border)"
+                                strokeDasharray="3 3"
+                                vertical={false}
+                            />
+                            <XAxis dataKey="date" stroke="var(--muted-foreground)" />
+                            <YAxis allowDecimals={false} stroke="var(--muted-foreground)" />
+                            <Tooltip
+                                contentStyle={{
+                                    background: "var(--popover)",
+                                    borderColor: "var(--border)",
+                                    borderRadius: 8,
+                                    color: "var(--foreground)",
+                                }}
+                                labelStyle={{ color: "var(--foreground)" }}
+                                cursor={{ stroke: "var(--muted-foreground)" }}
+                            />
                             <Line type="monotone" dataKey="pv" name="PV" stroke="var(--chart-1)" />
                             <Line type="monotone" dataKey="uv" name="UV" stroke="var(--chart-2)" />
                             <Line

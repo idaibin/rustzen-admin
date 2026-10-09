@@ -44,6 +44,13 @@ component system.
   it does not redefine theme, component, state, layout, responsive, or
   accessibility meaning.
 - React Query owns read-side server state.
+- Async user actions use the existing `useSubmission` owner when native form submit,
+  rapid activation or an alternate retry path could repeat the same side effect.
+  The initiating handler admits synchronously; success and failure both release it.
+  Form owners consume rejected promises and retain inputs with `DialogFooter` error
+  feedback. React Query mutations may retain their existing typed `onError` state.
+  Pending state must reach the actual Modal/Drawer dismissal owner. Read retries
+  show the query's `isFetching`; do not add submission locks to normal navigation.
 - Use `cn` from the `cn` package when combining conditional or caller-provided Tailwind
   classes. Pass caller overrides last so conflicting utilities resolve consistently;
   keep fixed class strings literal. Ant Design styling remains owned by its theme tokens.
@@ -121,3 +128,15 @@ component system.
 - Route-local `-content/` directories before real need.
 - Shared API type redeclarations inside pages.
 - Route-local state pushed into global stores without cross-page need.
+
+
+## Maintained focus patch
+
+`patches/@rc-component%2Futil@1.12.0.patch` is registered in package.json and
+bun.lock. Bun applies it during normal frozen installation; dependency versions
+remain unchanged. Its ES/CJS changes affect only Tab and Shift+Tab at the first
+and last controls of an already locked dialog: prevent browser-chrome traversal
+and focus the opposite boundary. Ignored nested elements and lock registration
+remain with the library owner. Reports and profile dialogs are the regression
+consumers in `scripts/verify-populated-browser.mjs`. Remove this patch only after
+an upstream replacement passes those same browser boundaries.

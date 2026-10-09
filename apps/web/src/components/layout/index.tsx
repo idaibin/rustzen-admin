@@ -1,13 +1,33 @@
 import { MenuOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { Alert, Avatar, Button, Drawer, Dropdown, Grid, Menu, Spin, type MenuProps } from "antd";
-import { useEffect, useMemo, type ReactNode, useState } from "react";
+import {
+    Alert,
+    Avatar,
+    Button,
+    Drawer,
+    Dropdown,
+    Grid,
+    Menu,
+    Spin,
+    type ButtonProps,
+    type MenuProps,
+} from "antd";
+import {
+    cloneElement,
+    useEffect,
+    useId,
+    useMemo,
+    type ReactElement,
+    type ReactNode,
+    useState,
+} from "react";
 
 import { appMessage, authAPI, systemAPI } from "@/api";
 import { LanguageSwitch } from "@/components/language-switch";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { APP_BRAND_NAME } from "@/constant/brand";
+import { useSubmission } from "@/hooks/use-submission";
 import { localizeBuiltInUserName } from "@/lib/builtin-i18n";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,6 +43,7 @@ interface BaseLayoutProps {
 
 export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayoutProps) => {
     const [mobileOpen, setMobileOpen] = useState(false);
+    const { submitting: signingOut, beginSubmission, finishSubmission } = useSubmission();
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const screens = Grid.useBreakpoint();
     const userInfo = useAuthStore((state) => state.userInfo);
@@ -38,6 +59,7 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
         data: moduleNavigation,
         error: moduleNavigationError,
         isPending: isModuleNavigationPending,
+        isFetching: isModuleNavigationFetching,
         refetch: refetchModuleNavigation,
     } = useQuery({
         queryKey: ["system", "modules", "navigation", menuPermissionSignature],
@@ -76,10 +98,20 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
     };
 
     const handleLogout = async () => {
+        if (!beginSubmission()) return;
         try {
             await authAPI.logout();
             appMessage.success(t("退出登录成功", "Signed out successfully"));
+        } catch (error) {
+            if (!(error instanceof Response))
+                appMessage.error(
+                    t(
+                        "未能连接退出服务，已清除本地登录。",
+                        "Sign-out service could not be reached. Local sign-in has been cleared.",
+                    ),
+                );
         } finally {
+            finishSubmission();
             clearAuth();
             void router.navigate({ to: "/login" });
         }
@@ -140,7 +172,13 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
                         onLogout={handleLogout}
                         onNavigate={handleNavigationSelect}
                     >
-                        <Button type="text" aria-label={t("账号菜单", "Account menu")}>
+                        <Button
+                            type="text"
+                            loading={signingOut}
+                            disabled={signingOut}
+                            aria-busy={signingOut}
+                            aria-label={t("账号菜单", "Account menu")}
+                        >
                             <Avatar
                                 size="small"
                                 src={userInfo?.avatarUrl ?? undefined}
@@ -168,7 +206,11 @@ export const BaseLayout = ({ children, hidden = false, headerActions }: BaseLayo
                                 "Module navigation could not be loaded. Please retry.",
                             )}
                             action={
-                                <Button size="small" onClick={() => void refetchModuleNavigation()}>
+                                <Button
+                                    size="small"
+                                    loading={isModuleNavigationFetching}
+                                    onClick={() => void refetchModuleNavigation()}
+                                >
                                     {t("重试", "Retry")}
                                 </Button>
                             }
@@ -215,8 +257,10 @@ const UserMenu = ({
     userInfo: Auth.UserInfoResponse | null;
     onLogout: () => void;
     onNavigate: (path: AppRoutePath) => void;
-    children: ReactNode;
+    children: ReactElement<ButtonProps>;
 }) => {
+    const [open, setOpen] = useState(false);
+    const menuId = useId();
     const menuItems: MenuProps["items"] = [
         {
             key: "username",
@@ -255,9 +299,14 @@ const UserMenu = ({
 
     return (
         <Dropdown
+            autoFocus
+            open={open}
+            onOpenChange={setOpen}
             menu={{
+                id: menuId,
                 items: menuItems,
                 onClick: ({ key }) => {
+                    setOpen(false);
                     if (key === "logout") {
                         onLogout();
                     } else if (key === "profile") {
@@ -267,7 +316,17 @@ const UserMenu = ({
             }}
             trigger={["click"]}
         >
-            <span className="inline-flex">{children}</span>
+            {cloneElement(children, {
+                "aria-haspopup": "menu",
+                "aria-expanded": open,
+                "aria-controls": open ? menuId : undefined,
+                onKeyDown: (event) => {
+                    if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        setOpen(true);
+                    }
+                },
+            })}
         </Dropdown>
     );
 };

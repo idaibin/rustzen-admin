@@ -21,7 +21,7 @@ import { hasMonitorBackgroundRefreshFailure, isMonitorPermissionDenied } from ".
 export const Route = createFileRoute("/monitoring/overview")({ component: MonitoringOverviewPage });
 
 function MonitoringOverviewPage() {
-    const { data, dataUpdatedAt, error, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isPending, isFetching, refetch } = useQuery({
         queryKey: ["monitor", "overview"],
         queryFn: monitorAPI.overview,
         refetchInterval: 30_000,
@@ -57,7 +57,7 @@ function MonitoringOverviewPage() {
                         "Unable to read monitoring data. Check your permission and try again.",
                     )}
                     action={
-                        <Button type="primary" onClick={() => void refetch()}>
+                        <Button type="primary" loading={isFetching} onClick={() => void refetch()}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }
@@ -78,7 +78,11 @@ function MonitoringOverviewPage() {
                     }
                     action={
                         !isPending ? (
-                            <Button type="primary" onClick={() => void refetch()}>
+                            <Button
+                                type="primary"
+                                loading={isFetching}
+                                onClick={() => void refetch()}
+                            >
                                 {t("重新加载", "Reload")}
                             </Button>
                         ) : undefined
@@ -122,7 +126,11 @@ function MonitoringOverviewPage() {
                 ))}
             </div>
             {hasMonitorBackgroundRefreshFailure(data, error) ? (
-                <BackgroundRefreshNotice updatedAt={dataUpdatedAt} onRetry={() => void refetch()} />
+                <BackgroundRefreshNotice
+                    retrying={isFetching}
+                    updatedAt={dataUpdatedAt}
+                    onRetry={() => void refetch()}
+                />
             ) : null}
             <LatestResource value={data.latestResource} />
         </div>

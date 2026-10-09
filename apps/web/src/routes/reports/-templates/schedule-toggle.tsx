@@ -79,6 +79,8 @@ export function ScheduleToggle({
         <span className="inline-flex items-center gap-2">
             <Switch
                 data-testid="schedule-toggle"
+                aria-label={t("启用计划", "Enable schedule")}
+                aria-busy={pending}
                 size="small"
                 checked={schedule.enabled}
                 checkedChildren={t("启用", "On")}

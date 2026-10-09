@@ -91,6 +91,74 @@ verify-cli:
     cargo build -p rustzen-cli
     tmp_dir=$(mktemp -d); trap 'rmdir "$tmp_dir"' EXIT; cd "$tmp_dir"; "{{justfile_directory()}}/target/debug/rz" --help >/dev/null; "{{justfile_directory()}}/target/debug/rz" --json doctor; "{{justfile_directory()}}/target/debug/rz" --json version
 
+# Real Monitor startup worker + synthetic historical inputs; no direct summary writes.
+verify-monitor-daily-summary-runtime:
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_runtime.py -v
+    cargo build --locked -p rustzen-monitor --bin rz-monitor
+    python3 scripts/verify-monitor-daily-summary-runtime.py --binary target/debug/rz-monitor
+
+# Requires the real Web bundle embedded in the full Admin binary; no browser claim.
+verify-monitor-daily-summary-gateway:
+    cd apps/web && bun install --frozen-lockfile && bun run build
+    cargo build --locked -p rustzen-admin --bin rz-admin
+    cargo build --locked -p rustzen-monitor --bin rz-monitor
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor
+
+# Serial role/revocation acceptance on fresh local identities, not concurrency/load.
+verify-monitor-daily-summary-roles: verify-monitor-daily-summary-gateway
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-roles --output-parent target/rz/daily-summary-rbac
+
+# Supply a timestamped, current-contract plan before the owned outage experiment.
+verify-monitor-daily-summary-recovery plan: verify-monitor-daily-summary-gateway
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-recovery --plan "{{plan}}" --output-parent target/rz/daily-summary-recovery
+
+# Exactly100 measured GETs per invocation; no automatic scaling or SLO claim.
+observe-monitor-daily-summary-reads plan: verify-monitor-daily-summary-gateway
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_load.py -v
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --observe-reads --plan "{{plan}}" --output-parent target/rz/daily-summary-load
+
+# Exactly one four-GET client cohort. No automatic repeat if overlap is unobserved.
+verify-monitor-daily-summary-overlap plan: verify-monitor-daily-summary-gateway
+    python3 -m unittest discover -s scripts -p test_monitor_daily_summary_overlap.py -v
+    python3 scripts/verify-monitor-daily-summary-gateway.py --admin-binary target/debug/rz-admin --monitor-binary target/debug/rz-monitor --verify-overlap --plan "{{plan}}" --output-parent target/rz/daily-summary-overlap
+
+# Fresh owned Admin/Insights, at most20 total HTTP requests, no browser claim.
+verify-insights-ingestion-runtime plan:
+    cd apps/web && bun install --frozen-lockfile && bun run build
+    cargo build --locked -p rustzen-admin --bin rz-admin
+    cargo build --locked -p rustzen-insights --bin rz-insights
+    python3 scripts/verify-insights-ingestion-runtime.py --admin-binary target/debug/rz-admin --insights-binary target/debug/rz-insights --plan "{{plan}}"
+
+# Real tracker JavaScript in a fake browser VM; no real browser/network acceptance.
+verify-insights-tracker-vm:
+    bun test apps/insights/src/features/tracking/tracker.test.mjs
+
+# Static React/API source contracts only; does not render or interact with a page.
+verify-analytics-ui-source-seams:
+    bun test apps/web/tests/analytics-ui.seam.test.mjs
+
+# Future-only module contract: no due jobs, browser execution or notification delivery.
+verify-reports-schedule-contract plan:
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo build --locked -p rustzen-reports --bin rz-reports
+    python3 scripts/verify-reports-schedule-contract.py --binary target/debug/rz-reports --plan "{{plan}}"
+
+# Pure Rust calendar/input functions only; does not start a Reports service or browser.
+verify-reports-calendar-unit:
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports features::automation::scheduler::calendar::tests -- --test-threads=1
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports features::automation::validation::tests -- --test-threads=1
+
+# Mock/pure/owned-SQLite harness assertions only; no native service or HTTP load.
+verify-local-acceptance-harness-unit:
+    python3 -m unittest discover -s scripts -p 'test_monitor_daily_summary_*.py' -v
+
+# Loopback HTTP/TLS boundary checks for the local verification fixtures; no native services.
+verify-local-fixture-security-boundaries:
+    python3 scripts/test-local-fixture-security-boundaries.py -v
+
+# One eight-request smoke for a pre-bound fixed Reports binary; no due job/browser.
+verify-reports-fixed-calendar-smoke plan:
+    python3 scripts/verify-reports-schedule-contract.py --binary target/debug/rz-reports --smoke-fixed-calendar --plan "{{plan}}" --output-parent target/rz/reports-fixed-calendar-smoke
+
 verify-automation-browser browser_path:
     cargo build -p rustzen-reports
     scripts/verify-automation-browser.sh target/debug/rz-reports "{{browser_path}}"
@@ -219,3 +287,20 @@ verify-monitor-protocol:
     cargo build -p rustzen-monitor --no-default-features --features controller --bin rz-monitor
     cargo build -p rustzen-monitor --no-default-features --features agent --bin rz-monitor-agent
     bash -c 'cmp <(target/debug/rz-monitor contract protocol) <(target/debug/rz-monitor-agent contract protocol)'
+
+# Reports-only native unit/service/SQLite gate; never starts the server or browser.
+verify-reports-backend:
+    cargo fmt -p rustzen-reports -- --check
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo check --locked -p rustzen-reports --all-targets
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo clippy --locked -p rustzen-reports --all-targets -- -D warnings
+    CARGO_BUILD_JOBS=1 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_CODEGEN_UNITS=512 CARGO_INCREMENTAL=0 cargo test --locked -p rustzen-reports --bin rz-reports -- --test-threads=1
+
+# One real timer/worker failure against an owned disabled target; no browser/delivery.
+verify-reports-due-worker plan:
+    python3 -m unittest discover -s scripts -p test_reports_due_worker.py -v
+    python3 scripts/verify-reports-due-worker.py --binary target/debug/rz-reports --plan "{{plan}}"
+
+# Admin JWT/RBAC reads of a retained real Reports run; max20 HTTP, no new runs.
+verify-reports-gateway-read plan source_receipt:
+    python3 -m unittest discover -s scripts -p test_reports_gateway_read.py -v
+    python3 scripts/verify-reports-gateway-read.py --plan "{{plan}}" --admin-binary target/debug/rz-admin --reports-binary target/debug/rz-reports --source-receipt "{{source_receipt}}"

@@ -22,8 +22,11 @@ type Props = {
     flows: Reports.Flow[];
     error: Error | null;
     isPending: boolean;
+    retrying?: boolean;
     refetch: () => void;
     onClone: (flow: Reports.Flow) => void;
+    cloning: boolean;
+    cloningId?: string;
     onRefresh: () => Promise<unknown>;
     onRefreshSystems: () => Promise<unknown>;
 };
@@ -33,8 +36,11 @@ export function TemplatesContent({
     flows,
     error,
     isPending,
+    retrying = false,
     refetch,
     onClone,
+    cloning,
+    cloningId,
     onRefresh,
     onRefreshSystems,
 }: Props) {
@@ -91,6 +97,9 @@ export function TemplatesContent({
                             type="text"
                             icon={<CopyOutlined />}
                             aria-label={t("复制流程", "Copy template")}
+                            disabled={cloning}
+                            loading={cloningId === row.id}
+                            aria-busy={cloningId === row.id}
                             onClick={() => onClone(row)}
                         />
                         <DeleteFlowDialog flow={row} onDeleted={async () => onRefresh()} />
@@ -128,7 +137,7 @@ export function TemplatesContent({
                     "Unable to read templates. Check the Reports service and try again.",
                 )}
                 action={
-                    <Button type="primary" onClick={refetch}>
+                    <Button type="primary" loading={retrying} onClick={refetch}>
                         {t("重新加载", "Reload")}
                     </Button>
                 }
@@ -157,7 +166,7 @@ export function TemplatesContent({
                     title={t("报表模板刷新失败", "Failed to refresh report templates")}
                     description={t("请稍后重试。", "Please try again later.")}
                     action={
-                        <Button type="primary" onClick={refetch}>
+                        <Button type="primary" loading={retrying} onClick={refetch}>
                             {t("重新加载", "Reload")}
                         </Button>
                     }

@@ -1,6 +1,6 @@
 import { EditOutlined, MoreOutlined } from "@ant-design/icons";
 import { Button, Dropdown, type MenuProps } from "antd";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
@@ -48,6 +48,9 @@ export function UserActions({
         state.checkPermissions("system:user:delete"),
     );
     const [pendingAction, setPendingAction] = useState<UserActionType | null>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuId = useId();
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const actionItems = useMemo<NonNullable<MenuProps["items"]>>(
         () =>
             getUserActionItems(
@@ -147,23 +150,43 @@ export function UserActions({
             </AuthWrap>
             {actionItems.length > 0 ? (
                 <Dropdown
+                    autoFocus
+                    open={menuOpen}
+                    onOpenChange={setMenuOpen}
                     menu={{
+                        id: menuId,
                         items: actionItems,
                         onClick: (event) => {
+                            // Do not transfer the same Enter activation to the newly focused modal.
+                            event.domEvent.preventDefault();
+                            setMenuOpen(false);
+                            // The menu item disappears; the dialog must return to its stable button.
+                            triggerRef.current?.focus();
                             setPendingAction(event.key as UserActionType);
                         },
                     }}
                     trigger={["click"]}
                 >
                     <Button
+                        ref={triggerRef}
                         type="text"
                         size="small"
                         aria-label={t("更多用户操作", "More user actions")}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        aria-controls={menuOpen ? menuId : undefined}
+                        onKeyDown={(event) => {
+                            if (event.key === "ArrowDown") {
+                                event.preventDefault();
+                                setMenuOpen(true);
+                            }
+                        }}
                         icon={<MoreOutlined />}
                     />
                 </Dropdown>
             ) : null}
             <ConfirmModal
+                returnFocusRef={triggerRef}
                 open={pendingAction !== null}
                 onCancel={hideActionDialog}
                 title={actionConfig?.title}

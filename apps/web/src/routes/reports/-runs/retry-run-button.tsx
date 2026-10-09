@@ -47,7 +47,10 @@ export function RetryRunButton({
                 aria-label={t("重试执行", "Retry run")}
                 disabled={isRetryPending}
                 loading={isRetryPending}
-                onClick={() => retry.mutate(run.id)}
+                aria-busy={isRetryPending}
+                onClick={() => {
+                    if (client.isMutating({ mutationKey }) === 0) retry.mutate(run.id);
+                }}
             >
                 {t("重试", "Retry")}
             </Button>
