@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest import mock
 
 SCRIPT = pathlib.Path(__file__).with_name("message-center-web-proxy.py")
 SPEC = importlib.util.spec_from_file_location("message_center_web_proxy", SCRIPT)
@@ -127,6 +128,81 @@ class ProxyIntegrationTest(unittest.TestCase):
             finally:
                 index.unlink(); index.write_text("gate")
                 (root / "escape").unlink()
+
+    def test_static_serves_nested_member_and_in_root_symlink(self):
+        root = pathlib.Path(self.temp.name)
+        (root / "assets").mkdir(exist_ok=True)
+        (root / "assets" / "nested.js").write_text("nested-member")
+        (root / "alias.js").symlink_to(root / "assets" / "nested.js")
+        try:
+            for path in ("/assets/nested.js", "/alias.js"):
+                with self.subTest(path=path):
+                    connection = self.connect(); connection.request("GET", path)
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 200)
+                    self.assertIn(response.getheader("content-type"),
+                                  {"text/javascript", "application/javascript"})
+                    self.assertEqual(response.read(), b"nested-member")
+                    connection.close()
+        finally:
+            (root / "alias.js").unlink()
+
+    def test_static_read_is_bound_to_the_opened_descriptor(self):
+        # Deterministic interleave: swap the served name for a symlink to an
+        # outside file between the open and the read. The response must still
+        # carry the bytes of the already-opened member.
+        root = pathlib.Path(self.temp.name)
+        bound = root / "bound.js"; bound.write_text("bound-original")
+        real_fstat = PROXY.os.fstat
+        with tempfile.TemporaryDirectory() as outside:
+            secret = pathlib.Path(outside) / "secret.txt"; secret.write_text("outside-secret")
+            def swap_then_fstat(fd):
+                bound.unlink(); bound.symlink_to(secret)
+                return real_fstat(fd)
+            try:
+                with mock.patch.object(PROXY.os, "fstat", side_effect=swap_then_fstat):
+                    connection = self.connect(); connection.request("GET", "/bound.js")
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.read(), b"bound-original")
+                    connection.close()
+            finally:
+                if bound.is_symlink(): bound.unlink()
+                bound.write_text("bound-original")
+
+    def test_static_swap_between_resolve_and_open_needs_local_write(self):
+        # The remaining window is a local rename between resolve() and open().
+        # The proxy has no HTTP write surface, so this forced interleave is the
+        # minimal primitive the residual race requires; kept open by the
+        # in-root symlink compatibility (no per-component O_NOFOLLOW walk).
+        root = pathlib.Path(self.temp.name)
+        window = root / "window.js"; window.write_text("window-original")
+        real_resolve = pathlib.Path.resolve
+        with tempfile.TemporaryDirectory() as outside:
+            secret = pathlib.Path(outside) / "secret.txt"; secret.write_text("outside-secret")
+            def swap_after_resolve(self, *args, **kwargs):
+                result = real_resolve(self, *args, **kwargs)
+                if self.name == "window.js" and not self.is_symlink():
+                    window.unlink(); window.symlink_to(secret)
+                return result
+            try:
+                with mock.patch.object(pathlib.Path, "resolve", swap_after_resolve):
+                    connection = self.connect(); connection.request("GET", "/window.js")
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.read(), b"outside-secret")
+                    connection.close()
+                # Without the interleave the swapped name is just a statically
+                # present outside symlink: resolve() confines it and the SPA
+                # fallback is served instead.
+                connection = self.connect(); connection.request("GET", "/window.js")
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.read(), b"gate")
+                connection.close()
+            finally:
+                if window.is_symlink(): window.unlink()
+                window.write_text("window-original")
 
     def test_sse_is_streamed_without_content_length(self):
         connection = self.connect(); started = time.monotonic()

@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import pathlib
+import stat
 import threading
 import time
 import urllib.parse
@@ -19,6 +20,20 @@ def safe_response_header(key, value):
     if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
         raise ValueError("upstream response header contains a line break")
     return key, value
+
+
+def read_static_member(root, candidate):
+    # The regular-file check and the read share one descriptor, so renaming or
+    # replacing the path after the open cannot redirect the served bytes.
+    if root not in candidate.parents:
+        return None
+    try:
+        with candidate.open("rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                return None
+            return handle.read(), candidate.name
+    except OSError:
+        return None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -132,13 +147,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def static(self):
         path = urllib.parse.urlsplit(self.path).path.lstrip("/") or "index.html"
-        root = pathlib.Path(self.server.web_root).resolve(); target = (root / path).resolve()
-        if root not in target.parents or not target.is_file(): target = (root / "index.html").resolve()
-        if root not in target.parents or not target.is_file():
+        root = pathlib.Path(self.server.web_root).resolve()
+        member = read_static_member(root, (root / path).resolve())
+        if member is None: member = read_static_member(root, (root / "index.html").resolve())
+        if member is None:
             self.send_error(404)
             return
-        body = target.read_bytes(); self.send_response(200)
-        self.send_header("content-type", mimetypes.guess_type(target.name)[0] or "application/octet-stream")
+        body, name = member
+        self.send_response(200)
+        self.send_header("content-type", mimetypes.guess_type(name)[0] or "application/octet-stream")
         self.send_header("content-length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def route(self):
