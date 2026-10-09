@@ -37,7 +37,7 @@ in this repository's nested guidance are relative to the repository root.
 - Deployment contract uses one signed `target/rz/rz-<version>-<arch>.tar`
   bundle, `/opt/rz`, `deploy/rz-full.service`, `deploy/rz-recovery.service`, four
   server units, and `deploy/setup-layout.sh`.
-- Do not apply Peripheral Vercel, Tauri client, or legacy `zen-server` /
+- Do not apply Peripheral, Tauri client, or legacy `zen-server` /
   `zen-web` layout rules to this repository.
 - Do not add systemd `User`/`Group`, hardening, or install-path permission
   changes without reviewing `deploy/setup-layout.sh` and the `/opt` runtime

@@ -21,7 +21,6 @@
         "@tanstack/react-router": "^1.170.18",
         "antd": "^6.5.1",
         "cn": "0.2.4",
-        "http-proxy-middleware": "^4.2.0",
         "lucide-react": "^1.47.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",

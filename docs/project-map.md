@@ -176,6 +176,7 @@ and representative consumers. Decide `reuse`, `extend`, `wrap`, justified
 | `docs/architecture.md` | Current repository and runtime facts. | You need architecture or data flow. |
 | `docs/product/product.md` | Product positioning, current boundary, module purposes, non-goals, and deferred slices. | You make or verify a product-boundary decision. |
 | `docs/guides/` | Current development rules. | You edit backend, frontend, permission, or deployment behavior. |
+| `docs/reference/vercel-container-images.md` | Container Images feasibility research, not deployment configuration. | You evaluate a future stateless Axum slice. |
 | `docs/guides/shared-capabilities.md` | Shared-code ownership and new-module intake gate. | You consider copying, extracting, or creating a shared declaration. |
 | `docs/reference/` | Optional deeper current context. | Current facts and guides are not enough. |
 | `docs/history/` | Non-current plans and records. | You need historical rationale. |

@@ -24,10 +24,9 @@ commit is its ancestor (17 commits ahead, zero behind). This closes publication 
 TH-03 retains its original component-fixture evidence and TH-06 its exact-hash approval.
 No theme tests or browser capture were repeated for this ledger correction.
 
-The earlier bounded trigger audit found no repository workflows and no rustzen-admin
-linkage in the accessible Vercel inventory; provider settings were not readable, so
-unknown external hooks were never ruled out. Main merge and hosted production
-deployment remain excluded. Subsequent Work continuation is retained in [the interaction ledger](./interaction-state-tasks.md).
+The earlier bounded trigger audit found no repository workflows. Main merge and
+hosted production deployment remain excluded. Subsequent Work continuation is
+retained in [the interaction ledger](./interaction-state-tasks.md).
 Current broader acceptance and prerequisites are in
 [scoped local coverage](./local-runtime-coverage.md).
 
