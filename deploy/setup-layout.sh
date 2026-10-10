@@ -12,8 +12,15 @@ ADMIN_GROUP="${RUSTZEN_ADMIN_GROUP:-rz-admin}"
 LOG_CONTROL_GROUP="${RUSTZEN_LOG_CONTROL_GROUP:-rz-log-control}"
 MONITOR_USER="${RUSTZEN_MONITOR_USER:-rz-monitor}"
 INSIGHTS_USER="${RUSTZEN_INSIGHTS_USER:-rz-insights}"
-MANAGED_UNITS="rz-full.service rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service rz-update.service rz-update.path"
-REQUIRED_FILES="
+# Member inventories per composition; the full shape is the legacy one. The
+# active composition is derived from the bundle's exact member inventory
+# before any signature or installation work, and every later list follows
+# it. A bundle matching neither shape is rejected outright.
+FULL_MANAGED_UNITS="rz-full.service rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service rz-update.service rz-update.path"
+CORE_MANAGED_UNITS="rz-full.service rz-recovery.service rz-admin.service rz-update.service rz-update.path"
+FULL_BINARIES="rz rz-admin rz-monitor rz-insights rz-reports"
+CORE_BINARIES="rz rz-admin"
+FULL_REQUIRED_FILES="
 bin/rz
 bin/rz-admin
 bin/rz-monitor
@@ -32,6 +39,21 @@ config/rz.env
 config/rz-reports.env
 setup-layout.sh
 "
+CORE_REQUIRED_FILES="
+bin/rz
+bin/rz-admin
+systemd/rz-full.service
+systemd/rz-recovery.service
+systemd/rz-admin.service
+systemd/rz-update.service
+systemd/rz-update.path
+config/rz.env
+setup-layout.sh
+"
+COMPOSITION=""
+MANAGED_UNITS=""
+REQUIRED_FILES=""
+BINARIES=""
 
 WORK_DIR=""
 INSTALL_LOCK=""
@@ -163,16 +185,36 @@ shared_config_value() {
     fi
 }
 
+single_config_value() {
+    value="$(config_value "$1" "$2")" || fail "required configuration key is missing: $2"
+    if [ "$value" = replace-me ]; then
+        generate_secret
+    else
+        printf '%s\n' "$value"
+    fi
+}
+
 generate_runtime_config() {
     main_config="$INSTALL_ROOT/config/rz.env"
-    reports_config="$INSTALL_ROOT/config/rz-reports.env"
     jwt_secret="$(generate_secret)"
-    ipc_token="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_IPC_TOKEN)"
     agent_token="$(generate_secret)"
     node_id="$(generate_secret)"
     notification_key="$(generate_secret)"
-    reports_notification_key="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY)"
-    reports_credential_key="$(generate_secret)"
+
+    if [ "$COMPOSITION" = full ]; then
+        reports_config="$INSTALL_ROOT/config/rz-reports.env"
+        ipc_token="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_IPC_TOKEN)"
+        reports_notification_key="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY)"
+        reports_credential_key="$(generate_secret)"
+        replace_placeholder "$reports_config" RUSTZEN_IPC_TOKEN "$ipc_token"
+        replace_placeholder "$reports_config" RUSTZEN_REPORTS_CREDENTIAL_KEY "$reports_credential_key"
+        replace_placeholder "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
+    else
+        # The core composition owns only the Admin config; module keys it
+        # does not consume are still replaced so no placeholder survives.
+        ipc_token="$(single_config_value "$main_config" RUSTZEN_IPC_TOKEN)"
+        reports_notification_key="$(generate_secret)"
+    fi
 
     replace_placeholder "$main_config" RUSTZEN_JWT_SECRET "$jwt_secret"
     replace_placeholder "$main_config" RUSTZEN_IPC_TOKEN "$ipc_token"
@@ -180,11 +222,11 @@ generate_runtime_config() {
     replace_placeholder "$main_config" RUSTZEN_MONITOR_NODE_ID "$node_id"
     replace_placeholder "$main_config" RUSTZEN_NOTIFICATION_EVENT_KEY "$notification_key"
     replace_placeholder "$main_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
-    replace_placeholder "$reports_config" RUSTZEN_IPC_TOKEN "$ipc_token"
-    replace_placeholder "$reports_config" RUSTZEN_REPORTS_CREDENTIAL_KEY "$reports_credential_key"
-    replace_placeholder "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
 
-    if grep -Fq '=replace-me' "$main_config" "$reports_config"; then
+    if grep -Fq '=replace-me' "$main_config"; then
+        fail "runtime configuration still contains placeholders"
+    fi
+    if [ "$COMPOSITION" = full ] && grep -Fq '=replace-me' "$INSTALL_ROOT/config/rz-reports.env"; then
         fail "runtime configuration still contains placeholders"
     fi
 }
@@ -242,6 +284,7 @@ verify_bundle_signature() {
     bundle="$1"
     version="$2"
     arch="$3"
+    expected_composition="$4"
     # build-config replaces this token in the separately distributed installer.
     # Do not trust a key supplied by the bundle being verified.
     verify_key="__RUSTZEN_DEPLOY_VERIFY_KEY__"
@@ -278,12 +321,32 @@ verify_bundle_signature() {
     marker_json="$(sed -n '2p' "$actual_trailer")"
     marker_version="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"version":"\([^"]*\)".*$/\1/p')"
     marker_arch="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"arch":"\([^"]*\)".*$/\1/p')"
+    marker_composition="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"composition":"\([^"]*\)".*$/\1/p')"
     marker_hash="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"contentSha256":"\([0-9a-f]*\)".*$/\1/p')"
     marker_frontend_hash="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"frontendSha256":"\([0-9a-f]*\)".*$/\1/p')"
     marker_backend_hash="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"backendSha256":"\([0-9a-f]*\)".*$/\1/p')"
     marker_signature="$(printf '%s\n' "$marker_json" | sed -n 's/^.*"signature":"\([0-9a-f]*\)".*$/\1/p')"
-    expected_json="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
-        "$marker_version" "$marker_arch" "$marker_hash" "$marker_frontend_hash" "$marker_backend_hash" "$marker_signature")"
+    # The signature payload itself is unchanged; the composition travels as
+    # marker metadata and must match the member-derived composition. A
+    # marker without the field is the legacy full shape.
+    case "$marker_composition" in
+        "") marker_composition=full ;;
+        full|core) ;;
+        *) fail "signed release bundle marker composition is invalid" ;;
+    esac
+    if [ "$marker_composition" != "$expected_composition" ]; then
+        fail "signed marker composition does not match the bundle members"
+    fi
+    case "$marker_json" in
+        *'"composition"'*)
+            expected_json="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","composition":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
+                "$marker_version" "$marker_arch" "$marker_composition" "$marker_hash" "$marker_frontend_hash" "$marker_backend_hash" "$marker_signature")"
+            ;;
+        *)
+            expected_json="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
+                "$marker_version" "$marker_arch" "$marker_hash" "$marker_frontend_hash" "$marker_backend_hash" "$marker_signature")"
+            ;;
+    esac
     if [ "$marker_json" != "$expected_json" ] || \
        [ "$marker_version" != "$version" ] || [ "$marker_arch" != "$arch" ] || \
        [ "${#marker_hash}" -ne 64 ] || [ "${#marker_frontend_hash}" -ne 64 ] || \
@@ -474,13 +537,58 @@ if [ -n "$DUPLICATE_PATH" ]; then
     fail "bundle contains a duplicate path: $DUPLICATE_PATH"
 fi
 
-for relative_path in $REQUIRED_FILES; do
-    if ! grep -Fqx "$ROOT_NAME/$relative_path" "$NORMALIZED_LIST"; then
-        fail "bundle is missing required file: $relative_path"
-    fi
-done
+# Derive the composition from the exact file inventory (directory entries
+# excluded): full keeps the legacy inventory, core carries only the Admin
+# binary, its units, and the shared config. Anything else is rejected
+# before signature verification and before any installation write.
+BUNDLE_FILE_LIST="$WORK_DIR/files.only"
+: >"$BUNDLE_FILE_LIST"
+while IFS= read -r normalized_entry; do
+    case "$normalized_entry" in
+        "$ROOT_NAME"|"$ROOT_NAME/bin"|"$ROOT_NAME/systemd"|"$ROOT_NAME/config"|"$ROOT_NAME/identity")
+            ;;
+        *)
+            printf '%s\n' "$normalized_entry" >>"$BUNDLE_FILE_LIST"
+            ;;
+    esac
+done <"$NORMALIZED_LIST"
 
-verify_bundle_signature "$BUNDLE_PATH" "$VERSION" "$ARCH"
+shape_file_list() {
+    shape_required="$1"
+    shape_output="$2"
+    : >"$shape_output"
+    for relative_path in $shape_required; do
+        printf '%s\n' "$ROOT_NAME/$relative_path" >>"$shape_output"
+    done
+    LC_ALL=C sort -o "$shape_output" "$shape_output"
+}
+SORTED_BUNDLE_FILES="$WORK_DIR/files.sorted"
+LC_ALL=C sort -o "$SORTED_BUNDLE_FILES" "$BUNDLE_FILE_LIST"
+FULL_FILE_LIST="$WORK_DIR/shape.full.files"
+CORE_FILE_LIST="$WORK_DIR/shape.core.files"
+shape_file_list "$FULL_REQUIRED_FILES" "$FULL_FILE_LIST"
+shape_file_list "$CORE_REQUIRED_FILES" "$CORE_FILE_LIST"
+if cmp -s "$SORTED_BUNDLE_FILES" "$FULL_FILE_LIST"; then
+    COMPOSITION=full
+elif cmp -s "$SORTED_BUNDLE_FILES" "$CORE_FILE_LIST"; then
+    COMPOSITION=core
+else
+    fail "bundle member inventory does not match a supported composition"
+fi
+case "$COMPOSITION" in
+    full)
+        MANAGED_UNITS="$FULL_MANAGED_UNITS"
+        REQUIRED_FILES="$FULL_REQUIRED_FILES"
+        BINARIES="$FULL_BINARIES"
+        ;;
+    core)
+        MANAGED_UNITS="$CORE_MANAGED_UNITS"
+        REQUIRED_FILES="$CORE_REQUIRED_FILES"
+        BINARIES="$CORE_BINARIES"
+        ;;
+esac
+
+verify_bundle_signature "$BUNDLE_PATH" "$VERSION" "$ARCH" "$COMPOSITION"
 
 if ! tar -tvf "$BUNDLE_PATH" >"$VERBOSE_LIST" 2>"$TAR_ERRORS"; then
     fail "bundle member metadata cannot be read"
@@ -521,7 +629,7 @@ for relative_path in $REQUIRED_FILES; do
     fi
 done
 
-for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
+for binary in $BINARIES; do
     binary_path="$SOURCE_ROOT/bin/$binary"
     binary_magic="$(dd if="$binary_path" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
     if [ "$binary_magic" != "7f454c46" ]; then
@@ -566,7 +674,7 @@ fi
 
 BACKEND_INVENTORY="$WORK_DIR/backend-inventory"
 : >"$BACKEND_INVENTORY"
-for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
+for binary in $BINARIES; do
     binary_path="$SOURCE_ROOT/bin/$binary"
     binary_size="$(wc -c <"$binary_path" | tr -d '[:space:]')"
     if command -v openssl >/dev/null 2>&1; then
@@ -606,9 +714,11 @@ if [ -L "$INSTALL_ROOT/config/rz.env" ] || \
    { [ -e "$INSTALL_ROOT/config/rz.env" ] && [ ! -f "$INSTALL_ROOT/config/rz.env" ]; }; then
     fail "existing config is not a regular file: $INSTALL_ROOT/config/rz.env"
 fi
-if [ -L "$INSTALL_ROOT/config/rz-reports.env" ] || \
-   { [ -e "$INSTALL_ROOT/config/rz-reports.env" ] && [ ! -f "$INSTALL_ROOT/config/rz-reports.env" ]; }; then
-    fail "existing Reports config is not a regular file: $INSTALL_ROOT/config/rz-reports.env"
+if [ "$COMPOSITION" = full ]; then
+    if [ -L "$INSTALL_ROOT/config/rz-reports.env" ] || \
+       { [ -e "$INSTALL_ROOT/config/rz-reports.env" ] && [ ! -f "$INSTALL_ROOT/config/rz-reports.env" ]; }; then
+        fail "existing Reports config is not a regular file: $INSTALL_ROOT/config/rz-reports.env"
+    fi
 fi
 for unit in $MANAGED_UNITS; do
     destination="$SYSTEMD_DIR/$unit"
@@ -632,30 +742,34 @@ elif ! command -v "$SYSTEMCTL_BIN" >/dev/null 2>&1; then
     fail "systemctl command was not found: $SYSTEMCTL_BIN"
 fi
 
-if ! id "$REPORTS_USER" >/dev/null 2>&1; then
-    if [ "$(id -u)" -ne 0 ]; then
-        fail "reports service account is missing: $REPORTS_USER"
+if [ "$COMPOSITION" = full ]; then
+    if ! id "$REPORTS_USER" >/dev/null 2>&1; then
+        if [ "$(id -u)" -ne 0 ]; then
+            fail "reports service account is missing: $REPORTS_USER"
+        fi
+        command -v useradd >/dev/null 2>&1 || fail "useradd is required to create $REPORTS_USER"
+        command -v groupadd >/dev/null 2>&1 || fail "groupadd is required to create rz-reports"
+        if ! group_exists rz-reports; then
+            groupadd --system rz-reports
+        fi
+        useradd --system --gid rz-reports --home-dir "$INSTALL_ROOT/data/reports" --shell /usr/sbin/nologin "$REPORTS_USER"
     fi
-    command -v useradd >/dev/null 2>&1 || fail "useradd is required to create $REPORTS_USER"
-    command -v groupadd >/dev/null 2>&1 || fail "groupadd is required to create rz-reports"
-    if ! group_exists rz-reports; then
-        groupadd --system rz-reports
+    if [ -z "$REPORTS_GROUP" ]; then
+        REPORTS_GROUP="$(id -gn "$REPORTS_USER")"
     fi
-    useradd --system --gid rz-reports --home-dir "$INSTALL_ROOT/data/reports" --shell /usr/sbin/nologin "$REPORTS_USER"
-fi
-if [ -z "$REPORTS_GROUP" ]; then
-    REPORTS_GROUP="$(id -gn "$REPORTS_USER")"
 fi
 ensure_service_account "$ADMIN_USER" "$INSTALL_ROOT/data/db/admin"
-ensure_service_account "$MONITOR_USER" "$INSTALL_ROOT/data/db/monitor"
-ensure_service_account "$INSIGHTS_USER" "$INSTALL_ROOT/data/db/insights"
+if [ "$COMPOSITION" = full ]; then
+    ensure_service_account "$MONITOR_USER" "$INSTALL_ROOT/data/db/monitor"
+    ensure_service_account "$INSIGHTS_USER" "$INSTALL_ROOT/data/db/insights"
+fi
 group_exists "$ADMIN_GROUP" || fail "admin service group is missing: $ADMIN_GROUP"
 if ! group_exists "$LOG_CONTROL_GROUP"; then
     [ "$(id -u)" -eq 0 ] || fail "log control group is missing: $LOG_CONTROL_GROUP"
     command -v groupadd >/dev/null 2>&1 || fail "groupadd is required to create $LOG_CONTROL_GROUP"
     groupadd --system "$LOG_CONTROL_GROUP"
 fi
-if ! group_exists "$REPORTS_GROUP"; then
+if [ "$COMPOSITION" = full ] && ! group_exists "$REPORTS_GROUP"; then
     fail "reports service group is missing: $REPORTS_GROUP"
 fi
 
@@ -669,10 +783,7 @@ mkdir -p \
     "$INSTALL_ROOT/config" \
     "$INSTALL_ROOT/data/db" \
     "$INSTALL_ROOT/data/db/admin" \
-    "$INSTALL_ROOT/data/db/monitor" \
-    "$INSTALL_ROOT/data/db/insights" \
     "$INSTALL_ROOT/data/releases" \
-    "$INSTALL_ROOT/data/reports" \
     "$INSTALL_ROOT/data/uploads" \
     "$INSTALL_ROOT/data/avatars" \
     "$INSTALL_ROOT/data/update-requests" \
@@ -682,19 +793,24 @@ chmod 0700 "$INSTALL_ROOT/config"
 chmod 0711 "$INSTALL_ROOT/data" "$INSTALL_ROOT/data/db" "$INSTALL_ROOT/logs"
 chown "$ADMIN_USER:$ADMIN_GROUP" "$INSTALL_ROOT/data/releases"
 chmod 0750 "$INSTALL_ROOT/data/releases"
-mkdir -p "$INSTALL_ROOT/logs/admin" "$INSTALL_ROOT/logs/monitor" "$INSTALL_ROOT/logs/insights" "$INSTALL_ROOT/logs/reports"
-mkdir -p "$INSTALL_ROOT/data/reports/db"
-chown "$REPORTS_USER:$REPORTS_GROUP" "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db"
-chown "$ADMIN_USER" "$INSTALL_ROOT/data/uploads" "$INSTALL_ROOT/data/avatars" "$INSTALL_ROOT/data/update-requests"
-chown "$MONITOR_USER" "$INSTALL_ROOT/data/db/monitor"
-chown "$INSIGHTS_USER" "$INSTALL_ROOT/data/db/insights"
+mkdir -p "$INSTALL_ROOT/logs/admin"
 chown "$ADMIN_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/admin"
-chown "$MONITOR_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/monitor"
-chown "$INSIGHTS_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/insights"
-chown "$REPORTS_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/reports"
-chmod 0750 "$INSTALL_ROOT/data/db/admin" "$INSTALL_ROOT/data/db/monitor" "$INSTALL_ROOT/data/db/insights" "$INSTALL_ROOT/data/uploads" "$INSTALL_ROOT/data/avatars" "$INSTALL_ROOT/data/update-requests"
-chmod 0750 "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db"
-chmod 2770 "$INSTALL_ROOT/logs/admin" "$INSTALL_ROOT/logs/monitor" "$INSTALL_ROOT/logs/insights" "$INSTALL_ROOT/logs/reports"
+if [ "$COMPOSITION" = full ]; then
+    mkdir -p "$INSTALL_ROOT/logs/monitor" "$INSTALL_ROOT/logs/insights" "$INSTALL_ROOT/logs/reports"
+    mkdir -p "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/db/monitor" "$INSTALL_ROOT/data/db/insights"
+    mkdir -p "$INSTALL_ROOT/data/reports/db"
+    chown "$REPORTS_USER:$REPORTS_GROUP" "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db"
+    chown "$MONITOR_USER" "$INSTALL_ROOT/data/db/monitor"
+    chown "$INSIGHTS_USER" "$INSTALL_ROOT/data/db/insights"
+    chown "$MONITOR_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/monitor"
+    chown "$INSIGHTS_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/insights"
+    chown "$REPORTS_USER:$LOG_CONTROL_GROUP" "$INSTALL_ROOT/logs/reports"
+    chmod 0750 "$INSTALL_ROOT/data/db/monitor" "$INSTALL_ROOT/data/db/insights" "$INSTALL_ROOT/data/reports" "$INSTALL_ROOT/data/reports/db"
+    chmod 2770 "$INSTALL_ROOT/logs/monitor" "$INSTALL_ROOT/logs/insights" "$INSTALL_ROOT/logs/reports"
+fi
+chown "$ADMIN_USER" "$INSTALL_ROOT/data/uploads" "$INSTALL_ROOT/data/avatars" "$INSTALL_ROOT/data/update-requests"
+chmod 0750 "$INSTALL_ROOT/data/db/admin" "$INSTALL_ROOT/data/uploads" "$INSTALL_ROOT/data/avatars" "$INSTALL_ROOT/data/update-requests"
+chmod 2770 "$INSTALL_ROOT/logs/admin"
 
 RELEASE_DIR="$INSTALL_ROOT/releases/$VERSION"
 if [ -e "$RELEASE_DIR" ] || [ -L "$RELEASE_DIR" ]; then
@@ -705,43 +821,56 @@ CANDIDATE_DIR="$INSTALL_ROOT/releases/.$VERSION.new.$$"
 if [ -e "$CANDIDATE_DIR" ] || [ -L "$CANDIDATE_DIR" ]; then
     fail "release staging path already exists: $CANDIDATE_DIR"
 fi
-mkdir -p "$CANDIDATE_DIR/bin" "$CANDIDATE_DIR/systemd" "$CANDIDATE_DIR/config" "$CANDIDATE_DIR/identity"
-for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
+mkdir -p "$CANDIDATE_DIR/bin" "$CANDIDATE_DIR/systemd" "$CANDIDATE_DIR/config"
+if [ "$COMPOSITION" = full ]; then
+    mkdir -p "$CANDIDATE_DIR/identity"
+fi
+for binary in $BINARIES; do
     install -m 0755 "$SOURCE_ROOT/bin/$binary" "$CANDIDATE_DIR/bin/$binary"
 done
 for unit in $MANAGED_UNITS; do
     install -m 0644 "$SOURCE_ROOT/systemd/$unit" "$CANDIDATE_DIR/systemd/$unit"
 done
 install -m 0600 "$SOURCE_ROOT/config/rz.env" "$CANDIDATE_DIR/config/rz.env"
-install -m 0600 "$SOURCE_ROOT/config/rz-reports.env" "$CANDIDATE_DIR/config/rz-reports.env"
-install -m 0644 "$SOURCE_ROOT/identity/controller.json" "$CANDIDATE_DIR/identity/controller.json"
+if [ "$COMPOSITION" = full ]; then
+    install -m 0600 "$SOURCE_ROOT/config/rz-reports.env" "$CANDIDATE_DIR/config/rz-reports.env"
+    install -m 0644 "$SOURCE_ROOT/identity/controller.json" "$CANDIDATE_DIR/identity/controller.json"
+fi
 install -m 0755 "$SOURCE_ROOT/setup-layout.sh" "$CANDIDATE_DIR/setup-layout.sh"
 mv "$CANDIDATE_DIR" "$RELEASE_DIR"
 CANDIDATE_DIR=""
 CREATED_RELEASE_DIR="$RELEASE_DIR"
 chmod 0755 "$RELEASE_DIR" "$RELEASE_DIR/bin" "$RELEASE_DIR/systemd"
 chmod 0700 "$RELEASE_DIR/config"
-chmod 0755 "$RELEASE_DIR/identity"
 chown "$ADMIN_USER:$ADMIN_GROUP" \
     "$RELEASE_DIR/config" \
-    "$RELEASE_DIR/config/rz.env" \
-    "$RELEASE_DIR/config/rz-reports.env"
+    "$RELEASE_DIR/config/rz.env"
+if [ "$COMPOSITION" = full ]; then
+    chmod 0755 "$RELEASE_DIR/identity"
+    chown "$ADMIN_USER:$ADMIN_GROUP" "$RELEASE_DIR/config/rz-reports.env"
+fi
 
 if [ ! -e "$INSTALL_ROOT/config/rz.env" ]; then
     install -m 0600 "$SOURCE_ROOT/config/rz.env" "$INSTALL_ROOT/config/rz.env"
     CREATED_MAIN_CONFIG="$INSTALL_ROOT/config/rz.env"
 fi
-if [ ! -e "$INSTALL_ROOT/config/rz-reports.env" ]; then
+if [ "$COMPOSITION" = full ] && [ ! -e "$INSTALL_ROOT/config/rz-reports.env" ]; then
     install -m 0600 "$SOURCE_ROOT/config/rz-reports.env" "$INSTALL_ROOT/config/rz-reports.env"
     CREATED_REPORTS_CONFIG="$INSTALL_ROOT/config/rz-reports.env"
 fi
-for setting in \
-    "RUSTZEN_ADMIN_SQLITE_PATH=$INSTALL_ROOT/data/db/admin/admin.db" \
-    "RUSTZEN_MONITOR_SQLITE_PATH=$INSTALL_ROOT/data/db/monitor/monitor.db" \
-    "RUSTZEN_INSIGHTS_SQLITE_PATH=$INSTALL_ROOT/data/db/insights/insights.db"; do
+if [ "$COMPOSITION" = full ]; then
+    for setting in \
+        "RUSTZEN_ADMIN_SQLITE_PATH=$INSTALL_ROOT/data/db/admin/admin.db" \
+        "RUSTZEN_MONITOR_SQLITE_PATH=$INSTALL_ROOT/data/db/monitor/monitor.db" \
+        "RUSTZEN_INSIGHTS_SQLITE_PATH=$INSTALL_ROOT/data/db/insights/insights.db"; do
+        key=${setting%%=*}
+        grep -Eq "^${key}=" "$INSTALL_ROOT/config/rz.env" || printf '%s\n' "$setting" >>"$INSTALL_ROOT/config/rz.env"
+    done
+else
+    setting="RUSTZEN_ADMIN_SQLITE_PATH=$INSTALL_ROOT/data/db/admin/admin.db"
     key=${setting%%=*}
     grep -Eq "^${key}=" "$INSTALL_ROOT/config/rz.env" || printf '%s\n' "$setting" >>"$INSTALL_ROOT/config/rz.env"
-done
+fi
 generate_runtime_config
 generate_owner_bootstrap
 
@@ -789,5 +918,5 @@ done
 "$SYSTEMCTL_BIN" start rz-update.path
 INSTALL_COMPLETED=true
 
-echo "Installed Rustzen $VERSION ($ARCH) at $RELEASE_DIR"
+echo "Installed Rustzen $VERSION ($ARCH, $COMPOSITION composition) at $RELEASE_DIR"
 echo "Runtime secrets were generated locally. Read the one-time owner credential from $INSTALL_ROOT/data/initial-owner-password as root, then run: rz start"

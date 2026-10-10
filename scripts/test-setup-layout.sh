@@ -143,12 +143,23 @@ make_bundle() {
     omitted_path="${4:-}"
     signing_key="${5:-$SIGNING_KEY}"
     signature_mode="${6:-signed}"
+    composition="${7:-full}"
+    extra_member_relative="${8:-}"
+    extra_member_source="${9:-}"
     source_dir="$TEST_ROOT/source-$version-$arch-$(basename "$destination")"
     root_name="rz-$version-$arch"
     release_root="$source_dir/$root_name"
 
-    mkdir -p "$release_root/bin" "$release_root/systemd" "$release_root/config" "$release_root/identity"
-    for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
+    case "$composition" in
+        full) bundle_binaries="rz rz-admin rz-monitor rz-insights rz-reports" ;;
+        core) bundle_binaries="rz rz-admin" ;;
+        *) fail "unsupported test bundle composition: $composition" ;;
+    esac
+    mkdir -p "$release_root/bin" "$release_root/systemd" "$release_root/config"
+    if [ "$composition" = full ]; then
+        mkdir -p "$release_root/identity"
+    fi
+    for binary in $bundle_binaries; do
         dd if=/dev/zero of="$release_root/bin/$binary" bs=64 count=1 2>/dev/null
         printf '\177ELF' | dd of="$release_root/bin/$binary" bs=1 seek=0 conv=notrunc 2>/dev/null
         case "$arch" in
@@ -164,31 +175,47 @@ make_bundle() {
         fi
         chmod 0755 "$release_root/bin/$binary"
     done
-    for unit in rz-full.service rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service rz-update.service rz-update.path; do
-        cp "$PROJECT_ROOT/deploy/$unit" "$release_root/systemd/$unit"
+    if [ "$composition" = core ]; then
+        bundle_units="rz-full.service rz-recovery.service rz-admin.service rz-update.service rz-update.path"
+    else
+        bundle_units="rz-full.service rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service rz-update.service rz-update.path"
+    fi
+    for unit in $bundle_units; do
+        if [ "$composition" = core ]; then
+            cp "$PROJECT_ROOT/deploy/core/$unit" "$release_root/systemd/$unit"
+        else
+            cp "$PROJECT_ROOT/deploy/$unit" "$release_root/systemd/$unit"
+        fi
     done
     printf 'RUSTZEN_ENV=production\nRUSTZEN_JWT_SECRET=replace-me\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_MONITOR_AGENT_TOKEN=replace-me\nRUSTZEN_MONITOR_NODE_ID=replace-me\nRUSTZEN_NOTIFICATION_EVENT_KEY=replace-me\nRUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY=replace-me\nRUSTZEN_DEPLOY_VERIFY_KEY=%s\n' \
         "$VERIFY_KEY" \
         >"$release_root/config/rz.env"
-    printf 'RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_REPORTS_CREDENTIAL_KEY=replace-me\nRUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY=replace-me\n' \
-        >"$release_root/config/rz-reports.env"
-    printf '{"schemaVersion":1,"artifactClass":"full-controller","version":"%s","arch":"%s","monitorBinarySha256":"%s","agentProtocolContractId":"%s"}\n' \
-        "$version" "$arch" \
-        "$(openssl dgst -sha256 "$release_root/bin/rz-monitor" | awk '{print $NF}')" \
-        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
-        >"$release_root/identity/controller.json"
+    if [ "$composition" = full ]; then
+        printf 'RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_REPORTS_CREDENTIAL_KEY=replace-me\nRUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY=replace-me\n' \
+            >"$release_root/config/rz-reports.env"
+        printf '{"schemaVersion":1,"artifactClass":"full-controller","version":"%s","arch":"%s","monitorBinarySha256":"%s","agentProtocolContractId":"%s"}\n' \
+            "$version" "$arch" \
+            "$(openssl dgst -sha256 "$release_root/bin/rz-monitor" | awk '{print $NF}')" \
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            >"$release_root/identity/controller.json"
+    fi
     cp "$INSTALLER_TEMPLATE" "$release_root/setup-layout.sh"
     chmod 0755 "$release_root/setup-layout.sh"
 
     if [ -n "$omitted_path" ]; then
         rm -f "$release_root/$omitted_path"
     fi
+    if [ -n "$extra_member_relative" ]; then
+        cp "$extra_member_source" "$release_root/$extra_member_relative"
+        chmod 0755 "$release_root/$extra_member_relative"
+    fi
 
     COPYFILE_DISABLE=1 tar -cf "$destination" -C "$source_dir" "$root_name"
     if [ "$signature_mode" = "signed" ]; then
         RUSTZEN_DEPLOY_SIGN_KEY_FILE="$signing_key" \
             bun "$PROJECT_ROOT/scripts/deploy-sign.mjs" sign-bundle \
-                --file "$destination" --version "$version" --arch "$arch" >/dev/null
+                --file "$destination" --version "$version" --arch "$arch" \
+                --composition "$composition" >/dev/null
     fi
 }
 
@@ -197,10 +224,12 @@ sign_test_bundle_unchecked() {
     version="$2"
     arch="$3"
     source_root="$4"
+    marker_composition="${5:-}"
     backend_inventory="$TEST_ROOT/unchecked-backend-inventory"
     payload="$TEST_ROOT/unchecked-signature-payload"
     : >"$backend_inventory"
-    for binary in rz rz-admin rz-monitor rz-insights rz-reports; do
+    for binary in "$source_root"/bin/*; do
+        binary="$(basename "$binary")"
         binary_path="$source_root/bin/$binary"
         binary_size="$(wc -c <"$binary_path" | tr -d '[:space:]')"
         binary_hash="$(openssl dgst -sha256 "$binary_path" | awk '{print $NF}')"
@@ -219,8 +248,13 @@ sign_test_bundle_unchecked() {
         const payload = fs.readFileSync(process.env.RZ_TEST_PAYLOAD);
         process.stdout.write(crypto.sign(null, payload, key).toString("hex"));
     ')"
-    marker="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
-        "$version" "$arch" "$content_hash" "$frontend_hash" "$backend_hash" "$signature")"
+    if [ -n "$marker_composition" ]; then
+        marker="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","composition":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
+            "$version" "$arch" "$marker_composition" "$content_hash" "$frontend_hash" "$backend_hash" "$signature")"
+    else
+        marker="$(printf '{"schemaVersion":2,"component":"release","version":"%s","arch":"%s","contentSha256":"%s","frontendSha256":"%s","backendSha256":"%s","signature":"%s"}' \
+            "$version" "$arch" "$content_hash" "$frontend_hash" "$backend_hash" "$signature")"
+    fi
     printf '\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n%s\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n' \
         "$marker" >>"$bundle"
 }
@@ -701,6 +735,130 @@ assert_equals "1" "$(grep -c '^ExecStart=' "$PROJECT_ROOT/deploy/rz-monitor-agen
 if grep -Fq 'rz-monitor agent' "$PROJECT_ROOT/deploy/rz-monitor-agent.service"; then
     fail "Monitor Agent must not use the rejected rz-monitor agent subcommand"
 fi
+TEST_COUNT=$((TEST_COUNT + 1))
+
+# --- Composition-aware installer coverage (OE-T12) ---
+
+CORE_BUNDLE="$TEST_ROOT/rz-1.2.3-x86_64-core.tar"
+make_bundle "1.2.3" "x86_64" "$CORE_BUNDLE" "" "$SIGNING_KEY" signed core
+
+CORE_INSTALL_ROOT="$TEST_ROOT/core-install"
+CORE_SYSTEMD_DIR="$TEST_ROOT/core-systemd"
+CORE_SYSTEMCTL_LOG="$TEST_ROOT/core-systemctl.log"
+: >"$CORE_SYSTEMCTL_LOG"
+run_installer \
+    "$CORE_BUNDLE" "$CORE_INSTALL_ROOT" "$CORE_SYSTEMD_DIR" \
+    "$SYSTEMCTL_BIN_PATH" "$CORE_SYSTEMCTL_LOG"
+TEST_COUNT=$((TEST_COUNT + 1))
+
+assert_equals "releases/1.2.3" "$(readlink "$CORE_INSTALL_ROOT/current")" \
+    "core initial current link"
+assert_file_contains "1.2.3 (x86_64, core composition)" \
+    "$TEST_ROOT/initial-install.stdout" "core composition echo"
+for member in bin/rz bin/rz-admin systemd/rz-full.service \
+    systemd/rz-recovery.service systemd/rz-admin.service \
+    systemd/rz-update.service systemd/rz-update.path config/rz.env setup-layout.sh; do
+    assert_exists "$CORE_INSTALL_ROOT/releases/1.2.3/$member"
+done
+for absent in bin/rz-monitor bin/rz-insights bin/rz-reports \
+    systemd/rz-monitor.service systemd/rz-insights.service systemd/rz-reports.service \
+    config/rz-reports.env identity; do
+    if [ -e "$CORE_INSTALL_ROOT/releases/1.2.3/$absent" ]; then
+        fail "core install must not contain module member: $absent"
+    fi
+done
+for absent in data/db/monitor data/db/insights data/reports \
+    logs/monitor logs/insights logs/reports config/rz-reports.env; do
+    if [ -e "$CORE_INSTALL_ROOT/$absent" ]; then
+        fail "core install must not create module path: $absent"
+    fi
+done
+assert_exists "$CORE_INSTALL_ROOT/logs/admin"
+assert_exists "$CORE_INSTALL_ROOT/data/db/admin"
+if grep -Fq '=replace-me' "$CORE_INSTALL_ROOT/config/rz.env"; then
+    fail "core runtime configuration contains a placeholder"
+fi
+for unit in rz-full.service rz-recovery.service rz-admin.service rz-update.service rz-update.path; do
+    assert_symlink "$CORE_SYSTEMD_DIR/$unit"
+done
+if [ -e "$CORE_SYSTEMD_DIR/rz-monitor.service" ] || [ -L "$CORE_SYSTEMD_DIR/rz-monitor.service" ]; then
+    fail "core install must not link module units"
+fi
+cmp -s "$CORE_BUNDLE" "$CORE_INSTALL_ROOT/data/releases/rz-1.2.3-x86_64.tar" \
+    || fail "core installed bundle was not preserved byte-for-byte"
+assert_equals "$(printf 'daemon-reload\nenable rz-full.service rz-update.path\nstart rz-update.path\n')" \
+    "$(cat "$CORE_SYSTEMCTL_LOG")" "core systemctl calls"
+
+# A core bundle with a foreign module member is rejected before any write.
+CORE_FOREIGN_SOURCE="$TEST_ROOT/core-foreign-source"
+mkdir -p "$CORE_FOREIGN_SOURCE"
+CORE_FOREIGN_BIN="$CORE_FOREIGN_SOURCE/rz-insights"
+cp /dev/null "$CORE_FOREIGN_BIN"
+printf '\177ELF' | dd of="$CORE_FOREIGN_BIN" bs=1 seek=0 conv=notrunc 2>/dev/null
+printf '\076\000' | dd of="$CORE_FOREIGN_BIN" bs=1 seek=18 conv=notrunc 2>/dev/null
+printf 'RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary=rz-insights\nversion=1.2.3\n' \
+    >>"$CORE_FOREIGN_BIN"
+CORE_FOREIGN_BUNDLE="$TEST_ROOT/rz-1.2.3-x86_64-core-foreign.tar"
+make_bundle "1.2.3" "x86_64" "$CORE_FOREIGN_BUNDLE" "" "$SIGNING_KEY" unsigned core \
+    "bin/rz-insights" "$CORE_FOREIGN_BIN"
+CORE_FOREIGN_INSTALL_ROOT="$TEST_ROOT/core-foreign-install"
+sign_test_bundle_unchecked \
+    "$CORE_FOREIGN_BUNDLE" "1.2.3" "x86_64" \
+    "$TEST_ROOT/source-1.2.3-x86_64-$(basename "$CORE_FOREIGN_BUNDLE")/rz-1.2.3-x86_64" core
+expect_install_failure \
+    "core-foreign-member" "$CORE_FOREIGN_BUNDLE" \
+    "$CORE_FOREIGN_INSTALL_ROOT" "$TEST_ROOT/core-foreign-systemd" \
+    "$SYSTEMCTL_BIN_PATH" "$TEST_ROOT/core-foreign-systemctl.log"
+assert_file_contains "bundle member inventory does not match a supported composition" \
+    "$TEST_ROOT/core-foreign-member.stderr" "foreign member rejection"
+if [ -e "$CORE_FOREIGN_INSTALL_ROOT/releases" ]; then
+    fail "rejected core-foreign bundle must not create release directories"
+fi
+TEST_COUNT=$((TEST_COUNT + 1))
+
+# A valid core bundle whose marker claims the full composition is rejected.
+CORE_MISMATCH_BUNDLE="$TEST_ROOT/rz-1.2.3-x86_64-core-mismatch.tar"
+make_bundle "1.2.3" "x86_64" "$CORE_MISMATCH_BUNDLE" "" "$SIGNING_KEY" unsigned core
+sign_test_bundle_unchecked \
+    "$CORE_MISMATCH_BUNDLE" "1.2.3" "x86_64" \
+    "$TEST_ROOT/source-1.2.3-x86_64-$(basename "$CORE_MISMATCH_BUNDLE")/rz-1.2.3-x86_64" full
+expect_install_failure \
+    "core-marker-mismatch" "$CORE_MISMATCH_BUNDLE" \
+    "$TEST_ROOT/core-mismatch-install" "$TEST_ROOT/core-mismatch-systemd" \
+    "$SYSTEMCTL_BIN_PATH" "$TEST_ROOT/core-mismatch-systemctl.log"
+assert_file_contains "signed marker composition does not match the bundle members" \
+    "$TEST_ROOT/core-marker-mismatch.stderr" "marker composition binding"
+TEST_COUNT=$((TEST_COUNT + 1))
+
+# A core bundle missing a required member is rejected.
+CORE_MISSING_BUNDLE="$TEST_ROOT/rz-1.2.3-x86_64-core-missing.tar"
+make_bundle "1.2.3" "x86_64" "$CORE_MISSING_BUNDLE" "bin/rz" "$SIGNING_KEY" unsigned core
+sign_test_bundle_unchecked \
+    "$CORE_MISSING_BUNDLE" "1.2.3" "x86_64" \
+    "$TEST_ROOT/source-1.2.3-x86_64-$(basename "$CORE_MISSING_BUNDLE")/rz-1.2.3-x86_64" core
+expect_install_failure \
+    "core-missing-member" "$CORE_MISSING_BUNDLE" \
+    "$TEST_ROOT/core-missing-install" "$TEST_ROOT/core-missing-systemd" \
+    "$SYSTEMCTL_BIN_PATH" "$TEST_ROOT/core-missing-systemctl.log"
+assert_file_contains "bundle member inventory does not match a supported composition" \
+    "$TEST_ROOT/core-missing-member.stderr" "missing member rejection"
+TEST_COUNT=$((TEST_COUNT + 1))
+
+# A core bundle carrying an unknown member is rejected.
+CORE_UNKNOWN_EXTRA="$TEST_ROOT/core-unknown-extra"
+printf 'unknown\n' >"$CORE_UNKNOWN_EXTRA"
+CORE_UNKNOWN_BUNDLE="$TEST_ROOT/rz-1.2.3-x86_64-core-unknown.tar"
+make_bundle "1.2.3" "x86_64" "$CORE_UNKNOWN_BUNDLE" "" "$SIGNING_KEY" unsigned core \
+    "extra.txt" "$CORE_UNKNOWN_EXTRA"
+sign_test_bundle_unchecked \
+    "$CORE_UNKNOWN_BUNDLE" "1.2.3" "x86_64" \
+    "$TEST_ROOT/source-1.2.3-x86_64-$(basename "$CORE_UNKNOWN_BUNDLE")/rz-1.2.3-x86_64" core
+expect_install_failure \
+    "core-unknown-member" "$CORE_UNKNOWN_BUNDLE" \
+    "$TEST_ROOT/core-unknown-install" "$TEST_ROOT/core-unknown-systemd" \
+    "$SYSTEMCTL_BIN_PATH" "$TEST_ROOT/core-unknown-systemctl.log"
+assert_file_contains "bundle contains an unexpected path" \
+    "$TEST_ROOT/core-unknown-member.stderr" "unknown member rejection"
 TEST_COUNT=$((TEST_COUNT + 1))
 
 echo "setup-layout integration tests passed ($TEST_COUNT groups)"

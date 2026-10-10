@@ -23,9 +23,10 @@ implementer unless a task names another owner.
 
 ## Ready frontier
 
-1. **OE-T12 core fresh-install installer** — the next executable
-   package, owned by the coordinator-side writer after the handoff
-   checkpoint (`target/rz/oe-checkpoint-handoff-20261010/`).
+1. Independent review (dot) of the OE-T12 installer package on top of
+   the current HEAD; no implementation task is Ready until that review
+   lands (the 14:33 division keeps ZCode as sole writer for
+   implementation, dot for review).
 
 ## Tasks
 
@@ -205,9 +206,17 @@ implementer unless a task names another owner.
   assets, or tampering is rejected before any overwrite and before any
   database or service change; the legacy full member compatibility is
   preserved.
-- **Evidence**: none yet.
-- **Status**: Ready (next bounded task).
-- **Blocker**: none.
+- **Evidence**: 2026-10-10 package (baseline `b6af0ee`): harness 21
+  groups exit 0 (core positive + foreign-member, marker-mismatch,
+  missing-member, unknown-member negatives with no-write assertions);
+  the real `rz-0.5.1-x86_64.tar` installs end-to-end with the real key
+  (exit 0, full composition); found and fixed the `b2de445` marker-field
+  regression that had broken full installs. Receipts:
+  `target/rz/oet12-installer-20261010/PROVENANCE.md`. Pending
+  independent review (dot).
+- **Status**: Implemented — awaiting independent review.
+- **Blocker**: none for the local scope; real Linux deployment remains
+  OE-T10-adjacent runtime acceptance.
 
 ### OE-T11 — Browser DOM acceptance (core shell + restored card)
 

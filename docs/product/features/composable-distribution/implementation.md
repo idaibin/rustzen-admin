@@ -821,3 +821,47 @@ hands over.
 - Next executable package: OE-T12 per its ledger acceptance (exact
   member shapes, rejection before any overwrite and before database or
   service changes, legacy full compatibility).
+
+
+### OE-T12 receipt — composition-aware installer (2026-10-10)
+
+Executed as the sole writer after the 14:33 division change (ZCode
+implements, dot reviews). Baseline `b6af0ee` verified clean with no
+parallel writers before start.
+
+**Found and fixed regression.** At the baseline, the local installer
+harness failed with "signed release bundle marker metadata is invalid":
+the accepted signer package (`b2de445`) always writes the marker
+`composition` field while the installer's strict marker reconstruction
+did not include it — full installs were broken. The installer now parses
+the optional composition, reconstructs both marker shapes exactly
+(legacy without the field included), and binds the marker composition
+(absent = legacy full) to the member-derived composition.
+
+**Composition awareness.** The installer derives the composition from
+the exact member inventory (full = legacy 17 files, core = 10 files;
+directories excluded) before signature work and before any overwrite or
+database/service change: a foreign module member, a missing member, or
+an unknown member matches neither shape and is rejected outright.
+Binary identity, the Admin frontend-digest binding, backend inventory
+digest, and signature checks run per composition unchanged; the core
+install creates only Admin-owned units, directories, and config (no
+module service accounts, databases, logs, or the Reports config), and
+`rz-install` generation is unchanged — one installer serves both
+compositions.
+
+**Verification.** Harness `sh scripts/test-setup-layout.sh` — 21 groups,
+exit 0: the original 16 full groups plus the core positive and four
+negatives (core+foreign binary, marker-composition mismatch, missing
+member, unknown member), with rejected runs asserting no release
+directory was created. The real signed `rz-0.5.1-x86_64.tar` installs
+end-to-end through the new installer with the real deployment key
+(exit 0, full composition, five binaries, zero placeholders, exact
+systemctl sequence; secret-bearing outputs not persisted). The accepted
+signer tests remain 7/0 unchanged. Evidence and SHA-256 receipts:
+`target/rz/oet12-installer-20261010/PROVENANCE.md`.
+
+**Not verified (no local-harness extrapolation):** real Linux deployment
+(systemd/users/paths), old-worker upgrade/rollback on a real host,
+interrupted-update recovery, browser DOM. The Rust real-artifact test's
+silent-return-on-absence limitation stays open, never masked as a pass.
