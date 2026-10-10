@@ -655,7 +655,8 @@ belongs to packaging acceptance (slice 3+).
 **Next bounded task: OE-2 slice 3 — core packaging integration** (per the
 adopted contract, with DOT-OE-1010's constraints folded in: composition
 identity must be anti-misplacement — the marker's composition must match
-the archive contents and mismatches must be rejected before any write; the
+the archive contents and mismatches must be rejected before candidate
+install, backup, or switch; the
 full archive must not gain members the old worker rejects, and admission
 of any full-archive change requires the real 0.5.1 signed-artifact
 upgrade/rollback proof, never JSON-tolerance inference).
@@ -669,7 +670,8 @@ digest, per-log SHA-256, exit receipts).
 **Worker.** The update worker now derives an archive's composition from
 its exact member inventory (`bundle/validation.rs` `ArchiveShape`: full =
 the legacy set, core = `rz` + `rz-admin`, five core units, shared config,
-no Reports env and no controller identity) and rejects, before any write:
+no Reports env and no controller identity) and rejects before candidate
+install, backup, or switch:
 a bundle whose composition differs from the compiled build
 (anti-misplacement, `COMPILED_COMPOSITION`), and a signed marker whose
 composition (absent = legacy full) differs from the archive. The
@@ -752,3 +754,38 @@ Ordinary boundary, no new writer; slice 3 continues (3b is Ready).
 - Logs stay persisted outside git tracking (under `target/rz/`, which is
   gitignored); the indexes bind source, hashes, and commands, so
   gitignored-ness alone is not treated as evidence failure.
+
+
+### Signer closure receipt — 2026-10-10 (minimal review package)
+
+Independent review of `3f59559`/`1729777` found the signer chain
+endorsing an uninstallable package: the composition derivation in
+`deploy-sign.mjs` was heuristic (Monitor-binary presence plus Reports/
+identity absence), so a core archive with a foreign `bin/rz-insights`
+passed both `sign-bundle` and `verify-bundle --composition core` with
+exit 0 (reviewer artifact reproduced: both exit 0 before the fix). The
+Rust worker would have rejected the archive, but runtime isolation does
+not excuse the signing chain vouching for it.
+
+Fix (minimal unification): the signer and verifier now derive the
+composition by **exact member-inventory equality** against the same
+shapes the Rust worker enforces (`ARCHIVE_SHAPES`, in lockstep with
+`bundle/validation.rs`): an archive with an extra module binary, a
+missing member, or an unknown member matches neither shape and is
+neither signed nor verified. Focused tests
+(`scripts/deploy-sign.test.ts`, 7 pass / 0 fail): exact core and full
+positives; the review counterexample (sign rejection plus a
+signed-then-spliced verify rejection); missing-member, unknown-member,
+and full-missing-Reports-config negatives; and the real legacy artifact
+(verifies as full, rejected as core — runtime `skipIf` carries an
+explicit NOT-VERIFIED name, absence is never a pass). The reviewer's
+artifact and result are persisted sanitized with hashes in
+`target/rz/oe3-signer-closure-20261010/PROVENANCE.md`; their test-only
+key was deliberately not copied. Already-green suites were not rerun;
+the Rust worker is untouched.
+
+Wording corrections: "rejected before any write" claims are narrowed to
+"before candidate install, backup, or switch". The old-worker direction
+of DOT-OE-1900-03 remains unmet and unverified (real Linux upgrade/
+rollback), not substitutable by any result here. OE-T12 stays gated on
+this package's independent review.

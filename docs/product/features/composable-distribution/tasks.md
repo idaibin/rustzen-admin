@@ -130,7 +130,8 @@ implementer unless a task names another owner.
 - **Outcome**: composition-aware package script, signed marker, and update
   worker: full archive keeps the exact legacy member set (composition in
   the marker only), core archive per the new contract, verifier rejects
-  composition mismatch before any write (anti-misplacement).
+  composition mismatch before candidate install, backup, or switch
+  (anti-misplacement).
 - **Owner**: release/packaging.
 - **Scope**: `scripts/package-release-bundle.sh`, `scripts/deploy-sign.mjs`,
   `apps/admin/src/features/manage/deploy/bundle/**`, `deploy/core/*`.
@@ -147,8 +148,14 @@ implementer unless a task names another owner.
   `target/rz/oe2-slice3a-packaging-20261010/PROVENANCE.md` — real
   artifact admitted by the Rust worker (1/0) and by the signer (exit 0),
   wrong-composition claim rejected (exit 1); core 148/0/1, full 223/0/1.
-- **Status**: In progress — update-chain integration complete (slice 3a);
-  the fresh-install installer variant is OE-T12.
+  Signer closure (review package after `3f59559`): exact member rules
+  unified with the Rust worker, reviewer counterexample reproduced then
+  rejected both pre-signing and post-splice, focused tests 7/0 —
+  `target/rz/oe3-signer-closure-20261010/PROVENANCE.md`.
+- **Status**: In progress — update chain and signer closure complete
+  (slice 3a + signer package, the latter pending independent review);
+  the fresh-install installer variant is OE-T12 and stays gated on that
+  review.
 - **Blocker**: none for the delivered scope.
 
 ### OE-T10 — Real-artifact upgrade/rollback proof (DOT-OE-1900-03)

@@ -8,10 +8,63 @@ import { fileURLToPath } from "node:url";
 const MARKER_BEGIN = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n");
 const MARKER_END = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n");
 const PAYLOAD_VERSION = "rustzen-release-v2";
-const BINARIES_BY_COMPOSITION = {
-    full: ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"],
-    core: ["rz", "rz-admin"],
+
+/// Exact member inventories, kept in lockstep with the Rust worker's
+/// ArchiveShape (`apps/admin/src/features/manage/deploy/bundle/validation.rs`):
+/// a composition is derived only when the file set matches exactly, so an
+/// archive with an extra module binary, a missing member, or an unknown
+/// member matches neither shape and is never signed or verified.
+const ARCHIVE_SHAPES = {
+    full: {
+        binaries: ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"],
+        systemdFiles: [
+            "rz-full.service",
+            "rz-recovery.service",
+            "rz-admin.service",
+            "rz-monitor.service",
+            "rz-insights.service",
+            "rz-reports.service",
+            "rz-update.service",
+            "rz-update.path",
+        ],
+        wantsReportsConfig: true,
+        wantsControllerIdentity: true,
+    },
+    core: {
+        binaries: ["rz", "rz-admin"],
+        systemdFiles: [
+            "rz-full.service",
+            "rz-recovery.service",
+            "rz-admin.service",
+            "rz-update.service",
+            "rz-update.path",
+        ],
+        wantsReportsConfig: false,
+        wantsControllerIdentity: false,
+    },
 };
+
+function expectedMembers(root, shape) {
+    return new Set([
+        ...shape.binaries.map((name) => `${root}/bin/${name}`),
+        ...shape.systemdFiles.map((name) => `${root}/systemd/${name}`),
+        `${root}/config/rz.env`,
+        ...(shape.wantsReportsConfig ? [`${root}/config/rz-reports.env`] : []),
+        `${root}/setup-layout.sh`,
+        ...(shape.wantsControllerIdentity ? [`${root}/identity/controller.json`] : []),
+    ]);
+}
+
+function deriveComposition(members, root) {
+    for (const [composition, shape] of Object.entries(ARCHIVE_SHAPES)) {
+        const expected = expectedMembers(root, shape);
+        if (expected.size === members.size && [...expected].every((path) => members.has(path))) {
+            return composition;
+        }
+    }
+    return null;
+}
+
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_KEY_FILE = path.join(
     PROJECT_ROOT,
@@ -186,7 +239,7 @@ function releaseScopes(content, version, arch, composition) {
                 (derived ? ` (members derive ${derived})` : ""),
         );
     }
-    const binaries = BINARIES_BY_COMPOSITION[composition].map((name) => {
+    const binaries = ARCHIVE_SHAPES[composition].binaries.map((name) => {
         const data = members.get(`${root}/bin/${name}`);
         if (!data) {
             throw new Error(`Release bundle is missing binary: ${name}`);
@@ -276,26 +329,9 @@ function tarText(data) {
     return data.subarray(0, end < 0 ? data.length : end).toString("utf8");
 }
 
-/// The composition derived from the member inventory: the full composition
-/// carries the Monitor binary; the core composition carries neither module
-/// binaries, the Reports config, nor the controller identity.
-function deriveComposition(members, root) {
-    if (members.has(`${root}/bin/rz-monitor`)) {
-        return "full";
-    }
-    if (
-        members.has(`${root}/bin/rz-admin`) &&
-        !members.has(`${root}/config/rz-reports.env`) &&
-        !members.has(`${root}/identity/controller.json`)
-    ) {
-        return "core";
-    }
-    return null;
-}
-
 function compositionArg() {
     const value = args.get("composition") ?? "full";
-    if (!BINARIES_BY_COMPOSITION[value]) {
+    if (!ARCHIVE_SHAPES[value]) {
         throw new Error(`Unsupported composition: ${value}`);
     }
     return value;
