@@ -165,7 +165,9 @@ implementer unless a task names another owner.
   the real artifacts; rollback restores the previous current.
 - **Evidence**: new-worker direction proven 2026-10-10 (real artifact
   admitted with real-key signature verification — see slice 3a
-  PROVENANCE). Old-worker direction: none.
+  PROVENANCE). Old-worker direction: none, and explicitly not
+  substitutable — the new verifier accepting the old artifact does not
+  satisfy this task.
 - **Status**: Blocked.
 - **Blocker**: needs a Linux execution environment (old worker is
   x86_64 Linux ELF; this host is macOS/arm64, Docker/colima down, no
@@ -184,7 +186,11 @@ implementer unless a task names another owner.
 - **Inputs**: OE-T09 core shape.
 - **Dependencies**: OE-T09 (delivered scope).
 - **Acceptance**: installer harness green for full and core shapes;
-  unknown paths rejected in both.
+  unknown paths rejected in both; signature identity, the binaries, and
+  the Web composition are bound together so a wrong package, stale
+  assets, or tampering is rejected before any overwrite and before any
+  database or service change; the legacy full member compatibility is
+  preserved.
 - **Evidence**: none yet.
 - **Status**: Ready (next bounded task).
 - **Blocker**: none.

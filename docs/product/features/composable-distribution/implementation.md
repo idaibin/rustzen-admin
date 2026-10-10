@@ -716,3 +716,39 @@ also normalized drift from earlier slice commits), workspace check exit 0.
 harness tests), with the Linux runtime proof (old-worker upgrade/
 rollback, real core package build) remaining environment-blocked and
 tracked in the task ledger (OE-T10/OE-T12).
+
+### Boundary supplement receipt — 2026-10-10 (post slice 3a)
+
+Ordinary boundary, no new writer; slice 3 continues (3b is Ready).
+
+- Stage acceptance recorded from the coordinator: `36e1c4a`'s
+  monitor-notify delivery closure and the composition gate are
+  independently accepted as a stage.
+- Evidence indexes corrected in place without rerunning anything: both
+  `target/rz/oe-1010-evidence-20261010/INDEX.md` and
+  `target/rz/oe2-slice3a-packaging-20261010/PROVENANCE.md` now carry a
+  version header, the post-commit log SHA-256
+  (`c46ef646…` and `e11651d0…` respectively), and an explicit
+  dirty-digest-versus-final-commit explanation: each dirty digest was
+  captured before the authoritative-documentation edits, so the commit
+  equals the digested tree plus those documentation files; the logs
+  verify code states that are byte-identical across that boundary.
+- Exit-code binding policy corrected: a `cargo … | head; echo $?` pattern
+  was observed printing the pipe tail's status (one `fmt=0` while the
+  check had actually failed; the true check caught it and `cargo fmt
+  --all` was applied before the commit). All exit codes bound as evidence
+  were captured with redirection only (raw process status); future
+  bindings use redirection, `pipefail`, or `PIPESTATUS`.
+- Packaging constraints reaffirmed for slice 3b (folded into OE-T12
+  acceptance): the installer and packager must bind signature identity,
+  the binaries, and the Web composition together; wrong package, stale
+  assets, or tampering must be rejected before any overwrite and before
+  any database or service change; the legacy full member compatibility is
+  preserved.
+- The old-worker direction of DOT-OE-1900-03 remains unmet and is not
+  substitutable: the new verifier accepting the old artifact does not
+  prove the old worker accepts a new one; that requires the real
+  signed-artifact upgrade/rollback on a Linux environment (OE-T10).
+- Logs stay persisted outside git tracking (under `target/rz/`, which is
+  gitignored); the indexes bind source, hashes, and commands, so
+  gitignored-ness alone is not treated as evidence failure.
