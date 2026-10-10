@@ -865,3 +865,31 @@ signer tests remain 7/0 unchanged. Evidence and SHA-256 receipts:
 (systemd/users/paths), old-worker upgrade/rollback on a real host,
 interrupted-update recovery, browser DOM. The Rust real-artifact test's
 silent-return-on-absence limitation stays open, never masked as a pass.
+
+
+### OE-T12 acceptance-boundary receipt — 2026-10-10 (dynamic negatives + OE-T10 preparation)
+
+- Ledger status wording unified: OE-T12 is "implemented with local
+  evidence, independent acceptance pending" (the coordinator's
+  source-level review of code and log identities is recorded as such,
+  not as dynamic acceptance).
+- Dynamic negative verification by the writer, current installer from
+  `79f1206`, fresh test key, per-case assertions of non-zero exit,
+  expected rejection class, empty install root, untouched systemd
+  directory, and zero systemctl invocations: 6/6 passed — core+foreign
+  member, marker-composition mismatch in both directions, tampered
+  content (signed then flipped byte), wrong signing key (valid signature
+  by another key), and a wrong per-binary identity marker. Driver, logs,
+  and per-case SHA-256s:
+  `target/rz/oet12-negative-verification-20261010/PROVENANCE.md`.
+- OE-T10 environment preparation: the isolated x86_64 colima VM
+  `rz-p8e-amd64` exists with a working `rust:1.95` image and the repo's
+  systemd image (probed live, restored to stopped); the real 0.5.1
+  artifact (worker re-confirmed x86_64 ELF) and the real signing key are
+  on the host. Recovery plan and the prepared upgrade/rollback protocol
+  are recorded; Mac + stub-systemctl runs and new-verifier-accepts-old
+  remain explicitly excluded from that acceptance.
+  `target/rz/oet10-env-prep-20261010/ASSESSMENT.md`. The in-VM build
+  window and update-driving script are the remaining work items.
+- Unchanged: the Rust real-artifact test's silent-return-on-absence
+  limitation stays open, never masked as a pass.
