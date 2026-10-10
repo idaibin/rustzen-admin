@@ -4,24 +4,26 @@ use serde::Deserialize;
 
 use crate::shared::{
     ConfigError, DatabaseConfig, RuntimeConfig, default_ipc_token, ensure_optional_non_empty,
-    ensure_production_secret, ensure_required_non_empty, load, local,
+    ensure_required_non_empty, load, local,
 };
+#[cfg(any(feature = "modules", feature = "notifications"))]
+use crate::shared::ensure_production_secret;
 
 const DEFAULT_ADMIN_HOST: &str = "0.0.0.0";
 const DEFAULT_ADMIN_PORT: u16 = 9801;
 const DEFAULT_INTERNAL_HOST: &str = "127.0.0.1";
-#[cfg(any(feature = "admin", feature = "admin-monitor"))]
+#[cfg(any(feature = "admin-monitor", feature = "modules"))]
 const DEFAULT_MONITOR_PORT: u16 = 9802;
-#[cfg(any(feature = "admin", feature = "admin-insights"))]
+#[cfg(any(feature = "admin-insights", feature = "modules"))]
 const DEFAULT_INSIGHTS_PORT: u16 = 9803;
-#[cfg(feature = "admin")]
+#[cfg(feature = "modules")]
 const DEFAULT_REPORTS_PORT: u16 = 9804;
 const DEFAULT_ADMIN_SQLITE_PATH: &str = "./data/db/admin.db";
-#[cfg(any(feature = "admin", feature = "admin-monitor"))]
+#[cfg(any(feature = "admin-monitor", feature = "modules"))]
 const DEFAULT_MONITOR_SQLITE_PATH: &str = "./data/db/monitor.db";
-#[cfg(feature = "admin")]
+#[cfg(any(feature = "admin-insights", feature = "modules"))]
 const DEFAULT_INSIGHTS_SQLITE_PATH: &str = "./data/db/insights.db";
-#[cfg(feature = "admin")]
+#[cfg(feature = "modules")]
 const DEFAULT_REPORTS_SQLITE_PATH: &str = "./data/reports/db/reports.db";
 const DEFAULT_JWT_EXPIRATION: i64 = 7200;
 #[cfg(feature = "admin")]
@@ -61,24 +63,24 @@ pub struct AdminConfig {
     pub admin_port: Option<u16>,
     #[serde(default)]
     pub internal_host: Option<String>,
-    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    #[cfg(any(feature = "admin-monitor", feature = "modules"))]
     #[serde(default)]
     pub monitor_port: Option<u16>,
-    #[cfg(any(feature = "admin", feature = "admin-insights"))]
+    #[cfg(any(feature = "admin-insights", feature = "modules"))]
     #[serde(default)]
     pub insights_port: Option<u16>,
-    #[cfg(feature = "admin")]
+    #[cfg(feature = "modules")]
     #[serde(default)]
     pub reports_port: Option<u16>,
     #[serde(default)]
     pub admin_sqlite_path: Option<String>,
-    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    #[cfg(any(feature = "admin-monitor", feature = "modules"))]
     #[serde(default)]
     pub monitor_sqlite_path: Option<String>,
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin-insights", feature = "modules"))]
     #[serde(default)]
     pub insights_sqlite_path: Option<String>,
-    #[cfg(feature = "admin")]
+    #[cfg(feature = "modules")]
     #[serde(default)]
     pub reports_sqlite_path: Option<String>,
     #[serde(default = "default_jwt_secret")]
@@ -177,27 +179,27 @@ impl AdminConfig {
         self.internal_host.as_deref().unwrap_or(DEFAULT_INTERNAL_HOST)
     }
 
-    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    #[cfg(any(feature = "admin-monitor", feature = "modules"))]
     pub fn monitor_port(&self) -> u16 {
         self.monitor_port.unwrap_or(DEFAULT_MONITOR_PORT)
     }
 
-    #[cfg(any(feature = "admin", feature = "admin-insights"))]
+    #[cfg(any(feature = "admin-insights", feature = "modules"))]
     pub fn insights_port(&self) -> u16 {
         self.insights_port.unwrap_or(DEFAULT_INSIGHTS_PORT)
     }
 
-    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    #[cfg(any(feature = "admin-monitor", feature = "modules"))]
     pub fn monitor_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.monitor_port())
     }
 
-    #[cfg(any(feature = "admin", feature = "admin-insights"))]
+    #[cfg(any(feature = "admin-insights", feature = "modules"))]
     pub fn insights_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.insights_port())
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(feature = "modules")]
     pub fn reports_port(&self) -> u16 {
         self.reports_port.unwrap_or(DEFAULT_REPORTS_PORT)
     }
@@ -257,17 +259,17 @@ impl AdminConfig {
         self.database_path(self.admin_sqlite_path.as_deref(), DEFAULT_ADMIN_SQLITE_PATH)
     }
 
-    #[cfg(any(feature = "admin", feature = "admin-monitor"))]
+    #[cfg(any(feature = "admin-monitor", feature = "modules"))]
     pub fn monitor_database_path(&self) -> PathBuf {
         self.database_path(self.monitor_sqlite_path.as_deref(), DEFAULT_MONITOR_SQLITE_PATH)
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(any(feature = "admin-insights", feature = "modules"))]
     pub fn insights_database_path(&self) -> PathBuf {
         self.database_path(self.insights_sqlite_path.as_deref(), DEFAULT_INSIGHTS_SQLITE_PATH)
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(feature = "modules")]
     pub fn reports_database_path(&self) -> PathBuf {
         self.database_path(self.reports_sqlite_path.as_deref(), DEFAULT_REPORTS_SQLITE_PATH)
     }
@@ -328,7 +330,7 @@ impl AdminConfig {
         )
     }
 
-    #[cfg(feature = "admin")]
+    #[cfg(feature = "modules")]
     pub fn reports_base_url(&self) -> String {
         format!("http://{}:{}", self.internal_host(), self.reports_port())
     }
@@ -346,7 +348,7 @@ impl AdminConfig {
         ] {
             ensure_optional_non_empty(name, value)?;
         }
-        #[cfg(feature = "admin")]
+        #[cfg(feature = "modules")]
         for (name, value) in [
             ("RUSTZEN_MONITOR_SQLITE_PATH", self.monitor_sqlite_path.as_deref()),
             ("RUSTZEN_INSIGHTS_SQLITE_PATH", self.insights_sqlite_path.as_deref()),
@@ -451,6 +453,9 @@ impl AdminConfig {
                 )?;
             }
         }
+        // The module IPC secret only authenticates module delegation in the
+        // modules composition; the core composition has no consumer for it.
+        #[cfg(feature = "modules")]
         ensure_production_secret(
             &self.runtime,
             "RUSTZEN_IPC_TOKEN",
@@ -544,7 +549,7 @@ mod monitor_distribution_tests {
         invalid.jwt_secret = "replace-me".to_string();
         assert!(invalid.validate().is_err());
         let mut invalid = config;
-        invalid.ipc_token = "replace-me".to_string();
+        invalid.jwt_secret = String::new();
         assert!(invalid.validate().is_err());
     }
 
@@ -617,6 +622,52 @@ mod analytics_distribution_tests {
     }
 }
 
+#[cfg(all(test, feature = "admin", not(feature = "modules")))]
+mod core_distribution_tests {
+    use figment::{Figment, providers::Serialized};
+    use serde::Serialize;
+
+    use super::AdminConfig;
+
+    #[derive(Serialize)]
+    struct ModuleOnlySettings<'a> {
+        monitor_port: &'a str,
+        insights_port: &'a str,
+        reports_port: &'a str,
+        monitor_sqlite_path: &'a str,
+        insights_sqlite_path: &'a str,
+        reports_sqlite_path: &'a str,
+    }
+
+    #[test]
+    fn core_admin_ignores_absent_module_settings() {
+        let config: AdminConfig = Figment::new()
+            .merge(Serialized::defaults(ModuleOnlySettings {
+                monitor_port: "not-a-number",
+                insights_port: "not-a-number",
+                reports_port: "not-a-number",
+                monitor_sqlite_path: "",
+                insights_sqlite_path: "",
+                reports_sqlite_path: "",
+            }))
+            .extract()
+            .expect("absent-module settings are outside the core Admin config");
+        assert_eq!(config.admin_port(), 9801);
+    }
+
+    #[test]
+    fn core_admin_production_does_not_require_module_secrets() {
+        let mut config = AdminConfig::local().expect("local core Admin config");
+        config.runtime.environment = "production".to_string();
+        config.jwt_secret = "production-jwt-secret".to_string();
+        config.deploy_signature_required = true;
+        config.deploy_verify_key = Some("ab".repeat(32));
+        // The IPC token keeps its development default: the core composition
+        // has no module endpoint to authenticate.
+        config.validate().expect("core production config without module secrets");
+    }
+}
+
 fn default_jwt_secret() -> String {
     DEFAULT_DEV_JWT_SECRET.to_string()
 }
@@ -642,6 +693,7 @@ mod tests {
         assert_eq!(config.admin_host(), "0.0.0.0");
         assert_eq!(config.admin_port(), 9801);
         assert_eq!(config.internal_host(), "127.0.0.1");
+        #[cfg(any(feature = "admin-monitor", feature = "modules"))]
         assert_eq!(config.monitor_base_url(), "http://127.0.0.1:9802");
         assert_eq!(config.database.db_idle_timeout, None);
         assert_eq!(config.runtime.runtime_root, ".rustzen-admin");
@@ -669,9 +721,12 @@ mod tests {
         let mut invalid = hardened.clone();
         invalid.jwt_secret = "replace-me".to_string();
         assert!(invalid.validate().is_err());
-        let mut invalid = hardened.clone();
-        invalid.ipc_token = "replace-me".to_string();
-        assert!(invalid.validate().is_err());
+        #[cfg(feature = "modules")]
+        {
+            let mut invalid = hardened.clone();
+            invalid.ipc_token = "replace-me".to_string();
+            assert!(invalid.validate().is_err());
+        }
         let mut invalid = hardened.clone();
         invalid.deploy_signature_required = false;
         assert!(invalid.validate().is_err());

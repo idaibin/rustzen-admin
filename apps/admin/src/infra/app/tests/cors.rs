@@ -51,6 +51,7 @@ async fn module_gateway_owns_cors_while_admin_routes_keep_wildcard_cors() {
             enabled: true,
             condition: ModuleCondition::Healthy,
             manifest: Some(Arc::new(manifest)),
+            #[cfg(feature = "modules")]
             manifest_hash: Some([1; 32]),
             storage: None,
             last_seen_at: Some(chrono::Utc::now()),

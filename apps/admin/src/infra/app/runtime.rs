@@ -10,10 +10,7 @@ use crate::{
 use crate::{
     features::{
         auth::public_auth_routes,
-        modules::{
-            control_routes, gateway,
-            service::{ModuleControlState, ModuleService},
-        },
+        modules::{control_routes, gateway, service::ModuleControlState},
     },
     infra::{
         auth_runtime::{ServerAuthContextLoader, jwt_codec},
@@ -22,6 +19,8 @@ use crate::{
         permission::PermissionService,
     },
 };
+#[cfg(feature = "modules")]
+use crate::features::modules::service::ModuleService;
 
 use axum::Extension;
 use axum::{Router, middleware, routing::get};
@@ -150,6 +149,9 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     let addr = server_addr();
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("Server started successfully, listening on http://{}", addr);
+    // The core composition has no module worker at all; module state is
+    // still served from the empty installed inventory.
+    #[cfg(feature = "modules")]
     ModuleService::spawn_synchronizer(module_state);
 
     let server_result = axum::serve(listener, app).await;

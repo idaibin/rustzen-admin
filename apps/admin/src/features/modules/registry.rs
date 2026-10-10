@@ -251,6 +251,7 @@ mod tests {
                     permission: Some("reports:view".to_string()),
                 }],
             })),
+            #[cfg(feature = "modules")]
             manifest_hash: Some([1; 32]),
             storage: None,
             last_seen_at: Some(chrono::Utc::now()),

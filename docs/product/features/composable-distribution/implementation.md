@@ -412,8 +412,12 @@ binary, fresh runtime root `/tmp/rz-core-vertical/root`, port 19801).**
   core` (exit 0). Startup log contains no module/manifest/notification/
   ingress lines; `lsof` shows the process's only socket is its own
   listener — zero outbound connections, i.e. no probing of 9802-9804.
-- Real API receipts (all captured under
-  `target/rz/oe2-core-vertical-20261009/`):
+- Real API receipts (originally captured under the volatile
+  `/tmp/rz-core-vertical/`; persisted and sanitized to
+  `target/rz/oe2-core-vertical-20261009/` on 2026-10-10 per DOT-OE-1900-04 —
+  see `PROVENANCE.md` there; the original pointer in the slice-1 record
+  claimed the durable path before the copy actually happened and is hereby
+  corrected):
   `POST /api/auth/login` (owner) → code 0 with a 339-byte token;
   `GET /api/auth/me` → owner identity with permissions;
   `GET /api/manage/logs` → `AUTH_LOGIN 用户登录成功` plus request audit rows
@@ -445,3 +449,80 @@ serves the core Web build (login page + authenticated core surfaces over the
 real API), full Web builds/tests stay green, and the embedded core asset set
 contains no module route chunks or notification code (asserted by inventory
 checks, not by navigation hiding).
+
+### Coordinator queue receipts — 2026-10-10 boundary
+
+Queue `/tmp/rustzen-optional-examples-changes.md` appeared at 19:07 on
+2026-10-09 (absent at the OE-0, OE-1, and slice-1 boundary checks recorded
+above) with four entries. Read and dispositioned this boundary; the queue is
+not project truth.
+
+**DOT-OE-1900-01 — applied.** Core configuration isolation. Reproduced on
+the slice-1 binary (sha256 `e053e616…`): `RUSTZEN_REPORTS_PORT=not-a-number`
+with a cleared environment exits 101 during extraction, before database
+startup. Fix: `crates/config` gains a `modules` feature; the module
+endpoint/database fields, their defaults, accessors, and the module-path
+validation now gate on the composition (`any(admin-monitor, modules)` for
+monitor, `any(admin-insights, modules)` for insights, `modules` for reports)
+instead of the Admin-wide `admin` feature, and `apps/admin`'s `modules`
+feature enables `rustzen-config/modules`. The IPC production-secret
+requirement now applies only in the modules composition (core has no module
+endpoint to authenticate; full unchanged — negative control re-verified).
+`infra/app/runtime.rs` no longer spawns the module synchronizer in core
+(compile-time, not just empty-inventory), and the sync machinery
+(`spawn_synchronizer`/`sync_once`/`sync_module`, manifest-hash bookkeeping,
+module permission/navigation reconciliation) is `modules`-gated throughout.
+Verified: core serves `/health` 200 under the previously fatal environment;
+full still exits 101 there; receipts and SHAs in
+`target/rz/oe-queue-1900-20261010/EXIT-RECEIPTS.md`.
+
+**DOT-OE-1900-02 — applied.** The inventory regression now attempts a real
+state change: seed rows start `enabled=1` and the test attempts
+`set_enabled(…, false)`, asserting rejection plus an unchanged stored value;
+the modules composition exercises the same invariant by installing a subset
+registry (the `modules` table CHECK constraint limits ids to the three
+examples, so a foreign row cannot be seeded). The positive authorized
+mutations remain covered by `features/modules/service/tests.rs`. The
+now-vacuous `synchronizing_an_empty_inventory_is_a_no_op` test was removed:
+core no longer compiles a synchronizer at all, which is the stronger
+guarantee. Four module-reconciliation permission tests moved under the
+`modules` gate with their subject.
+
+**DOT-OE-1900-03 — deferred to OE-3/4 with a binding constraint.** The
+proposal to add `identity/composition.json` to the full archive conflicts
+with the old worker's exact-inventory member check
+(`features/manage/deploy/bundle/validation.rs` rejects any extra archive
+member; `deploy/setup-layout.sh:456-466` rejects unknown paths); marker JSON
+tolerance does not bypass either. Admissibility for the full archive
+therefore requires proving a direct upgrade with the actual old signed
+artifacts (`target/rz/rz-0.5.1-x86_64.tar`, worker = the 0.5.1 `rz-admin`)
+or a compatible full bridge that adds no unrecognized member — JSON-field
+tolerance alone is not acceptable evidence. This does not block the core Web
+work. The backup/probe set derivation (compiled-feature-derived today)
+moving to authenticated installed/candidate inventory plus journal remains
+OE-3/4 scope.
+
+**DOT-OE-1900-04 — applied.** The slice-1 evidence pointer has been
+corrected in place above (the durable copy only happened during this
+boundary). The full vertical evidence is persisted, sanitized (login JWT
+redacted; original and redacted-token SHA-256 recorded), with per-file
+limitations documented in
+`target/rz/oe2-core-vertical-20261009/PROVENANCE.md`: bodies alone do not
+encode HTTP statuses or process identity, and the one-time `lsof` snapshot
+does not prove the absence of transient connections over the whole run.
+Final suite stdout pointers for slice 1: `/tmp/rz-ft3.log` (220/0/1) and
+`/tmp/rz-ct3.log` (151/0/1); earlier `/tmp/rz-full-test.log` and
+`/tmp/rz-core-test.log` runs contained failures and are superseded.
+
+**Post-receipt suite state (2026-10-10).** Core suite 146/0/1 (−6/+1: the
+renamed inventory test, the removed vacuous sync test, four reconciliation
+tests now modules-only); full suite 219/0/1; workspace
+`cargo clippy --workspace --all-targets -- -D warnings` exit 0;
+`cargo test --workspace -- --test-threads=1` exit 0 (478/0 summed);
+`rustzen-config` combos: default 27/0, admin-only 10/0, +modules 26/0,
+legacy `admin-monitor` 7/0. New config tests:
+`core_admin_ignores_absent_module_settings`,
+`core_admin_production_does_not_require_module_secrets`.
+
+**Next bounded task is unchanged: OE-2 slice 2, the core Web build** (exit
+criteria above).

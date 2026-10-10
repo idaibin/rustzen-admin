@@ -319,9 +319,8 @@ pub(crate) fn ensure_optional_non_empty(
 }
 
 #[cfg(any(
-    feature = "admin",
-    feature = "admin-monitor",
-    feature = "admin-insights",
+    feature = "modules",
+    feature = "notifications",
     feature = "insights",
     feature = "monitor-controller",
     feature = "monitor-agent",

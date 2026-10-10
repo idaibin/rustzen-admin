@@ -96,7 +96,7 @@ mod contract_tests {
     #[cfg(feature = "monitor-controller")]
     use crate::MonitorControllerConfig;
 
-    #[cfg(feature = "monitor-controller")]
+    #[cfg(all(feature = "monitor-controller", feature = "modules"))]
     #[derive(Serialize)]
     struct EndpointOverrides<'a> {
         internal_host: &'a str,
@@ -111,7 +111,9 @@ mod contract_tests {
         sqlite_path: &'a str,
     }
 
-    #[cfg(feature = "monitor-controller")]
+    // The Admin side of this endpoint contract only exists in the modules
+    // composition; a core Admin extracts no monitor settings at all.
+    #[cfg(all(feature = "monitor-controller", feature = "modules"))]
     #[test]
     fn admin_and_monitor_derive_the_same_fixed_service_endpoint() {
         let overrides = EndpointOverrides { internal_host: "127.0.0.9", monitor_port: 19082 };

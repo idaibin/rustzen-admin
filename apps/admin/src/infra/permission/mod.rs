@@ -10,6 +10,7 @@ use rustzen_auth::capability::{
 };
 #[cfg(test)]
 use rustzen_auth::permission::take_registered_permission_codes;
+#[cfg(feature = "modules")]
 use rustzen_ipc::ModuleManifest;
 use sqlx::{Executor, Sqlite, SqlitePool};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -29,9 +30,12 @@ mod roles;
 mod tests;
 
 use capabilities::{
-    build_menu_seed_records, menu_seed_record, refresh_menu_parent_id,
-    retire_stale_core_permissions, upsert_menu_seed_record,
+    build_menu_seed_records, refresh_menu_parent_id, retire_stale_core_permissions,
+    upsert_menu_seed_record,
 };
+#[cfg(feature = "modules")]
+use capabilities::menu_seed_record;
+#[cfg(feature = "modules")]
 use navigation::reconcile_navigation;
 use roles::{database_error, load_permission_cache_snapshot, sync_builtin_roles};
 
@@ -196,6 +200,7 @@ impl PermissionService {
         Ok(())
     }
 
+    #[cfg(feature = "modules")]
     pub async fn reconcile_module_manifest(
         pool: &SqlitePool,
         manifest: &ModuleManifest,

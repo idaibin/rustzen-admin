@@ -1,5 +1,7 @@
+#[cfg(feature = "modules")]
 use super::*;
 
+#[cfg(feature = "modules")]
 pub(super) async fn reconcile_navigation(
     tx: &mut sqlx::Transaction<'_, Sqlite>,
     manifest: &ModuleManifest,

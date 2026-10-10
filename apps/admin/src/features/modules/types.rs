@@ -56,6 +56,7 @@ pub struct ModuleRuntime {
     pub enabled: bool,
     pub condition: ModuleCondition,
     pub manifest: Option<Arc<ModuleManifest>>,
+    #[cfg(feature = "modules")]
     pub manifest_hash: Option<[u8; 32]>,
     pub storage: Option<rustzen_ipc::ModuleStorageReport>,
     pub last_seen_at: Option<DateTime<Utc>>,
@@ -69,6 +70,7 @@ impl ModuleRuntime {
             enabled,
             condition: ModuleCondition::Unavailable,
             manifest: None,
+            #[cfg(feature = "modules")]
             manifest_hash: None,
             storage: None,
             last_seen_at: None,

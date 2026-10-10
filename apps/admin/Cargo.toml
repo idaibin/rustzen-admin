@@ -27,7 +27,7 @@ core = [
 # Installed example-module inventory: enables Monitor/Insights/Reports
 # synchronization, gateway and projections. Without it the installed
 # inventory is empty and no module endpoint is probed at runtime.
-modules = []
+modules = ["rustzen-config/modules"]
 notifications = ["dep:aes-gcm", "dep:base64", "dep:fs2", "dep:hex", "rustzen-config/notifications"]
 reports-notifications = ["notifications", "rustzen-config/reports-notifications"]
 full = ["core", "modules", "reports-notifications"]

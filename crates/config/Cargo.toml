@@ -10,6 +10,9 @@ default = ["admin", "insights", "monitor-controller", "monitor-agent", "reports"
 admin = []
 admin-monitor = []
 admin-insights = []
+# Admin composed with the installed example modules: extracts module
+# endpoint and database settings and enforces the module IPC secret.
+modules = []
 notifications = ["dep:rustzen-ipc"]
 reports-notifications = ["reports", "notifications"]
 insights = []

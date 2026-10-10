@@ -1,24 +1,36 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+#[cfg(feature = "modules")]
+use std::time::Duration;
 
+#[cfg(feature = "modules")]
 use chrono::Utc;
 #[cfg(feature = "core")]
 use rustzen_auth::auth::AuthClaims;
 use rustzen_auth::auth::CurrentUser;
-use rustzen_ipc::{DelegationSigner, ModuleManifest, ModuleStorageReport};
+use rustzen_ipc::DelegationSigner;
+#[cfg(feature = "modules")]
+use rustzen_ipc::{ModuleManifest, ModuleStorageReport};
+#[cfg(feature = "modules")]
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
 
-use crate::{common::error::ServiceError, infra::permission::PermissionService};
+use crate::common::error::ServiceError;
+#[cfg(feature = "modules")]
+use crate::infra::permission::PermissionService;
 
 #[cfg(feature = "core")]
-use super::types::{ModuleHealthResponse, ModuleRuntime, ModuleStatusResponse};
+use super::types::{ModuleHealthResponse, ModuleStatusResponse};
+#[cfg(feature = "modules")]
+use super::types::ModuleRuntime;
 use super::{
     registry::ModuleRegistry,
     repo::ModuleRepository,
     types::{ModuleCondition, ModuleSpec, RuntimeMenuResponse},
 };
 
+#[cfg(feature = "modules")]
 const SYNC_INTERVAL: Duration = Duration::from_secs(10);
+#[cfg(feature = "modules")]
 const SYNC_REQUEST_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Clone)]
@@ -152,6 +164,7 @@ impl ModuleService {
         }
     }
 
+    #[cfg(feature = "modules")]
     pub fn spawn_synchronizer(state: ModuleControlState) {
         tokio::spawn(async move {
             loop {
@@ -161,6 +174,7 @@ impl ModuleService {
         });
     }
 
+    #[cfg(feature = "modules")]
     pub async fn sync_once(state: &ModuleControlState) {
         let specs = state
             .registry
@@ -175,6 +189,7 @@ impl ModuleService {
         }
     }
 
+    #[cfg(feature = "modules")]
     async fn sync_module(state: &ModuleControlState, spec: ModuleSpec) {
         let manifest_url = format!("{}/internal/v1/manifest", spec.base_url);
         let health_url = format!("{}/health", spec.base_url);
@@ -268,6 +283,7 @@ impl ModuleService {
         });
     }
 
+    #[cfg(feature = "modules")]
     fn update_health(state: &ModuleControlState, module: &str, healthy: bool) {
         state.registry.update_module(module, |runtime| {
             runtime.condition =
@@ -279,14 +295,17 @@ impl ModuleService {
         });
     }
 
+    #[cfg(feature = "modules")]
     fn mark_unavailable(state: &ModuleControlState, module: &str, error: String) {
         Self::update_condition(state, module, ModuleCondition::Unavailable, error);
     }
 
+    #[cfg(feature = "modules")]
     fn mark_incompatible(state: &ModuleControlState, module: &str, error: String) {
         Self::update_condition(state, module, ModuleCondition::Incompatible, error);
     }
 
+    #[cfg(feature = "modules")]
     fn update_condition(
         state: &ModuleControlState,
         module: &str,
@@ -300,6 +319,7 @@ impl ModuleService {
     }
 }
 
+#[cfg(feature = "modules")]
 fn validate_fixed_manifest(spec: &ModuleSpec, manifest: &ModuleManifest) -> Result<(), String> {
     manifest.validate().map_err(|error| error.to_string())?;
     if manifest.module != spec.id {
