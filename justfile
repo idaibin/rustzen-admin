@@ -39,12 +39,20 @@ check:
     cd apps/web && bun run test
     bun test apps/insights/src/features/tracking/tracker.test.mjs
     cd apps/web && bun run vp build
+    just verify-web-compositions
     cargo fmt --all -- --check
     cargo check --workspace
     cargo clippy --workspace --all-targets -- -D warnings
     # Admin fixtures share a process-global permission cache across independent databases.
     # Serialize test cases; each concurrency test still runs its own parallel tasks.
     cargo test --workspace -- --test-threads=1
+
+# Selected and core Web composition checks: the portal producers with their
+# verify chain (strip residue, inventory policy, binding) plus the core
+# Admin producer's boundary assertions
+verify-web-compositions:
+    bun test scripts/distribution-analytics-web.test.ts scripts/distribution-reports-web.test.ts scripts/distribution-notification-web.test.ts scripts/distribution-verify-web.test.ts
+    cd apps/web && bun run build:core
 
 verify-services:
     pnpm dlx bun@1.3.14 test scripts/gateway-latency-contract.test.mjs scripts/verify-insights-scenarios.test.mjs scripts/verify-reports-scenarios.test.mjs scripts/verify-worker-contracts.test.mjs scripts/verify-service-auth-module-gateway.test.mjs scripts/verify-services.test.mjs

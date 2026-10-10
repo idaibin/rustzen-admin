@@ -602,3 +602,60 @@ them), so the baseline gate stays green.
 the package script and signed marker with the composition field per the
 adopted contract; the DOT-OE-1900-03 real-artifact proof rule applies
 before any full-archive admission).
+
+### Coordinator queue receipts — 2026-10-10 second boundary (DOT-OE-1010)
+
+Queue digest at this boundary: sha256
+`f1525abd5f011d63742dc43b6ca657b81d8a938850ceed9f33baf7199f0d7784`.
+Stage acceptance recorded: `b532439` (config isolation fixes) and
+`9c9ab2f` (core Web producer) accepted as stage progress — not overall
+delivery. The prior-queue disposition block also accepts 1900-01/02/04
+fixes from current source and keeps 1900-03 as the OE-3/4 release blocker.
+
+**DOT-OE-1010-01 — applied.** The Monitor notification delivery surface is
+restored as the promised contract: `733c8b1` had dropped the
+`NotificationDeliveryCard` from `routes/monitoring/incidents.tsx` (an
+incidental casualty of its table-preset refactor) while the client method,
+web contract, Rust `/api/monitor/notification-delivery` route, and the
+Linux evidence scripts' DOM/API expectations all stayed — the closure
+contract on disk remained the promise, so per the queue's preference the
+UI was restored to the exact pre-`733c8b1` shape (byte-identical
+`deliveryCard` block and the three `actions={deliveryCard}` placements, so
+the pure-Monitor strip regexes keep matching). All four selected-Web
+distribution tests pass (4/0) — monitor-notify's delivery closure is
+complete again and no assertion was relaxed or deleted. The composition
+checks are now wired into an invoked gate: `just verify-web-compositions`
+runs the four selected-Web tests plus `bun run build:core`, and `just
+check` invokes it. Contract alignment cross-checked against
+`monitoring-ui-state-delivery-lib.sh` (expects
+`[data-testid=notification-delivery-card]`, provided by the restored
+card) — script execution itself is Linux-stack verification and stays
+unexecuted on this host.
+
+**DOT-OE-1010-02 — applied.** Final-source evidence index persisted at
+`target/rz/oe-1010-evidence-20261010/INDEX.md`: base HEAD
+`9c9ab2f2804ade8f58272978cd5e8aaa95757c5c`, dirty-diff digest
+`e3101dfe87eae4c7469c74f4dd8f10b06aebf2c196fe09cf66b1bb488cfba944`, with
+per-file SHA-256 for the Web 174-test log, full Web build log, the four
+selected-Web tests log, both Rust suite logs (146/0/1 core, 219/0/1 full),
+and both clippy logs. Pre-commit versus post-commit evidence is
+distinguished explicitly: all logs were captured on the dirty pre-commit
+tree whose bytes equal the follow-up commit's tree, and a post-commit
+anchor (clean tree SHA + fast-gate rerun) is recorded in the index. The
+earlier `/tmp/rustzen-template-tests.log` was not reused (it belongs to
+earlier template work, per the queue).
+
+**Blocked / not claimed at this boundary** (unchanged): browser DOM
+acceptance of the core shell and the restored card; Docker/Linux runtime
+verification; signed packaging and the DOT-OE-1900-03 real-artifact
+upgrade/rollback proof (OE-3/4); the queue also notes build.rs's
+non-empty-root check is not yet authenticated correct-root binding — that
+belongs to packaging acceptance (slice 3+).
+
+**Next bounded task: OE-2 slice 3 — core packaging integration** (per the
+adopted contract, with DOT-OE-1010's constraints folded in: composition
+identity must be anti-misplacement — the marker's composition must match
+the archive contents and mismatches must be rejected before any write; the
+full archive must not gain members the old worker rejects, and admission
+of any full-archive change requires the real 0.5.1 signed-artifact
+upgrade/rollback proof, never JSON-tolerance inference).

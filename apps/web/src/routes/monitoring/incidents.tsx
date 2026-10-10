@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { monitorAPI } from "@/api";
 import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
+import { NotificationDeliveryCard } from "@/components/feedback/notification-delivery-card";
 import { PageCard } from "@/components/page/page-card";
 import { actionColumnWidth } from "@/components/table/action-column";
 import { DataTableShell } from "@/components/table/data-table-shell";
@@ -85,11 +86,18 @@ function MonitoringIncidentsPage() {
         </Space>
     );
 
+    const deliveryCard = (
+        <NotificationDeliveryCard
+            queryKey={["monitor", "notification-delivery"]}
+            queryFn={monitorAPI.notificationDelivery}
+        />
+    );
     const permissionDenied = isMonitorPermissionDenied(error);
     if (permissionDenied)
         return (
             <PageCard
                 toolbar={searchControls}
+                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
@@ -118,6 +126,7 @@ function MonitoringIncidentsPage() {
         return (
             <PageCard
                 toolbar={searchControls}
+                actions={deliveryCard}
                 title={t("告警事件", "Alert incidents")}
                 description={t(
                     "查看活动和最近解决的资源与离线告警。",
@@ -217,6 +226,7 @@ function MonitoringIncidentsPage() {
     return (
         <PageCard
             toolbar={searchControls}
+            actions={deliveryCard}
             title={t("告警事件", "Alert incidents")}
             description={t(
                 "查看活动和最近解决的资源与离线告警。",
