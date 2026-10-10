@@ -526,3 +526,79 @@ legacy `admin-monitor` 7/0. New config tests:
 
 **Next bounded task is unchanged: OE-2 slice 2, the core Web build** (exit
 criteria above).
+
+### OE-2 slice 2 receipt — the core Web build (2026-10-10, commit after `b532439`)
+
+Executed to the exit criteria above; baseline `b532439`, tree clean at start.
+
+**Producer.** `scripts/distribution-build-web.ts` gained a `core` preset
+branch and `distribution/catalog.json` a `core` preset
+(`access`, `admin-console`, `release-ui`, `task-admin`, `log-console`;
+fixture `distribution/fixtures/core.json`). The core branch stages the real
+Admin route set from the selection's web roots plus every non-test
+co-located helper under `routes/{system,manage}` (globbed, not
+hand-listed), strips the `__root.tsx` notification import with the existing
+verified strip (now with a residue assertion), mirrors the real
+`index.html` head (theme/locale bootstrap) instead of the portal stub, and
+keeps the four shell seams resolving to their real modules — only portal
+presets swap them. Vite accepts `RUSTZEN_WEB_PRESET=core` with no seam
+aliases. Output: `apps/web/dist-core` (`just build-web-core` /
+`bun run build:core`); no portal binding machinery is applied.
+
+**Boundary assertions (in the producer, fail-closed).** Module-graph absence
+is asserted for module route directories and the notification shell
+(graph-level); module API clients and notification text are denied at the
+emitted-asset level — every emitted `.js/.css/.html` is scanned for
+`/api/monitor/`, `/api/insights/`, `/api/reports/`, `/api/notifications/`,
+and `notification-delivery` — plus required-route positives (all twelve
+real Admin routes must be in the graph) and a notification-asset name
+check. The asset-level scan exists because the real `src/api` barrel
+statically re-exports every module client, so client modules legitimately
+appear in the module graph while being tree-shaken out of the bundle; the
+assertion therefore targets what the core Admin actually embeds.
+
+**Embed.** `apps/admin/build.rs` `web_root()` is composition-parameterized
+(core → `../web/dist-core`, full → `../web/dist`) and `infra/web.rs`
+defines the `WebAssets` embed per composition with the same split; a
+missing core build fails the build with a non-empty inventory assertion.
+The composition identity remains the feature-derived marker from slice 1.
+
+**Verification.** Core Web build exit 0 with all assertions passing; full
+Web build exit 0; core Admin (re)built and served over a cleared
+environment on port 19804: `/` → 200 `Rustzen Admin` with the core build's
+hashed entry chunk served 200 (272739 bytes), owner login → `me` and
+`dashboard/stats` 200 over the real API, and the served `index.html` +
+entry chunk contain zero module endpoint or notification markers. Receipts
+and SHA-256s in `target/rz/oe2-slice2-core-web-20261010/PROVENANCE.md`.
+Web gates: `bun test` 174/0, `vp fmt --check` clean, `vp lint` 0 errors,
+`tsc --noEmit` clean. Rust gates after the embed change: core suite
+146/0/1, full suite 219/0/1, clippy `-D warnings` clean in both
+compositions.
+
+**Found defect (pre-existing, documented — portal chain, not core).**
+The four selected-Web distribution tests were red at the `b532439`
+baseline (verified by stashing this slice's changes): `733c8b1` ("unify
+signed 0.5.1 server distribution") added the shared route-keyed icon map
+to all three portal layouts and removed the notification delivery card
+from the Monitor incidents surface without updating the selected-Web
+policy chain. Repaired in this slice (tightly scoped):
+`lucide-react` added to `distribution-web-allowed-packages.ts`; the three
+`src/distribution/*-layout.tsx` now carry their own lucide icons (same
+glyphs and rendering parameters as the shared map) so the shared map's
+cross-composition route strings stay out of portal bundles. Three of the
+four tests are green again. The fourth
+(`distribution-notification-web.test.ts`, monitor-notify delivery closure)
+remains red: the delivery UI now lives only in `reports/runs.tsx` while
+the Monitor web client (`src/api/monitor/api.ts` +
+`notification-contract.ts`), the Rust `selected_contract` route, and the
+ops evidence scripts still carry `/api/monitor/notification-delivery`.
+Completing that migration is a cross-layer bounded task of its own (web
+client + web contract + monitor `selected_contract` + parity/evidence
+scripts); it is recorded here and left for a dedicated slice — no repo
+gate runs these four tests (`just check`/`contract-verify` do not invoke
+them), so the baseline gate stays green.
+
+**Next bounded task: OE-2 slice 3 — core packaging integration** (extend
+the package script and signed marker with the composition field per the
+adopted contract; the DOT-OE-1900-03 real-artifact proof rule applies
+before any full-archive admission).

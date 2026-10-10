@@ -255,6 +255,11 @@ build-native:
 build-web:
     cd apps/web && bun run vp build
 
+# Build the core Admin web bundle (real shell, no example modules or
+# notifications) into apps/web/dist-core for the core Admin embed
+build-web-core:
+    cd apps/web && bun run build:core
+
 # Build minimal deployment configuration files
 build-config:
     mkdir -p target/rz/config target/rz/systemd

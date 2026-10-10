@@ -5,8 +5,17 @@ use axum::{
 };
 use rust_embed::RustEmbed;
 
+// The full composition embeds the shared full Web build; the core composition
+// embeds the dedicated core Web build (the real Admin shell without the
+// example modules or the notification surfaces).
+#[cfg(feature = "modules")]
 #[derive(RustEmbed)]
 #[folder = "../web/dist"]
+struct WebAssets;
+
+#[cfg(not(feature = "modules"))]
+#[derive(RustEmbed)]
+#[folder = "../web/dist-core"]
 struct WebAssets;
 
 pub async fn serve(uri: Uri) -> Response {

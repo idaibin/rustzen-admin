@@ -28,11 +28,15 @@ fn composition_label() -> &'static str {
     }
 }
 
-/// The embedded Web root. A dedicated core Web build lands with the core Web
-/// producer; until then both compositions embed the shared full build and the
-/// distinction is recorded by the composition identity, not the asset set.
+/// The embedded Web root: the full composition embeds the shared full build,
+/// the core composition embeds the dedicated core Web build produced by
+/// `just build-web-core` (real shell, no example modules or notifications).
 fn web_root() -> PathBuf {
-    PathBuf::from("../web/dist")
+    if std::env::var_os("CARGO_FEATURE_MODULES").is_some() {
+        PathBuf::from("../web/dist")
+    } else {
+        PathBuf::from("../web/dist-core")
+    }
 }
 
 fn full_web_digest(root: &Path) -> String {

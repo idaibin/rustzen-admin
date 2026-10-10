@@ -9,6 +9,7 @@
         "preview": "vp preview",
         "dev": "vp dev",
         "build": "vp build",
+        "build:core": "bun ../../scripts/distribution-build-web.ts --selection ../../distribution/fixtures/core.json",
         "build:selected": "bun ../../scripts/distribution-build-web.ts --selection ../../distribution/fixtures/monitor.json",
         "verify:selected": "bun ../../scripts/distribution-verify-web.ts --selection ../../distribution/fixtures/monitor.json",
         "test": "bun test",

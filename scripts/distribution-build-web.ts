@@ -21,15 +21,29 @@ if (flag !== "--selection" || !selectionPath) {
     throw new Error("usage: bun scripts/distribution-build-web.ts --selection <selection.json>");
 }
 
-const selection = resolveSelection(await Bun.file(resolve(repositoryRoot, selectionPath)).json());
-if (!supportsSelectedWeb(selection))
+// Resolved against the invoking working directory so the producer works both
+// from the repository root and from apps/web package scripts.
+const selection = resolveSelection(await Bun.file(resolve(selectionPath)).json());
+// The core preset builds the real Admin shell without the example modules;
+// it is not a module portal and skips the portal seam replacements and the
+// selected-web binding machinery.
+const isCore = selection.preset === "core";
+if (!isCore && !supportsSelectedWeb(selection))
     throw new Error("selected Web producer does not support this exact composition");
+if (
+    isCore &&
+    selection.capabilities.join(",") !== "access,admin-console,log-console,release-ui,task-admin"
+)
+    throw new Error("core Web producer supports only the exact core preset");
 const hasNotifications = selection.capabilities.includes("notifications");
 const isAnalytics = selection.preset === "analytics";
 const isReports = selection.preset === "reports";
 
-const outputRoot = join(repositoryRoot, "target/distributions", selection.compositionId, "web");
-const generatedRoot = join(webRoot, ".selected-web", selection.compositionId);
+const outputRoot = isCore
+    ? join(webRoot, "dist-core")
+    : join(repositoryRoot, "target/distributions", selection.compositionId, "web");
+const distDir = isCore ? outputRoot : join(outputRoot, "dist");
+const generatedRoot = join(webRoot, ".selected-web", isCore ? "core" : selection.compositionId);
 const routeRoot = join(generatedRoot, "routes");
 const reportsRouteHelpers = [
     "apps/web/src/routes/reports/-schedule-permissions.ts",
@@ -51,20 +65,30 @@ const reportsRouteHelpers = [
     "apps/web/src/routes/reports/-templates/target-dialog.tsx",
     "apps/web/src/routes/reports/-templates/templates-content.tsx",
 ];
+// Core keeps the real Admin shell: stage every non-test co-located helper
+// under the system and manage route subtrees instead of hand-listing them.
+const coreRouteHelpers = await (async () => {
+    const glob = new Bun.Glob("apps/web/src/routes/{system,manage}/**/-*");
+    const matches: string[] = [];
+    for await (const path of glob.scan({ cwd: repositoryRoot })) matches.push(path);
+    return matches.filter((path) => !/\.test\.[jt]sx?$/.test(path)).sort();
+})();
 const sourceRoutes = [
     ...selection.webRoots,
     ...(isAnalytics ? ["apps/web/src/routes/analytics/-event-target.ts"] : []),
     ...(isReports ? reportsRouteHelpers : []),
-    ...(!isAnalytics && !isReports
-        ? [
-              "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
-              "apps/web/src/routes/monitoring/-incident-drawer.tsx",
-              "apps/web/src/routes/monitoring/-node-details.tsx",
-              "apps/web/src/routes/monitoring/-node-alert-policy.tsx",
-              "apps/web/src/routes/monitoring/-node-onboarding.tsx",
-              "apps/web/src/routes/monitoring/-save-state.ts",
-          ]
-        : []),
+    ...(isCore
+        ? coreRouteHelpers
+        : !isAnalytics && !isReports
+          ? [
+                "apps/web/src/routes/monitoring/-global-alert-settings.tsx",
+                "apps/web/src/routes/monitoring/-incident-drawer.tsx",
+                "apps/web/src/routes/monitoring/-node-details.tsx",
+                "apps/web/src/routes/monitoring/-node-alert-policy.tsx",
+                "apps/web/src/routes/monitoring/-node-onboarding.tsx",
+                "apps/web/src/routes/monitoring/-save-state.ts",
+            ]
+          : []),
     "apps/web/src/routes/system/-role-actions.tsx",
     "apps/web/src/routes/system/-role-delete-state.ts",
     "apps/web/src/routes/system/-role-dialog.tsx",
@@ -73,7 +97,7 @@ const sourceRoutes = [
     "apps/web/src/routes/system/-user-dialog.tsx",
 ];
 const selectedRoutes = [
-    "index.tsx",
+    ...(isCore ? [] : ["index.tsx"]),
     ...sourceRoutes.map((source) => source.replace("apps/web/src/routes/", "")),
 ].sort();
 const publicAssets = ["rustzen.png"];
@@ -119,6 +143,12 @@ const copyRoute = async (source: string) => {
             .replace(" headerActions={token ? <NotificationShell /> : null}", "");
     }
     if (
+        relativeRoute === "__root.tsx" &&
+        !hasNotifications &&
+        /NotificationShell|-notifications-shell/.test(content)
+    )
+        throw new Error("notification-free root route retains the notification shell");
+    if (
         relativeRoute === "monitoring/incidents.tsx" &&
         !hasNotifications &&
         /NotificationDeliveryCard|deliveryCard|notification-delivery/.test(content)
@@ -139,51 +169,73 @@ await Promise.all(sourceRoutes.map(copyRoute));
 await mkdir(join(generatedRoot, "public"), { recursive: true });
 await cp(join(webRoot, "src/style.css"), join(generatedRoot, "style.css"));
 await cp(join(webRoot, "src/styles"), join(generatedRoot, "styles"), { recursive: true });
-const landingRoute = isAnalytics
-    ? "/analytics/overview"
-    : isReports
-      ? "/reports/templates"
-      : "/monitoring/overview";
-await Bun.write(
-    join(routeRoot, "index.tsx"),
-    `import { createFileRoute, redirect } from "@tanstack/react-router";\n\nexport const Route = createFileRoute("/")({ beforeLoad: () => { throw redirect({ to: "${landingRoute}" }); } });\n`,
-);
+// Portal presets replace the four shell seams with minimal portal versions
+// and redirect the landing route. The core build keeps the real Admin seams
+// (`@/api`, the real layout, auth store, and menu query options resolve to
+// their original modules) and stages the real dashboard route.
+if (!isCore) {
+    const landingRoute = isAnalytics
+        ? "/analytics/overview"
+        : isReports
+          ? "/reports/templates"
+          : "/monitoring/overview";
+    await Bun.write(
+        join(routeRoot, "index.tsx"),
+        `import { createFileRoute, redirect } from "@tanstack/react-router";\n\nexport const Route = createFileRoute("/")({ beforeLoad: () => { throw redirect({ to: "${landingRoute}" }); } });\n`,
+    );
+    await Bun.write(
+        join(generatedRoot, "api.ts"),
+        await Bun.file(
+            join(
+                webRoot,
+                isAnalytics
+                    ? "src/distribution/analytics-api.ts"
+                    : isReports
+                      ? "src/distribution/reports-api.ts"
+                      : hasNotifications
+                        ? "src/distribution/monitor-notify-api.ts"
+                        : "src/distribution/monitor-api.ts",
+            ),
+        ).text(),
+    );
+    const distributionPrefix = isAnalytics ? "analytics" : isReports ? "reports" : "monitor";
+    await Bun.write(
+        join(generatedRoot, "layout.tsx"),
+        await Bun.file(join(webRoot, `src/distribution/${distributionPrefix}-layout.tsx`)).text(),
+    );
+    await Bun.write(
+        join(generatedRoot, "auth-store.ts"),
+        await Bun.file(join(webRoot, `src/distribution/${distributionPrefix}-auth-store.ts`))
+            .text(),
+    );
+    await Bun.write(
+        join(generatedRoot, "menu-query-options.ts"),
+        await Bun.file(
+            join(webRoot, `src/distribution/${distributionPrefix}-menu-query-options.ts`),
+        ).text(),
+    );
+}
 await cp(join(webRoot, "public/rustzen.png"), join(generatedRoot, "public/rustzen.png"));
-await Bun.write(
-    join(generatedRoot, "api.ts"),
-    await Bun.file(
-        join(
-            webRoot,
-            isAnalytics
-                ? "src/distribution/analytics-api.ts"
-                : isReports
-                  ? "src/distribution/reports-api.ts"
-                  : hasNotifications
-                    ? "src/distribution/monitor-notify-api.ts"
-                    : "src/distribution/monitor-api.ts",
-        ),
-    ).text(),
-);
-const distributionPrefix = isAnalytics ? "analytics" : isReports ? "reports" : "monitor";
-await Bun.write(
-    join(generatedRoot, "layout.tsx"),
-    await Bun.file(join(webRoot, `src/distribution/${distributionPrefix}-layout.tsx`)).text(),
-);
-await Bun.write(
-    join(generatedRoot, "auth-store.ts"),
-    await Bun.file(join(webRoot, `src/distribution/${distributionPrefix}-auth-store.ts`)).text(),
-);
-await Bun.write(
-    join(generatedRoot, "menu-query-options.ts"),
-    await Bun.file(
-        join(webRoot, `src/distribution/${distributionPrefix}-menu-query-options.ts`),
-    ).text(),
-);
-const distributionTitle = isAnalytics ? "Analytics" : isReports ? "Reports" : "Monitor";
-await Bun.write(
-    join(generatedRoot, "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><link href="./style.css" rel="stylesheet" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${distributionTitle}</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
-);
+const distributionTitle = isCore
+    ? "Admin"
+    : isAnalytics
+      ? "Analytics"
+      : isReports
+        ? "Reports"
+        : "Monitor";
+if (isCore) {
+    // Mirrors apps/web/index.html so theme and locale bootstrapping behave
+    // exactly like the full Admin shell.
+    await Bun.write(
+        join(generatedRoot, "index.html"),
+        `<!doctype html><html lang="en-US"><head><meta charset="UTF-8" /><link rel="icon" type="image/svg+xml" href="/rustzen.png" /><script>try { const theme = localStorage.getItem("rustzen-admin-theme"); document.documentElement.classList.toggle("dark", theme === "dark"); if (theme !== "light" && theme !== "dark") { localStorage.setItem("rustzen-admin-theme", "light"); } document.documentElement.lang = localStorage.getItem("rustzen-admin-locale") === "zh-CN" ? "zh-CN" : "en-US"; } catch {}</script><link href="./style.css" rel="stylesheet" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${distributionTitle}</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
+    );
+} else {
+    await Bun.write(
+        join(generatedRoot, "index.html"),
+        `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><link href="./style.css" rel="stylesheet" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${distributionTitle}</title></head><body><div id="root"></div><script type="module" src="./main.tsx"></script></body></html>`,
+    );
+}
 await Bun.write(
     join(generatedRoot, "main.tsx"),
     await Bun.file(join(webRoot, "src/main.tsx")).text(),
@@ -197,7 +249,7 @@ const build = Bun.spawnSync(command, {
         NODE_ENV: "production",
         RUSTZEN_WEB_PRESET: selection.preset,
         RUSTZEN_WEB_SELECTED_ROOT: generatedRoot,
-        RUSTZEN_WEB_OUTPUT_DIR: join(outputRoot, "dist"),
+        RUSTZEN_WEB_OUTPUT_DIR: distDir,
         RUSTZEN_WEB_VITE_INVENTORY: viteInventoryPath,
         VITE_RUSTZEN_REPORTS_SELECTED: selection.capabilities.includes("reports")
             ? "true"
@@ -224,56 +276,124 @@ const styleEntries = viteInventory.emittedFiles.filter(
         typeof file === "string" && /^assets\/[^/]+\.css$/.test(file),
 );
 if (styleEntries.length === 0) throw new Error("selected Web bundle has no stylesheet");
-const styleLinks = styleEntries
-    .sort()
-    .map((file: string) => `<link rel="stylesheet" href="/${file}" />`)
-    .join("");
-const bootstrap = createSelectedWebBootstrap({
-    entryPath: mainEntry,
-    entryBytes: await Bun.file(join(outputRoot, "dist", mainEntry)).bytes(),
-});
-await rm(join(outputRoot, "dist", ".selected-web"), { recursive: true, force: true });
-await Bun.write(
-    join(outputRoot, "dist", "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${distributionTitle}</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div>${bootstrap.html}</body></html>`,
-);
-const selectedApiBytes = await Bun.file(join(generatedRoot, "api.ts")).bytes();
-await Bun.write(join(outputRoot, "api.ts"), selectedApiBytes);
-const preStampFiles = await readWebFiles(join(outputRoot, "dist"));
-const binding = createWebBinding({
-    compositionId: selection.compositionId,
-    selectedApiBytes,
-    files: preStampFiles,
-});
-const unstampedIndex = preStampFiles.find((file) => file.path === "index.html");
-if (!unstampedIndex) throw new Error("selected Web bundle has no index.html");
-await Bun.write(
-    join(outputRoot, "dist", "index.html"),
-    stampIndex(unstampedIndex.bytes, binding.webDigest),
-);
-const emittedFiles = await readWebFiles(join(outputRoot, "dist"));
-verifyWebBinding({
-    binding,
-    compositionId: selection.compositionId,
-    selectedApiBytes,
-    files: emittedFiles,
-});
+const moduleIds = normalizeModuleIds(viteInventory.moduleIds);
+let emittedFiles: Awaited<ReturnType<typeof readWebFiles>>;
+let binding: ReturnType<typeof createWebBinding> | null = null;
+if (isCore) {
+    // The html input lives in the staging root, so Vite emits it under
+    // .selected-web/core/ within the output directory: lift it to the
+    // output root (it already references the hashed assets) and drop the
+    // staging remnant, exactly like the portal flow does.
+    const stagedIndex = join(distDir, ".selected-web", "core", "index.html");
+    if (!(await Bun.file(stagedIndex).exists()))
+        throw new Error("core Web bundle has no emitted index.html");
+    await Bun.write(join(distDir, "index.html"), await Bun.file(stagedIndex).text());
+    await rm(join(distDir, ".selected-web"), { recursive: true, force: true });
+    // Composition boundary assertions. Module-graph absence is only provable
+    // for the staged routes (the api barrel statically re-exports every
+    // client, so client modules appear in the graph even when tree-shaken
+    // out of the bundle); module API and notification code is therefore
+    // denied at the emitted-asset level, which is what the core Admin
+    // actually embeds.
+    const forbiddenModulePatterns = [
+        /(^|\/)routes\/monitoring(\/|$)/,
+        /(^|\/)routes\/analytics(\/|$)/,
+        /(^|\/)routes\/reports(\/|$)/,
+        /-notifications-shell/,
+    ];
+    for (const id of moduleIds)
+        for (const pattern of forbiddenModulePatterns)
+            if (pattern.test(id))
+                throw new Error(`core Web graph contains an absent-module route: ${id}`);
+    const requiredRoutes = [
+        "__root",
+        "index",
+        "login",
+        "profile",
+        "system/role",
+        "system/user",
+        "system/menu",
+        "system/module",
+        "system/status",
+        "manage/deploy",
+        "manage/task",
+        "manage/log",
+    ];
+    for (const route of requiredRoutes)
+        if (!moduleIds.some((id) => id.endsWith(`routes/${route}.tsx`)))
+            throw new Error(`core Web graph is missing the ${route} route`);
+    emittedFiles = await readWebFiles(distDir);
+    const forbiddenAssetPatterns: RegExp[] = [
+        /\/api\/monitor\//,
+        /\/api\/insights\//,
+        /\/api\/reports\//,
+        /\/api\/notifications\//,
+        /notification-delivery/,
+    ];
+    for (const file of emittedFiles) {
+        if (/notification/i.test(file.path))
+            throw new Error(`core Web assets contain a notification artifact: ${file.path}`);
+        if (!/\.(js|css|html)$/.test(file.path)) continue;
+        const text = await Bun.file(join(distDir, file.path)).text();
+        for (const pattern of forbiddenAssetPatterns)
+            if (pattern.test(text))
+                throw new Error(
+                    `core Web asset ${file.path} contains absent-module code (${pattern})`,
+                );
+    }
+} else {
+    const styleLinks = styleEntries
+        .sort()
+        .map((file: string) => `<link rel="stylesheet" href="/${file}" />`)
+        .join("");
+    const bootstrap = createSelectedWebBootstrap({
+        entryPath: mainEntry,
+        entryBytes: await Bun.file(join(distDir, mainEntry)).bytes(),
+    });
+    await rm(join(distDir, ".selected-web"), { recursive: true, force: true });
+    await Bun.write(
+        join(distDir, "index.html"),
+        `<!doctype html><html lang="en"><head><meta charset="UTF-8" />${styleLinks}<meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Rustzen ${distributionTitle}</title><meta name="rustzen-web-binding" content="${WEB_BINDING_SLOT}" /></head><body><div id="root"></div>${bootstrap.html}</body></html>`,
+    );
+    const selectedApiBytes = await Bun.file(join(generatedRoot, "api.ts")).bytes();
+    await Bun.write(join(outputRoot, "api.ts"), selectedApiBytes);
+    const preStampFiles = await readWebFiles(distDir);
+    const portalBinding = createWebBinding({
+        compositionId: selection.compositionId,
+        selectedApiBytes,
+        files: preStampFiles,
+    });
+    const unstampedIndex = preStampFiles.find((file) => file.path === "index.html");
+    if (!unstampedIndex) throw new Error("selected Web bundle has no index.html");
+    await Bun.write(
+        join(distDir, "index.html"),
+        stampIndex(unstampedIndex.bytes, portalBinding.webDigest),
+    );
+    emittedFiles = await readWebFiles(distDir);
+    verifyWebBinding({
+        binding: portalBinding,
+        compositionId: selection.compositionId,
+        selectedApiBytes,
+        files: emittedFiles,
+    });
+    binding = portalBinding;
+    await Bun.write(join(outputRoot, "binding.json"), canonicalBindingBytes(portalBinding));
+}
 
 const output = {
     schemaVersion: 2,
     preset: selection.preset,
     compositionId: selection.compositionId,
     generatedRoot: relative(repositoryRoot, generatedRoot),
-    outputDirectory: relative(repositoryRoot, join(outputRoot, "dist")),
+    outputDirectory: relative(repositoryRoot, distDir),
     selectedRoutes,
     publicAssets,
     emittedFiles: emittedFiles.map((file) => file.path),
     fileInventory: emittedFiles.map(({ path, size, sha256 }) => ({ path, size, sha256 })),
-    moduleIds: normalizeModuleIds(viteInventory.moduleIds),
+    moduleIds,
     binding,
 };
 await Bun.write(join(outputRoot, "inventory.json"), `${JSON.stringify(output, null, 2)}\n`);
-await Bun.write(join(outputRoot, "binding.json"), canonicalBindingBytes(binding));
 console.log(JSON.stringify(output, null, 2));
 
 function normalizeModuleIds(moduleIds: unknown): string[] {

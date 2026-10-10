@@ -16,9 +16,13 @@ const selectedRoot = process.env.RUSTZEN_WEB_SELECTED_ROOT;
 const selectedOutput = process.env.RUSTZEN_WEB_OUTPUT_DIR;
 const selectedViteInventory = process.env.RUSTZEN_WEB_VITE_INVENTORY;
 const isSelectedBuild =
-    ["monitor", "monitor-notify", "analytics", "reports"].includes(selectedPreset ?? "") &&
+    ["monitor", "monitor-notify", "analytics", "reports", "core"].includes(selectedPreset ?? "") &&
     Boolean(selectedRoot) &&
     Boolean(selectedOutput);
+// The core build stages the real Admin shell: routes come from the staging
+// root, but the api, layout, auth store, and menu query option seams keep
+// resolving to their original modules.
+const isPortalSelectedBuild = isSelectedBuild && selectedPreset !== "core";
 
 if (selectedPreset && !isSelectedBuild) {
     throw new Error("selected Web build preset is unsupported");
@@ -75,7 +79,7 @@ export default defineConfig({
     ),
     resolve: {
         tsconfigPaths: true,
-        alias: isSelectedBuild
+        alias: isPortalSelectedBuild
             ? [
                   { find: /^@\/api$/, replacement: selectedPath("api.ts") },
                   {

@@ -225,6 +225,17 @@
             "releaseClass": "production",
             "capabilities": ["monitor-agent"]
         },
+        "core": {
+            "artifactClass": "server",
+            "releaseClass": "production",
+            "capabilities": [
+                "access",
+                "admin-console",
+                "release-ui",
+                "task-admin",
+                "log-console"
+            ]
+        },
         "full": {
             "artifactClass": "server",
             "releaseClass": "production",

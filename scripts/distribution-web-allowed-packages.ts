@@ -48,6 +48,7 @@ export const allowedWebPackages = (): Set<string> => {
         "is-mobile",
         "json2mq",
         "lodash-es",
+        "lucide-react",
         "path-to-regexp",
         "react",
         "react-dom",
