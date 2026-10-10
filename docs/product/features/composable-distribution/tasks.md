@@ -9,19 +9,23 @@ implementer unless a task names another owner.
 
 ## Status summary
 
-- Done (stage-accepted): OE-0, OE-1, OE-2 slice 1 (core composition),
-  DOT-OE-1900-01/02/04, OE-2 slice 2 (core Web), DOT-OE-1010-01/02.
-- In progress: OE-T09 packaging integration (update-chain scope complete
-  as slice 3a; real Linux package builds gated by OE-T10).
-- Ready: OE-T12 core fresh-install installer (slice 3b).
-- Blocked: OE-T10 old-worker real-artifact proof (Linux environment),
-  browser DOM acceptance, Docker/Linux runtime verification.
+- Done (stage-accepted or review-accepted): OE-0, OE-1, OE-2 slice 1
+  (core composition), DOT-OE-1900-01/02/04, OE-2 slice 2 (core Web),
+  DOT-OE-1010-01/02, OE-2 slice 3a + signer closure (`b2de445`
+  re-review accepted 2026-10-10).
+- In progress: OE-T09 remaining packaging scope (Linux-real package
+  builds gated by OE-T10).
+- Not executed: OE-T12 core fresh-install installer (Ready — handed to
+  the coordinator-owned writer at the 2026-10-10 checkpoint).
+- Not verified (never claimed): OE-T10 old-worker real-artifact
+  proof, real Linux deployment, interrupted-update recovery on a real
+  host, browser DOM acceptance.
 
 ## Ready frontier
 
-1. **OE-T12 core fresh-install installer** — the only currently Ready
-   task; everything else is Done, In progress on its remaining scope, or
-   Blocked.
+1. **OE-T12 core fresh-install installer** — the next executable
+   package, owned by the coordinator-side writer after the handoff
+   checkpoint (`target/rz/oe-checkpoint-handoff-20261010/`).
 
 ## Tasks
 
@@ -152,11 +156,14 @@ implementer unless a task names another owner.
   unified with the Rust worker, reviewer counterexample reproduced then
   rejected both pre-signing and post-splice, focused tests 7/0 —
   `target/rz/oe3-signer-closure-20261010/PROVENANCE.md`.
-- **Status**: In progress — update chain and signer closure complete
-  (slice 3a + signer package, the latter pending independent review);
-  the fresh-install installer variant is OE-T12 and stays gated on that
-  review.
-- **Blocker**: none for the delivered scope.
+- **Status**: In progress — update chain and signer closure complete;
+  the signer package (`b2de445`) passed independent re-review on
+  2026-10-10 (counterexample rejection reproduced, 7/0 no skips).
+  The fresh-install installer variant is OE-T12, handed to the
+  coordinator-owned writer at the 2026-10-10 checkpoint.
+- **Blocker**: none for the delivered scope. Open limitation for the
+  next writer: the Rust real-artifact test returns silently on artifact
+  absence (skip-shaped, never a pass).
 
 ### OE-T10 — Real-artifact upgrade/rollback proof (DOT-OE-1900-03)
 

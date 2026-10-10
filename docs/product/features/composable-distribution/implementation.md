@@ -789,3 +789,35 @@ Wording corrections: "rejected before any write" claims are narrowed to
 of DOT-OE-1900-03 remains unmet and unverified (real Linux upgrade/
 rollback), not substitutable by any result here. OE-T12 stays gated on
 this package's independent review.
+
+
+### Writer handoff checkpoint — 2026-10-10
+
+Division of labor changed at this boundary: the writer role returns to
+the coordinator (dot). The previously instructed OE-T12 implementation
+package is **not started**; this checkpoint only preserves state and
+hands over.
+
+- Signer closure `b2de445` **independently re-reviewed and accepted**:
+  counterexample reproduced as rejected (core + rz-insights, sign and
+  verify both exit 1), focused suite 7/0 with no skips including the
+  real legacy full positive and the claim-as-core rejection. Re-review
+  log preserved sanitized at
+  `target/rz/oe-checkpoint-handoff-20261010/signer-rereview-focused-tests.log`
+  (sha256 `ed12dc66…`).
+- Acknowledged open limitation (not masked): the Rust
+  `accepts_the_real_legacy_signed_artifact` test returns silently when
+  the artifact is absent — skip-shaped, never a pass.
+- Repository state at handoff: branch `feat/theme-verification-20261005`
+  (non-main, reused — no new branch, no empty commits), HEAD `b2de445`,
+  tree clean including untracked, single worktree, two pre-existing
+  foreign stashes untouched, no parallel writers. Full checkpoint
+  record: `target/rz/oe-checkpoint-handoff-20261010/CHECKPOINT.md`.
+- Status ledger: Done = OE-0/1, slice 1, DOT-OE-1900-01/02/04, slice 2,
+  DOT-OE-1010-01/02, slice 3a + signer closure (review-accepted);
+  Not executed = OE-T12 installer; Not verified = real Linux
+  deployment, old-worker upgrade/rollback, interrupted recovery on a
+  real host, browser DOM acceptance.
+- Next executable package: OE-T12 per its ledger acceptance (exact
+  member shapes, rejection before any overwrite and before database or
+  service changes, legacy full compatibility).
