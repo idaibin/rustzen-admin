@@ -1,0 +1,16 @@
+[Unit]
+Description=Rustzen Privileged Release Update Worker
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+EnvironmentFile=/opt/rz/config/rz.env
+ExecStart=/opt/rz/current/bin/rz-admin update request-worker
+WorkingDirectory=/opt/rz
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/rz

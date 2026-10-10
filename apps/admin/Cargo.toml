@@ -48,7 +48,7 @@ base64 = { version = "0.22", optional = true }
 aes-gcm = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"], optional = true }
-ed25519-dalek = { version = "2.2", optional = true }
+ed25519-dalek = { version = "2.2", optional = true, features = ["pkcs8"] }
 rustzen-auth = { path = "../../crates/auth" }
 rustzen-config = { path = "../../crates/config", default-features = false }
 rustzen-ipc = { path = "../../crates/ipc" }

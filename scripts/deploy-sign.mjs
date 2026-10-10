@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 const MARKER_BEGIN = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n");
 const MARKER_END = Buffer.from("\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n");
 const PAYLOAD_VERSION = "rustzen-release-v2";
-const BINARIES = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
+const BINARIES_BY_COMPOSITION = {
+    full: ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"],
+    core: ["rz", "rz-admin"],
+};
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_KEY_FILE = path.join(
     PROJECT_ROOT,
@@ -56,16 +59,18 @@ function signBundle() {
     const file = requiredArg("file");
     const version = requiredArg("version");
     const arch = requiredArg("arch");
+    const composition = compositionArg();
     const privateKey = loadPrivateKey();
 
     const original = fs.readFileSync(file);
     const content = stripBundleMarker(original);
-    const scopes = releaseScopes(content, version, arch);
+    const scopes = releaseScopes(content, version, arch, composition);
     const contentSha256 = sha256Hex(content);
     const marker = signedMarker({
         component: "release",
         version,
         arch,
+        composition,
         contentSha256,
         ...scopes,
         privateKey,
@@ -74,20 +79,21 @@ function signBundle() {
 
     fs.writeFileSync(file, Buffer.concat([content, MARKER_BEGIN, Buffer.from(marker), MARKER_END]));
     fs.chmodSync(file, mode);
-    console.log(`Signed release bundle: ${file}`);
+    console.log(`Signed ${composition} release bundle: ${file}`);
 }
 
 function verifyBundle() {
     const file = requiredArg("file");
     const version = requiredArg("version");
     const arch = requiredArg("arch");
+    const composition = compositionArg();
     const data = fs.readFileSync(file);
     const begin = data.lastIndexOf(MARKER_BEGIN);
     if (begin < 0) {
         throw new Error("Signed release bundle marker is missing.");
     }
     const content = data.subarray(0, begin);
-    const scopes = releaseScopes(content, version, arch);
+    const scopes = releaseScopes(content, version, arch, composition);
     const markerStart = begin + MARKER_BEGIN.length;
     const markerEnd = data.indexOf(MARKER_END, markerStart);
     if (markerEnd < 0 || markerEnd + MARKER_END.length !== data.length) {
@@ -100,6 +106,7 @@ function verifyBundle() {
         marker.component !== "release" ||
         marker.version !== version ||
         marker.arch !== arch ||
+        (marker.composition ?? "full") !== composition ||
         marker.contentSha256 !== contentSha256 ||
         marker.frontendSha256 !== scopes.frontendSha256 ||
         marker.backendSha256 !== scopes.backendSha256
@@ -129,6 +136,7 @@ function signedMarker({
     component,
     version,
     arch,
+    composition,
     contentSha256,
     frontendSha256,
     backendSha256,
@@ -148,6 +156,7 @@ function signedMarker({
         component,
         version,
         arch,
+        composition,
         contentSha256,
         frontendSha256,
         backendSha256,
@@ -167,10 +176,17 @@ function signaturePayload({
     return `${PAYLOAD_VERSION}\ncomponent=${component}\nversion=${version}\narch=${arch}\ncontent_sha256=${contentSha256}\nfrontend_sha256=${frontendSha256}\nbackend_sha256=${backendSha256}\n`;
 }
 
-function releaseScopes(content, version, arch) {
+function releaseScopes(content, version, arch, composition) {
     const members = readTarFiles(content);
     const root = `rz-${version}-${arch}`;
-    const binaries = BINARIES.map((name) => {
+    const derived = deriveComposition(members, root);
+    if (derived !== composition) {
+        throw new Error(
+            `Release bundle member inventory does not match composition ${composition}` +
+                (derived ? ` (members derive ${derived})` : ""),
+        );
+    }
+    const binaries = BINARIES_BY_COMPOSITION[composition].map((name) => {
         const data = members.get(`${root}/bin/${name}`);
         if (!data) {
             throw new Error(`Release bundle is missing binary: ${name}`);
@@ -258,6 +274,31 @@ function readTarFiles(content) {
 function tarText(data) {
     const end = data.indexOf(0);
     return data.subarray(0, end < 0 ? data.length : end).toString("utf8");
+}
+
+/// The composition derived from the member inventory: the full composition
+/// carries the Monitor binary; the core composition carries neither module
+/// binaries, the Reports config, nor the controller identity.
+function deriveComposition(members, root) {
+    if (members.has(`${root}/bin/rz-monitor`)) {
+        return "full";
+    }
+    if (
+        members.has(`${root}/bin/rz-admin`) &&
+        !members.has(`${root}/config/rz-reports.env`) &&
+        !members.has(`${root}/identity/controller.json`)
+    ) {
+        return "core";
+    }
+    return null;
+}
+
+function compositionArg() {
+    const value = args.get("composition") ?? "full";
+    if (!BINARIES_BY_COMPOSITION[value]) {
+        throw new Error(`Unsupported composition: ${value}`);
+    }
+    return value;
 }
 
 function stripBundleMarker(data) {
@@ -348,8 +389,8 @@ function usage() {
     console.error(`Usage:
   node scripts/deploy-sign.mjs ensure-key
   node scripts/deploy-sign.mjs public-key
-  bun scripts/deploy-sign.mjs sign-bundle --file <tar> --version <version> --arch <x86_64|aarch64>
-  bun scripts/deploy-sign.mjs verify-bundle --file <tar> --version <version> --arch <x86_64|aarch64>
+  bun scripts/deploy-sign.mjs sign-bundle --file <tar> --version <version> --arch <x86_64|aarch64> [--composition <full|core>]
+  bun scripts/deploy-sign.mjs verify-bundle --file <tar> --version <version> --arch <x86_64|aarch64> [--composition <full|core>]
 
 Environment:
   RUSTZEN_DEPLOY_SIGN_KEY_FILE=/path/to/ed25519-private.pem

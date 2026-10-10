@@ -11,15 +11,17 @@ implementer unless a task names another owner.
 
 - Done (stage-accepted): OE-0, OE-1, OE-2 slice 1 (core composition),
   DOT-OE-1900-01/02/04, OE-2 slice 2 (core Web), DOT-OE-1010-01/02.
-- Ready: OE-2 slice 3 (packaging integration).
-- Blocked: DOT-OE-1900-03 real-artifact proof (waits on slice 3 to produce
-  candidates + Linux execution), browser DOM acceptance, Docker/Linux
-  runtime verification.
+- In progress: OE-T09 packaging integration (update-chain scope complete
+  as slice 3a; real Linux package builds gated by OE-T10).
+- Ready: OE-T12 core fresh-install installer (slice 3b).
+- Blocked: OE-T10 old-worker real-artifact proof (Linux environment),
+  browser DOM acceptance, Docker/Linux runtime verification.
 
 ## Ready frontier
 
-1. **OE-T09 packaging integration** (below) — the only currently Ready
-   task; everything else is Done or Blocked.
+1. **OE-T12 core fresh-install installer** — the only currently Ready
+   task; everything else is Done, In progress on its remaining scope, or
+   Blocked.
 
 ## Tasks
 
@@ -125,26 +127,29 @@ implementer unless a task names another owner.
 
 ### OE-T09 — Packaging integration (OE-2 slice 3)
 
-- **Outcome**: composition-aware package script and signed marker: full
-  archive keeps the exact legacy member set (composition carried in the
-  signed marker only), core archive per the new contract, verifier
-  rejects composition mismatch before any write (anti-misplacement), and
-  build.rs root binding moves toward authenticated correct-root checks.
+- **Outcome**: composition-aware package script, signed marker, and update
+  worker: full archive keeps the exact legacy member set (composition in
+  the marker only), core archive per the new contract, verifier rejects
+  composition mismatch before any write (anti-misplacement).
 - **Owner**: release/packaging.
 - **Scope**: `scripts/package-release-bundle.sh`, `scripts/deploy-sign.mjs`,
-  `apps/admin/src/features/manage/deploy/**`, deploy scripts.
+  `apps/admin/src/features/manage/deploy/bundle/**`, `deploy/core/*`.
 - **Inputs**: adopted contract (implementation.md); DOT-OE-1900-03 +
   DOT-OE-1010 constraints.
 - **Dependencies**: OE-T04 (core binary/web exist).
-- **Acceptance**: packages build and verify-sign for both compositions;
-  mismatched composition rejected pre-write by test; legacy full artifact
-  (real `target/rz/rz-0.5.1-x86_64.tar` + existing key) passes legacy
-  admission under the new verifier.
-- **Evidence**: packaging logs + SHA receipts to be persisted per the
-  1010-02 convention.
-- **Status**: Ready.
-- **Blocker**: none for the build/verify slice; runtime upgrade proof is
-  OE-T10.
+- **Acceptance**: worker rejects cross-composition archives/markers by
+  test in both compositions; legacy full artifact (real
+  `target/rz/rz-0.5.1-x86_64.tar` + real key) passes the new worker's
+  legacy admission; signer/packager accept an explicit composition with
+  member-inventory cross-checks; real package builds remain Linux-gated
+  (see OE-T10/OE-T12).
+- **Evidence**: slice 3a commit (implementation.md section);
+  `target/rz/oe2-slice3a-packaging-20261010/PROVENANCE.md` — real
+  artifact admitted by the Rust worker (1/0) and by the signer (exit 0),
+  wrong-composition claim rejected (exit 1); core 148/0/1, full 223/0/1.
+- **Status**: In progress — update-chain integration complete (slice 3a);
+  the fresh-install installer variant is OE-T12.
+- **Blocker**: none for the delivered scope.
 
 ### OE-T10 — Real-artifact upgrade/rollback proof (DOT-OE-1900-03)
 
@@ -155,15 +160,34 @@ implementer unless a task names another owner.
 - **Scope**: update worker (`bundle.rs` chain), old artifacts under
   `target/rz/`.
 - **Inputs**: OE-T09 candidates.
-- **Dependencies**: OE-T09.
+- **Dependencies**: OE-T09 (partially delivered), Linux environment.
 - **Acceptance**: real old worker accepts/rejects exactly per contract on
   the real artifacts; rollback restores the previous current.
-- **Evidence**: to be captured (Linux execution or documented
-  environment block).
+- **Evidence**: new-worker direction proven 2026-10-10 (real artifact
+  admitted with real-key signature verification — see slice 3a
+  PROVENANCE). Old-worker direction: none.
 - **Status**: Blocked.
 - **Blocker**: needs a Linux execution environment (old worker is
-  x86_64 Linux; this host is macOS/arm64) or an authorized equivalence
-  proof using the real artifacts. Blocks release readiness, not slice 3.
+  x86_64 Linux ELF; this host is macOS/arm64, Docker/colima down, no
+  x86_64 musl cross target) or an authorized equivalence proof using the
+  real artifacts. Blocks release readiness, not slice 3b.
+
+### OE-T12 — Core fresh-install installer (OE-2 slice 3b)
+
+- **Outcome**: composition-aware `deploy/setup-layout.sh` and `rz-install`
+  generation: a core bundle's member whitelist, service layout, and
+  config handling accept the core inventory and reject foreign members;
+  local harness (`scripts/test-setup-layout.sh`) covers both shapes.
+- **Owner**: release/installer shell.
+- **Scope**: `deploy/setup-layout.sh`, `scripts/test-setup-layout.sh`,
+  justfile installer generation.
+- **Inputs**: OE-T09 core shape.
+- **Dependencies**: OE-T09 (delivered scope).
+- **Acceptance**: installer harness green for full and core shapes;
+  unknown paths rejected in both.
+- **Evidence**: none yet.
+- **Status**: Ready (next bounded task).
+- **Blocker**: none.
 
 ### OE-T11 — Browser DOM acceptance (core shell + restored card)
 

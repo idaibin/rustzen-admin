@@ -1,3 +1,5 @@
+#[cfg(feature = "modules")]
+use crate::features::modules::service::ModuleService;
 #[cfg(feature = "notifications")]
 use crate::features::notifications::{
     admission_types::AdmissionPolicy, ingress, maintenance, realtime::RealtimeHub,
@@ -19,8 +21,6 @@ use crate::{
         permission::PermissionService,
     },
 };
-#[cfg(feature = "modules")]
-use crate::features::modules::service::ModuleService;
 
 use axum::Extension;
 use axum::{Router, middleware, routing::get};

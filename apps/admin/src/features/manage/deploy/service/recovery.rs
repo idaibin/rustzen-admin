@@ -39,10 +39,7 @@ pub(super) fn service_probes() -> Vec<(&'static str, String)> {
     }
     #[cfg(not(feature = "modules"))]
     {
-        vec![(
-            "rz-admin.service",
-            format!("http://127.0.0.1:{}/health", CONFIG.admin_port()),
-        )]
+        vec![("rz-admin.service", format!("http://127.0.0.1:{}/health", CONFIG.admin_port()))]
     }
 }
 

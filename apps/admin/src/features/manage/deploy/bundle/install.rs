@@ -99,8 +99,16 @@ pub(super) fn normalize_release_directory_modes(release: &Path) -> Result<(), st
         (release.join("identity"), 0o755),
         (release.join("config"), 0o700),
     ] {
-        if !fs::symlink_metadata(&directory)?.file_type().is_dir() {
-            return Err(std::io::Error::other("release member directory is invalid"));
+        match fs::symlink_metadata(&directory) {
+            // The identity directory exists only in the full composition,
+            // whose member set is already exact-matched before install.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error),
+            Ok(metadata) => {
+                if !metadata.file_type().is_dir() {
+                    return Err(std::io::Error::other("release member directory is invalid"));
+                }
+            }
         }
         set_mode(&directory, mode)?;
     }
@@ -128,9 +136,16 @@ pub(super) fn normalize_release_config_ownership(
         release.join("config/rz.env"),
         release.join("config/rz-reports.env"),
     ] {
-        let metadata = fs::symlink_metadata(&path)?;
-        if metadata.uid() != owner.uid() || metadata.gid() != owner.gid() {
-            std::os::unix::fs::chown(&path, Some(owner.uid()), Some(owner.gid()))?;
+        // The Reports config exists only in the full composition; its member
+        // set is already exact-matched before install.
+        match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error),
+            Ok(metadata) => {
+                if metadata.uid() != owner.uid() || metadata.gid() != owner.gid() {
+                    std::os::unix::fs::chown(&path, Some(owner.uid()), Some(owner.gid()))?;
+                }
+            }
         }
     }
     Ok(())
@@ -148,7 +163,11 @@ pub(super) fn sync_release_tree(root: &Path) -> Result<(), std::io::Error> {
     for directory in
         [root.join("bin"), root.join("systemd"), root.join("config"), root.join("identity")]
     {
-        sync_directory(&directory)?;
+        // The identity directory exists only in the full composition, whose
+        // member set is already exact-matched before install.
+        if fs::symlink_metadata(&directory).is_ok() {
+            sync_directory(&directory)?;
+        }
     }
     sync_directory(root)
 }

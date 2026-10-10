@@ -18,10 +18,10 @@ use crate::common::error::ServiceError;
 #[cfg(feature = "modules")]
 use crate::infra::permission::PermissionService;
 
-#[cfg(feature = "core")]
-use super::types::{ModuleHealthResponse, ModuleStatusResponse};
 #[cfg(feature = "modules")]
 use super::types::ModuleRuntime;
+#[cfg(feature = "core")]
+use super::types::{ModuleHealthResponse, ModuleStatusResponse};
 use super::{
     registry::ModuleRegistry,
     repo::ModuleRepository,

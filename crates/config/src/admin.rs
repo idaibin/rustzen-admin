@@ -2,12 +2,12 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
+#[cfg(any(feature = "modules", feature = "notifications"))]
+use crate::shared::ensure_production_secret;
 use crate::shared::{
     ConfigError, DatabaseConfig, RuntimeConfig, default_ipc_token, ensure_optional_non_empty,
     ensure_required_non_empty, load, local,
 };
-#[cfg(any(feature = "modules", feature = "notifications"))]
-use crate::shared::ensure_production_secret;
 
 const DEFAULT_ADMIN_HOST: &str = "0.0.0.0";
 const DEFAULT_ADMIN_PORT: u16 = 9801;

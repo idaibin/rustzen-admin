@@ -32,9 +32,13 @@ async fn state_with_installed_inventory() -> ModuleControlState {
 
 fn expected_installed_ids() -> Vec<&'static str> {
     #[cfg(feature = "modules")]
-    { vec!["monitor", "insights", "reports"] }
+    {
+        vec!["monitor", "insights", "reports"]
+    }
     #[cfg(not(feature = "modules"))]
-    { Vec::new() }
+    {
+        Vec::new()
+    }
 }
 
 #[test]
@@ -65,11 +69,8 @@ async fn statuses_and_dashboard_follow_the_installed_inventory() {
 async fn mutating_outside_the_installed_inventory_is_rejected_before_any_write() {
     // The migration seeds dormant module rows even in a core build; changing
     // one must be rejected before the database write, not after it.
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .expect("pool");
+    let pool =
+        SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.expect("pool");
     crate::infra::db::run_migrations(&pool).await.expect("migrations");
     // The modules build installs every seeded row (the schema's CHECK
     // constraint even limits ids to the three examples), so its rejection

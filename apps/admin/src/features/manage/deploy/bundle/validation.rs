@@ -1,5 +1,4 @@
 use super::invalid;
-use super::{BINARIES, SUPPORTED_ARCHES, SYSTEMD_FILES};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
@@ -20,8 +19,87 @@ use std::{
     path::{Component, Path},
 };
 
+/// The exact member inventory of a release archive per composition. The
+/// full shape is the legacy inventory; the core shape carries only the
+/// Admin binary, its units, and the shared config.
+pub(super) struct ArchiveShape {
+    pub name: &'static str,
+    pub(super) binaries: &'static [&'static str],
+    systemd_files: &'static [&'static str],
+    pub(super) wants_reports_config: bool,
+    pub(super) wants_controller_identity: bool,
+}
+
+pub(super) const FULL_SHAPE: ArchiveShape = ArchiveShape {
+    name: "full",
+    binaries: &["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"],
+    systemd_files: &[
+        "rz-full.service",
+        "rz-recovery.service",
+        "rz-admin.service",
+        "rz-monitor.service",
+        "rz-insights.service",
+        "rz-reports.service",
+        "rz-update.service",
+        "rz-update.path",
+    ],
+    wants_reports_config: true,
+    wants_controller_identity: true,
+};
+
+pub(super) const CORE_SHAPE: ArchiveShape = ArchiveShape {
+    name: "core",
+    binaries: &["rz", "rz-admin"],
+    systemd_files: &[
+        "rz-full.service",
+        "rz-recovery.service",
+        "rz-admin.service",
+        "rz-update.service",
+        "rz-update.path",
+    ],
+    wants_reports_config: false,
+    wants_controller_identity: false,
+};
+
+#[cfg(test)]
+pub(super) fn shape_for(composition: &str) -> Option<&'static ArchiveShape> {
+    match composition {
+        "full" => Some(&FULL_SHAPE),
+        "core" => Some(&CORE_SHAPE),
+        _ => None,
+    }
+}
+
+impl ArchiveShape {
+    /// Service units between the aggregate and the update helpers: the
+    /// recovery unit plus one unit per deployed service.
+    pub(super) fn service_units(&self) -> &'static [&'static str] {
+        &self.systemd_files[1..self.systemd_files.len() - 2]
+    }
+
+    /// Deployed service units excluding the recovery unit.
+    pub(super) fn deployed_units(&self) -> &'static [&'static str] {
+        &self.systemd_files[2..self.systemd_files.len() - 2]
+    }
+
+    fn expected_paths(&self, root: &str) -> BTreeSet<String> {
+        self.binaries
+            .iter()
+            .map(|name| format!("{root}/bin/{name}"))
+            .chain(self.systemd_files.iter().map(|name| format!("{root}/systemd/{name}")))
+            .chain([format!("{root}/config/rz.env")])
+            .chain(self.wants_reports_config.then(|| format!("{root}/config/rz-reports.env")))
+            .chain([format!("{root}/setup-layout.sh")])
+            .chain(
+                self.wants_controller_identity.then(|| format!("{root}/identity/controller.json")),
+            )
+            .collect()
+    }
+}
+
 pub(super) struct InspectedArchive {
     pub arch: String,
+    pub composition: &'static str,
     pub frontend_sha256: String,
     pub backend_sha256: String,
 }
@@ -75,17 +153,24 @@ pub(super) fn inspect_archive(
     }
 
     let root = root.ok_or_else(|| invalid("Release bundle is empty"))?;
-    let arch = SUPPORTED_ARCHES
+    let arch = ["x86_64", "aarch64"]
         .into_iter()
         .find(|arch| root == format!("rz-{version}-{arch}"))
         .ok_or_else(|| invalid("Release bundle root does not match version and architecture"))?;
-    validate_file_set(&root, &files)?;
-    let frontend_sha256 = validate_binaries(&root, version, arch, &files)?;
-    let backend_sha256 = backend_digest(&root, &files)?;
-    validate_systemd(&root, &files)?;
-    validate_controller_identity(&root, version, arch, &files)?;
-    validate_support_files(&root, &files)?;
-    Ok(InspectedArchive { arch: arch.to_string(), frontend_sha256, backend_sha256 })
+    let shape = derive_shape(&root, &files)?;
+    let frontend_sha256 = validate_binaries(&root, version, arch, &files, shape)?;
+    let backend_sha256 = backend_digest(&root, &files, shape)?;
+    validate_systemd(&root, &files, shape)?;
+    if shape.wants_controller_identity {
+        validate_controller_identity(&root, version, arch, &files)?;
+    }
+    validate_support_files(&root, &files, shape)?;
+    Ok(InspectedArchive {
+        arch: arch.to_string(),
+        composition: shape.name,
+        frontend_sha256,
+        backend_sha256,
+    })
 }
 
 pub(super) fn validate_path(path: &Path) -> Result<(), ServiceError> {
@@ -97,26 +182,19 @@ pub(super) fn validate_path(path: &Path) -> Result<(), ServiceError> {
     Ok(())
 }
 
-fn validate_file_set(
+/// The archive's composition is derived from its exact member inventory:
+/// anything that matches neither shape is rejected outright.
+fn derive_shape(
     root: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
-) -> Result<(), ServiceError> {
-    let expected = BINARIES
-        .iter()
-        .map(|name| format!("{root}/bin/{name}"))
-        .chain(SYSTEMD_FILES.iter().map(|name| format!("{root}/systemd/{name}")))
-        .chain([
-            format!("{root}/config/rz.env"),
-            format!("{root}/config/rz-reports.env"),
-            format!("{root}/setup-layout.sh"),
-            format!("{root}/identity/controller.json"),
-        ])
-        .collect::<BTreeSet<_>>();
+) -> Result<&'static ArchiveShape, ServiceError> {
     let actual = files.keys().cloned().collect::<BTreeSet<_>>();
-    if actual != expected {
-        return Err(invalid("Release bundle file set is incomplete or contains unknown files"));
+    for shape in [&FULL_SHAPE, &CORE_SHAPE] {
+        if actual == shape.expected_paths(root) {
+            return Ok(shape);
+        }
     }
-    Ok(())
+    Err(invalid("Release bundle file set is incomplete or contains unknown files"))
 }
 
 fn validate_binaries(
@@ -124,8 +202,9 @@ fn validate_binaries(
     version: &str,
     arch: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
+    shape: &ArchiveShape,
 ) -> Result<String, ServiceError> {
-    for binary in BINARIES {
+    for binary in shape.binaries {
         let (mode, data) = file(files, &format!("{root}/bin/{binary}"))?;
         if mode & 0o111 == 0 {
             return Err(invalid("Release bundle binaries must be executable"));
@@ -174,9 +253,10 @@ fn frontend_digest(data: &[u8], version: &str) -> Result<String, ServiceError> {
 fn backend_digest(
     root: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
+    shape: &ArchiveShape,
 ) -> Result<String, ServiceError> {
     let mut inventory = String::new();
-    for binary in BINARIES {
+    for binary in shape.binaries {
         let data = &file(files, &format!("{root}/bin/{binary}"))?.1;
         inventory.push_str(&format!(
             "binary={binary}\nsize={}\nsha256={:x}\n",
@@ -190,11 +270,12 @@ fn backend_digest(
 fn validate_systemd(
     root: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
+    shape: &ArchiveShape,
 ) -> Result<(), ServiceError> {
     let target = text_file(files, &format!("{root}/systemd/rz-full.service"))?;
     reject_requires(target)?;
     let wants = directive_values(target, "Wants");
-    if SYSTEMD_FILES[1..6].iter().any(|unit| !wants.contains(*unit))
+    if shape.service_units().iter().any(|unit| !wants.contains(*unit))
         || !has_directive(target, "Type", "oneshot")
         || !has_directive(target, "ExecStart", "/bin/true")
         || !has_directive(target, "RemainAfterExit", "yes")
@@ -213,19 +294,23 @@ fn validate_systemd(
         || !has_directive(recovery, "ExecStart", "/opt/rz/current/bin/rz-admin update recover")
         || directive_values(recovery, "StartLimitIntervalSec").is_empty()
         || directive_values(recovery, "StartLimitBurst").is_empty()
-        || SYSTEMD_FILES[2..6].iter().any(|unit| {
+        || shape.deployed_units().iter().any(|unit| {
             !directive_values(recovery, "Before").split_whitespace().any(|value| value == *unit)
         })
     {
         return Err(invalid("Release bundle contains an invalid recovery unit"));
     }
 
-    let specs = [
-        ("rz-admin.service", "/opt/rz/current/bin/rz-admin serve"),
-        ("rz-monitor.service", "/opt/rz/current/bin/rz-monitor controller"),
-        ("rz-insights.service", "/opt/rz/current/bin/rz-insights serve"),
-        ("rz-reports.service", "/opt/rz/current/bin/rz-reports serve"),
-    ];
+    let specs: &[(&str, &str)] = if shape.name == "full" {
+        &[
+            ("rz-admin.service", "/opt/rz/current/bin/rz-admin serve"),
+            ("rz-monitor.service", "/opt/rz/current/bin/rz-monitor controller"),
+            ("rz-insights.service", "/opt/rz/current/bin/rz-insights serve"),
+            ("rz-reports.service", "/opt/rz/current/bin/rz-reports serve"),
+        ]
+    } else {
+        &[("rz-admin.service", "/opt/rz/current/bin/rz-admin serve")]
+    };
     for (unit, command) in specs {
         let text = text_file(files, &format!("{root}/systemd/{unit}"))?;
         reject_requires(text)?;
@@ -293,15 +378,18 @@ fn validate_controller_identity(
 fn validate_support_files(
     root: &str,
     files: &BTreeMap<String, (u32, Vec<u8>)>,
+    shape: &ArchiveShape,
 ) -> Result<(), ServiceError> {
     let (config_mode, config) = file(files, &format!("{root}/config/rz.env"))?;
     if config_mode & 0o111 != 0 || config.is_empty() {
         return Err(invalid("Release bundle config/rz.env is invalid"));
     }
-    let (reports_config_mode, reports_config) =
-        file(files, &format!("{root}/config/rz-reports.env"))?;
-    if reports_config_mode & 0o111 != 0 || reports_config.is_empty() {
-        return Err(invalid("Release bundle config/rz-reports.env is invalid"));
+    if shape.wants_reports_config {
+        let (reports_config_mode, reports_config) =
+            file(files, &format!("{root}/config/rz-reports.env"))?;
+        if reports_config_mode & 0o111 != 0 || reports_config.is_empty() {
+            return Err(invalid("Release bundle config/rz-reports.env is invalid"));
+        }
     }
     let (script_mode, script) = file(files, &format!("{root}/setup-layout.sh"))?;
     if script_mode & 0o111 == 0 || !script.starts_with(b"#!/") {

@@ -21,11 +21,7 @@ fn main() {
 }
 
 fn composition_label() -> &'static str {
-    if std::env::var_os("CARGO_FEATURE_MODULES").is_some() {
-        "full"
-    } else {
-        "core"
-    }
+    if std::env::var_os("CARGO_FEATURE_MODULES").is_some() { "full" } else { "core" }
 }
 
 /// The embedded Web root: the full composition embeds the shared full build,

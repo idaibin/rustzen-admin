@@ -29,12 +29,12 @@ mod roles;
 #[cfg(all(test, feature = "core"))]
 mod tests;
 
+#[cfg(feature = "modules")]
+use capabilities::menu_seed_record;
 use capabilities::{
     build_menu_seed_records, refresh_menu_parent_id, retire_stale_core_permissions,
     upsert_menu_seed_record,
 };
-#[cfg(feature = "modules")]
-use capabilities::menu_seed_record;
 #[cfg(feature = "modules")]
 use navigation::reconcile_navigation;
 use roles::{database_error, load_permission_cache_snapshot, sync_builtin_roles};

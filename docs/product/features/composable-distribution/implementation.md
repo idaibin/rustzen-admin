@@ -659,3 +659,60 @@ the archive contents and mismatches must be rejected before any write; the
 full archive must not gain members the old worker rejects, and admission
 of any full-archive change requires the real 0.5.1 signed-artifact
 upgrade/rollback proof, never JSON-tolerance inference).
+
+### OE-2 slice 3a receipt — composition-aware update chain and packaging (2026-10-10)
+
+Executed after the DOT-OE-1010 boundary commit `36e1c4a`; evidence in
+`target/rz/oe2-slice3a-packaging-20261010/PROVENANCE.md` (base HEAD, dirty
+digest, per-log SHA-256, exit receipts).
+
+**Worker.** The update worker now derives an archive's composition from
+its exact member inventory (`bundle/validation.rs` `ArchiveShape`: full =
+the legacy set, core = `rz` + `rz-admin`, five core units, shared config,
+no Reports env and no controller identity) and rejects, before any write:
+a bundle whose composition differs from the compiled build
+(anti-misplacement, `COMPILED_COMPOSITION`), and a signed marker whose
+composition (absent = legacy full) differs from the archive. The
+signature payload remains `rustzen-release-v2` bytes so legacy workers
+keep verifying full bundles — composition travels as marker metadata plus
+member-set derivation, not as a payload change. Install-path
+normalization tolerates the core shape's absent members. Tests: foreign
+archive and marker-mismatch rejection in both compositions, legacy-marker
+admission (full), plus the real-artifact test below.
+
+**Real legacy artifact (DOT-OE-1900-03, new-worker direction).**
+`accepts_the_real_legacy_signed_artifact` validates the real
+`rz-0.5.1-x86_64.tar` (sha256 `01acde7f…`) with full signature
+verification against the real deployment key parsed from
+`.rustzen-admin/config/deploy-sign-private.pem` — 1/0, exit 0. The
+signer chain verifies the same artifact (exit 0) and rejects it when
+claimed as core (exit 1, "members derive full"). **The old-worker
+direction stays blocked**: the 0.5.1 worker is an x86_64 Linux ELF, this
+host is macOS/arm64 with Docker down and no x86_64 musl cross target —
+no Linux runtime and no real new x86_64 artifact can be produced here.
+That direction requires the Linux environment; JSON-marker tolerance of
+the old worker remains a source-backed expectation, never admission
+evidence.
+
+**Signer and packager.** `deploy-sign.mjs` takes
+`--composition <full|core>` (default full), derives the composition from
+the member inventory, cross-checks the claim, and writes `composition`
+into the marker (verification treats a missing field as legacy full).
+`package-release-bundle.sh` takes an optional fifth `composition`
+argument: core bundles stage the two binaries, the five units from the
+new `deploy/core/` (aggregate/recovery/admin/update units without module
+references and with Admin-only `ReadWritePaths`), and omit the Reports
+config and controller identity; the full path is unchanged. The core
+fresh-install installer variant of `setup-layout.sh` is deliberately not
+in this slice — it is the next bounded packaging task with its own test
+harness.
+
+**Suites.** Core 148/0/1, full 223/0/1 (both +new tests), both clippy
+`-D warnings` clean, `cargo fmt --all -- --check` clean (the fmt pass
+also normalized drift from earlier slice commits), workspace check exit 0.
+
+**Next bounded task: OE-2 slice 3b — core fresh-install installer**
+(composition-aware `setup-layout.sh` + `rz-install` generation + local
+harness tests), with the Linux runtime proof (old-worker upgrade/
+rollback, real core package build) remaining environment-blocked and
+tracked in the task ledger (OE-T10/OE-T12).

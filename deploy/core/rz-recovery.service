@@ -1,0 +1,18 @@
+[Unit]
+Description=Rustzen Interrupted Update Recovery
+After=network.target
+Before=rz-admin.service
+PartOf=rz-full.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/rz/config/rz.env
+ExecStart=/opt/rz/current/bin/rz-admin update recover
+WorkingDirectory=/opt/rz
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=rz-full.service

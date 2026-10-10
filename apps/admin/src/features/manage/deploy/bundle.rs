@@ -26,22 +26,17 @@ use crate::common::error::ServiceError;
 pub const SIGNED_MARKER_BEGIN: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_BEGIN\n";
 pub const SIGNED_MARKER_END: &[u8] = b"\nRUSTZEN_BUNDLE_SIGNED_MARKER_END\n";
 const SIGNATURE_PAYLOAD_VERSION: &str = "rustzen-release-v2";
-const SUPPORTED_ARCHES: [&str; 2] = ["x86_64", "aarch64"];
-const BINARIES: [&str; 5] = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"];
-const SYSTEMD_FILES: [&str; 8] = [
-    "rz-full.service",
-    "rz-recovery.service",
-    "rz-admin.service",
-    "rz-monitor.service",
-    "rz-insights.service",
-    "rz-reports.service",
-    "rz-update.service",
-    "rz-update.path",
-];
+/// The composition this binary was built as; a bundle of any other
+/// composition is rejected before any write (anti-misplacement).
+#[cfg(feature = "modules")]
+pub const COMPILED_COMPOSITION: &str = "full";
+#[cfg(not(feature = "modules"))]
+pub const COMPILED_COMPOSITION: &str = "core";
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BundleInfo {
     pub arch: String,
+    pub composition: &'static str,
     pub content_len: usize,
     pub frontend_sha256: String,
     pub backend_sha256: String,
@@ -57,6 +52,10 @@ struct BundleSignatureMarker {
     content_sha256: String,
     frontend_sha256: String,
     backend_sha256: String,
+    /// Composition carried as signed-marker metadata since schema v2.1:
+    /// absent means the legacy full inventory. The signature payload itself
+    /// is unchanged so legacy workers keep verifying full bundles.
+    composition: Option<String>,
     signature: String,
 }
 
@@ -68,12 +67,24 @@ pub fn validate_bundle(
 ) -> Result<BundleInfo, ServiceError> {
     let (content, marker) = split_signed_content(data)?;
     let archive = inspect_archive(content, version)?;
+    if archive.composition != COMPILED_COMPOSITION {
+        return Err(invalid("Release bundle composition does not match this build"));
+    }
+    if let Some(marker) = &marker {
+        // A marker without the composition field is the legacy full shape;
+        // any explicit value must match the archive's derived composition.
+        let marker_composition = marker.composition.as_deref().unwrap_or("full");
+        if marker_composition != archive.composition {
+            return Err(invalid("Signed release bundle composition does not match the archive"));
+        }
+    }
     if signature_required {
         let marker = marker.ok_or_else(|| invalid("Signed release bundle is required"))?;
         verify_signature(content, &marker, version, &archive, verify_key)?;
     }
     Ok(BundleInfo {
         arch: archive.arch,
+        composition: archive.composition,
         content_len: content.len(),
         frontend_sha256: archive.frontend_sha256,
         backend_sha256: archive.backend_sha256,
@@ -288,6 +299,9 @@ fn invalid(message: &str) -> ServiceError {
 pub(crate) mod tests {
     use std::{fs, io::Write, path::Path};
 
+    use super::validation::ArchiveShape;
+    #[cfg(feature = "modules")]
+    use super::validation::FULL_SHAPE;
     use super::validation::validate_path;
 
     use ed25519_dalek::{Signer, SigningKey};
@@ -295,17 +309,26 @@ pub(crate) mod tests {
 
     use super::validation::inspect_archive;
     use super::{
-        BINARIES, BundleInfo, SIGNED_MARKER_BEGIN, SIGNED_MARKER_END, install_bundle, sha256_hex,
-        signature_payload, validate_bundle, verify_installed_bundle,
+        BundleInfo, COMPILED_COMPOSITION, SIGNED_MARKER_BEGIN, SIGNED_MARKER_END, install_bundle,
+        sha256_hex, signature_payload, validate_bundle, verify_installed_bundle,
     };
 
-    pub(crate) fn fixture(version: &str, arch: &str) -> Vec<u8> {
+    fn compiled_shape() -> &'static ArchiveShape {
+        super::validation::shape_for(COMPILED_COMPOSITION).expect("compiled composition shape")
+    }
+
+    fn foreign_shape() -> &'static ArchiveShape {
+        super::validation::shape_for(if COMPILED_COMPOSITION == "full" { "core" } else { "full" })
+            .expect("foreign composition shape")
+    }
+
+    fn fixture_for(shape: &ArchiveShape, version: &str, arch: &str) -> Vec<u8> {
         let root = format!("rz-{version}-{arch}");
         let mut output = Vec::new();
         let mut monitor_sha256 = String::new();
         {
             let mut builder = tar::Builder::new(&mut output);
-            for binary in BINARIES {
+            for binary in shape.binaries {
                 let mut elf = vec![0_u8; 64];
                 elf[..4].copy_from_slice(b"\x7fELF");
                 let machine = if arch == "x86_64" { 62_u16 } else { 183_u16 };
@@ -313,36 +336,43 @@ pub(crate) mod tests {
                 write!(
                     elf,
                     "RUSTZEN_RELEASE_MARKER\nartifact=rz-bundle-member\nbinary={binary}\nversion={version}\n{}",
-                    if binary == "rz-admin" {
+                    if *binary == "rz-admin" {
                         "frontend_sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
                     } else {
                         ""
                     }
                 )
                 .expect("marker");
-                if binary == "rz-monitor" {
+                if *binary == "rz-monitor" {
                     monitor_sha256 = format!("{:x}", Sha256::digest(&elf));
                 }
                 append(&mut builder, &format!("{root}/bin/{binary}"), 0o755, &elf);
             }
+            let service_units = shape.service_units().join(" ");
+            let deployed_units = shape.deployed_units().join(" ");
             append(
                 &mut builder,
                 &format!("{root}/systemd/rz-full.service"),
                 0o644,
-                b"[Unit]\nWants=rz-recovery.service rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\nAfter=network.target rz-recovery.service\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n",
+                format!("[Unit]\nWants={service_units}\nAfter=network.target rz-recovery.service\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n").as_bytes(),
             );
             append(
                 &mut builder,
                 &format!("{root}/systemd/rz-recovery.service"),
                 0o644,
-                b"[Unit]\nPartOf=rz-full.service\nBefore=rz-admin.service rz-monitor.service rz-insights.service rz-reports.service\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nType=oneshot\nExecStart=/opt/rz/current/bin/rz-admin update recover\nRestart=on-failure\n",
+                format!("[Unit]\nPartOf=rz-full.service\nBefore={deployed_units}\nStartLimitIntervalSec=60\nStartLimitBurst=3\n[Service]\nType=oneshot\nExecStart=/opt/rz/current/bin/rz-admin update recover\nRestart=on-failure\n").as_bytes(),
             );
-            for (unit, command) in [
-                ("rz-admin.service", "/opt/rz/current/bin/rz-admin serve"),
-                ("rz-monitor.service", "/opt/rz/current/bin/rz-monitor controller"),
-                ("rz-insights.service", "/opt/rz/current/bin/rz-insights serve"),
-                ("rz-reports.service", "/opt/rz/current/bin/rz-reports serve"),
-            ] {
+            let specs: &[(&str, &str)] = if shape.name == "full" {
+                &[
+                    ("rz-admin.service", "/opt/rz/current/bin/rz-admin serve"),
+                    ("rz-monitor.service", "/opt/rz/current/bin/rz-monitor controller"),
+                    ("rz-insights.service", "/opt/rz/current/bin/rz-insights serve"),
+                    ("rz-reports.service", "/opt/rz/current/bin/rz-reports serve"),
+                ]
+            } else {
+                &[("rz-admin.service", "/opt/rz/current/bin/rz-admin serve")]
+            };
+            for (unit, command) in specs {
                 append(
                     &mut builder,
                     &format!("{root}/systemd/{unit}"),
@@ -355,23 +385,31 @@ pub(crate) mod tests {
             }
             append(&mut builder, &format!("{root}/systemd/rz-update.service"), 0o644, b"[Service]\nType=oneshot\nUser=root\nExecStart=/opt/rz/current/bin/rz-admin update request-worker\n");
             append(&mut builder, &format!("{root}/systemd/rz-update.path"), 0o644, b"[Path]\nPathChanged=/opt/rz/data/update-requests/pending.json\nUnit=rz-update.service\n");
-            append(&mut builder, &format!("{root}/identity/controller.json"), 0o644, format!("{{\"schemaVersion\":1,\"artifactClass\":\"full-controller\",\"version\":\"{version}\",\"arch\":\"{arch}\",\"monitorBinarySha256\":\"{monitor_sha256}\",\"agentProtocolContractId\":\"{}\"}}\n", "b".repeat(64)).as_bytes());
+            if shape.wants_controller_identity {
+                append(&mut builder, &format!("{root}/identity/controller.json"), 0o644, format!("{{\"schemaVersion\":1,\"artifactClass\":\"full-controller\",\"version\":\"{version}\",\"arch\":\"{arch}\",\"monitorBinarySha256\":\"{monitor_sha256}\",\"agentProtocolContractId\":\"{}\"}}\n", "b".repeat(64)).as_bytes());
+            }
             append(
                 &mut builder,
                 &format!("{root}/config/rz.env"),
                 0o600,
                 b"RUSTZEN_ENV=production\n",
             );
-            append(
-                &mut builder,
-                &format!("{root}/config/rz-reports.env"),
-                0o600,
-                b"RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_REPORTS_CREDENTIAL_KEY=replace-me\n",
-            );
+            if shape.wants_reports_config {
+                append(
+                    &mut builder,
+                    &format!("{root}/config/rz-reports.env"),
+                    0o600,
+                    b"RUSTZEN_ENV=production\nRUSTZEN_IPC_TOKEN=replace-me\nRUSTZEN_REPORTS_CREDENTIAL_KEY=replace-me\n",
+                );
+            }
             append(&mut builder, &format!("{root}/setup-layout.sh"), 0o755, b"#!/bin/sh\n");
             builder.finish().expect("finish tar");
         }
         output
+    }
+
+    pub(crate) fn fixture(version: &str, arch: &str) -> Vec<u8> {
+        fixture_for(compiled_shape(), version, arch)
     }
 
     fn append(builder: &mut tar::Builder<&mut Vec<u8>>, path: &str, mode: u32, data: &[u8]) {
@@ -386,38 +424,45 @@ pub(crate) mod tests {
     #[test]
     fn validates_and_installs_exact_release_binary_bundle() {
         let version = "1.2.3";
+        let shape = compiled_shape();
         let data = fixture(version, "x86_64");
         let info = validate_bundle(&data, version, false, None).expect("valid bundle");
         assert_eq!(info.arch, "x86_64");
+        assert_eq!(info.composition, COMPILED_COMPOSITION);
         let root = std::env::temp_dir().join(format!("rz-bundle-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(root.join("data/db/admin")).expect("admin data owner source");
         let release = install_bundle(&data, &info, version, 9, &root).expect("install");
-        for binary in BINARIES {
+        for binary in shape.binaries {
             assert!(release.join("bin").join(binary).is_file());
         }
         verify_installed_bundle(&data, &info, version, &release).expect("verified install");
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            for (path, expected) in [
+            let mut mode_checks = vec![
                 (release.clone(), 0o755),
                 (release.join("bin"), 0o755),
                 (release.join("systemd"), 0o755),
-                (release.join("identity"), 0o755),
                 (release.join("config"), 0o700),
-            ] {
+            ];
+            if shape.wants_controller_identity {
+                mode_checks.push((release.join("identity"), 0o755));
+            }
+            for (path, expected) in mode_checks {
                 assert_eq!(
                     fs::metadata(path).expect("directory").permissions().mode() & 0o777,
                     expected
                 );
             }
-            let reports = release.join("bin/rz-reports");
-            fs::set_permissions(&reports, fs::Permissions::from_mode(0o644)).expect("chmod");
+            let tamper_target = if shape.name == "full" { "rz-reports" } else { "rz-admin" };
+            let tampered = release.join(format!("bin/{tamper_target}"));
+            fs::set_permissions(&tampered, fs::Permissions::from_mode(0o644)).expect("chmod");
             assert!(verify_installed_bundle(&data, &info, version, &release).is_err());
-            fs::set_permissions(&reports, fs::Permissions::from_mode(0o755)).expect("restore mode");
+            fs::set_permissions(&tampered, fs::Permissions::from_mode(0o755))
+                .expect("restore mode");
+            fs::write(&tampered, b"tampered").expect("tamper install");
+            assert!(verify_installed_bundle(&data, &info, version, &release).is_err());
         }
-        fs::write(release.join("bin/rz-reports"), b"tampered").expect("tamper install");
-        assert!(verify_installed_bundle(&data, &info, version, &release).is_err());
         fs::remove_dir_all(root).expect("cleanup");
     }
 
@@ -447,6 +492,7 @@ pub(crate) mod tests {
                 &data,
                 &BundleInfo {
                     arch: info.arch,
+                    composition: info.composition,
                     content_len: info.content_len,
                     frontend_sha256: info.frontend_sha256,
                     backend_sha256: info.backend_sha256,
@@ -486,6 +532,7 @@ pub(crate) mod tests {
             "contentSha256": content_hash,
             "frontendSha256": archive.frontend_sha256,
             "backendSha256": archive.backend_sha256,
+            "composition": COMPILED_COMPOSITION,
             "signature": hex::encode(signature.to_bytes()),
         });
         let mut signed = content;
@@ -497,5 +544,125 @@ pub(crate) mod tests {
 
         signed[512] ^= 1;
         assert!(validate_bundle(&signed, version, true, Some(&verify_key)).is_err());
+    }
+
+    #[test]
+    fn rejects_a_foreign_composition_archive_before_any_write() {
+        let version = "1.2.3";
+        let foreign = fixture_for(foreign_shape(), version, "x86_64");
+        let error = validate_bundle(&foreign, version, false, None)
+            .expect_err("a foreign-composition archive must be rejected");
+        assert!(
+            error.to_string().contains("composition does not match this build"),
+            "unexpected rejection: {error}"
+        );
+    }
+
+    #[test]
+    fn rejects_a_marker_composition_that_differs_from_the_archive() {
+        let version = "1.2.3";
+        let arch = "x86_64";
+        let content = fixture(version, arch);
+        let signing_key = SigningKey::from_bytes(&[7_u8; 32]);
+        let content_hash = sha256_hex(&content);
+        let archive = inspect_archive(&content, version).expect("archive identity");
+        let signature = signing_key.sign(
+            signature_payload(
+                version,
+                arch,
+                &content_hash,
+                &archive.frontend_sha256,
+                &archive.backend_sha256,
+            )
+            .as_bytes(),
+        );
+        let foreign_composition = if COMPILED_COMPOSITION == "full" { "core" } else { "full" };
+        let marker = serde_json::json!({
+            "schemaVersion": 2,
+            "component": "release",
+            "version": version,
+            "arch": arch,
+            "contentSha256": content_hash,
+            "frontendSha256": archive.frontend_sha256,
+            "backendSha256": archive.backend_sha256,
+            "composition": foreign_composition,
+            "signature": hex::encode(signature.to_bytes()),
+        });
+        let mut signed = content;
+        signed.extend_from_slice(SIGNED_MARKER_BEGIN);
+        signed.extend_from_slice(serde_json::to_string(&marker).expect("marker").as_bytes());
+        signed.extend_from_slice(SIGNED_MARKER_END);
+        let verify_key = hex::encode(signing_key.verifying_key().to_bytes());
+        let error = validate_bundle(&signed, version, true, Some(&verify_key))
+            .expect_err("a marker claiming a foreign composition must be rejected");
+        assert!(
+            error.to_string().contains("composition does not match the archive"),
+            "unexpected rejection: {error}"
+        );
+    }
+
+    #[cfg(feature = "modules")]
+    #[test]
+    fn legacy_marker_without_composition_is_admitted_as_full() {
+        let version = "1.2.3";
+        let arch = "x86_64";
+        let content = fixture_for(&FULL_SHAPE, version, arch);
+        let signing_key = SigningKey::from_bytes(&[7_u8; 32]);
+        let content_hash = sha256_hex(&content);
+        let archive = inspect_archive(&content, version).expect("archive identity");
+        let signature = signing_key.sign(
+            signature_payload(
+                version,
+                arch,
+                &content_hash,
+                &archive.frontend_sha256,
+                &archive.backend_sha256,
+            )
+            .as_bytes(),
+        );
+        // The pre-composition marker shape: no composition field at all.
+        let marker = serde_json::json!({
+            "schemaVersion": 2,
+            "component": "release",
+            "version": version,
+            "arch": arch,
+            "contentSha256": content_hash,
+            "frontendSha256": archive.frontend_sha256,
+            "backendSha256": archive.backend_sha256,
+            "signature": hex::encode(signature.to_bytes()),
+        });
+        let mut signed = content;
+        signed.extend_from_slice(SIGNED_MARKER_BEGIN);
+        signed.extend_from_slice(serde_json::to_string(&marker).expect("marker").as_bytes());
+        signed.extend_from_slice(SIGNED_MARKER_END);
+        let verify_key = hex::encode(signing_key.verifying_key().to_bytes());
+        let info = validate_bundle(&signed, version, true, Some(&verify_key))
+            .expect("legacy full marker is admitted");
+        assert_eq!(info.composition, "full");
+    }
+
+    /// DOT-OE-1900-03 evidence: the real legacy signed artifact passes the
+    /// new worker's legacy admission with the real deployment verify key.
+    /// The artifact exists only on machines that built it; its absence is a
+    /// skip, never fabricated evidence.
+    #[cfg(feature = "modules")]
+    #[test]
+    fn accepts_the_real_legacy_signed_artifact() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let artifact = root.join("target/rz/rz-0.5.1-x86_64.tar");
+        let key_file = root.join(".rustzen-admin/config/deploy-sign-private.pem");
+        if !artifact.is_file() || !key_file.is_file() {
+            return;
+        }
+        let data = fs::read(&artifact).expect("read the real legacy artifact");
+        let key_pem = fs::read_to_string(&key_file).expect("read the deployment signing key");
+        use ed25519_dalek::pkcs8::DecodePrivateKey;
+        let signing =
+            SigningKey::from_pkcs8_pem(&key_pem).expect("parse the deployment signing key");
+        let verify_key = hex::encode(signing.verifying_key().to_bytes());
+        let info = validate_bundle(&data, "0.5.1", true, Some(&verify_key))
+            .expect("the real legacy signed artifact passes legacy admission");
+        assert_eq!(info.arch, "x86_64");
+        assert_eq!(info.composition, "full");
     }
 }
