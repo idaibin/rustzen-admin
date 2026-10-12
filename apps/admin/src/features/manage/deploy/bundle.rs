@@ -643,16 +643,21 @@ pub(crate) mod tests {
 
     /// DOT-OE-1900-03 evidence: the real legacy signed artifact passes the
     /// new worker's legacy admission with the real deployment verify key.
-    /// The artifact exists only on machines that built it; its absence is a
-    /// skip, never fabricated evidence.
+    /// The artifact exists only on machines that built it; its absence
+    /// fails here with an explicit NOT-RUN message — never a silent pass,
+    /// never fabricated evidence. Ordinary CI never selects this test
+    /// (it is `#[ignore]`d, so default `cargo test` counts it as
+    /// ignored); run it only through the dedicated selection gate
+    /// `just test-real-legacy`.
     #[cfg(feature = "modules")]
     #[test]
+    #[ignore = "needs the real legacy artifact and deploy key that exist only on the build host; run via just test-real-legacy"]
     fn accepts_the_real_legacy_signed_artifact() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let artifact = root.join("target/rz/rz-0.5.1-x86_64.tar");
         let key_file = root.join(".rustzen-admin/config/deploy-sign-private.pem");
-        if !artifact.is_file() || !key_file.is_file() {
-            return;
+        if let Err(not_run) = require_real_legacy_inputs(&artifact, &key_file) {
+            panic!("real legacy artifact admission {not_run}; absence is never a pass");
         }
         let data = fs::read(&artifact).expect("read the real legacy artifact");
         let key_pem = fs::read_to_string(&key_file).expect("read the deployment signing key");
@@ -664,5 +669,60 @@ pub(crate) mod tests {
             .expect("the real legacy signed artifact passes legacy admission");
         assert_eq!(info.arch, "x86_64");
         assert_eq!(info.composition, "full");
+    }
+
+    /// Real-input gate for the DOT-OE-1900-03 evidence test above: missing
+    /// inputs produce an explicit NOT-RUN error naming them, so absence can
+    /// never be counted as a pass.
+    fn require_real_legacy_inputs(artifact: &Path, key_file: &Path) -> Result<(), String> {
+        let mut missing = Vec::new();
+        if !artifact.is_file() {
+            missing.push(format!("artifact {}", artifact.display()));
+        }
+        if !key_file.is_file() {
+            missing.push(format!("key file {}", key_file.display()));
+        }
+        if missing.is_empty() {
+            return Ok(());
+        }
+        Err(format!("NOT-RUN: missing real legacy inputs: {}", missing.join("; ")))
+    }
+
+    /// The four input states of the real-input gate: both inputs missing,
+    /// only the key file present, only the artifact present, and both
+    /// present. Every missing state is an explicit NOT-RUN error naming
+    /// exactly the missing inputs; only both-present passes.
+    #[test]
+    fn missing_real_legacy_inputs_are_an_explicit_not_run_never_a_pass() {
+        let root = std::env::temp_dir().join(format!("rz-notrun-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).expect("temp root");
+        let artifact = root.join("rz-0.5.1-x86_64.tar");
+        let key_file = root.join("deploy-sign-private.pem");
+
+        let both_missing = require_real_legacy_inputs(&artifact, &key_file)
+            .expect_err("missing inputs must be an explicit NOT-RUN, never Ok");
+        assert!(both_missing.starts_with("NOT-RUN:"), "{both_missing}");
+        assert!(both_missing.contains("artifact"), "{both_missing}");
+        assert!(both_missing.contains("key file"), "{both_missing}");
+
+        fs::write(&artifact, b"synthetic artifact").expect("synthetic artifact");
+        let missing_key = require_real_legacy_inputs(&artifact, &key_file)
+            .expect_err("a missing key file alone must still be an explicit NOT-RUN");
+        assert!(missing_key.starts_with("NOT-RUN:"), "{missing_key}");
+        assert!(missing_key.contains("key file"), "{missing_key}");
+        assert!(!missing_key.contains("artifact"), "{missing_key}");
+
+        fs::write(&key_file, b"synthetic key placeholder").expect("synthetic key placeholder");
+        require_real_legacy_inputs(&artifact, &key_file)
+            .expect("present inputs pass the existence gate");
+
+        fs::remove_file(&artifact).expect("synthetic artifact removal");
+        let missing_artifact = require_real_legacy_inputs(&artifact, &key_file)
+            .expect_err("a missing artifact alone must still be an explicit NOT-RUN");
+        assert!(missing_artifact.starts_with("NOT-RUN:"), "{missing_artifact}");
+        assert!(missing_artifact.contains("artifact"), "{missing_artifact}");
+        assert!(!missing_artifact.contains("key file"), "{missing_artifact}");
+
+        fs::remove_dir_all(&root).expect("cleanup");
     }
 }

@@ -47,6 +47,15 @@ check:
     # Serialize test cases; each concurrency test still runs its own parallel tasks.
     cargo test --workspace -- --test-threads=1
 
+# OE-LEGACY-SELECT-01: the only supported way to run the DOT-OE-1900-03
+# real legacy admission test. It is #[ignore]d, so the ordinary CI
+# `cargo test --workspace` above never selects it (its real artifact and
+# deploy key exist only on the build host). The gate script refuses an
+# empty or non-matching selection and propagates cargo's raw exit code;
+# missing real inputs fail loudly through the test's NOT-RUN panic.
+test-real-legacy:
+    scripts/test-real-legacy-gate.sh
+
 # Selected and core Web composition checks: the portal producers with their
 # verify chain (strip residue, inventory policy, binding) plus the core
 # Admin producer's boundary assertions

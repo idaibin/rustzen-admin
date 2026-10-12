@@ -171,9 +171,34 @@ implementer unless a task names another owner.
   2026-10-10 (counterexample rejection reproduced, 7/0 no skips).
   The fresh-install installer variant is OE-T12, handed to the
   coordinator-owned writer at the 2026-10-10 checkpoint.
-- **Blocker**: none for the delivered scope. Open limitation for the
-  next writer: the Rust real-artifact test returns silently on artifact
-  absence (skip-shaped, never a pass).
+- **Blocker**: none for the delivered scope. The former open limitation
+  (the Rust real-artifact test returning silently on artifact absence)
+  is closed as of 2026-10-12 with both implementation and dynamic
+  acceptance: absence now fails loudly (fail-closed, never a skip)
+  through an explicit NOT-RUN gate naming the missing inputs, and the
+  missing-input counter-example was executed against the real test
+  entry in an isolated key-free source copy — the target test FAILED
+  on NOT-RUN and cargo exited 101 directly. Follow-up OE-LEGACY-SELECT-01
+  (v1, 2026-10-12) split ordinary CI from the real-material gate: the
+  test is `#[ignore]`d (ordinary `cargo test --workspace` no longer
+  selects it; exact ordinary invocation verified 0 passed / 1 ignored /
+  exit 0) and the single dedicated entry `just test-real-legacy`
+  selection-gates the run (exactly-one list check, then execution with
+  cargo's raw exit code; missing inputs FAILED on NOT-RUN with cargo
+  101, and a deliberately non-matching selection was rejected non-zero
+  without executing). Review finding P1 was fixed in v2 (same task,
+  2026-10-12): the gate takes no arguments at all (target substitution
+  and leading-dash smuggling are rejected before cargo, with fake-cargo
+  markers proving zero invocations), counts with exact-line always-
+  numeric awk, and preserves cargo's raw exit codes for both the list
+  and the execution call; verified by a fake-cargo deterministic
+  harness (12 scenarios, 19/19 assertions) plus isolated-copy runs
+  recorded by a persisting wrapper — see
+  `target/rz/oe-legacy-select-01-v2-20261012/PROVENANCE.md`. The
+  real-input positive admission itself remains
+  not executed (OE-T10 window); receipts, commands, and log hashes in
+  implementation.md, `target/rz/oe-legacy-gate-20261012/PROVENANCE.md`,
+  and `target/rz/oe-legacy-select-01-20261012/PROVENANCE.md`.
 
 ### OE-T10 — Real-artifact upgrade/rollback proof (DOT-OE-1900-03)
 

@@ -893,3 +893,154 @@ silent-return-on-absence limitation stays open, never masked as a pass.
   window and update-driving script are the remaining work items.
 - Unchanged: the Rust real-artifact test's silent-return-on-absence
   limitation stays open, never masked as a pass.
+
+
+### Real-artifact test NOT-RUN gate — 2026-10-12
+
+Minimal closure of the open limitation recorded at the 2026-10-10
+handoff: the Rust `accepts_the_real_legacy_signed_artifact` test no
+longer returns silently when the real legacy artifact or the real
+deployment key is absent. A tests-module-only
+`require_real_legacy_inputs` gate reports exactly which inputs are
+missing with an explicit `NOT-RUN:` message and the test panics on it,
+so absence is a loud fail-closed failure — never a skip and never a
+skip-shaped pass. This is deliberately stricter than the TS signer
+suite's named NOT-VERIFIED skip convention: a Rust skip (silent
+return or ignored test) could still be counted as green, so here
+absence must fail the test and make cargo itself exit non-zero.
+Production code is untouched; the change lives entirely in the
+bundle.rs test module
+(`apps/admin/src/features/manage/deploy/bundle.rs`, sha256
+`27f74776b90729c72d555a4be5a5846810845182f7c827ea253af33f9f75e1af`
+after the change). The gate helper's four input states — both inputs
+missing, only the key file present, only the artifact present, both
+present — each have a focused assertion in
+`missing_real_legacy_inputs_are_an_explicit_not_run_never_a_pass`.
+
+Implementation versus acceptance on this host (baseline `34fb13b`,
+branch `feat/theme-verification-20261005`, working tree carrying only
+this gate's candidate changes; real artifact and real key confirmed
+present by read-only existence check only — no key content read in
+this package; full commands, direct exit codes, logs, and SHA-256s in
+`target/rz/oe-legacy-gate-20261012/PROVENANCE.md`):
+
+- Implementation complete: the NOT-RUN gate plus the four-state
+  helper test live in the bundle.rs tests module.
+- Dynamic acceptance complete — the missing-input counter-example ran
+  against the real entry, not just the helper: in an isolated
+  public-source copy exported from git-tracked files only (no
+  `target/`, no `.rustzen-admin/`, no real key or fixture — verified
+  by a post-export find), `cargo test --locked --offline -p
+  rustzen-admin --features modules
+  accepts_the_real_legacy_signed_artifact` compiled cleanly with
+  `modules` explicitly enabled, ran exactly 1 test (the real entry),
+  FAILED at the gate panic with `NOT-RUN: missing real legacy inputs`
+  naming both copy-local paths, and cargo exited 101 directly
+  (redirection only — no pipeline exit codes). A control run of the
+  four-state helper test in the same copy passed 1/0, so the failure
+  is precisely the missing-input gate, not a broken build, zero
+  tests, or an unmatched filter.
+- Re-verified in the real repository with direct cargo exit codes
+  (default features, which resolve `modules` through `full`): the
+  three filtered tests —
+  `missing_real_legacy_inputs_are_an_explicit_not_run_never_a_pass`,
+  `legacy_marker_without_composition_is_admitted_as_full`, and
+  `verifies_one_signature_over_the_complete_bundle_and_rejects_tampering`
+  — each 1 passed / 0 failed, exit 0.
+- `cargo fmt --all -- --check` — pass (pre-existing nightly-only
+  rustfmt config warnings unchanged).
+
+Not executed in this package (no fabricated acceptance): the
+real-artifact positive admission itself — executing it reads the real
+private key and belongs to the OE-T10 evidence window; the full `just
+check` suite. Unverified boundaries unchanged: Linux real candidate
+packages; real old-worker upgrade/rollback.
+
+
+### Selection split — ordinary CI vs the real-material gate (OE-LEGACY-SELECT-01) — 2026-10-12
+
+Independent review of the NOT-RUN gate surfaced a CI-shape gap:
+`default = ["full"]` includes `modules`, so the ordinary CI
+`cargo test --workspace` run selects
+`accepts_the_real_legacy_signed_artifact` and would depend on this
+host's private inputs. Minimal split (task OE-LEGACY-SELECT-01, v1):
+
+- Implementation: the test carries `#[ignore = "...run via just
+  test-real-legacy"]` in addition to `#[cfg(feature = "modules")]`;
+  the NOT-RUN panic is unchanged, nothing else is ignored, and no
+  silent return was restored. `just test-real-legacy` is the single
+  dedicated entry; it runs `scripts/test-real-legacy-gate.sh`, which
+  first verifies with the exact production selection (`-p
+  rustzen-admin --bin rz-admin --features modules` + the full test
+  name + `-- --ignored --exact --list`) that exactly one target test
+  is selected — otherwise non-zero — then executes `--ignored
+  --exact --test-threads=1`, verifies the target ran exactly once,
+  and exits with cargo's raw exit code. An empty or non-matching
+  selection can never fake green.
+
+Four-category status (commands, direct exit codes, and log hashes in
+`target/rz/oe-legacy-select-01-20261012/PROVENANCE.md`; runs in an
+isolated public-source copy without the real key or fixture):
+
+- Implementation: complete — `#[ignore]`, the gate script, and the
+  just recipe.
+- Ordinary CI ignores the real-material test: verified — the exact
+  ordinary invocation (no `--ignored`) exits 0 with
+  `0 passed; 0 failed; 1 ignored`, the ignored line naming the
+  dedicated recipe.
+- Real-material gate negative path: verified — the dedicated
+  invocation without inputs ran exactly the one target test, FAILED
+  on the NOT-RUN panic, and cargo exited 101 raw; end-to-end `just
+  test-real-legacy` propagated 101 through the selection gate. The
+  selection-gate negative: a deliberately non-matching name listed
+  zero tests and the same gate rejected it non-zero without
+  executing (a raw wrong-name run would exit 0 with
+  `running 0 tests` — the empty-selection fake green the gate
+  forecloses).
+- Positive unverified: the real-input positive admission (reads the
+  real private key; OE-T10 window) was not executed; Linux real
+  candidate packages and real old-worker upgrade/rollback remain
+  unverified.
+
+#### v2 hardening after independent review (P1) — 2026-10-12
+
+Review of the v1 gate found (P1): the script's `${1:-canonical}`
+argument allowed substituting another real ignored test (the
+route-contract benchmark) and verifying a different test green; a
+leading-dash argument would be parsed by cargo/grep as an option,
+with `|| true` swallowing grep errors so an empty count could slip
+through the integer comparison; and the ran-count failure exit could
+mask cargo's original non-zero code. v2 fixes all three in
+`scripts/test-real-legacy-gate.sh` only (the justfile recipe and the
+Rust code are unchanged):
+
+- The production entry takes NO arguments: any argument — another
+  ignored name, a leading-dash option, an extra word — exits 2 before
+  cargo is invoked. The target is a single readonly canonical
+  constant.
+- Counting is exact-line awk with always-numeric results (no grep
+  option parsing, no error-swallowing fallback); zero, duplicate,
+  wrong-target, and unparseable lists all fail closed.
+- cargo's exit code is preserved verbatim for both the `--list` and
+  the execution call; counting can only turn a cargo-success with
+  zero/duplicate/wrong targets into a gate failure (exit 1), never
+  mask cargo's original code.
+
+Evidence in `target/rz/oe-legacy-select-01-v2-20261012/PROVENANCE.md`
+(every run recorded by a wrapper persisting the exact argv with real
+boundaries, run id, gate-script sha256 at start, full stdout/stderr,
+and a separately captured decimal rc — no pipeline between execution
+and rc): a fake-cargo deterministic harness drove the production
+script through twelve scenarios, 19/19 assertions — argument
+rejections with the cargo-call marker proving zero invocations; list
+zero/duplicate/wrong/garbage rejections without execution; cargo list
+rc 2 and execution rc 101 preserved verbatim; cargo-success zero-ran
+and duplicate-ran fake greens rejected; healthy single-target
+passthrough rc 0. The real ignored benchmark was never executed and
+no replaceable production-target interface was reintroduced. In the
+real-material-free isolated copy: the production gate exited 101
+after listing exactly the one canonical target and failing it on
+NOT-RUN (matching the raw cargo rc 101), and the ordinary exact
+invocation exited 0 with `0 passed; 1 ignored`. Real legacy positive
+(OE-T10), Linux real packages, and old-worker upgrade/rollback
+remain unverified.
