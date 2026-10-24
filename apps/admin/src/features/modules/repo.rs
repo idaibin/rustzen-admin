@@ -13,6 +13,19 @@ use super::types::RuntimeMenuResponse;
 pub struct ModuleRepository;
 
 impl ModuleRepository {
+    #[cfg(feature = "core")]
+    pub async fn registered_module_ids(
+        pool: &SqlitePool,
+    ) -> Result<std::collections::BTreeSet<String>, ServiceError> {
+        sqlx::query_scalar::<_, String>(
+            "SELECT DISTINCT module_id FROM module_navigation WHERE module_id IS NOT NULL",
+        )
+        .fetch_all(pool)
+        .await
+        .map(|ids| ids.into_iter().collect())
+        .map_err(database_error("loading registered module ids"))
+    }
+
     pub async fn load_enabled(pool: &SqlitePool) -> Result<BTreeMap<String, bool>, ServiceError> {
         let rows =
             sqlx::query_as::<_, (String, bool)>("SELECT id, enabled FROM modules ORDER BY id")

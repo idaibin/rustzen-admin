@@ -264,6 +264,12 @@ build-release:
     just _build-binaries x86_64 x86_64-unknown-linux-musl linux/amd64
     VERSION=$(awk -F '"' '/^version = / { print $2; exit }' Cargo.toml); BUNDLE=$(scripts/package-release-bundle.sh "$VERSION" x86_64 target/rz/build/x86_64/bin target/rz); bun scripts/deploy-sign.mjs sign-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64; bun scripts/deploy-sign.mjs verify-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64
 
+# Explicit core candidate; full remains the unchanged default build.
+build-release-core:
+    just build-config-core
+    just _build-binaries-core x86_64 x86_64-unknown-linux-musl linux/amd64
+    VERSION=$(awk -F '"' '/^version = / { print $2; exit }' Cargo.toml); BUNDLE=$(scripts/package-release-bundle.sh "$VERSION" x86_64 target/rz/core/build/x86_64/bin target/rz/core core); bun scripts/deploy-sign.mjs sign-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64 --composition core; bun scripts/deploy-sign.mjs verify-bundle --file "$BUNDLE" --version "$VERSION" --arch x86_64 --composition core
+
 build-native:
     cd apps/web && bun run vp build
     cargo build --release -p rustzen-cli -p rustzen-admin -p rustzen-monitor -p rustzen-insights -p rustzen-reports
@@ -287,10 +293,21 @@ build-config:
     cp deploy/setup-layout.sh target/rz/setup-layout.sh
     chmod +x target/rz/setup-layout.sh
 
+build-config-core:
+    mkdir -p target/rz/core/config target/rz/core/systemd
+    awk '!/^(RUSTZEN_MONITOR_AGENT_TOKEN|RUSTZEN_MONITOR_NODE_ID|RUSTZEN_NOTIFICATION_EVENT_KEY|RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY)=/' .env.example > target/rz/core/config/rz.env
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && perl -pi -e "s#^RUSTZEN_DEPLOY_VERIFY_KEY=.*#RUSTZEN_DEPLOY_VERIFY_KEY=$VERIFY_KEY#" target/rz/core/config/rz.env && sed "s/__RUSTZEN_DEPLOY_VERIFY_KEY__/$VERIFY_KEY/g" deploy/setup-layout.sh > target/rz/core/rz-install && chmod 0755 target/rz/core/rz-install
+    cp deploy/core/rz-full.service deploy/core/rz-recovery.service deploy/core/rz-admin.service deploy/core/rz-update.service deploy/core/rz-update.path target/rz/core/systemd/
+
+_build-binaries-core ARCH TARGET_TRIPLE PLATFORM:
+    rm -rf target/rz/core/build/{{ARCH}}
+    mkdir -p target/rz/core/build/{{ARCH}}
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && test -n "$VERIFY_KEY" && docker buildx build --platform {{PLATFORM}} --build-arg COMPOSITION=core --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --build-arg RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" --target export --output type=local,dest=target/rz/core/build/{{ARCH}} .
+
 _build-binaries ARCH TARGET_TRIPLE PLATFORM:
     rm -rf target/rz/build/{{ARCH}}
     mkdir -p target/rz/build/{{ARCH}}
-    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key); docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --build-arg RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" --target export --output type=local,dest=target/rz/build/{{ARCH}} .
+    VERIFY_KEY=$(bun scripts/deploy-sign.mjs public-key) && test -n "$VERIFY_KEY" && docker buildx build --platform {{PLATFORM}} --build-arg TARGET_TRIPLE={{TARGET_TRIPLE}} --build-arg RUSTZEN_DEPLOY_VERIFY_KEY="$VERIFY_KEY" --target export --output type=local,dest=target/rz/build/{{ARCH}} .
 
 # Update project version.
 bump-version VERSION:

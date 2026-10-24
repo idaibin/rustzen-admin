@@ -1,7 +1,7 @@
 # Deployment Guide
 
-This repository publishes Admin, Monitor, Insights, and Reports as one signed
-version and one rollback boundary. It does not support service-specific
+This repository publishes an explicitly selected core or full composition as one
+signed version and one rollback boundary. It does not support service-specific
 versions, module-only releases, dynamic activation, mixed releases, or an old
 single-binary fallback.
 
@@ -12,6 +12,7 @@ cargo test --workspace -- --test-threads=1
 just check
 just build-native
 just build
+just build-release-core
 just verify-services
 just verify-monitor-admin
 just verify-reports-linux
@@ -23,10 +24,13 @@ It does not assemble or install the complete signed release; systemd inventory a
 native packaging are separate gates.
 
 `just build-native` builds the Web application, four optimized server binaries,
-and the non-resident `rz` operations CLI for the current machine. `just build`
-uses Docker to build the same five Linux musl executables, assembles one bundle,
-signs the complete tar, and verifies the signature. The Web package manager is
-Bun 1.3.14 and `apps/web/bun.lock` is the only frontend lockfile.
+and the non-resident `rz` operations CLI for the current machine. `just build` and
+`just build-release` keep the full default and write the full bundle under
+`target/rz/`. `just build-release-core` is explicit and writes a core-only bundle
+under `target/rz/core/`; its Docker build selects the core Web and Rust features and
+the packaged CLI uses a compile-time core inventory. The two commands sign and verify
+their exact composition inventory. The Web package manager is Bun 1.3.14 and
+`apps/web/bun.lock` is the only frontend lockfile.
 
 ## Bundle contract
 
@@ -179,11 +183,11 @@ rz restart
 rz status
 ```
 
-`status` reports the four resident service states and fails when any unit is not
-active. `doctor` remains the bounded health check for all four loopback `/health`
-endpoints. Its config reader
-accepts only the internal host and four port keys; credential values are neither
-retained nor emitted.
+`status` reports the resident service states selected by the installed CLI composition
+and fails when any expected unit is not active. `doctor` checks the matching loopback
+`/health` endpoints and lists only binaries in that composition. Core CLI builds probe
+Admin only; full CLI builds probe all four services. Its config reader accepts only the
+internal host and port keys; credential values are neither retained nor emitted.
 
 ## Configuration
 

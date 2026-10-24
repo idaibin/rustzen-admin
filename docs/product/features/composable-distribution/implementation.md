@@ -10,10 +10,10 @@ build complete bundle -> copy to server -> install -> start -> four services hea
 
 ## Optional examples stages
 
-Status: planned; no stage is implemented by this document edit. Existing full
-closure below is baseline evidence only. Follow [target contract](spec.md#optional-examples-target-approved-not-implemented)
-and [OE acceptance](validation.md#optional-examples-acceptance). Reuse the current
-branch and local 2bbd0c6; preserve later independent work and stop on overlap.
+Current stage status is owned by [OE tasks](tasks.md); the dated receipts below
+retain their original evidence boundaries. Follow [target contract](spec.md#optional-examples-target)
+and [OE acceptance](validation.md#optional-examples-acceptance). Resume from the
+current branch and verified task basis, preserving independent work and owner boundaries.
 
 | Stage | Bounded task / owner | Exit required before next stage |
 | --- | --- | --- |
@@ -68,11 +68,21 @@ repeat security/language work, create a duplicate branch, push, merge or deploy.
 
 ## Scope
 
-The complete bundle contains the Web application, `rz`, Admin, Monitor, Insights,
-Reports, production configuration templates, the six systemd units and the installer.
-It has one version, one Ed25519 signature, one update transaction and one rollback
-boundary. Frontend and backend digests are inspection fields inside that one signed
-identity.
+The full bundle contains the Web application, `rz`, Admin, Monitor, Insights,
+Reports, production configuration templates, the full systemd units and the installer.
+The explicit core bundle contains core Web assets, `rz`, Admin, Admin-only runtime
+configuration, core systemd units and the installer. Both use one version, one Ed25519
+signature, one update transaction and one rollback boundary per archive. Frontend and
+backend digests are inspection fields inside that signed identity.
+
+The production build entry points are `just build-release` (full, unchanged default)
+and `just build-release-core` (explicit core). Docker uses a validated `COMPOSITION`
+build argument to select the matching Web and Rust feature sets; an unknown value is
+rejected. The packaged CLI composition is compile-time fixed: status, start/restart
+health, doctor service probes, expected health count and binary inventory share that
+single authority. Core archives contain only `rz` and `rz-admin` plus the core unit and
+configuration inventory; task-only signing material remains outside the source/build
+context.
 
 The installation command accepts only the signed bundle path. It does not accept an
 administrator password, signing key, verification key or database command. The build
@@ -197,9 +207,9 @@ inspection.
   `apps/web` (`index.html`/`main.tsx` carry no tracker; Admin serves the
   embedded dist verbatim, `apps/admin/src/infra/web.rs`).
 - Module API clients are module-route-local plus the
-  `apps/web/src/api/index.ts:5-8` barrel; the dashboard module panel is
-  `apps/web/src/routes/index.tsx:141-234` over
-  `GET /api/dashboard/modules`.
+  `apps/web/src/api/index.ts:5-8` barrel; the Dashboard renders
+  `apps/web/src/routes/-module-health-panel.tsx`, mounted by `DashboardPage`,
+  over `GET /api/dashboard/modules`.
 - Embedding: `apps/admin/build.rs` hardcodes `../web/dist`, a full-composition
   id (`rustzen-full-composition-v1`) and asserts a non-empty dist; rust-embed
   supports environment-variable folder interpolation for a core web root.
@@ -1044,3 +1054,137 @@ NOT-RUN (matching the raw cargo rc 101), and the ordinary exact
 invocation exited 0 with `0 passed; 1 ignored`. Real legacy positive
 (OE-T10), Linux real packages, and old-worker upgrade/rollback
 remain unverified.
+
+### OE-T12 local independent acceptance and OE-T11 partial DOM — 2026-10-13
+
+Reviewer: current Codex coordinator (not the original installer implementer).
+Fixed basis: parent b6af0ee2b8f03244322741428cf6acb1a77114aa to
+79f1206c227a8fccff782289dbbae11761159e5e; raw parent metadata and objects
+verified, repository is not shallow. Local source review covers installer
+composition/config/account/unit branches, marker/signature/content/backend/Web
+identity checks before installation writes, and focused fixture assertions.
+The installer, harness, signer and core units have no diff from that commit
+in the current checkout. Standards: no actionable finding in this bounded
+change review. Spec: local core/full inventory, failure-before-install and
+exact full compatibility scope supported; Linux lifecycle remains Not verified.
+
+Evidence accepted by readback: original installer PROVENANCE and four matching
+log hashes, 21-group green terminal (baseline failure retained), signer 7-pass
+terminal; negative-verification SHA256SUMS 14/14 matching, six rejected cases
+and 6/6 run.log terminal, with driver assertions for empty install roots and
+zero systemctl calls. These are historical writer executions, not this
+reviewer's fresh dynamic run. This review accepts OE-T12's local scope only;
+no signing key read, installer execution, package generation, service start
+or Linux acceptance occurred. Both shell syntax checks returned 0.
+
+OE-T11: existing identity-pinned V2 core/full at ports 9821/9801 verified by
+lsof executable/cwd, binary hashes and actual served index hashes matching
+original records. Browser at 1920x1080 verified core [] without a module panel
+and full's three unavailable modules/cards. Monitor delivery-card states
+remain unverified. Runtime/DOM/network/screenshot details and remaining
+A-04/OE dependencies: [A-04/A-06 receipt](../../../plans/product-iteration-tasks.md).
+The original V2 binaries predate the dotenv/launcher isolation fix; none of
+this evidence upgrades that new launcher's runtime acceptance.
+
+### OE-T11 failure-surface acceptance — original ZCode client, 2026-10-13
+
+The same original Admin session continued the A-04 package through the ZCode
+client. Existing full V2 at 9801, 1920x1080/light, /monitoring/incidents:
+DOM/screenshot shows Delivery status failed and Failed to load alert incidents
+with Reload. Browser requests incidents and notification-delivery; authenticated
+actual readback returns HTTP 503/code 40001 (Monitor worker unavailable).
+This accepts the currently observable failure surface only; same-version
+Monitor registration/availability and delivery data are still needed for
+success, pending/quarantine/details and the remaining journey. No service was
+started, no candidate built, no source changed. Original OE-T11 remains Blocked
+for those dependencies. [Coordinator case receipt](../../../plans/product-iteration-tasks.md)
+contains current model/session attribution, eight-case denominator, source
+hashes, screenshot/response provenance, cleanup and restore conditions.
+
+
+### OE-T11 bounded local acceptance — 2026-10-23
+
+The current Codex coordinator and one implementation/acceptance owner completed
+the explicitly authorized disposable Admin/Monitor window (9801/9802/9811,
+fresh SQLite, synthetic reports, no external notifications). Full Web and
+Admin/Monitor builds, the core Web/Admin build, focused card tests (2/32), and
+unchanged composition tests (4/79) passed. Three code fixes close the missing
+core dashboard helper, the non-core dialog-session staging/verifier omission,
+and narrow delivery-popover clipping. Real reports produced four matching
+Monitor-to-Admin stored events. Served core UI and layered full-card
+ready/details, aggregate-only gap fixture, controlled 403/503/retry/recovery
+checks passed. Fixtures, services, databases and source/build copies were cleaned.
+
+ZCode independently reviewed frozen basis `51218e7a259aca7071244ea5d66fa68ac119d4518918d8ae317d5f2ab525e243`
+(1,323 files), returning PASS with no P0–P2. Report:
+ignored `.codex/reviews/admin-d03-core-result.md`; primary coverage and native
+receipts: ignored `.codex/artifacts/core-delivery/`. The three nonblocking
+traceability observations were closed by this final documentation transition;
+`final-closure.json` binds its hashes and exact post-review delta. Earlier ledger
+patches are intermediate evidence, not byte-exact final ledger reconstructions.
+The initial preflight ledger preimage was not retained byte-for-byte; final
+file hashes are authoritative for this uncommitted package.
+
+This accepts local OE-T11 only. OE-T09/T10 Linux packaging, real preceding
+worker upgrade/rollback/recovery and the Linux 23-case gate remain open; OE-T12
+retains historical local acceptance. Reports live runtime was not run. Original
+Chrome viewport restoration remains Not verified; excluded DevTools diagnostics
+were replaced with IAB/native headless evidence. No commit, push or deployment.
+
+
+### D-03 current-fixture Linux acceptance — 2026-10-24
+
+Owner: current coordinator plus one Luna implementation/acceptance owner.
+Consumers: release/packaging and acceptance owners. Revalidate affected claims
+when source, fixture identity or trust inputs change; this receipt is scoped
+to the fixed basis and is not a persistent environment-availability promise.
+Basis: original HEAD `d209eac830391d4f21f7c0bc47bb49e796273f95` and the
+preserved dirty source; frozen fixed fixture source
+`d6446d808a249314dea1c87ae6b21b9ff675d34159d47301882d13370041e550`.
+The user authorized a dedicated isolated x86_64 Linux build/service/update
+window and excluded recovery of the missing genuine old 0.5.1 signed artifact.
+All newly built versions are local fixtures. OE-A09/OE-T10 historical-worker
+compatibility remains Not verified and still blocks an unconditional release.
+
+Explicit core packaging, composition-aware CLI and fresh-install configuration
+are implemented. Core/full signed packages built and installed on real systemd
+in Colima `rz-admin-d03-amd64`. CLI lifecycle and ordinary reboot, update and
+reverse application, health failure rollback, cross-composition refusal and
+occupied-root refusal have native evidence. A real restart-limit failure left
+the restored Admin unable to start; bounded `reset-failed` on journal-recorded,
+composition-whitelisted units fixes that path, and native core/full faults now
+restore healthy old services. Source recovery tests passed 4/4.
+
+All 18 frozen A11 interruption points were actually observed with verified
+worker identities, SIGKILL and changed boot IDs: core six, full twelve. Database
+oracles follow the existing journal contract: restarted services match verified
+backups; untouched services preserve captured pre-reboot state. Every table is
+in scope. Full cases cover 53 tables, owner/mode/path and ten runtime files.
+SQLite logical digests and physical file hashes are distinguished; normal
+startup and pre-interruption manifest/audit writes are separately reported.
+Packaged recovery child identity is inferred where journald lacks a child PID/
+ELF. The core pre-journal phase and two-encoding bridge qualifications remain
+explicit in the report. Failed instrumentation attempts are retained rather
+than counted as passing cases. Final normal runtime has empty task DropInPaths,
+correct signed binaries and four healthy endpoints.
+
+Linux Monitoring's original 23-case gate and local evidence publication
+passed on fixed source (outer exit 0, 2026-10-24). The two additional delivery
+UI runs use synthetic gap-state data through real login/RBAC/API; they do not
+repeat the historical Monitor-to-Admin relay acceptance. An earlier browser run completed assertions but
+failed publication; it remains failed. The harness repair binds four loading
+barrier artifacts and their hashes to the actual run. Final ZCode review passed on 2026-10-24 (no P0–P2; four nonblocking
+P3 suggestions/observations). The coordinator verified actual CLI exit0,
+provider SID/turn/trace, glm-5.3 model usage and final assistant stop, completion
+marker, source identity and the returned findings. Native/request recovery
+qualifications remain unchanged; this acceptance does not clear the old-worker
+release gate. Necessary sanitized evidence, build/source overlays, per-case
+coordinator readbacks and the final report are retained in ignored
+`.codex/artifacts/core-delivery/linux/`; provider artifacts use ignored
+`.codex/reviews/admin-d03-linux-*`. No commit, push, production access or goods
+VM operation is authorized or claimed.
+
+The dedicated Linux profile and data were deleted after evidence retention.
+Both goods VMs and the global Docker context retain their prior state. The
+review result and coordinator verification are in `.codex/reviews/admin-d03-linux-*`;
+only factual closure-ledger changes follow its frozen source basis.

@@ -95,7 +95,17 @@ Non-goals:
 
 - **List loading/error/empty/populated:** one explicit state at a time.
 - **Permission loading/error/empty/populated:** contained within the open role
-  dialog; retry preserves role fields and selected permissions.
+  dialog; retry preserves role fields, permission search, and selected
+  permissions.
+- **Permission background refresh failure:** keep the last successful
+  permission choices visible with the shared refresh notice and retry action;
+  preserve all role fields, search, and selected permissions. Disable role
+  submission while refresh is fetching or has failed.
+- **Role edit session:** refreshing the same role while its dialog is open does
+  not replace the operator's draft. Closing and reopening initializes from the
+  latest role record; switching to another role initializes that record
+  independently. Each create session starts with empty role fields and no
+  selected permissions.
 - **Submitting:** one request at a time; the primary action remains disabled.
 - **Delete blocked:** the role and assignments remain unchanged.
 - **Create/update/delete success:** role persistence and effective permission
@@ -113,6 +123,12 @@ Non-goals:
 - Permission retrieval failure is distinct from a successful empty catalog and
   provides retry without resetting name, code, status, description, or selected
   permissions.
+- A failed background permission refresh keeps cached choices visible, provides
+  retry, preserves role fields, permission search, and selected permissions, and
+  blocks submission until a retry succeeds.
+- Refreshing the same role while its edit dialog is open preserves the current
+  draft. Closing and reopening uses the latest role record, switching roles does
+  not carry the previous role's draft, and each create opening starts empty.
 - Disabling a role removes its capabilities from affected users after the
   successful update while preserving the role and its user associations.
 - Deleting an assigned role fails without removing the role or assignments.

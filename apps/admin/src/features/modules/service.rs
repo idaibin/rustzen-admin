@@ -71,11 +71,18 @@ impl ModuleService {
     }
 
     #[cfg(feature = "core")]
-    pub fn dashboard_health(state: &ModuleControlState) -> Vec<ModuleHealthResponse> {
+    pub async fn dashboard_health(
+        state: &ModuleControlState,
+    ) -> Result<Vec<ModuleHealthResponse>, ServiceError> {
+        let registered = ModuleRepository::registered_module_ids(&state.pool).await?;
         let snapshot = state.registry.snapshot();
-        snapshot
+        Ok(snapshot
             .display_modules()
             .into_iter()
+            .filter(|runtime| {
+                runtime.enabled
+                    && (runtime.manifest.is_some() || registered.contains(runtime.spec.id))
+            })
             .map(|runtime| ModuleHealthResponse {
                 module: runtime.spec.id,
                 available: runtime.available(),
@@ -84,7 +91,7 @@ impl ModuleService {
                     .and_then(|runtime| runtime.manifest.as_deref())
                     .map(|manifest| manifest.release_version.clone()),
             })
-            .collect()
+            .collect())
     }
 
     pub async fn navigation(

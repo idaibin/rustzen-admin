@@ -314,6 +314,7 @@ export function selectedWebRoutes(selection: { webRoots: string[] }) {
         "system/-role-delete-state.ts",
         "system/-role-dialog.tsx",
         "system/-role-permission-picker.tsx",
+        "system/-dialog-session.ts",
         "system/-user-actions.tsx",
         "system/-user-dialog.tsx",
     ].sort();

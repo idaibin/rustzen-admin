@@ -1,5 +1,9 @@
 # Product Feature Index
 
+Current product audit follow-up: [iteration requirements](iteration.md),
+[solution](../plans/product-iteration.md), and [bounded task ledger](../plans/product-iteration-tasks.md).
+Existing feature and OE ledgers retain their own task status and evidence authority.
+
 Read [product.md](./product.md) for product positioning, shared principles,
 module boundaries, and direction. Read only the target feature specification
 below for slice-local behavior and acceptance. The independent Forgeway
@@ -15,10 +19,13 @@ status-panel removal, and Dashboard scope. Route acceptance is mapped in the
 ## Shared implementation contract
 
 The [distribution specification](features/composable-distribution/spec.md) defines
-the first release as one complete signed distribution with optional runtime module
-disablement and the durable message center. Acceptance covers that complete artifact;
-the operator path is build, copy, install and start, with no password, key or database
-command input during installation. The active full-release work is tracked in the
+the approved `core`/`full` target and the current full-default release path. Core
+runtime/Web and bounded packaging slices have stage evidence; installer independent
+acceptance, real Linux old-worker update/recovery and browser DOM remain open in the
+[OE task ledger](features/composable-distribution/tasks.md). The default switches
+only at OE-5 after the required installation/update gates and command wiring.
+The full operator path remains build, copy, install and start, with no password,
+key or database command input during installation. Execution evidence belongs to the
 [implementation plan](features/composable-distribution/implementation.md).
 
 ### Actors and capabilities

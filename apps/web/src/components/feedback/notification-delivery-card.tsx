@@ -109,6 +109,10 @@ export function NotificationDeliveryCardView({
         <Popover
             trigger="click"
             placement="bottomRight"
+            styles={{
+                root: { maxWidth: "calc(100vw - 32px)" },
+                content: { overflowWrap: "anywhere" },
+            }}
             title={t("通知投递状态", "Notification delivery")}
             content={
                 <NotificationDeliveryDetails state={state} onRetry={onRetry} retrying={retrying} />

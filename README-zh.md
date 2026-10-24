@@ -2,17 +2,26 @@
 
 [English](./README.md) | 简体中文
 
-`rustzen-admin` 在一个源码仓库和一个签名发布包中提供 Rustzen Admin、Monitor、Insights 和 Reports 运行时。
+使用 **Rust、Axum、React 和 SQLite** 开发业务管理后台。
 
-这是一个以通用管理后台模板为优先的 Rust 全栈工程，提供可运行的完整参考应用。
+复用登录、实例级角色与权限、用户管理、审计日志，以及从前端到数据库的完整功能结构。Monitor、Insights 和 Reports 提供基于 Admin 基础能力的完整示例。
 
-> `rustzen-admin` 将 Axum 后端、React 前端、共享 crate、部署资产和仓库级文档组织在同一个代码库中，强调清晰边界、可维护性，以及对 AI 协作友好的工程结构。
+## 从这里开始
+
+| 你想做什么 | 入口 |
+| --- | --- |
+| 先看看界面 | [演示环境](https://admin.rustzen.dev) — 仅演示账号：`owner` / `rustzen@123` |
+| 本地运行并读懂一个功能 | [开发者快速上手](./docs/guides/getting-started.md) |
+| 接入认证与权限 | [权限指南](./docs/guides/permission.md) |
+| 安装完整签名发行包 | [部署指南](./docs/guides/deployment.md) |
+
+当前默认构建完整应用。仅包含 Admin 的 `core` 组合仍在验收，其发行门禁见[组合任务账](./docs/product/features/composable-distribution/tasks.md)。部门数据权限与多租户隔离尚未实现。
 
 ## 概览
 
 `rustzen-admin` 首先服务于开发业务管理后台的开发者：复用认证、实例级 RBAC、审计日志、共享布局和分层业务代码。部门数据权限与多租户隔离尚未实现。
 
-Monitor、Insights 和 Reports 保留为现有扩展示例及后续拆分评估对象。当前仍交付完整签名包、四个服务及各自 SQLite；运行时禁用模块不等于可选构建、卸载或独立发布。界面默认英文，支持切换并记住简体中文选择。
+Monitor、Insights 和 Reports 是 `full` 的扩展示例。已批准的 `core`/`full` 目标已有部分实现通过阶段验收；[OE 任务账](./docs/product/features/composable-distribution/tasks.md) 记录尚待完成的安装器、Linux 更新恢复和浏览器验收。当前默认命令仍生成完整签名包、四个服务及各自 SQLite。core 默认值须在 OE-5 收口并验证命令接线后切换。运行时禁用只改变访问，不改变已安装组合。界面默认英文，支持切换并记住简体中文选择。
 
 英文与中文入口应同步维护；产品事实以 [产品文档](./docs/product/product.md) 为准。
 
@@ -119,14 +128,7 @@ CLI 参数或执行失败固定包含 `schema_version`、`ok`、`command` 和
 SQLite 连接能力、角色策略、运行时目录和日志均由本仓库维护，不依赖 `rustzen-core` 运行时。
 本地开发不需要 `.env`：数据库路径、端口、连接池限制、运行目录、日志、时区、JWT 有效期，以及仅用于开发的 JWT/IPC 密钥均有内置默认值。环境变量只用于覆盖这些默认值。
 
-如果启动出现 `VersionMismatch`，说明本地数据库结构与当前初始化 SQL 校验和不一致。请执行：
-
-```bash
-just reset-db
-cargo run -p rustzen-admin -- serve
-```
-
-再次启动后会自动重建数据库。
+若启动提示 `VersionMismatch`，说明已有数据库与初始化迁移不匹配。请保留原库，按[上手指南的恢复说明](./docs/guides/getting-started.md#startup-recovery)核对数据归属与处理方式。
 
 ## 演示环境
 

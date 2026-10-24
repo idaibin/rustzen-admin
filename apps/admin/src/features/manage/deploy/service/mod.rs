@@ -9,7 +9,7 @@ use std::{
     },
     path::{Path, PathBuf},
     sync::Arc,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{extract::Multipart, http::StatusCode};
@@ -62,6 +62,7 @@ const SYSTEMD_UNITS: &[&str] = &["rz-admin.service"];
 const UPDATE_REQUEST_DIR: &str = "update-requests";
 const UPDATE_REQUEST_FILE: &str = "pending.json";
 const UPDATE_REQUEST_PROCESSING_FILE: &str = ".pending.json.processing";
+const UPDATE_REQUEST_FAILED_PREFIX: &str = ".pending.json.failed.";
 const UPDATE_REQUEST_LOCK_FILE: &str = ".update-request.lock";
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -74,6 +75,27 @@ struct UpdateRequest {
 struct ClaimedUpdateRequest {
     request: UpdateRequest,
     path: PathBuf,
+    // Holds an exclusive lock on the processing file for the whole worker run
+    // so other processes can tell a live claim from an abandoned one.
+    _lock: UpdateRequestLock,
+}
+
+// Releases a claimed request that never reached its first journal write by
+// archiving it for diagnosis instead of leaving the update queue wedged.
+struct ClaimedRequestLease<'a> {
+    path: &'a Path,
+    armed: bool,
+}
+
+impl Drop for ClaimedRequestLease<'_> {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        if let Err(error) = archive_claimed_update_request(self.path) {
+            tracing::error!(%error, path = %self.path.display(), "Failed to archive abandoned update request");
+        }
+    }
 }
 
 struct UpdateRequestLock {
@@ -376,6 +398,7 @@ impl DeployService {
         deployed_by: Option<String>,
         claimed_request: Option<&Path>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut claim_lease = claimed_request.map(|path| ClaimedRequestLease { path, armed: true });
         recover_interrupted_update().await?;
         let pool = crate::infra::db::create_default_pool().await?;
         crate::infra::db::run_migrations(&pool).await?;
@@ -427,6 +450,9 @@ impl DeployService {
             restarted_units: Vec::new(),
         };
         write_update_journal_and_acknowledge(&journal, claimed_request, write_update_journal)?;
+        if let Some(lease) = claim_lease.as_mut() {
+            lease.armed = false;
+        }
 
         let update_result = async {
             journal.stage = "installing".to_string();
@@ -489,7 +515,13 @@ impl DeployService {
             recover_interrupted_update_without_restart,
             requeue_services_after_recovery,
         )
-        .await
+        .await?;
+        // A worker that died before its first journal write leaves a claim the
+        // journal-based recovery cannot see; archive it so the update queue is
+        // not wedged until manual cleanup.
+        let runtime_root = fs::canonicalize(CONFIG.runtime_root_dir())?;
+        archive_orphaned_update_request_at(&runtime_root)?;
+        Ok(())
     }
 }
 
@@ -526,7 +558,16 @@ fn write_update_request(runtime_root: &Path, request: &UpdateRequest) -> Result<
     let path = update_request_path(runtime_root);
     let _lock = lock_update_request_directory(&directory)
         .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
-    for request_path in [&path, &directory.join(UPDATE_REQUEST_PROCESSING_FILE)] {
+    let claimed = directory.join(UPDATE_REQUEST_PROCESSING_FILE);
+    if fs::symlink_metadata(&claimed).is_ok() {
+        let orphaned = claimed_update_request_is_orphaned(&claimed)
+            .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        if orphaned {
+            archive_claimed_update_request(&claimed)
+                .map_err(|error| ServiceError::InvalidOperation(error.to_string()))?;
+        }
+    }
+    for request_path in [&path, &claimed] {
         match fs::symlink_metadata(request_path) {
             Ok(metadata) if metadata.file_type().is_symlink() => {
                 return Err(ServiceError::InvalidOperation(
@@ -609,10 +650,13 @@ fn claim_update_request(runtime_root: &Path) -> Result<PathBuf, std::io::Error> 
     let claimed = directory.join(UPDATE_REQUEST_PROCESSING_FILE);
     let _lock = lock_update_request_directory(&directory)?;
     if fs::symlink_metadata(&claimed).is_ok() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::AlreadyExists,
-            "an update request is already being processed",
-        ));
+        if !claimed_update_request_is_orphaned(&claimed)? {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "an update request is already being processed",
+            ));
+        }
+        archive_claimed_update_request(&claimed)?;
     }
     fs::rename(pending, &claimed)?;
     sync_directory(&directory)?;
@@ -623,15 +667,73 @@ fn take_update_request(
     runtime_root: &Path,
 ) -> Result<ClaimedUpdateRequest, Box<dyn std::error::Error>> {
     let claimed = claim_update_request(runtime_root)?;
+    let lock = lock_claimed_update_request(&claimed)?;
     let request = read_update_request(&claimed);
     let request = match request {
         Ok(request) => request,
         Err(error) => {
             tracing::error!(path = %claimed.display(), %error, "Retaining invalid update request for diagnosis");
+            archive_claimed_update_request(&claimed)?;
             return Err(error);
         }
     };
-    Ok(ClaimedUpdateRequest { request, path: claimed })
+    Ok(ClaimedUpdateRequest { request, path: claimed, _lock: lock })
+}
+
+fn lock_claimed_update_request(claimed: &Path) -> Result<UpdateRequestLock, std::io::Error> {
+    let file = fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(claimed)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() || metadata.mode() & 0o077 != 0 {
+        return Err(std::io::Error::other("claimed update request must be private and regular"));
+    }
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(UpdateRequestLock { file })
+}
+
+// Callers must hold the update request directory lock, so no live claim can be
+// recreated between this check and the decision built on it.
+fn claimed_update_request_is_orphaned(claimed: &Path) -> Result<bool, std::io::Error> {
+    match lock_claimed_update_request(claimed) {
+        Ok(lock) => {
+            drop(lock);
+            Ok(true)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+fn archive_claimed_update_request(claimed: &Path) -> Result<(), std::io::Error> {
+    let metadata = fs::symlink_metadata(claimed)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.mode() & 0o077 != 0 {
+        return Err(std::io::Error::other("claimed update request must be private and regular"));
+    }
+    let suffix =
+        SystemTime::now().duration_since(UNIX_EPOCH).map_err(std::io::Error::other)?.as_millis();
+    let archived = claimed.with_file_name(format!("{UPDATE_REQUEST_FAILED_PREFIX}{suffix}"));
+    fs::rename(claimed, &archived)?;
+    if let Some(parent) = archived.parent() {
+        sync_directory(parent)?;
+    }
+    tracing::warn!(from = %claimed.display(), to = %archived.display(), "Archived abandoned update request for diagnosis");
+    Ok(())
+}
+
+fn archive_orphaned_update_request_at(
+    runtime_root: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let directory = runtime_root.join("data").join(UPDATE_REQUEST_DIR);
+    let claimed = directory.join(UPDATE_REQUEST_PROCESSING_FILE);
+    if fs::symlink_metadata(&claimed).is_err() {
+        return Ok(());
+    }
+    let _lock = lock_update_request_directory(&directory)?;
+    if fs::symlink_metadata(&claimed).is_ok() && claimed_update_request_is_orphaned(&claimed)? {
+        archive_claimed_update_request(&claimed)?;
+    }
+    Ok(())
 }
 
 fn acknowledge_claimed_update_request(claimed: &Path) -> Result<(), Box<dyn std::error::Error>> {

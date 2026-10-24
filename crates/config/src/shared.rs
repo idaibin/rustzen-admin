@@ -88,7 +88,16 @@ impl From<figment::Error> for ConfigError {
     }
 }
 
+/// Loads `.env` from the current directory upward unless the caller
+/// explicitly opts out. Isolated acceptance launches set
+/// `RUSTZEN_SKIP_DOTENV` so a `.env` found at or above the working
+/// directory cannot re-inject data-path variables (for example the
+/// SQLite path overrides) into the final effective configuration;
+/// the default behavior without the flag is unchanged.
 pub fn load_dotenv_if_present() -> Result<(), ConfigError> {
+    if std::env::var_os("RUSTZEN_SKIP_DOTENV").is_some_and(|value| !value.is_empty()) {
+        return Ok(());
+    }
     match dotenvy::dotenv() {
         Ok(_) => Ok(()),
         Err(dotenvy::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),

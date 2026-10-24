@@ -36,8 +36,13 @@ In scope:
 - explain a successful empty result and prevent submission that cannot satisfy
   the role requirement;
 - preserve selected roles and normal dialog input while retrying;
-- prevent duplicate submission while role data is not ready or the form is
-  already being submitted.
+- keep the last successful role choices visible with a retry notice after a
+  background refresh failure, preserving the form and selected roles;
+- preserve the edit draft when the same user record refreshes while the dialog
+  remains open; initialize from the latest record after close and reopen, and
+  isolate drafts when switching users or opening a create session;
+- prevent duplicate submission while role data is not ready, fetching, has a
+  failed refresh, or the form is already being submitted.
 
 Non-goals:
 
@@ -56,9 +61,16 @@ Non-goals:
    and submission remains unavailable.
 4. When retrieval fails, the role area shows an error and retry action; the
    dialog remains open and other entered values are preserved.
-5. A successful retry replaces the error with the role choices.
-6. Form validation still explains that at least one role is required before a
+5. If a background refresh fails after roles have loaded, keep the last
+   successful role choices visible with the shared refresh notice and retry
+   action; preserve dialog values and selected roles, and block submission.
+6. A successful retry clears the error and makes the role choices ready.
+7. Form validation still explains that at least one role is required before a
    ready form can be submitted.
+8. Refreshing the same user does not overwrite an open edit draft; closing and
+   reopening uses the latest user record. Editing another user starts from that
+   user's record, and each create session starts with empty account fields and
+   role selection.
 
 ## Business rules and permissions
 
@@ -79,6 +91,9 @@ Non-goals:
   that creation or update cannot proceed.
 - **Error or permission denial:** failure message and retry action without
   closing or resetting the dialog.
+- **Background refresh failure:** cached roles and current selection remain
+  visible with the shared refresh notice and retry action; submission stays
+  disabled until refresh succeeds.
 - **Submitting:** primary action disabled until the current request finishes.
 
 ## User-visible data effects
@@ -97,6 +112,12 @@ and role-assignment behavior.
 - Opening either dialog never shows a false empty-role result while retrieval is
   pending.
 - A failed role request displays an error and a working retry action.
+- A failed background refresh keeps the last successful role choices visible,
+  preserves all form fields and selected roles, and disables submission until a
+  successful retry completes.
+- Refreshing the same user while editing preserves all current field values and
+  role selection. Close/reopen loads the latest record; switching users isolates
+  the form from the prior draft, and create opens with empty values.
 - Retrying does not discard username, email, real name, password, status, or
   selected role input already present in the dialog.
 - A successful empty response is visually distinct from failure and prevents a

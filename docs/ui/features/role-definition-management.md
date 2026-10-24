@@ -72,6 +72,7 @@ transaction rechecks `user_roles` and remains authoritative for races.
 | --- | --- | --- |
 | Loading | Compact `Loading permissions` status with localized copy | Disabled |
 | Error or permission denial | Destructive status, guidance, and localized `Reload` action | Disabled |
+| Background refresh failure | Keep cached search and permission choices visible with `BackgroundRefreshNotice` and retry; retain role fields, search, and selected permissions | Disabled until retry succeeds |
 | Successful empty | Compact `No permissions available to assign` status with localized copy | Disabled |
 | Populated, none selected | Search and permission choices | Disabled |
 | Populated, selected | Search and selected count | Enabled when other fields are valid |
@@ -82,9 +83,14 @@ transaction rechecks `user_roles` and remains authoritative for races.
   description, selected permission IDs, and the open dialog.
 - Background refresh failure keeps the last successful permission data visible.
 - Permission search filters visible choices without removing selected IDs.
+- A failed background refresh keeps cached choices visible, preserves search and
+  selection, and blocks submission until a successful retry completes.
 - A no-match search result is distinct from an empty permission catalog.
-- Closing and reopening the dialog restores values from the current role record
-  through the existing form lifecycle.
+- A same-role list refresh while the dialog is open retains the current draft
+  and selected permissions. Closing and reopening initializes from the latest
+  role record; switching to another role initializes that role's values.
+- Each create-dialog opening starts with empty role fields and no selected
+  permissions.
 
 ## Accessibility and responsive behavior
 
@@ -113,6 +119,12 @@ transaction rechecks `user_roles` and remains authoritative for races.
   states are reachable from deterministic query/form inputs.
 - Retrieval failure never appears as an empty permission catalog.
 - Retry preserves every role field and selected permission ID.
+- Background refresh failure preserves every role field, permission search, and
+  selected permission ID while keeping cached choices visible; submission stays
+  disabled during failure and retry.
+- Same-role list refresh while editing preserves the draft; close/reopen loads
+  the latest record, a different role starts from its own values, and create
+  opens with an empty form.
 - Submit remains disabled until permission data is ready and at least one
   permission is selected.
 - No new horizontal overflow appears at the repository-standard 1920x1080

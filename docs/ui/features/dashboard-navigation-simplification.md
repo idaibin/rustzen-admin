@@ -5,7 +5,7 @@ Observed local coverage and remaining gaps belong to [local verification](../../
 
 ## Planned optional-example composition (OE-A01–04)
 
-Status: planned under the [OE product contract](../../product/features/composable-distribution/spec.md#optional-examples-target-approved-not-implemented).
+Status: implementation and remaining browser acceptance are tracked in [OE tasks](../../product/features/composable-distribution/tasks.md), under the [OE product contract](../../product/features/composable-distribution/spec.md#optional-examples-target).
 Keep root DESIGN.md semantics and existing shared layout/controls. Core retains
 account totals, permission-gated local resource summary, account/role management,
 audit navigation and supported native Admin tools. Omit the module panel, module
@@ -27,7 +27,7 @@ real browser journeys. No shared visual redesign is authorized by this slice.
 This is one control-plane entry slice covering:
 
 - `/`: account totals, permission-gated Admin-host CPU/memory/disk summary, and
-  the availability of Monitor, Insights, and Reports;
+  the availability of enabled, connected Monitor, Insights, and Reports examples;
 - the persistent sidebar and page search: current product destinations only;
 - removal of Dictionary and demo navigation from the current surface.
 
@@ -51,7 +51,9 @@ Dashboard and navigation composition.
 - `PageHeader` owns the single page heading and description.
 - The Dashboard starts directly with four account metric cards, without a redundant
   account-overview title or enclosing Card. A permission-gated resource panel and
-  module panel follow side by side where space allows, then stack in that DOM order.
+  optional module panel follow side by side where space allows, then stack in that
+  DOM order. With no connected enabled examples, the module panel is omitted and
+  the resource panel uses the available width.
 - Resource and module panels use the ordinary bordered surface from DESIGN. Module
   entries use neutral compact cards, an icon, and an explicit state indicator plus
   text; an all-green tile is not the only indication of availability.
@@ -63,6 +65,18 @@ Dashboard and navigation composition.
 - Sidebar groups remain System and Management plus enabled module-provided
   navigation. Search consumes the same route inventory as the sidebar.
 
+## Copy contract
+
+- Keep the route title **Dashboard**. Its description frames the page as an
+  account, role-permission, and business-administration overview, with local
+  resource and extension-example status as supporting context.
+- Name the optional module panel **Extension examples / 扩展示例** and describe
+  returned Monitor, Insights, and Automation entries as examples. Only enabled,
+  connected examples are returned; preserve a connected service's current
+  **Online / Unavailable** state and retry feedback. Never-connected and disabled
+  examples are omitted.
+- Login copy follows the scoped statement in the [UI index](../index.md#english-default-locale-acceptance).
+
 ## States, transitions, and feedback
 
 Dashboard account totals, system resources, and module health are independent
@@ -70,7 +84,10 @@ asynchronous regions. Each owns its loading, error with retry, and populated
 state through `DataState`; failure in one must not hide the others. The system
 resource region is absent when the user lacks `system:status:view`. A module
 marked unavailable is valid populated data, not a page error. Empty account
-totals render numeric zero values.
+totals render numeric zero values. An empty successful module response omits the
+module panel. Initial loading and errors without cached data remain visible; an
+empty cached response continues to hide the panel during a background refresh
+failure.
 
 Sidebar/search entries are derived from current fixed Admin routes, granted
 permissions, the configured module-enabled state, and active, visible,
@@ -103,7 +120,9 @@ preserve the current route and data state.
    module health continues through `GET /api/dashboard/modules`; the resource
    summary reuses `GET /api/system/status` without changing its permission.
 2. Dashboard renders its page heading, four account metrics, three
-   permission-gated Admin-host resource metrics, and module availability. It
+   permission-gated Admin-host resource metrics, and only module availability
+   rows returned by the API. An empty module response hides the panel and lets the
+   resource panel fill the grid; a connected offline module remains visible. It
    adds no storage diagnostics, request metric, trend, or duplicate Analytics
    panel.
 3. Sidebar and search contain no `/manage/dict`, `/403`, or `/404` entry, while

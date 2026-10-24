@@ -65,13 +65,17 @@ const reportsRouteHelpers = [
     "apps/web/src/routes/reports/-templates/target-dialog.tsx",
     "apps/web/src/routes/reports/-templates/templates-content.tsx",
 ];
-// Core keeps the real Admin shell: stage every non-test co-located helper
-// under the system and manage route subtrees instead of hand-listing them.
+// Core keeps the real Admin shell: stage its explicitly used dashboard
+// helper and every non-test co-located helper under system/manage. Keep the
+// root helper list explicit so notification-only shell helpers stay excluded.
 const coreRouteHelpers = await (async () => {
     const glob = new Bun.Glob("apps/web/src/routes/{system,manage}/**/-*");
     const matches: string[] = [];
     for await (const path of glob.scan({ cwd: repositoryRoot })) matches.push(path);
-    return matches.filter((path) => !/\.test\.[jt]sx?$/.test(path)).sort();
+    return [
+        "apps/web/src/routes/-module-health-panel.tsx",
+        ...matches.filter((path) => !/\.test\.[jt]sx?$/.test(path)),
+    ].sort();
 })();
 const sourceRoutes = [
     ...selection.webRoots,
@@ -89,6 +93,7 @@ const sourceRoutes = [
                 "apps/web/src/routes/monitoring/-save-state.ts",
             ]
           : []),
+    ...(!isCore ? ["apps/web/src/routes/system/-dialog-session.ts"] : []),
     "apps/web/src/routes/system/-role-actions.tsx",
     "apps/web/src/routes/system/-role-delete-state.ts",
     "apps/web/src/routes/system/-role-dialog.tsx",

@@ -7,12 +7,14 @@ use std::{
 };
 
 use super::super::{
-    DeployService, SYSTEMD_UNITS, UpdateJournal, backup_database_online, backup_database_paths,
+    ClaimedRequestLease, DeployService, SYSTEMD_UNITS, UpdateJournal,
+    archive_orphaned_update_request_at, backup_database_online, backup_database_paths,
     claim_update_request, cleanup_failed_release, create_dir_all_durable, load_installed_bundle,
-    read_update_journal_at, read_update_request, restore_database_paths,
-    restore_release_state_with_paths, roll_services_with, run_boot_recovery, swap_symlink,
-    take_update_request, update_request_path, validate_upload_size, validate_version,
-    write_update_journal_and_acknowledge, write_update_journal_at, write_update_request,
+    lock_claimed_update_request, read_update_journal_at, read_update_request,
+    restore_database_paths, restore_release_state_with_paths, roll_services_with,
+    run_boot_recovery, swap_symlink, take_update_request, update_request_path,
+    validate_upload_size, validate_version, write_update_journal_and_acknowledge,
+    write_update_journal_at, write_update_request,
 };
 use crate::features::manage::deploy::types::{
     DeployComponent, DeploymentPayload, ExpireVersionRequest,
@@ -116,7 +118,7 @@ fn update_request_writer_stays_private_under_admin_umask_and_enters_worker_trans
 
 #[cfg(unix)]
 #[test]
-fn invalid_claimed_update_request_is_retained_for_diagnosis() {
+fn invalid_claimed_update_request_is_archived_for_diagnosis() {
     use std::os::unix::fs::PermissionsExt;
 
     let root = std::env::temp_dir().join(format!("rz-update-invalid-{}", uuid::Uuid::new_v4()));
@@ -130,9 +132,15 @@ fn invalid_claimed_update_request_is_retained_for_diagnosis() {
 
     assert!(take_update_request(&root).is_err());
     assert!(!pending.exists());
-    let claimed = directory.join(".pending.json.processing");
-    assert!(claimed.is_file());
-    assert!(read_update_request(&claimed).is_err());
+    assert!(!directory.join(".pending.json.processing").exists());
+    let archived = failed_request_files(&directory);
+    assert_eq!(archived.len(), 1);
+    assert!(read_update_request(&archived[0]).is_err());
+    write_update_request(
+        &root,
+        &super::super::UpdateRequest { release_id: 41, deployed_by: "owner".to_string() },
+    )
+    .expect("queue recovers after the invalid request is archived");
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -176,35 +184,37 @@ fn concurrent_update_request_writers_publish_exactly_one_pending_request() {
 }
 
 #[test]
-fn writer_cannot_republish_pending_while_claimer_transfers_it_to_processing() {
+fn writer_cannot_republish_while_a_live_worker_holds_the_claim() {
     let root = std::env::temp_dir().join(format!("rz-update-claim-race-{}", uuid::Uuid::new_v4()));
-    fs::create_dir_all(root.join("data/update-requests")).expect("request directory");
+    let directory = root.join("data/update-requests");
+    fs::create_dir_all(&directory).expect("request directory");
     write_update_request(
         &root,
         &super::super::UpdateRequest { release_id: 21, deployed_by: "owner".to_string() },
     )
     .expect("initial request");
-    let barrier = Arc::new(Barrier::new(3));
-    let claim_root = root.clone();
-    let claim_barrier = Arc::clone(&barrier);
-    let claimer = thread::spawn(move || {
-        claim_barrier.wait();
-        claim_update_request(&claim_root)
-    });
-    let write_root = root.clone();
-    let write_barrier = Arc::clone(&barrier);
-    let writer = thread::spawn(move || {
-        write_barrier.wait();
+    let claimed = take_update_request(&root).expect("worker claims and owns the request");
+    assert!(
         write_update_request(
-            &write_root,
+            &root,
             &super::super::UpdateRequest { release_id: 22, deployed_by: "other".to_string() },
         )
-    });
-    barrier.wait();
-    let claimed = claimer.join().expect("claimer thread").expect("claim succeeds");
-    assert!(writer.join().expect("writer thread").is_err());
-    assert!(!update_request_path(&root).exists());
-    assert_eq!(read_update_request(&claimed).expect("claimed request").release_id, 21);
+        .is_err()
+    );
+    assert!(claimed.path.is_file());
+    assert!(failed_request_files(&directory).is_empty());
+    drop(claimed);
+
+    write_update_request(
+        &root,
+        &super::super::UpdateRequest { release_id: 23, deployed_by: "next".to_string() },
+    )
+    .expect("queue recovers after the worker releases the claim");
+    assert_eq!(
+        read_update_request(&update_request_path(&root)).expect("pending request").release_id,
+        23
+    );
+    assert_eq!(failed_request_files(&directory).len(), 1);
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -235,6 +245,68 @@ fn claimed_request_survives_pre_journal_failure_and_is_removed_only_after_durabl
     assert!(journal_path.is_file());
     assert!(!claimed.path.exists());
     fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn boot_sweep_archives_only_unowned_processing_requests() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = std::env::temp_dir().join(format!("rz-update-sweep-{}", uuid::Uuid::new_v4()));
+    let directory = root.join("data/update-requests");
+    fs::create_dir_all(&directory).expect("request directory");
+    let processing = directory.join(".pending.json.processing");
+    fs::write(&processing, br#"{"releaseId":51,"deployedBy":"owner"}"#).expect("claim fixture");
+    let mut permissions = fs::metadata(&processing).expect("claim metadata").permissions();
+    permissions.set_mode(0o600);
+    fs::set_permissions(&processing, permissions).expect("private mode");
+
+    let live_lock = lock_claimed_update_request(&processing).expect("live worker claim lock");
+    archive_orphaned_update_request_at(&root).expect("sweep skips the live claim");
+    assert!(processing.is_file());
+    drop(live_lock);
+
+    archive_orphaned_update_request_at(&root).expect("sweep archives the abandoned claim");
+    assert!(!processing.exists());
+    assert_eq!(failed_request_files(&directory).len(), 1);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn abandoned_request_lease_archives_only_while_armed() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = std::env::temp_dir().join(format!("rz-update-lease-{}", uuid::Uuid::new_v4()));
+    let directory = root.join("data/update-requests");
+    fs::create_dir_all(&directory).expect("request directory");
+    let processing = directory.join(".pending.json.processing");
+    fs::write(&processing, br#"{"releaseId":61,"deployedBy":"owner"}"#).expect("claim fixture");
+    let mut permissions = fs::metadata(&processing).expect("claim metadata").permissions();
+    permissions.set_mode(0o600);
+    fs::set_permissions(&processing, permissions).expect("private mode");
+
+    let disarmed = ClaimedRequestLease { path: &processing, armed: false };
+    drop(disarmed);
+    assert!(processing.is_file());
+
+    let armed = ClaimedRequestLease { path: &processing, armed: true };
+    drop(armed);
+    assert!(!processing.exists());
+    assert_eq!(failed_request_files(&directory).len(), 1);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+fn failed_request_files(directory: &Path) -> Vec<PathBuf> {
+    fs::read_dir(directory)
+        .expect("request directory")
+        .filter_map(|entry| {
+            let path = entry.expect("directory entry").path();
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with(".pending.json.failed."))
+                .then_some(path)
+        })
+        .collect()
 }
 
 fn update_journal_fixture(root: &Path, release_id: i64) -> UpdateJournal {

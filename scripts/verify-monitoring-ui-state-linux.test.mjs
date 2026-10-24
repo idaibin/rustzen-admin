@@ -14,11 +14,13 @@ const deliveryEvidenceLibPath = path("monitoring-ui-state-delivery-evidence-lib.
 const names = [
     "driver",
     "fixture",
+    "fixturePayloads",
     "gate",
     "gateLib",
     "evidenceLib",
     "seams",
     "inner",
+    "runLib",
     "innerLib",
     "retryLib",
     "deliveryLib",
@@ -27,11 +29,13 @@ const names = [
 const files = [
     "monitoring-ui-state-browser-steps.mjs",
     "monitoring-ui-state-fixture.py",
+    "monitoring_ui_state_fixture_payloads.py",
     "verify-monitoring-ui-state-linux.sh",
     "monitoring-ui-state-gate-lib.sh",
     "monitoring-ui-state-evidence-lib.sh",
     "monitoring-ui-state-seams.sh",
     "verify-monitoring-ui-state-linux-inner.sh",
+    "monitoring-ui-state-run-lib.sh",
     "monitoring-ui-state-inner-lib.sh",
     "monitoring-ui-state-retry-lib.sh",
     "monitoring-ui-state-delivery-lib.sh",
@@ -233,6 +237,66 @@ describe("Monitoring UI state Linux gate", () => {
         expect(validate().exitCode).not.toBe(0);
         spawn(["rm", "-rf", root]);
     }, 35_000);
+
+    test("fixture holds slow response until controller release and times out safely", async () => {
+        const port = 22000 + Math.floor(Math.random() * 1000);
+        const handle = Bun.spawn(["python3", "-B", fixturePath], {
+            env: {
+                ...process.env,
+                RUSTZEN_MONITORING_FIXTURE_PORT: String(port),
+                RUSTZEN_MONITORING_FIXTURE_SLOW_SECONDS: "0.01",
+                RUSTZEN_MONITORING_FIXTURE_HOLD_TIMEOUT_SECONDS: "0.15",
+            },
+            stdout: "ignore",
+            stderr: "pipe",
+        });
+        processes.push(handle);
+        const base = "http://127.0.0.1:" + port;
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+            const health = await fetch(base + "/__monitoring_fixture/health").catch(() => null);
+            if (health?.ok) break;
+            await Bun.sleep(25);
+        }
+        expect((await fetch(base + "/__monitoring_fixture/health")).ok).toBe(true);
+        const control = (name, body) => fetch(base + "/__monitoring_fixture/" + name, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const endpoint = base + "/api/monitor/incidents?current=1&pageSize=20";
+        expect((await control("hold", { route: "incidents" })).ok).toBe(true);
+        expect((await control("mode", { incidents: "slow" })).ok).toBe(true);
+        let settled = false;
+        const heldResponse = fetch(endpoint).then((response) => {
+            settled = true;
+            return response;
+        });
+        let heldReceipt;
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+            heldReceipt = await (await fetch(base + "/__monitoring_fixture/receipt")).json();
+            if (heldReceipt.requests.length === 1) break;
+            await Bun.sleep(10);
+        }
+        expect(heldReceipt.requests[0].holdRequested).toBe(true);
+        await Bun.sleep(40);
+        expect(settled).toBe(false);
+        expect((await control("release", { route: "incidents", trigger: "test" })).ok).toBe(true);
+        expect((await heldResponse).status).toBe(200);
+
+        expect((await control("hold", { route: "incidents" })).ok).toBe(true);
+        const timeoutResponse = fetch(endpoint);
+        expect((await timeoutResponse).status).toBe(200);
+        const receipt = await (await fetch(base + "/__monitoring_fixture/receipt")).json();
+        expect(receipt.requests.map((request) => request.holdOutcome)).toEqual([
+            "released",
+            "timeout",
+        ]);
+        expect(receipt.controlEvents.map((event) => [event.event, event.route])).toEqual([
+            ["hold", "incidents"],
+            ["release", "incidents"],
+            ["hold", "incidents"],
+        ]);
+    }, 5_000);
 
     test("manifest validator rejects run, step, and inventory tampering", async () => {
         const expected = generateSteps();
@@ -636,7 +700,7 @@ describe("Monitoring UI state Linux gate", () => {
         await Bun.write(manifest, JSON.stringify({ deliveryHealth: health }));
         expect(verify().exitCode).not.toBe(0);
         spawn(["rm", "-rf", root]);
-    });
+    }, 20_000);
 
     test("executes timeout, signal, staging, artifact, and publication seams", () => {
         const timeout = runGate({

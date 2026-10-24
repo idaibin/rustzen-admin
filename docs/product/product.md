@@ -7,6 +7,24 @@ direction, module purposes, boundaries, and non-goals. Source remains
 authoritative for delivered behavior; `docs/architecture.md` remains
 authoritative for runtime and repository structure.
 
+## Developer adoption priority
+
+The primary user is a developer building a business administration application
+with Rust and React. The first useful outcome is to run the Admin foundation,
+understand an existing permission-protected feature, and adapt it to a business
+need. SQLite keeps local development independent of a database service.
+
+Prioritize developer onboarding, a complete user/role permission journey, the
+existing core/full delivery contract, and a reusable business-feature walkthrough,
+in that order. Monitor, Insights and Reports remain complete extension examples
+under the existing composition contract. Their committed acceptance work remains
+owned by the current feature ledgers.
+
+Measure adoption through independent developer attempts, first useful outcomes,
+help required, and subsequent use. GitHub views, clones and stars are discovery
+signals, not proof of installation or recurring use. Department data scopes and
+tenant isolation require separate product decisions before implementation.
+
 ## Template-first and English-default slice (2026-10-09)
 
 Approved scope: restore general-purpose admin template positioning and English
@@ -19,6 +37,13 @@ Acceptance:
 - TPL-02: distinguish delivered authentication, instance-level RBAC, audit,
   shared layout and feature-layer examples from unimplemented department data
   scopes and multi-tenant isolation.
+- TPL-03: login copy identifies the reusable Rust+React admin template and
+  points developers to accounts, role permissions, and audit as the starting
+  point for business-specific development.
+- TPL-04: Dashboard copy describes an account and role-permission business
+  administration overview; only enabled, connected extension examples appear.
+  A connected example remains visible when offline, while disabled or never-
+  connected examples are omitted.
 - LANG-01: first visit, missing/invalid storage and no-window rendering use
   en-US regardless of browser language; initialization never overwrites preferences.
 - LANG-02: explicit zh-CN/en-US selections persist across reloads; shared copy,
@@ -45,14 +70,21 @@ Independent review identified a stale default-language acceptance sentence and
 an English README install-path omission; both were corrected before commit.
 
 
-## Approved next slice: optional operations examples
+## Approved composition: optional operations examples
 
-The user approved a default Admin-only template and an explicit complete-example
-composition on 2026-10-09. This is planned work, not delivered behavior at
-`2bbd0c62f7743522b209fd60fd3f1ad0010b9faf`. The [distribution plan](features/composable-distribution/implementation.md#optional-examples-stages)
-is the execution authority; [OE acceptance](features/composable-distribution/validation.md#optional-examples-acceptance)
-is its exit contract. Until those gates pass, the current complete-release
-instructions below remain accurate. README commands switch only with working code.
+The approved target is a default Admin-only `core` template and an explicit `full`
+complete-example composition. Core runtime and Web slices and bounded packaging
+work have stage evidence in the [OE task ledger](features/composable-distribution/tasks.md).
+The [distribution plan](features/composable-distribution/implementation.md#optional-examples-stages)
+owns execution; [OE acceptance](features/composable-distribution/validation.md#optional-examples-acceptance)
+owns its exit criteria. Core installer independent acceptance, real Linux old-worker
+update/recovery and browser DOM acceptance remain open in that ledger.
+
+Current Cargo defaults and `just build` still select full. The target core default
+and `just build-full` interface become supported only with implemented command wiring
+and OE-5 closure, including core installation/update gates. Stage acceptance does
+not establish overall release readiness; the complete-release instructions below
+describe the current default path.
 
 Core must run authentication, instance-level RBAC, audit and shared layout without
 Monitor, Insights, Reports, their databases, Chromium or their configuration.
@@ -80,9 +112,10 @@ reference application provides authentication, instance-level RBAC, audit logs,
 shared layout and layered feature implementations. Department data scopes,
 tenant membership and multi-tenant isolation are not implemented.
 
-Monitor, Insights and Reports remain implemented extension examples. Their
-separation is a future assessment, not a delivered optional-build or independent-
-release contract. This first positioning slice retains the full distribution.
+Monitor, Insights and Reports are implemented extension examples in `full`.
+The approved `core` composition excludes them; its implementation and remaining
+acceptance follow the composition boundary above. Independent module releases and
+arbitrary subsets are outside the approved two-composition scope.
 The UI defaults to English, preserves explicit Chinese preferences and does
 not infer the application locale from browser language.
 
@@ -208,7 +241,8 @@ Confirmed product requirements for the current console:
   panel or a policy-status read solely for display. Removing that panel does not disable
   ingestion policy, allowed-origin enforcement, or backend management permissions.
 - Dashboard keeps four account totals, a permission-gated CPU/memory/disk summary,
-  and textual availability for the three modules. No extra metrics or trends are implied.
+  and textual availability for connected, enabled module examples. No extra
+  metrics or trends are implied.
 
 Acceptance IDs: CON-01 automatic filters and immediate clearing; CON-02 page-one
 queries and retained input focus; CON-03 user filter scope and no Daily Summaries

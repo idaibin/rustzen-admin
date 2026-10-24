@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Form, Input, Modal, Select, type FormProps } from "antd";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
 import { menuQueryOptions } from "@/api/system/menu/query-options";
@@ -10,6 +10,7 @@ import { useSubmission } from "@/hooks/use-submission";
 import { localizeBuiltInMenuName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
 
+import { getDialogSessionTransition } from "./-dialog-session";
 import { PermissionPicker } from "./-role-permission-picker";
 
 interface RoleDialogProps {
@@ -39,6 +40,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
     const [menuIds, setMenuIds] = useState<number[]>([]);
     const [permissionSearch, setPermissionSearch] = useState("");
     const [form] = Form.useForm<RoleFormValues>();
+    const formSessionKey = useRef<string | null>(null);
     const watchedName = Form.useWatch("name", form) ?? "";
     const watchedCode = Form.useWatch("code", form) ?? "";
 
@@ -51,6 +53,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
         isError: permissionLoadFailed,
         isPending: permissionLoading,
         isFetching: permissionRefreshing,
+        dataUpdatedAt: permissionUpdatedAt,
         refetch: refetchPermissions,
     } = useQuery({
         ...menuQueryOptions.options(),
@@ -59,6 +62,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
 
     const permissionInitialError =
         permissionLoadFailed && menuOptions === undefined ? permissionError : null;
+    const permissionRefreshError = permissionLoadFailed && menuOptions !== undefined;
     const permissionOptions = useMemo(
         () =>
             (menuOptions ?? [])
@@ -103,6 +107,8 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
     const submitDisabled =
         submitting ||
         !permissionReady ||
+        permissionRefreshing ||
+        permissionRefreshError ||
         trimmedName.length < 2 ||
         trimmedName.length > 50 ||
         trimmedCode.length < 2 ||
@@ -111,6 +117,17 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
         menuIds.length === 0;
 
     useEffect(() => {
+        const transition = getDialogSessionTransition(
+            open,
+            mode,
+            record?.id,
+            formSessionKey.current,
+        );
+        formSessionKey.current = transition.sessionKey;
+
+        if (!transition.shouldInitialize) {
+            return;
+        }
         if (!open) {
             return;
         }
@@ -129,7 +146,7 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
             status,
             description,
         });
-    }, [record, open, form]);
+    }, [record, mode, open, form]);
 
     const submit: FormProps<RoleFormValues>["onFinish"] = async (values) => {
         const trimmedName = values.name.trim();
@@ -162,7 +179,13 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
             return;
         }
 
-        if (!permissionReady || !beginSubmission()) return;
+        if (
+            !permissionReady ||
+            permissionRefreshing ||
+            permissionRefreshError ||
+            !beginSubmission()
+        )
+            return;
         try {
             if (mode === "create") {
                 await systemAPI.role.create({
@@ -276,6 +299,8 @@ export function RoleDialog({ children, record, mode = "create", onSuccess }: Rol
                         checkedValues={selectedMenuKeys}
                         loading={permissionLoading && menuOptions === undefined}
                         error={permissionInitialError}
+                        refreshError={permissionRefreshError}
+                        updatedAt={permissionUpdatedAt}
                         permissionReady={permissionReady}
                         permissionRefreshing={permissionRefreshing}
                         permissionSearch={permissionSearch}

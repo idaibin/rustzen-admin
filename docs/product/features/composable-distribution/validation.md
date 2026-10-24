@@ -40,10 +40,10 @@ that only accepts new candidates does not itself prove rollback to the old forma
 | Layer | Verification | Passing result |
 | --- | --- | --- |
 | Source | Focused Rust, Bun and shell tests plus `git diff --check` | Package verification, generated secrets, Monitor fresh startup and update/rollback branches pass. |
-| Build | `just build` | Five Linux executables and the Web application are assembled into one signed tar bundle. |
-| Artifact | Signature and archive inspection | One release signature verifies; frontend and backend digests match the embedded Web build and five executables; the exact required member set is present. |
+| Build | `just build-release` / `just build-release-core` | The default full command assembles five Linux executables and full Web assets; the explicit core command assembles only `rz` + `rz-admin` with core Web assets. Each writes a separate composition archive and signs/verifies its exact inventory. |
+| Artifact | Signature and archive inspection | The composition-specific release signature verifies; frontend/backend digests match the embedded Web build and selected executables; the exact required member set is present. Core physically omits module binaries, module configuration, and module units. |
 | Fresh install | Packaged installer in a new Linux systemd root | The command accepts only the bundle path, asks for no password or key, writes no placeholder secrets, installs one immutable release and enables `rz-full.service`. |
-| First start | `rz start` | Admin, Monitor, Insights and Reports create fresh databases and report healthy with the exact bundle version. No Monitor lifecycle command is run by the operator or test harness. |
+| First start | `rz start` | Core reports Admin only; full reports Admin, Monitor, Insights and Reports. `rz doctor` and service lifecycle output use the same compile-time composition inventory. |
 | Restart | Service restart followed by host/container restart | The same release returns to four-service health without configuration or database repair. |
 | Update safety | Focused Admin deployment tests | Whole-bundle verification, four-database backup, health gating, interruption recovery and rollback branches pass. |
 | Privilege boundary | PID1 service identity and filesystem checks | Reports, Admin, Monitor and Insights run with their approved dedicated identities; ordinary services cannot modify release, unit or sibling data paths; privileged update work is isolated and bounded. |

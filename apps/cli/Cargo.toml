@@ -5,6 +5,11 @@ edition = "2024"
 license.workspace = true
 publish = false
 
+[features]
+default = ["full"]
+core = []
+full = ["rustzen-config/monitor-agent"]
+
 [[bin]]
 name = "rz"
 path = "src/main.rs"
@@ -17,7 +22,7 @@ hex = "0.4"
 libc = "0.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 rustzen-ipc = { path = "../../crates/ipc" }
-rustzen-config = { path = "../../crates/config", default-features = false, features = ["monitor-agent"] }
+rustzen-config = { path = "../../crates/config", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

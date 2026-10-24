@@ -10,15 +10,22 @@ from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-from threading import Lock
+from threading import Event, Lock
 import time
 from urllib.parse import parse_qs, urlparse
+
+from monitoring_ui_state_fixture_payloads import route_payload
 
 
 UPSTREAM_HOST = os.environ.get("RUSTZEN_MONITORING_FIXTURE_UPSTREAM", "127.0.0.1")
 UPSTREAM_PORT = int(os.environ.get("RUSTZEN_MONITORING_FIXTURE_UPSTREAM_PORT", "19801"))
 PORT = int(os.environ.get("RUSTZEN_MONITORING_FIXTURE_PORT", "19806"))
 SLOW_SECONDS = float(os.environ.get("RUSTZEN_MONITORING_FIXTURE_SLOW_SECONDS", "5"))
+HOLD_TIMEOUT_SECONDS = float(
+    os.environ.get("RUSTZEN_MONITORING_FIXTURE_HOLD_TIMEOUT_SECONDS", "30")
+)
+if not 0 < HOLD_TIMEOUT_SECONDS <= 120:
+    raise ValueError("monitor fixture hold timeout must be in (0, 120]")
 
 
 def safe_response_header(key, value):
@@ -37,129 +44,17 @@ MODES = {"slow", "success", "403", "500"}
 FAIL_AFTER_STATUSES = {"403", "500"}
 lock = Lock()
 state = {
-    name: {"mode": "success", "fail_after_first_status": None, "reads": 0}
+    name: {
+        "mode": "success",
+        "fail_after_first_status": None,
+        "reads": 0,
+        "hold_slow": False,
+        "release_event": Event(),
+    }
     for name in ROUTES.values()
 }
 requests = []
-
-
-def overview_payload():
-    return {
-        "registeredNodes": 1,
-        "onlineNodes": 1,
-        "offlineNodes": 0,
-        "activeIncidents": 21,
-        "latestResource": {
-            "nodeId": "fixture-overview-node",
-            "cpuPercent": 21.0,
-            "memoryPercent": 34.0,
-            "disks": [
-                {
-                    "mountPoint": "/",
-                    "usedBytes": 55,
-                    "totalBytes": 100,
-                    "usagePercent": 55.0,
-                }
-            ],
-            "collectedAt": "2026-09-07T00:00:00Z",
-            "lastReceivedAt": "2026-09-07T00:00:01Z",
-        },
-    }
-
-
-def nodes_payload():
-    return [
-        {
-            "nodeId": "fixture-node",
-            "hostname": "fixture-node",
-            "agentVersion": "verify",
-            "bootId": "fixture-boot",
-            "sequence": 1,
-            "lastReportAt": "2026-09-07T00:00:00Z",
-            "lastReceivedAt": "2026-09-07T00:00:01Z",
-            "status": "online",
-            "alertPolicySource": "global",
-            "cpuPercent": 10.0,
-            "memory": {
-                "usedBytes": 10,
-                "totalBytes": 100,
-                "usagePercent": 10.0,
-            },
-            "disks": [
-                {
-                    "mountPoint": "/",
-                    "collectedAt": "2026-09-07T00:00:00Z",
-                    "usedBytes": 55,
-                    "totalBytes": 100,
-                    "usagePercent": 55.0,
-                }
-            ],
-            "createdAt": "2026-09-07T00:00:00Z",
-            "updatedAt": "2026-09-07T00:00:00Z",
-        }
-    ]
-
-
-def incident_rows():
-    return [
-        {
-            "id": f"incident-{index}",
-            "nodeId": "fixture-node",
-            "kind": "cpuHigh",
-            "target": f"cpu-{index}",
-            "status": "active",
-            "title": f"Fixture incident {index}",
-            "thresholdPercent": 90.0,
-            "observedPercent": 95.0,
-            "openedAt": "2026-09-07T00:00:00Z",
-            "lastObservedAt": "2026-09-07T00:00:00Z",
-            "resolvedAt": None,
-            "resolutionReason": None,
-            "details": {},
-        }
-        for index in range(1, 22)
-    ]
-
-
-def summary_rows():
-    return [
-        {
-            "nodeId": "fixture-node",
-            "date": f"2026-08-{index:02d}",
-            "sampleCount": 3,
-            "coverage": 100.0,
-            "coveragePercent": 100.0,
-            "cpu": {"min": 10.0, "avg": 20.0, "max": 30.0},
-            "memory": {"min": 11.0, "avg": 21.0, "max": 31.0},
-            "diskSummary": {
-                "/": {"min": 12.0, "avg": 22.0, "max": 32.0},
-            },
-            "offlineSeconds": 0,
-            "incidentCount": index,
-        }
-        for index in range(1, 22)
-    ]
-
-
-def page_payload(rows, query):
-    current = int(query.get("current", ["1"])[0])
-    page_size = int(query.get("pageSize", ["20"])[0])
-    start = (current - 1) * page_size
-    return {
-        "data": rows[start : start + page_size],
-        "total": len(rows),
-        "success": True,
-    }
-
-
-def route_payload(name, query):
-    if name == "overview":
-        return overview_payload()
-    if name == "nodes":
-        return nodes_payload()
-    if name == "incidents":
-        return page_payload(incident_rows(), query)
-    return page_payload(summary_rows(), query)
+control_events = []
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -203,6 +98,9 @@ class Handler(BaseHTTPRequestHandler):
         with lock:
             entry = state[name]
             mode = entry["mode"]
+            hold_slow = mode == "slow" and entry["hold_slow"]
+            release_event = entry["release_event"]
+            entry["hold_slow"] = False
             entry["reads"] += 1
             request = {
                 "route": route,
@@ -210,6 +108,9 @@ class Handler(BaseHTTPRequestHandler):
                 "mode": mode,
                 "query": query,
                 "read": entry["reads"],
+                "receivedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "receivedAtEpochMs": time.time_ns() // 1_000_000,
+                "holdRequested": hold_slow,
             }
             requests.append(request)
             next_status = entry["fail_after_first_status"]
@@ -217,7 +118,15 @@ class Handler(BaseHTTPRequestHandler):
                 entry["mode"] = next_status
                 entry["fail_after_first_status"] = None
         if mode == "slow":
-            time.sleep(SLOW_SECONDS)
+            if hold_slow:
+                released = release_event.wait(HOLD_TIMEOUT_SECONDS)
+                request["holdOutcome"] = "released" if released else "timeout"
+                request["holdFinishedAtUtc"] = time.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+                )
+                request["holdFinishedAtEpochMs"] = time.time_ns() // 1_000_000
+            else:
+                time.sleep(SLOW_SECONDS)
         if mode in FAIL_AFTER_STATUSES:
             self.send_json(
                 int(mode),
@@ -236,7 +145,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/__monitoring_fixture/receipt":
             with lock:
-                receipt = {"requests": list(requests)}
+                receipt = {
+                    "requests": list(requests),
+                    "controlEvents": list(control_events),
+                }
             self.send_json(200, receipt)
             return
         name = ROUTES.get(parsed.path)
@@ -251,7 +163,11 @@ class Handler(BaseHTTPRequestHandler):
     do_DELETE = handle_request
 
     def do_PATCH(self):
-        if self.path != "/__monitoring_fixture/mode":
+        if self.path not in {
+            "/__monitoring_fixture/mode",
+            "/__monitoring_fixture/hold",
+            "/__monitoring_fixture/release",
+        }:
             self.proxy()
             return
         size = int(self.headers.get("content-length", "0"))
@@ -259,6 +175,43 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(size) or b"{}")
         except json.JSONDecodeError:
             self.send_json(400, {"error": "invalid JSON"})
+            return
+        if self.path in {
+            "/__monitoring_fixture/hold",
+            "/__monitoring_fixture/release",
+        }:
+            route_name = payload.get("route")
+            trigger = payload.get("trigger", "test")
+            if (
+                set(payload) - {"route", "trigger"}
+                or "route" not in payload
+                or route_name not in state
+                or trigger not in {"test", "assertText-succeeded", "cleanup"}
+            ):
+                self.send_json(400, {"error": "invalid fixture route"})
+                return
+            with lock:
+                entry = state[route_name]
+                if self.path.endswith("/hold"):
+                    if entry["hold_slow"]:
+                        self.send_json(409, {"error": "fixture hold already pending"})
+                        return
+                    entry["hold_slow"] = True
+                    entry["release_event"] = Event()
+                    event = "hold"
+                else:
+                    entry["release_event"].set()
+                    event = "release"
+                control_events.append(
+                    {
+                        "event": event,
+                        "route": route_name,
+                        "atUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "atEpochMs": time.time_ns() // 1_000_000,
+                        "trigger": trigger,
+                    }
+                )
+            self.send_json(200, {"status": "ok", "event": event})
             return
         allowed = {
             name for route_name in ROUTES.values() for name in (

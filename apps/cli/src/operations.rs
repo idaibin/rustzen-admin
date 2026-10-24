@@ -11,15 +11,48 @@ use std::{
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_HEALTH_BODY_BYTES: usize = 16 * 1024;
-const MODULES: [Module; 4] = [Module::Admin, Module::Monitor, Module::Insights, Module::Reports];
+#[cfg(all(feature = "core", feature = "full"))]
+compile_error!("rustzen-cli requires exactly one composition feature: core or full");
+#[cfg(not(any(feature = "core", feature = "full")))]
+compile_error!("rustzen-cli requires exactly one composition feature: core or full");
+
+pub(crate) struct CompositionSpec {
+    pub(crate) name: &'static str,
+    pub(crate) modules: &'static [Module],
+    pub(crate) binaries: &'static [&'static str],
+    pub(crate) service_units: &'static [&'static str],
+}
+
+#[cfg(feature = "core")]
+pub(crate) const COMPOSITION: CompositionSpec = CompositionSpec {
+    name: "core",
+    modules: &[Module::Admin],
+    binaries: &["rz", "rz-admin"],
+    service_units: &["rz-admin.service"],
+};
+#[cfg(feature = "full")]
+pub(crate) const COMPOSITION: CompositionSpec = CompositionSpec {
+    name: "full",
+    modules: &[Module::Admin, Module::Monitor, Module::Insights, Module::Reports],
+    binaries: &["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"],
+    service_units: &[
+        "rz-admin.service",
+        "rz-monitor.service",
+        "rz-insights.service",
+        "rz-reports.service",
+    ],
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Module {
     All,
     Admin,
+    #[cfg(feature = "full")]
     Monitor,
+    #[cfg(feature = "full")]
     Insights,
+    #[cfg(feature = "full")]
     Reports,
 }
 impl Module {
@@ -27,8 +60,11 @@ impl Module {
         match self {
             Self::All => "all",
             Self::Admin => "admin",
+            #[cfg(feature = "full")]
             Self::Monitor => "monitor",
+            #[cfg(feature = "full")]
             Self::Insights => "insights",
+            #[cfg(feature = "full")]
             Self::Reports => "reports",
         }
     }
@@ -36,8 +72,11 @@ impl Module {
         match self {
             Self::All => 0,
             Self::Admin => 9801,
+            #[cfg(feature = "full")]
             Self::Monitor => 9802,
+            #[cfg(feature = "full")]
             Self::Insights => 9803,
+            #[cfg(feature = "full")]
             Self::Reports => 9804,
         }
     }
@@ -131,7 +170,7 @@ impl Context {
 }
 
 pub(crate) const fn module_count() -> usize {
-    MODULES.len()
+    COMPOSITION.modules.len()
 }
 pub(crate) async fn read_statuses(context: &Context, module: Module) -> Vec<Status> {
     let Ok(client) = Client::builder().timeout(REQUEST_TIMEOUT).build() else {
@@ -141,13 +180,20 @@ pub(crate) async fn read_statuses(context: &Context, module: Module) -> Vec<Stat
     };
     match module {
         Module::All => {
-            let (admin, monitor, insights, reports) = tokio::join!(
-                read_status(&client, context, Module::Admin),
-                read_status(&client, context, Module::Monitor),
-                read_status(&client, context, Module::Insights),
-                read_status(&client, context, Module::Reports)
-            );
-            vec![admin, monitor, insights, reports]
+            #[cfg(feature = "full")]
+            {
+                let (monitor, insights, reports, admin) = tokio::join!(
+                    read_status(&client, context, Module::Monitor),
+                    read_status(&client, context, Module::Insights),
+                    read_status(&client, context, Module::Reports),
+                    read_status(&client, context, Module::Admin),
+                );
+                vec![monitor, insights, reports, admin]
+            }
+            #[cfg(feature = "core")]
+            {
+                vec![read_status(&client, context, Module::Admin).await]
+            }
         }
         selected => vec![read_status(&client, context, selected).await],
     }
@@ -236,7 +282,11 @@ fn unavailable(context: &Context, module: Module, code: &'static str) -> Status 
     }
 }
 fn selected_modules(module: Module) -> impl Iterator<Item = Module> {
-    MODULES.into_iter().filter(move |candidate| module == Module::All || *candidate == module)
+    COMPOSITION
+        .modules
+        .iter()
+        .copied()
+        .filter(move |candidate| module == Module::All || *candidate == module)
 }
 fn installed_root_from_executable(executable: &Path) -> Option<PathBuf> {
     let bin = executable.parent()?;
@@ -279,4 +329,42 @@ pub(crate) fn read_allowed_config(path: &Path) -> BTreeMap<String, String> {
             ALLOWED.contains(&name).then(|| (name.to_string(), value.trim().to_string()))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod composition_tests {
+    use super::*;
+
+    #[cfg(feature = "core")]
+    #[test]
+    fn core_composition_contains_admin_only_and_no_module_inventory() {
+        assert_eq!(COMPOSITION.name, "core");
+        assert_eq!(COMPOSITION.modules, &[Module::Admin]);
+        assert_eq!(COMPOSITION.binaries, &["rz", "rz-admin"]);
+        assert_eq!(COMPOSITION.service_units, &["rz-admin.service"]);
+        assert_eq!(module_count(), 1);
+        assert_eq!(selected_modules(Module::All).collect::<Vec<_>>(), [Module::Admin]);
+        assert_eq!(selected_modules(Module::Admin).collect::<Vec<_>>(), [Module::Admin]);
+    }
+
+    #[cfg(feature = "full")]
+    #[test]
+    fn full_composition_keeps_all_services_and_binaries() {
+        assert_eq!(COMPOSITION.name, "full");
+        assert_eq!(module_count(), 4);
+        assert_eq!(
+            COMPOSITION.binaries,
+            &["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"]
+        );
+        assert_eq!(
+            COMPOSITION.service_units,
+            &[
+                "rz-admin.service",
+                "rz-monitor.service",
+                "rz-insights.service",
+                "rz-reports.service"
+            ]
+        );
+        assert_eq!(selected_modules(Module::All).count(), 4);
+    }
 }

@@ -70,23 +70,26 @@ function LoginPage() {
                         <div className="login-illustration h-105 xl:h-125 2xl:h-153">
                             <img
                                 src={loginIllustrationUrl}
-                                alt={`${APP_BRAND_NAME} Operations Management Platform`}
+                                alt={t(
+                                    `${APP_BRAND_NAME} 管理模板`,
+                                    `${APP_BRAND_NAME} admin template`,
+                                )}
                                 className="h-full w-full object-contain object-left"
                             />
                         </div>
                         <div className="mt-6 flex w-full items-center gap-5 pl-2 xl:gap-6 2xl:gap-10 2xl:pl-3">
                             <div className="shrink-0 text-[28px] leading-none font-extrabold whitespace-nowrap text-foreground xl:text-[34px] 2xl:text-[40px]">
-                                {t("让运维，更从容", "Operations, with confidence")}
+                                {t("从模板开始", "Build your admin")}
                             </div>
                             <div className="h-11 w-px shrink-0 bg-border 2xl:h-12" />
                             <div className="grid min-w-0 gap-1.5 2xl:gap-2">
                                 <p className="m-0 text-sm leading-none font-semibold text-foreground xl:text-[15px] 2xl:text-[16px]">
-                                    {t("高效 · 可靠 · 智能", "Efficient · Reliable · Smart")}
+                                    {t("Rust + React 管理模板", "Rust + React admin template")}
                                 </p>
                                 <p className="m-0 text-xs leading-5 text-muted-foreground xl:text-[14px] 2xl:text-[15px]">
                                     {t(
-                                        "统一运维管理平台，让管理更简单、更高效。",
-                                        "A unified operations platform for simpler, more efficient management.",
+                                        "从账号、角色权限与审计起步，再按业务需要扩展。",
+                                        "Start with accounts, role permissions, and audit, then extend for your business.",
                                     )}
                                 </p>
                             </div>
@@ -107,7 +110,7 @@ function LoginPage() {
                                     {RUSTZEN_BRAND_NAME} <span className="text-primary">Admin</span>
                                 </Typography.Title>
                                 <Typography.Text className="mt-5 block text-base leading-none text-muted-foreground 2xl:mt-6">
-                                    {t("欢迎来到", "Welcome to")} {APP_BRAND_NAME}
+                                    {t("Rust + React 管理模板", "Rust + React admin template")}
                                 </Typography.Text>
                             </div>
 

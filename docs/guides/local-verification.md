@@ -22,6 +22,11 @@ Agent remains a separate non-Web artifact.
 
 ## Current-source checks
 
+The Linux Monitoring UI route gate is `just verify-monitoring-ui-state-linux`.
+Its source-bound local receipt is
+`target/rz/monitoring-ui-state/current/manifest.json`; a passing receipt applies
+to the recorded source identity and does not certify a different release artifact.
+
 The working tree is an integrated change set covering:
 
 - Web shared components and their page consumers;

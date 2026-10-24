@@ -99,6 +99,12 @@ pub(super) async fn rollback_update(
     }
     restore_release_state(journal, &units)?;
     daemon_reload().await?;
+    // A candidate can exhaust systemd's restart limit before its health gate
+    // fails. Clear only the fixed units recorded as restarted by this update
+    // so the previously installed release can start during rollback.
+    if !units.is_empty() {
+        systemctl("reset-failed", &units).await?;
+    }
     let old_version = release_version_from_target(&journal.old_target)?;
     let client = reqwest::Client::builder().timeout(Duration::from_secs(2)).build()?;
     for (unit, url) in service_probes() {
@@ -145,7 +151,8 @@ pub(super) async fn systemctl(
     action: &str,
     units: &[&str],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if !matches!(action, "start" | "stop") || units.iter().any(|unit| !SYSTEMD_UNITS.contains(unit))
+    if !matches!(action, "start" | "stop" | "reset-failed")
+        || units.iter().any(|unit| !SYSTEMD_UNITS.contains(unit))
     {
         return Err(std::io::Error::other("invalid fixed service operation").into());
     }

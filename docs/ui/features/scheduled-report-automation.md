@@ -319,7 +319,14 @@ Verified by the Linux Chromium gate: the real Reports service and Web route, nev
 In `full`, the existing Runs page header carries the same compact delivery
 status trigger. It uses the Reports run-view permission, shows only aggregate
 delivery state, and exposes loading, forbidden and recoverable-error Retry
-states. No menu, page or notification payload is added.
+states. Its shared popover keeps the title, details, permission/error copy, and
+Retry control fully readable within a narrow viewport; supporting text wraps
+without clipping. No menu, page or notification payload is added.
+The shared-component check is recorded in ignored
+`.codex/artifacts/core-delivery/primary-headless-fixed-403-result.json` and
+`primary-final-coverage.json`: Monitor consumer, controlled HTTP input and
+real browser geometry. It does not add Reports live-runtime acceptance; the
+older Reports 390px page gate covers page overflow only.
 
 The Reports Linux Chromium state-gate extension is **Closed locally / Passed**
 for the coordination commit and source basis recorded in

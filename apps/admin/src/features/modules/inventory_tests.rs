@@ -17,12 +17,11 @@ use crate::features::modules::{
 };
 
 async fn state_with_installed_inventory() -> ModuleControlState {
+    let pool =
+        SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.expect("pool");
+    crate::infra::db::run_migrations(&pool).await.expect("migrations");
     ModuleControlState {
-        pool: SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("pool"),
+        pool,
         registry: ModuleRegistry::new(ModuleSpec::installed(), &BTreeMap::new()),
         client: reqwest::Client::new(),
         signer: DelegationSigner::new("inventory-test-key").expect("signer"),
@@ -58,10 +57,13 @@ async fn statuses_and_dashboard_follow_the_installed_inventory() {
     );
     assert_eq!(
         ModuleService::dashboard_health(&state)
+            .await
+            .expect("dashboard health")
             .into_iter()
             .map(|health| health.module)
             .collect::<Vec<_>>(),
-        expected
+        Vec::<&str>::new(),
+        "installed modules without connection evidence are omitted from Dashboard"
     );
 }
 

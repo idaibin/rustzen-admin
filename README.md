@@ -2,15 +2,25 @@
 
 English | [简体中文](./README-zh.md)
 
-`rustzen-admin` provides the Rustzen Admin, Monitor, Insights, and Reports
-runtime in one source repository and one signed release bundle.
+Build a business admin application with **Rust, Axum, React and SQLite**.
 
-A general-purpose Rust full-stack admin template with a runnable complete
-reference application.
+Reuse login, instance-level roles and permissions, user management, audit logs,
+and a working frontend-to-database feature structure. Monitor, Insights and
+Reports provide complete examples alongside the Admin foundation.
 
-> `rustzen-admin` combines an Axum backend, a React frontend, shared crates,
-> deployment assets, and repository-level documentation in a single codebase
-> designed for clear boundaries, maintainability, and AI-friendly collaboration.
+## Start here
+
+| Your next step | Entry |
+| --- | --- |
+| Explore the interface | [Demo](https://admin.rustzen.dev) — demo-only account: `owner` / `rustzen@123` |
+| Run locally and understand one feature | [Developer quick start](./docs/guides/getting-started.md) |
+| Adapt authentication and permissions | [Permission guide](./docs/guides/permission.md) |
+| Install the signed full distribution | [Deployment guide](./docs/guides/deployment.md) |
+
+The current default builds the full application. The Admin-only `core`
+composition is being validated; its release gates are tracked in the
+[composition ledger](./docs/product/features/composable-distribution/tasks.md).
+Department data scopes and multi-tenant isolation are not implemented.
 
 ## Overview
 
@@ -19,12 +29,13 @@ applications: reuse authentication, instance-level RBAC, audit logs, shared
 layout and feature-layer examples. Department data scopes and multi-tenant
 isolation are not implemented.
 
-Monitor, Insights and Reports remain implemented extension examples and
-candidates for a future separation assessment. The supported release still
-contains one signed bundle, four services and their SQLite databases; runtime
-module disablement does not imply optional builds, uninstall or independent
-releases. The UI defaults to English and preserves explicit Simplified Chinese
-choices.
+Monitor, Insights and Reports are the `full` extension examples. The approved
+`core`/`full` target has partially accepted implementation; the [OE task ledger](./docs/product/features/composable-distribution/tasks.md)
+records remaining installer, Linux update/recovery and browser acceptance.
+Current default commands still produce the full signed bundle, four services and
+their SQLite databases. The core default requires OE-5 closure and verified command
+wiring. Runtime disablement changes access, not installed composition. The UI defaults
+to English and preserves explicit Simplified Chinese choices.
 
 Keep the English and Chinese entries aligned; [product.md](./docs/product/product.md)
 is authoritative for product facts.
@@ -140,14 +151,9 @@ limits, runtime paths, logging, timezone, JWT lifetime, and development-only
 JWT/IPC secrets have built-in defaults. Use environment variables only to
 override those defaults.
 
-If startup fails with `VersionMismatch`, your local database schema is out-of-date with current migration checksums. Run:
-
-```bash
-just reset-db
-cargo run -p rustzen-admin -- serve
-```
-
-If startup succeeds, the database will be recreated automatically.
+If startup reports `VersionMismatch`, the existing database does not match
+the initialization migrations. Preserve it and follow the
+[quick-start recovery guidance](./docs/guides/getting-started.md#startup-recovery).
 
 ## Demo
 

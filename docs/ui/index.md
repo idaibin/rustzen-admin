@@ -25,10 +25,16 @@ feature specs record only route-local composition, states, and evidence.
 ## English-default locale acceptance
 
 Product basis: [template-first slice](../product/product.md#template-first-and-english-default-slice-2026-10-09).
-Existing login and header language controls retain their placement and visual
-semantics. LANG-01/02 cover fresh English, explicit Chinese persistence, invalid
-storage fallback, HTML lang, Ant Design copy and locale-aware dates. Verify the
-existing desktop login viewport; this slice does not change responsive layout.
+Login copy identifies Rustzen Admin as a Rust+React admin template and presents
+accounts, role permissions, and audit as the starting point for business-specific
+development. The existing login card identifies the Rust+React admin template
+at every viewport; on narrow screens its visible subtitle carries this identity
+when the side hero is hidden. The login and header language controls retain their
+placement and visual semantics. LANG-01/02 cover fresh English, explicit Chinese
+persistence, invalid storage fallback, HTML lang, Ant Design copy and locale-aware
+dates. This copy slice does not change responsive layout. Dashboard copy and
+extension-example status are specified in the
+[Dashboard UI contract](./features/dashboard-navigation-simplification.md).
 
 ## Current console route contract
 

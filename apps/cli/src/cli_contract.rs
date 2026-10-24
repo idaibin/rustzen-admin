@@ -1,7 +1,9 @@
+#[cfg(feature = "full")]
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+#[cfg(feature = "full")]
 #[derive(Debug, clap::Args)]
 pub(crate) struct AgentReleaseArgs {
     #[arg(long)]
@@ -12,6 +14,7 @@ pub(crate) struct AgentReleaseArgs {
     pub(crate) envelope: PathBuf,
 }
 
+#[cfg(feature = "full")]
 impl From<AgentReleaseArgs> for crate::install::Inputs {
     fn from(value: AgentReleaseArgs) -> Self {
         Self { archive: value.archive, manifest: value.manifest, envelope: value.envelope }
@@ -43,6 +46,7 @@ pub(super) enum Command {
     /// Show the complete Rustzen service-set status.
     Status,
     /// Verify and install a signed standalone Monitor Agent artifact.
+    #[cfg(feature = "full")]
     InstallAgent {
         #[command(flatten)]
         release: AgentReleaseArgs,
@@ -52,6 +56,7 @@ pub(super) enum Command {
         dry_run: bool,
     },
     /// Pin the signed Controller identity for an installed Monitor Agent.
+    #[cfg(feature = "full")]
     PinMonitorController {
         /// Signed complete Rustzen server bundle.
         #[arg(long)]
@@ -60,8 +65,10 @@ pub(super) enum Command {
         controller_endpoint: String,
     },
     /// Prepare /opt/rz access for the rz-monitor-agent service account.
+    #[cfg(feature = "full")]
     PrepareMonitorAgentAccess,
     /// Publish validated Agent configuration and start its native service.
+    #[cfg(feature = "full")]
     ActivateMonitorAgent {
         #[arg(long)]
         config: PathBuf,

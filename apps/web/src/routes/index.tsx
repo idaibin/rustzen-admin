@@ -1,16 +1,12 @@
 import {
-    BarChartOutlined,
     ClockCircleFilled,
-    CloudServerOutlined,
     ContactsFilled,
-    FileTextOutlined,
     IdcardFilled,
     UserSwitchOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Button, Card, Progress, Typography, theme } from "antd";
-import { cn } from "cn";
+import { Button, Card, Progress, Typography } from "antd";
 import type { ReactNode } from "react";
 
 import { dashboardAPI, systemAPI } from "@/api";
@@ -22,25 +18,41 @@ import { formatBytes, formatPercent } from "@/lib/format";
 import { t, useLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/store/useAuthStore";
 
+import { ModuleHealthPanel } from "./-module-health-panel";
+
 export const Route = createFileRoute("/")({
     component: DashboardPage,
 });
 
 function DashboardPage() {
     useLocale();
+    const moduleQuery = useQuery({
+        queryKey: ["dashboard", "modules"],
+        queryFn: dashboardAPI.modules,
+        refetchInterval: 15_000,
+    });
     return (
         <div className="flex min-h-full flex-col gap-5">
             <PageHeader
                 title={t("仪表盘", "Dashboard")}
                 description={t(
-                    "账号、系统资源与运行模块的运维概览。",
-                    "An operational overview of accounts, system resources, and runtime modules.",
+                    "账号、角色权限与业务管理概览，含本机资源和扩展示例状态。",
+                    "A business admin overview of accounts, roles, and permissions, with local resource and extension-example status.",
                 )}
             />
             <AccountMetricCards />
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,1fr)]">
+            <div
+                className={`grid min-w-0 gap-5 ${moduleQuery.data?.length === 0 ? "xl:grid-cols-1" : "xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,1fr)]"}`}
+            >
                 <SystemResourceCards />
-                <ModuleHealthCards />
+                <ModuleHealthPanel
+                    data={moduleQuery.data}
+                    dataUpdatedAt={moduleQuery.dataUpdatedAt}
+                    error={moduleQuery.error}
+                    isPending={moduleQuery.isPending}
+                    isFetching={moduleQuery.isFetching}
+                    onRetry={() => void moduleQuery.refetch()}
+                />
             </div>
         </div>
     );
@@ -132,101 +144,6 @@ function SystemResourceCards() {
                             </div>
                         </div>
                     ))}
-                </div>
-            </DashboardQueryBoundary>
-        </Card>
-    );
-}
-
-function ModuleHealthCards() {
-    useLocale();
-    const { token } = theme.useToken();
-    const { data, dataUpdatedAt, error, isPending, isFetching, refetch } = useQuery({
-        queryKey: ["dashboard", "modules"],
-        queryFn: dashboardAPI.modules,
-        refetchInterval: 15_000,
-    });
-
-    return (
-        <Card className="page-panel h-full" variant="outlined" styles={{ body: { padding: 24 } }}>
-            <div className="mb-6">
-                <Typography.Title level={5} className="!mb-1.5">
-                    {t("运行模块", "Runtime modules")}
-                </Typography.Title>
-                <Typography.Text type="secondary">
-                    {t(
-                        "实时查看各模块的服务连通状态。",
-                        "View the live connectivity status of each module.",
-                    )}
-                </Typography.Text>
-            </div>
-            <DashboardQueryBoundary
-                isPending={isPending}
-                error={error}
-                hasData={data !== undefined}
-                loadingTitle={t("正在加载模块状态", "Loading module status")}
-                errorTitle={t("模块状态加载失败", "Failed to load module status")}
-                updatedAt={dataUpdatedAt}
-                retrying={isFetching}
-                onRetry={() => void refetch()}
-            >
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-                    {(["monitor", "insights", "reports"] as const).map((module) => {
-                        const health = data?.find((item) => item.module === module);
-                        const available = health?.available ?? false;
-                        const moduleMeta = {
-                            monitor: {
-                                label: t("监控", "Monitor"),
-                                icon: <CloudServerOutlined />,
-                            },
-                            insights: {
-                                label: t("分析", "Insights"),
-                                icon: <BarChartOutlined />,
-                            },
-                            reports: {
-                                label: t("自动化", "Automation"),
-                                icon: <FileTextOutlined />,
-                            },
-                        }[module];
-                        return (
-                            <div
-                                key={module}
-                                aria-label={`${moduleMeta.label}：${available ? t("运行中", "Online") : t("不可用", "Unavailable")}`}
-                                className="flex min-h-20 min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3"
-                                style={{
-                                    borderColor: token.colorBorderSecondary,
-                                }}
-                            >
-                                <span
-                                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-base"
-                                    style={{
-                                        color: token.colorPrimary,
-                                        background: token.colorFillTertiary,
-                                    }}
-                                >
-                                    {moduleMeta.icon}
-                                </span>
-                                <div className="min-w-0">
-                                    <Typography.Text strong ellipsis>
-                                        {moduleMeta.label}
-                                    </Typography.Text>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <span
-                                            className={cn(
-                                                "size-1.5 rounded-full",
-                                                available
-                                                    ? "bg-status-success"
-                                                    : "bg-status-danger",
-                                            )}
-                                        />
-                                        {available
-                                            ? t("运行中", "Online")
-                                            : t("不可用", "Unavailable")}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
                 </div>
             </DashboardQueryBoundary>
         </Card>

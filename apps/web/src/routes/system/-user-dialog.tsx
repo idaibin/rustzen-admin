@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button, Checkbox, Form, Input, Modal, Select, type FormProps } from "antd";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { appMessage, systemAPI } from "@/api";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { DialogFooter } from "@/components/feedback/dialog-footer";
 import { getEnableOptions } from "@/constant/options";
 import { useSubmission } from "@/hooks/use-submission";
 import { localizeBuiltInRoleName } from "@/lib/builtin-i18n";
 import { t } from "@/lib/i18n";
+
+import { getDialogSessionTransition } from "./-dialog-session";
 
 interface UserDialogValues {
     username: string;
@@ -39,6 +42,7 @@ export const UserDialog = ({
         clearSubmissionError,
     } = useSubmission();
     const [form] = Form.useForm<UserDialogValues>();
+    const formSessionKey = useRef<string | null>(null);
 
     const {
         data: roleOptions,
@@ -46,6 +50,7 @@ export const UserDialog = ({
         isError: roleLoadFailed,
         isPending: roleLoading,
         isFetching: roleRefreshing,
+        dataUpdatedAt: roleUpdatedAt,
         refetch: refetchRoles,
     } = useQuery({
         queryKey: ["system", "roles", "options"],
@@ -54,14 +59,26 @@ export const UserDialog = ({
     });
 
     const roleInitialError = roleLoadFailed && roleOptions === undefined ? roleError : null;
+    const roleRefreshError = roleLoadFailed && roleOptions !== undefined;
     const rolePermissionDenied =
         roleInitialError instanceof Response &&
         (roleInitialError.status === 401 || roleInitialError.status === 403);
 
     const roleReady = roleOptions !== undefined && roleOptions.length > 0;
-    const submitDisabled = submitting || !roleReady;
+    const submitDisabled = submitting || !roleReady || roleRefreshing || roleRefreshError;
 
     useEffect(() => {
+        const transition = getDialogSessionTransition(
+            open,
+            mode,
+            initialValues?.id,
+            formSessionKey.current,
+        );
+        formSessionKey.current = transition.sessionKey;
+
+        if (!transition.shouldInitialize) {
+            return;
+        }
         if (!open) {
             return;
         }
@@ -74,7 +91,7 @@ export const UserDialog = ({
             status: String(initialValues?.status ?? 1),
             roleIds: initialValues?.roles?.map((role) => role.value) ?? [],
         });
-    }, [initialValues, open, form]);
+    }, [initialValues, mode, open, form]);
 
     const submit: FormProps<UserDialogValues>["onFinish"] = async (values) => {
         const trimmedUsername = values.username.trim();
@@ -108,7 +125,7 @@ export const UserDialog = ({
             return;
         }
 
-        if (!roleReady || !beginSubmission()) return;
+        if (!roleReady || roleRefreshing || roleRefreshError || !beginSubmission()) return;
         try {
             if (mode === "create") {
                 await systemAPI.user.create({
@@ -243,6 +260,8 @@ export const UserDialog = ({
                             options={roleOptions ?? []}
                             loading={roleLoading && roleOptions === undefined}
                             error={roleInitialError}
+                            refreshError={roleRefreshError}
+                            updatedAt={roleUpdatedAt}
                             permissionDenied={rolePermissionDenied}
                             onRetry={async () => {
                                 await refetchRoles();
@@ -281,6 +300,8 @@ function RolePicker({
     options,
     loading,
     error,
+    refreshError,
+    updatedAt,
     permissionDenied,
     onRetry,
     retrying,
@@ -290,6 +311,8 @@ function RolePicker({
     options: Role.OptionItem[];
     loading: boolean;
     error: unknown;
+    refreshError: boolean;
+    updatedAt: number;
     permissionDenied: boolean;
     onRetry?: () => Promise<void> | void;
     retrying: boolean;
@@ -336,22 +359,44 @@ function RolePicker({
 
     if (options.length === 0) {
         return (
-            <DataState
-                compact
-                kind="empty"
-                title={t("暂无可分配角色", "No roles available to assign")}
-            />
+            <div className="grid gap-3">
+                {refreshError ? (
+                    <BackgroundRefreshNotice
+                        updatedAt={updatedAt}
+                        onRetry={() => void onRetry?.()}
+                        retrying={retrying}
+                    />
+                ) : null}
+                <DataState
+                    compact
+                    kind="empty"
+                    title={t("暂无可分配角色", "No roles available to assign")}
+                />
+            </div>
         );
     }
 
     return (
-        <Checkbox.Group
-            value={normalizeRoleIds(value ?? [])}
-            options={options.map((role) => ({
-                value: role.value,
-                label: role.isSystem ? localizeBuiltInRoleName(role.code, role.label) : role.label,
-            }))}
-            onChange={(values) => onChange?.(normalizeRoleIds(values as Array<number | string>))}
-        />
+        <div className="grid gap-3">
+            {refreshError ? (
+                <BackgroundRefreshNotice
+                    updatedAt={updatedAt}
+                    onRetry={() => void onRetry?.()}
+                    retrying={retrying}
+                />
+            ) : null}
+            <Checkbox.Group
+                value={normalizeRoleIds(value ?? [])}
+                options={options.map((role) => ({
+                    value: role.value,
+                    label: role.isSystem
+                        ? localizeBuiltInRoleName(role.code, role.label)
+                        : role.label,
+                }))}
+                onChange={(values) =>
+                    onChange?.(normalizeRoleIds(values as Array<number | string>))
+                }
+            />
+        </div>
     );
 }

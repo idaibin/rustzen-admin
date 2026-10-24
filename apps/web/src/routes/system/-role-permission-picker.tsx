@@ -1,6 +1,7 @@
 import { Button, Card, Checkbox, Input, Tree } from "antd";
 import { useMemo } from "react";
 
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { t } from "@/lib/i18n";
 
@@ -9,6 +10,8 @@ export function PermissionPicker({
     checkedValues,
     loading,
     error,
+    refreshError,
+    updatedAt,
     permissionReady,
     permissionRefreshing,
     permissionSearch,
@@ -22,6 +25,8 @@ export function PermissionPicker({
     checkedValues: string[];
     loading: boolean;
     error: unknown;
+    refreshError: boolean;
+    updatedAt: number;
     permissionReady: boolean;
     permissionRefreshing: boolean;
     permissionSearch: string;
@@ -50,6 +55,13 @@ export function PermissionPicker({
         [permissions],
     );
     const visibleCheckedValues = checkedValues.filter((key) => permissionSet.has(key));
+    const refreshNotice = refreshError ? (
+        <BackgroundRefreshNotice
+            updatedAt={updatedAt}
+            onRetry={() => void onRetry?.()}
+            retrying={permissionRefreshing}
+        />
+    ) : null;
 
     return (
         <div className="grid gap-2">
@@ -95,13 +107,17 @@ export function PermissionPicker({
                         }
                     />
                 ) : !permissionReady ? (
-                    <DataState
-                        compact
-                        kind="empty"
-                        title={t("暂无可分配权限", "No permissions available to assign")}
-                    />
+                    <div className="grid gap-3">
+                        {refreshNotice}
+                        <DataState
+                            compact
+                            kind="empty"
+                            title={t("暂无可分配权限", "No permissions available to assign")}
+                        />
+                    </div>
                 ) : (
                     <div className="grid gap-3">
+                        {refreshNotice}
                         <Input
                             aria-label={t("搜索权限", "Search permissions")}
                             value={permissionSearch}

@@ -13,29 +13,35 @@ implementer unless a task names another owner.
   (core composition), DOT-OE-1900-01/02/04, OE-2 slice 2 (core Web),
   DOT-OE-1010-01/02, OE-2 slice 3a + signer closure (`b2de445`
   re-review accepted 2026-10-10).
-- Implemented with local evidence, independent acceptance pending:
-  OE-T12 core fresh-install installer (commit `79f1206`; source-level
-  review of installer code and log identities done by the coordinator
-  on 2026-10-10 — this is not dynamic re-execution acceptance; dynamic
-  negative-group verification by the writer follows in the same
-  boundary; real Linux acceptance still a later gate).
-- In progress: OE-T09 remaining packaging scope (Linux-real package
-  builds gated by OE-T10).
-- Not verified (never claimed): OE-T10 old-worker real-artifact
-  proof, real Linux deployment, interrupted-update recovery on a real
-  host, browser DOM acceptance.
+- OE-T12 local installer scope independently accepted 2026-10-13: fixed
+  source review and hash-verified historical positive/negative evidence.
+  No dynamic re-execution or Linux acceptance is claimed.
+- Current Linux scope (2026-10-24): current-source signed core/full fixtures
+  build and install on the task-owned x86_64/systemd environment. Lifecycle,
+  same-composition update/reverse/failure rollback, cross-composition refusal
+  and 18 real interruption checkpoints have native evidence. Final independent
+  ZCode acceptance passed (2026-10-24; no P0–P2); the Linux 23-case browser gate
+  and local evidence publication passed (outer exit 0). See the current implementation receipt and ignored
+  `.codex/artifacts/core-delivery/linux/`.
+- Not verified: genuine preceding-full 0.5.1 old-worker compatibility. The
+  original signed artifact could not be recovered in the searched locations;
+  the user excluded recovery and its dependent OE-A09 row from this finite
+  run. This remains an OE-T10/release-readiness blocker. New local fixture
+  builds, including current-source 0.5.1, do not substitute for that release.
+- OE-T11's earlier local full/core acceptance remains independently accepted
+  (ZCode PASS, 2026-10-23). Its UI-only aggregate fixture remains separate from
+  real delivery; older V2 failure evidence remains historical.
 
 ## Ready frontier
 
-1. Independent acceptance (dot) of the OE-T12 installer package on top
-   of `79f1206` — the writer's dynamic negative verification (6/6:
-   foreign member, marker-composition mismatch both directions,
-   tampered content, wrong signing key, binary-identity mismatch; each
-   rejected with an empty install root and zero systemctl calls) is at
-   `target/rz/oet12-negative-verification-20261010/`.
-2. OE-T10 execution in the prepared isolated x86_64 VM (build new
-   candidates in-VM, drive the real 0.5.1 old-worker upgrade/rollback);
-   Mac + stub-systemctl and new-verifier-accepts-old never substitute.
+1. The finite current-fixture Linux change and native/browser acceptance are
+   independently accepted (ZCode PASS, 2026-10-24; no P0–P2). Revalidate only
+   affected claims if source, fixture identity or trust changes.
+2. OE-T10 can resume its historical-worker row only with the exact signed
+   legacy artifact and trusted verification materials in an authorized isolated
+   runtime. The current native fixture campaign does not close that row.
+3. Production and both goods VMs are excluded. Task-owned runtime cleanup
+   completed after evidence retention; no Git commit, push or release is implied.
 
 ## Tasks
 
@@ -122,8 +128,8 @@ implementer unless a task names another owner.
 - **Evidence**: this boundary's commit (see implementation.md
   DOT-OE-1010 section); `target/rz/oe-1010-evidence-20261010/INDEX.md`.
 - **Status**: Done.
-- **Blocker**: Linux UI-state evidence scripts aligned by contract but not
-  executed on this host (see OE-T11).
+- **Blocker**: none for current-fixture Linux UI-state execution/publication;
+  final independent acceptance passed under OE-T11.
 
 ### OE-T06 — Final-source evidence binding (DOT-OE-1010-02)
 
@@ -166,12 +172,13 @@ implementer unless a task names another owner.
   unified with the Rust worker, reviewer counterexample reproduced then
   rejected both pre-signing and post-splice, focused tests 7/0 —
   `target/rz/oe3-signer-closure-20261010/PROVENANCE.md`.
-- **Status**: In progress — update chain and signer closure complete;
-  the signer package (`b2de445`) passed independent re-review on
-  2026-10-10 (counterexample rejection reproduced, 7/0 no skips).
-  The fresh-install installer variant is OE-T12, handed to the
-  coordinator-owned writer at the 2026-10-10 checkpoint.
-- **Blocker**: none for the delivered scope. The former open limitation
+- **Status**: Linux-real current-fixture packaging evidence delivered;
+  independently accepted by ZCode on 2026-10-24 (no P0–P2). Core/full Docker and
+  just wiring, signed inventories and native fresh installation are verified.
+  Earlier signer acceptance (`b2de445`, 2026-10-10) remains historical evidence.
+- **Blocker**: none for current-fixture package construction. Genuine legacy
+  material/old-worker acceptance remains separately unverified under OE-T10.
+  The former open limitation
   (the Rust real-artifact test returning silently on artifact absence)
   is closed as of 2026-10-12 with both implementation and dynamic
   acceptance: absence now fails loudly (fail-closed, never a skip)
@@ -217,15 +224,20 @@ implementer unless a task names another owner.
   PROVENANCE). Old-worker direction: none, and explicitly not
   substitutable — the new verifier accepting the old artifact does not
   satisfy this task.
-- **Status**: Blocked (environment now prepared).
-- **Blocker**: execution window only — an isolated x86_64 colima VM
-  (`rz-p8e-amd64`, probed 2026-10-10 with a working `rust:1.95`
-  toolchain image and the repo's systemd image; restored to stopped
-  after probing) plus the real 0.5.1 artifact and real key are ready;
-  the remaining work is the in-VM build of new candidates and the
-  update-driving script. Assessment and protocol:
-  `target/rz/oet10-env-prep-20261010/ASSESSMENT.md`. Blocks release
-  readiness, not other tasks.
+- **Status**: Blocked only for the genuine historical-worker/material row;
+  excluded from the current finite run by the user on 2026-10-24. Current
+  local-fixture Linux update, reverse application, rollback and boot recovery
+  evidence is available and does not complete this task.
+- **Blocker**: the original `rz-0.5.1-x86_64.tar`, SHA-256
+  `01acde7fa359794d933bb5e6ae37400555651b99da5675b66bbee900ff6942ad`,
+  was not recovered in the recorded local/backup/release searches. The user
+  reported it unavailable and instructed skipping recovery. Resume with that
+  exact artifact, trusted materials and an authorized isolated runtime; never
+  relabel a new current-source 0.5.1 build as the historical release. The
+  dedicated `rz-admin-d03-amd64` runtime was authorized for the current run;
+  environment availability is no longer the missing-input explanation.
+  Production and goods environments remain outside scope. This blocks release
+  readiness, not the other verified work.
 
 ### OE-T12 — Core fresh-install installer (OE-2 slice 3b)
 
@@ -251,10 +263,14 @@ implementer unless a task names another owner.
   (exit 0, full composition); found and fixed the `b2de445` marker-field
   regression that had broken full installs. Receipts:
   `target/rz/oet12-installer-20261010/PROVENANCE.md`. Pending
-  independent review (dot).
-- **Status**: Implemented — awaiting independent review.
-- **Blocker**: none for the local scope; real Linux deployment remains
-  OE-T10-adjacent runtime acceptance.
+  independent review (dot) at that time; local scope accepted on
+  2026-10-13 (see the appended implementation receipt).
+- **Status**: Local installer scope accepted; current-fixture native core/full
+  fresh install, lifecycle/reboot and occupied-root refusal verified. Final
+  Linux current-fixture acceptance passed independent ZCode review
+  (2026-10-24; no P0–P2).
+- **Blocker**: none for that bounded scope. Historical-worker compatibility
+  remains OE-T10; it is not fresh-install evidence.
 
 ### OE-T11 — Browser DOM acceptance (core shell + restored card)
 
@@ -266,7 +282,42 @@ implementer unless a task names another owner.
 - **Dependencies**: OE-T05 (surface restored).
 - **Acceptance**: DOM-level evidence (screenshots/interactions) against a
   real served instance.
-- **Evidence**: none yet.
-- **Status**: Blocked.
-- **Blocker**: dedicated acceptance session with a real browser against
-  the served stack; explicitly not claimed by wire-level receipts.
+- **Evidence**: 2026-10-13 existing V2 core/full module-panel DOM and
+  browser responses remain historical (see A-06 receipt in
+  ../../../plans/product-iteration-tasks.md); they are not current Monitor
+  delivery-card evidence. The original Admin client on 2026-10-13 also
+  verified `/monitoring/incidents` failure badge, incidents error/Reload,
+  and HTTP 503/code 40001. In the isolated same-source window on
+  2026-10-23, three synthetic agent reports were accepted (HTTP 200/code
+  0), generated four Monitor incidents, and all four corresponding events
+  were stored by the real local Admin ingress with recipients. The owner
+  delivery API returned pending/quarantine/gaps 0 and non-null lastSuccess;
+  owner and restricted-viewer DOM showed the card details. Separately,
+  direct updates to aggregate counters only (no payload/receipt rows) made
+  the owner and restricted-viewer UI show a 3-gap trigger, pending 2,
+  quarantine 1 and first/last gap timestamps while preserving real
+  lastSuccess. This fixture proves UI rendering only. The shared card's
+  narrow popover was fixed and rechecked: at 390 CSS pixels its tooltip
+  bounds were x=8, width=358, right=366, with readable text and Retry. Owner
+  final IAB captures show owner 1440×900 English gap/details and restricted-
+  viewer 390×844 Chinese gap and healthy details. Owner healthy recovery was
+  separately confirmed by native real-API readback and the headless restored-
+  healthy trigger; no healthy popover is claimed. Isolated controlled 403 and
+  503 loading/failure/
+  retry/recovery flows passed; each headless context was closed with no
+  pending requests or timers. A current core-composition Admin was built
+  from `dist-core` and checked through owner login, dashboard, narrow
+  navigation, roles and audit reads; no Monitor/Insights/Reports/Notifications
+  API requests occurred. The current core inventory includes the dashboard
+  helper and excludes the notification shell. Evidence and build receipts
+  are under ignored `.codex/artifacts/core-delivery/`.
+- **Status**: Local full/core acceptance independently accepted (ZCode PASS,
+  2026-10-23; no P0–P2). Review and closure records are in ignored
+  `.codex/reviews/admin-d03-core-*` and `final-closure.json` under the
+  receipt directory above. The fixed-source Linux 23-case gate and local evidence publication
+  passed on 2026-10-24 (outer exit 0).
+- **Blocker**: none for current-fixture Linux scope: browser publication and
+  independent ZCode acceptance passed (2026-10-24; no P0–P2).
+  Native current-fixture evidence is now available; genuine old-worker proof
+  remains separately unverified under OE-T10. The aggregate gap fixture remains
+  synthetic UI evidence, separate from real delivery.

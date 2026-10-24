@@ -5,22 +5,34 @@ use serde_json::json;
 
 mod cli_contract;
 mod cli_output;
+#[cfg(feature = "full")]
 mod install;
+#[cfg(feature = "full")]
 mod install_activation;
+#[cfg(feature = "full")]
 mod install_activation_state;
+#[cfg(feature = "full")]
 mod install_admission;
+#[cfg(feature = "full")]
 mod install_archive;
+#[cfg(feature = "full")]
 mod install_continuation;
+#[cfg(feature = "full")]
 mod install_crypto;
+#[cfg(feature = "full")]
 mod install_fs;
+#[cfg(feature = "full")]
 mod install_manifest;
+#[cfg(feature = "full")]
 mod install_pairing;
+#[cfg(feature = "full")]
 mod install_selection;
+#[cfg(feature = "full")]
 mod install_terminal;
 mod operations;
 use cli_contract::{Cli, Command};
 use cli_output::{ErrorBody, Failure, SCHEMA_VERSION, emit, print_json};
-use operations::{Context, Module, module_count, read_statuses};
+use operations::{COMPOSITION, Context, Module, module_count, read_statuses};
 #[cfg(test)]
 use operations::{is_loopback_host, read_allowed_config};
 
@@ -42,6 +54,13 @@ async fn main() -> ExitCode {
     let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(error) => {
+            if matches!(
+                error.kind(),
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+            ) {
+                let _ = error.print();
+                return ExitCode::SUCCESS;
+            }
             if json_requested {
                 print_json(&Failure {
                     schema_version: SCHEMA_VERSION,
@@ -82,8 +101,10 @@ async fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Command::Doctor => {
             let statuses = read_statuses(&context, Module::All).await;
-            let binaries = ["rz", "rz-admin", "rz-monitor", "rz-insights", "rz-reports"]
-                .into_iter()
+            let binaries = COMPOSITION
+                .binaries
+                .iter()
+                .copied()
                 .map(|binary| (binary, context.release_bin_dir.join(binary).is_file()))
                 .collect::<BTreeMap<_, _>>();
             let healthy = statuses.iter().filter(|status| status.reachable).count();
@@ -96,6 +117,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                     "secret_values_retained": false
                 },
                 "current_release": context.installed_release,
+                "composition": COMPOSITION.name,
                 "binaries": binaries,
                 "health": {
                     "reachable": healthy,
@@ -121,6 +143,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Stop => service_control("stop", cli.json)?,
         Command::Restart => service_control("restart", cli.json)?,
         Command::Status => service_control("status", cli.json)?,
+        #[cfg(feature = "full")]
         Command::InstallAgent { release, destination, dry_run } => {
             let verified =
                 install::apply(&release.into(), &destination, dry_run).map_err(|message| {
@@ -132,6 +155,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                 })?;
             emit(cli.json, "install-agent", json!({"dry_run": dry_run, "release": verified}));
         }
+        #[cfg(feature = "full")]
         Command::PinMonitorController { bundle, controller_endpoint } => {
             let result = install_pairing::pin(&install_pairing::PinInputs {
                 bundle,
@@ -144,6 +168,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             })?;
             emit(cli.json, "pin-monitor-controller", json!(result));
         }
+        #[cfg(feature = "full")]
         Command::PrepareMonitorAgentAccess => {
             install_pairing::prepare_access().map_err(|message| CliError {
                 command: "prepare-monitor-agent-access".into(),
@@ -156,6 +181,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                 json!({"root":"/opt/rz","identity":"rz-monitor-agent"}),
             );
         }
+        #[cfg(feature = "full")]
         Command::ActivateMonitorAgent { config } => {
             let result =
                 install_activation::activate(&install_activation::ActivationInput { config })
@@ -230,9 +256,6 @@ fn service_control(action: &str, json_output: bool) -> Result<(), CliError> {
     Ok(())
 }
 
-const FULL_SERVICE_UNITS: [&str; 4] =
-    ["rz-admin.service", "rz-monitor.service", "rz-insights.service", "rz-reports.service"];
-
 fn service_status(systemctl: &Path, json_output: bool) -> Result<(), CliError> {
     let services = read_service_states(systemctl)?;
     require_all_services_active("status", &services)?;
@@ -293,8 +316,10 @@ fn service_state_json(services: Vec<(String, String, bool)>) -> Vec<serde_json::
 }
 
 fn read_service_states(systemctl: &Path) -> Result<Vec<(String, String, bool)>, CliError> {
-    FULL_SERVICE_UNITS
-        .into_iter()
+    COMPOSITION
+        .service_units
+        .iter()
+        .copied()
         .map(|unit| {
             let output =
                 std::process::Command::new(systemctl).arg("is-active").arg(unit).output().map_err(

@@ -62,6 +62,7 @@ effects.
 | Populated | Existing checkbox list and localized role labels | Enabled only after normal form readiness and at least one selected role |
 | Empty | Compact localized `No roles available to assign` status; no checkboxes | Disabled |
 | Error or permission denial | Compact destructive status and localized `Reload` action | Disabled |
+| Background refresh failure | Cached role choices and current selection remain visible with `BackgroundRefreshNotice` and retry | Disabled until retry succeeds |
 | Submitting | Existing form retained; localized creating or saving state | Disabled until completion |
 
 The error description should tell the operator to retry or contact an owner if
@@ -72,13 +73,20 @@ copy. Existing global request feedback may remain additional evidence.
 
 - Opening the dialog starts retrieval and announces the loading state politely.
 - Retry calls only role retrieval; it does not close the dialog or reset fields.
+- A failed background refresh retains cached choices and the selected role set,
+  shows the shared refresh notice, and keeps submission disabled while failed or
+  fetching.
+- A same-user list refresh while the edit dialog is open retains the current
+  draft. Close/reopen initializes from the latest user record; switching users
+  initializes the new record, and each create opening starts with empty fields
+  and role selection.
 - The retry button is keyboard reachable and retains the existing visible focus
   treatment.
 - Error feedback uses alert semantics; loading and empty feedback use status
   semantics through the existing shared component.
 - Checkboxes keep their current label association and target size.
 - The primary button stays disabled while roles are loading, failed, empty, or
-  the account request is in progress.
+  refreshing, or the account request is in progress.
 - Reduced motion uses the existing system. The loading icon may retain the
   current shared reduced-motion behavior; no new motion is added.
 
@@ -105,6 +113,8 @@ consumer proves a shared abstraction.
   reachable from deterministic component/query inputs.
 - No false empty state appears before a successful response.
 - Retry preserves every other dialog value.
+- Same-record refresh, close/reopen, switching users, and repeated create
+  sessions preserve the required per-session initialization behavior.
 - Chinese and English fixed copy is present.
 - No horizontal overflow at 1440×900 or 1920×1080; narrow-dialog behavior uses
   the existing responsive primitive.

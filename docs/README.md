@@ -2,6 +2,13 @@
 
 This is the documentation entrypoint for `rustzen-admin`.
 
+## Start developing
+
+Begin with the [developer quick start](./guides/getting-started.md) to prepare
+local Web assets, start the existing development entrypoints and trace the role
+management feature. The [product iteration scope](./product/iteration.md#developer-facing-iteration-order)
+sets the current developer-facing priorities.
+
 ## Source Of Truth
 
 1. source code

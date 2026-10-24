@@ -765,4 +765,112 @@ mod tests {
             assert!(invalid.validate().is_err());
         }
     }
+
+    /// OE-ISOLATION-GUARD-01 v2: proves, at the real dotenv entry and
+    /// the final effective database paths, that a synthetic .env found
+    /// at the working directory re-injects the four SQLite path
+    /// overrides (the v1 risk for isolated launches that only sanitized
+    /// the environment), and that RUSTZEN_SKIP_DOTENV contains the
+    /// re-injection so every final path stays under the runtime root.
+    /// Uses only synthetic temp data; a real .env is never read.
+    #[cfg(all(feature = "admin", feature = "modules"))]
+    #[test]
+    fn dotenv_reinjection_of_sqlite_paths_reaches_final_paths_unless_skipped() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("guard-dotenv-{}-{nanos}", std::process::id()));
+        let isolated_root = dir.join("isolated-root");
+        std::fs::create_dir_all(&isolated_root).expect("synthetic dirs");
+        let escape = [
+            dir.join("escape-admin.db"),
+            dir.join("escape-monitor.db"),
+            dir.join("escape-insights.db"),
+            dir.join("escape-reports.db"),
+        ];
+        let names = [
+            "RUSTZEN_ADMIN_SQLITE_PATH",
+            "RUSTZEN_MONITOR_SQLITE_PATH",
+            "RUSTZEN_INSIGHTS_SQLITE_PATH",
+            "RUSTZEN_REPORTS_SQLITE_PATH",
+        ];
+        std::fs::write(
+            dir.join(".env"),
+            format!(
+                "{}={}\n{}={}\n{}={}\n{}={}\n",
+                names[0],
+                escape[0].display(),
+                names[1],
+                escape[1].display(),
+                names[2],
+                escape[2].display(),
+                names[3],
+                escape[3].display()
+            ),
+        )
+        .expect("synthetic .env");
+
+        let previous_dir = std::env::current_dir().expect("cwd");
+        // Safety: this is the only test in the crate that reads or writes
+        // RUSTZEN_* process environment variables (the other tests build
+        // configs from serialized providers), so no concurrent reader
+        // observes these mutations.
+        unsafe {
+            for name in names {
+                std::env::remove_var(name);
+            }
+            std::env::remove_var("RUSTZEN_SKIP_DOTENV");
+            std::env::set_var("RUSTZEN_RUNTIME_ROOT", &isolated_root);
+        }
+        std::env::set_current_dir(&dir).expect("cd into synthetic dir");
+
+        // v1 risk: the real entry loads .env and every override reaches
+        // the final effective path verbatim (absolute values escape the
+        // runtime root).
+        crate::load_dotenv_if_present().expect("default dotenv load");
+        let polluted = AdminConfig::load().expect("config with dotenv re-injection");
+        assert_eq!(polluted.admin_database_path(), escape[0]);
+        assert_eq!(polluted.monitor_database_path(), escape[1]);
+        assert_eq!(polluted.insights_database_path(), escape[2]);
+        assert_eq!(polluted.reports_database_path(), escape[3]);
+
+        for name in names {
+            // Safety: see the mutation-safety note above.
+            unsafe { std::env::remove_var(name) };
+        }
+
+        // v2 protection: the isolation flag skips the dotenv entry, so
+        // no override exists and every final path stays under the
+        // runtime root.
+        // Safety: see the mutation-safety note above.
+        unsafe { std::env::set_var("RUSTZEN_SKIP_DOTENV", "1") };
+        crate::load_dotenv_if_present().expect("skipped dotenv load");
+        let clean = AdminConfig::load().expect("config with dotenv skipped");
+        assert_eq!(clean.admin_sqlite_path, None);
+        assert_eq!(clean.monitor_sqlite_path, None);
+        assert_eq!(clean.insights_sqlite_path, None);
+        assert_eq!(clean.reports_sqlite_path, None);
+        for (path, file) in [
+            (clean.admin_database_path(), "data/db/admin.db"),
+            (clean.monitor_database_path(), "data/db/monitor.db"),
+            (clean.insights_database_path(), "data/db/insights.db"),
+            (clean.reports_database_path(), "data/reports/db/reports.db"),
+        ] {
+            assert!(
+                path.starts_with(&isolated_root),
+                "{file} escaped the runtime root: {}",
+                path.display()
+            );
+            assert!(path.ends_with(file), "{file} expected, got {}", path.display());
+        }
+
+        // Safety: see the mutation-safety note above.
+        unsafe {
+            std::env::remove_var("RUSTZEN_SKIP_DOTENV");
+            std::env::remove_var("RUSTZEN_RUNTIME_ROOT");
+        }
+        std::env::set_current_dir(previous_dir).expect("restore cwd");
+        std::fs::remove_dir_all(&dir).expect("synthetic cleanup");
+    }
 }

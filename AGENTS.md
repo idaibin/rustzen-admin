@@ -34,9 +34,11 @@ in this repository's nested guidance are relative to the repository root.
 - Frontend lives in `apps/web/`.
 - Deployment assets live in `deploy/`.
 - Root keeps workspace metadata, docs, command entry points, and shared crates.
-- Deployment contract uses one signed `target/rz/rz-<version>-<arch>.tar`
-  bundle, `/opt/rz`, `deploy/rz-full.service`, `deploy/rz-recovery.service`, four
-  server units, and `deploy/setup-layout.sh`.
+- Full remains the default signed `target/rz/rz-<version>-<arch>.tar` bundle;
+  the explicit core build writes `target/rz/core/rz-<version>-<arch>.tar` with
+  only `rz` and `rz-admin` plus the core units. Both install under `/opt/rz` and
+  use `deploy/rz-recovery.service` and `deploy/setup-layout.sh`; full starts four
+  server units while core starts Admin only.
 - Do not apply Peripheral, Tauri client, or legacy `zen-server` /
   `zen-web` layout rules to this repository.
 - Do not add systemd `User`/`Group`, hardening, or install-path permission
@@ -51,8 +53,11 @@ in this repository's nested guidance are relative to the repository root.
   version bump. Synchronize the workspace, Web package, lockfile, and current
   examples only when a version change is authorized.
 - This repository is an initialization template. Maintain only the final fresh-install baseline;
-  compatibility with any earlier release, schema, protocol, configuration, path, or persisted data
-  is out of scope.
+  general historical compatibility is out of scope. The narrowly approved exception
+  is the immediately preceding supported full release and its data, owned by
+  [the composition contract](docs/product/features/composable-distribution/spec.md#compatibility-and-trust-boundary)
+  and OE-A09–12. Preserve its exact signed identity, data and recovery boundary;
+  that exception does not authorize arbitrary migrations or existing-data resets.
 - When a schema changes, update that application's existing initialization migration directly. Do
   not add sequential upgrade migrations, legacy data conversion, dual-read or dual-write paths,
   fallback branches, rollback compatibility, or old-database support.

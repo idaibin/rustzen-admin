@@ -71,13 +71,12 @@ async fn navigation_keeps_persisted_enabled_menus_visible_without_a_runtime_mani
 }
 
 #[tokio::test]
-async fn status_and_dashboard_health_follow_fixed_module_order() {
+async fn dashboard_shows_connected_enabled_examples_in_fixed_order() {
+    let pool =
+        SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.expect("pool");
+    crate::infra::db::run_migrations(&pool).await.expect("migrations");
     let state = ModuleControlState {
-        pool: SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("pool"),
+        pool,
         registry: ModuleRegistry::new(ModuleSpec::fixed(), &BTreeMap::new()),
         client: reqwest::Client::new(),
         signer: DelegationSigner::new("secret").expect("signer"),
@@ -89,13 +88,91 @@ async fn status_and_dashboard_health_follow_fixed_module_order() {
         ModuleService::statuses(&state).into_iter().map(|status| status.id).collect::<Vec<_>>(),
         expected
     );
+    assert!(ModuleService::dashboard_health(&state).await.expect("fresh dashboard").is_empty());
+
+    PermissionService::reconcile_module_manifest(&state.pool, &test_manifest(false))
+        .await
+        .expect("persist monitor registration");
+    sqlx::query(
+        "INSERT INTO module_navigation
+         (name, code, status, is_manual, sort_order, path, icon, module_id, module_menu_code)
+         VALUES ('Reports', 'reports:view', 1, FALSE, 30, '/reports', 'reports', 'reports', 'reports')",
+    )
+    .execute(&state.pool)
+    .await
+    .expect("persist reports registration");
+    let dashboard = ModuleService::dashboard_health(&state).await.expect("registered dashboard");
+    assert_eq!(
+        dashboard.iter().map(|health| health.module).collect::<Vec<_>>(),
+        ["monitor", "reports"],
+        "connected entries keep the fixed display order",
+    );
+    assert!(dashboard.iter().all(|health| !health.available));
+    assert!(dashboard.iter().all(|health| health.release_version.is_none()));
+
+    sqlx::query(
+        "UPDATE module_navigation SET status = 2, is_manual = TRUE, is_active = FALSE
+         WHERE module_id = 'monitor'",
+    )
+    .execute(&state.pool)
+    .await
+    .expect("hide the connected module's menu");
     assert_eq!(
         ModuleService::dashboard_health(&state)
-            .into_iter()
+            .await
+            .expect("hidden-menu dashboard")
+            .iter()
             .map(|health| health.module)
             .collect::<Vec<_>>(),
-        expected
+        ["monitor", "reports"],
+        "menu visibility is not connection evidence",
     );
+
+    ModuleService::set_enabled(&state, "monitor", false).await.expect("disable monitor");
+    assert_eq!(
+        ModuleService::dashboard_health(&state)
+            .await
+            .expect("disabled dashboard")
+            .iter()
+            .map(|health| health.module)
+            .collect::<Vec<_>>(),
+        ["reports"],
+        "disabled examples are excluded without hiding other connected modules",
+    );
+}
+
+#[tokio::test]
+async fn current_manifest_is_connection_evidence_without_persisted_menus() {
+    let pool =
+        SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.expect("pool");
+    crate::infra::db::run_migrations(&pool).await.expect("migrations");
+    let state = ModuleControlState {
+        pool,
+        registry: ModuleRegistry::new(
+            vec![ModuleSpec {
+                id: "monitor",
+                name: "Monitor",
+                base_url: "http://127.0.0.1:9802".to_string(),
+            }],
+            &BTreeMap::new(),
+        ),
+        client: reqwest::Client::new(),
+        signer: DelegationSigner::new("secret").expect("signer"),
+        enabled_update: Arc::default(),
+    };
+    state.registry.update_module("monitor", |runtime| {
+        let mut manifest = test_manifest(false);
+        manifest.menus.clear();
+        runtime.manifest = Some(Arc::new(manifest));
+    });
+    let dashboard = ModuleService::dashboard_health(&state).await.expect("manifest dashboard");
+    assert_eq!(dashboard.iter().map(|health| health.module).collect::<Vec<_>>(), ["monitor"]);
+    let registered: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM module_navigation WHERE module_id = 'monitor'")
+            .fetch_one(&state.pool)
+            .await
+            .expect("navigation count");
+    assert_eq!(registered, 0);
 }
 
 #[tokio::test]
@@ -197,7 +274,7 @@ async fn changed_manifest_swaps_after_commit_and_invalid_change_rolls_back() {
     assert_eq!(runtime.condition, ModuleCondition::Unavailable);
     assert!(runtime.compatible(), "temporary outage must keep the last-known-good menu state");
     assert_eq!(runtime.last_seen_at, Some(last_seen));
-    let dashboard = ModuleService::dashboard_health(&state);
+    let dashboard = ModuleService::dashboard_health(&state).await.expect("dashboard health");
     assert_eq!(dashboard[0].module, "monitor");
     assert!(!dashboard[0].available);
     assert_eq!(dashboard[0].release_version, None);

@@ -28,30 +28,22 @@ monitor_retry_source_api=/verify/evidence/.retry-source-run.json
 monitor_retry_source_steps=/verify/evidence/.retry-source-steps.json
 printf '[]\n' >"$monitor_retry_receipts"
 monitor_retry_budget=0
-set_mode() {
-    curl_json \
-        -X PATCH \
-        -H 'content-type: application/json' \
-        -d "$1" \
-        http://127.0.0.1:19806/__monitoring_fixture/mode >/dev/null
-}
-diagnostics() {
-    local case_name=$1 run_id=$2
-    echo "== Monitoring UI browser case failed: $case_name ($run_id) ==" >&2
-    curl_json "${auth[@]}" "$admin/api/reports/runs/$run_id" \
-        | jq -c '.data | {id,status,error}' >&2 || true
-    curl_json "${auth[@]}" "$admin/api/reports/runs/$run_id/steps" \
-        | jq -c '.data[] | {stepIndex,action,status,message}' >&2 || true
-    curl_json "${auth[@]}" "$admin/api/reports/runs/$run_id/artifacts" \
-        >/verify/evidence/failure-run-artifacts.json 2>/dev/null || true
-    curl_json http://127.0.0.1:19806/__monitoring_fixture/receipt \
-        >/verify/evidence/fixture-receipt-on-failure.json 2>/dev/null || true
-}
+. /verify/run-lib.sh
 run_case() {
     local case_name=$1 stem=$2 case_steps body flow run status run_body
     local receipt_tmp receipt_file receipt_hash fixture_reads retry_run
     refresh_owner_auth || return 1
+    local barrier_route=
+    case "$case_name" in
+        overviewLoading) barrier_route=overview ;;
+        nodesLoading) barrier_route=nodes ;;
+        incidentsLoading) barrier_route=incidents ;;
+        summariesLoading) barrier_route=summaries ;;
+    esac
     case_steps=$(jq -ce --arg case "$case_name" '.[$case]' <<<"$steps")
+    if [ -n "$barrier_route" ]; then
+        set_slow_hold "$barrier_route"
+    fi
     body=$(jq -nc \
         --arg system "$system" \
         --arg name "Monitoring UI state: $case_name" \
@@ -69,6 +61,12 @@ run_case() {
         -H 'content-type: application/json' \
         -d "$run_body" \
         "$admin/api/reports/runs" | jq -er '.data.id')
+    if [ -n "$barrier_route" ]; then
+        if ! release_after_loading_assert "$run" "$case_steps" "$barrier_route"; then
+            diagnostics "$case_name" "$run"
+            exit 1
+        fi
+    fi
     status=$(monitor_wait_run "$run")
     if [ "$status" != succeeded ] && [ "$monitor_retry_budget" -eq 0 ]; then
         if retry_run=$(monitor_retry_prepage_cdp "$case_name" "$run" "$fixture_reads"); then
@@ -103,29 +101,6 @@ run_case() {
         }' >>"$receipt_records"
     last_run_id=$run
 }
-run_route_matrix() {
-    local route=$1 title=$2 after
-    after="$route""FailAfterFirstStatus"
-    set_mode "$(jq -nc --arg route "$route" '{($route):"slow"}')"
-    run_case "$title""Loading" "$route-loading"
-    if [ "$route" = overview ]; then
-        desktop_run=$last_run_id
-    fi
-    set_mode "$(jq -nc --arg route "$route" '{($route):"403"}')"
-    run_case "$title""403" "$route-403"
-    set_mode "$(jq -nc --arg route "$route" '{($route):"500"}')"
-    run_case "$title""500" "$route-500"
-    set_mode "$(jq -nc \
-        --arg route "$route" \
-        --arg after "$after" \
-        '{($route):"success",($after):"403"}')"
-    run_case "$title""Background403" "$route-background-403"
-    set_mode "$(jq -nc \
-        --arg route "$route" \
-        --arg after "$after" \
-        '{($route):"success",($after):"500"}')"
-    run_case "$title""Background500" "$route-background-500"
-}
 run_route_matrix overview overview
 run_route_matrix nodes nodes
 run_route_matrix incidents incidents
@@ -142,6 +117,20 @@ curl_json http://127.0.0.1:19806/__monitoring_fixture/receipt \
     | jq -e . >"$receipt_tmp"
 mv -f "$receipt_tmp" /verify/evidence/fixture-receipt.json
 fixture_receipt=$(cat /verify/evidence/fixture-receipt.json)
+for route in overview nodes incidents summaries; do
+    jq -e --arg route "$route" '
+        .route == $route and .assertionStatus == "succeeded"
+        and .releaseTrigger == "assertText-succeeded"
+        and .runObservationBudgetSeconds == 120
+        and .fixtureHoldTimeoutSeconds == 30
+    ' "/verify/evidence/loading-barrier-$route.json" >/dev/null
+ done
+jq -e '
+    . as $receipt
+    | ([$receipt.requests[] | select(.mode == "slow" and .holdRequested == true)] | length == 4)
+    and ([$receipt.requests[] | select(.mode == "slow" and .holdOutcome == "released")] | length == 4)
+    and ([$receipt.controlEvents[] | select(.event == "release" and .trigger == "assertText-succeeded")] | length == 4)
+' <<<"$fixture_receipt" >/dev/null
 jq -e '
     . as $receipt
     | def modes($name):
@@ -213,6 +202,14 @@ rm -f "$monitor_retry_source_api" "$monitor_retry_source_steps"
 retry_receipts=$(cat "$monitor_retry_receipts")
 retry_receipt_sha=$(sha256sum "$monitor_retry_receipts" | awk '{print $1}')
 retry_receipt_bytes=$(wc -c <"$monitor_retry_receipts" | tr -d ' ')
+loading_barriers=$(for route in overview nodes incidents summaries; do
+    file="loading-barrier-$route.json"
+    hash=$(sha256sum "/verify/evidence/$file" | awk '{print $1}')
+    bytes=$(wc -c <"/verify/evidence/$file" | tr -d ' ')
+    jq -nc --arg route "$route" --arg file "$file" --arg sha "$hash" \
+        --argjson bytes "$bytes" \
+        '{route:$route,file:$file,sha256:$sha,bytes:$bytes}'
+done | jq -s .)
 verify_head=$(env_value RUSTZEN_VERIFY_HEAD)
 verify_state=$(env_value RUSTZEN_VERIFY_SOURCE_TREE_STATE)
 verify_sha=$(env_value RUSTZEN_VERIFY_SOURCE_TREE_SHA256)
@@ -234,6 +231,7 @@ jq -n \
     --arg mobile_size "$mobile_size" \
     --arg retry_receipt_sha "$retry_receipt_sha" \
     --argjson retry_receipt_bytes "$retry_receipt_bytes" \
+    --argjson loading_barriers "$loading_barriers" \
     --arg owner_run "$delivery_owner_run" \
     --arg viewer_run "$delivery_viewer_run" \
     --argjson records "$records" \
@@ -278,6 +276,7 @@ jq -n \
             })
         ),
         fixtureReceipt:$fixture,
+        loadingBarriers:$loading_barriers,
         retryReceipts:{file:"retry-receipts.json",sha256:$retry_receipt_sha,bytes:$retry_receipt_bytes},
         artifacts:[
             {

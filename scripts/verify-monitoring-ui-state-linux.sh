@@ -4,6 +4,9 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 reports_delivery_lib="$root/scripts/reports-ui-state-delivery-lib.sh"
 monitor_delivery_lib="$root/scripts/monitoring-ui-state-delivery-lib.sh"
+fixture_payload_mount="type=bind,src=$root/scripts/"
+fixture_payload_mount+="monitoring_ui_state_fixture_payloads.py,"
+fixture_payload_mount+="dst=/verify/monitoring_ui_state_fixture_payloads.py,readonly"
 
 for seam_variable in \
     RUSTZEN_MONITORING_UI_STATE_TEST_TIMEOUT \
@@ -127,7 +130,9 @@ run_bounded \
     --mount "type=bind,src=$candidate,dst=/verify/evidence" \
     --mount "type=bind,src=$root/scripts/verify-monitoring-ui-state-linux-inner.sh,dst=/verify/run.sh,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-fixture.py,dst=/verify/fixture.py,readonly" \
+    --mount "$fixture_payload_mount" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-inner-lib.sh,dst=/verify/inner-lib.sh,readonly" \
+    --mount "type=bind,src=$root/scripts/monitoring-ui-state-run-lib.sh,dst=/verify/run-lib.sh,readonly" \
     --mount "type=bind,src=$root/scripts/monitoring-ui-state-retry-lib.sh,dst=/verify/retry-lib.sh,readonly" \
     --mount "type=bind,src=$reports_delivery_lib,dst=/verify/reports-delivery-lib.sh,readonly" \
     --mount "type=bind,src=$monitor_delivery_lib,dst=/verify/monitor-delivery-lib.sh,readonly" \

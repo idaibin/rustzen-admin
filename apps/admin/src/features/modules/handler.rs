@@ -29,7 +29,7 @@ pub async fn navigation(
 pub async fn dashboard(
     State(state): State<ModuleControlState>,
 ) -> AppResult<Vec<ModuleHealthResponse>> {
-    Ok(ApiResponse::success(ModuleService::dashboard_health(&state)))
+    Ok(ApiResponse::success(ModuleService::dashboard_health(&state).await?))
 }
 
 #[cfg(feature = "core")]

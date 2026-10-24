@@ -178,3 +178,57 @@ verify_delivery_artifacts() (
         test "$actual_hash" = "$hash" && test "$actual_bytes" = "$bytes" || return 1
     done
 )
+
+verify_loading_barriers() {
+    local directory=$1 manifest=$2 route file expected_run actual_hash actual_bytes
+    jq -e '
+        (.loadingBarriers | length == 4)
+        and ([.loadingBarriers[].route] | sort == ["incidents","nodes","overview","summaries"])
+        and ([.loadingBarriers[].file] | sort == [
+            "loading-barrier-incidents.json","loading-barrier-nodes.json",
+            "loading-barrier-overview.json","loading-barrier-summaries.json"])
+        and all(.loadingBarriers[];
+            (keys | sort == ["bytes","file","route","sha256"])
+            and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+            and (.bytes | type == "number" and . > 0))
+    ' "$manifest" >/dev/null || return 1
+    while IFS= read -r route; do
+        file="loading-barrier-$route.json"
+        expected_run=$(jq -er --arg route "$route" '.runs[$route + "Loading"]' "$manifest") || return 1
+        actual_hash=$(shasum -a 256 "$directory/$file" | awk '{print $1}') || return 1
+        actual_bytes=$(wc -c <"$directory/$file" | tr -d ' ') || return 1
+        jq -e --arg route "$route" --arg run "$expected_run" \
+            --arg file "$file" --arg hash "$actual_hash" --argjson bytes "$actual_bytes" '
+            [.loadingBarriers[] | select(.route == $route and .file == $file
+                and .sha256 == $hash and .bytes == $bytes)] | length == 1
+        ' "$manifest" >/dev/null || return 1
+        jq -e --arg route "$route" --arg run "$expected_run" '
+            . as $manifest
+            | ($manifest.loadingBarriers[] | select(.route == $route)) as $descriptor
+            | ($manifest.fixtureReceipt) as $fixture
+            | ($descriptor.file == ("loading-barrier-" + $route + ".json"))
+            and ($descriptor.sha256 | test("^[0-9a-f]{64}$"))
+            and ($descriptor.bytes > 0)
+            and ($manifest.runs[$route + "Loading"] == $run)
+            and ([$fixture.requests[] | select(.name == $route and .mode == "slow"
+                and .holdRequested == true and .holdOutcome == "released")] | length == 1)
+            and ([$fixture.controlEvents[] | select(.route == $route and .event == "hold")] | length == 1)
+            and ([$fixture.controlEvents[] | select(.route == $route and .event == "release"
+                and .trigger == "assertText-succeeded")] | length == 1)
+        ' "$manifest" >/dev/null || return 1
+        jq -e --arg route "$route" --arg run "$expected_run" '
+            (keys | sort == ["assertionStatus","finishedAt","fixtureHoldTimeoutSeconds",
+                "releaseTrigger","route","runId","runObservationBudgetSeconds","startedAt"])
+            and .route == $route
+            and .runId == $run
+            and .assertionStatus == "succeeded"
+            and .releaseTrigger == "assertText-succeeded"
+            and .runObservationBudgetSeconds == 120
+            and .fixtureHoldTimeoutSeconds == 30
+            and (.startedAt | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T"))
+            and (.finishedAt | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T"))
+        ' "$directory/$file" >/dev/null || return 1
+    done < <(printf '%s\n' overview nodes incidents summaries)
+}
+
+

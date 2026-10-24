@@ -197,11 +197,11 @@ single_config_value() {
 generate_runtime_config() {
     main_config="$INSTALL_ROOT/config/rz.env"
     jwt_secret="$(generate_secret)"
-    agent_token="$(generate_secret)"
-    node_id="$(generate_secret)"
-    notification_key="$(generate_secret)"
 
     if [ "$COMPOSITION" = full ]; then
+        agent_token="$(generate_secret)"
+        node_id="$(generate_secret)"
+        notification_key="$(generate_secret)"
         reports_config="$INSTALL_ROOT/config/rz-reports.env"
         ipc_token="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_IPC_TOKEN)"
         reports_notification_key="$(shared_config_value "$main_config" "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY)"
@@ -210,18 +210,18 @@ generate_runtime_config() {
         replace_placeholder "$reports_config" RUSTZEN_REPORTS_CREDENTIAL_KEY "$reports_credential_key"
         replace_placeholder "$reports_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
     else
-        # The core composition owns only the Admin config; module keys it
-        # does not consume are still replaced so no placeholder survives.
+        # Core carries only Admin runtime configuration.
         ipc_token="$(single_config_value "$main_config" RUSTZEN_IPC_TOKEN)"
-        reports_notification_key="$(generate_secret)"
     fi
 
     replace_placeholder "$main_config" RUSTZEN_JWT_SECRET "$jwt_secret"
     replace_placeholder "$main_config" RUSTZEN_IPC_TOKEN "$ipc_token"
-    replace_placeholder "$main_config" RUSTZEN_MONITOR_AGENT_TOKEN "$agent_token"
-    replace_placeholder "$main_config" RUSTZEN_MONITOR_NODE_ID "$node_id"
-    replace_placeholder "$main_config" RUSTZEN_NOTIFICATION_EVENT_KEY "$notification_key"
-    replace_placeholder "$main_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
+    if [ "$COMPOSITION" = full ]; then
+        replace_placeholder "$main_config" RUSTZEN_MONITOR_AGENT_TOKEN "$agent_token"
+        replace_placeholder "$main_config" RUSTZEN_MONITOR_NODE_ID "$node_id"
+        replace_placeholder "$main_config" RUSTZEN_NOTIFICATION_EVENT_KEY "$notification_key"
+        replace_placeholder "$main_config" RUSTZEN_REPORTS_NOTIFICATION_EVENT_KEY "$reports_notification_key"
+    fi
 
     if grep -Fq '=replace-me' "$main_config"; then
         fail "runtime configuration still contains placeholders"

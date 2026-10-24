@@ -253,6 +253,10 @@ delivery-monitor-delivery-viewer-flow.json
 delivery-monitor-delivery-viewer-run.json
 delivery-monitor-delivery-viewer-steps.json
 fixture-receipt.json
+loading-barrier-incidents.json
+loading-barrier-nodes.json
+loading-barrier-overview.json
+loading-barrier-summaries.json
 manifest.json
 monitor-delivery-db.json
 monitor-delivery-owner-desktop-dark-en.png
@@ -272,6 +276,7 @@ FILES
     test -z "$(find "$directory" -type l -print -quit)"
     jq -e --slurpfile receipt "$directory/fixture-receipt.json" \
         '.fixtureReceipt == $receipt[0]' "$manifest" >/dev/null
+    verify_loading_barriers "$directory" "$manifest"
     while IFS=$'\t' read -r case stem; do
         receipt="$stem.json"
         jq -e \

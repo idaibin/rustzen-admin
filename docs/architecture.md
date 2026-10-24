@@ -2,7 +2,7 @@
 
 `rustzen-admin` is the source authority for the Rustzen Admin, Monitor,
 Insights, and Reports runtime. It is a Web/Rust A-class monorepo that produces
-four independent server binaries in one signed release bundle, with one
+the default full composition as four independent server binaries in one signed release bundle, with one
 version and one rollback boundary.
 
 The same bundle also contains `rz`, a non-resident operations CLI.
@@ -221,34 +221,41 @@ boot recovery unit close process-crash and host-restart interruption windows.
 Module-only activation, separate service versions, mixed releases, an old
 single-binary fallback, and multiple active release links are not supported.
 
-## Planned core/full composition boundary
+## Core/full composition boundary
 
-Status: design for [OE stages](product/features/composable-distribution/implementation.md#optional-examples-stages),
-not a claim that current full-only commands support core. Use one shared Admin
-implementation and the existing package/sign/install/update chain, with two reviewed
-composition inventories. Keep the existing `rz-full.service` aggregate name for
-installed-path compatibility; generate/validate its member set for the selected
-composition rather than introducing another lifecycle controller.
+The approved architecture uses one shared Admin implementation and the existing
+package/sign/install/update chain with two bounded composition inventories.
+Current Cargo defaults and `just build` remain full; `just build-web-core` is an
+explicit core Web producer, not a complete core release command. Default selection
+changes only after OE-5 and its installation/update gates. See the
+[OE task ledger](product/features/composable-distribution/tasks.md) for stage status
+and [acceptance](product/features/composable-distribution/validation.md#optional-examples-acceptance)
+for runtime and release exit criteria. The aggregate unit retains `rz-full.service`;
+its member set follows the selected composition.
 
-| Current coupling verified at 2bbd0c6 | Planned owner/change |
+| Owner / source | Current implementation boundary |
 | --- | --- |
-| `apps/admin/Cargo.toml` defaults to full; `infra/app/runtime.rs` starts module synchronization and notification ingress | Bound core/full build/runtime composition; initialize only installed producers and module registry entries; keep authoritative session/RBAC checks |
+| `apps/admin/Cargo.toml`, `infra/app/runtime.rs` | Explicit core/modules/notifications features; full remains the default; module synchronization and notification ingress are feature-gated |
 | `features/modules/types.rs::ModuleSpec::fixed`, migration module seeds, permission/menu reconciliation | Installed inventory is distinct from DB enablement and grants; filter seeded dormant modules at every gateway/control/menu boundary; no base-schema rewrite just to remove seeds |
-| `apps/web/src/routes/__root.tsx` imports notifications; generated route tree includes every module | One shared shell and build-owned route selection; omit absent route chunks, tracker, notification requests and API clients from core; do not edit routeTree.gen.ts manually |
+| Web composition producer and Admin embed | Shared shell and build-owned route selection, separate `dist-core` output and composition-aware embed; do not edit routeTree.gen.ts manually |
 | Admin dashboard/status/module logs and task catalog | Keep Admin-local counts, diagnostics, audit and maintenance; enumerate module projections/paths only from trusted installed inventory |
-| `justfile`, `Dockerfile`, `scripts/package-release-bundle.sh` require five executables and controller identity | Core builds/stages rz + rz-admin only; full keeps five; controller pairing metadata and Reports config exist only with their owners |
-| `scripts/deploy-sign.mjs`, `deploy/setup-layout.sh`, Admin deploy `bundle.rs` use exact full members | Extend the same validators with an authenticated bounded composition inventory; preserve strict path/mode/digest/signature checks and legacy full admission |
-| `apps/cli/src/operations.rs` checks four services; deploy `service/database.rs::database_paths` returns four paths | Derive expected services, health and backup set from trusted installed/candidate identities; missing included members fail; absent examples are not unhealthy |
+| `justfile`, `Dockerfile`, `scripts/package-release-bundle.sh` | Default build remains full; packager explicitly accepts core/full, staging rz + rz-admin for core and five executables for full |
+| Signer, installer and Admin deploy verifier | Composition-aware inventories retain strict path/mode/digest/signature checks; installer independent acceptance and actual Linux execution remain open |
+| CLI operations and deploy database checks | CLI `Module::All` still queries four services; deploy backup sets are feature-derived. Core CLI/status closure remains part of OE-A08; actual old-worker update/rollback belongs to OE-T10 |
 | deploy recovery/journal and root-owned update watcher | Persist source and destination inventories plus restore progress; retain service accounts, root-only mutation and existing crash recovery semantics |
 
 The existing `distribution/` catalog and selected producers are supporting code,
-not current readiness evidence: `selected-cargo-producer.ts` still requests
-`monitor-distribution`/`analytics-distribution`, absent from current Admin Cargo
-features; catalog readiness messages can be stale. Reuse only validated pieces.
+not current readiness evidence. Reuse only pieces with verified current consumers
+and matching receipts; their existence does not establish arbitrary subset support.
 OE-1 records keep/adapt/retire decisions for these entry points and CLI install
 prototypes so a parallel selected-release installer is not revived accidentally.
 Rust/JS/shell consumers may need adapters, but must share one inventory contract
 and cross-language fixtures rather than independently drifting capability lists.
+
+Existing full installations retain full identity. The exact signed preceding-full
+compatibility exception belongs to the [composition trust contract](product/features/composable-distribution/spec.md#compatibility-and-trust-boundary).
+Synthetic fixtures and new-verifier acceptance do not prove actual old-worker
+update/recovery. OE-T09–12 retain the remaining package, Linux and browser gates.
 
 Core and full retain the same existing Admin schema on this first slice. Each
 included service owns DB creation and validation; core neither creates nor needs

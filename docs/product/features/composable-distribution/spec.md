@@ -5,14 +5,15 @@ signed distribution. A signed 0.5.1 fresh installation and its release worker ha
 passed in a disposable systemd container. Transition from the existing 0.5.0 worker
 and production deployment remain unverified.
 
-## Optional examples target (approved, not implemented)
+## Optional examples target
 
-Baseline: `2bbd0c62f7743522b209fd60fd3f1ad0010b9faf`, existing development branch
-`feat/theme-verification-20261005`. The template-first/English-default change is
-already complete and must not be repeated. The full-only outcome below describes
-the currently shipped contract; the following bounded target supersedes it only
-as implementation and acceptance close. No source/build success alone marks a
-composition supported.
+The template-first/English-default change is complete. Core runtime/Web and bounded
+packaging implementation have stage evidence; current status is owned by
+[OE tasks](tasks.md), with receipts in [implementation](implementation.md).
+The full outcome below describes the current default release path. The approved
+two-composition target becomes supported as its acceptance gates close; source or
+build success alone does not establish composition readiness. Default command
+selection remains full until OE-5, including core installation/update acceptance.
 
 | Choice | Target delivery | Runtime/data | Selection |
 | --- | --- | --- | --- |
