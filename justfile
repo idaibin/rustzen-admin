@@ -6,6 +6,12 @@
 dev-server:
     cargo watch -x 'run -p rustzen-admin -- serve'
 
+# Local Admin-only preview with persistent development data; no HMR or release build.
+dev-core:
+    @for path in target target/rz target/rz/dev-core; do if [ -L "$path" ]; then printf 'dev-core: runtime path must not be a symlink: %s\n' "$path" >&2; exit 1; fi; done
+    just build-web-core
+    RUSTZEN_SKIP_DOTENV=1 RUSTZEN_ENV=development RUSTZEN_ADMIN_HOST=127.0.0.1 RUSTZEN_RUNTIME_ROOT="$PWD/target/rz/dev-core" RUSTZEN_ADMIN_SQLITE_PATH=./data/db/admin.db cargo run --locked -p rustzen-admin --no-default-features --features core -- serve
+
 dev-monitor:
     cargo run -p rustzen-monitor -- controller
 
@@ -281,7 +287,7 @@ build-web:
 # Build the core Admin web bundle (real shell, no example modules or
 # notifications) into apps/web/dist-core for the core Admin embed
 build-web-core:
-    cd apps/web && bun run build:core
+    cd apps/web && pnpm dlx bun@1.3.14 run build:core
 
 # Build minimal deployment configuration files
 build-config:

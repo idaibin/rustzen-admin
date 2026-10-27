@@ -6,8 +6,10 @@
 # Frontend
 /apps/web/node_modules
 /apps/web/dist
+/apps/web/dist-core
 /apps/web/.eslintcache
 /apps/web/.vite
+/apps/web/.vite-hooks/_/
 /apps/web/.selected-web
 /uploads
 

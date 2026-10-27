@@ -11,7 +11,7 @@
 | A-03 | 验证命令副作用和工具版本可控；工具链方案 owner；justfile、manifest、调用脚本 | A-R05、当前命令链；无前项 | A-AC05，列出无构建最小命令与完整发布门，覆盖不丢失；授权实施后精确子检查 | Done（A-AC05 有界入口）；副作用矩阵与版本已核对，固定 pnpm dlx bun@1.3.14 入口及失败传播通过；裸 Bun 漂移已隔离于本次检查路径，完整工程门独立待验 |
 | A-04 | 用户/角色原旅程验收闭合；验收 owner；两个原 role feature | A-R04、A-02 的必要环境结论、既有验收证据 | A-AC04，已通过输入未变者复用；仅缺口补真实 UI/API，负例无数据副作用 | Done（A-AC04）；当前协调者与原单一实施 owner，claimed_at 2026-10-23，basis 为上述 HEAD 加当前工作文件。原旅程证据按源码哈希复用，剩余编辑、异常恢复、双语/窄屏与权限边界采用成对覆盖；真实与 Mock 分层明确。ZCode 固定快照审查 PASS，无 P0–P2 或必需验收缺口。临时数据、浏览器、服务和副本已清理。当前证据见 ignored `.codex/artifacts/role-user-acceptance/` 和 `.codex/reviews/admin-a04-acceptance-*`；next_action：D-03 仅沿 A-06 原 OE 门继续。 |
 | A-05 | 可执行的模板价值采样方案；Product owner；安装→有用结果旅程 | A-R06、原定位与现有 90 天计划；无前项 | A-AC06，目标参与者/旅程/样本分母/计时/失败记录/退出条件明确；方案层 | Done（A-AC06 方案层）；开发者启动与权限功能旅程、参与者/分母/计时/失败恢复/退出条件齐备；样本 0，真实招募和运行另按授权 |
-| A-06 | 当前产品剩余验收可关闭；验收协调 owner；相关原账的入口和总结 | A-01–04；原 OE-T09/T10/T11/T12 必要结果 | 原 Required 验收全部可读回，声明来源/产物/Linux/UI/部署边界；无隐性未决 | Blocked；当前隔离 Linux core/full 构建、安装、生命周期、更新/回滚与 18 个原生中断点已实测，最终独立接受待 ZCode；Linux 23 项页面门运行中。用户本轮跳过的真旧 0.5.1 worker/OE-A09 仍未验证；A-04 与此前本地 OE-T11 接受保持 |
+| A-06 | 当前产品剩余验收可关闭；验收协调 owner；相关原账的入口和总结 | A-01–04；原 OE-T09/T10/T11/T12 必要结果 | 原 Required 验收全部可读回，声明来源/产物/Linux/UI/部署边界；无隐性未决 | Blocked only for genuine historical-worker compatibility；原 OE 账及 2026-10-24 回执已记录当前源码 fixture 的 Linux core/full 构建、安装、生命周期、更新/回滚、18 个原生中断点和 23 项浏览器门通过，并获 ZCode 独立接受。真正旧 full 0.5.1 签名包及 OE-A09/OE-T10 仍未验证；当前重建包不能替代历史原包。A-04 与本地 OE-T11 接受保持 |
 
 ## 原任务继续入口
 
@@ -19,6 +19,136 @@
 - OE-T10：原账拥有真旧 worker、真实包、Linux 更新/回滚；执行前核对运行窗口及精确权限。
 - OE-T11：原账拥有 core shell/Monitor card 的 DOM 验收；只能用同版真实目标关闭。
 - OE-T09：原账拥有剩余 packaging 集成；不在本账另起打包任务。
+
+## Current execution — developer entry follow-up (2026-10-27)
+
+- task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`
+- project_id: `github-1006131708`, bound to GitHub repository ID `1006131708`
+  (`idaibin/rustzen-admin`), verified through repository metadata.
+- Owner: current execution coordinator; the documentation and command edits have
+  separate, disjoint writers. This entry coordinates the existing A-01/A-03 and
+  D-01 outcomes; it does not duplicate their definitions or change OE acceptance.
+- Basis: `c9dd0e0b8f4ebccc80a96423ec0b08fdf3492ace`, initially clean checkout;
+  branch `work/ai-first-core-20261027`.
+- User outcome: correct current progress, provide an explicit Admin-only local
+  development entry, and verify one protected feature against the current source.
+- Status: bounded developer-entry implementation Done; selected build/runtime
+  checks and independent review passed. Browser interaction remains Not verified;
+  template adoption and release readiness remain open. The 2026-10-24 records are
+  retained as historical acceptance; their ignored raw evidence has not been
+  recovered by this run.
+- Execution units: reconcile current summaries; implement and validate the
+  explicit core preview; review and deliver the bounded changes. The execution
+  receipt is below. Existing A-* totals stay 5 Done / 1 Blocked.
+- Boundaries: no default-composition switch, signed release, historical-compatibility
+  waiver, production change, or new business module. Independent developer sample
+  count remains zero; this run is an agent engineering attempt.
+- next_action: D-04 uses this entry and the existing role walkthrough for an independent
+  developer's concrete adaptation; a participant and actual change must be
+  identified before recording an adoption sample.
+
+### Developer-entry execution receipt — 2026-10-27
+
+This run began with a clean clone of the basis above. Source edits are limited
+to the two READMEs, product/index, product/product, architecture, getting-started,
+the two product-iteration documents, `justfile`, `.gitignore` and the project-owned
+Web pre-commit hook. No Rust or Web
+application source, dependency version, lockfile, signed bundle or release
+default changed. `dev-core` is an explicit local preview; it does not close
+A-06, OE-A09/OE-T10, or OE-5.
+
+Environment: x86_64 Linux; Rust/Cargo 1.95.0, Node.js 24.15.0, Bun 1.3.14,
+pnpm 11.25.0 and just 1.59.0. Toolchains and dependency caches were prepared
+for this checkout. Web dependencies used the existing frozen lockfile.
+
+| Verification | Actual result |
+| --- | --- |
+| `just --show dev-core` and `just --dry-run dev-core` | rc 0; the real recipe parses and selects core Web before the locked Admin-only Cargo run |
+| `just build-web-core` | rc 0; the actual core producer built and verified its route/API inventory; the existing large-chunk warning remains |
+| `cargo build --locked --offline -p rustzen-admin --no-default-features --features core` | rc 0; the actual Admin binary embeds the core assets |
+| `cargo test --locked --offline -p rustzen-config --features admin,modules dotenv_reinjection_of_sqlite_paths_reaches_final_paths_unless_skipped -- --test-threads=1` | rc 0; 1 passed, 0 failed, 26 filtered |
+| Symlink refusal using byte-identical justfiles in three disposable directories | all three recipes exited 1 before Web/Cargo execution for `target`, `target/rz` and `target/rz/dev-core`; their outside sentinels were unchanged |
+| Real `RUSTZEN_ADMIN_PORT=19817 just dev-core`, run twice | both builds and startups succeeded; each owned process was stopped with Ctrl-C, which returned 130 as expected |
+| Real API journey before/after restart | both probe commands rc 0; 21 checks before restart and 13 after restart, including process/path checks and repeated health/login checks; these are one journey, not 34 independent adoption samples |
+| Documentation consistency | 97 relative file links across 8 changed Markdown files resolved; all 4 EN/ZH README command blocks matched; `git diff --check` rc 0 |
+| Web hook setup | `bun run prepare` and direct `node_modules/.bin/vp config` from `apps/web` both rc 0; both preserved the corrected project hook; the actual staged hook then ran `vp check --fix` and exited 0 |
+
+Both launches deliberately inherited a different runtime root and an absolute
+Admin SQLite path pointing at a nonexistent task-owned sentinel. The real
+`rz-admin` process environment, executable and working directory were checked:
+the recipe selected `target/rz/dev-core/data/db/admin.db`, skipped dotenv and
+bound `127.0.0.1:19817`. Only that Admin database was created; the inherited
+sentinel and default `.rustzen-admin` root remained absent. This proves the
+tested configuration boundary, not protection against an owner replacing
+internal data paths with symlinks or running another writer concurrently.
+
+The fresh owner login succeeded. `/api/system/modules` returned an empty list;
+the Monitor, Insights and Reports API probes returned 404. Using real role/user
+endpoints, the owner created one disposable role with `system:user:list` and
+`system:user:options`, then one assigned user. That user's existing JWT allowed
+the user list and denied user creation with HTTP/code 403; the denied mutation
+created no user. Removing the list grant changed the same JWT's next list
+request to 403; restoring it changed the next request to 200. The real audit
+API contained the allowed list, denied list and denied create entries.
+
+After Ctrl-C and the same `just dev-core` command, a different owned process
+read the same role/user IDs, accepted the test user's existing password and
+enforced the persisted role grant. Cleanup removed only the created user and
+role through their APIs. Read-only SQLite checks confirmed one active owner
+and the three built-in roles remain. Both owned processes are stopped and the
+port has no listener; the preview data is retained for its documented persistence
+behavior. A first cleanup probe used a non-reusable TCP bind and encountered
+TIME_WAIT; process inspection, a refused connection and a reusable bind then
+confirmed shutdown. This was a verifier limitation, not a service failure.
+
+**Browser boundary:** the connected browser first timed out and then reported
+`ERR_CONNECTION_REFUSED` for the owned loopback URL. No page interaction or
+browser acceptance is claimed for this run. The API journey does not replace
+the historical 23-case browser gate, a release-install test, or independent
+developer adoption. Full `just check`, systemd, signing, real old-worker
+compatibility and production deployment were not executed.
+
+**Commit-hook repair:** the first documentation commit attempt exited 1 because
+Web `prepare` had generated `vp staged`, while Git runs hooks from the repository
+root and the actual configuration lives in `apps/web/vite.config.ts`. The existing
+project hook now selects `vp staged --cwd apps/web`; only its generated
+`_/` dispatchers are ignored. An actual staged-file run then exposed a second
+failure: the generated dispatcher had added a relative Web binary path to PATH,
+so the check child could not find `vp` after changing cwd (ENOENT). The versioned
+hook now prepends the absolute Web binary directory before that staged command.
+Installed `vite-plus@0.2.4` uses the selected cwd for both configuration discovery
+and staged tasks. Repeated setup preserved the final two-line hook, and its
+actual `vp check --fix` task passed. The same checks remain enabled. They cover
+matching files within `apps/web`;
+the documentation-only commit correctly reported no matching Web files, while
+its separate documentation checks passed. No full-repository check is inferred
+from the hook. The documentation commit then succeeded.
+
+Local raw receipts live outside the source tree at
+`../rustzen-admin-evidence/20261027/`; they are not distributed repository
+artifacts. The durable result and reproducible HTTP journey are recorded above.
+Selected SHA-256 identities:
+
+| Input or local receipt | SHA-256 |
+| --- | --- |
+| `justfile` | `ed0830ed9bd4401a6ec5f9168197a5cc662fd1b6a4ceffdf086508118bf65f02` |
+| `apps/web/.vite-hooks/pre-commit` | `080534130e70df14060e5a0b9ffcb0c49caa98b5a8704b9223f7c36b0ca5b6ad` |
+| `docs/guides/getting-started.md` | `8c10ce59ab307b4b47aa7579b5b75980e659d0118d14802eb7d212c6257c19e7` |
+| tested `target/debug/rz-admin` | `9815cef0584c72799c05da733584471c3707f9c998957da6dda7dfba22219ac0` |
+| tested `apps/web/dist-core/inventory.json` | `5cacb67d4c5dae7a062769ece7cae1ee897cf9eac1ae94ee9de7628399aa6883` |
+| `core-runtime-probe.py` | `afaed2919a0859f5783a12c9f7ef5f4517439a11c1a10d764fc94e53e8443fc3` |
+| `before-restart.json` | `7fe782415a3859133a4b542b57d13efb2ef381140568b06acaf99c8d21388dbd` |
+| `after-restart.json` | `e901e1c27f5b638f062b48a3adc87dfb5797b02ab8381def7b1db7acf2475358` |
+| `symlink-guards.json` | `0cbcd0598f3fd00af62be9c5a23449d8d1ca7cb9e7619f7d155894489801dcdb` |
+
+An independent read-only review of the 10-file implementation diff returned
+no P0/P1/P2 findings. Its fixed diff digest was
+`0a534c25b774fe4287c25b963fd3e0b2eb3dd0c9b225356878e36fed22843308`;
+the execution receipt also received a focused no-finding review against its
+raw results. Final focused review of the hook repair and receipt also returned
+no P0/P1/P2 findings; the reviewed five-file staged diff before this verdict
+update had SHA-256 `f87d742f5bb47d861cb6245aff457daa0678063166b0049ca30a413d7ad6acd5`.
+Independent developer samples remain 0 and A-* totals remain 5 Done / 1 Blocked.
 
 ## 回执要求
 
@@ -204,9 +334,9 @@ The A-* totals at the top of this ledger are unchanged.
 
 | ID | Current work | Status / next action |
 | --- | --- | --- |
-| D-01 | README pair, source-grounded getting-started guide and safe startup recovery | Documentation and isolated startup verified: pinned dependency install, Web build, Rust build, fresh SQLite owner login and first custom role operation passed. The isolated source snapshot includes current uncommitted changes; this is not proof of a published clean clone. |
+| D-01 | README pair, source-grounded getting-started guide and safe startup recovery | Earlier documentation and isolated-startup evidence is retained below. The 2026-10-27 follow-up adds an explicit core preview from fixed remote basis c9dd0e0; its current build/runtime status is owned by the current execution entry and receipt. Earlier dirty-snapshot results are not a clean-clone claim for this follow-up. |
 | D-02 | A-04 user/role journey | The real custom-role → assigned user → allowed user list / denied management journey is verified. Selected-option recovery, same-record edit refresh, cancel/reopen, successful-empty directories and duplicate-submit cases have bounded evidence below. The remaining A-04 required state matrix is now accepted on paired evidence; final ZCode review and cleanup are recorded in the A-04 closure receipt below. |
-| D-03 | A-06/OE core delivery | Same-source isolated Monitor→Admin delivery, full card state/retry and narrow popover, plus current core-shell login/dashboard/navigation are verified. Synthetic gap rendering remains a separately labeled UI fixture. Local OE-T11 acceptance remains valid. Current-fixture Linux native evidence covers core/full packaging, installation, lifecycle, updates/rollback and 18 interruption points; the final 23-case browser gate and ZCode acceptance are pending. Genuine historical-worker OE-A09/OE-T10 remains unverified and was excluded by the user from this run. |
+| D-03 | A-06/OE core delivery | Same-source isolated Monitor→Admin delivery, full card state/retry and narrow popover, plus core-shell login/dashboard/navigation are recorded as accepted. Synthetic gap rendering remains separately labeled. The 2026-10-24 OE receipt records current-fixture Linux packaging, installation, lifecycle, updates/rollback, 18 interruption points, the 23-case browser gate and independent ZCode acceptance. Genuine historical-worker OE-A09/OE-T10 remains unverified and was excluded from that finite run. |
 | D-04 | Existing role feature adaptation | Introductory source walkthrough included in D-01; independent developer adaptation has not been sampled. Do not add a new business domain merely to create an example. |
 | D-05/D-06 | Department scope / tenant discovery | Deferred implementation; collect concrete use cases and resolve the product boundaries first. |
 

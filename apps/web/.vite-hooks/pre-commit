@@ -1,0 +1,2 @@
+export PATH="$PWD/apps/web/node_modules/.bin:$PATH"
+vp staged --cwd apps/web
