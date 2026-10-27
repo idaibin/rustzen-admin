@@ -73,12 +73,15 @@ an English README install-path omission; both were corrected before commit.
 ## Approved composition: optional operations examples
 
 The approved target is a default Admin-only `core` template and an explicit `full`
-complete-example composition. Core runtime and Web slices and bounded packaging
-work have stage evidence in the [OE task ledger](features/composable-distribution/tasks.md).
+complete-example composition. The [OE task ledger](features/composable-distribution/tasks.md)
+records stage acceptance for core runtime/Web and packaging, independently accepted
+installer work, and the 2026-10-24 native and browser acceptance of current-source
+Linux fixtures.
 The [distribution plan](features/composable-distribution/implementation.md#optional-examples-stages)
 owns execution; [OE acceptance](features/composable-distribution/validation.md#optional-examples-acceptance)
-owns its exit criteria. Core installer independent acceptance, real Linux old-worker
-update/recovery and browser DOM acceptance remain open in that ledger.
+owns its exit criteria. Genuine preceding-full 0.5.1 old-worker compatibility remains
+unverified and blocks release readiness under OE-T10; current-source fixtures do not
+substitute for that release.
 
 Current Cargo defaults and `just build` still select full. The target core default
 and `just build-full` interface become supported only with implemented command wiring
@@ -418,20 +421,19 @@ behavior. They do not justify a fifth process or a new contract crate today.
 
 ## Development horizon and success signals
 
-Now, restore template-first documentation and English-default onboarding while
-preserving the supported complete release. Next, evaluate a minimal Admin-only
-distribution before implementation: inventory build-time assets, fixed module
-registry/navigation, dashboard and notification dependencies, service units,
-installer, signed inventory and health/update/rollback gates. Selected-build
-code and fixtures alone do not establish a supported installation journey.
+Now, close the remaining approved core/full release gates while preserving the
+current full default. Installer and current-source Linux native/browser fixture
+acceptance are recorded in the OE ledger; the genuine preceding-full old-worker
+row remains blocked on its exact signed artifact and trusted materials. Core
+default selection remains gated by OE-5 and verified command wiring.
 
-The smallest follow-up should prove one Admin-only artifact alongside the full
-artifact. Acceptance must cover clean build/install/login, RBAC and audit, no
-dead module routes or background calls, and update/recovery for each declared
-composition. This is a substantial cross-layer change with additional build,
-runtime and deployment validation cost; independent module releases and a
-plugin ecosystem remain outside that proposal. Department scopes and shared-
-instance multi-tenancy require separate specifications and isolation tests.
+The remaining release work must preserve both composition contracts. Acceptance
+must cover clean build/install/login, RBAC and audit, no dead module routes or
+background calls, and update/recovery for each declared
+composition. Selected-build code and current-source fixtures do not establish
+historical-worker compatibility or overall release readiness. Independent module
+releases and a plugin ecosystem remain outside this scope. Department scopes and
+shared-instance multi-tenancy require separate specifications and isolation tests.
 
 The product is succeeding when a new owner can install, sign in, understand
 health, and complete one useful journey in every enabled module; ordinary

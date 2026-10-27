@@ -19,11 +19,13 @@ status-panel removal, and Dashboard scope. Route acceptance is mapped in the
 ## Shared implementation contract
 
 The [distribution specification](features/composable-distribution/spec.md) defines
-the approved `core`/`full` target and the current full-default release path. Core
-runtime/Web and bounded packaging slices have stage evidence; installer independent
-acceptance, real Linux old-worker update/recovery and browser DOM remain open in the
-[OE task ledger](features/composable-distribution/tasks.md). The default switches
-only at OE-5 after the required installation/update gates and command wiring.
+the approved `core`/`full` target and the current full-default release path. The
+[OE task ledger](features/composable-distribution/tasks.md) records accepted core
+runtime/Web and packaging slices, installer work, and current-source Linux native
+and browser fixture acceptance as of 2026-10-24. Genuine preceding-full 0.5.1
+old-worker compatibility remains unverified and blocks release readiness.
+The default switches only at OE-5 after the required installation/update gates
+and command wiring.
 The full operator path remains build, copy, install and start, with no password,
 key or database command input during installation. Execution evidence belongs to the
 [implementation plan](features/composable-distribution/implementation.md).

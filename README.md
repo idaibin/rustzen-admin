@@ -30,8 +30,10 @@ layout and feature-layer examples. Department data scopes and multi-tenant
 isolation are not implemented.
 
 Monitor, Insights and Reports are the `full` extension examples. The approved
-`core`/`full` target has partially accepted implementation; the [OE task ledger](./docs/product/features/composable-distribution/tasks.md)
-records remaining installer, Linux update/recovery and browser acceptance.
+`core`/`full` target has bounded acceptance recorded in the [OE task ledger](./docs/product/features/composable-distribution/tasks.md):
+installer work and native/browser validation of current-source Linux fixtures
+were accepted by 2026-10-24. Compatibility with the genuine preceding-full 0.5.1
+release and its old worker remains unverified and blocks release readiness.
 Current default commands still produce the full signed bundle, four services and
 their SQLite databases. The core default requires OE-5 closure and verified command
 wiring. Runtime disablement changes access, not installed composition. The UI defaults

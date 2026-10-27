@@ -66,8 +66,9 @@
 
 ## A-05 Developer-template adoption sample
 
-Use the existing [90-day validation plan](../../../../docs/rustzen-admin-forgeway-validation.md).
-Day 1 starts with the first real sample. The primary participant is a developer
+This section is the self-contained sampling plan for the current iteration.
+It does not require a document outside this repository. Day 1 starts with the
+first real sample. The primary participant is a developer
 building a business admin application, not an operator evaluating a monitoring
 product. The outcome is to run Admin, complete a protected role/user journey and
 explain how to adapt that feature.
@@ -103,8 +104,9 @@ started attempts, including failures, in the completion denominator. Keep blocke
 preparations separate, report n/N and time ranges, and do not use stars, clones
 or page views as the trial denominator.
 
-Set improvement thresholds from real samples, then use the existing day 30/60/90
-continue/narrow/maintenance rules. This plan does not authorize publishing,
+Set improvement thresholds from real samples. At the day-30 checkpoint, report
+the participant and independent-completion outcomes defined above; longer-term
+thresholds remain open until they can be grounded in those results. This plan does not authorize publishing,
 recruitment messages, builds, service starts or writes to shared instances.
 The existing Monitoring, Analytics, Reports and core/full feature acceptance
 commitments remain with their original ledgers.
@@ -113,9 +115,9 @@ commitments remain with their original ledgers.
 
 隔离测试先使用纯合成目录/配置，验证 empty、覆盖、路径逃逸和失败清理；不得读真实 .env/密钥或启动现有服务来试验。需要真实环境的部分只访问项目已声明且匹配身份的服务；无目标时记恢复条件。
 
-已定位的 V2 既有实例及部分 DOM/API 证据见任务账最新回执；其二进制未包含新隔离入口，不能据此关闭新入口运行层。
+当前状态以任务账主表、最新执行回执和原 OE 账为准。V2 实例与较早的 DOM/API 记录保留为历史证据，不能替代之后的同源候选验收。
 
-A-04 最新有界八项验收由 ZCode 客户端原 Admin 会话完成，源结果/协调者核验见任务账；按 ID 计 5 PASS、1 PARTIAL、2 BLOCKED，接口测试单列。后续只补编辑预选项第二次重试、受限身份及真实业务旅程。A-06 通知投递卡失败 badge/页面与 HTTP 503 已回读，成功数据/详情依赖可用 Monitor；不复跑已接受项。
+A-04 最新回执已记录剩余权限、编辑和恢复矩阵通过并获独立接受。A-06 对应当前源码 fixture 的 Linux 原生范围、18 个中断点和 23 项浏览器门已于 2026-10-24 在原 OE 账记录接受；真正上一版 full 0.5.1 原始签名包及旧 worker 兼容仍未验证。新源码或信任材料变化只重开受影响项，不复跑无变化且证据仍有效的阶段。
 
 权限 UI 按 feature 合同覆盖两种语言、loading/empty/error/retry、原输入/选择保留、重复提交、角色撤回和服务端拒绝。各层分开记录，授权/数据副作用不由截图推断。
 

@@ -21,7 +21,7 @@
 
 `rustzen-admin` 首先服务于开发业务管理后台的开发者：复用认证、实例级 RBAC、审计日志、共享布局和分层业务代码。部门数据权限与多租户隔离尚未实现。
 
-Monitor、Insights 和 Reports 是 `full` 的扩展示例。已批准的 `core`/`full` 目标已有部分实现通过阶段验收；[OE 任务账](./docs/product/features/composable-distribution/tasks.md) 记录尚待完成的安装器、Linux 更新恢复和浏览器验收。当前默认命令仍生成完整签名包、四个服务及各自 SQLite。core 默认值须在 OE-5 收口并验证命令接线后切换。运行时禁用只改变访问，不改变已安装组合。界面默认英文，支持切换并记住简体中文选择。
+Monitor、Insights 和 Reports 是 `full` 的扩展示例。已批准的 `core`/`full` 目标已有范围明确的验收记录：[OE 任务账](./docs/product/features/composable-distribution/tasks.md) 记录截至 2026-10-24 安装器工作及当前源码 Linux 测试包的原生运行、浏览器验收已被接受。真实上一版 full 0.5.1 发行物及其旧更新程序的兼容性仍未验证，并阻塞发行就绪。当前默认命令仍生成完整签名包、四个服务及各自 SQLite。core 默认值须在 OE-5 收口并验证命令接线后切换。运行时禁用只改变访问，不改变已安装组合。界面默认英文，支持切换并记住简体中文选择。
 
 英文与中文入口应同步维护；产品事实以 [产品文档](./docs/product/product.md) 为准。
 

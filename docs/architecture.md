@@ -240,8 +240,8 @@ its member set follows the selected composition.
 | Web composition producer and Admin embed | Shared shell and build-owned route selection, separate `dist-core` output and composition-aware embed; do not edit routeTree.gen.ts manually |
 | Admin dashboard/status/module logs and task catalog | Keep Admin-local counts, diagnostics, audit and maintenance; enumerate module projections/paths only from trusted installed inventory |
 | `justfile`, `Dockerfile`, `scripts/package-release-bundle.sh` | Default build remains full; packager explicitly accepts core/full, staging rz + rz-admin for core and five executables for full |
-| Signer, installer and Admin deploy verifier | Composition-aware inventories retain strict path/mode/digest/signature checks; installer independent acceptance and actual Linux execution remain open |
-| CLI operations and deploy database checks | CLI `Module::All` still queries four services; deploy backup sets are feature-derived. Core CLI/status closure remains part of OE-A08; actual old-worker update/rollback belongs to OE-T10 |
+| Signer, installer and Admin deploy verifier | Composition-aware inventories retain strict path/mode/digest/signature checks; the OE ledger records accepted installer work and current-source Linux native fixture acceptance (2026-10-24) |
+| CLI operations and deploy database checks | CLI `COMPOSITION` selects Admin only for core and all four services for full; deploy backup sets are feature-derived. Genuine preceding-full old-worker update/rollback remains under OE-T10 |
 | deploy recovery/journal and root-owned update watcher | Persist source and destination inventories plus restore progress; retain service accounts, root-only mutation and existing crash recovery semantics |
 
 The existing `distribution/` catalog and selected producers are supporting code,
@@ -255,7 +255,10 @@ and cross-language fixtures rather than independently drifting capability lists.
 Existing full installations retain full identity. The exact signed preceding-full
 compatibility exception belongs to the [composition trust contract](product/features/composable-distribution/spec.md#compatibility-and-trust-boundary).
 Synthetic fixtures and new-verifier acceptance do not prove actual old-worker
-update/recovery. OE-T09–12 retain the remaining package, Linux and browser gates.
+update/recovery. OE-T09, OE-T11 and OE-T12 record accepted current-source package,
+Linux native and browser fixture scope as of 2026-10-24. OE-T10 remains blocked on
+the genuine preceding-full 0.5.1 artifact and its trusted materials; that missing
+compatibility evidence still blocks release readiness.
 
 Core and full retain the same existing Admin schema on this first slice. Each
 included service owns DB creation and validation; core neither creates nor needs
