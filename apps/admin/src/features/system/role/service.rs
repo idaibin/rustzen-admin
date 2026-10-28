@@ -31,12 +31,12 @@ impl RoleService {
     ) -> Result<(Vec<RoleItemResp>, i64), ServiceError> {
         tracing::info!("Fetching role list with query: {:?}", query);
 
-        let RoleQuery { current, page_size, role_name, role_code, status } = query;
+        let RoleQuery { current, page_size, keyword, role_name, role_code, status } = query;
         let pagination = Pagination::from_query(PaginationQuery { current, page_size });
         let limit = i64::from(pagination.limit);
         let offset = i64::from(pagination.offset);
         let status = parse_optional_i16_filter(status.as_deref(), "role status", None)?;
-        let repo_query = RoleListQuery { role_name, role_code, status };
+        let repo_query = RoleListQuery { keyword, role_name, role_code, status };
 
         let (roles, total) = RoleRepository::list_roles(pool, offset, limit, repo_query).await?;
 

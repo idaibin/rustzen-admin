@@ -22,6 +22,7 @@ declare namespace Role {
     interface QueryParams {
         current?: number;
         pageSize?: number;
+        keyword?: string;
         roleName?: string;
         roleCode?: string;
         status?: string; // "1" | "2" | "all"

@@ -963,6 +963,10 @@ export type ListRolesParams = {
      */
     pageSize?: number;
     /**
+     * Literal substring of role name or code; ASCII-case-insensitive and trimmed.
+     */
+    keyword?: string;
+    /**
      * Filter by role name (case-insensitive search).
      */
     roleName?: string;

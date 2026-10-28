@@ -20,7 +20,76 @@
 - OE-T11：原账拥有 core shell/Monitor card 的 DOM 验收；只能用同版真实目标关闭。
 - OE-T09：原账拥有剩余 packaging 集成；不在本账另起打包任务。
 
-## Current execution — developer entry follow-up (2026-10-27)
+## Current execution — D-04 role keyword search (2026-10-28)
+
+- task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`
+- project_id: `github-1006131708`; repository `idaibin/rustzen-admin`.
+- Owner: current coordinator, one implementation writer. No independent reviewer
+  is available in this execution; historical reviewer verdicts are not reused.
+- Basis: developer-entry `353b31a`, cloud baseline `0c655af`, and immutable
+  candidate input `fadd4fea7532356660ce131a7d65158fed9253ae` plus the SHA-256-bound patch recorded below.
+- Branch: `work/ai-first-core-20261027`; main and release defaults stay unchanged.
+- Execution unit: existing D-04, a bounded adaptation of the existing role list.
+- Current status: implementation and selected native checks passed;
+  browser/live-identity acceptance remains open. D-04 is not marked complete.
+- Change: one optional `keyword` matches persisted name OR code, with literal
+  substring and ASCII-case-insensitive semantics. Blank input is ignored;
+  old name/code/status filters retain their semantics and intersect the keyword.
+  The UI uses one bilingual search field and the existing status/debounce/IME/
+  pagination owners. No schema, role grants, write behavior or new product area.
+- next_action: verify the committed candidate through real browser interactions
+  and a live restricted identity: typing/IME, immediate clear, page-one reset,
+  status intersection, error/retry retention, both languages and narrow layout.
+  Obtain an independent review before final acceptance. Do not repeat unchanged
+  native checks merely to inflate completion counts.
+
+### D-04 execution record — 2026-10-28
+
+The previous disconnected device is not an execution dependency: an isolated
+GitHub-hosted runner is used. Baseline run `40649367822` at `0c655af` passed
+7 native role tests, 2 native route tests and 3 focused Web tests. Its downloaded
+artifact `12798742854` was checked against ZIP SHA-256
+`5ad424ffd2287c24a7a21d2669ec3d1488bcf50add587c5f0f50234919a5f9fb`
+and all internal checksums before its source snapshot was used locally.
+
+Candidate verification: [Actions run 40652561981](https://github.com/idaibin/rustzen-admin/actions/runs/40652561981).
+Source commit: `fadd4fea7532356660ce131a7d65158fed9253ae`; patch SHA-256:
+`a7666272fa9237d1e019be30069e4bbea981895ed0efae7b97bace10d449c409`.
+The patch and generated-source bytes are retained in the run artifact with a
+per-file manifest. Final delivery must match those source blobs; the temporary
+patch and proposal-publishing job are removed when the coordinator commits them.
+The publisher creates only Git blob objects, never branches, commits or refs.
+Build/test jobs have read-only repository permission; only that bounded publisher
+has contents-write, with no dependency installation or product execution.
+
+Completed checks: locked dependency installation; full and core Web builds;
+TypeScript; 3 existing focused Web tests (not DOM tests); core native role
+12 and route 3;
+full native role 12 and route 3;
+Rust-derived OpenAPI and Orval client generation, exact keyword-only delta checks,
+`just contract-verify`, and `git diff --check`. Five added SQLite regressions cover
+both match arms, status grouping, literal special characters/SQL-looking data,
+blank/absent input, legacy intersections, deletion exclusion and pagination totals.
+One added Axum/SQLite regression covers query decoding and allowed/401/403 paths;
+its TestLoader is synthetic authority, not a live authorization journey.
+
+A deliberately removed keyword predicate made the targeted new test fail
+(0 passed / 1 failed, Cargo 101), then the original implementation was restored
+and the positive suites passed. This is a test-sensitivity check, not a production
+failure. Test counts across core/full are separate build profiles, not independent
+user samples. The workflow is bounded to this work branch, uses no production
+credentials, signs no release, and performs no deployment.
+
+Not verified: real browser/IME/focus/viewport behavior, live-user persistence and
+audit journey for this slice, full-workspace checks, independent review, genuine
+old-full compatibility and production. Independent developer samples remain 0;
+no paired efficiency baseline or AI productivity improvement is claimed.
+A-* totals remain 5 Done / 1 Blocked; OE-A09/OE-T10 and OE-5 remain unchanged.
+Raw Actions artifacts expire after 30 days; this versioned record, test source
+and pinned workflow preserve the reproducible procedure, not indefinite raw-log
+availability.
+
+## Previous execution — developer entry follow-up (2026-10-27)
 
 - task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`
 - project_id: `github-1006131708`, bound to GitHub repository ID `1006131708`
@@ -337,7 +406,7 @@ The A-* totals at the top of this ledger are unchanged.
 | D-01 | README pair, source-grounded getting-started guide and safe startup recovery | Earlier documentation and isolated-startup evidence is retained below. The 2026-10-27 follow-up adds an explicit core preview from fixed remote basis c9dd0e0; its current build/runtime status is owned by the current execution entry and receipt. Earlier dirty-snapshot results are not a clean-clone claim for this follow-up. |
 | D-02 | A-04 user/role journey | The real custom-role → assigned user → allowed user list / denied management journey is verified. Selected-option recovery, same-record edit refresh, cancel/reopen, successful-empty directories and duplicate-submit cases have bounded evidence below. The remaining A-04 required state matrix is now accepted on paired evidence; final ZCode review and cleanup are recorded in the A-04 closure receipt below. |
 | D-03 | A-06/OE core delivery | Same-source isolated Monitor→Admin delivery, full card state/retry and narrow popover, plus core-shell login/dashboard/navigation are recorded as accepted. Synthetic gap rendering remains separately labeled. The 2026-10-24 OE receipt records current-fixture Linux packaging, installation, lifecycle, updates/rollback, 18 interruption points, the 23-case browser gate and independent ZCode acceptance. Genuine historical-worker OE-A09/OE-T10 remains unverified and was excluded from that finite run. |
-| D-04 | Existing role feature adaptation | Introductory source walkthrough included in D-01; independent developer adaptation has not been sampled. Do not add a new business domain merely to create an example. |
+| D-04 | Existing role feature adaptation | Unified role keyword search has source and selected core/full native evidence in the current D-04 record. Browser/live-identity and independent review remain open; independent developer samples remain 0. |
 | D-05/D-06 | Department scope / tenant discovery | Deferred implementation; collect concrete use cases and resolve the product boundaries first. |
 
 Each runtime slice starts only after its target, data owner and side effects are

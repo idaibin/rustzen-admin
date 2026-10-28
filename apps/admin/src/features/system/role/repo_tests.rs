@@ -14,6 +14,7 @@ use super::*;
 #[test]
 fn format_query_uses_role_view_column_names() {
     let query = RoleListQuery {
+        keyword: None,
         role_name: Some("admin".to_string()),
         role_code: Some("system".to_string()),
         status: Some(1),
@@ -134,4 +135,156 @@ async fn soft_delete_rechecks_assignments_after_stale_count() {
         let path = PathBuf::from(format!("{}{suffix}", database_path.display()));
         let _ = fs::remove_file(path);
     }
+}
+
+async fn keyword_fixture() -> SqlitePool {
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .expect("keyword fixture pool");
+    crate::infra::db::run_migrations(&pool).await.expect("keyword fixture migrations");
+    for (index, (name, code, status, deleted)) in [
+        ("Needle by name", "alpha", 1_i16, false),
+        ("Other enabled", "needle_code", 1, false),
+        ("Needle disabled", "beta", 2, false),
+        ("Other disabled", "needle_disabled", 2, false),
+        ("Needle both", "needle_both", 1, false),
+        ("Literal %_\\' 中文", "literal_special", 1, false),
+        ("Ordinary", "plain", 1, false),
+        ("Needle removed", "needle_deleted", 1, true),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        sqlx::query(
+            "INSERT INTO roles (name, code, status, is_system, created_at, deleted_at)
+             VALUES (?, ?, ?, FALSE, ?, ?)",
+        )
+        .bind(name)
+        .bind(code)
+        .bind(status)
+        .bind(format!("2026-01-{:02} 00:00:00", index + 1))
+        .bind(deleted.then_some("2026-02-01 00:00:00"))
+        .execute(&pool)
+        .await
+        .expect("keyword fixture role");
+    }
+    pool
+}
+
+fn keyword_query(keyword: Option<&str>, status: Option<i16>) -> RoleListQuery {
+    RoleListQuery { keyword: keyword.map(str::to_owned), role_name: None, role_code: None, status }
+}
+
+fn sorted_codes(rows: &[RoleWithMenusRow]) -> Vec<&str> {
+    let mut codes: Vec<_> = rows.iter().map(|row| row.code.as_str()).collect();
+    codes.sort_unstable();
+    codes
+}
+
+#[tokio::test]
+async fn keyword_matches_name_or_code_once_and_excludes_deleted_roles() {
+    let pool = keyword_fixture().await;
+    let (rows, total) =
+        RoleRepository::list_roles(&pool, 0, 20, keyword_query(Some("  NeEdLe  "), None))
+            .await
+            .expect("name or code query");
+    assert_eq!(total, 5);
+    assert_eq!(
+        sorted_codes(&rows),
+        ["alpha", "beta", "needle_both", "needle_code", "needle_disabled"]
+    );
+    pool.close().await;
+}
+
+#[tokio::test]
+async fn keyword_status_intersects_both_name_and_code_matches() {
+    let pool = keyword_fixture().await;
+    for (status, expected) in
+        [(1, vec!["alpha", "needle_both", "needle_code"]), (2, vec!["beta", "needle_disabled"])]
+    {
+        let (rows, total) =
+            RoleRepository::list_roles(&pool, 0, 20, keyword_query(Some("needle"), Some(status)))
+                .await
+                .expect("keyword and status query");
+        assert_eq!(total, expected.len() as i64);
+        assert_eq!(sorted_codes(&rows), expected);
+        assert!(rows.iter().all(|row| row.status == status));
+    }
+    pool.close().await;
+}
+
+#[tokio::test]
+async fn keyword_special_characters_are_literal_and_bound() {
+    let pool = keyword_fixture().await;
+    for keyword in ["%", "_\\", "\\", "'", "中文"] {
+        let (rows, total) =
+            RoleRepository::list_roles(&pool, 0, 20, keyword_query(Some(keyword), None))
+                .await
+                .expect("literal keyword query");
+        assert_eq!(total, 1, "keyword {keyword:?}");
+        assert_eq!(sorted_codes(&rows), ["literal_special"]);
+    }
+    let (rows, total) =
+        RoleRepository::list_roles(&pool, 0, 20, keyword_query(Some("' OR 1=1 --"), None))
+            .await
+            .expect("SQL-looking keyword is data");
+    assert_eq!(total, 0);
+    assert!(rows.is_empty());
+    let (rows, total) =
+        RoleRepository::list_roles(&pool, 0, 20, keyword_query(Some("needle_"), None))
+            .await
+            .expect("literal underscore in code");
+    assert_eq!(total, 3);
+    assert_eq!(sorted_codes(&rows), ["needle_both", "needle_code", "needle_disabled"]);
+    pool.close().await;
+}
+
+#[tokio::test]
+async fn keyword_empty_and_absent_are_equivalent_and_legacy_filters_still_intersect() {
+    let pool = keyword_fixture().await;
+    let (unfiltered, total) =
+        RoleRepository::list_roles(&pool, 0, 50, keyword_query(None, None)).await.unwrap();
+    for keyword in ["", " \t\n "] {
+        let (rows, count) =
+            RoleRepository::list_roles(&pool, 0, 50, keyword_query(Some(keyword), None))
+                .await
+                .unwrap();
+        assert_eq!(count, total);
+        assert_eq!(sorted_codes(&rows), sorted_codes(&unfiltered));
+    }
+    for keyword in [None, Some("NEEDLE")] {
+        let query = RoleListQuery {
+            keyword: keyword.map(str::to_owned),
+            role_name: Some("other".to_owned()),
+            role_code: Some("code".to_owned()),
+            status: Some(1),
+        };
+        let (rows, count) = RoleRepository::list_roles(&pool, 0, 20, query).await.unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(sorted_codes(&rows), ["needle_code"]);
+    }
+    let query = RoleListQuery { role_name: Some("%".to_owned()), ..keyword_query(None, None) };
+    let (rows, count) = RoleRepository::list_roles(&pool, 0, 50, query).await.unwrap();
+    assert_eq!(count, total, "legacy roleName keeps its LIKE semantics");
+    assert_eq!(sorted_codes(&rows), sorted_codes(&unfiltered));
+    pool.close().await;
+}
+
+#[tokio::test]
+async fn keyword_count_and_paginated_rows_share_the_same_predicate() {
+    let pool = keyword_fixture().await;
+    let mut codes = Vec::new();
+    for offset in [0, 2, 4, 6] {
+        let (rows, total) =
+            RoleRepository::list_roles(&pool, offset, 2, keyword_query(Some("needle"), None))
+                .await
+                .unwrap();
+        assert_eq!(total, 5);
+        assert_eq!(rows.len(), (5_i64 - offset).clamp(0, 2) as usize);
+        codes.extend(rows.into_iter().map(|row| row.code));
+    }
+    assert_eq!(codes, ["needle_both", "needle_disabled", "beta", "needle_code", "alpha"]);
+    pool.close().await;
 }

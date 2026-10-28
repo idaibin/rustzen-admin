@@ -19,6 +19,16 @@ pub enum SoftDeleteOutcome {
 
 impl RoleRepository {
     fn format_query(query: &RoleListQuery, query_builder: &mut QueryBuilder<Sqlite>) {
+        if let Some(keyword) = query.keyword.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+            let keyword = keyword.to_ascii_lowercase();
+            // Keep OR inside the other filters; INSTR treats % and _ literally.
+            query_builder
+                .push(" AND (INSTR(LOWER(name), ")
+                .push_bind(keyword.clone())
+                .push(") > 0 OR INSTR(LOWER(code), ")
+                .push_bind(keyword)
+                .push(") > 0)");
+        }
         push_ilike(query_builder, "name", query.role_name.as_deref());
         push_ilike(query_builder, "code", query.role_code.as_deref());
         push_eq(query_builder, "status", query.status);

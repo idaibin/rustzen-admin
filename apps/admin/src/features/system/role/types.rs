@@ -75,6 +75,8 @@ pub struct RoleQuery {
     pub current: Option<i64>,
     /// The number of items per page. Defaults to 10.
     pub page_size: Option<i64>,
+    /// Literal substring of role name or code; ASCII-case-insensitive and trimmed.
+    pub keyword: Option<String>,
     /// Filter by role name (case-insensitive search).
     pub role_name: Option<String>,
     /// Filter by role code (case-insensitive search).
@@ -86,6 +88,7 @@ pub struct RoleQuery {
 /// Role repository list query.
 #[derive(Debug, Clone)]
 pub struct RoleListQuery {
+    pub keyword: Option<String>,
     pub role_name: Option<String>,
     pub role_code: Option<String>,
     pub status: Option<i16>,

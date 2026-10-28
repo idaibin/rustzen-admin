@@ -17,8 +17,10 @@ automation consumer or shared-system revision is introduced.
 
 ## Layout and ownership
 
-- Keep role name, role code and status filters at the content upper right. Text
-  follows the shared automatic-search delay and composition rules; status applies
+- Keep one **Role name or code / 角色名称或编码** keyword input and the existing
+  status selector at the content upper right. Allow the controls to wrap inside
+  the existing panel on narrow screens. The keyword is sent as `keyword`, not
+  duplicated into the two independent API field filters. Text follows the shared automatic-search delay and composition rules; status applies
   immediately, applied filters reset pagination, and no query/reset buttons remain.
   Controls stay mounted during loading/errors. Dialog Save/Cancel and permission-tree
   search remain separate from list filters.

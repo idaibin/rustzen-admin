@@ -35,23 +35,17 @@ export const Route = createFileRoute("/system/role")({
 function RolePage() {
     useLocale();
     const queryClient = useQueryClient();
-    const [roleName, setRoleName] = useState("");
-    const [roleCode, setRoleCode] = useState("");
+    const [keyword, setKeyword] = useState("");
     const [status, setStatus] = useState("all");
     const [isComposing, setIsComposing] = useState(false);
-    const appliedName = useDebouncedValue(roleName.trim(), 300, !isComposing);
-    const appliedCode = useDebouncedValue(roleCode.trim(), 300, !isComposing);
-    const filters = useMemo(
-        () => ({ roleName: appliedName, roleCode: appliedCode, status }),
-        [appliedName, appliedCode, status],
-    );
+    const appliedKeyword = useDebouncedValue(keyword.trim(), 300, !isComposing);
+    const filters = useMemo(() => ({ keyword: appliedKeyword, status }), [appliedKeyword, status]);
     const [currentPage, setCurrentPage] = useFilteredPage(JSON.stringify(filters));
     const params = useMemo<Role.QueryParams>(
         () => ({
             current: currentPage,
             pageSize: PAGE_SIZE,
-            roleName: filters.roleName || undefined,
-            roleCode: filters.roleCode || undefined,
+            keyword: filters.keyword || undefined,
             status: filters.status,
         }),
         [currentPage, filters],
@@ -161,26 +155,16 @@ function RolePage() {
     ];
 
     const searchControls = (
-        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
             <Input
                 allowClear
-                className="w-[168px] max-w-full"
+                className="w-52 max-w-full"
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
-                aria-label={t("角色名称", "Role name")}
-                value={roleName}
-                placeholder={t("角色名称", "Role name")}
-                onChange={(event) => setRoleName(event.target.value)}
-            />
-            <Input
-                allowClear
-                className="w-[168px] max-w-full"
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                aria-label={t("角色编码", "Role code")}
-                value={roleCode}
-                placeholder={t("角色编码", "Role code")}
-                onChange={(event) => setRoleCode(event.target.value)}
+                aria-label={t("角色名称或编码", "Role name or code")}
+                value={keyword}
+                placeholder={t("角色名称或编码", "Role name or code")}
+                onChange={(event) => setKeyword(event.target.value)}
             />
             <Select
                 className="w-[132px] max-w-full"

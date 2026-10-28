@@ -8,7 +8,7 @@ with an empty permission catalog.
 
 ## Users and scenarios
 
-- An operator with role-list access can find roles by name, code, and status.
+- An operator with role-list access can find roles with one name-or-code keyword and status.
 - An operator with role-create or role-update access can define one custom role
   with at least one assignable permission.
 - An operator with role-delete access can remove an unused custom role.
@@ -41,7 +41,7 @@ with an empty permission catalog.
 
 In scope:
 
-- paginated role discovery with name, code, and status filters;
+- paginated role discovery with one name-or-code keyword and a status filter;
 - distinct initial loading, empty, and error states with retry;
 - custom-role creation and editing with name, code, status, description, and
   assignable permissions;
@@ -78,6 +78,28 @@ Non-goals:
    and refreshes effective user permissions.
 7. Deletion requires confirmation. An assigned role remains intact and returns
    a clear refusal; an unused custom role is soft-deleted and the list refreshes.
+
+## Role keyword search (D-04)
+
+The role page offers one keyword input and the existing status selector. The
+optional `keyword` query parameter matches a literal substring of the persisted
+role name **or** code, with ASCII-case-insensitive matching and trimmed outer
+whitespace. An absent, empty or whitespace-only keyword adds no condition.
+`%`, `_`, quotes and backslashes are text, not search syntax. Matching translated
+built-in display aliases is not added by this slice.
+
+The existing `roleName`, `roleCode`, `status`, `current` and `pageSize` parameters
+remain accepted with their existing meanings. When present together, keyword,
+field filters and status are intersected; a name match must not bypass status.
+The list and total apply the same predicate before pagination. Soft-deleted
+roles remain excluded. No schema, write path, permission or audit rule changes.
+Role-option and permission-picker searches are outside this change.
+
+Acceptance: name-only/code-only matches; status intersection on both OR arms;
+trimmed/blank keywords; literal special characters; existing combined field
+filters; consistent totals and pages; unchanged authorization and mutation
+protection. UI acceptance additionally covers the existing 300 ms debounce,
+IME composition, immediate clearing, page-one reset and error/retry behavior.
 
 ## Business rules and permissions
 

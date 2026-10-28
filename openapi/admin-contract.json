@@ -3351,6 +3351,15 @@
             }
           },
           {
+            "name": "keyword",
+            "in": "query",
+            "description": "Literal substring of role name or code; ASCII-case-insensitive and trimmed.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "roleName",
             "in": "query",
             "description": "Filter by role name (case-insensitive search).",

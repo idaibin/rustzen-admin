@@ -53,7 +53,7 @@ refresh and destructive confirmations are distinct actions and remain available.
 | --- | --- | --- |
 | / | Four account cards; permission-gated resource panel and textual module health | CON-06; shared tone and panel rules |
 | /system/user | Username and account status only; new-user action alongside filters | CON-01–03 |
-| /system/role | Role name, role code and status; role-dialog controls remain separate | CON-01–02 |
+| /system/role | One role-name-or-code keyword and status; role-dialog controls remain separate | CON-01–02 |
 | /system/menu | Menu name, permission code and status; read-only/core and editable/module rows retained | CON-01; only table body scrolls vertically |
 | /manage/log | Action type and user/IP; export uses applied filters | CON-01–02 |
 | /system/status | Storage and local-resource telemetry only | CON-01 |

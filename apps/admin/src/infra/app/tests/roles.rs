@@ -154,3 +154,74 @@ async fn role_list_exposes_assignment_count_and_deletable_state() {
     let owner = row_for("owner");
     assert_eq!(owner["deletable"], false);
 }
+
+#[tokio::test]
+async fn role_keyword_query_is_decoded_and_keeps_route_authorization() {
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .expect("keyword route pool");
+    run_migrations(&pool).await.expect("migrations");
+    for (name, code, status) in
+        [("Search literal %_", "query_enabled", 1_i16), ("Other", "search_disabled", 2)]
+    {
+        sqlx::query("INSERT INTO roles (name, code, status, is_system) VALUES (?, ?, ?, FALSE)")
+            .bind(name)
+            .bind(code)
+            .bind(status)
+            .execute(&pool)
+            .await
+            .expect("keyword route fixture");
+    }
+    let (routes, _) = documented_protected_routes();
+    let codec = JwtCodec::new("contract-test", 60);
+    let app = Router::new()
+        .merge(routes)
+        .route_layer(middleware::from_fn_with_state((codec.clone(), TestLoader), auth_middleware))
+        .with_state(pool.clone());
+    // TestLoader is synthetic authority; this is an Axum/SQLite regression,
+    // not evidence of a live user/session journey.
+    let owner = codec.encode(1, "owner").expect("owner fixture token");
+    for query in [
+        "keyword=%20SeArCh%20&status=1",
+        "keyword=%25_&status=all",
+        "keyword=QUERY_ENABLED&roleName=Search&roleCode=query&status=1",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::get(format!("/api/system/roles?current=1&pageSize=1&{query}"))
+                    .header("authorization", format!("Bearer {owner}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let payload: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap();
+        assert_eq!(payload["total"], 1);
+        assert_eq!(payload["data"].as_array().unwrap().len(), 1);
+        assert_eq!(payload["data"][0]["code"], "query_enabled");
+    }
+    let denied = codec.encode(1, "no_role_list").expect("restricted fixture token");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::get("/api/system/roles?keyword=search")
+                .header("authorization", format!("Bearer {denied}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let response = app
+        .oneshot(Request::get("/api/system/roles?keyword=search").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    pool.close().await;
+}
