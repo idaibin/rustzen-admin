@@ -86,7 +86,10 @@ async function login(p, username, secret) {
 const keyword = (p = page) => p.getByRole("textbox", { name: /^(Role name or code|角色名称或编码)$/ });
 const status = (p = page) => p.getByRole("combobox", { name: /^(Role status|角色状态)$/ });
 function waitList(p, predicate = () => true) {
-    return p.waitForResponse((r) => { const u = new URL(r.url()); return u.pathname === "/api/system/roles" && r.request().method() === "GET" && predicate(u.searchParams, r); }, { timeout: 15000 });
+    const response = p.waitForResponse((r) => { const u = new URL(r.url()); return u.pathname === "/api/system/roles" && r.request().method() === "GET" && predicate(u.searchParams, r); }, { timeout: 15000 });
+    // Keep rejection observed when the triggering action fails first; awaiting still throws.
+    void response.catch(() => {});
+    return response;
 }
 async function openRoles(p = page) {
     const pending = waitList(p, (_, r) => r.status() === 200);
@@ -100,7 +103,9 @@ async function search(value, p = page) {
 }
 async function chooseStatus(label, value) {
     const pending = waitList(page, (s, r) => s.get("status") === value && r.status() === 200);
-    await status().click(); await page.getByRole("option", { name: label, exact: true }).click();
+    await status().click();
+    // Ant Design exposes hidden virtual-list ARIA options alongside visible items.
+    await page.locator(".ant-select-dropdown:visible").getByText(label, { exact: true }).click();
     return (await pending).json();
 }
 async function shot(name, p = page) {
@@ -273,6 +278,7 @@ finally {
     await browser?.close().catch(() => {}); await stop();
     try { await freePort(); result.cleanup.listener = "closed"; } catch { result.cleanup.listener = "not verified"; result.status = "failed"; }
     rmSync(runtime, { recursive: true, force: true }); result.cleanup.ownedRuntime = "removed";
+    result.requests = requests;
     persist();
 }
 if (result.status !== "passed") process.exitCode = 1;
