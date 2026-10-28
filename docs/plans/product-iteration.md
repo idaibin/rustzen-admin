@@ -1,5 +1,89 @@
 # Admin 迭代方案
 
+## Current Task State — D-05 discovery (2026-10-28)
+
+- task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`.
+- project_id: `github-1006131708`; repository `idaibin/rustzen-admin`.
+- Branch: `work/ai-first-core-20261027`; source basis
+  `a8adcbd5fe58a862646d786257036b788358918e`, tree
+  `01d17cd8b2710bb232e4f55ca1c1d9b5c4862098`.
+- Owner: current coordinator, single documentation writer; no independent review claimed.
+- User direction: stop building and continue the next task. No dependency/toolchain
+  installation, build, service start, database operation or GitHub Actions execution.
+  Do not resume these steps merely because a later message says “continue”.
+- Execution unit: the existing D-05 demand/source discovery, not department implementation.
+- Status: source baseline and issue triage completed; D-05 demand validation and
+  implementation remain deferred. A-* stays 5 Done / 1 Blocked; OE gates are unchanged.
+- D-04: paused without acceptance. `1a1c223` changed the refresh-error UI and verifier;
+  `a8adcbd` removed the task workflow. Prior build/test evidence does not establish
+  acceptance of that changed candidate. Browser/live-identity and independent review
+  remain open; independent developer samples remain 0.
+- This dated receipt supersedes the execution selection and build `next_action` in
+  the earlier D-04 ledger entry and `a8adcbd` commit, not their historical evidence.
+- next_action: continue existing D-06 demand/source discovery only. Reopen D-05
+  implementation only after a concrete data object, actors, membership and access
+  rules are approved; resuming D-04 build/runtime acceptance needs explicit permission.
+
+### D-05 execution record and decision
+
+**Decision: do not add a department table, scope selector or generic policy engine
+from the current evidence.** The approved iteration calls D-05 a discovery item,
+not accepted implementation scope. D-06 remains separate and was not investigated
+in this execution.
+
+Demand evidence was reread live on 2026-10-28: [issue #2](https://github.com/idaibin/rustzen-admin/issues/2)
+was opened on 2025-08-25 and contains only a request for department permission
+control. Its sole [maintainer reply](https://github.com/idaibin/rustzen-admin/issues/2#issuecomment-3263558873)
+says there was no plan then. There is no actor, data object, membership rule or
+read/write/export example in that thread. This is one historical demand signal,
+not a confirmed specification or an independent adoption sample. No issue comment,
+customer contact or recruitment message was published by this execution.
+
+Verified source facts at the basis above:
+
+| Boundary | Source evidence | Consequence for D-05 |
+| --- | --- | --- |
+| Identity and membership | [Admin initialization SQL](../../apps/admin/migrations/sqlite/0001_init.sql#L4-L63) and its `user_roles` / `role_menus` relations; [CurrentUser](../../crates/auth/src/auth/context.rs#L7-L41) | Users have role grants, but there is no department membership or department data-scope model in these owners. `menus.parent_id` is a menu hierarchy, not an organization tree. |
+| Route authorization | [User route contract](../../apps/admin/src/features/system/user/mod.rs#L17-L81), [request authority loader](../../apps/admin/src/infra/auth_runtime.rs#L29-L42) and [transaction actor check](../../apps/admin/src/features/auth/session.rs#L23-L64) | Existing capabilities govern operations; persisted session/current grant checks must be preserved. They do not define which department's records an operation may affect. |
+| Lists, totals and selectors | [User query types](../../apps/admin/src/features/system/user/types.rs#L91-L129), [handlers](../../apps/admin/src/features/system/user/handler.rs#L18-L25) and [SQL](../../apps/admin/src/features/system/user/repo.rs#L18-L105) | List/count and option queries use user-field filters, not an actor's department scope. Adding a client filter would not establish server-side isolation. |
+| Writes and existing exceptions | [User update transaction](../../apps/admin/src/features/system/user/repo_mutation.rs#L58-L103) | The writer rechecks capability and owner-only system-user/owner-role boundaries before updating by ID. These protections are real and must not be replaced, but are not department isolation. |
+| Module boundary | [DelegatedContext](../../crates/ipc/src/delegation.rs#L44-L54) and [permission guide](../guides/permission.md#request-flow) | Delegation contains a user identity and access value, not department scope. A future Admin-only slice must not imply coverage of module databases or expand IPC without a separately approved consumer. |
+
+A bounded identifier scan over tracked `apps/`, `crates/` and `openapi/` found no
+`department`, `dept_id`, `deptId`, `tenant_id`, `tenantId`, `organization_id`,
+`org_id`, `data_scope` or `dataScope` matches (case-insensitive). This is supporting
+static evidence, not a proof that every possible authorization path is safe.
+The findings above come from the named schema and request/persistence owners.
+
+The missing implementation inputs are limited to three decisions:
+
+| Decision needed | Evidence to obtain before implementation |
+| --- | --- |
+| Actor and data object | One real developer's named record type and an allowed/denied example. Distinguish account administration, ordinary business records and menu assignment; do not silently select the user directory as the business use case. |
+| Membership and authority | Single/multiple departments, any hierarchy, no-membership behavior, default visibility, owner exceptions and how multiple role grants combine. Record what a department move or revoked membership does to existing access. |
+| Complete operation boundary | Enumerate the selected object's list/count/options/detail and writes by ID; include export, bulk actions, jobs or module calls only where that object actually has them. Specify denial without data changes and cache/session refresh behavior. |
+
+If the confirmed need is only different menu/action access, reuse current RBAC
+instead of introducing row scopes. If it is department record isolation, start
+with one approved existing data owner and enforce its scope on the server before
+pagination/count and inside authorized writes. Do not mandate a reusable engine,
+a fixed set of scope modes, a new organization subsystem or multi-tenancy now.
+These are conditional design conclusions, not approved implementation choices.
+
+Before any future claim of data isolation, its acceptance must cover two distinct
+departments, the specified membership edge cases, direct requests by ID,
+list/count/selector consistency, allowed and denied writes with unchanged data on
+denial, and authority changes. Export or background execution is covered only if
+present in that slice. **None of these runtime checks was executed in this run.**
+
+Validation for this documentation-only unit: the restored snapshot's Git tree
+matched the current remote basis exactly; the existing source files above were
+read; relative source links and line ranges were checked; `git diff --check`
+passed. Only this plan is changed. The current execution state is also included
+in the delivery commit message; remote blob/ref readback is required before the
+unit is reported delivered. No product, API, schema, permission, release default,
+A/OE acceptance or main/review branch changes are part of this unit.
+
 ## 方案边界
 
 复用现有 Web shell、`crates/auth`、`crates/ipc`、模块 Manifest、原生 API 和各应用 migrations。保持 Admin 与模块的身份、故障、存储和权限 owner，不因本轮审查抽取通用工作流、报表中心或新进程。
