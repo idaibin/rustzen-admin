@@ -1,6 +1,5 @@
 name: Core template checks
 
-# Bounded validation for the existing work branch; never deploys or publishes.
 on:
   push:
     branches: [work/ai-first-core-20261027]
@@ -15,7 +14,7 @@ concurrency:
 
 jobs:
   core-role-checks:
-    if: github.ref == 'refs/heads/work/ai-first-core-20261027'
+    if: github.repository_id == '1006131708' && github.ref == 'refs/heads/work/ai-first-core-20261027'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -27,52 +26,243 @@ jobs:
         shell: bash
     steps:
       - name: Check out the exact candidate
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Record source identity
+      - name: Bind and apply the fixed D-04 candidate
         run: |
           mkdir -p "$RUNNER_TEMP/rz-core-evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/rz-core-evidence/source-commit.txt"
-          git archive --format=tar.gz -o "$RUNNER_TEMP/rz-core-evidence/source.tar.gz" HEAD
+          echo 'a7666272fa9237d1e019be30069e4bbea981895ed0efae7b97bace10d449c409  .github/d04-role-keyword.patch' | sha256sum -c -
+          git apply --check .github/d04-role-keyword.patch
+          git apply .github/d04-role-keyword.patch
+          cp .github/d04-role-keyword.patch "$RUNNER_TEMP/rz-core-evidence/input.patch"
+          python3 - <<'PYCODE'
+          import subprocess
+          expected = ['apps/admin/src/features/system/role/repo.rs', 'apps/admin/src/features/system/role/repo_tests.rs', 'apps/admin/src/features/system/role/service.rs', 'apps/admin/src/features/system/role/types.rs', 'apps/admin/src/infra/app/tests/roles.rs', 'apps/web/src/api/system/role/types.d.ts', 'apps/web/src/routes/system/role.tsx', 'docs/product/features/role-definition-management/spec.md', 'docs/ui/features/role-definition-management.md', 'docs/ui/index.md']
+          actual = subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          assert sorted(actual) == sorted(expected), actual
+          PYCODE
       - name: Set up the declared Node version
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.15.0'
       - name: Prepare pinned tools
         run: |
           npm install --global bun@1.3.14 pnpm@11.25.0
-          rustup toolchain install 1.95.0 --profile minimal
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz \
+            -o "$RUNNER_TEMP/just.tar.gz"
+          printf '%s  %s\n' 409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e "$RUNNER_TEMP/just.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP" just
+          install -m 0755 "$RUNNER_TEMP/just" "$HOME/.cargo/bin/just"
           test "$(node --version)" = v24.15.0
           test "$(bun --version)" = 1.3.14
-          { node --version; bun --version; pnpm --version; rustc --version; cargo --version; } \
+          test "$(just --version)" = 'just 1.59.0'
+          { node --version; bun --version; pnpm --version; rustc --version; cargo --version; just --version; } \
             | tee "$RUNNER_TEMP/rz-core-evidence/tool-versions.txt"
       - name: Install locked Web dependencies
         working-directory: apps/web
-        run: bun install --frozen-lockfile 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/web-install.log"
-      - name: Build the real core Web composition
+        run: |
+          bun install --frozen-lockfile 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/web-install.log"
+      - name: Format only changed implementation files
+        run: |
+          rustfmt --edition 2024 \
+            apps/admin/src/features/system/role/{repo,repo_tests,service,types}.rs \
+            apps/admin/src/infra/app/tests/roles.rs
+          cd apps/web
+          bun run vp fmt src/routes/system/role.tsx src/api/system/role/types.d.ts
+      - name: Build full and core Web compositions
         working-directory: apps/web
-        run: bun run build:core 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/core-web-build.log"
+        run: |
+          bun run build 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/full-web-build.log"
+          bun run build:core 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/core-web-build.log"
       - name: Check Web types and role tests
         working-directory: apps/web
         run: |
           bun x tsc --noEmit 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/web-types.log"
           bun test tests/role-composition.seam.test.mjs src/routes/system/-role-delete-state.test.ts \
             2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/web-role-tests.log"
-      - name: Run native core role regressions
+      - name: Prove the new regression detects a missing keyword predicate
+        run: |
+          repo=apps/admin/src/features/system/role/repo.rs
+          cp "$repo" "$RUNNER_TEMP/role-repo.rs"
+          trap 'cp "$RUNNER_TEMP/role-repo.rs" "$repo"' EXIT
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p = Path('apps/admin/src/features/system/role/repo.rs')
+          s = p.read_text()
+          start = s.index('        if let Some(keyword) = query.keyword')
+          end = s.index('        push_ilike(query_builder, "name"', start)
+          p.write_text(s[:start] + s[end:])
+          PYCODE
+          set +e
+          cargo test --locked -p rustzen-admin --no-default-features --features core \
+            keyword_matches_name_or_code_once_and_excludes_deleted_roles -- --test-threads=1 \
+            > "$RUNNER_TEMP/rz-core-evidence/keyword-negative-control.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/rz-core-evidence/keyword-negative-control.log"
+          test "$rc" = 101
+          grep -q 'test result: FAILED. 0 passed; 1 failed;' "$RUNNER_TEMP/rz-core-evidence/keyword-negative-control.log"
+          cp "$RUNNER_TEMP/role-repo.rs" "$repo"
+          trap - EXIT
+      - name: Run native core and full role regressions
         run: |
           run_suite() {
-            local name="$1" filter="$2"
-            cargo test --locked -p rustzen-admin --no-default-features --features core \
-              "$filter" -- --list | tee "$RUNNER_TEMP/rz-core-evidence/$name-selection.txt"
-            grep -q ': test$' "$RUNNER_TEMP/rz-core-evidence/$name-selection.txt"
-            cargo test --locked -p rustzen-admin --no-default-features --features core \
-              "$filter" -- --test-threads=1 \
-              2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/$name-tests.log"
+            local composition="$1" name="$2" filter="$3"
+            local args=()
+            if [ "$composition" = core ]; then args=(--no-default-features --features core); fi
+            cargo test --locked -p rustzen-admin "${args[@]}" "$filter" -- --list \
+              | tee "$RUNNER_TEMP/rz-core-evidence/$composition-$name-selection.txt"
+            grep -q ': test$' "$RUNNER_TEMP/rz-core-evidence/$composition-$name-selection.txt"
+            cargo test --locked -p rustzen-admin "${args[@]}" "$filter" -- --test-threads=1 \
+              2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/$composition-$name-tests.log"
           }
-          run_suite rust-role features::system::role::
-          run_suite rust-role-route infra::app::tests::roles::
+          for composition in core full; do
+            run_suite "$composition" role features::system::role::
+            run_suite "$composition" role-route infra::app::tests::roles::
+          done
+      - name: Generate and constrain the OpenAPI delta
+        run: |
+          cargo run --locked --quiet -p rustzen-admin -- openapi > "$RUNNER_TEMP/rz-core-evidence/generated-openapi.json"
+          python3 - <<'PYCODE'
+          import copy, json, os, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'rz-core-evidence'
+          old = json.loads(subprocess.check_output(['git','show','HEAD:openapi/admin-contract.json']))
+          expected = copy.deepcopy(old)
+          params = expected['paths']['/api/system/roles']['get']['parameters']
+          assert [p['name'] for p in params] == ['current','pageSize','roleName','roleCode','status']
+          params.insert(2, {'name':'keyword','in':'query','description':'Literal substring of role name or code; ASCII-case-insensitive and trimmed.','required':False,'schema':{'type':'string'}})
+          actual = json.loads((root/'generated-openapi.json').read_text())
+          assert actual == expected, 'unexpected contract delta beyond ListRoles.keyword'
+          for p in ['openapi/admin-contract.json','openapi/baselines/contract-admin-current.json']:
+              Path(p).write_bytes((root/'generated-openapi.json').read_bytes())
+          PYCODE
+          just contract-client 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/contract-client.log"
+          python3 - <<'PYCODE'
+          import subprocess
+          from pathlib import Path
+          p = 'apps/web/src/api/generated/admin-contract.ts'
+          old = subprocess.check_output(['git','show',f'HEAD:{p}'], text=True)
+          needle = '    /**\n     * Filter by role name (case-insensitive search).\n     */\n    roleName?: string;'
+          assert old.count(needle) == 1
+          addition = '    /**\n     * Literal substring of role name or code; ASCII-case-insensitive and trimmed.\n     */\n    keyword?: string;\n'
+          assert Path(p).read_text() == old.replace(needle, addition + needle), 'unexpected generated client delta'
+          PYCODE
+          just contract-verify 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/contract-verify.log"
+          git diff --check
+      - name: Prepare bounded source and execution-record proposals
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import os, json, subprocess, hashlib, re, shutil
+          allowed = ['apps/admin/src/features/system/role/repo.rs', 'apps/admin/src/features/system/role/repo_tests.rs', 'apps/admin/src/features/system/role/service.rs', 'apps/admin/src/features/system/role/types.rs', 'apps/admin/src/infra/app/tests/roles.rs', 'apps/web/src/api/system/role/types.d.ts', 'apps/web/src/routes/system/role.tsx', 'docs/product/features/role-definition-management/spec.md', 'docs/ui/features/role-definition-management.md', 'docs/ui/index.md', 'openapi/admin-contract.json', 'openapi/baselines/contract-admin-current.json', 'apps/web/src/api/generated/admin-contract.ts', 'docs/plans/product-iteration-tasks.md']
+          evidence = Path(os.environ['RUNNER_TEMP'])/'rz-core-evidence'
+          run = os.environ['GITHUB_RUN_ID']; source = os.environ['GITHUB_SHA']
+          summaries = {}
+          for name in ['core-role-tests.log','core-role-route-tests.log','full-role-tests.log','full-role-route-tests.log']:
+              matches = re.findall(r'test result: ok\. (\d+) passed; (\d+) failed;', (evidence/name).read_text())
+              assert matches and int(matches[-1][0]) > 0 and matches[-1][1] == '0', name
+              summaries[name] = int(matches[-1][0])
+          # The preceding execution record is preserved, not rewritten as current proof.
+          p = Path('docs/plans/product-iteration-tasks.md')
+          s = p.read_text()
+          heading = '## Current execution — developer entry follow-up (2026-10-27)'
+          assert s.count(heading) == 1
+          record = f"""## Current execution — D-04 role keyword search (2026-10-28)
+
+          - task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`
+          - project_id: `github-1006131708`; repository `idaibin/rustzen-admin`.
+          - Owner: current coordinator, one implementation writer. No independent reviewer
+            is available in this execution; historical reviewer verdicts are not reused.
+          - Basis: developer-entry `353b31a`, cloud baseline `0c655af`, and immutable
+            candidate input `{source}` plus the SHA-256-bound patch recorded below.
+          - Branch: `work/ai-first-core-20261027`; main and release defaults stay unchanged.
+          - Execution unit: existing D-04, a bounded adaptation of the existing role list.
+          - Current status: implementation and selected native checks passed;
+            browser/live-identity acceptance remains open. D-04 is not marked complete.
+          - Change: one optional `keyword` matches persisted name OR code, with literal
+            substring and ASCII-case-insensitive semantics. Blank input is ignored;
+            old name/code/status filters retain their semantics and intersect the keyword.
+            The UI uses one bilingual search field and the existing status/debounce/IME/
+            pagination owners. No schema, role grants, write behavior or new product area.
+          - next_action: verify the committed candidate through real browser interactions
+            and a live restricted identity: typing/IME, immediate clear, page-one reset,
+            status intersection, error/retry retention, both languages and narrow layout.
+            Obtain an independent review before final acceptance. Do not repeat unchanged
+            native checks merely to inflate completion counts.
+
+          ### D-04 execution record — 2026-10-28
+
+          The previous disconnected device is not an execution dependency: an isolated
+          GitHub-hosted runner is used. Baseline run `40649367822` at `0c655af` passed
+          7 native role tests, 2 native route tests and 3 focused Web tests. Its downloaded
+          artifact `12798742854` was checked against ZIP SHA-256
+          `5ad424ffd2287c24a7a21d2669ec3d1488bcf50add587c5f0f50234919a5f9fb`
+          and all internal checksums before its source snapshot was used locally.
+
+          Candidate verification: [Actions run {run}](https://github.com/idaibin/rustzen-admin/actions/runs/{run}).
+          Source commit: `{source}`; patch SHA-256:
+          `a7666272fa9237d1e019be30069e4bbea981895ed0efae7b97bace10d449c409`.
+          The patch and generated-source bytes are retained in the run artifact with a
+          per-file manifest. Final delivery must match those source blobs; the temporary
+          patch and proposal-publishing job are removed when the coordinator commits them.
+          The publisher creates only Git blob objects, never branches, commits or refs.
+          Build/test jobs have read-only repository permission; only that bounded publisher
+          has contents-write, with no dependency installation or product execution.
+
+          Completed checks: locked dependency installation; full and core Web builds;
+          TypeScript; 3 existing focused Web tests (not DOM tests); core native role
+          {summaries['core-role-tests.log']} and route {summaries['core-role-route-tests.log']};
+          full native role {summaries['full-role-tests.log']} and route {summaries['full-role-route-tests.log']};
+          Rust-derived OpenAPI and Orval client generation, exact keyword-only delta checks,
+          `just contract-verify`, and `git diff --check`. Five added SQLite regressions cover
+          both match arms, status grouping, literal special characters/SQL-looking data,
+          blank/absent input, legacy intersections, deletion exclusion and pagination totals.
+          One added Axum/SQLite regression covers query decoding and allowed/401/403 paths;
+          its TestLoader is synthetic authority, not a live authorization journey.
+
+          A deliberately removed keyword predicate made the targeted new test fail
+          (0 passed / 1 failed, Cargo 101), then the original implementation was restored
+          and the positive suites passed. This is a test-sensitivity check, not a production
+          failure. Test counts across core/full are separate build profiles, not independent
+          user samples. The workflow is bounded to this work branch, uses no production
+          credentials, signs no release, and performs no deployment.
+
+          Not verified: real browser/IME/focus/viewport behavior, live-user persistence and
+          audit journey for this slice, full-workspace checks, independent review, genuine
+          old-full compatibility and production. Independent developer samples remain 0;
+          no paired efficiency baseline or AI productivity improvement is claimed.
+          A-* totals remain 5 Done / 1 Blocked; OE-A09/OE-T10 and OE-5 remain unchanged.
+          Raw Actions artifacts expire after 30 days; this versioned record, test source
+          and pinned workflow preserve the reproducible procedure, not indefinite raw-log
+          availability.
+
+          """
+          s = s.replace(heading, record + '## Previous execution — developer entry follow-up (2026-10-27)', 1)
+          old = '| D-04 | Existing role feature adaptation | Introductory source walkthrough included in D-01; independent developer adaptation has not been sampled. Do not add a new business domain merely to create an example. |'
+          new = '| D-04 | Existing role feature adaptation | Unified role keyword search has source and selected core/full native evidence in the current D-04 record. Browser/live-identity and independent review remain open; independent developer samples remain 0. |'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old,new,1))
+          actual = subprocess.check_output(['git','diff','--name-only'], text=True).splitlines()
+          assert sorted(actual) == sorted(allowed), actual
+          manifest = {'source_commit':source,'run_id':run,'files':[],'native_tests':summaries}
+          for name in allowed:
+              data = Path(name).read_bytes()
+              dst = evidence/'proposed'/name; dst.parent.mkdir(parents=True,exist_ok=True); dst.write_bytes(data)
+              manifest['files'].append({'path':name,'mode':'100644','sha256':hashlib.sha256(data).hexdigest(),'blob_sha':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()})
+          (evidence/'proposal.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          subprocess.run(['git','diff','--check'],check=True)
+          subprocess.run(['git','add','--',*allowed],check=True)
+          tree = subprocess.check_output(['git','write-tree'], text=True).strip()
+          (evidence/'tested-tree.txt').write_text(tree+'\n')
+          subprocess.run(['git','archive','--format=tar.gz','-o',str(evidence/'source.tar.gz'),tree],check=True)
+          (evidence/'tested.diff').write_bytes(subprocess.check_output(['git','diff','--cached','--binary']))
+          PYCODE
       - name: Bind retained evidence
         if: always()
         run: |
@@ -80,13 +270,58 @@ jobs:
             cp apps/web/dist-core/inventory.json "$RUNNER_TEMP/rz-core-evidence/core-web-inventory.json"
           fi
           cd "$RUNNER_TEMP/rz-core-evidence"
-          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
-            | sort -z | xargs -0 -r sha256sum > SHA256SUMS
-      - name: Retain source and verification logs
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS
+      - name: Retain candidate verification evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: core-template-evidence-${{ github.sha }}
           path: ${{ runner.temp }}/rz-core-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-verified-blobs:
+    needs: core-role-checks
+    if: github.repository_id == '1006131708' && github.ref == 'refs/heads/work/ai-first-core-20261027'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Read only this run's verified proposal
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: core-template-evidence-${{ github.sha }}
+          path: proposal
+      - name: Store fixed candidate blobs without changing any ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import os, json, hashlib, urllib.request
+          from pathlib import Path
+          allowed = ['apps/admin/src/features/system/role/repo.rs', 'apps/admin/src/features/system/role/repo_tests.rs', 'apps/admin/src/features/system/role/service.rs', 'apps/admin/src/features/system/role/types.rs', 'apps/admin/src/infra/app/tests/roles.rs', 'apps/web/src/api/system/role/types.d.ts', 'apps/web/src/routes/system/role.tsx', 'docs/product/features/role-definition-management/spec.md', 'docs/ui/features/role-definition-management.md', 'docs/ui/index.md', 'openapi/admin-contract.json', 'openapi/baselines/contract-admin-current.json', 'apps/web/src/api/generated/admin-contract.ts', 'docs/plans/product-iteration-tasks.md']
+          root = Path('proposal'); info = json.loads((root/'proposal.json').read_text())
+          assert info['source_commit'] == os.environ['GITHUB_SHA']
+          assert str(info['run_id']) == os.environ['GITHUB_RUN_ID']
+          assert sorted(x['path'] for x in info['files']) == sorted(allowed)
+          assert os.environ['GITHUB_REPOSITORY'] == 'idaibin/rustzen-admin'
+          for item in info['files']:
+              data = (root/'proposed'/item['path']).read_bytes()
+              assert hashlib.sha256(data).hexdigest() == item['sha256']
+              assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest() == item['blob_sha']
+              body = json.dumps({'content':data.decode('utf-8'),'encoding':'utf-8'}).encode()
+              req = urllib.request.Request('https://api.github.com/repos/idaibin/rustzen-admin/git/blobs', data=body, method='POST', headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'})
+              with urllib.request.urlopen(req,timeout=30) as response: result=json.load(response)
+              assert result['sha'] == item['blob_sha']
+              print(item['path'], result['sha'])
+          Path('published-blobs.json').write_text(json.dumps(info,indent=2)+'\n')
+          PYCODE
+      - name: Retain the coordinator's verified blob manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: core-template-blobs-${{ github.sha }}
+          path: published-blobs.json
           if-no-files-found: error
           retention-days: 30
