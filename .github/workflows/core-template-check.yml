@@ -97,6 +97,19 @@ jobs:
           just contract-verify 2>&1 | tee "$RUNNER_TEMP/rz-core-evidence/contract-verify.log"
           git diff --check
           git diff --exit-code
+      - name: Build the core browser target
+        run: cargo build --locked -p rustzen-admin --no-default-features --features core --bin rz-admin
+      - name: Prepare isolated Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rz-playwright" --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/rz-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify role search in the real browser and with real identities
+        run: |
+          RUSTZEN_BROWSER_DISPOSABLE=1 \
+          RUSTZEN_PLAYWRIGHT_MODULE="$RUNNER_TEMP/rz-playwright/node_modules/playwright" \
+          RUSTZEN_BROWSER_OUTPUT="$RUNNER_TEMP/rz-core-evidence/browser" \
+          node scripts/verify-role-keyword-browser.mjs
+          git diff --exit-code
       - name: Bind retained evidence
         if: always()
         run: |
