@@ -245,7 +245,12 @@ try {
             assert.equal((await roles()).total, before);
             await api(`/api/system/roles/${readerRole.id}`, { method: "PUT", body: { ...readerRole.body, menuIds: [readUser] } });
             await api("/api/system/roles?keyword=needle", { token: readerToken, expected: 403 });
-            await p.reload(); await p.waitForURL((u) => u.pathname === "/403");
+            const revokedResponse = waitList(p, (_, r) => r.status() === 403);
+            await p.reload(); await revokedResponse;
+            // An already-open route may present its explicit load error rather than redirect.
+            await p.getByText("Failed to load roles", { exact: true }).or(p.getByText("Access denied", { exact: true })).first().waitFor();
+            assert.equal(await p.locator(".ant-table-tbody tr[data-row-key]").count(), 0, "Revoked view must not retain role rows");
+            await shot("reader-permission-denied", p);
             await api(`/api/system/roles/${readerRole.id}`, { method: "PUT", body: readerRole.body });
             await api("/api/system/roles?keyword=needle", { token: readerToken });
             const deniedToken = (await api("/api/auth/login", { method: "POST", token: null, body: { username: "d04_nonreader", password } })).data.token;
@@ -254,7 +259,11 @@ try {
             const audit = db("SELECT description,status FROM operation_logs WHERE username='d04_reader' AND description LIKE '%/api/system/roles%'");
             for (const text of ["GET /api/system/roles - 200", "GET /api/system/roles - 403", "POST /api/system/roles - 403"]) assert(audit.some((a) => a.description === text), `Missing audit: ${text}`);
             result.audit = audit;
-        } finally { await ctx.close(); }
+        } finally {
+            // Restore owned fixture authority even when a UI assertion fails.
+            try { await api(`/api/system/roles/${readerRole.id}`, { method: "PUT", body: readerRole.body }); }
+            finally { await ctx.close(); }
+        }
     });
     await check("restart-persistence-cleanup", async () => {
         const before = (await roles()).data.map((r) => r.id).sort((a,b) => a-b);

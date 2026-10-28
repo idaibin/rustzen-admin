@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 
 import { systemAPI } from "@/api";
 import { AuthWrap } from "@/components/auth";
+import { BackgroundRefreshNotice } from "@/components/feedback/background-refresh-notice";
 import { DataState } from "@/components/feedback/data-state";
 import { PageCard } from "@/components/page/page-card";
 import { StatusTag } from "@/components/status-tag";
@@ -51,7 +52,7 @@ function RolePage() {
         [currentPage, filters],
     );
 
-    const { data, error, isFetching, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "role", params],
         queryFn: () => systemAPI.role.list(params),
         staleTime: 0,
@@ -252,6 +253,13 @@ function RolePage() {
                 </AuthWrap>
             }
         >
+            {error ? (
+                <BackgroundRefreshNotice
+                    updatedAt={dataUpdatedAt}
+                    onRetry={() => void refetch()}
+                    retrying={isFetching}
+                />
+            ) : null}
             <ProTable<Role.Item>
                 rowKey="id"
                 columns={columns}
