@@ -239,20 +239,45 @@ try {
         try {
             readerToken = await login(p, reader.username, password);
             await openRoles(p); assert.equal((await search("needle", p)).total, 4);
+            await search("Other", p); // Keep the needle result cached before authority changes.
             assert.equal(await p.getByRole("button", { name: "New role", exact: true }).count(), 0);
             const before = (await roles()).total;
             await api("/api/system/roles", { method: "POST", token: readerToken, body: { name: "Forbidden", code: "d04_forbidden", status: 1, menuIds: [readRole] }, expected: 403 });
             assert.equal((await roles()).total, before);
             await api(`/api/system/roles/${readerRole.id}`, { method: "PUT", body: { ...readerRole.body, menuIds: [readUser] } });
             await api("/api/system/roles?keyword=needle", { token: readerToken, expected: 403 });
-            const revokedResponse = waitList(p, (_, r) => r.status() === 403);
-            await p.reload(); await revokedResponse;
-            // An already-open route may present its explicit load error rather than redirect.
-            await p.getByText("Failed to load roles", { exact: true }).or(p.getByText("Access denied", { exact: true })).first().waitFor();
+            // Revalidate a cached query on the mounted page. A hard reload clears that
+            // cache and may redirect before a list request, so it cannot prove this case.
+            const revokedResponse = waitList(p, (s, r) => s.get("keyword") === "needle" && r.status() === 403);
+            await keyword(p).fill("needle"); await revokedResponse;
+            await p.getByText("Access denied", { exact: true }).waitFor();
             assert.equal(await p.locator(".ant-table-tbody tr[data-row-key]").count(), 0, "Revoked view must not retain role rows");
+            assert.equal(await keyword(p).inputValue(), "needle");
+            assert.equal(await p.getByRole("button", { name: "New role", exact: true }).count(), 0);
             await shot("reader-permission-denied", p);
+
+            // A transient failure after denial must not bring the old authorized rows back.
+            let failedRetries = 0;
+            const match = (u) => u.pathname === "/api/system/roles" && u.searchParams.get("keyword") === "needle";
+            const handler = (r) => { failedRetries++; return r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: 40001, message: "D04 injected post-denial failure", data: null }) }); };
+            await p.route(match, handler);
+            try {
+                const failed = waitList(p, (_, r) => r.status() === 503 && failedRetries === 4);
+                await p.getByRole("button", { name: "Reload", exact: true }).click(); await failed;
+                await p.waitForFunction(() => !document.querySelector(".ant-btn-loading"));
+                await p.getByText("Access denied", { exact: true }).waitFor();
+                assert.equal(await p.locator(".ant-table-tbody tr[data-row-key]").count(), 0);
+                await shot("reader-denied-after-refresh-error", p);
+            } finally { await p.unroute(match, handler); }
+
             await api(`/api/system/roles/${readerRole.id}`, { method: "PUT", body: readerRole.body });
             await api("/api/system/roles?keyword=needle", { token: readerToken });
+            const restored = waitList(p, (s, r) => s.get("keyword") === "needle" && r.status() === 200);
+            await p.getByRole("button", { name: "Reload", exact: true }).click();
+            assert.equal((await (await restored).json()).total, 4);
+            await p.locator(".ant-table-tbody tr[data-row-key]").first().waitFor();
+            await p.getByText("Access denied", { exact: true }).waitFor({ state: "hidden" });
+            assert.equal(await keyword(p).inputValue(), "needle");
             const deniedToken = (await api("/api/auth/login", { method: "POST", token: null, body: { username: "d04_nonreader", password } })).data.token;
             await api("/api/system/roles?keyword=needle", { token: deniedToken, expected: 403 });
             await api("/api/system/roles?keyword=needle", { token: null, expected: 401 });

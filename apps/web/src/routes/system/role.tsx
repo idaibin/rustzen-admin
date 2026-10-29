@@ -39,6 +39,7 @@ function RolePage() {
     const [keyword, setKeyword] = useState("");
     const [status, setStatus] = useState("all");
     const [isComposing, setIsComposing] = useState(false);
+    const [deniedAt, setDeniedAt] = useState(0);
     const appliedKeyword = useDebouncedValue(keyword.trim(), 300, !isComposing);
     const filters = useMemo(() => ({ keyword: appliedKeyword, status }), [appliedKeyword, status]);
     const [currentPage, setCurrentPage] = useFilteredPage(JSON.stringify(filters));
@@ -52,11 +53,21 @@ function RolePage() {
         [currentPage, filters],
     );
 
-    const { data, dataUpdatedAt, error, isFetching, isPending, refetch } = useQuery({
+    const { data, dataUpdatedAt, error, errorUpdatedAt, isFetching, isPending, refetch } = useQuery({
         queryKey: ["system", "role", params],
         queryFn: () => systemAPI.role.list(params),
         staleTime: 0,
+        retry: (failureCount, failure) =>
+            !(failure instanceof Response && (failure.status === 401 || failure.status === 403)) &&
+            failureCount < 3,
     });
+
+    const deniedResponse =
+        error instanceof Response && (error.status === 401 || error.status === 403);
+    if (deniedResponse && errorUpdatedAt > deniedAt) setDeniedAt(errorUpdatedAt);
+    // A later network failure or filter change must not revive pre-denial cached rows.
+    // Only a successful list response newer than the denial restores this mounted view.
+    const permissionDenied = deniedResponse || (deniedAt > 0 && dataUpdatedAt <= deniedAt);
 
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
@@ -183,7 +194,7 @@ function RolePage() {
         </div>
     );
 
-    if (!data && isPending) {
+    if (!data && isPending && !permissionDenied) {
         return (
             <PageCard
                 toolbar={searchControls}
@@ -198,7 +209,7 @@ function RolePage() {
         );
     }
 
-    if (!data && error) {
+    if (permissionDenied || (!data && error)) {
         return (
             <PageCard
                 toolbar={searchControls}
@@ -208,22 +219,33 @@ function RolePage() {
                     "Manage role definitions and permission assignments.",
                 )}
                 actions={
-                    <AuthWrap code="system:role:create">
-                        <RoleDialog mode="create" onSuccess={refresh}>
-                            <Button type="primary" icon={<PlusOutlined />}>
-                                {t("新建角色", "New role")}
-                            </Button>
-                        </RoleDialog>
-                    </AuthWrap>
+                    permissionDenied ? undefined : (
+                        <AuthWrap code="system:role:create">
+                            <RoleDialog mode="create" onSuccess={refresh}>
+                                <Button type="primary" icon={<PlusOutlined />}>
+                                    {t("新建角色", "New role")}
+                                </Button>
+                            </RoleDialog>
+                        </AuthWrap>
+                    )
                 }
             >
                 <DataState
                     kind="error"
-                    title={t("角色加载失败", "Failed to load roles")}
+                    title={
+                        permissionDenied
+                            ? t("禁止访问", "Access denied")
+                            : t("角色加载失败", "Failed to load roles")
+                    }
                     description={
-                        error instanceof Error
-                            ? error.message
-                            : t("请稍后重试。", "Please try again later.")
+                        permissionDenied
+                            ? t(
+                                  "你没有查看角色所需的权限。权限恢复后可重新加载。",
+                                  "You do not have permission to view roles. Reload after access is restored.",
+                              )
+                            : error instanceof Error
+                              ? error.message
+                              : t("请稍后重试。", "Please try again later.")
                     }
                     action={
                         <Button loading={isFetching} onClick={() => void refetch()}>

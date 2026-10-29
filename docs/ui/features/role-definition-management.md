@@ -15,6 +15,16 @@ This slice does not change shared tokens, component semantics, or the accepted
 visual language. A design-system Manifest is skipped because no structured
 automation consumer or shared-system revision is introduced.
 
+## Role-list authorization during refresh
+
+A confirmed HTTP 401/403 is not an ordinary background refresh failure. The
+mounted role page hides cached rows and create actions, retains the applied search
+controls, and presents explicit denial without automatically retrying that denial.
+A subsequent network failure or cached-filter change must not restore pre-denial
+rows; a newer successful list response is required. Ordinary transient refresh
+failures without a preceding denial still retain data with the shared retry notice.
+Server-side authorization and root-route navigation remain their existing owners.
+
 ## Layout and ownership
 
 - Keep one **Role name or code / 角色名称或编码** keyword input and the existing
