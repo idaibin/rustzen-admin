@@ -1,35 +1,33 @@
 # Admin 迭代方案
 
-## Current Task State — D-05 discovery (2026-10-28)
+## Current Task State — D-06 discovery (2026-10-29)
 
 - task_identifier / task_key: `ai-engineering-lab/github-1006131708/template-adoption`.
 - project_id: `github-1006131708`; repository `idaibin/rustzen-admin`.
 - Branch: `work/ai-first-core-20261027`; source basis
-  `a8adcbd5fe58a862646d786257036b788358918e`, tree
-  `01d17cd8b2710bb232e4f55ca1c1d9b5c4862098`.
+  `379c650089d00a1cb10852a32b6720b74883b2a8`, tree
+  `41887c9508caf05ec2696b00c3cd1d849b13ee49`.
 - Owner: current coordinator, single documentation writer; no independent review claimed.
-- User direction: stop building and continue the next task. No dependency/toolchain
-  installation, build, service start, database operation or GitHub Actions execution.
-  Do not resume these steps merely because a later message says “continue”.
-- Execution unit: the existing D-05 demand/source discovery, not department implementation.
-- Status: source baseline and issue triage completed; D-05 demand validation and
-  implementation remain deferred. A-* stays 5 Done / 1 Blocked; OE gates are unchanged.
-- D-04: paused without acceptance. `1a1c223` changed the refresh-error UI and verifier;
-  `a8adcbd` removed the task workflow. Prior build/test evidence does not establish
-  acceptance of that changed candidate. Browser/live-identity and independent review
-  remain open; independent developer samples remain 0.
-- This dated receipt supersedes the execution selection and build `next_action` in
-  the earlier D-04 ledger entry and `a8adcbd` commit, not their historical evidence.
-- next_action: continue existing D-06 demand/source discovery only. Reopen D-05
-  implementation only after a concrete data object, actors, membership and access
-  rules are approved; resuming D-04 build/runtime acceptance needs explicit permission.
+- Execution unit: existing D-06 demand/source discovery only. D-05/D-06 issue and
+  source triage is recorded; independent use-case validation and implementation
+  remain deferred. A-* stays 5 Done / 1 Blocked; OE gates and developer sample count 0
+  are unchanged. Discovery output is not feature acceptance or market validation.
+- User direction remains: no dependency/toolchain installation, builds, services,
+  database operations or GitHub Actions. Generic “continue” does not revoke this.
+- D-04 runtime acceptance remains paused. Historical passes do not accept the
+  refresh-error change at `1a1c223`; independent review is still missing.
+- This state supersedes the earlier execution selection, not historical evidence.
+- next_action: a bounded, coordinator-owned static review of the existing D-04 role
+  search, refresh-error change and browser verifier. Do not run it, rebuild, create
+  new scope or label self-review independent. D-05/D-06 implementation needs a
+  concrete approved use case; D-04 build/runtime resumption needs explicit permission.
 
-### D-05 execution record and decision
+### D-05 execution record and decision (2026-10-28)
 
 **Decision: do not add a department table, scope selector or generic policy engine
 from the current evidence.** The approved iteration calls D-05 a discovery item,
-not accepted implementation scope. D-06 remains separate and was not investigated
-in this execution.
+not accepted implementation scope. D-06 was not investigated in the D-05 run;
+its separate follow-up is recorded below.
 
 Demand evidence was reread live on 2026-10-28: [issue #2](https://github.com/idaibin/rustzen-admin/issues/2)
 was opened on 2025-08-25 and contains only a request for department permission
@@ -39,7 +37,7 @@ read/write/export example in that thread. This is one historical demand signal,
 not a confirmed specification or an independent adoption sample. No issue comment,
 customer contact or recruitment message was published by this execution.
 
-Verified source facts at the basis above:
+Verified source facts at the D-05 basis `a8adcbd5fe58a862646d786257036b788358918e`:
 
 | Boundary | Source evidence | Consequence for D-05 |
 | --- | --- | --- |
@@ -83,6 +81,54 @@ passed. Only this plan is changed. The current execution state is also included
 in the delivery commit message; remote blob/ref readback is required before the
 unit is reported delivered. No product, API, schema, permission, release default,
 A/OE acceptance or main/review branch changes are part of this unit.
+
+### D-06 execution record and decision (2026-10-29)
+
+**Keep the base template instance-scoped; do not add tenant entities, a tenant
+switcher, a generic isolation layer or a PostgreSQL provider in this slice.**
+This preserves the [product boundary](../product/product.md#product-boundary),
+not a new platform decision. AI-assisted development is not evidence of tenant demand.
+
+[Issue #3](https://github.com/idaibin/rustzen-admin/issues/3), opened 2025-08-30,
+asks about a roadmap and isolation patterns for SaaS/enterprise adoption. Its sole
+[maintainer reply](https://github.com/idaibin/rustzen-admin/issues/3#issuecomment-3263554055)
+explicitly excludes multi-tenancy from the base roadmap while leaving optional
+experimentation open. Both were reread on 2026-10-29. This thread supplies no
+concrete tenant lifecycle, membership, data object or administration contract.
+The reply's three database patterns are historical suggestions, not implemented
+options or validated isolation guarantees; PostgreSQL remains outside the
+[current phase](../guides/ai-coding-rules.md#phase-scope). No public reply was posted.
+
+| Current boundary, checked at the D-06 basis | Implication |
+| --- | --- |
+| [Users/sessions/roles](../../apps/admin/migrations/sqlite/0001_init.sql#L4-L63), [role membership](../../apps/admin/migrations/sqlite/0001_init.sql#L148-L166), [claims](../../crates/auth/src/auth/claims.rs#L3-L13) and [CurrentUser](../../crates/auth/src/auth/context.rs#L7-L41) | Identity/grants are instance-wide; username/email and role uniqueness are not tenant-scoped. No tenant membership is carried in these contracts. Existing owner privileges are not a tenant-administrator boundary. |
+| [Admin pool](../../apps/admin/src/infra/db.rs#L20-L46) and [request state](../../apps/admin/src/infra/app/runtime.rs#L101-L110) | A configured Admin database is shared by these request handlers; there is no request-time tenant database selection in this path. |
+| [Application database paths](../../crates/config/src/admin.rs#L258-L274) and [delegation](../../crates/ipc/src/delegation.rs#L44-L54) | Four application databases separate data owners, not customers. Signed delegation carries module/user/access, not tenant identity. Core/full composition is not a tenant mode. |
+| [Installed Admin unit](../../deploy/rz-admin.service#L14-L23) | Packaged paths and service identity are installation-wide. A configurable runtime root alone does not establish supported same-host multi-instance deployment or customer isolation. |
+
+Before any implementation, obtain one named use case resolving: (1) separate
+customer installations versus multiple tenants sharing one instance; (2) tenant
+identity, one/multiple memberships, switching/revocation and platform-owner versus
+tenant-admin authority; (3) the selected records, uniqueness, read/write/export,
+files, jobs, caches and backup/deletion boundaries that actually exist in that slice.
+A department, role, module or Analytics project must not silently become a tenant.
+
+Conditional direction only: separate customer installations do not by themselves
+require a shared-instance tenant model, but need their own deployment/security
+validation. A confirmed shared-instance use case needs a separately approved,
+bounded specification and tests proving rejection of forged tenant selection,
+non-membership and cross-tenant IDs, including after membership revocation and in
+any relevant non-HTTP path. Do not choose a storage strategy or claim isolation now.
+
+Verification: all 27 checksums in the already-mounted `03ac012` source archive
+passed. The live compare to `379c650` lists four changed paths; none is a source
+owner inspected for D-06. The current plan was reconstructed and its Git blob
+matched `a0a2b7914aab1ff3413842e68cf8b6bbee87df1a` before editing. Relative links,
+source-line ranges and `git diff --check` were checked for this documentation-only
+change. No repository tests, builds, database writes, services or Actions ran;
+no tenant-isolation or independent-adoption result is claimed. Delivery requires
+remote content/ref readback. D-05/D-06 implementation stays deferred; return to the
+existing feature's static review rather than creating another expansion task.
 
 ## 方案边界
 
